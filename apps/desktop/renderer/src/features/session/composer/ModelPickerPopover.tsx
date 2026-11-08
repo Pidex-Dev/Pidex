@@ -172,6 +172,8 @@ export type ProviderModelOption = {
   providerID: ModelProviderID
   displayName: string
   modelPresets: ModelPreset[]
+  /** 未配置凭据的自定义供应商也会进入列表，用于在选择器内直达配置入口。 */
+  apiKeyConfigured?: boolean
   logoURL?: string
   modelMetadata?: Record<string, DesktopModelMetadata>
 }
@@ -769,8 +771,28 @@ export function ModelPickerPopover({
                           )
                         })
                       ) : (
-                        <div className={MODELS_EMPTY_CLASS}>
-                          {filterText ? '没有匹配的模型' : '暂无可用的预设模型'}
+                        <div className={cx(MODELS_EMPTY_CLASS, 'tw:grid tw:justify-items-center tw:gap-2')}>
+                          {filterText ? (
+                            '没有匹配的模型'
+                          ) : !currentProvider.apiKeyConfigured ? (
+                            <>
+                              <span>该供应商尚未配置 API Key，配置后即可选择模型。</span>
+                              {onOpenModelSettings ? (
+                                <button
+                                  type="button"
+                                  className={HUB_ACTION_BUTTON_CLASS}
+                                  onClick={() => {
+                                    onOpenChange(false)
+                                    onOpenModelSettings()
+                                  }}
+                                >
+                                  去配置凭据
+                                </button>
+                              ) : null}
+                            </>
+                          ) : (
+                            '暂无可用的预设模型'
+                          )}
                         </div>
                       )}
                     </div>

@@ -96,7 +96,12 @@ export function useModelCenterController({ onInitialProviderState, onError, onNo
     modelIds: readonly string[],
     variant?: string,
   ) {
-    if (pendingProviders.current.has(provider.providerID) || modelIds.length === 0) return
+    if (modelIds.length === 0) return
+    if (pendingProviders.current.has(provider.providerID)) {
+      // 静默忽略会让「测试模型」按钮看起来失灵；必须给出可见反馈。
+      handlers.current.onNotice('该供应商的模型测试正在进行中，请稍候。')
+      return
+    }
     const error = desktopProviderExecutionError(provider)
     if (error) {
       handlers.current.onError(error)
@@ -136,8 +141,14 @@ export function useModelCenterController({ onInitialProviderState, onError, onNo
   }
 
   async function fetchModels(provider: DesktopModelProviderSummary) {
-    if (pendingProviders.current.has(provider.providerID)) return
-    if (provider.availability?.status === 'unavailable') return
+    if (pendingProviders.current.has(provider.providerID)) {
+      handlers.current.onNotice('该供应商的模型目录刷新正在进行中，请稍候。')
+      return
+    }
+    if (provider.availability?.status === 'unavailable') {
+      handlers.current.onError('此 Provider 的协议或 Endpoint 尚未适配，无法同步模型目录。')
+      return
+    }
     setPending(provider.providerID, true)
     try {
       await withModelCatalogLoading(() =>

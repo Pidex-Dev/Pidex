@@ -241,6 +241,7 @@ export function ProviderEditorForm({
   const createdProviderId = useRef<string | null>(null)
   const [candidates, setCandidates] = useState<DesktopProviderModelDefinition[]>([])
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set())
+  const [candidateFilter, setCandidateFilter] = useState('')
   const [tempApiKey, setTempApiKey] = useState('')
   const [pendingModelSync, setPendingModelSync] =
     useState<DesktopCustomProviderDefinition['modelSync']>(undefined)
@@ -314,6 +315,7 @@ export function ProviderEditorForm({
     setProtocol(managed ? deepSeekProtocolOf(managed.config) : DEFAULT_DEEPSEEK_PROTOCOL)
     setCandidates([])
     setSelectedCandidates(new Set())
+    setCandidateFilter('')
     setTempApiKey('')
     setPendingModelSync(undefined)
     setError(null)
@@ -566,7 +568,8 @@ export function ProviderEditorForm({
       const existing = new Set(models.map((model) => model.id.trim()).filter(Boolean))
       const nextCandidates = result.filter((model) => !existing.has(String(model.id)))
       setCandidates(nextCandidates)
-      setSelectedCandidates(new Set(nextCandidates.map((model) => String(model.id))))
+      // 默认全不选：上游目录可能包含大量非聊天模型，让用户按需挑选。
+      setSelectedCandidates(new Set())
       setPendingModelSync({
         fetchedAt: Date.now(),
         api,
@@ -591,7 +594,14 @@ export function ProviderEditorForm({
     setModels((current) => [...current, ...imported])
     setCandidates([])
     setSelectedCandidates(new Set())
+    setCandidateFilter('')
   }
+
+  const filteredCandidates = useMemo(() => {
+    const query = candidateFilter.trim().toLowerCase()
+    if (!query) return candidates
+    return candidates.filter((model) => String(model.id).toLowerCase().includes(query))
+  }, [candidates, candidateFilter])
 
   const isRemoteHttp = /^http:\/\//i.test(baseUrl) && !isLoopbackUrl(baseUrl)
 
@@ -989,41 +999,73 @@ export function ProviderEditorForm({
                 <section className="provider-editor-candidates-card tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-app-accent-border tw:bg-app-accent-subtle tw:p-4">
                   <header className="tw:flex tw:items-center tw:justify-between tw:gap-2">
                     <strong className="tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-sm)]">
-                      发现 {candidates.length} 个候选模型
+                      发现 {candidates.length} 个候选模型，已选 {selectedCandidates.size} 个
                     </strong>
-                    <Button
-                      size="md"
-                      color="primary"
-                      disabled={selectedCandidates.size === 0}
-                      onClick={importSelected}
-                    >
-                      导入已选 ({selectedCandidates.size})
-                    </Button>
-                  </header>
-                  <div className="provider-editor-candidates-list tw:grid tw:max-h-40 tw:gap-1 tw:overflow-y-auto tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2">
-                    {candidates.map((candidate) => (
-                      <label
-                        className="provider-editor-candidate-row tw:flex tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-xs tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-sm)] tw:hover:bg-app-hover tw:[&_input]:cursor-pointer"
-                        key={String(candidate.id)}
+                    <div className="tw:flex tw:items-center tw:gap-2">
+                      <Button
+                        size="md"
+                        color="secondary"
+                        onClick={() =>
+                          setSelectedCandidates(new Set(candidates.map((model) => String(model.id))))
+                        }
                       >
-                        <input
-                          checked={selectedCandidates.has(String(candidate.id))}
-                          type="checkbox"
-                          onChange={(event) =>
-                            setSelectedCandidates((current) => {
-                              const next = new Set(current)
-                              if (event.target.checked) next.add(String(candidate.id))
-                              else next.delete(String(candidate.id))
-                              return next
-                            })
-                          }
-                        />
-                        <span>{String(candidate.id)}</span>
-                        <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">
-                          {candidate.api}
-                        </span>
-                      </label>
-                    ))}
+                        全选
+                      </Button>
+                      <Button
+                        size="md"
+                        color="secondary"
+                        disabled={selectedCandidates.size === 0}
+                        onClick={() => setSelectedCandidates(new Set())}
+                      >
+                        清空
+                      </Button>
+                      <Button
+                        size="md"
+                        color="primary"
+                        disabled={selectedCandidates.size === 0}
+                        onClick={importSelected}
+                      >
+                        导入已选 ({selectedCandidates.size})
+                      </Button>
+                    </div>
+                  </header>
+                  <Input
+                    aria-label="筛选候选模型"
+                    autoComplete="off"
+                    placeholder="按 ID 筛选候选模型"
+                    value={candidateFilter}
+                    onChange={(event) => setCandidateFilter(event.target.value)}
+                  />
+                  <div className="provider-editor-candidates-list tw:grid tw:max-h-40 tw:gap-1 tw:overflow-y-auto tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2">
+                    {filteredCandidates.length > 0 ? (
+                      filteredCandidates.map((candidate) => (
+                        <label
+                          className="provider-editor-candidate-row tw:flex tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-xs tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-sm)] tw:hover:bg-app-hover tw:[&_input]:cursor-pointer"
+                          key={String(candidate.id)}
+                        >
+                          <input
+                            checked={selectedCandidates.has(String(candidate.id))}
+                            type="checkbox"
+                            onChange={(event) =>
+                              setSelectedCandidates((current) => {
+                                const next = new Set(current)
+                                if (event.target.checked) next.add(String(candidate.id))
+                                else next.delete(String(candidate.id))
+                                return next
+                              })
+                            }
+                          />
+                          <span>{String(candidate.id)}</span>
+                          <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">
+                            {candidate.api}
+                          </span>
+                        </label>
+                      ))
+                    ) : (
+                      <p className="tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-sm)]">
+                        没有匹配的候选模型。
+                      </p>
+                    )}
                   </div>
                 </section>
               ) : null}
