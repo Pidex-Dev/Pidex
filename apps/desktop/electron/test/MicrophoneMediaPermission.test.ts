@@ -229,3 +229,13 @@ describe('microphone media permission policy', () => {
     ).toBe(false)
   })
 })
+
+test('HTML fullscreen is scoped to the trusted main window and main frame', () => {
+  const request = { ...allowed, permission: 'fullscreen', requestedMediaTypes: undefined }
+  expect(isMicrophoneMediaPermissionAllowed(request)).toBe(true)
+  expect(isMicrophoneMediaPermissionAllowed({ ...request, isMainFrame: false })).toBe(false)
+  expect(isMicrophoneMediaPermissionAllowed({ ...request, isMainWindowSender: false })).toBe(false)
+  expect(
+    isMicrophoneMediaPermissionAllowed({ ...request, requestingUrl: 'https://example.com' }),
+  ).toBe(false)
+})

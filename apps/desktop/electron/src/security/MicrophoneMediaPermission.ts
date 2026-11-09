@@ -17,7 +17,7 @@ interface MicrophoneMediaPermissionDependencies {
 }
 
 export function isMicrophoneMediaPermissionAllowed(input: MicrophoneMediaPermissionInput): boolean {
-  if (input.permission === 'local-fonts') {
+  if (input.permission === 'local-fonts' || input.permission === 'fullscreen') {
     return isTrustedMainWindowPermissionRequest(input)
   }
   if (
