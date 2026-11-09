@@ -148,7 +148,7 @@ const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH = REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 
  * workbench panel instead of keeping the standalone column metrics.
  */
 const REVIEW_SIDEBAR_CLASS =
-  'review-sidebar tw:@container tw:flex tw:h-full tw:min-h-0 tw:flex-col tw:overflow-hidden tw:border-l tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-none tw:in-[.workbench-panel]:flex-auto tw:in-[.workbench-panel]:w-full tw:in-[.workbench-panel]:min-w-0 tw:in-[.workbench-panel]:max-w-none tw:in-[.workbench-panel]:border-l-0'
+  'review-sidebar tw:@container tw:flex tw:h-full tw:min-h-0 tw:flex-col tw:overflow-hidden tw:border-l tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-none tw:flex-auto tw:w-full tw:min-w-0 tw:max-w-none tw:in-[.workbench-panel]:border-l-0'
 const REVIEW_SIDEBAR_TOOLBAR_CLASS =
   'tw:box-border tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:min-h-12 tw:items-start tw:gap-2 tw:bg-app-dock tw:px-2 tw:py-2 tw:shadow-none'
 const REVIEW_COUNTS_CLASS = 'tw:inline-flex tw:items-center tw:gap-2'
@@ -2517,7 +2517,7 @@ function WorkspaceReviewSidebarImpl({
       ) : null}
 
       <motion.div
-        className="review-sidebar-main tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-stretch tw:overflow-hidden tw:bg-app-editor tw:[contain:size_layout_paint]"
+        className="review-sidebar-main tw:relative tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-1 tw:items-stretch tw:overflow-hidden tw:bg-app-editor tw:[contain:size_layout_paint]"
         ref={reviewMainRef}
         style={
           {

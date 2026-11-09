@@ -61,7 +61,7 @@ export function PullRequestPopover({
           align="end"
           size={size}
           aria-label="创建拉取请求"
-          className="review-popover pr-popover tw:flex tw:flex-col tw:gap-2 tw:font-sans"
+          className="review-popover pr-popover tw:flex tw:flex-col tw:font-sans"
           role="dialog"
         >
           <header className="review-popover-header tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:type-row-title">

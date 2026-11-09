@@ -53,7 +53,7 @@ export function CommitPopover({
           align="end"
           size={size}
           aria-label="提交或推送"
-          className="review-popover commit-popover tw:flex tw:flex-col tw:gap-2 tw:font-sans"
+          className="review-popover commit-popover tw:flex tw:flex-col tw:font-sans"
           role="dialog"
         >
           <header className="review-popover-header tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:type-row-title">

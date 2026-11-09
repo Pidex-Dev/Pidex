@@ -1,10 +1,8 @@
 import type React from 'react'
 import {
   AnimatePresence,
-  animate,
   motion,
-  useMotionValue,
-  useMotionValueEvent,
+  useTransform,
   usePresence,
   type MotionValue,
 } from 'motion/react'
@@ -73,35 +71,9 @@ function ReviewFileTreePanelPresenceItem({
   const [isPresent, safeToRemove] = usePresence()
   const shellRef = useRef<HTMLElement | null>(null)
   const [entryComplete, setEntryComplete] = useState(skipEnterAnimation)
-  const visibleState = { opacity: 1, x: 0 }
-  const hiddenState = { opacity: 0, x: 8 }
-  const allocatedWidth = useMotionValue(skipEnterAnimation ? width : 0)
-  const allocationAnimationRef = useRef<ReturnType<typeof animate> | null>(null)
-  const isPresentRef = useRef(isPresent)
-  isPresentRef.current = isPresent
-
-  useMotionValueEvent(liveWidth, 'change', (nextWidth) => {
-    if (!isPresentRef.current) return
-    allocationAnimationRef.current?.stop()
-    allocationAnimationRef.current = null
-    allocatedWidth.set(nextWidth)
-  })
-
-  useEffect(() => {
-    const animation = animate(
-      allocatedWidth,
-      isPresent ? liveWidth.get() : 0,
-      motionTransition(reducedMotion, isPresent ? layoutTween : exitTween),
-    )
-    allocationAnimationRef.current = animation
-    return () => {
-      animation.stop()
-      if (allocationAnimationRef.current === animation) {
-        allocationAnimationRef.current = null
-      }
-    }
-  }, [allocatedWidth, isPresent, liveWidth, reducedMotion, width])
-
+  const liveShellWidth = useTransform(liveWidth, (value) => value + 8)
+  const visibleState = { opacity: 1, width: width + 8, x: 0 }
+  const hiddenState = { opacity: 0, width: 0, x: 8 }
   useLayoutEffect(() => {
     if (isPresent) return
     setEntryComplete(false)
@@ -130,48 +102,39 @@ function ReviewFileTreePanelPresenceItem({
   }, [isPresent, reducedMotion, safeToRemove])
 
   return (
-    <>
-      <span
-        aria-hidden={!isPresent ? true : undefined}
-        className="review-file-tree-resize-presence tw:contents"
-        inert={!isPresent ? true : undefined}
+    <motion.section
+      ref={shellRef}
+      aria-hidden={!isPresent ? true : undefined}
+      aria-label="审查文件导航"
+      animate={
+        isPresent
+          ? visibleState
+          : {
+              ...hiddenState,
+              transition: motionTransition(reducedMotion, exitTween),
+            }
+      }
+      className="review-file-tree-panel tw:relative tw:flex tw:h-full tw:min-h-0 tw:grow-0 tw:shrink-0 tw:basis-auto tw:overflow-hidden tw:bg-app-panel tw:shadow-none"
+      data-presence={isPresent ? 'present' : 'exiting'}
+      data-review-file-tree-presence={isPresent ? 'open' : 'exiting'}
+      initial={skipEnterAnimation ? false : hiddenState}
+      inert={!isPresent ? true : undefined}
+      onAnimationComplete={() => {
+        if (isPresent) setEntryComplete(true)
+      }}
+      style={{
+        minWidth: isPresent && entryComplete ? REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 : 0,
+        width: liveShellWidth,
+      }}
+      transition={motionTransition(reducedMotion, entryComplete ? instantTween : layoutTween)}
+    >
+      {resizeHandle}
+      <motion.div
+        className="review-file-tree-panel-surface tw:flex tw:h-full tw:min-w-0 tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-hidden"
+        style={{ width: liveWidthPixels }}
       >
-        {resizeHandle}
-      </span>
-      <motion.section
-        ref={shellRef}
-        aria-hidden={!isPresent ? true : undefined}
-        aria-label="审查文件导航"
-        animate={
-          isPresent
-            ? visibleState
-            : {
-                ...hiddenState,
-                transition: motionTransition(reducedMotion, exitTween),
-              }
-        }
-        className="review-file-tree-panel tw:relative tw:flex tw:w-[var(--review-file-tree-panel-w,340px)] tw:min-w-60 tw:min-h-0 tw:flex-none tw:flex-col tw:overflow-hidden tw:bg-app-panel tw:shadow-none tw:[contain:size_layout_paint]"
-        data-presence={isPresent ? 'present' : 'exiting'}
-        data-review-file-tree-presence={isPresent ? 'open' : 'exiting'}
-        initial={skipEnterAnimation ? false : hiddenState}
-        inert={!isPresent ? true : undefined}
-        onAnimationComplete={() => {
-          if (isPresent) setEntryComplete(true)
-        }}
-        style={{
-          flexBasis: allocatedWidth,
-          minWidth: isPresent && entryComplete ? REVIEW_FILE_TREE_PANEL_MIN_WIDTH : 0,
-          width: allocatedWidth,
-        }}
-        transition={motionTransition(reducedMotion, entryComplete ? instantTween : layoutTween)}
-      >
-        <motion.div
-          className="review-file-tree-panel-surface tw:flex tw:h-full tw:min-w-0 tw:min-h-0 tw:flex-col"
-          style={{ width: liveWidthPixels }}
-        >
-          {children}
-        </motion.div>
-      </motion.section>
-    </>
+        {children}
+      </motion.div>
+    </motion.section>
   )
 }

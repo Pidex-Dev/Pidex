@@ -74,7 +74,7 @@ export function ReviewSourceMenu({
       >
         <PopoverRadioItem value="last-turn">上一轮</PopoverRadioItem>
       </PopoverRadioGroup>
-      <DropdownMenu.Separator className="review-source-menu-separator tw:my-1 tw:h-px tw:bg-app-border-subtle" />
+      <DropdownMenu.Separator className="review-source-menu-separator popover-menu-separator" />
       {supportsUncommitted ? (
         <PopoverRadioGroup
           value={source.kind === 'uncommitted' ? 'uncommitted' : ''}
@@ -90,7 +90,7 @@ export function ReviewSourceMenu({
         <PopoverRadioItem value="unstaged">未暂存</PopoverRadioItem>
         <PopoverRadioItem value="staged">已暂存</PopoverRadioItem>
       </PopoverRadioGroup>
-      <DropdownMenu.Separator className="review-source-menu-separator tw:my-1 tw:h-px tw:bg-app-border-subtle" />
+      <DropdownMenu.Separator className="review-source-menu-separator popover-menu-separator" />
       <ReviewCommitSourceSubmenu>
         {sourceOptionsState === 'loading' ? (
           <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
@@ -169,9 +169,8 @@ function ReviewCommitSourceSubmenu({ children }: { children: React.ReactNode }):
         <DropdownMenu.SubContent
           size="lg"
           data-theme-component="dropdown-surface"
-          className="popover-surface popover popover-sub-content popover-review-commits popover-menu--flex tw:max-h-[min(320px,calc(100vh-96px))] tw:overflow-hidden"
+          className="popover-surface popover popover-review-commits popover-menu--flex tw:max-h-[min(320px,calc(100vh-96px))] tw:overflow-hidden"
           collisionPadding={6}
-          sideOffset={4}
         >
           {children}
         </DropdownMenu.SubContent>
