@@ -10,9 +10,8 @@ import type {
   WorkbenchTabsState,
 } from './RightDockState.js'
 import {
-  createLauncherTab,
-  getWorkbenchLauncherDefinitions,
-  getWorkbenchLauncherPresentation,
+  getWorkbenchRouteLaunchers,
+  type WorkbenchPanelRoute,
   getWorkbenchTabDefinition,
   type WorkbenchTabRenderContext,
 } from '../tabs/WorkbenchTabRegistry.js'
@@ -44,6 +43,7 @@ type Props = {
   minHeight?: number
   onOpenReviewFile?: (path: string) => void
   sessionId: string | null
+  panelRoute?: WorkbenchPanelRoute
   providerManagement?: React.ReactNode
   width: number
   height?: number
@@ -219,6 +219,7 @@ export function WorkbenchPanel({
   onOpenReviewFile,
   sessionId,
   providerManagement,
+  panelRoute,
   width,
   height,
   onClose,
@@ -363,6 +364,7 @@ export function WorkbenchPanel({
               onCloseTabsToRight={onCloseTabsToRight}
               onMoveTab={onMoveTab}
               onPopOutTab={onPopOutTab}
+              panelRoute={panelRoute}
               onOpenTab={stableOnOpenTab}
               onCreateSideChat={onCreateSideChat}
               onCreateTerminal={onCreateTerminal}
@@ -375,6 +377,7 @@ export function WorkbenchPanel({
         }
       >
         <MemoizedWorkbenchPanelContent
+          panelRoute={panelRoute}
           contentRef={contentRef}
           panelContext={panelContext}
           state={state}
@@ -390,6 +393,7 @@ export function WorkbenchPanel({
 }
 
 const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
+  panelRoute,
   contentRef,
   panelContext,
   state,
@@ -399,6 +403,7 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
   onOpenTab,
   sideChatAvailable,
 }: {
+  panelRoute?: WorkbenchPanelRoute
   contentRef: React.RefObject<HTMLDivElement | null>
   panelContext: WorkbenchTabRenderContext
   state: WorkbenchPanelSnapshot
@@ -410,7 +415,7 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
 }): React.ReactNode {
   return (
     <WorkbenchPanelContentSurface ref={contentRef} target={target}>
-      {state.tabIds.length > 0 ? (
+      {state.tabIds.length > 0 && state.activeTabId !== null ? (
         state.tabIds.map((tabId) => {
           const tab = tabsById[tabId]
           if (!tab) return null
@@ -441,6 +446,7 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
         </div>
       ) : (
         <WorkbenchLauncher
+          panelRoute={panelRoute}
           onCreateSideChat={onCreateSideChat}
           onOpenTab={onOpenTab}
           panelContext={panelContext}
@@ -454,24 +460,24 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
 export { WorkbenchTabStrip as WorkbenchTabsHeader }
 
 function WorkbenchLauncher({
+  panelRoute,
   onCreateSideChat,
   onOpenTab,
   panelContext,
   sideChatAvailable,
 }: {
+  panelRoute?: WorkbenchPanelRoute
   onCreateSideChat: () => void
   onOpenTab: (tab: WorkbenchTabDescriptor) => void
   panelContext: WorkbenchTabRenderContext
   sideChatAvailable: boolean
 }): React.ReactNode {
-  const launchers = getWorkbenchLauncherDefinitions().filter(
-    (definition) => definition.kind !== 'side-chat' || sideChatAvailable,
-  )
+  const launchers = getWorkbenchRouteLaunchers(panelRoute, sideChatAvailable)
 
   const actions = launchers.flatMap<
     Parameters<typeof WorkbenchPanelLauncher>[0]['actions'][number]
   >((definition) => {
-    const presentation = getWorkbenchLauncherPresentation(definition)
+    const presentation = definition
     const availability = definition.getAvailability?.(panelContext) ?? {
       status: 'available' as const,
     }
@@ -479,7 +485,7 @@ function WorkbenchLauncher({
       return [
         {
           disabled: availability.status !== 'available',
-          id: definition.kind,
+          id: definition.id,
           icon: presentation.icon,
           label: presentation.label,
           reason: availability.reason,
@@ -488,17 +494,18 @@ function WorkbenchLauncher({
         },
       ]
     }
-    const tab = createLauncherTab(definition.kind)
-    if (!tab) return []
     return [
       {
         disabled: availability.status !== 'available',
-        id: definition.kind,
+        id: definition.id,
         icon: presentation.icon,
         label: presentation.label,
         reason: availability.reason,
         shortcut: presentation.shortcut,
-        onSelect: () => onOpenTab(tab),
+        onSelect: () => {
+          const tab = definition.createTab()
+          if (tab) onOpenTab(tab)
+        },
       },
     ]
   })

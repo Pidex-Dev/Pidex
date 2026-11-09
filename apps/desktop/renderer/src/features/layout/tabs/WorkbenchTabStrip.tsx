@@ -20,9 +20,8 @@ import type {
   WorkbenchTabsState,
 } from '../dock/RightDockState.js'
 import {
-  createLauncherTab,
-  getWorkbenchLauncherDefinitions,
-  getWorkbenchLauncherPresentation,
+  getWorkbenchRouteLaunchers,
+  type WorkbenchPanelRoute,
   getWorkbenchTabDefinition,
   getWorkbenchTabDisplayTitle,
 } from './WorkbenchTabRegistry.js'
@@ -36,6 +35,7 @@ export type WorkbenchTabStripProps = {
   onCloseTab: (tabId: WorkbenchTabId) => void
   onCloseOtherTabs: (tabId: WorkbenchTabId) => void
   onCloseTabsToRight: (tabId: WorkbenchTabId) => void
+  panelRoute?: WorkbenchPanelRoute
   onOpenTab: (tab: WorkbenchTabDescriptor) => void
   onCreateSideChat: () => void
   onCreateTerminal?: () => void
@@ -62,6 +62,7 @@ export function WorkbenchTabStrip({
   onCloseOtherTabs,
   onCloseTabsToRight,
   onOpenTab,
+  panelRoute,
   onCreateSideChat,
   onCreateTerminal,
   sideChatAvailable,
@@ -74,14 +75,11 @@ export function WorkbenchTabStrip({
   const tabRefs = useRef(new Map<WorkbenchTabId, HTMLButtonElement>())
   const [menuOpen, setMenuOpen] = useState(false)
   const providerManagementOnly = state.tabIds.some(
-    (id) => tabsById[id]?.kind === 'provider-management',
+    (id) => tabsById[id]?.kind === 'provider-management' || tabsById[id]?.kind === 'provider-model',
   )
   const launchers = useMemo(
-    () =>
-      getWorkbenchLauncherDefinitions().filter(
-        (definition) => definition.kind !== 'side-chat' || sideChatAvailable,
-      ),
-    [sideChatAvailable],
+    () => getWorkbenchRouteLaunchers(panelRoute, sideChatAvailable),
+    [panelRoute, sideChatAvailable],
   )
   const stripTabCount = state.tabIds.length
 
@@ -323,7 +321,7 @@ export function WorkbenchTabStrip({
             >
               <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
-          ) : state.tabIds.length > 0 && !providerManagementOnly ? (
+          ) : state.tabIds.length > 0 ? (
             <PopoverMenu
               align="end"
               avoidCollisions={false}
@@ -349,18 +347,18 @@ export function WorkbenchTabStrip({
               <PopoverRadioGroup
                 value={
                   launchers.find(
-                    (definition) => createLauncherTab(definition.kind)?.id === state.activeTabId,
-                  )?.kind ?? ''
+                    (definition) => definition.createTab()?.id === state.activeTabId,
+                  )?.id ?? ''
                 }
-                onValueChange={(kind) => {
-                  const definition = launchers.find((item) => item.kind === kind)
+                onValueChange={(id) => {
+                  const definition = launchers.find((item) => item.id === id)
                   if (!definition) return
                   if (definition.kind === 'side-chat') {
                     onCreateSideChat()
                     setMenuOpen(false)
                     return
                   }
-                  const candidate = createLauncherTab(definition.kind)
+                  const candidate = definition.createTab()
                   if (!candidate) return
                   if (state.tabIds.includes(candidate.id)) {
                     onSelectTab(candidate.id)
@@ -371,13 +369,13 @@ export function WorkbenchTabStrip({
                 }}
               >
                 {launchers.map((definition) => {
-                  const presentation = getWorkbenchLauncherPresentation(definition)
+                  const presentation = definition
                   return (
                     <PopoverRadioItem
                       icon={presentation.icon}
-                      key={definition.kind}
+                      key={definition.id}
                       shortcut={presentation.shortcut}
-                      value={definition.kind}
+                      value={definition.id}
                     >
                       {presentation.label}
                     </PopoverRadioItem>

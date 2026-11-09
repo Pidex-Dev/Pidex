@@ -12,7 +12,7 @@ if (process.env.PIDEX_PANEL_CONTEXT_TEST === '1') {
         return null
       },
     }),
-    getWorkbenchLauncherDefinitions: () => [],
+    getWorkbenchRouteLaunchers: () => [],
     createLauncherTab: () => null,
     getWorkbenchLauncherPresentation: () => null,
   }))

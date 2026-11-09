@@ -6,7 +6,7 @@ import type { MutableRefObject } from 'react'
 export type ProviderManagementPanelController = {
   tab: ProviderManagementTab | null
   host: HTMLElement | null
-  open: (providerId: string, section: ProviderManagementSection) => void
+  open: (providerId: string, section: ProviderManagementSection) => Promise<boolean>
   close: () => void
   beforeChange: MutableRefObject<(() => Promise<boolean>) | null>
   claimProvider: (providerId: string | null) => void

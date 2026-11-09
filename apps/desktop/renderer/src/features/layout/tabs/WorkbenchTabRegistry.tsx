@@ -12,6 +12,7 @@ import {
   ListChecks,
   MessageCirclePlus,
   Paperclip,
+  ScrollText,
   SquarePlus,
   SquareTerminal,
   Settings2,
@@ -57,6 +58,7 @@ import {
   RightDockPlanPanel,
   RightDockSkillPreviewPanel,
 } from '../dock/RightDockPanels.js'
+import { RightDockPromptPreviewPanel } from '../dock/RightDockPromptPreviewPanel.js'
 import { SideChatThreadPanel } from '../../session/conversation/SideChatThreadPanel.js'
 import { SubagentDirectoryPanel } from '../../session/subagents/SubagentDirectoryPanel.js'
 import { UserAttachmentPreviewPanel } from '../../session/attachments/UserAttachmentPreviewPanel.js'
@@ -246,6 +248,7 @@ export type WorkbenchTabDefinition = {
   icon: ReactNode
   shortcut?: string
   launcher: boolean
+  routes?: readonly WorkbenchPanelRoute['page'][]
   launcherLabel?: string
   launcherIcon?: ReactNode
   launcherShortcut?: string | null
@@ -286,9 +289,20 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     kind: 'provider-management',
     label: '供应商设置',
     icon: <Settings2 size={iconSize} />,
-    launcher: false,
+    launcher: true,
+    routes: ['providers'],
     lifecycle: 'unmount-when-hidden',
     getTitle: () => '供应商设置',
+    render: (_tab, context) => context.providerManagement ?? null,
+  },
+  {
+    kind: 'provider-model',
+    label: '编辑模型',
+    icon: <Settings2 size={iconSize} />,
+    launcher: false,
+    routes: ['providers'],
+    lifecycle: 'unmount-when-hidden',
+    getTitle: () => '编辑模型',
     render: (_tab, context) => context.providerManagement ?? null,
   },
   {
@@ -401,6 +415,17 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           onRemoveBudgetLimit={context.goal?.onRemoveBudgetLimit}
         />
       ) : null,
+  },
+  {
+    kind: 'prompt-preview',
+    label: '提示词',
+    icon: <ScrollText size={iconSize} />,
+    launcher: false,
+    lifecycle: 'unmount-when-hidden',
+    getTitle: () => '提示词预览',
+    render: (_tab, context) => (
+      <RightDockPromptPreviewPanel sessionId={context.review.activeSessionId} />
+    ),
   },
   {
     kind: 'plan',
@@ -560,9 +585,9 @@ export function getWorkbenchTabDisplayTitle(
   return getWorkbenchTabDefinition(tab).getTitle(tab)
 }
 
-export function getWorkbenchLauncherDefinitions(): readonly WorkbenchTabDefinition[] {
+export function getWorkbenchLauncherDefinitions(page: WorkbenchPanelRoute['page'] = 'conversation'): readonly WorkbenchTabDefinition[] {
   return definitions
-    .filter((definition) => definition.launcher)
+    .filter((definition) => definition.launcher && (definition.routes ?? ['conversation']).includes(page))
     .map((definition, index) => ({ definition, index }))
     .sort((left, right) => {
       const leftOrder = WORKBENCH_LAUNCHER_ORDER[left.definition.kind]
@@ -575,7 +600,27 @@ export function getWorkbenchLauncherDefinitions(): readonly WorkbenchTabDefiniti
     .map(({ definition }) => definition)
 }
 
-export function createLauncherTab(kind: WorkbenchTabKind): WorkbenchTabDescriptor | null {
+export type WorkbenchPanelRoute =
+  | { page: 'conversation' }
+  | { page: 'providers'; providerId: string }
+
+/** 空状态与添加标签菜单共用同一份路由可用面板定义。 */
+export function getWorkbenchRouteLaunchers(
+  route: WorkbenchPanelRoute = { page: 'conversation' },
+  sideChatAvailable = true,
+) {
+  return getWorkbenchLauncherDefinitions(route.page)
+    .filter((definition) => definition.kind !== 'side-chat' || sideChatAvailable)
+    .map((definition) => ({
+      ...definition, id: definition.kind, ...getWorkbenchLauncherPresentation(definition),
+      createTab: () => createLauncherTab(definition.kind, route),
+    }))
+}
+
+export function createLauncherTab(kind: WorkbenchTabKind, route?: WorkbenchPanelRoute): WorkbenchTabDescriptor | null {
+  if (kind === 'provider-management' && route?.page === 'providers') {
+    return { id: 'provider-management', kind, providerId: route.providerId, section: 'credentials' }
+  }
   if (kind === 'review') return { id: 'review', kind: 'review' }
   if (kind === 'browser') {
     const tabId = crypto.randomUUID()
@@ -585,6 +630,7 @@ export function createLauncherTab(kind: WorkbenchTabKind): WorkbenchTabDescripto
     return { id: 'file-browser', kind: 'file-browser' }
   }
   if (kind === 'side-chat') return null
+  if (kind === 'prompt-preview') return { id: 'prompt-preview', kind: 'prompt-preview' }
   if (kind === 'terminal') return { id: 'terminal', kind: 'terminal', title: '终端 1' }
   return null
 }
