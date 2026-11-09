@@ -154,7 +154,10 @@ describe('desktop provider model sync and protocol detection', () => {
         api: 'openai-completions',
         draft,
       }),
-    ).toEqual([{ id: 'remote-only', api: 'openai-completions', enabled: false }])
+    ).toEqual({
+      models: [{ id: 'remote-only', api: 'openai-completions', enabled: false }],
+      matches: [],
+    })
     expect(requests).toContainEqual({
       method: 'provider/model/discover',
       params: { api: 'openai-completions', draft },
@@ -295,9 +298,17 @@ describe('browser mock provider model sync and protocol detection', () => {
   test('discover 返回确定性的上游候选列表', async () => {
     const client = createOfflineClient()
 
-    expect(await client.discoverProviderModels({ api: 'anthropic-messages' })).toEqual([
-      { id: 'mock-sync-model', name: 'Mock Sync Model', api: 'anthropic-messages', enabled: false },
-      { id: 'mock-sync-model-2', api: 'anthropic-messages', enabled: false },
-    ])
+    expect(await client.discoverProviderModels({ api: 'anthropic-messages' })).toEqual({
+      models: [
+        {
+          id: 'mock-sync-model',
+          name: 'Mock Sync Model',
+          api: 'anthropic-messages',
+          enabled: false,
+        },
+        { id: 'mock-sync-model-2', api: 'anthropic-messages', enabled: false },
+      ],
+      matches: [],
+    })
   })
 })

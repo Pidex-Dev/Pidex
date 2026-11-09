@@ -1,7 +1,9 @@
+import { createAgentRpcClient } from '../src/services/AgentRpcClient.js'
+import { RpcApplicationError, dispatchRpcMessageWithMethods, RpcMethods } from '@pidex/agent-protocol'
 import { AgentRpcError } from '../src/services/AgentRpcClient.js'
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { toUserErrorMessage } from '../src/utils/Errors.js'
+import { fullErrorMessage, toUserErrorMessage } from '../src/utils/Errors.js'
 import {
   createTaskSession,
   executeComposerSubmitTransaction,
@@ -13,6 +15,57 @@ import { Command } from 'cmdk'
 import { CommandMenuTaskGroup } from '../src/features/search/CommandMenuDialog.js'
 
 describe('toUserErrorMessage sanitization and mapping', () => {
+  test('declared auth failure survives dispatcher, client and notification conversion', async () => {
+    const client = createAgentRpcClient({ fetch: async (_url, init) => {
+      const response = await dispatchRpcMessageWithMethods(JSON.parse(String(init?.body)), RpcMethods, {
+        'model/refresh': async () => { throw new RpcApplicationError('PROVIDER_AUTH_FAILED', '模型目录刷新失败', false, { providerId: 'fixture', httpStatus: 401 }) },
+      } as never, {})
+      return Response.json(response)
+    } })
+    try {
+      await client.call('model/refresh', { operationId: 'fixture:auth' as never })
+      throw new Error('expected auth failure')
+    } catch (error) {
+      expect(error).toBeInstanceOf(AgentRpcError)
+      expect((error as AgentRpcError).errorCode).toBe('PROVIDER_AUTH_FAILED')
+      expect((error as AgentRpcError).data).toMatchObject({ retryable: false, details: { httpStatus: 401 } })
+      expect(toUserErrorMessage(error)).toContain('鉴权失败')
+    }
+  })
+
+  test('provider business codes survive technical messages and notification formatting', () => {
+    const error = new AgentRpcError('Agent 内部错误', -32000, {
+      code: 'PROVIDER_AUTH_FAILED', retryable: false, details: { httpStatus: 401 },
+    })
+    const message = toUserErrorMessage(error)
+    expect(message).toBe('供应商鉴权失败，请检查凭据和接口配置。')
+    expect(toUserErrorMessage(`刷新模型列表失败：${message}`)).toContain('鉴权失败')
+    // Reproduces the old notification path: expanding a safe error into a stack loses the reason.
+    expect(toUserErrorMessage(fullErrorMessage(new Error(message)))).toContain('Agent 发生内部错误')
+  })
+
+  test('multiple provider failures display their individual causes', () => {
+    const error = new AgentRpcError('模型目录刷新失败', -32000, {
+      code: 'PROVIDER_CATALOG_REFRESH_FAILED', retryable: false,
+      details: { totalFailures: 2, failures: [
+        { providerId: 'first', code: 'PROVIDER_AUTH_FAILED', retryable: false },
+        { providerId: 'second', code: 'PROVIDER_TIMEOUT', retryable: true },
+      ] },
+    })
+    const message = toUserErrorMessage(error)
+    expect(message).toContain('2 个供应商刷新失败')
+    expect(message).toContain('first：供应商鉴权失败')
+    expect(message).toContain('second：供应商响应超时')
+  })
+
+  test.each([
+    ['PROVIDER_ACCESS_DENIED', '权限'], ['PROVIDER_CONNECTION_FAILED', '网络'],
+    ['PROVIDER_TIMEOUT', '超时'], ['RATE_LIMITED', '限流'],
+    ['MODEL_UNAVAILABLE', '模型'], ['CREDENTIAL_NOT_FOUND', '凭据'],
+  ])('provider code %s has an actionable message', (code, expected) => {
+    expect(toUserErrorMessage(new AgentRpcError('private raw response', -32000, { code, retryable: false }))).toContain(expected)
+  })
+
   test('历史不能完整分叉时给出可操作提示，不直出错误码', () => {
     for (const error of ['HISTORY_UNSUPPORTED', { code: 'HISTORY_UNSUPPORTED' }]) {
       expect(toUserErrorMessage(error)).toContain('选择较早的已完成回复')

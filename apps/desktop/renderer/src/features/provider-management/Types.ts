@@ -80,6 +80,8 @@ export type ProviderUsageQueryPartition = {
 }
 
 export type ProviderManagementState = {
+  /** 推荐/模型目录更新后递增，供自动配置重新匹配。 */
+  catalogRevision: number
   configuration: ProviderConfigurationState
   usageSources: ProviderUsageSourcesState
   /** 按 `range + timeZone` 分区的用量查询缓存；不同范围与时区互不覆盖。 */

@@ -9,20 +9,6 @@ import type {
 
 export const MODEL_CENTER_PROVIDER_SECTIONS = ['connection', 'models'] as const
 
-export function groupProviderModels<T extends { id: string; group?: string }>(
-  models: readonly T[],
-  providerId: string,
-): { id: string; models: T[] }[] {
-  const groups = new Map<string, T[]>()
-  for (const model of models) {
-    const id =
-      model.group?.trim() || (model.id.includes('/') ? model.id.split('/')[0]! : providerId)
-    const group = groups.get(id) ?? []
-    group.push(model)
-    groups.set(id, group)
-  }
-  return [...groups].map(([id, models]) => ({ id, models }))
-}
 export type ModelCenterProviderSection = (typeof MODEL_CENTER_PROVIDER_SECTIONS)[number]
 
 export type ModelCenterRouteState = {

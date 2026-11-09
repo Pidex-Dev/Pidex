@@ -9,7 +9,7 @@ import type {
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { desktopProviderExecutionError } from '../../services/desktop-client/ProviderAdapters.js'
 import { withModelCatalogLoading } from '../../hooks/UseModelCatalogLoading.js'
-import { fullErrorMessage } from '../../utils/Errors.js'
+import { toUserErrorMessage } from '../../utils/Errors.js'
 import {
   providerManagementStore,
   useProviderManagementStore,
@@ -85,7 +85,7 @@ export function useModelCenterController({ onInitialProviderState, onError, onNo
               ...(result.category ? { category: result.category } : {}),
             }
     } catch (error) {
-      status = { state: 'failed', message: fullErrorMessage(error) }
+      status = { state: 'failed', message: toUserErrorMessage(error) }
     }
     setModelTestResults((results) => ({ ...results, [key]: status }))
     return status
@@ -96,7 +96,12 @@ export function useModelCenterController({ onInitialProviderState, onError, onNo
     modelIds: readonly string[],
     variant?: string,
   ) {
-    if (pendingProviders.current.has(provider.providerID) || modelIds.length === 0) return
+    if (modelIds.length === 0) return
+    if (pendingProviders.current.has(provider.providerID)) {
+      // 静默忽略会让「测试模型」按钮看起来失灵；必须给出可见反馈。
+      handlers.current.onNotice('该供应商的模型测试正在进行中，请稍候。')
+      return
+    }
     const error = desktopProviderExecutionError(provider)
     if (error) {
       handlers.current.onError(error)
@@ -136,8 +141,14 @@ export function useModelCenterController({ onInitialProviderState, onError, onNo
   }
 
   async function fetchModels(provider: DesktopModelProviderSummary) {
-    if (pendingProviders.current.has(provider.providerID)) return
-    if (provider.availability?.status === 'unavailable') return
+    if (pendingProviders.current.has(provider.providerID)) {
+      handlers.current.onNotice('该供应商的模型目录刷新正在进行中，请稍候。')
+      return
+    }
+    if (provider.availability?.status === 'unavailable') {
+      handlers.current.onError('此 Provider 的协议或 Endpoint 尚未适配，无法同步模型目录。')
+      return
+    }
     setPending(provider.providerID, true)
     try {
       await withModelCatalogLoading(() =>
@@ -150,7 +161,7 @@ export function useModelCenterController({ onInitialProviderState, onError, onNo
         handlers.current.onNotice(`模型目录已刷新，共 ${catalog.models.length} 个可用模型。`)
       }
     } catch (error) {
-      handlers.current.onError(fullErrorMessage(error))
+      handlers.current.onError(`刷新模型列表失败：${toUserErrorMessage(error)}`)
     } finally {
       setPending(provider.providerID, false)
     }
@@ -171,7 +182,7 @@ export function useModelCenterController({ onInitialProviderState, onError, onNo
       const { configuration: next } = providerManagementStore.getState()
       if (!next.error) handlers.current.onNotice('供应商目录已从 Pi / models.dev 更新。')
     } catch (error) {
-      handlers.current.onError(fullErrorMessage(error))
+      handlers.current.onError(toUserErrorMessage(error))
     } finally {
       refreshing.current = false
       setRefreshingProviderData(false)

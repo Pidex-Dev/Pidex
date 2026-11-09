@@ -19,13 +19,13 @@ describe('DiscoveredModelCard helpers', () => {
   }
 
   describe('resolveModelVendor', () => {
-    it('resolves vendor from model group when present', () => {
+    it('ignores saved model groups when resolving vendor', () => {
       const model: DesktopProviderModelDefinition = {
-        id: 'some-model',
+        id: 'deepseek-v4-pro',
         group: 'Anthropic',
         api: 'openai-completions',
       }
-      expect(resolveModelVendor(model, mockProvider)).toBe('Anthropic')
+      expect(resolveModelVendor(model, mockProvider)).toBe('DeepSeek')
     })
 
     it('resolves vendor from model id prefix with slash', () => {
@@ -140,26 +140,19 @@ describe('DiscoveredModelCard helpers', () => {
       expect(resolveModelContextWindow(model)).toBe(65536)
     })
 
-    it('parses context length from model id pattern', () => {
-      const modelK: DesktopProviderModelDefinition = {
-        id: 'model-128k',
-        api: 'openai-completions',
-      }
-      expect(resolveModelContextWindow(modelK)).toBe(128 * 1024)
-
-      const modelM: DesktopProviderModelDefinition = {
-        id: 'model-1m',
-        api: 'openai-completions',
-      }
-      expect(resolveModelContextWindow(modelM)).toBe(1024 * 1024)
+    it('does not infer context length from the model id', () => {
+      expect(
+        resolveModelContextWindow({ id: 'model-128k', api: 'openai-completions' }),
+      ).toBeNull()
+      expect(resolveModelContextWindow({ id: 'model-1m', api: 'openai-completions' })).toBeNull()
     })
 
-    it('falls back to default 32768', () => {
+    it('does not fall back to a 32K placeholder', () => {
       const model: DesktopProviderModelDefinition = {
         id: 'unknown-context',
         api: 'openai-completions',
       }
-      expect(resolveModelContextWindow(model)).toBe(32768)
+      expect(resolveModelContextWindow(model)).toBeNull()
     })
   })
 })

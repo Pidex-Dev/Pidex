@@ -1,3 +1,4 @@
+import { decodeProviderErrorDetails } from '@pidex/agent-protocol'
 import { errorMessageOf as rawErrorMessage } from '@pidex/shared/errors'
 const RESIZE_OBSERVER_LOOP_MESSAGES = [
   'ResizeObserver loop completed with undelivered notifications.',
@@ -6,6 +7,17 @@ const RESIZE_OBSERVER_LOOP_MESSAGES = [
 
 export type ErrorContext =
   'thread-read' | 'thread-create' | 'thread-send' | 'project-list' | 'general'
+
+const providerMessages: Readonly<Record<string, string>> = {
+  PROVIDER_AUTH_FAILED: '供应商鉴权失败，请检查凭据和接口配置。',
+  PROVIDER_ACCESS_DENIED: '供应商拒绝访问，请检查账号或模型权限。',
+  PROVIDER_CONNECTION_FAILED: '无法连接供应商，请检查网络、代理和接口地址。',
+  PROVIDER_TIMEOUT: '供应商响应超时，请稍后重试。',
+  PROVIDER_UNAVAILABLE: '供应商服务或配置不可用，请检查接口配置和连接。',
+  CREDENTIAL_NOT_FOUND: '未配置供应商凭据，请先配置。',
+  MODEL_UNAVAILABLE: '当前模型不可用，请检查模型 ID 和访问权限。',
+  RATE_LIMITED: '请求受到限流，请稍后重试。',
+}
 
 export function toUserErrorMessage(error: unknown, context?: ErrorContext): string {
   const errorCode = extractErrorCode(error)
@@ -25,6 +37,22 @@ export function toUserErrorMessage(error: unknown, context?: ErrorContext): stri
 
   // Safe domain conflicts carry actionable messages; do not collapse them into internal errors.
   if (errorCode === 'CONFLICT' && message && message !== 'CONFLICT') return message
+
+  if (errorCode === 'MODEL_UNAVAILABLE' && message === '未配置可用的会话标题生成模型') return message
+  if (errorCode && providerMessages[errorCode]) return providerMessages[errorCode]
+  if (errorCode === 'PROVIDER_CATALOG_REFRESH_FAILED') {
+    const data = error as { details?: unknown; data?: { details?: unknown } }
+    try {
+      const details = decodeProviderErrorDetails(data.details ?? data.data?.details)
+      const failures = details.failures ?? []
+      return `${details.totalFailures ?? failures.length} 个供应商刷新失败：${failures.map(failure => `${failure.providerId ?? '供应商'}：${providerMessages[failure.code] ?? '请求失败'}`).join('；')}`
+    } catch {
+      return '多个供应商模型目录刷新失败，请检查供应商配置和连接。'
+    }
+  }
+
+  if (errorCode?.startsWith('PROVIDER_') && errorCode !== 'PROVIDER_NOT_FOUND')
+    return '供应商操作失败，请检查配置和连接。'
 
   // 1. Internal Error (Highest priority for server-side exceptions)
   if (

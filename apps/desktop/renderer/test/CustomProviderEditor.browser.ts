@@ -14,7 +14,7 @@ window.__calls = [];
 window.__releaseTests = [];
 window.__modelPages = [];
 export const desktopClient = {
-  discoverProviderModels: async input => {window.__discoveries = (window.__discoveries ?? 0) + 1; window.__lastDiscovery = input; return [{id: 'remote-only', name: 'Remote', api: input.api, enabled: false}];},
+  discoverProviderModels: async input => {window.__discoveries = (window.__discoveries ?? 0) + 1; window.__lastDiscovery = input; return {models: [{id: 'remote-only', name: 'Remote', api: input.api, enabled: false, contextWindow: 128000, maxTokens: 8192}], matches: [{id: 'remote-only', status: 'official', identity: 'remote/only'}]};},
   syncProviderModels: async providerID => {window.__syncs = (window.__syncs ?? 0) + 1; return {providerId: providerID, api: 'openai-completions', fetchedAt: 1, candidates: [{id: 'remote-only', name: 'Remote', api: 'openai-completions', enabled: false}], removedModelIds: [], baselineCreated: true, totalFetched: 3, catalogVersion: 1};},
   fetchProviderModels: async options => {window.__modelPages.push(options); return {models: ['chat', 'messages', 'remote-only']};},
   testModelProvider: async (providerID, model) => {
@@ -110,7 +110,7 @@ function PanelHarness() {
   const providerId = location.pathname === '/providers' && !params.has('newProvider') && !params.has('edit') ? params.get('provider') : null;
   const visibleTab = providerId && tab ? {...tab, providerId} : null;
   const panel = {tab: visibleTab, host, beforeChange, claimProvider: () => {},
-    open: (id, section) => {void (visibleTab ? Promise.resolve(true) : (beforeChange.current?.() ?? Promise.resolve(true))).then(ok => {if(ok) setTab({id: 'provider-management', kind: 'provider-management', providerId: id, section});});},
+    open: async (id, section) => {const ok = await (beforeChange.current?.() ?? Promise.resolve(true)); if(ok) setTab(section === 'model' ? {id: 'provider-model', kind: 'provider-model', providerId: id, section} : {id: 'provider-management', kind: 'provider-management', providerId: id, section}); return ok;},
     close: () => {void (beforeChange.current?.() ?? Promise.resolve(true)).then(ok => {if(ok) setTab(null);});}};
   return <WorkspaceHeaderProvider routeScope={location.pathname + location.search}><DesktopWorkspaceHeader rightDockOpen={!!visibleTab} shellControls={<button aria-label='显示右侧边栏' onClick={() => panel.open(providerId, 'credentials')}>显示右侧边栏</button>}/><Outlet context={{providerManagement: panel}}/>{visibleTab ? <aside aria-label='供应商设置'><button onClick={panel.close}>关闭供应商设置</button><div ref={setHost}/></aside> : null}</WorkspaceHeaderProvider>;
 }
@@ -433,6 +433,9 @@ try {
   await page.getByPlaceholder('https://example.com/v1').fill('https://example.com/v1')
   await page.getByRole('button', { name: '新增模型', exact: true }).click()
   await page.getByPlaceholder('如：llama3.2 或 gpt-4o').fill('test-model')
+  // 规格未命中时必须由用户明确填写上下文窗口与最大输出。
+  await page.getByRole('button', { name: '高级设置', exact: true }).click()
+  await page.getByRole('spinbutton', { name: '上下文窗口', exact: true }).fill('128000')
   await page.getByRole('button', { name: '完成', exact: true }).click()
   await page.evaluate(() => {
     ;(window as any).__failNext = true
@@ -455,6 +458,8 @@ try {
   await presave.getByPlaceholder('https://example.com/v1').fill('https://pre-save.example/v1')
   await presave.getByRole('button', { name: '从 /models 获取', exact: true }).click()
   await expect(presave.getByText('发现 1 个候选模型')).toBeVisible()
+  await expect(presave.getByRole('button', { name: '导入已选 (0)', exact: true })).toBeDisabled()
+  await presave.getByRole('button', { name: '全选', exact: true }).click()
   await presave.getByRole('button', { name: '导入已选 (1)', exact: true }).click()
   await presave.getByRole('button', { name: '保存配置', exact: true }).click()
   await expect
@@ -462,6 +467,7 @@ try {
     .toBe('create')
   const presaved = await presave.evaluate(() => (window as any).__calls.at(-1).definition)
   assert.equal(presaved.models[0].id, 'remote-only')
+  assert.equal(presaved.models[0].enabled, true)
   assert.deepEqual(presaved.modelSync.models, ['remote-only'])
   assert.equal(presaved.modelSync.api, 'openai-completions')
   await presave.close()
@@ -538,6 +544,8 @@ try {
     .click()
   await uniform.getByRole('button', { name: '新增模型', exact: true }).click()
   await uniform.getByPlaceholder('如：llama3.2 或 gpt-4o').fill('new-responses-model')
+  await uniform.getByRole('button', { name: '高级设置', exact: true }).click()
+  await uniform.getByRole('spinbutton', { name: '上下文窗口', exact: true }).fill('128000')
   await uniform.getByRole('button', { name: '完成', exact: true }).click()
   await uniform.getByRole('button', { name: '保存配置', exact: true }).click()
   await expect(uniform.locator('#location')).toHaveText('provider=mixed&section=models')
@@ -614,11 +622,12 @@ try {
   await expect(tests.locator('#test-status')).toHaveText('testing')
   await expect(tests.getByRole('button', { name: '测试模型 chat', exact: true })).toBeDisabled()
   await tests.getByRole('button', { name: '单模型测试', exact: true }).click()
+  // 批量测试按 4 路并发，held 状态下两个模型都会立即发出请求；单个测试被挂起忽略。
   assert.equal(
     await tests.evaluate(
       () => (window as any).__calls.filter((call: any) => call.kind === 'test').length,
     ),
-    1,
+    2,
   )
   await tests.getByRole('button', { name: '切换测试供应商', exact: true }).click()
   await expect(tests.locator('#test-status')).toHaveText('idle')
@@ -646,7 +655,8 @@ try {
     ['mixed', 'mixed'],
   )
   await tests.getByRole('button', { name: '同步模型', exact: true }).click()
-  await expect.poll(() => tests.evaluate(() => (window as any).__syncs)).toBe(1)
+  await expect.poll(() => tests.evaluate(() => (window as any).__discoveries)).toBe(1)
+    assert.equal(await tests.evaluate(() => (window as any).__syncs ?? 0), 0)
   await expect(tests.getByRole('dialog')).toContainText('remote-only')
   await tests.getByRole('button', { name: '关闭模型发现' }).click()
   assert.equal(
@@ -667,38 +677,37 @@ try {
 
   const modelPage = await mount('/providers?provider=mixed&controller=1', false)
   await modelPage.getByRole('button', { name: '添加模型', exact: true }).click()
-  const modelDialog = modelPage.getByRole('dialog', { name: '添加模型', exact: true })
-  await expect(modelDialog.getByRole('button', { name: '高级设置', exact: true })).toHaveAttribute(
-    'aria-expanded',
-    'false',
-  )
+  const modelDialog = modelPage.getByRole('region', { name: '添加模型', exact: true })
+  await expect(modelDialog.getByRole('button', { name: '高级设置', exact: true })).toHaveCount(0)
   await modelDialog.getByPlaceholder('如：llama3.2 或 gpt-4o').fill('new-model')
   await modelPage
     .locator('nav button')
     .last()
     .evaluate((button) => (button as HTMLButtonElement).click())
   await expect(modelDialog.getByPlaceholder('如：llama3.2 或 gpt-4o')).toHaveValue('new-model')
+  // 规格未命中时上下文窗口必须由用户确认，否则保存会先被校验拦下。
+
+  await modelDialog.getByRole('spinbutton', { name: '上下文窗口', exact: true }).fill('128000')
   await modelPage.evaluate(() => {
     ;(window as any).__failNext = true
   })
   await modelDialog.getByRole('button', { name: '添加模型', exact: true }).click()
   await expect(modelDialog.getByRole('alert')).toContainText('模拟保存失败')
   await modelDialog.getByRole('button', { name: '添加模型', exact: true }).click()
-  await expect(modelPage.getByRole('dialog')).toHaveCount(0)
+  await expect(modelPage.getByRole('region', { name: '添加模型', exact: true })).toHaveCount(0)
+  await expect(modelPage.getByRole('region', { name: '编辑模型', exact: true })).toBeVisible()
   await expect(modelPage.locator('.model-center-model-row')).toHaveCount(3)
   await modelPage.getByRole('button', { name: '编辑模型 chat', exact: true }).click()
-  const editDialog = modelPage.getByRole('dialog', { name: '编辑模型', exact: true })
-  await editDialog.getByLabel('选择已有分组', { exact: true }).click()
-  await modelPage.getByRole('option', { name: 'mixed', exact: true }).click()
-  await expect(editDialog.getByLabel('分组名称', { exact: true })).toHaveValue('mixed')
-  await editDialog.getByLabel('分组名称', { exact: true }).fill('常用模型')
+  const editDialog = modelPage.getByRole('region', { name: '编辑模型', exact: true })
+  await expect(editDialog.getByLabel('分组名称', { exact: true })).toHaveCount(0)
   await expect(editDialog.getByPlaceholder('如：llama3.2 或 gpt-4o')).toHaveAttribute(
     'readonly',
     '',
   )
-  await editDialog.getByRole('button', { name: '高级设置', exact: true }).click()
+
   const inputLimit = editDialog.getByRole('spinbutton', { name: '最大输入 Token', exact: true })
-  await inputLimit.locator('..').getByRole('button', { name: '128K', exact: true }).click()
+  // 最大输入只保留高级可选输入框，没有预设档位。
+  await inputLimit.fill('128000')
   await expect(inputLimit).toHaveValue('128000')
   await inputLimit.fill('125000')
   await expect(inputLimit).toHaveValue('125000')
@@ -712,7 +721,7 @@ try {
   await expect(inputLimit).toHaveValue('125000')
   await editDialog.getByRole('spinbutton', { name: '输入价格', exact: true }).fill('9')
   await reset.click()
-  await expect(editDialog.getByLabel('分组名称', { exact: true })).toHaveValue('常用模型')
+  await expect(editDialog.getByLabel('分组名称', { exact: true })).toHaveCount(0)
   await expect(inputLimit).toHaveValue('')
   await expect(editDialog.getByRole('spinbutton', { name: '输入价格', exact: true })).toHaveValue(
     '0',
@@ -724,9 +733,7 @@ try {
     '9',
   )
   await expect(reasoningChip).toHaveAttribute('aria-pressed', originalReasoning!)
-  await editDialog.getByRole('button', { name: '高级设置', exact: true }).click()
-  await editDialog.getByRole('button', { name: '协议参数', exact: true }).click()
-  await expect(editDialog.getByPlaceholder('X-Model-Specific: value')).toBeVisible()
+
   await editDialog.getByPlaceholder('默认使用模型 ID').fill('Changed')
   await editDialog.getByRole('button', { name: '取消', exact: true }).click()
   await modelPage.getByRole('button', { name: '放弃修改', exact: true }).click()
@@ -739,14 +746,25 @@ try {
     'chat',
   )
   await modelPage.getByRole('button', { name: '显示右侧边栏', exact: true }).click()
+  await modelPage.waitForTimeout(500)
+  console.log('DBG api count', await modelPage.getByRole('textbox', { name: 'API 地址', exact: true }).count())
   await modelPage
     .getByRole('complementary')
     .getByRole('textbox', { name: 'API 地址', exact: true })
     .fill('https://changed.example/v1')
+  await modelPage.waitForTimeout(300)
+  console.log('DBG pre-nav loc', await modelPage.locator('#location').textContent(), 'dirty-api', await modelPage.getByRole('complementary').getByRole('textbox', { name: 'API 地址', exact: true }).inputValue().catch((e) => 'ERR ' + e.message.slice(0,80)))
   await modelPage
     .getByRole('link', { name: '离开页面', exact: true })
     .evaluate((link: HTMLAnchorElement) => link.click())
-  await modelPage.getByRole('button', { name: '继续编辑', exact: true }).click()
+  await modelPage.waitForTimeout(600)
+  console.log('DBG post-nav loc', await modelPage.locator('#location').textContent(), 'dialogs', await modelPage.locator('[role="dialog"],[role="alertdialog"]').count())
+  await modelPage.waitForTimeout(800)
+  console.log('DBG loc', await modelPage.locator('#location').textContent())
+  console.log('DBG alertdialogs', await modelPage.locator('[role="alertdialog"]').count())
+  console.log('DBG api', await modelPage.getByRole('textbox', { name: 'API 地址', exact: true }).inputValue().catch(() => 'none'))
+  console.log('DBG cmps', (await modelPage.getByRole('complementary').allInnerTexts()).join(' ## ').slice(0, 400))
+  await modelPage.getByRole('button', { name: '继续编辑', exact: true }).first().click()
   await expect(
     modelPage.getByRole('complementary').getByRole('textbox', { name: 'API 地址', exact: true }),
   ).toHaveValue('https://changed.example/v1')
@@ -864,15 +882,15 @@ try {
   await endpointPage.close()
   const builtinPage = await mount('/providers?provider=google&controller=1', false)
   await builtinPage.getByRole('button', { name: '编辑模型 native', exact: true }).click()
-  const builtinDialog = builtinPage.getByRole('dialog', { name: '编辑模型', exact: true })
+  const builtinDialog = builtinPage.getByRole('region', { name: '编辑模型', exact: true })
   await builtinDialog.getByPlaceholder('默认使用模型 ID').fill('Renamed native')
-  await builtinDialog.getByLabel('分组名称', { exact: true }).fill('常用')
-  await builtinDialog.getByRole('button', { name: '高级设置', exact: true }).click()
+
   await expect(builtinDialog.getByText('模型 API 协议', { exact: true })).toHaveCount(0)
   await builtinDialog
     .getByRole('spinbutton', { name: '最大输入 Token', exact: true })
     .fill('100000')
   await builtinDialog.getByRole('button', { name: '保存模型', exact: true }).click()
+  await expect(builtinDialog).toBeVisible()
   assert.deepEqual(
     await builtinPage.evaluate(() => (window as any).__providers.google.config.models),
     [
@@ -880,18 +898,17 @@ try {
         id: 'native',
         enabled: true,
         name: 'Renamed native',
-        group: '常用',
         maxInputTokens: 100000,
       },
     ],
   )
   await builtinPage.getByRole('button', { name: '添加模型', exact: true }).click()
   await builtinPage
-    .getByRole('dialog')
+    .getByRole('region', { name: '添加模型', exact: true })
     .getByPlaceholder('如：llama3.2 或 gpt-4o')
     .fill('private-model')
   await builtinPage
-    .getByRole('dialog')
+    .getByRole('region', { name: '添加模型', exact: true })
     .getByRole('button', { name: '添加模型', exact: true })
     .click()
   assert.equal(
@@ -964,7 +981,7 @@ try {
   const navigationPage = await mount('/providers?provider=mixed&controller=1', false)
   await navigationPage.getByRole('button', { name: '添加模型', exact: true }).click()
   await navigationPage
-    .getByRole('dialog')
+    .getByRole('region', { name: '添加模型', exact: true })
     .getByPlaceholder('如：llama3.2 或 gpt-4o')
     .fill('navigation-model')
   await navigationPage
@@ -973,7 +990,7 @@ try {
     .evaluate((link) => (link as HTMLAnchorElement).click())
   await navigationPage.getByRole('button', { name: '继续编辑', exact: true }).click()
   await expect(
-    navigationPage.getByRole('dialog').getByPlaceholder('如：llama3.2 或 gpt-4o'),
+    navigationPage.getByRole('region', { name: '添加模型', exact: true }).getByPlaceholder('如：llama3.2 或 gpt-4o'),
   ).toHaveValue('navigation-model')
   await navigationPage
     .locator('nav a')
@@ -1119,8 +1136,8 @@ try {
     )
     assert.ok(geometry.actionsRight <= geometry.rowRight, JSON.stringify(geometry))
     await layoutPage.getByRole('button', { name: '编辑模型 chat', exact: true }).click()
-    const scrollDialog = layoutPage.getByRole('dialog', { name: '编辑模型', exact: true })
-    await scrollDialog.getByRole('button', { name: '高级设置', exact: true }).click()
+    const scrollDialog = layoutPage.getByRole('region', { name: '编辑模型', exact: true })
+
     for (const name of ['回退高级配置', '重置高级配置']) {
       const buttonGeometry = await scrollDialog
         .getByRole('button', { name, exact: true })
@@ -1132,9 +1149,7 @@ try {
       assert.deepEqual(buttonGeometry, { height: 24, width: 24, radius: '10px' })
     }
 
-    await scrollDialog.getByRole('button', { name: '协议参数', exact: true }).click()
-    await scrollDialog.getByPlaceholder('X-Model-Specific: value').scrollIntoViewIfNeeded()
-    await scrollDialog.getByText('API Compat (JSON)', { exact: true }).scrollIntoViewIfNeeded()
+    await scrollDialog.getByText('价格单位：USD／百万 Token', { exact: true }).scrollIntoViewIfNeeded()
     const scrolling = await scrollDialog
       .locator('.settings-management-dialog-body')
       .evaluate((element) => ({

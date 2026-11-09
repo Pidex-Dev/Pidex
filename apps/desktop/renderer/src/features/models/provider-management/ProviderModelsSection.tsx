@@ -1,7 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import {
   Activity,
-  ChevronRight,
   RefreshCw,
   Pencil,
   Plus,
@@ -22,28 +21,35 @@ import {
   CheckCheck,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopModelMetadata,
   DesktopModelProviderSummary,
   DesktopProviderDefinition,
-  ModelProviderID,
   DesktopProviderModelDefinition,
+  DesktopProviderModelMatch,
+  ModelProviderID,
 } from '../../../../shared/Types.js'
 import type { ModelTestStatus } from '../UseModelCenterController.js'
 import { Button } from '../../../components/ui/Button.js'
-import { groupProviderModels } from '../ModelCenterState.js'
 import { ProviderIcon } from '../ProviderIcon.js'
 import { modelLogoURL } from '../../../services/desktop-client/ModelLogo.js'
 import { SearchHeading } from '../../../components/ui/SearchHeading.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
-import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
-import { fullErrorMessage } from '../../../utils/Errors.js'
+import { toUserErrorMessage } from '../../../utils/Errors.js'
 import { formatCompactNumber } from '../../../utils/UsageFormatters.js'
 import { isExecutableDesktopProvider } from '../../../services/desktop-client/ProviderAdapters.js'
-import { ProviderModelDialog } from './ProviderModelDialog.js'
-import { editableModel, normalizeEditableModel } from './ProviderEditorForm.js'
+import { createPortal } from 'react-dom'
+import { useDesktopLayoutOutletContext } from '../../layout/shell/DesktopLayoutOutletContext.js'
+import { ProviderModelPanel } from './ProviderModelPanel.js'
+import {
+  candidateMatchHint,
+  candidateMatchLabel,
+  isImportableCandidate,
+} from './ModelCandidateImport.js'
+import { ProviderModelSpecRepairDialog } from './ProviderModelSpecRepairDialog.js'
+import { editableModel, normalizeEditableModel, resolveDiscoveryChatApi } from './ProviderEditorForm.js'
 import { useDialogFocusRestore } from '../../../components/ui/UseDialogFocusRestore.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
@@ -92,7 +98,10 @@ export function ProviderModelsSection({
   const builtinConfig = provider.config?.kind === 'builtin' ? provider.config : null
   const customConfig = provider.config?.kind === 'custom' ? provider.config : null
   const [saving, setSaving] = useState(false)
+  const panel = useDesktopLayoutOutletContext()?.providerManagement
+  const modelEditorVersion = useRef(0)
   const [editingModel, setEditingModel] = useState<{
+    version: number
     model: DesktopProviderModelDefinition
     creating: boolean
     nativeApi?: string
@@ -101,6 +110,10 @@ export function ProviderModelsSection({
   const [discoveredModels, setDiscoveredModels] = useState<DesktopProviderModelDefinition[] | null>(
     null,
   )
+  const [candidateMatches, setCandidateMatches] = useState<
+    Readonly<Record<string, DesktopProviderModelMatch>>
+  >({})
+  const [specRepairOpen, setSpecRepairOpen] = useState(false)
   const [addedModelIds, setAddedModelIds] = useState<Set<string>>(new Set())
   const [togglingModelIds, setTogglingModelIds] = useState<Set<string>>(new Set())
   const [modalSearchQuery, setModalSearchQuery] = useState('')
@@ -117,73 +130,59 @@ export function ProviderModelsSection({
   }, [customConfig, togglingModelIds.size])
 
   async function fetchModels() {
-    if (!customConfig) return onFetchModels()
     if (saving || busy) return
+    setDiscoveredModels([])
+    setCandidateMatches({})
+    setModalSearchQuery('')
     setSaving(true)
     try {
-      const result = await desktopClient.syncProviderModels(provider.providerID)
-      await onRefresh()
-      const existing = new Set(customConfig.models.map((model) => String(model.id)))
-      const candidates = result.candidates.filter((model) => !existing.has(String(model.id)))
-      setDiscoveredModels(candidates.length > 0 ? candidates : null)
-      setAddedModelIds(new Set())
-      setModalSearchQuery('')
-      pendingConfigRef.current = customConfig
-      const summary = [
-        `从上游获取 ${result.totalFetched} 个模型`,
-        `移除 ${result.removedModelIds.length} 个`,
-        `候选 ${candidates.length} 个`,
-        ...(result.baselineCreated ? ['已建立同步基线'] : []),
-      ]
-      onNotice(`模型同步完成：${summary.join('，')}。`)
+      const result = await desktopClient.discoverProviderModels({
+        providerId: provider.providerID,
+        api: resolveDiscoveryChatApi(customConfig?.models ?? []),
+      })
+      setDiscoveredModels([...result.models])
+      setCandidateMatches(Object.fromEntries((result.matches ?? []).map((match) => [String(match.id), match])))
+      setAddedModelIds(new Set(rows.map((row) => row.id)))
+      pendingConfigRef.current = provider.config ?? null
     } catch (error) {
-      onError(fullErrorMessage(error))
+      setDiscoveredModels(null)
+      onError(toUserErrorMessage(error))
     } finally {
       setSaving(false)
     }
   }
 
   async function toggleModel(model: DesktopProviderModelDefinition) {
-    if (!customConfig) return
-    const currentConfig = (pendingConfigRef.current ?? customConfig) as Extract<
-      DesktopProviderDefinition,
-      { kind: 'custom' }
-    >
+    if (!provider.config || togglingModelIds.size > 0) return
+    const currentConfig = pendingConfigRef.current ?? provider.config
     const isCurrentlyAdded = addedModelIds.has(model.id)
     const nextAdded = new Set(addedModelIds)
-    let nextModels: DesktopProviderModelDefinition[]
+    let nextModels: readonly DesktopProviderDefinition['models'][number][]
 
     if (isCurrentlyAdded) {
       nextAdded.delete(model.id)
       nextModels = currentConfig.models.filter((m) => m.id !== model.id)
     } else {
-      nextAdded.add(model.id)
-      const isVision = Boolean(
-        model.input?.includes('image') ||
-        modelMetadata[model.id]?.vision ||
-        modelMetadata[model.id]?.modalities?.input?.includes('image') ||
-        /vision|vl|-v-|image/i.test(model.id),
-      )
-      const isReasoning = Boolean(
-        model.reasoning ||
-        modelMetadata[model.id]?.reasoning ||
-        /reason|deepseek-r1|qwq|o1|o3|o4|thinking/i.test(model.id),
-      )
-      const contextWindow = resolveModelContextWindow(model, modelMetadata[model.id])
-      const enrichedModel: DesktopProviderModelDefinition = {
-        ...model,
-        reasoning: isReasoning,
-        input: isVision ? ['text', 'image'] : (model.input ?? ['text']),
-        contextWindow,
+      // 未知/歧义候选不按名称猜能力或上下文，直接进入编辑器手动补齐。
+      if (!isImportableCandidate(model, candidateMatches[model.id])) {
+        setDiscoveredModels(null)
+        setCandidateMatches({})
+        openModel(model.id, model)
+        return
       }
-      nextModels = [...currentConfig.models.filter((m) => m.id !== model.id), enrichedModel]
+      nextAdded.add(model.id)
+      nextModels = [...currentConfig.models.filter((m) => m.id !== model.id), currentConfig.kind === 'builtin' ? { id: model.id, enabled: true } : { ...model, enabled: true }]
     }
 
     setAddedModelIds(nextAdded)
     const nextConfig = {
       ...currentConfig,
       models: nextModels,
-    }
+      ...(currentConfig.kind === 'builtin' ? {
+        denyModels: isCurrentlyAdded ? [...new Set([...currentConfig.denyModels, model.id])] : currentConfig.denyModels.filter((id) => id !== model.id),
+        allowModels: isCurrentlyAdded ? currentConfig.allowModels.filter((id) => id !== model.id) : [...new Set([...currentConfig.allowModels, model.id])],
+      } : {}),
+    } as DesktopProviderDefinition
     pendingConfigRef.current = nextConfig
     setTogglingModelIds((prev) => new Set(prev).add(model.id))
 
@@ -204,10 +203,8 @@ export function ProviderModelsSection({
           else rolled.delete(model.id)
           return rolled
         })
-        if (customConfig) {
-          pendingConfigRef.current = customConfig
-        }
-        onError(fullErrorMessage(error))
+        pendingConfigRef.current = provider.config ?? null
+        onError(toUserErrorMessage(error))
       })
       .finally(() => {
         setTogglingModelIds((prev) => {
@@ -251,12 +248,13 @@ export function ProviderModelsSection({
           }))
         : [
             ...new Set([
-              ...models,
+              ...(builtinConfig?.allowModels ?? []),
               ...(builtinConfig?.models.map((model) => String(model.id)) ?? []),
             ]),
           ]
             .filter(
               (id) =>
+                builtinConfig?.models.find((model) => model.id === id)?.enabled !== false &&
                 !builtinConfig?.denyModels.includes(id as never) &&
                 (!builtinConfig?.allowModels.length ||
                   builtinConfig.allowModels.includes(id as never)),
@@ -282,7 +280,8 @@ export function ProviderModelsSection({
     [customConfig, builtinConfig, models, modelMetadata],
   )
 
-  function openModel(id?: string) {
+  async function openModel(id?: string, candidate?: DesktopProviderModelDefinition) {
+    if (!(await panel?.open(provider.providerID, 'model'))) return
     const metadata = id ? modelMetadata[id] : undefined
     const protocolMetadata = id ? metadata : modelMetadata[models[0] ?? '']
     const configured = id
@@ -290,6 +289,7 @@ export function ProviderModelsSection({
         builtinConfig?.models.find((model) => model.id === id))
       : undefined
     const api =
+      candidate?.api ??
       configured?.api ??
       customConfig?.models.find((model) => !model.modelType || model.modelType === 'chat')?.api ??
       protocolMetadata?.providerApi ??
@@ -307,7 +307,8 @@ export function ProviderModelsSection({
       name: id ? (metadata?.name ?? id) : '',
       api,
       enabled: true,
-      contextWindow: metadata?.contextWindow ?? 32_768,
+      // 目录未给出上下文时保持为空，由用户明确填写，不再预填 32K。
+      contextWindow: metadata?.contextWindow ?? 0,
       maxInputTokens: metadata?.inputTokens,
       maxTokens: metadata?.outputTokens ?? 8_192,
       reasoning: metadata?.reasoning ?? false,
@@ -318,15 +319,66 @@ export function ProviderModelsSection({
           : 'chat',
       input: metadata?.modalities?.input ?? (metadata?.vision ? ['text', 'image'] : ['text']),
       ...configured,
+      ...candidate,
       cost: {
-        input: metadata?.inputCost ?? 0,
-        output: metadata?.outputCost ?? 0,
-        cacheRead: metadata?.cacheReadCost ?? 0,
-        cacheWrite: metadata?.cacheWriteCost ?? 0,
+        input: candidate?.cost?.input ?? metadata?.inputCost ?? 0,
+        output: candidate?.cost?.output ?? metadata?.outputCost ?? 0,
+        cacheRead: candidate?.cost?.cacheRead ?? metadata?.cacheReadCost ?? 0,
+        cacheWrite: candidate?.cost?.cacheWrite ?? metadata?.cacheWriteCost ?? 0,
         ...configured?.cost,
       },
     } as DesktopProviderModelDefinition
-    setEditingModel({ model, creating: !id, ...(nativeApi ? { nativeApi } : {}) })
+    const creating = !id || (!!candidate && !configured)
+    setEditingModel({ version: ++modelEditorVersion.current, model: creating ? { ...model, enabled: true } : model, creating, ...(nativeApi ? { nativeApi } : {}) })
+  }
+
+  /**
+   * 批量添加当前候选中的已匹配模型；未匹配、歧义与缺额度候选跳过并报告数量。
+   * 单次整体保存，避免逐个写配置产生中间状态。
+   */
+  async function addAllDiscoveredModels() {
+    if (!provider.config || !discoveredModels || saving || busy || togglingModelIds.size > 0) return
+    const currentConfig = pendingConfigRef.current ?? provider.config
+    const importable = discoveredModels.filter((model) =>
+      isImportableCandidate(model, candidateMatches[model.id]),
+    )
+    const skipped = discoveredModels.length - importable.length
+    if (!importable.length) {
+      onNotice(`没有可批量添加的模型，${skipped} 个候选需手动补齐规格。`)
+      return
+    }
+    const existing = new Set(addedModelIds)
+    const added = importable
+      .filter((model) => !existing.has(String(model.id)))
+      .map((model) => ({ ...model, enabled: true }))
+    if (!added.length) {
+      onNotice('候选模型已全部添加。')
+      return
+    }
+    setSaving(true)
+    try {
+      await onSaveDefinition(
+        {
+          ...currentConfig,
+          models: [...currentConfig.models.filter((model) => !added.some((item) => item.id === model.id)), ...added.map((model) => currentConfig.kind === 'builtin' ? { id: model.id, enabled: true } : model)],
+          ...(currentConfig.kind === 'builtin' ? {
+            denyModels: currentConfig.denyModels.filter((id) => !added.some((model) => model.id === id)),
+            allowModels: [...new Set([...currentConfig.allowModels, ...added.map((model) => model.id)])],
+          } : {}),
+        } as DesktopProviderDefinition,
+        provider.providerID,
+      )
+      await onRefresh()
+      pendingConfigRef.current = null
+      setAddedModelIds(new Set([...existing, ...added.map((model) => model.id)]))
+      onNotice(
+        `已添加 ${added.length} 个模型${skipped ? `，跳过 ${skipped} 个需手动补齐的候选` : ''}。`,
+      )
+    } catch (error) {
+      onError(toUserErrorMessage(error))
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function saveModel(model: DesktopProviderModelDefinition) {
@@ -366,15 +418,13 @@ export function ProviderModelsSection({
           ...config,
           models: [...config.models.filter((item) => item.id !== oldId), override as never],
           denyModels: config.denyModels.filter((id) => id !== model.id),
-          allowModels:
-            config.allowModels.length > 0
-              ? [...new Set([...config.allowModels, model.id])]
-              : config.allowModels,
+          allowModels: [...new Set([...config.allowModels, model.id])],
         },
         provider.providerID,
       )
     }
     await onRefresh()
+    setEditingModel((current) => current ? { ...current, model, creating: false } : null)
     onNotice('模型配置已保存。')
   }
 
@@ -388,6 +438,7 @@ export function ProviderModelsSection({
           ? { ...config, models: config.models.filter((model) => model.id !== id) }
           : {
               ...config,
+              allowModels: config.allowModels.filter((modelId) => modelId !== id),
               denyModels: [...new Set([...config.denyModels, id as never])],
               models: config.models.map((model) =>
                 model.id === id ? { ...model, enabled: false } : model,
@@ -399,7 +450,7 @@ export function ProviderModelsSection({
       setDeletingModel(null)
       onNotice('模型已移除。')
     } catch (error) {
-      onError(fullErrorMessage(error))
+      onError(toUserErrorMessage(error))
     } finally {
       setSaving(false)
     }
@@ -469,6 +520,16 @@ export function ProviderModelsSection({
             <RefreshCw aria-hidden size={APP_ICON_SIZES.sm} />
             同步模型
           </Button>
+          {customConfig ? (
+            <Button
+              color="outline"
+              size="sm"
+              disabled={busy || saving || editingBlocked}
+              onClick={() => setSpecRepairOpen(true)}
+            >
+              检查 32K 模型规格
+            </Button>
+          ) : null}
           {provider.config && editable ? (
             <Button
               color="outline"
@@ -484,28 +545,24 @@ export function ProviderModelsSection({
           ) : null}
         </div>
       </header>
-      <div className="model-center-models-list tw:grid tw:min-w-0 tw:gap-3">
-        {groupProviderModels(filtered, provider.providerID).map((group) => (
-          <ModelGroup key={group.id} id={group.id} searchActive={searchQuery.trim().length > 0}>
-            {group.models.map((row) => (
-              <ModelRowItem
-                key={row.id}
-                modelId={row.id}
-                metadata={row.metadata}
-                disabled={busy || !executable || !row.enabled}
-                enabled={row.enabled}
-                testStatus={testResults[`${provider.providerID}/${row.id}`]}
-                onTest={() => void onTestModels([row.id])}
-                onEdit={() => openModel(row.id)}
-                onRemove={() => setDeletingModel(row.id)}
-                editingDisabled={busy || saving || editingBlocked || !provider.config || !editable}
-                logoURL={modelLogoURL(row.id, row.metadata?.name) ?? provider.logoURL}
-                providerID={
-                  modelLogoURL(row.id, row.metadata?.name) ? undefined : provider.providerID
-                }
-              />
-            ))}
-          </ModelGroup>
+      <div className="model-center-models-list tw:grid tw:min-w-0">
+        {filtered.map((row) => (
+          <ModelRowItem
+            key={row.id}
+            modelId={row.id}
+            metadata={row.metadata}
+            disabled={busy || !executable || !row.enabled}
+            enabled={row.enabled}
+            testStatus={testResults[`${provider.providerID}/${row.id}`]}
+            onTest={() => void onTestModels([row.id])}
+            onEdit={() => openModel(row.id)}
+            onRemove={() => setDeletingModel(row.id)}
+            editingDisabled={busy || saving || editingBlocked || !provider.config || !editable}
+            logoURL={modelLogoURL(row.id, row.metadata?.name) ?? provider.logoURL}
+            providerID={
+              modelLogoURL(row.id, row.metadata?.name) ? undefined : provider.providerID
+            }
+          />
         ))}
         {filtered.length === 0 ? (
           <p className="tw:px-3 tw:py-4 tw:text-app-text-soft tw:type-body-sm">
@@ -513,23 +570,26 @@ export function ProviderModelsSection({
           </p>
         ) : null}
       </div>
-      {editingModel ? (
-        <ProviderModelDialog
-          groups={groupProviderModels(rows, provider.providerID).map((group) => group.id)}
+      {editingModel && panel?.host && panel.tab?.providerId === provider.providerID && panel.tab.section === 'model' ? createPortal(
+        <ProviderModelPanel
+          key={editingModel.version}
+          panel={panel}
           providerId={provider.providerID}
           baseUrl={provider.baseURL ?? ''}
           model={editingModel.model}
           creating={editingModel.creating}
           {...(editingModel.nativeApi ? { nativeApi: editingModel.nativeApi } : {})}
           onSave={saveModel}
-          onClose={() => setEditingModel(null)}
-        />
+          onClose={panel.close}
+        />,
+        panel.host,
       ) : null}
       <Dialog.Root
         open={discoveredModels !== null}
         onOpenChange={(open) => {
           if (!open) {
             setDiscoveredModels(null)
+            setCandidateMatches({})
             setModalSearchQuery('')
           }
         }}
@@ -554,9 +614,11 @@ export function ProviderModelsSection({
               </Dialog.Close>
             </header>
             <div className="settings-management-dialog-body tw:flex tw:flex-col tw:gap-3 tw:overflow-y-auto">
-              {discoveredModels?.length === 0 ? (
+              {saving ? (
+                <p role="status">正在获取模型目录…</p>
+              ) : discoveredModels?.length === 0 ? (
                 <p className="tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body-sm">
-                  远端目录没有尚未配置的模型。
+                  远端目录没有模型。
                 </p>
               ) : (
                 <>
@@ -587,12 +649,13 @@ export function ProviderModelsSection({
                       <Button
                         color="outline"
                         size="sm"
+                        disabled={togglingModelIds.size > 0}
                         title="添加全部模型"
                         onClick={() => {
                           if (onAddAllDiscoveredModels) {
                             onAddAllDiscoveredModels()
                           } else {
-                            onNotice('添加全部模型功能待接入')
+                            void addAllDiscoveredModels()
                           }
                         }}
                       >
@@ -626,10 +689,11 @@ export function ProviderModelsSection({
                         <DiscoveredModelCard
                           key={model.id}
                           model={model}
+                          match={candidateMatches[model.id]}
                           provider={provider}
                           metadata={modelMetadata[model.id]}
                           isSelected={addedModelIds.has(model.id)}
-                          isToggling={togglingModelIds.has(model.id)}
+                          isToggling={togglingModelIds.size > 0}
                           onToggle={() => void toggleModel(model)}
                         />
                       ))}
@@ -641,12 +705,23 @@ export function ProviderModelsSection({
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+      {customConfig ? (
+        <ProviderModelSpecRepairDialog
+          open={specRepairOpen}
+          providerId={provider.providerID}
+          onClose={() => setSpecRepairOpen(false)}
+          onApplied={async () => {
+            await onRefresh()
+            onNotice('模型规格已更新。')
+          }}
+        />
+      ) : null}
       <ConfirmationDialog
         open={deletingModel !== null}
         title="移除模型？"
         description={
           builtinConfig
-            ? '将此模型加入排除列表，可通过模型筛选恢复。'
+            ? '将从可用模型中移除，可通过同步模型重新添加。'
             : '将从供应商配置中移除此模型。'
         }
         actionLabel="移除"
@@ -656,42 +731,6 @@ export function ProviderModelsSection({
         }}
         onCancel={() => setDeletingModel(null)}
       />
-    </section>
-  )
-}
-
-function ModelGroup({
-  id,
-  searchActive,
-  children,
-}: {
-  id: string
-  searchActive: boolean
-  children: React.ReactNode
-}): React.ReactNode {
-  const [collapsed, setCollapsed] = useState(false)
-  const contentId = useId()
-  const expanded = searchActive || !collapsed
-  return (
-    <section className="tw:min-w-0 tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle">
-      <button
-        type="button"
-        className="tw:flex tw:w-full tw:items-center tw:gap-2 tw:bg-app-panel tw:px-4 tw:py-3 tw:text-left tw:type-row-title"
-        aria-label={`模型分组 ${id}`}
-        aria-expanded={expanded}
-        aria-controls={contentId}
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        <ChevronRight
-          aria-hidden
-          size={APP_ICON_SIZE}
-          className={expanded ? 'tw:rotate-90' : undefined}
-        />
-        {id}
-      </button>
-      <DisclosureContent id={contentId} expanded={expanded} contentClassName="tw:grid tw:gap-0">
-        {children}
-      </DisclosureContent>
     </section>
   )
 }
@@ -835,9 +874,6 @@ export function resolveModelVendor(
   model: DesktopProviderModelDefinition,
   provider: DesktopModelProviderSummary,
 ): string {
-  if (model.group && model.group.trim() && model.group !== 'default') {
-    return model.group.trim()
-  }
   if (model.id.includes('/')) {
     const prefix = model.id.split('/')[0]!.trim()
     if (prefix) return formatVendorName(prefix)
@@ -977,27 +1013,20 @@ export function resolveModelCapabilities(
 export function resolveModelContextWindow(
   model: DesktopProviderModelDefinition,
   metadata?: DesktopModelMetadata,
-): number {
+): number | null {
   if (model.contextWindow && model.contextWindow > 0) {
     return model.contextWindow
   }
   if (metadata?.contextWindow && metadata.contextWindow > 0) {
     return metadata.contextWindow
   }
-  const text = `${model.id} ${model.name ?? ''}`.toLowerCase()
-  const matchK = text.match(/(?:^|[-_\s/])(\d+)[k](?:[-_\s/]|$)/i)
-  if (matchK && matchK[1]) {
-    return Number(matchK[1]) * 1024
-  }
-  const matchM = text.match(/(?:^|[-_\s/])(\d+)[m](?:[-_\s/]|$)/i)
-  if (matchM && matchM[1]) {
-    return Number(matchM[1]) * 1024 * 1024
-  }
-  return 32_768
+  // 上下文只接受目录/上游的明确值；名称中的 K/M 不代表真实额度。
+  return null
 }
 
 export type DiscoveredModelCardProps = {
   model: DesktopProviderModelDefinition
+  match?: DesktopProviderModelMatch
   provider: DesktopModelProviderSummary
   metadata?: DesktopModelMetadata
   isSelected: boolean
@@ -1007,6 +1036,7 @@ export type DiscoveredModelCardProps = {
 
 export function DiscoveredModelCard({
   model,
+  match,
   provider,
   metadata,
   isSelected,
@@ -1016,6 +1046,8 @@ export function DiscoveredModelCard({
   const vendor = resolveModelVendor(model, provider)
   const capabilities = resolveModelCapabilities(model, metadata)
   const contextWindow = resolveModelContextWindow(model, metadata)
+  const importable = isImportableCandidate(model, match)
+  const matchLabel = candidateMatchLabel(match?.status)
   const modelName = model.name || model.id
   const logo = modelLogoURL(model.id, model.name) ?? provider.logoURL
 
@@ -1024,7 +1056,10 @@ export function DiscoveredModelCard({
       type="button"
       role="checkbox"
       aria-checked={isSelected}
-      aria-label={`${modelName}，${isSelected ? '已添加，点击移除' : '未添加，点击添加'}`}
+      aria-label={`${modelName}，${
+        isSelected ? '已添加，点击移除' : importable ? '未添加，点击添加' : '规格待补齐，点击手动填写'
+      }`}
+      title={candidateMatchHint(match)}
       disabled={isToggling}
       onClick={onToggle}
       className={cx(
@@ -1053,6 +1088,16 @@ export function DiscoveredModelCard({
           </span>
           <span className="tw:shrink-0 tw:rounded tw:bg-app-hover tw:px-1.5 tw:py-0.5 tw:type-caption tw:text-app-text-soft">
             {vendor}
+          </span>
+          <span
+            className={cx(
+              'tw:shrink-0 tw:rounded tw:px-1.5 tw:py-0.5 tw:type-caption',
+              importable
+                ? 'tw:bg-app-accent-subtle tw:text-app-accent-fg'
+                : 'tw:bg-app-hover tw:text-app-text-meta',
+            )}
+          >
+            {matchLabel}
           </span>
         </div>
 
@@ -1101,7 +1146,15 @@ export function DiscoveredModelCard({
           <Cpu size="var(--inline-icon-size, 1em)" className="tw:shrink-0 tw:text-app-text-meta" />
           <span>
             上下文长度:{' '}
-            <strong className="tw:text-app-text">{formatCompactNumber(contextWindow)}</strong>
+            <strong className="tw:text-app-text">
+              {contextWindow ? formatCompactNumber(contextWindow) : '未知'}
+            </strong>
+            {model.maxTokens ? (
+              <>
+                {' · '}最大输出:{' '}
+                <strong className="tw:text-app-text">{formatCompactNumber(model.maxTokens)}</strong>
+              </>
+            ) : null}
           </span>
         </div>
         {model.id !== modelName ? (

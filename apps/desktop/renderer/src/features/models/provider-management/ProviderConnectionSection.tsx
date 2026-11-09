@@ -33,7 +33,7 @@ import {
   APP_ICON_SIZES,
 } from '../../../components/ui/IconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { fullErrorMessage } from '../../../utils/Errors.js'
+import { toUserErrorMessage } from '../../../utils/Errors.js'
 import {
   allBalances,
   formatRefreshedAt,
@@ -215,6 +215,7 @@ export function ProviderConnectionSection({
   const scrollRef = useRef<HTMLDivElement>(null)
   const credentialsRef = useRef<HTMLElement>(null)
   const requestRef = useRef<HTMLElement>(null)
+  const [providerNameHost, setProviderNameHost] = useState<HTMLDivElement | null>(null)
   const [requestFooterHost, setRequestFooterHost] = useState<HTMLDivElement | null>(null)
   useEffect(() => {
     if (!section || !panel?.host) return
@@ -247,7 +248,7 @@ export function ProviderConnectionSection({
     return () => onDraftChange?.(false)
   }, [dirty, onDraftChange])
   useEffect(() => {
-    if (!panel) return
+    if (!panel || section === 'model') return
     const beforeChange = async () => {
       setGuardRequested(true)
       try {
@@ -260,7 +261,7 @@ export function ProviderConnectionSection({
     return () => {
       if (panel.beforeChange.current === beforeChange) panel.beforeChange.current = null
     }
-  }, [panel?.beforeChange])
+  }, [panel?.beforeChange, section])
   async function changeKeyEditor(next: DesktopApiKeySummary | 'new' | null) {
     if (await (panel?.beforeChange.current?.() ?? Promise.resolve(true))) setKeyEditor(next)
   }
@@ -320,7 +321,7 @@ export function ProviderConnectionSection({
             </div>
           </header>
         </section>
-        {panel?.host && section
+        {panel?.host && section && section !== 'model'
           ? createPortal(
               <p className="tw:p-4 tw:text-app-text-soft tw:type-body-sm">
                 当前提供商暂不可用，无法管理连接或请求配置。
@@ -347,7 +348,7 @@ export function ProviderConnectionSection({
         sourceIds: connectedQueryableSourceIds,
         force: true,
       })
-      .catch((error) => onError(fullErrorMessage(error)))
+      .catch((error) => onError(toUserErrorMessage(error)))
   }
 
   const refreshingUsage = connectedQueryableSourceIds.some((sourceId) =>
@@ -409,7 +410,7 @@ export function ProviderConnectionSection({
           </div>
         </section>
       </div>
-      {(dirty || busy || requestBusy || guardRequested) && section ? (
+      {(dirty || busy || requestBusy || guardRequested) && section && section !== 'model' ? (
         <ProviderEditorNavigationGuard
           dirty={dirty}
           busy={busy || requestBusy}
@@ -428,23 +429,29 @@ export function ProviderConnectionSection({
           }}
         />
       ) : null}
-      {panel?.host && section
+      {panel?.host && section && section !== 'model'
         ? createPortal(
             <div className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col">
               <div
                 ref={scrollRef}
                 className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-6 tw:overflow-y-auto tw:p-4 tw:[&_.model-center-oauth-flow]:p-0"
               >
-                <section className="tw:grid tw:gap-4" aria-label="供应商图标">
-                  <h3 className="tw:m-0 tw:type-title-sm">供应商图标</h3>
-                  <ProviderWebsiteIconSettings
-                    key={provider.providerID}
-                    providerID={provider.providerID}
-                    logoURL={provider.logoURL}
-                    address={provider.config?.baseUrl ?? provider.baseURL ?? ''}
-                    onNotice={onNotice}
-                    onError={onError}
-                  />
+                <section className="tw:grid tw:gap-4" aria-label="供应商信息">
+                  <h3 className="tw:m-0 tw:type-title-sm">供应商信息</h3>
+                  <div className="tw:grid tw:min-w-0 tw:gap-4">
+                    {customConfig ? <div ref={setProviderNameHost} /> : null}
+                    <div className="tw:grid tw:min-w-0 tw:gap-2">
+                      <span className="tw:type-label">供应商图标</span>
+                      <ProviderWebsiteIconSettings
+                        key={provider.providerID}
+                        providerID={provider.providerID}
+                        logoURL={provider.logoURL}
+                        address={provider.config?.baseUrl ?? provider.baseURL ?? ''}
+                        onNotice={onNotice}
+                        onError={onError}
+                      />
+                    </div>
+                  </div>
                 </section>
                 <section
                   ref={credentialsRef}
@@ -608,7 +615,7 @@ export function ProviderConnectionSection({
                                             connection.credentialId!,
                                           )
                                           .then(() => onNotice('活动凭据已切换为 OAuth。'))
-                                          .catch((err) => onError(fullErrorMessage(err)))
+                                          .catch((err) => onError(toUserErrorMessage(err)))
                                       }}
                                     >
                                       设为当前活动
@@ -621,7 +628,7 @@ export function ProviderConnectionSection({
                                         void providerManagementStore
                                           .deleteCredential(connection.credentialId!)
                                           .then(() => onNotice('OAuth 凭据已删除。'))
-                                          .catch((err) => onError(fullErrorMessage(err)))
+                                          .catch((err) => onError(toUserErrorMessage(err)))
                                       }}
                                     >
                                       断开并删除
@@ -785,6 +792,7 @@ export function ProviderConnectionSection({
                     footerHost={requestFooterHost}
                     key={provider.providerID}
                     provider={provider}
+                    nameHost={providerNameHost}
                     saveRef={requestSave}
                     resetRef={requestReset}
                     onDraftChange={setRequestDirty}

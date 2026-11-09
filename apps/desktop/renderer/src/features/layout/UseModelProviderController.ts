@@ -67,7 +67,12 @@ export function useModelProviderController({
       providers.unshift(providerState.provider)
     }
     return providers
-      .filter((provider) => provider.apiKeyConfigured && isExecutableDesktopProvider(provider))
+      .filter((provider) => isExecutableDesktopProvider(provider))
+      // 自定义供应商是用户亲手创建的：即使凭据未配置也要出现在选择器中，
+      // 否则刚配置完的供应商在聊天入口“消失”，用户无从继续。
+      .filter(
+        (provider) => provider.apiKeyConfigured || provider.providerKind === 'custom',
+      )
       .map((provider) => {
         const isSelected = provider.providerID === providerState?.selectedProviderID
         const models = isSelected
@@ -80,6 +85,7 @@ export function useModelProviderController({
         return {
           providerID: provider.providerID,
           displayName: provider.displayName,
+          apiKeyConfigured: provider.apiKeyConfigured,
           modelPresets: buildModelPresets(
             models.filter(
               (id) => !['embedding', 'rerank'].includes(modelMetadata?.[id]?.modelType ?? 'chat'),
@@ -229,6 +235,7 @@ export function useModelProviderController({
     const listener = () => {
       openedProviderCatalogsRef.current.clear()
       fetchedModelCatalogKeysRef.current.clear()
+      pendingModelCatalogKeysRef.current.clear()
       void refreshProviderState()
     }
     window.addEventListener('desktop:model-provider-changed', listener)
@@ -403,6 +410,9 @@ export function useModelProviderController({
   const handleProviderOpen = useCallback(
     (providerID: ModelProviderID): void => {
       if (openedProviderCatalogsRef.current.has(providerID)) return
+      // 未配置凭据的自定义供应商没有可拉取的目录；跳过拉取，避免无意义的错误提示。
+      const knownProvider = modelProviders.find((provider) => provider.providerID === providerID)
+      if (knownProvider && !knownProvider.apiKeyConfigured) return
       openedProviderCatalogsRef.current.add(providerID)
       const requestId = providerStateRequestIdRef.current
       void desktopClient
@@ -443,7 +453,7 @@ export function useModelProviderController({
           setErrorMessage(error instanceof Error ? error.message : String(error))
         })
     },
-    [setErrorMessage],
+    [modelProviders, setErrorMessage],
   )
 
   // The picker filters locally after loading every configured model on open.

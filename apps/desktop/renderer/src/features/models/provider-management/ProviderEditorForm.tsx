@@ -1,6 +1,6 @@
 import { useSmartModelConfig } from './UseSmartModelConfig.js'
 import * as Dialog from '@radix-ui/react-dialog'
-import type { SmartConfig, SmartConfigPinnedField } from '@pidex/agent-protocol'
+import type { SmartConfig } from '@pidex/agent-protocol'
 import {
   AlertTriangle,
   Brain,
@@ -24,6 +24,7 @@ import type {
   DesktopCustomProviderDefinition,
   DesktopModelProviderSummary,
   DesktopProviderDefinition,
+  DesktopProviderModelMatch,
   ModelProviderID,
   DesktopProviderModelDefinition,
 } from '../../../../shared/Types.js'
@@ -48,6 +49,11 @@ import { desktopClient } from '../../../services/desktop-client/index.js'
 import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
 import { PROVIDER_PRESETS, type ProviderPreset } from './ProviderEditorPresets.js'
 import { cx } from '../../../utils/Cx.js'
+import {
+  candidateMatchHint,
+  candidateMatchLabel,
+  isImportableCandidate,
+} from './ModelCandidateImport.js'
 import { SETTINGS_MANAGEMENT_DIALOG_SIZE } from '../../settings/SettingsManagementDialogSizing.js'
 import {
   DEEPSEEK_PROTOCOL_OPTIONS,
@@ -120,6 +126,17 @@ const DISCOVERY_CHAT_APIS = [
 
 type DiscoveryChatApi = (typeof DISCOVERY_CHAT_APIS)[number]
 
+export function resolveDiscoveryChatApi(
+  models: readonly Pick<DesktopProviderModelDefinition, 'api' | 'modelType'>[],
+): DiscoveryChatApi {
+  for (const model of models) {
+    if (model.modelType && model.modelType !== 'chat') continue
+    const api = DISCOVERY_CHAT_APIS.find((candidate) => candidate === model.api)
+    if (api) return api
+  }
+  return DISCOVERY_CHAT_APIS[0]
+}
+
 export type EditableModel = {
   group?: string
   original?: DesktopProviderModelDefinition
@@ -190,9 +207,12 @@ const PROVIDER_EDITOR_FIELD_MONO_CLASS =
 const PROVIDER_EDITOR_MODEL_CARD_BODY_CLASS =
   'provider-editor-model-card-body tw:grid tw:gap-4 tw:rounded-none tw:border-t tw:border-t-app-border-subtle tw:bg-app-raised tw:p-4'
 
-/* 高级配置正文（DisclosureContent 的 contentClassName）。 */
-const PROVIDER_EDITOR_MODEL_ADVANCED_CONTENT_CLASS =
-  'provider-editor-model-advanced-content tw:grid tw:gap-3 tw:border-t tw:border-t-app-border-subtle tw:p-3'
+/* 模型编辑行：标签在左、控件在右，窄屏回到单列。 */
+const MODEL_EDITOR_ROW_CLASS =
+  'tw:grid tw:grid-cols-[minmax(5rem,7rem)_minmax(0,1fr)] tw:items-center tw:gap-3 tw:max-[560px]:grid-cols-1 tw:max-[560px]:gap-1.5 tw:[&>span]:flex tw:[&>span]:min-w-0 tw:[&>span]:items-center tw:[&>span]:gap-2 tw:[&>span]:text-app-text tw:[&>span]:type-label tw:[&>label]:text-app-text tw:[&>label]:type-label'
+
+/* 额度行：标签与预设档位同行，数值输入与说明独占下一行。 */
+const MODEL_EDITOR_SPEC_ROW_CLASS = 'tw:grid tw:gap-2'
 
 export function ProviderEditorForm({
   embedded = false,
@@ -240,6 +260,10 @@ export function ProviderEditorForm({
   const allowNavigation = useRef(false)
   const createdProviderId = useRef<string | null>(null)
   const [candidates, setCandidates] = useState<DesktopProviderModelDefinition[]>([])
+  const [candidateMatches, setCandidateMatches] = useState<
+    Readonly<Record<string, DesktopProviderModelMatch>>
+  >({})
+  const [candidateFilter, setCandidateFilter] = useState('')
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set())
   const [tempApiKey, setTempApiKey] = useState('')
   const [pendingModelSync, setPendingModelSync] =
@@ -264,7 +288,7 @@ export function ProviderEditorForm({
           name: metadata?.name ?? modelId,
           api: metadata?.providerApi ?? provider.providerApis?.[0] ?? 'openai-completions',
           enabled: true,
-          contextWindow: metadata?.contextWindow ?? 32_768,
+          contextWindow: metadata?.contextWindow ?? 0,
           maxTokens: metadata?.outputTokens ?? 8_192,
           reasoning: metadata?.reasoning ?? false,
           imageInput: metadata?.vision ?? false,
@@ -313,6 +337,7 @@ export function ProviderEditorForm({
     )
     setProtocol(managed ? deepSeekProtocolOf(managed.config) : DEFAULT_DEEPSEEK_PROTOCOL)
     setCandidates([])
+    setCandidateFilter('')
     setSelectedCandidates(new Set())
     setTempApiKey('')
     setPendingModelSync(undefined)
@@ -523,14 +548,6 @@ export function ProviderEditorForm({
     }
   }
 
-  function discoveryChatApi(): DiscoveryChatApi {
-    const match = models.find(
-      (model) =>
-        (!model.modelType || model.modelType === 'chat') &&
-        (DISCOVERY_CHAT_APIS as readonly string[]).includes(model.api),
-    )
-    return (match?.api as DiscoveryChatApi | undefined) ?? DISCOVERY_CHAT_APIS[0]
-  }
 
   /**
    * 新建供应商保存前从上游 /models 读取目录：使用当前表单草稿与可选临时
@@ -546,12 +563,13 @@ export function ProviderEditorForm({
       return
     }
     if (busyRef.current || discovering) return
-    const api = discoveryChatApi()
+    const api = resolveDiscoveryChatApi(models)
     busyRef.current = true
     setDiscovering(true)
     setBusy(true)
     setError(null)
     try {
+      const existing = new Set(models.map((model) => model.id.trim()).filter(Boolean))
       const result = await desktopClient.discoverProviderModels({
         api,
         draft: {
@@ -563,14 +581,18 @@ export function ProviderEditorForm({
           ...(tempApiKey.trim() ? { apiKey: tempApiKey.trim() } : {}),
         },
       })
-      const existing = new Set(models.map((model) => model.id.trim()).filter(Boolean))
-      const nextCandidates = result.filter((model) => !existing.has(String(model.id)))
+      const foundMatches = Object.fromEntries(
+        (result.matches ?? []).map((match) => [String(match.id), match]),
+      )
+      const nextCandidates = result.models.filter((model) => !existing.has(String(model.id)))
       setCandidates(nextCandidates)
-      setSelectedCandidates(new Set(nextCandidates.map((model) => String(model.id))))
+      setCandidateMatches(foundMatches)
+      setSelectedCandidates(new Set())
+      setCandidateFilter('')
       setPendingModelSync({
         fetchedAt: Date.now(),
         api,
-        models: result.map((model) => model.id),
+        models: result.models.map((model) => model.id),
       })
     } catch (discoverError) {
       setError(discoverError instanceof Error ? discoverError.message : String(discoverError))
@@ -583,15 +605,38 @@ export function ProviderEditorForm({
 
   function importSelected(): void {
     const existing = new Set(models.map((model) => model.id))
-    const imported = candidates
-      .filter(
-        (model) => selectedCandidates.has(String(model.id)) && !existing.has(String(model.id)),
-      )
-      .map((model) => editableModel(model))
-    setModels((current) => [...current, ...imported])
-    setCandidates([])
-    setSelectedCandidates(new Set())
+    const imported = candidates.filter(
+      (model) =>
+        selectedCandidates.has(String(model.id)) &&
+        !existing.has(String(model.id)) &&
+        isImportableCandidate(model, candidateMatches[String(model.id)]),
+    )
+    const importedIds = new Set(imported.map((model) => String(model.id)))
+    setModels((current) => [...current, ...imported.map((model) => editableModel({ ...model, enabled: true }))])
+    // 未匹配/歧义候选保留在列表里，供继续手动补齐。
+    setCandidates((current) => current.filter((model) => !importedIds.has(String(model.id))))
+    setSelectedCandidates((current) => {
+      const next = new Set(current)
+      for (const id of importedIds) next.delete(id)
+      return next
+    })
   }
+
+  /** 未知/歧义候选不默认导入，转入手工编辑器补齐上下文与最大输出。 */
+  function manualImport(model: DesktopProviderModelDefinition): void {
+    setModels((current) => [...current, editableModel({ ...model, enabled: true })])
+    setCandidates((current) => current.filter((item) => item.id !== model.id))
+    setSelectedCandidates((current) => {
+      const next = new Set(current)
+      next.delete(String(model.id))
+      return next
+    })
+  }
+
+  const filteredCandidates = useMemo(() => {
+    const query = candidateFilter.trim().toLowerCase()
+    return candidates.filter((model) => String(model.id).toLowerCase().includes(query))
+  }, [candidates, candidateFilter])
 
   const isRemoteHttp = /^http:\/\//i.test(baseUrl) && !isLoopbackUrl(baseUrl)
 
@@ -989,8 +1034,31 @@ export function ProviderEditorForm({
                 <section className="provider-editor-candidates-card tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-app-accent-border tw:bg-app-accent-subtle tw:p-4">
                   <header className="tw:flex tw:items-center tw:justify-between tw:gap-2">
                     <strong className="tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-sm)]">
-                      发现 {candidates.length} 个候选模型
+                      发现 {candidates.length} 个候选模型，已选 {selectedCandidates.size} 个
                     </strong>
+                    <Button
+                      size="md"
+                      color="secondary"
+                      onClick={() =>
+                        setSelectedCandidates(new Set(
+                          filteredCandidates
+                            .filter((model) =>
+                              isImportableCandidate(model, candidateMatches[String(model.id)]),
+                            )
+                            .map((model) => String(model.id)),
+                        ))
+                      }
+                    >
+                      全选
+                    </Button>
+                    <Button
+                      size="md"
+                      color="secondary"
+                      disabled={selectedCandidates.size === 0}
+                      onClick={() => setSelectedCandidates(new Set())}
+                    >
+                      清空
+                    </Button>
                     <Button
                       size="md"
                       color="primary"
@@ -1000,31 +1068,81 @@ export function ProviderEditorForm({
                       导入已选 ({selectedCandidates.size})
                     </Button>
                   </header>
+                  <Input
+                    aria-label="筛选候选模型"
+                    autoComplete="off"
+                    placeholder="按 ID 筛选候选模型"
+                    value={candidateFilter}
+                    onChange={(event) => setCandidateFilter(event.target.value)}
+                  />
                   <div className="provider-editor-candidates-list tw:grid tw:max-h-40 tw:gap-1 tw:overflow-y-auto tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2">
-                    {candidates.map((candidate) => (
-                      <label
-                        className="provider-editor-candidate-row tw:flex tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-xs tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-sm)] tw:hover:bg-app-hover tw:[&_input]:cursor-pointer"
-                        key={String(candidate.id)}
-                      >
-                        <input
-                          checked={selectedCandidates.has(String(candidate.id))}
-                          type="checkbox"
-                          onChange={(event) =>
-                            setSelectedCandidates((current) => {
-                              const next = new Set(current)
-                              if (event.target.checked) next.add(String(candidate.id))
-                              else next.delete(String(candidate.id))
-                              return next
-                            })
-                          }
-                        />
-                        <span>{String(candidate.id)}</span>
-                        <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">
-                          {candidate.api}
-                        </span>
-                      </label>
-                    ))}
+                    {filteredCandidates.length === 0 ? (
+                      <p role="status" className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+                        没有匹配的候选模型。
+                      </p>
+                    ) : null}
+                    {filteredCandidates.map((candidate) => {
+                      const match = candidateMatches[String(candidate.id)]
+                      const importable = isImportableCandidate(candidate, match)
+                      const hint = candidateMatchHint(match)
+                      return (
+                        <div
+                          className="provider-editor-candidate-row tw:flex tw:items-center tw:gap-2 tw:rounded-xs tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-sm)] tw:hover:bg-app-hover"
+                          key={String(candidate.id)}
+                          title={hint}
+                        >
+                          <label className="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
+                            <input
+                              checked={selectedCandidates.has(String(candidate.id))}
+                              disabled={!importable}
+                              type="checkbox"
+                              onChange={(event) =>
+                                setSelectedCandidates((current) => {
+                                  const next = new Set(current)
+                                  if (event.target.checked) next.add(String(candidate.id))
+                                  else next.delete(String(candidate.id))
+                                  return next
+                                })
+                              }
+                            />
+                            <span className="tw:truncate">{String(candidate.id)}</span>
+                          </label>
+                          <span className="provider-editor-model-card-badge tw:shrink-0 tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">
+                            {candidateMatchLabel(match?.status)}
+                          </span>
+                          {candidate.contextWindow ? (
+                            <span className="tw:shrink-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)]">
+                              上下文 {candidate.contextWindow.toLocaleString()}
+                            </span>
+                          ) : null}
+                          {!importable ? (
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              onClick={() => manualImport(candidate)}
+                            >
+                              手动补齐
+                            </Button>
+                          ) : null}
+                        </div>
+                      )
+                    })}
                   </div>
+                  {candidates.some(
+                    (candidate) =>
+                      !isImportableCandidate(candidate, candidateMatches[String(candidate.id)]),
+                  ) ? (
+                    <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+                      {candidates.filter(
+                        (candidate) =>
+                          !isImportableCandidate(
+                            candidate,
+                            candidateMatches[String(candidate.id)],
+                          ),
+                      ).length}{' '}
+                      个候选未匹配、歧义或缺少额度，不会默认导入；请点击“手动补齐”填写上下文与最大输出。
+                    </p>
+                  ) : null}
                 </section>
               ) : null}
 
@@ -1399,7 +1517,6 @@ export function ModelEditor({
   baseUrl = '',
   nativeApi,
   lockId = false,
-  groups = [],
 }: {
   model: EditableModel
   onChange: (model: EditableModel) => void
@@ -1407,7 +1524,6 @@ export function ModelEditor({
   lockId?: boolean
   providerId?: string
   baseUrl?: string
-  groups?: readonly string[]
 }): React.ReactNode {
   const smart = useSmartModelConfig(model, rawOnChange, providerId, baseUrl)
   const onChange = smart.change
@@ -1441,10 +1557,6 @@ export function ModelEditor({
     setHistory((current) => current.slice(0, -1))
     onChange({ ...model, ...previous })
   }
-  const [advanced, setAdvanced] = useState(false)
-  const advancedId = useId()
-  const parametersId = useId()
-  const [parametersOpen, setParametersOpen] = useState(false)
   const number = (key: keyof EditableModel, value: string) =>
     changeAdvanced({ ...model, [key]: Math.max(0, Number(value) || 0) })
 
@@ -1464,45 +1576,40 @@ export function ModelEditor({
       {label}
     </button>
   )
-  /** 已固定的字段打标，并可在标题处一键恢复跟随。 */
-  const pinBadge = (field: SmartConfigPinnedField) =>
-    !smart.enabled || !smart.pinned.includes(field) ? null : (
-      <button
-        type="button"
-        className="tw:ml-2 tw:rounded-full tw:border tw:border-app-border tw:bg-app-selected tw:px-2 tw:type-caption tw:text-app-text-soft tw:hover:text-app-text"
-        title="该字段已固定，不再跟随推荐"
-        onClick={() => smart.togglePin(field)}
-      >
-        已固定
-      </button>
-    )
+  /** 额度字段：标签与预设档位同行，数值输入独占下一行；可选字段把说明放进占位符。 */
   const tokenField = (
     key: 'contextWindow' | 'maxInputTokens' | 'maxTokens',
     label: string,
+    ariaLabel: string,
     values: number[],
+    hint?: string,
   ) => (
-    <div className={PROVIDER_EDITOR_FIELD_CLASS}>
-      <span>
-        {label}
-        {pinBadge(key)}
-      </span>
-      <div className="tw:flex tw:flex-wrap tw:gap-2">
-        {values.map((value) => (
-          <span key={value}>
-            {chip(
-              value >= 1000000
-                ? `${value / 1000000}M`
-                : `${value === 32768 || value === 8192 ? value / 1024 : value / 1000}K`,
-              model[key] === value,
-              () => number(key, String(value)),
-            )}
-          </span>
-        ))}
+    <div className={MODEL_EDITOR_SPEC_ROW_CLASS}>
+      <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-x-4 tw:gap-y-2">
+        <span className="tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:text-app-text tw:type-label">
+          {label}
+        </span>
+        {values.length ? (
+          <div className="tw:flex tw:min-w-0 tw:flex-wrap tw:gap-2">
+            {values.map((value) => (
+              <span key={value}>
+                {chip(
+                  value >= 1000000
+                    ? `${value / 1000000}M`
+                    : `${value === 32768 || value === 8192 ? value / 1024 : value / 1000}K`,
+                  model[key] === value,
+                  () => number(key, String(value)),
+                )}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
       <Input
         type="number"
         min={1}
-        aria-label={label}
+        aria-label={ariaLabel}
+        {...(hint ? { placeholder: hint } : {})}
         value={model[key] === undefined || model[key] === 0 ? '' : String(model[key])}
         onChange={(event) => number(key, event.target.value)}
       />
@@ -1510,19 +1617,21 @@ export function ModelEditor({
   )
 
   return (
-    <div className="provider-editor-tab-panel tw:grid tw:gap-4">
+    <div className="provider-editor-tab-panel tw:grid tw:gap-6">
       {smart.controls}
-      <div className="provider-editor-grid tw:grid tw:grid-cols-1 tw:gap-4">
-        <label className={cx(PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
+      <section aria-label="模型基础信息" className="tw:grid tw:gap-4">
+        <h3 className="tw:m-0 tw:type-title-sm">模型基础信息</h3>
+        <label className={MODEL_EDITOR_ROW_CLASS}>
           <span>模型 ID</span>
           <Input
             placeholder="如：llama3.2 或 gpt-4o"
             readOnly={lockId}
+            className="tw:type-code"
             value={model.id}
             onChange={(event) => onChange({ ...model, id: event.target.value })}
           />
         </label>
-        <label className={PROVIDER_EDITOR_FIELD_CLASS}>
+        <label className={MODEL_EDITOR_ROW_CLASS}>
           <span>显示名称</span>
           <Input
             placeholder="默认使用模型 ID"
@@ -1530,49 +1639,10 @@ export function ModelEditor({
             onChange={(event) => onChange({ ...model, name: event.target.value })}
           />
         </label>
-        <div className={PROVIDER_EDITOR_FIELD_CLASS}>
-          <label htmlFor={`${model.editorKey}-group`}>分组名称</label>
-          <div className="tw:flex tw:min-w-0 tw:items-center tw:gap-2">
-            <Input
-              id={`${model.editorKey}-group`}
-              placeholder="输入新分组，或选择已有分组"
-              maxLength={128}
-              value={model.group ?? ''}
-              onChange={(event) => onChange({ ...model, group: event.target.value })}
-            />
-            {groups.length > 0 ? (
-              <SettingsDropdown
-                ariaLabel="选择已有分组"
-                searchable
-                size="sm"
-                value={model.group ?? ''}
-                options={groups.map((group) => ({ value: group, label: group }))}
-                onChange={(group) => onChange({ ...model, group })}
-              />
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      <div
-        className="provider-editor-model-advanced-details tw:overflow-hidden tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-panel"
-        data-expanded={advanced ? 'true' : 'false'}
-      >
-        <div className="tw:flex tw:items-center tw:gap-2 tw:pr-3">
-          <button
-            aria-controls={advancedId}
-            aria-expanded={advanced}
-            className="provider-editor-model-advanced-summary tw:flex tw:flex-1 tw:cursor-pointer tw:select-none tw:items-center tw:gap-1 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-3 tw:py-2 tw:text-left tw:text-app-text-soft tw:type-caption tw:hover:text-app-text tw:focus-visible:outline-none tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:[&_svg]:size-icon-sm tw:[&_svg]:transition-transform tw:[&_svg]:duration-disclosure tw:[&_svg]:ease-disclosure"
-            onClick={() => setAdvanced((current) => !current)}
-            type="button"
-          >
-            <ChevronRight
-              size="var(--inline-icon-size, 1em)"
-              aria-hidden="true"
-              className={advanced ? 'tw:rotate-90' : undefined}
-            />
-            高级设置
-          </button>
+      </section>
+      <section aria-label="模型能力与状态" className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-6">
+        <div className="tw:flex tw:items-center tw:justify-between tw:gap-2">
+          <h3 className="tw:m-0 tw:type-title-sm">模型能力与状态</h3>
           <div className="tw:flex tw:items-center tw:gap-1">
             <Button
               variant="ghost"
@@ -1598,247 +1668,129 @@ export function ModelEditor({
             </Button>
           </div>
         </div>
-        <DisclosureContent
-          contentClassName={PROVIDER_EDITOR_MODEL_ADVANCED_CONTENT_CLASS}
-          expanded={advanced}
-          id={advancedId}
-          mountPolicy="always"
-        >
-          <div className="tw:grid tw:gap-4">
-            <div className="tw:grid tw:gap-2">
-              <h4 className="tw:m-0 tw:type-label">模型类型</h4>
+        <div className={MODEL_EDITOR_ROW_CLASS}>
+          <span>模型类型</span>
+          <div className="tw:flex tw:flex-wrap tw:gap-2">
+            {chip('文本', !model.modelType || model.modelType === 'chat', () =>
+              changeAdvanced({ ...model, modelType: 'chat' }),
+            )}
+            {chip('嵌入', model.modelType === 'embedding', () =>
+              changeAdvanced({ ...model, modelType: 'embedding' }),
+            )}
+            {chip('重排', model.modelType === 'rerank', () =>
+              changeAdvanced({ ...model, modelType: 'rerank' }),
+            )}
+          </div>
+        </div>
+        {!model.modelType || model.modelType === 'chat' ? (
+          <>
+            <div className={MODEL_EDITOR_ROW_CLASS}>
+              <span>模型能力</span>
               <div className="tw:flex tw:flex-wrap tw:gap-2">
-                {chip('文本', !model.modelType || model.modelType === 'chat', () =>
-                  changeAdvanced({ ...model, modelType: 'chat' }),
+                {chip('推理', model.reasoning, () =>
+                  changeAdvanced({ ...model, reasoning: !model.reasoning }),
                 )}
-                {chip('嵌入', model.modelType === 'embedding', () =>
-                  changeAdvanced({ ...model, modelType: 'embedding' }),
-                )}
-                {chip('重排', model.modelType === 'rerank', () =>
-                  changeAdvanced({ ...model, modelType: 'rerank' }),
+                {chip(
+                  '工具',
+                  model.tools !== false,
+                  () => changeAdvanced({ ...model, tools: model.tools === false }),
+                  model.modelType === 'embedding' || model.modelType === 'rerank',
                 )}
               </div>
             </div>
-            {!model.modelType || model.modelType === 'chat' ? (
-              <>
-                <div className="tw:grid tw:gap-2">
-                  <h4 className="tw:m-0 tw:type-label">模型能力</h4>
-                  <div className="tw:flex tw:flex-wrap tw:gap-2">
-                    {chip('推理', model.reasoning, () =>
-                      changeAdvanced({ ...model, reasoning: !model.reasoning }),
-                    )}
-                    {chip(
-                      '工具',
-                      model.tools !== false,
-                      () => changeAdvanced({ ...model, tools: model.tools === false }),
-                      model.modelType === 'embedding' || model.modelType === 'rerank',
-                    )}
-                  </div>
-                </div>
-                <div className="tw:grid tw:gap-2">
-                  <h4 className="tw:m-0 tw:type-label">输入模态</h4>
-                  <div className="tw:flex tw:flex-wrap tw:gap-2">
-                    {chip('文本输入', true, () => {}, true)}
-                    {chip('视觉', model.imageInput, () =>
-                      changeAdvanced({ ...model, imageInput: !model.imageInput }),
-                    )}
-                    {['openai-completions', 'google-generative-ai', 'google-vertex'].includes(
-                      nativeApi ?? model.api,
+            <div className={MODEL_EDITOR_ROW_CLASS}>
+              <span>输入模态</span>
+              <div className="tw:flex tw:flex-wrap tw:gap-2">
+                {chip('文本输入', true, () => {}, true)}
+                {chip('视觉', model.imageInput, () =>
+                  changeAdvanced({ ...model, imageInput: !model.imageInput }),
+                )}
+                {['openai-completions', 'google-generative-ai', 'google-vertex'].includes(
+                  nativeApi ?? model.api,
+                )
+                  ? chip('音频', model.audioInput ?? false, () =>
+                      changeAdvanced({ ...model, audioInput: !model.audioInput }),
                     )
-                      ? chip('音频', model.audioInput ?? false, () =>
-                          changeAdvanced({ ...model, audioInput: !model.audioInput }),
-                        )
-                      : null}
-                    {['google-generative-ai', 'google-vertex'].includes(nativeApi ?? model.api)
-                      ? chip('视频', model.videoInput ?? false, () =>
-                          changeAdvanced({ ...model, videoInput: !model.videoInput }),
-                        )
-                      : null}
-                  </div>
-                </div>
-              </>
-            ) : null}
-            <div className="tw:grid tw:gap-2">
-              <h4 className="tw:m-0 tw:type-label">模型状态</h4>
-              <div className="tw:flex tw:flex-wrap tw:gap-2">
-                {chip('启用模型', model.enabled, () =>
-                  changeAdvanced({ ...model, enabled: !model.enabled }),
-                )}
+                  : null}
+                {['google-generative-ai', 'google-vertex'].includes(nativeApi ?? model.api)
+                  ? chip('视频', model.videoInput ?? false, () =>
+                      changeAdvanced({ ...model, videoInput: !model.videoInput }),
+                    )
+                  : null}
               </div>
             </div>
+          </>
+        ) : null}
+        <div className={MODEL_EDITOR_ROW_CLASS}>
+          <span>模型状态</span>
+          <div className="tw:flex tw:flex-wrap tw:gap-2">
+            {chip('启用模型', model.enabled, () =>
+              changeAdvanced({ ...model, enabled: !model.enabled }),
+            )}
           </div>
-          {tokenField(
-            'contextWindow',
-            '上下文窗口（Token）',
-            [32768, 128000, 200000, 256000, 400000, 512000, 1000000],
-          )}
-          {tokenField(
-            'maxInputTokens',
-            '最大输入 Token',
-            [128000, 200000, 256000, 512000, 1000000],
-          )}
-          {!model.modelType || model.modelType === 'chat'
-            ? tokenField(
-                'maxTokens',
-                '最大输出（Token）',
-                [8192, 16000, 32000, 64000, 128000, 256000],
-              )
-            : null}
-          <h4 className="tw:m-0 tw:type-label">价格（USD／百万 Token）</h4>
-          <div className="provider-editor-grid tw:grid tw:grid-cols-2 tw:gap-4">
-            <label className={PROVIDER_EDITOR_FIELD_CLASS}>
-              <span>输入价格</span>
-              <Input
-                type="number"
-                value={String(model.inputCost)}
-                onChange={(event) => number('inputCost', event.target.value)}
-              />
-            </label>
-            <label className={PROVIDER_EDITOR_FIELD_CLASS}>
-              <span>输出价格</span>
-              <Input
-                type="number"
-                value={String(model.outputCost)}
-                onChange={(event) => number('outputCost', event.target.value)}
-              />
-            </label>
-          </div>
-          <div className="provider-editor-grid tw:grid tw:grid-cols-2 tw:gap-4">
-            <label className={PROVIDER_EDITOR_FIELD_CLASS}>
-              <span>缓存读取价格</span>
-              <Input
-                type="number"
-                value={String(model.cacheReadCost)}
-                onChange={(event) => number('cacheReadCost', event.target.value)}
-              />
-            </label>
-            <label className={PROVIDER_EDITOR_FIELD_CLASS}>
-              <span>缓存写入价格</span>
-              <Input
-                type="number"
-                value={String(model.cacheWriteCost)}
-                onChange={(event) => number('cacheWriteCost', event.target.value)}
-              />
-            </label>
-          </div>
-        </DisclosureContent>
-      </div>
-      <div className="tw:overflow-hidden tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-panel">
-        <button
-          type="button"
-          className="tw:flex tw:w-full tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:px-3 tw:py-2 tw:text-left tw:text-app-text-soft tw:type-caption"
-          aria-expanded={parametersOpen}
-          aria-controls={parametersId}
-          onClick={() => setParametersOpen(!parametersOpen)}
-        >
-          <ChevronRight
-            aria-hidden
-            size="var(--inline-icon-size, 1em)"
-            className={parametersOpen ? 'tw:rotate-90' : ''}
+        </div>
+      </section>
+      <section aria-label="上下文与输出" className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-6">
+        <h3 className="tw:m-0 tw:type-title-sm">上下文与输出</h3>
+        {tokenField(
+          'contextWindow',
+          '上下文窗口',
+          '上下文窗口',
+          [32768, 128000, 200000, 256000, 400000, 512000, 1000000],
+        )}
+        {!model.modelType || model.modelType === 'chat'
+          ? tokenField('maxTokens', '最大输出', '最大输出', [
+              8192, 16000, 32000, 64000, 128000, 256000,
+            ])
+          : null}
+        {tokenField(
+          'maxInputTokens',
+          '最大输入',
+          '最大输入 Token',
+          [],
+          '可选限制。留空时按上下文窗口与输出预留自动计算预算',
+        )}
+      </section>
+      <section aria-label="模型价格" className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-6">
+        <h3 className="tw:m-0 tw:type-title-sm">模型价格</h3>
+        <div className={MODEL_EDITOR_ROW_CLASS}>
+          <span>输入价格</span>
+          <Input
+            type="number"
+            aria-label="输入价格"
+            value={String(model.inputCost)}
+            onChange={(event) => number('inputCost', event.target.value)}
           />
-          协议参数
-        </button>
-        <DisclosureContent
-          id={parametersId}
-          expanded={parametersOpen}
-          mountPolicy="always"
-          contentClassName="tw:grid tw:gap-3 tw:p-3"
-        >
-          <label className={PROVIDER_EDITOR_FIELD_CLASS}>
-            <span>
-              模型专属 Headers
-              <small>每行 name: value</small>
-            </span>
-            <textarea
-              className="provider-editor-textarea tw:w-full tw:min-h-20 tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
-              placeholder="X-Model-Specific: value"
-              rows={3}
-              value={model.headers}
-              onChange={(event) => onChange({ ...model, headers: event.target.value })}
-            />
-          </label>
-
-          <label className={cx(PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
-            <span>Thinking Level Map (JSON)</span>
-            <textarea
-              className="provider-editor-textarea tw:w-full tw:min-h-20 tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
-              placeholder='{"high": "high"}'
-              rows={3}
-              value={model.thinkingLevelMap}
-              onChange={(event) => onChange({ ...model, thinkingLevelMap: event.target.value })}
-            />
-          </label>
-
-          <label className={PROVIDER_EDITOR_FIELD_CLASS}>
-            <span>
-              Reasoning Level Values
-              <small>每行一个，保留顺序；重复项自动去重</small>
-              {pinBadge('reasoning')}
-            </span>
-            <textarea
-              className="provider-editor-textarea tw:w-full tw:min-h-20 tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
-              placeholder={'none\nlow\nhigh\nmax'}
-              rows={3}
-              value={model.reasoningLevelValues}
-              onChange={(event) => onChange({ ...model, reasoningLevelValues: event.target.value })}
-            />
-          </label>
-
-          <label className={cx(PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
-            <span>
-              Reasoning Level Map (CEL)
-              {pinBadge('reasoning')}
-            </span>
-            <textarea
-              className="provider-editor-textarea tw:w-full tw:min-h-20 tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
-              placeholder={'{"reasoning_effort": reasoningLevel}'}
-              rows={3}
-              value={model.reasoningLevelMap}
-              onChange={(event) => onChange({ ...model, reasoningLevelMap: event.target.value })}
-            />
-          </label>
-
-          <label className={PROVIDER_EDITOR_FIELD_CLASS}>
-            <span>
-              Max Output Tokens（映射上限）
-              {pinBadge('maxTokens')}
-            </span>
-            <Input
-              type="number"
-              min={1}
-              max={10_000_000}
-              aria-label="Max Output Tokens 映射上限"
-              value={model.maxOutputTokensMax > 0 ? String(model.maxOutputTokensMax) : ''}
-              onChange={(event) => number('maxOutputTokensMax', event.target.value)}
-            />
-          </label>
-
-          <label className={cx(PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
-            <span>
-              Max Output Tokens Map (CEL)
-              {pinBadge('maxTokens')}
-            </span>
-            <textarea
-              className="provider-editor-textarea tw:w-full tw:min-h-20 tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
-              placeholder={'{"max_tokens": maxOutputTokens}'}
-              rows={3}
-              value={model.maxOutputTokensMap}
-              onChange={(event) => onChange({ ...model, maxOutputTokensMap: event.target.value })}
-            />
-          </label>
-
-          <label className={cx(PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
-            <span>API Compat (JSON)</span>
-            <textarea
-              className="provider-editor-textarea tw:w-full tw:min-h-20 tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
-              placeholder="{}"
-              rows={3}
-              value={model.compat}
-              onChange={(event) => onChange({ ...model, compat: event.target.value })}
-            />
-          </label>
-        </DisclosureContent>
-      </div>
+        </div>
+        <div className={MODEL_EDITOR_ROW_CLASS}>
+          <span>输出价格</span>
+          <Input
+            type="number"
+            aria-label="输出价格"
+            value={String(model.outputCost)}
+            onChange={(event) => number('outputCost', event.target.value)}
+          />
+        </div>
+        <div className={MODEL_EDITOR_ROW_CLASS}>
+          <span>缓存读取价格</span>
+          <Input
+            type="number"
+            aria-label="缓存读取价格"
+            value={String(model.cacheReadCost)}
+            onChange={(event) => number('cacheReadCost', event.target.value)}
+          />
+        </div>
+        <div className={MODEL_EDITOR_ROW_CLASS}>
+          <span>缓存写入价格</span>
+          <Input
+            type="number"
+            aria-label="缓存写入价格"
+            value={String(model.cacheWriteCost)}
+            onChange={(event) => number('cacheWriteCost', event.target.value)}
+          />
+        </div>
+        <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">价格单位：USD／百万 Token</p>
+      </section>
     </div>
   )
 }
@@ -1850,7 +1802,8 @@ function emptyModel(): EditableModel {
     name: '',
     api: 'openai-completions',
     enabled: true,
-    contextWindow: 32_768,
+    // 新模型不预填上下文；由目录匹配或用户明确填写。
+    contextWindow: 0,
     maxTokens: 8_192,
     reasoning: false,
     imageInput: false,
@@ -1881,7 +1834,7 @@ export function editableModel(model: DesktopProviderModelDefinition): EditableMo
     name: model.name ?? String(model.id),
     api: model.api,
     enabled: model.enabled ?? true,
-    contextWindow: model.contextWindow ?? 32_768,
+    contextWindow: model.contextWindow ?? 0,
     maxInputTokens: model.maxInputTokens,
     maxTokens: model.maxTokens ?? 8_192,
     reasoning: model.reasoning ?? false,
@@ -1996,6 +1949,13 @@ function draftSignature(value: {
 export function normalizeEditableModel(
   model: EditableModel,
 ): DesktopProviderModelDefinition | Error {
+  // 上下文必须由用户或目录明确给出；不再把空值静默保存成 32K 占位。
+  if (!Number.isSafeInteger(model.contextWindow) || model.contextWindow <= 0) {
+    return new Error(`模型 ${model.id || '(未命名)'}：请填写有效的上下文窗口（Token）。`)
+  }
+  if (!Number.isSafeInteger(model.maxTokens) || model.maxTokens <= 0) {
+    return new Error(`模型 ${model.id || '(未命名)'}：请填写有效的最大输出（Token）。`)
+  }
   const modelHeaders = parseHeaders(model.headers)
   if (modelHeaders instanceof Error) {
     return new Error(`模型 ${model.id || '(未命名)'}：${modelHeaders.message}`)
@@ -2013,8 +1973,8 @@ export function normalizeEditableModel(
     if (!Number.isFinite(rawMax) || !Number.isInteger(rawMax) || rawMax <= 0) {
       return new Error(`模型 ${model.id || '(未命名)'}：Max Output Tokens 必须是正整数。`)
     }
-    if (rawMax > 10_000_000) {
-      return new Error(`模型 ${model.id || '(未命名)'}：Max Output Tokens 不能超过 10,000,000。`)
+    if (rawMax > Number.MAX_SAFE_INTEGER) {
+      return new Error(`模型 ${model.id || '(未命名)'}：Max Output Tokens 超出可精确表示的整数范围。`)
     }
   }
   const maxOutputTokensMax = rawMax !== undefined && rawMax > 0 ? rawMax : undefined
@@ -2049,7 +2009,7 @@ export function normalizeEditableModel(
     group: model.group?.trim() ?? '',
     api: model.api,
     enabled: model.enabled,
-    contextWindow: model.contextWindow || 32_768,
+    contextWindow: model.contextWindow,
     maxInputTokens: model.maxInputTokens || undefined,
     maxTokens: model.maxTokens || 8_192,
     reasoning: (!model.modelType || model.modelType === 'chat') && model.reasoning,

@@ -13,5 +13,6 @@ export function scopedProviderManagementTab(
   search: string,
 ): ProviderManagementTab | null {
   const providerId = providerManagementRouteId(pathname, search)
+  if (tab?.section === 'model' && tab.providerId !== providerId) return null
   return tab && providerId ? { ...tab, providerId } : null
 }

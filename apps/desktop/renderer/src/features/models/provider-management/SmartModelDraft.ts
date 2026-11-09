@@ -1,71 +1,64 @@
-import type { ModelRecommendation, SmartConfigPinnedField } from '@pidex/agent-protocol'
+import type { ModelRecommendation } from '@pidex/agent-protocol'
 import type { EditableModel } from './ProviderEditorForm.js'
 
 /** 推荐只填普通草稿字段，保存继续走现有模型配置。 */
 export function fillModelDraft(
   model: EditableModel,
   recommended: ModelRecommendation,
-  pinned: readonly SmartConfigPinnedField[] = [],
 ): EditableModel {
-  const fixed = new Set<string>(pinned)
-  const pick = (field: SmartConfigPinnedField) => (fixed.has(field) ? undefined : true)
-  // optionSpecs 没有独立的固定字段：reasoningLevel.* 跟随 `reasoning`，
-  // maxOutputTokens.* 跟随 `maxTokens`，与编辑器标题处的「已固定」标记一致。
-  const reasoningPinned = fixed.has('reasoning')
-  const maxTokensPinned = fixed.has('maxTokens')
   const specs = recommended.optionSpecs
   const optionSpecFields: Partial<EditableModel> = specs
     ? {
-        ...(specs.reasoningLevel?.values !== undefined && !reasoningPinned
+        ...(specs.reasoningLevel?.values !== undefined
           ? { reasoningLevelValues: specs.reasoningLevel.values.join('\n') }
           : {}),
-        ...(specs.reasoningLevel?.map !== undefined && !reasoningPinned
+        ...(specs.reasoningLevel?.map !== undefined
           ? { reasoningLevelMap: specs.reasoningLevel.map }
           : {}),
-        ...(specs.maxOutputTokens?.max !== undefined && !maxTokensPinned
+        ...(specs.maxOutputTokens?.max !== undefined
           ? { maxOutputTokensMax: specs.maxOutputTokens.max }
           : {}),
-        ...(specs.maxOutputTokens?.map !== undefined && !maxTokensPinned
+        ...(specs.maxOutputTokens?.map !== undefined
           ? { maxOutputTokensMap: specs.maxOutputTokens.map }
           : {}),
       }
-    : recommended.reasoningLevels !== undefined && !reasoningPinned
+    : recommended.reasoningLevels !== undefined
       ? { reasoningLevelValues: recommended.reasoningLevels.join('\n') }
       : {}
   return {
     ...model,
     ...optionSpecFields,
-    ...(recommended.name !== undefined && pick('name') ? { name: recommended.name } : {}),
-    ...(recommended.contextWindow !== undefined && pick('contextWindow')
+    ...(recommended.name !== undefined ? { name: recommended.name } : {}),
+    ...(recommended.contextWindow !== undefined
       ? { contextWindow: recommended.contextWindow }
       : {}),
-    ...(recommended.maxInputTokens !== undefined && pick('maxInputTokens')
+    ...(recommended.maxInputTokens !== undefined
       ? { maxInputTokens: recommended.maxInputTokens }
       : {}),
-    ...(recommended.maxTokens !== undefined && pick('maxTokens')
+    ...(recommended.maxTokens !== undefined
       ? { maxTokens: recommended.maxTokens }
       : {}),
-    ...(recommended.reasoning !== undefined && pick('reasoning')
+    ...(recommended.reasoning !== undefined
       ? { reasoning: recommended.reasoning }
       : {}),
-    ...(recommended.tools !== undefined && pick('tools') ? { tools: recommended.tools } : {}),
+    ...(recommended.tools !== undefined ? { tools: recommended.tools } : {}),
     ...(recommended.input !== undefined
       ? {
-          ...(pick('imageInput') ? { imageInput: recommended.input.includes('image') } : {}),
-          ...(pick('audioInput') ? { audioInput: recommended.input.includes('audio') } : {}),
-          ...(pick('videoInput') ? { videoInput: recommended.input.includes('video') } : {}),
+          imageInput: recommended.input.includes('image'),
+          audioInput: recommended.input.includes('audio'),
+          videoInput: recommended.input.includes('video'),
         }
       : {}),
-    ...(recommended.cost?.input !== undefined && pick('inputCost')
+    ...(recommended.cost?.input !== undefined
       ? { inputCost: recommended.cost.input }
       : {}),
-    ...(recommended.cost?.output !== undefined && pick('outputCost')
+    ...(recommended.cost?.output !== undefined
       ? { outputCost: recommended.cost.output }
       : {}),
-    ...(recommended.cost?.cacheRead !== undefined && pick('cacheReadCost')
+    ...(recommended.cost?.cacheRead !== undefined
       ? { cacheReadCost: recommended.cost.cacheRead }
       : {}),
-    ...(recommended.cost?.cacheWrite !== undefined && pick('cacheWriteCost')
+    ...(recommended.cost?.cacheWrite !== undefined
       ? { cacheWriteCost: recommended.cost.cacheWrite }
       : {}),
   }

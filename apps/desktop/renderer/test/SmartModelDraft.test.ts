@@ -61,7 +61,7 @@ describe('模型智能填充', () => {
     expect(fillModelDraft(edited, {})).toEqual(edited)
   })
 
-  test('已固定字段不被推荐覆盖，未固定字段继续跟随', () => {
+  test('采用推荐覆盖手动字段', () => {
     const filled = fillModelDraft(
       draft(),
       {
@@ -71,19 +71,17 @@ describe('模型智能填充', () => {
         input: ['text', 'image', 'audio'],
         cost: { input: 1, output: 2 },
       },
-      ['contextWindow', 'audioInput', 'inputCost'],
     )
     expect(filled).toMatchObject({
       name: 'Recommended',
-      contextWindow: 32000,
+      contextWindow: 128000,
       maxTokens: 16000,
       imageInput: true,
-      inputCost: 2,
+      inputCost: 1,
       outputCost: 2,
       videoInput: false,
     })
-    // 被固定的 audioInput 保持草稿原值（未设置，即 undefined），不跟随推荐变成 true。
-    expect(filled.audioInput).toBeUndefined()
+    expect(filled.audioInput).toBe(true)
   })
 
   test('推荐携带 optionSpecs 时填入 values/map/max', () => {
@@ -112,7 +110,7 @@ describe('模型智能填充', () => {
     expect(filled.reasoningLevelMap).toBe('')
   })
 
-  test('已固定的 reasoning/maxTokens 分别保护对应 optionSpecs 子字段', () => {
+  test('采用推荐覆盖手动 optionSpecs 子字段', () => {
     const filled = fillModelDraft(
       { ...draft(), reasoningLevelValues: 'keep-me', maxOutputTokensMax: 1024 },
       {
@@ -122,11 +120,10 @@ describe('模型智能填充', () => {
         },
         reasoningLevels: ['off', 'high'],
       },
-      ['reasoning', 'maxTokens'],
     )
-    expect(filled.reasoningLevelValues).toBe('keep-me')
-    expect(filled.maxOutputTokensMax).toBe(1024)
-    expect(filled.reasoningLevelMap).toBe('')
-    expect(filled.maxOutputTokensMap).toBe('')
+    expect(filled.reasoningLevelValues).toBe('none\nhigh')
+    expect(filled.maxOutputTokensMax).toBe(64000)
+    expect(filled.reasoningLevelMap).toBe('{"reasoning_effort": reasoningLevel}')
+    expect(filled.maxOutputTokensMap).toBe('{"max_tokens": maxOutputTokens}')
   })
 })

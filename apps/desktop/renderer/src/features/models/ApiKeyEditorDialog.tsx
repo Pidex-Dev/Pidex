@@ -34,34 +34,65 @@ export function ApiKeyQuickAdd({
 }) {
   const [key, setKey] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const submitting = useRef(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   return (
     <form
-      className="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2"
+      className="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1"
       onSubmit={async (event) => {
         event.preventDefault()
-        if (busy || submitting.current || !key.trim()) return
+        if (busy || submitting.current) return
+        // 以输入框的真实值为准：受控状态可能尚未同步（自动填充、辅助技术等写入路径），
+        // 只读 state 会把已可见的输入静默丢弃。
+        const submitted = (inputRef.current?.value ?? key).trim()
+        if (!submitted) return
         submitting.current = true
         setSaving(true)
+        setError(null)
         try {
-          if (await onAdd(key.trim())) setKey('')
+          if (await onAdd(submitted)) {
+            setKey('')
+            if (inputRef.current) inputRef.current.value = ''
+          } else {
+            setError('API Key 保存失败，请检查输入后重试。')
+          }
+        } catch {
+          setError('API Key 保存失败，请检查输入后重试。')
         } finally {
           submitting.current = false
           setSaving(false)
         }
       }}
     >
-      <Input
-        onBlur={(event) => event.currentTarget.form?.requestSubmit()}
-        aria-label="新增 API 密钥"
-        type="password"
-        autoComplete="new-password"
-        value={key}
-        onChange={(event) => setKey(event.target.value)}
-        disabled={busy || saving}
-        placeholder={maskedValue ? `当前：${maskedValue}；输入新 Key` : '输入 API Key'}
-        className="tw:min-w-0 tw:flex-1 tw:type-code"
-      />
+      <div className="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
+        <Input
+          ref={inputRef}
+          onBlur={(event) => event.currentTarget.form?.requestSubmit()}
+          aria-label="新增 API 密钥"
+          type="password"
+          autoComplete="new-password"
+          value={key}
+          onChange={(event) => {
+            setKey(event.target.value)
+            if (error) setError(null)
+          }}
+          disabled={busy || saving}
+          aria-invalid={error ? true : undefined}
+          placeholder={maskedValue ? `当前：${maskedValue}；输入新 Key` : '输入 API Key'}
+          className="tw:min-w-0 tw:flex-1 tw:type-code"
+        />
+        {saving ? (
+          <span role="status" className="tw:shrink-0 tw:text-app-text-soft tw:type-caption">
+            正在保存…
+          </span>
+        ) : null}
+      </div>
+      {error ? (
+        <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-body-sm">
+          {error}
+        </p>
+      ) : null}
     </form>
   )
 }

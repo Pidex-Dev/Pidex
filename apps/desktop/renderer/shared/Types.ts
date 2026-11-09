@@ -866,6 +866,14 @@ export type DesktopBuiltinProviderDefinition = Extract<
 >
 export type DesktopCustomProviderDefinition = RpcParams<'provider/create'>['definition']
 export type DesktopProviderModelDefinition = DesktopCustomProviderDefinition['models'][number]
+/** 候选模型的规格来源；旧 Agent 不返回时视为未知。 */
+export type DesktopProviderModelMatch = NonNullable<
+  RpcResult<'provider/model/discover'>['matches']
+>[number]
+export type DesktopProviderModelDiscovery = {
+  models: readonly DesktopProviderModelDefinition[]
+  matches?: readonly DesktopProviderModelMatch[]
+}
 /** 未保存的 Provider 请求草稿；`apiKey` 只用于单次请求，不落盘、不进事件。 */
 export type DesktopProviderDraft = NonNullable<RpcParams<'provider/model/discover'>['draft']>
 /** 可发起模型列表读取与最小生成探测的四类 wire 协议。 */
@@ -1937,13 +1945,21 @@ export type DesktopApi = {
       input: RpcParams<'model/recommendation/preview'>,
     ): Promise<RpcResult<'model/recommendation/preview'>>
     refresh(): Promise<RpcResult<'model/recommendation/refresh'>>
+    /** 存量 32K 规格批量检查；一次只处理当前提供商。 */
+    specsSupported(): Promise<boolean>
+    previewModelSpecs(
+      providerId: ModelProviderID,
+    ): Promise<RpcResult<'provider/model/specs/preview'>>
+    applyModelSpecs(
+      input: RpcParams<'provider/model/specs/apply'>,
+    ): Promise<RpcResult<'provider/model/specs/apply'>>
   }
   /** 读取上游模型列表；提供 draft 时用于保存前获取，不访问已保存配置。 */
   discoverProviderModels(input: {
     providerId?: ModelProviderID
     api: DesktopProviderChatApi
     draft?: DesktopProviderDraft
-  }): Promise<DesktopProviderModelDefinition[]>
+  }): Promise<DesktopProviderModelDiscovery>
   startAuthSession(target: DesktopAuthTarget): Promise<DesktopAuthSession>
   respondAuthSession(
     sessionId: string,

@@ -12,7 +12,7 @@ import { Input } from '../../../components/ui/Input.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
-import { fullErrorMessage } from '../../../utils/Errors.js'
+import { toUserErrorMessage } from '../../../utils/Errors.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { headersToText, parseHeaders } from './ProviderEditorForm.js'
 import {
@@ -117,6 +117,7 @@ function requestDraft(provider: DesktopModelProviderSummary) {
 
 export function ProviderRequestSettingsForm({
   footerHost,
+  nameHost,
   provider,
   saveRef,
   resetRef,
@@ -127,6 +128,7 @@ export function ProviderRequestSettingsForm({
   onCancel,
   onDelete,
 }: {
+  nameHost?: HTMLElement | null
   footerHost?: HTMLElement | null
   provider: DesktopModelProviderSummary
   saveRef: RefObject<(() => Promise<boolean>) | null>
@@ -334,7 +336,7 @@ export function ProviderRequestSettingsForm({
       )
       return true
     } catch (error) {
-      setError(fullErrorMessage(error))
+      setError(toUserErrorMessage(error))
       return false
     } finally {
       setSaving(false)
@@ -408,7 +410,7 @@ export function ProviderRequestSettingsForm({
         setError('未检测到可用端点，请检查地址、凭据或稍后重试。')
       }
     } catch (detectError) {
-      setError(fullErrorMessage(detectError))
+      setError(toUserErrorMessage(detectError))
     } finally {
       setDetecting(false)
     }
@@ -506,16 +508,6 @@ export function ProviderRequestSettingsForm({
             ) : null}
           </div>
         </header>
-        {provider.config?.kind === 'custom' ? (
-          <label className="tw:grid tw:gap-2 tw:type-label">
-            供应商名称
-            <Input
-              onBlur={() => void save()}
-              value={draft.name}
-              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-            />
-          </label>
-        ) : null}
         {Object.keys(draft.endpoints).length > 0 ? (
           endpointOptions
             .filter((option) => option.value in draft.endpoints)
@@ -705,6 +697,20 @@ export function ProviderRequestSettingsForm({
           </p>
         ) : null}
       </fieldset>
+      {nameHost && provider.config?.kind === 'custom'
+        ? createPortal(
+            <label className="tw:grid tw:gap-2 tw:type-label">
+              供应商名称
+              <Input
+                disabled={detecting}
+                onBlur={() => void save()}
+                value={draft.name}
+                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+              />
+            </label>,
+            nameHost,
+          )
+        : null}
       {footerHost ? createPortal(footer, footerHost) : footer}
     </form>
   )

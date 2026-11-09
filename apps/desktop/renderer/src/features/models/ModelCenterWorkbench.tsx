@@ -15,7 +15,7 @@ import type {
   ModelProviderID,
 } from '../../../shared/Types.js'
 import { useDesktopSettingsField } from '../settings/UseDesktopSettings.js'
-import { fullErrorMessage, toUserErrorMessage } from '../../utils/Errors.js'
+import { toUserErrorMessage } from '../../utils/Errors.js'
 import { ChevronRight, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { useDesktopLayoutOutletContext } from '../layout/shell/DesktopLayoutOutletContext.js'
@@ -374,7 +374,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
         `API Key 已复制到剪贴板，将在 ${Math.round(result.clearAfterMs / 1000)} 秒后自动清理。`,
       )
     } catch (error) {
-      onError(fullErrorMessage(error))
+      onError(toUserErrorMessage(error))
     } finally {
       setBusyKeyId(null)
     }
@@ -397,7 +397,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
   }
 
   function showOperationError(error: unknown): void {
-    const message = fullErrorMessage(error)
+    const message = toUserErrorMessage(error)
     onError(message)
   }
 
@@ -521,7 +521,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
             void saveProviderDefinition(
               { ...selectedProvider.config!, enabled },
               selectedProvider.providerID,
-            ).catch((error) => onError(fullErrorMessage(error)))
+            ).catch((error) => onError(toUserErrorMessage(error)))
           }}
         />
       ) : null}

@@ -284,3 +284,10 @@ test('预算低于必要开销下限时不可保存，并隐藏不可用预设',
   expect(html).toMatch(/role="slider"[^>]*aria-label="上下文预算"[^>]*aria-valuemax="3"/)
   expect(html).toContain('value="1"')
 })
+
+
+test('会话预算支持大于 1000 万的模型额度，仍服从模型上限', () => {
+  expect(parseContextLimitK('150000', 150_000_000)).toBe(150_000_000)
+  expect(parseContextLimitK('160000', 150_000_000)).toBe(150_000_000)
+  expect(parseContextLimitK(String(Number.MAX_SAFE_INTEGER), Number.MAX_SAFE_INTEGER)).toBeNull()
+})
