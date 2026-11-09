@@ -1097,11 +1097,13 @@ export function createBrowserMockDesktopClient(
     createProvider: async () => undefined,
     updateProvider: async () => undefined,
     deleteProvider: async () => undefined,
-    discoverProviderModels: async (input) =>
-      [
+    discoverProviderModels: async (input) => ({
+      models: [
         { id: 'mock-sync-model', name: 'Mock Sync Model', api: input.api, enabled: false },
         { id: 'mock-sync-model-2', api: input.api, enabled: false },
       ] as unknown as DesktopProviderModelDefinition[],
+      matches: [],
+    }),
     startAuthSession: async (target) =>
       ({
         id: crypto.randomUUID(),

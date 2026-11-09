@@ -774,11 +774,8 @@ export function contextStateUsage(
       : fallback
   } else {
     const budget = state.budget
-    const physicalInput = budget.physicalInputBudgetTokens ?? budget.inputBudgetTokens
-    const effectiveWindow =
-      activeTurn || maxContextTokens === undefined
-        ? budget.inputBudgetTokens
-        : Math.min(maxContextTokens ?? physicalInput, physicalInput)
+    // 预算结果已经包含用户有效窗口、模型最大输入与输出预留，直接使用实际输入预算。
+    const effectiveWindow = budget.inputBudgetTokens
     const usedPercent = Math.max(0, (budget.usedTokens / effectiveWindow) * 100)
     base = {
       ...fallback,

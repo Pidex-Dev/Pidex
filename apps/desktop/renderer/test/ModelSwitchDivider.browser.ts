@@ -29,7 +29,7 @@ function entry(index, model) {
   const input = { id: 'input-' + index, threadId: 'main', turnId: id, content: '用户消息 ' + index, delivery: 'start', mode: 'chat', model, permissionConfig, state: 'completed', createdAt: index };
   return { id, turn: { id, threadId: 'main', sourceInputID: input.id, status: index === 3 ? 'failed' : 'completed', mode: 'chat', model,
     permissionConfig, rootAgentId: 'agent', mergedInputIDs: [], startedAt: index, finishedAt: index + 1, elapsedSeconds: 1, error: index === 3 ? '测试请求失败' : null },
-    userItems: [input], userInputs: [input], agents: [], items: [], approvals: [], attachments: [], contextReferences: [], processItems: [],
+    userItems: [input], inlineInputs: [], userInputs: [input], agents: [], items: [], approvals: [], attachments: [], contextReferences: [], processItems: [],
     assistantResultItems: [], postAssistantItems: [], patchItems: [], planItem: null, executionPlanItems: [], contentBlocks: [], blockers: [], systemItems: [] };
 }
 const all = [a, b, b, a].map((model, index) => entry(index, model));

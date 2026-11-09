@@ -162,6 +162,7 @@ export function environmentDomainClient(): EnvironmentDomainClient {
         capabilities: [
           'rpc.typed.v1',
           'local-environment.manage.v1',
+          'thread.execution.v2',
           'worktree.manage.v1',
           'worktree.settings.v1',
           'local-environment.multiple.v1',

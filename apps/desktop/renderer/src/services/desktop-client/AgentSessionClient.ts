@@ -174,6 +174,7 @@ export const RENDERER_CAPABILITIES = [
   'model.media-input.v1',
   'provider.config.pi.v1',
   'provider.modelSync.v1',
+  'provider.modelSpecs.v1',
   'provider.protocolDetection.v1',
   'provider.builtinOverrides.v1',
   'provider.auth.pi.v1',
@@ -357,6 +358,7 @@ export function createAgentSessionDesktopClient(
   let readyProbe: Promise<boolean> | null = null
   let readinessError: unknown = null
   let projectsByIdCache: Map<string, Project> | null = null
+  let modelCatalogGeneration = 0
   let modelCatalogCache: RpcResult<'model/list'> | null = null
   let providerCatalogCache: RpcResult<'provider/list'> | null = null
   let providerCatalogRequest: Promise<RpcResult<'provider/list'>> | null = null
@@ -608,6 +610,7 @@ export function createAgentSessionDesktopClient(
   }
 
   function invalidateModelCatalog(): void {
+    modelCatalogGeneration++
     modelCatalogCache = null
     providerCatalogCache = null
     providerCatalogRequest = null
@@ -621,11 +624,13 @@ export function createAgentSessionDesktopClient(
 
   async function loadModelCatalog(refresh = false): Promise<RpcResult<'model/list'>> {
     if (modelCatalogCache && !refresh) return modelCatalogCache
+    const generation = modelCatalogGeneration
     const result = refresh
       ? await rpc.call('model/refresh', {
           operationId: crypto.randomUUID(),
         })
       : await rpc.call('model/list', {})
+    if (generation !== modelCatalogGeneration) return loadModelCatalog()
     modelCatalogCache = {
       providers: [...result.providers],
       defaultModel: result.defaultModel,
@@ -639,9 +644,11 @@ export function createAgentSessionDesktopClient(
     await isAgentAvailable()
     if (providerCatalogCache && !refresh) return providerCatalogCache
     if (providerCatalogRequest && !refresh) return providerCatalogRequest
+    const generation = modelCatalogGeneration
     const pending = rpc
       .call('provider/list', {})
       .then((result) => {
+        if (generation !== modelCatalogGeneration) return loadProviderCatalog()
         providerCatalogCache = result
         return result
       })
@@ -659,6 +666,7 @@ export function createAgentSessionDesktopClient(
     limit?: number
     retryCatalogChange?: boolean
   }): Promise<RpcResult<'model/list'>> {
+    const generation = modelCatalogGeneration
     if (!agentCapabilities.has('model.catalog.paged.v1')) {
       const legacy = await loadModelCatalog()
       const provider = legacy.providers.find((item) => item.provider.id === options.providerID)
@@ -700,7 +708,7 @@ export function createAgentSessionDesktopClient(
       providerModelRequests.set(requestKey, pending)
     }
     const result = await pending
-    if (result.catalogVersion !== directory.catalogVersion) {
+    if (generation !== modelCatalogGeneration || result.catalogVersion !== directory.catalogVersion) {
       invalidateModelCatalog()
       if (options.cursor || options.retryCatalogChange === false) {
         throw new Error('模型目录已更新，请重新查询。')
@@ -719,6 +727,7 @@ export function createAgentSessionDesktopClient(
   async function loadAllProviderModels(
     providerID: ModelProviderID,
   ): Promise<RpcResult<'model/list'>> {
+    const generation = modelCatalogGeneration
     const hadPrevious = providerModelCache.has(providerID)
     const previous = providerModelCache.get(providerID)
 
@@ -772,8 +781,10 @@ export function createAgentSessionDesktopClient(
       }
       throw new Error('模型目录加载失败。')
     } catch (error) {
-      if (hadPrevious && previous) providerModelCache.set(providerID, previous)
-      else providerModelCache.delete(providerID)
+      if (generation === modelCatalogGeneration) {
+        if (hadPrevious && previous) providerModelCache.set(providerID, previous)
+        else providerModelCache.delete(providerID)
+      }
       throw error
     }
   }
@@ -3689,6 +3700,7 @@ export function createAgentSessionDesktopClient(
         operationId: crypto.randomUUID(),
       })
       invalidateModelCatalog()
+      notifyModelProviderChanged()
     },
     updateProvider: async (providerId, definition) => {
       await rpc.call('provider/update', {
@@ -3697,6 +3709,7 @@ export function createAgentSessionDesktopClient(
         operationId: crypto.randomUUID(),
       })
       invalidateModelCatalog()
+      notifyModelProviderChanged()
     },
     deleteProvider: async (providerId) => {
       await rpc.call('provider/delete', {
@@ -3704,6 +3717,7 @@ export function createAgentSessionDesktopClient(
         operationId: crypto.randomUUID(),
       })
       invalidateModelCatalog()
+      notifyModelProviderChanged()
     },
     modelRecommendations: {
       supported: async () =>
@@ -3717,6 +3731,23 @@ export function createAgentSessionDesktopClient(
         const result = await rpc.call('model/recommendation/refresh', {
           operationId: crypto.randomUUID(),
         })
+        return result
+      },
+      specsSupported: async () =>
+        (await isAgentAvailable()) && agentCapabilities.has('provider.modelSpecs.v1'),
+      previewModelSpecs: async (providerId) => {
+        requireAgentCapability('provider.modelSpecs.v1')
+        return rpc.call('provider/model/specs/preview', {
+          providerId: providerId as RpcParams<'provider/model/specs/preview'>['providerId'],
+        })
+      },
+      applyModelSpecs: async (input) => {
+        requireAgentCapability('provider.modelSpecs.v1')
+        const result = await rpc.call('provider/model/specs/apply', {
+          ...input,
+          operationId: crypto.randomUUID(),
+        })
+        invalidateModelCatalog()
         return result
       },
     },
