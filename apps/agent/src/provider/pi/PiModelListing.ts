@@ -1,3 +1,4 @@
+import { ProviderRequestError, providerRequestError } from '../ProviderError'
 import { AgentError } from '../../Domain'
 import { discoverOpenAIModels } from './PiCustomProvider'
 import { CUSTOM_PROVIDER_APIS, type CustomProviderApi } from './PiProviderConfig'
@@ -24,6 +25,27 @@ export interface ProviderModelListingRequest {
 export interface ListedProviderModel {
   readonly id: string
   readonly name: string
+  /** 上游明确返回的额度；未知字段保持缺失，不从名称推断。 */
+  readonly contextWindow?: number
+  readonly maxInputTokens?: number
+  readonly maxTokens?: number
+}
+
+type ListedLimits = Pick<ListedProviderModel, 'contextWindow' | 'maxInputTokens' | 'maxTokens'>
+
+const explicitLimit = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= Number.MAX_SAFE_INTEGER
+    ? value
+    : undefined
+
+const limitsFrom = (value: Record<string, unknown>): ListedLimits => {
+  const contextWindow = explicitLimit(value.inputTokenLimit)
+  const maxTokens = explicitLimit(value.outputTokenLimit)
+  return {
+    ...(contextWindow ? { contextWindow } : {}),
+    ...(contextWindow ? { maxInputTokens: contextWindow } : {}),
+    ...(maxTokens ? { maxTokens } : {}),
+  }
 }
 
 export interface ProviderModelListing {
@@ -37,7 +59,7 @@ const MAX_PAGES = 10
 const MAX_LISTED_MODELS = 1_000
 
 const listingError = (message: string): AgentError =>
-  new AgentError('PROVIDER_UNAVAILABLE', message, 502)
+  new ProviderRequestError('PROVIDER_UNAVAILABLE', message, false)
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -114,7 +136,7 @@ const isAbortCause = (cause: unknown): boolean =>
   (cause instanceof Error && cause.name === 'AbortError')
 
 const readJson = async (response: Response): Promise<unknown> => {
-  if (!response.ok) throw listingError(`上游模型列表请求失败（HTTP ${response.status}）`)
+  if (!response.ok) throw providerRequestError({ status: response.status })
   const declared = Number(response.headers.get('content-length'))
   if (Number.isFinite(declared) && declared > MAX_PAGE_BYTES) {
     throw listingError('上游模型列表响应过大')
@@ -162,8 +184,8 @@ const requestJson = async (
     response = await fetchImpl(url, { method: 'GET', redirect: 'error', signal, headers })
   } catch (cause) {
     throw isAbortCause(cause)
-      ? listingError('上游模型列表请求超时')
-      : listingError('无法连接上游模型列表接口')
+      ? providerRequestError(new DOMException('timeout', 'TimeoutError'))
+      : providerRequestError(new TypeError('fetch failed'))
   }
   return readJson(response)
 }
@@ -183,12 +205,17 @@ const endpointUrl = (root: string, suffix: string, query: Record<string, string>
   return url
 }
 
-const collect = (models: Map<string, string>, id: unknown, name: unknown): void => {
+const collect = (
+  models: Map<string, ListedProviderModel>,
+  id: unknown,
+  name: unknown,
+  limits: ListedLimits = {},
+): void => {
   if (typeof id !== 'string') return
   const modelID = id.trim()
   if (!modelID) return
   const label = typeof name === 'string' && name.trim() ? name.trim() : modelID
-  if (!models.has(modelID)) models.set(modelID, label)
+  if (!models.has(modelID)) models.set(modelID, { id: modelID, name: label, ...limits })
 }
 
 const listOpenAIModels = async (
@@ -196,7 +223,7 @@ const listOpenAIModels = async (
   request: ProviderModelListingRequest,
   signal: AbortSignal,
   fetchImpl: ProviderModelFetch,
-): Promise<Map<string, string>> => {
+): Promise<Map<string, ListedProviderModel>> => {
   try {
     const discovered = await discoverOpenAIModels({
       baseUrl: root,
@@ -205,17 +232,28 @@ const listOpenAIModels = async (
       signal,
       fetch: fetchImpl,
     })
-    return new Map(discovered.map((model) => [model.id, model.name]))
+    return new Map(
+      discovered.map((model) => [
+        model.id,
+        {
+          id: model.id,
+          name: model.name,
+          ...(model.contextWindow ? { contextWindow: model.contextWindow } : {}),
+          ...(model.maxInputTokens ? { maxInputTokens: model.maxInputTokens } : {}),
+          ...(model.maxTokens ? { maxTokens: model.maxTokens } : {}),
+        },
+      ]),
+    )
   } catch (cause) {
     if (cause instanceof AgentError) throw cause
-    if (isAbortCause(cause)) throw listingError('上游模型列表请求超时')
+    if (isAbortCause(cause)) throw providerRequestError(new DOMException('timeout', 'TimeoutError'))
     const message = cause instanceof Error ? cause.message : ''
     const status = /HTTP (\d{3})/.exec(message)?.[1]
-    if (status) throw listingError(`上游模型列表请求失败（HTTP ${status}）`)
+    if (status) throw providerRequestError({ status: Number(status) })
     if (message.includes('exceeds 1 MiB')) throw listingError('上游模型列表响应过大')
     if (message.includes('no body')) throw listingError('上游模型列表响应为空')
     if (message.includes('invalid')) throw listingError('上游模型列表格式无效')
-    throw listingError('无法读取上游模型列表')
+    throw providerRequestError(cause)
   }
 }
 
@@ -224,10 +262,10 @@ const listAnthropicModels = async (
   request: ProviderModelListingRequest,
   signal: AbortSignal,
   fetchImpl: ProviderModelFetch,
-): Promise<Map<string, string>> => {
+): Promise<Map<string, ListedProviderModel>> => {
   const headers = withAuthHeader(request.headers ?? {}, 'anthropic', request.apiKey)
   const usesVersionPath = endsWithIgnoreCase(trimTrailingSlashes(root), '/v1')
-  const models = new Map<string, string>()
+  const models = new Map<string, ListedProviderModel>()
   let afterID: string | undefined
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const document = await requestJson(
@@ -263,9 +301,9 @@ const listGoogleModels = async (
   request: ProviderModelListingRequest,
   signal: AbortSignal,
   fetchImpl: ProviderModelFetch,
-): Promise<Map<string, string>> => {
+): Promise<Map<string, ListedProviderModel>> => {
   const headers = withAuthHeader(request.headers ?? {}, 'google', request.apiKey)
-  const models = new Map<string, string>()
+  const models = new Map<string, ListedProviderModel>()
   let pageToken: string | undefined
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const document = await requestJson(
@@ -288,6 +326,7 @@ const listGoogleModels = async (
         models,
         name.startsWith('models/') ? name.slice('models/'.length) : name,
         entry.displayName,
+        limitsFrom(entry),
       )
     }
     const next = document.nextPageToken
@@ -324,7 +363,7 @@ export const listProviderModels = async (
   if (models.size === 0) throw listingError('上游未返回任何模型')
   if (models.size > MAX_LISTED_MODELS) throw listingError('上游模型数量超过上限')
   return {
-    models: [...models].map(([id, name]) => ({ id, name })),
+    models: [...models.values()],
     fetchedAt: Date.now(),
   }
 }

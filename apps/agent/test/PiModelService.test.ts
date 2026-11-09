@@ -35,9 +35,9 @@ test('catalog refresh identifies failed providers without logging upstream secre
   try {
     await expect(service.refresh(true, 'google')).rejects.toMatchObject({
       refreshFailures: [
-        'openai：凭据鉴权失败（HTTP 401）',
-        'google：网络连接失败',
-        'custom：模型列表响应格式无效',
+        { providerId: 'openai', code: 'PROVIDER_AUTH_FAILED', retryable: false, httpStatus: 401 },
+        { providerId: 'google', code: 'PROVIDER_CONNECTION_FAILED', retryable: true },
+        { providerId: 'custom', code: 'PROVIDER_UNAVAILABLE', retryable: false },
       ],
     })
     expect(logs).toHaveLength(3)
@@ -484,7 +484,7 @@ describe('PiModelService DeepSeek protocol', () => {
       deepseek: {
         kind: 'builtin',
         enabled: true,
-        allow_models: [],
+        allow_models: ['deepseek-v4-pro'],
         deny_models: [],
         models: {},
         ...(protocol ? { protocol } : {}),
@@ -623,7 +623,9 @@ describe('PiModelService DeepSeek protocol', () => {
 describe('PiModelService', () => {
   test('reload advances catalog revision and re-evaluates OAuth model availability', async () => {
     const fake = repository()
-    const service = new PiModelService(fake.adapter, { env: {} })
+    const selectedModels: string[] = []
+    const service = new PiModelService(fake.adapter, { env: {}, config: { providers: { 'openai-codex': { kind: 'builtin', allow_models: selectedModels } } } })
+    selectedModels.push(service.pi.getModels('openai-codex')[0]!.id)
     const beforeRevision = service.catalogRevision()
 
     expect((await service.models('openai-codex' as never)).some((model) => model.enabled)).toBe(
@@ -720,7 +722,7 @@ describe('PiModelService', () => {
           openai: {
             kind: 'builtin',
             enabled: true,
-            allow_models: [],
+            allow_models: ['gpt-6-astra'],
             deny_models: [],
           },
         },
@@ -763,7 +765,7 @@ describe('PiModelService', () => {
           openai: {
             kind: 'builtin',
             enabled: true,
-            allow_models: [],
+            allow_models: ['gpt-5'],
             deny_models: [],
           },
         },

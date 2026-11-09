@@ -22,32 +22,28 @@ const object = (value: unknown): JsonObject => {
 const bare = (id: string) => id.toLowerCase().split('/').at(-1)!
 
 /**
- * 发布噪音后缀：日期版本、网关标记、量化尾。
- * 反复剥离到不动点，让 `gpt-4o-2024-08-06`、`llama-3.3-70b-instruct:free`、
- * `qwen2.5-7b-instruct-q4_k_m` 这类真实 ID 回到目录里的裸名。
- * 刻意不含 `-preview` / `-instruct`：前者是不同模型，后者本身就是目录里的正式名。
+ * 推理档位括号后缀（`gpt-5(high)`）是历史兼容写法，仅剥离这一种后缀。
+ * 日期、`preview`、`highspeed`、`think` 与量化尾都是不同模型，必须真实存在才匹配。
  */
-const releaseNoise = [
-  /-\d{4}-\d{2}-\d{2}$/,
-  /-\d{8}$/,
-  /[:@][a-z0-9][a-z0-9_.-]*$/i,
-  /-(?:q\d+(?:_k(?:_[ms])?)?|fp8|fp16|bf16|int8|int4|awq|gptq|gguf|mlx)$/i,
-]
+const LEVEL_SUFFIX = /\((?:off|none|minimal|low|medium|high|xhigh|max)\)$/i
 
-/** 逐层剥离后的候选名，按剥离深度递增；不含原文本身。 */
-const strippedCandidates = (value: string): string[] => {
-  const result: string[] = []
-  let current = value
-  for (let round = 0; round < 8; round++) {
-    const pattern = releaseNoise.find((candidate) => candidate.test(current))
-    if (!pattern) break
-    const next = current.replace(pattern, '')
-    if (!next) break
-    current = next
-    result.push(current)
+const withoutLevelSuffix = (value: string) => value.replace(LEVEL_SUFFIX, '')
+
+/** 规范化端点：忽略大小写、查询串、哈希与尾部斜杠，只保留 origin + pathname。 */
+const normalizeEndpoint = (value: string | undefined): string | undefined => {
+  if (!value) return undefined
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined
+    url.hash = ''
+    url.search = ''
+    url.pathname = url.pathname.replace(/\/+$/, '') || '/'
+    return `${url.origin}${url.pathname === '/' ? '' : url.pathname}`.toLowerCase()
+  } catch {
+    return undefined
   }
-  return result
 }
+
 type Entry = {
   id: string
   canonical: string
@@ -64,33 +60,40 @@ export type RecommendationInput = {
   modelType: 'chat' | 'embedding' | 'rerank'
 }
 
+export type RecommendationMatch = {
+  status: 'matched' | 'unmatched' | 'ambiguous' | 'no-cache'
+  recommended: Model.Recommendation
+  /** 命中的官方模型身份（canonical id）。 */
+  identity?: string
+  /** 基础规格来自官方目录，或叠加了当前供应商的差异。 */
+  source?: 'official' | 'provider'
+  /** 官方目录同阶段对应多个身份时的候选身份。 */
+  candidates?: string[]
+  /** 价格独立于规格标明来源；未知网关仅继承原厂参考价。 */
+  priceSource?: { kind: 'provider' | 'reference'; providerId: string }
+}
+
 /**
- * 把推荐值合进已保存的模型配置：只改写 `pinned` 之外的字段。
+ * 把推荐值合进已保存的模型配置：覆盖全部有推荐值的字段。
  * 未命中推荐时原样返回，所以调用方不需要分支。
  */
 export function applyRecommendation<T extends PiModelFields>(
   model: T,
   recommended: Model.Recommendation | undefined,
-  pinned: readonly Model.SmartConfigPinnedField[] = [],
 ): T {
   if (!recommended || !Object.keys(recommended).length) return model
-  const fixed = new Set<string>(pinned)
-  const pick = <K extends keyof Model.Recommendation>(key: K) =>
-    fixed.has(key) ? undefined : recommended[key]
+  const pick = <K extends keyof Model.Recommendation>(key: K) => recommended[key]
   const name = pick('name')
   const contextWindow = pick('contextWindow')
   const maxInputTokens = pick('maxInputTokens')
   const maxTokens = pick('maxTokens')
   const reasoning = pick('reasoning')
   const tools = pick('tools')
-  const inputCost = fixed.has('inputCost') ? undefined : recommended.cost?.input
-  const outputCost = fixed.has('outputCost') ? undefined : recommended.cost?.output
-  const cacheReadCost = fixed.has('cacheReadCost') ? undefined : recommended.cost?.cacheRead
-  const cacheWriteCost = fixed.has('cacheWriteCost') ? undefined : recommended.cost?.cacheWrite
-  const input =
-    recommended.input && !fixed.has('imageInput')
-      ? mergeModalities(model.input, recommended.input, fixed)
-      : undefined
+  const inputCost = recommended.cost?.input
+  const outputCost = recommended.cost?.output
+  const cacheReadCost = recommended.cost?.cacheRead
+  const cacheWriteCost = recommended.cost?.cacheWrite
+  const input = recommended.input
   return {
     ...model,
     ...(name !== undefined ? { name } : {}),
@@ -133,30 +136,12 @@ type PiModelFields = {
   }
 }
 
-/**
- * 多模态按单个能力合并：已固定的 `imageInput`/`audioInput`/`videoInput`
- * 各自保留，其余跟随推荐。
- */
-const mergeModalities = (
-  saved: readonly ('text' | 'image' | 'audio' | 'video')[],
-  recommended: readonly ('text' | 'image' | 'audio' | 'video')[],
-  fixed: ReadonlySet<string>,
-): ('text' | 'image' | 'audio' | 'video')[] => {
-  const result = new Set<'text' | 'image' | 'audio' | 'video'>(['text'])
-  for (const modality of ['image', 'audio', 'video'] as const) {
-    const pin = `${modality}Input`
-    const wanted = fixed.has(pin) ? saved.includes(modality) : recommended.includes(modality)
-    if (wanted) result.add(modality)
-  }
-  return [...result]
-}
-
 function values(raw: JsonObject): Model.Recommendation {
   const limit = raw.limit === undefined ? {} : object(raw.limit)
   const modalities = raw.modalities === undefined ? {} : object(raw.modalities)
   const cost = raw.cost === undefined ? undefined : object(raw.cost)
   const positive = (v: unknown) =>
-    typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= 10_000_000 ? v : undefined
+    typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= Number.MAX_SAFE_INTEGER ? v : undefined
   const efforts = Array.isArray(raw.reasoning_options)
     ? raw.reasoning_options.flatMap((item) => {
         const option = object(item)
@@ -198,57 +183,29 @@ function values(raw: JsonObject): Model.Recommendation {
   })
 }
 
-function consensus(entries: Entry[]): Model.Recommendation {
-  const result: Record<string, unknown> = {}
-  for (const field of recommendationFields) {
-    const votes = new Map<string, { value: unknown; count: number }>()
-    for (const entry of entries) {
-      const value = entry.values[field as RecommendationField]
-      if (value === undefined) continue
-      const key = JSON.stringify(value)
-      const vote = votes.get(key) ?? { value, count: 0 }
-      vote.count++
-      votes.set(key, vote)
-    }
-    const sorted = [...votes.values()].sort(
-      (a, b) =>
-        b.count - a.count ||
-        (typeof a.value === 'number' && typeof b.value === 'number'
-          ? a.value - b.value
-          : JSON.stringify(a.value).localeCompare(JSON.stringify(b.value))),
-    )
-    if (
-      sorted[0] &&
-      (typeof sorted[0].value === 'number' || !sorted[1] || sorted[0].count > sorted[1].count)
-    )
-      result[field] = sorted[0].value
-  }
-  return result as Model.Recommendation
-}
+const mergeValues = (entries: readonly Entry[]): Model.Recommendation =>
+  entries.reduce<Model.Recommendation>((merged, entry) => ({ ...merged, ...entry.values }), {})
 
+/**
+ * 模型身份解析索引。
+ *
+ * 身份只由官方目录（`catalog.models`）决定；第三方供应商条目只提供当前
+ * 供应商的规格差异，不参与同名投票，也不能否决官方匹配。
+ */
 export class ModelRecommendationIndex {
   private readonly entries: Entry[] = []
   constructor(payload: unknown) {
     const catalog = object(payload)
     const models = object(catalog.models)
     const providers = object(catalog.providers)
-    const commonByBare = new Map<string, string[]>()
-    for (const id of Object.keys(models)) {
-      const key = bare(id)
-      commonByBare.set(key, [...(commonByBare.get(key) ?? []), id])
-    }
     const add = (id: string, input: unknown, provider?: string, endpoint?: string) => {
       const raw = object(input)
       const type = raw.type === 'reranking' ? 'rerank' : (raw.type ?? 'chat')
       if (!['chat', 'embedding', 'rerank'].includes(String(type))) return
-      // 官方供应商条目也可能缺 canonical；只在通用目录唯一确定时补齐身份。
-      const common = Object.hasOwn(models, id) ? [id] : (commonByBare.get(bare(id)) ?? [])
+      // 官方条目身份就是自身；供应商条目没有显式 canonical 时只代表自己，
+      // 不再按裸名跨供应商推断别人家的身份。
       const canonical =
-        typeof raw.canonical_model_id === 'string'
-          ? raw.canonical_model_id
-          : common.length === 1
-            ? common[0]!
-            : id
+        typeof raw.canonical_model_id === 'string' ? raw.canonical_model_id : id
       this.entries.push({
         id,
         canonical,
@@ -270,58 +227,178 @@ export class ModelRecommendationIndex {
     if (!this.entries.length) throw new Error('Empty models.dev catalog')
   }
 
-  resolve(input: RecommendationInput): {
-    status: 'matched' | 'unmatched' | 'ambiguous'
-    recommended: Model.Recommendation
-  } {
+  resolve(input: RecommendationInput): RecommendationMatch {
     const entries = this.entries.filter((entry) => entry.type === input.modelType)
-    const unique = (matches: Entry[]) =>
-      new Set(matches.map((entry) => entry.canonical.toLowerCase())).size === 1
-    const id = input.modelId.trim()
-    const normalized = bare(id)
-    const suffix = normalized.replace(/\((?:off|none|minimal|low|medium|high|xhigh|max)\)$/, '')
-    const stripped = strippedCandidates(suffix)
-    // 剥离档位只在裸名精确匹配时才算数：`gpt-4o-2024-08-06` 剥掉日期后命中原名，
-    // `ample` 不剥也永远不命中，避免把模糊相似当成同一个模型。
-    const strippedMatch = (candidate: string) =>
-      entries.filter((entry) => bare(entry.id) === candidate || bare(entry.canonical) === candidate)
-    const stages = [
-      entries.filter((entry) => entry.id === id),
-      entries.filter((entry) => entry.canonical === id || entry.aliases.includes(id)),
-      entries.filter(
-        (entry) =>
-          bare(entry.id) === normalized ||
-          bare(entry.canonical) === normalized ||
-          entry.aliases.some((alias) => bare(alias) === normalized),
-      ),
-      ...(suffix !== normalized
-        ? [entries.filter((entry) => bare(entry.id) === suffix || bare(entry.canonical) === suffix)]
-        : []),
-      ...stripped.map(strippedMatch),
-    ]
-    const matches = stages.find((stage) => stage.length)
-    if (!matches) return { status: 'unmatched', recommended: {} }
-    if (!unique(matches)) return { status: 'ambiguous', recommended: {} }
-    const canonical = matches[0]!.canonical.toLowerCase()
-    const family = entries.filter((entry) => entry.canonical.toLowerCase() === canonical)
-    const common = family.find((entry) => !entry.provider)?.values ?? {}
-    const specific = family.filter(
-      (entry) =>
-        entry.provider === input.providerId ||
-        (!!input.baseUrl &&
-          !!entry.endpoint &&
-          entry.endpoint.replace(/\/$/, '') === input.baseUrl.replace(/\/$/, '')),
-    )
-    const recommended = { ...consensus(family.filter((entry) => !!entry.provider)), ...common }
-    if (specific.length === 1) Object.assign(recommended, specific[0]!.values)
-    // 中转的供应商未确认时，价格不能跨供应商继承。
-    if (specific.length !== 1) delete recommended.cost
-    if (input.modelType !== 'chat') {
-      delete recommended.maxTokens
-      delete recommended.reasoning
-      delete recommended.reasoningLevels
-      delete recommended.tools
+    const official = entries.filter((entry) => !entry.provider)
+    const supplied = entries.filter((entry) => !!entry.provider)
+    const trimmed = input.modelId.trim()
+    if (!trimmed) return { status: 'unmatched', recommended: {} }
+    const plain = trimmed.toLowerCase()
+    const suffixless = withoutLevelSuffix(trimmed).toLowerCase()
+    const attempts = suffixless !== plain ? [plain, suffixless] : [plain]
+    for (const value of attempts) {
+      const located = this.locate(value, official, supplied)
+      if (located) return this.compose(located, input, official, supplied)
     }
-    return { status: 'matched', recommended }
+    return { status: 'unmatched', recommended: {} }
+  }
+
+  private locate(
+    value: string,
+    official: readonly Entry[],
+    supplied: readonly Entry[],
+  ):
+    | { official: readonly Entry[] }
+    | { official: readonly Entry[]; provider: Entry }
+    | undefined {
+    // 1. 完整官方 ID 或官方目录显式别名优先。
+    const exact = official.filter(
+      (entry) =>
+        entry.id.toLowerCase() === value ||
+        entry.aliases.some((alias) => alias.toLowerCase() === value),
+    )
+    if (exact.length) return { official: exact }
+    // 2. 已知目录供应商前缀 + 该供应商确有对应完整模型条目。
+    const separator = value.indexOf('/')
+    if (separator > 0) {
+      const prefix = value.slice(0, separator)
+      const name = value.slice(separator + 1)
+      const providerEntry = supplied.find(
+        (entry) => entry.provider!.toLowerCase() === prefix && entry.id.toLowerCase() === name,
+      )
+      if (providerEntry) return { official: [], provider: providerEntry }
+      // 3. 其余前缀只是请求命名空间，只在官方目录匹配末段模型名与显式别名。
+      const bareName = bare(value)
+      const bareMatch = this.matchBare(bareName, official)
+      if (bareMatch.length) return { official: bareMatch }
+      return undefined
+    }
+    const bareMatch = this.matchBare(value, official)
+    return bareMatch.length ? { official: bareMatch } : undefined
+  }
+
+  private matchBare(name: string, official: readonly Entry[]): readonly Entry[] {
+    return official.filter(
+      (entry) =>
+        bare(entry.id) === name || entry.aliases.some((alias) => bare(alias) === name),
+    )
+  }
+
+  private compose(
+    located: { official: readonly Entry[]; provider?: Entry },
+    input: RecommendationInput,
+    official: readonly Entry[],
+    supplied: readonly Entry[],
+  ): RecommendationMatch {
+    if (located.provider) {
+      const entry = located.provider
+      const identity = entry.canonical
+      const base = official.filter(
+        (candidate) => candidate.canonical.toLowerCase() === identity.toLowerCase(),
+      )
+      return this.finalize(
+        { status: 'matched', recommended: { ...mergeValues(base), ...entry.values } },
+        identity,
+        'provider',
+        input,
+        entry,
+      )
+    }
+
+    const families = new Map<string, { identity: string; entries: Entry[] }>()
+    for (const entry of located.official) {
+      const key = entry.canonical.toLowerCase()
+      const family = families.get(key) ?? { identity: entry.canonical, entries: [] }
+      family.entries.push(entry)
+      families.set(key, family)
+    }
+    if (families.size > 1) {
+      return {
+        status: 'ambiguous',
+        recommended: {},
+        candidates: [...families.values()].map((family) => family.identity),
+      }
+    }
+    const family = [...families.values()][0]
+    if (!family) return { status: 'unmatched', recommended: {} }
+    const identity = family.identity
+    const key = identity.toLowerCase()
+    const endpoint = normalizeEndpoint(input.baseUrl)
+    const specific =
+      supplied.find(
+        (entry) =>
+          entry.canonical.toLowerCase() === key &&
+          !!input.providerId &&
+          entry.provider!.toLowerCase() === input.providerId.toLowerCase(),
+      ) ??
+      (endpoint
+        ? supplied.filter(
+            (entry) =>
+              entry.canonical.toLowerCase() === key &&
+              normalizeEndpoint(entry.endpoint) === endpoint,
+          )
+        : [])[0]
+    if (specific) {
+      return this.finalize(
+        {
+          status: 'matched',
+          recommended: { ...mergeValues(family.entries), ...specific.values },
+        },
+        identity,
+        'provider',
+        input,
+        specific,
+      )
+    }
+    return this.finalize(
+      { status: 'matched', recommended: mergeValues(family.entries) },
+      identity,
+      'official',
+      input,
+    )
+  }
+
+  private finalize(
+    match: { status: 'matched'; recommended: Model.Recommendation },
+    identity: string,
+    source: 'official' | 'provider',
+    input: RecommendationInput,
+    providerEntry?: Entry,
+  ): RecommendationMatch {
+    const owner = identity.split('/')[0]!.toLowerCase()
+    const reference = this.entries.find(
+      (entry) =>
+        entry.type === input.modelType &&
+        entry.provider?.toLowerCase() === owner &&
+        entry.canonical.toLowerCase() === identity.toLowerCase() &&
+        bare(entry.id) === bare(identity) &&
+        entry.values.cost !== undefined,
+    )
+    const price = providerEntry?.values.cost ? providerEntry : reference
+    const recommended = {
+      ...match.recommended,
+      ...(price ? { cost: price.values.cost } : {}),
+    }
+    const priceSource = price
+      ? {
+          kind: providerEntry === price ? 'provider' as const : 'reference' as const,
+          providerId: price.provider!,
+        }
+      : undefined
+    if (input.modelType === 'chat')
+      return {
+        status: 'matched', recommended, identity, source,
+        ...(priceSource ? { priceSource } : {}),
+      }
+    const { maxTokens: _maxTokens, reasoning: _reasoning, ...rest } = recommended
+    const {
+      reasoningLevels: _reasoningLevels,
+      tools: _tools,
+      ...nonChat
+    } = rest
+    return {
+      status: 'matched', recommended: nonChat, identity, source,
+      ...(priceSource ? { priceSource } : {}),
+    }
   }
 }

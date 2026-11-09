@@ -96,13 +96,13 @@ export const scheduleDraftParameters = Type.Object(
       minLength: 1,
       maxLength: 200,
       pattern: '\\S',
-      description: '任务名称，用于日历与通知中的一行摘要',
+      description: 'Task name used as a one-line calendar and notification summary',
     }),
     prompt: Type.String({
       minLength: 1,
       maxLength: 4000,
       pattern: '\\S',
-      description: '执行提示：这个任务每次运行时要做什么',
+      description: 'Execution prompt describing what to do on each run',
     }),
     taskPlan: Type.Object(
       {
@@ -110,22 +110,22 @@ export const scheduleDraftParameters = Type.Object(
           [Type.Literal('current-plan-item'), Type.Literal('pasted-text'), Type.Literal('file')],
           {
             description:
-              '任务计划的来源：当前计划项、用户粘贴的正文，或用户指定的文件；用户已给出明确 Plan 时必须沿用该内容',
+              'Plan source: current plan item, user-pasted text or a user-specified file. Preserve an explicit user-provided plan.',
           },
         ),
         sourceRef: Type.Union([Type.String({ minLength: 1 }), Type.Null()], {
-          description: '计划项 ID 或文件路径；粘贴正文时为 null',
+          description: 'Plan item ID or file path; null for pasted content',
         }),
         structured: structuredPlanParameters,
       },
-      { additionalProperties: false, description: '作为固定快照保存的任务计划正文' },
+      { additionalProperties: false, description: 'Task plan content stored as a fixed snapshot' },
     ),
     trigger: Type.Union(
       [
         Type.Object(
           {
             kind: Type.Literal('once'),
-            at: Type.Number({ description: '一次性执行的毫秒时间戳' }),
+            at: Type.Number({ description: 'One-time execution timestamp in milliseconds' }),
             timeZone: Type.String({ minLength: 1, description: timeZoneDescription }),
           },
           { additionalProperties: false },
@@ -146,37 +146,42 @@ export const scheduleDraftParameters = Type.Object(
         Type.Object(
           {
             kind: Type.Literal('task-succeeded'),
-            taskId: Type.String({ minLength: 1, description: '上游任务 ID' }),
+            taskId: Type.String({ minLength: 1, description: 'Upstream task ID' }),
           },
           { additionalProperties: false },
         ),
         Type.Object(
           {
             kind: Type.Literal('acceptance-passed'),
-            taskId: Type.String({ minLength: 1, description: '上游任务 ID' }),
+            taskId: Type.String({ minLength: 1, description: 'Upstream task ID' }),
           },
           { additionalProperties: false },
         ),
       ],
-      { description: '触发方式：一次性时间、周期规则，或内部事件（上游任务执行成功 / 验收通过）' },
+      {
+        description:
+          'Trigger: one-time timestamp, recurring rule or internal event (upstream execution success or acceptance)',
+      },
     ),
     conditions: Type.Object(
       {
         dependsOn: Type.Array(Type.String({ minLength: 1 }), {
-          description: '依赖的已确认任务 ID；没有依赖就提交空数组',
+          description: 'Confirmed task dependencies; use an empty array when absent',
         }),
-        requireEnvironment: Type.Boolean({ description: '是否要求执行环境可用' }),
+        requireEnvironment: Type.Boolean({
+          description: 'Whether the execution environment must be available',
+        }),
         notBefore: Type.Union([Type.Number(), Type.Null()], {
-          description: '最早执行时间；不限制时为 null',
+          description: 'Earliest execution timestamp; null when unconstrained',
         }),
         deadline: Type.Union([Type.Number(), Type.Null()], {
-          description: '截止时间；不限制时为 null',
+          description: 'Deadline timestamp; null when unconstrained',
         }),
       },
       { additionalProperties: false },
     ),
     conditionFallback: Type.Union([Type.Literal('skip'), Type.Literal('wait')], {
-      description: '条件不满足时：跳过本次，或等待并重新检查',
+      description: 'When conditions are unmet: skip this occurrence or wait and recheck',
     }),
     acceptance: Type.Union(
       [
@@ -189,7 +194,7 @@ export const scheduleDraftParameters = Type.Object(
                 type: 'object',
                 additionalProperties: true,
                 description:
-                  '可被宿主验证的检查：{kind:"file-exists",path} / {kind:"document-section",path,section} / {kind:"command-exit-code",command,expectedExitCode}',
+                  'Host-verifiable checks:{kind:"file-exists",path} / {kind:"document-section",path,section} / {kind:"command-exit-code",command,expectedExitCode}',
               }),
               { minItems: 1, maxItems: 20 },
             ),
@@ -199,15 +204,15 @@ export const scheduleDraftParameters = Type.Object(
       ],
       {
         description:
-          '验收方式。只有宿主能实际验证的标准才用 automatic；外观、体验或主观质量必须用 manual',
+          'Acceptance method. Use automatic only for host-verifiable criteria; appearance, experience and subjective quality require manual acceptance.',
       },
     ),
     notificationPolicy: Type.Union(
       [Type.Literal('all'), Type.Literal('failures'), Type.Literal('off')],
-      { description: '通知策略' },
+      { description: 'Notification policy' },
     ),
     missedRuns: Type.Union([Type.Literal('catch-up'), Type.Literal('skip')], {
-      description: '错过执行时间且程序未运行时的处理：补跑一次，或跳过',
+      description: 'When execution was missed while the app was closed: catch up once or skip',
     }),
     environment: Type.Union(
       [
@@ -221,12 +226,12 @@ export const scheduleDraftParameters = Type.Object(
         ),
         Type.Null(),
       ],
-      { description: '执行环境；null 表示沿用默认（本地工作区）' },
+      { description: 'Execution environment; null uses the default local workspace' },
     ),
   },
   {
     description:
-      '任务计划与执行安排的完整草案。一次提交完整内容；提交成功只保存待审阅草案，不会安排或执行任务。',
+      'Complete task plan and execution draft. Submit all content together. Success saves a reviewable draft only, without scheduling or execution.',
     additionalProperties: false,
   },
 )

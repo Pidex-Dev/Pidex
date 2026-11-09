@@ -65,7 +65,7 @@ export const subagentToolDefinitions: ToolDefinition[] = Object.entries(schemas)
       return { ...rest, taskID: rest.taskID ?? taskId }
     },
     inputSchema: z.toJSONSchema(schema),
-    description: `子 Agent 协作：${name}。只允许直接父子关系，不能扩大权限。`,
+    description: `Subagent collaboration: ${name}. Only direct parent-child relationships are allowed; never expand permissions.`,
     capabilities: {
       filesystem: 'none',
       network: 'none',

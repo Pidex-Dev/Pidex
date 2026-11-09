@@ -56,7 +56,7 @@ export const createSchedulePlanDefinition = (
   sdkName: 'schedule_plan_propose',
   name: 'schedule_plan.propose',
   description:
-    '用户确认规划目标和时间范围后，生成可在聊天中逐项编辑和确认的日程草案。此工具只创建草案，不会直接安排或执行任务。',
+    'Create an editable schedule draft after the user confirms the objective and time range. This tool creates a draft only; it does not schedule or execute tasks.',
   schema: input,
   inputSchema: {
     type: 'object',

@@ -148,10 +148,13 @@ export const providerFailureCategory = (cause: unknown): ModelHealthFailureCateg
 export const providerFailureMessage = (
   category: ModelHealthFailureCategory,
   context: 'request' | 'health-check',
+  httpStatus?: number,
 ): string => {
   switch (category) {
     case 'authentication':
-      return '凭据鉴权失败'
+      return httpStatus === 403
+        ? '供应商拒绝访问，请检查账号或模型权限。'
+        : '供应商鉴权失败，请检查凭据和接口配置。'
     case 'configuration':
       return '模型或 Provider 配置不可用'
     case 'network':
@@ -737,7 +740,7 @@ export class ModelHealthService {
       return {
         ok: false,
         category,
-        message: providerFailureMessage(category, 'health-check'),
+        message: providerFailureMessage(category, 'health-check', statusCode(cause)),
         api,
       }
     }
@@ -796,7 +799,7 @@ export class ModelHealthService {
     return {
       ok: false,
       category,
-      message: providerFailureMessage(category, 'health-check'),
+      message: providerFailureMessage(category, 'health-check', statusCode(result.cause)),
       api: protocol,
     }
   }

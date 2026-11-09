@@ -1,3 +1,8 @@
+import { streamSimple as streamResponses } from '@earendil-works/pi-ai/api/openai-responses'
+import { streamSimple as streamAnthropic } from '@earendil-works/pi-ai/api/anthropic-messages'
+import { PromptComposer } from '../src/prompt/PromptComposer'
+import { createPromptSections } from '../src/prompt/Sections'
+import { promptContext } from '../src/orchestration/pi/ExecuteHarnessRun'
 import { expect, test } from 'bun:test'
 import { normalizeContext, type AssistantMessage, type Model } from '@earendil-works/pi-ai'
 import { streamSimple } from '@earendil-works/pi-ai/api/openai-completions'
@@ -172,3 +177,95 @@ test('Anthropic preserves non-text blocks and real discussions of the placeholde
   const unsupported = { messages: [{ role: 'assistant', content: '' }] }
   expect(normalizePiProviderPayload(unsupported, 'unknown')).toBe(unsupported)
 })
+
+for (const api of ['openai-completions', 'openai-responses', 'anthropic-messages'] as const) {
+  test(`${api} serializes the composed user input once after text attachments with image input`, async () => {
+    let received: Record<string, unknown> | undefined
+    const server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      async fetch(request) {
+        received = (await request.json()) as Record<string, unknown>
+        // Only request serialization is under test; no model response or external service is needed.
+        return Response.json(
+          { error: { type: 'invalid_request_error', message: 'fixture response' } },
+          { status: 400 },
+        )
+      },
+    })
+    try {
+      const content = '<system-reminder>WIRE_USER_MARKER</system-reminder>'
+      const bundle = new PromptComposer().compose({
+        threadID: 'wire',
+        mode: 'chat',
+        profile: 'main',
+        exposedTools: [],
+        sections: createPromptSections({
+          mode: 'chat',
+          profile: 'main',
+          permissionInstructions: 'policy',
+          userMessage: content,
+        }),
+      })
+      const text = promptContext(
+        {
+          content,
+          attachments: [{ kind: 'text', name: 'fixture', text: 'WIRE_ATTACHMENT' }],
+        } as never,
+        bundle.contextItems,
+      )
+      const model = {
+        id: 'test',
+        name: 'test',
+        api,
+        provider: 'test',
+        baseUrl: `http://127.0.0.1:${server.port}/v1`,
+        reasoning: false,
+        input: ['text', 'image'],
+        contextWindow: 64000,
+        maxTokens: 128,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      } as Model<typeof api>
+      const context = normalizeContext({
+        systemPrompt: bundle.instructions,
+        messages: [
+          {
+            role: 'user' as const,
+            timestamp: 0,
+            content: [
+              { type: 'text' as const, text },
+              {
+                type: 'image' as const,
+                mimeType: 'image/png',
+                data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
+              },
+            ],
+          },
+        ],
+      })
+      const result =
+        api === 'openai-completions'
+          ? await streamSimple(model as Model<'openai-completions'>, context, {
+              apiKey: 'fixture',
+              maxRetries: 0,
+            }).result()
+          : api === 'openai-responses'
+            ? await streamResponses(model as Model<'openai-responses'>, context, {
+                apiKey: 'fixture',
+                maxRetries: 0,
+              }).result()
+            : await streamAnthropic(model as Model<'anthropic-messages'>, context, {
+                apiKey: 'fixture',
+                maxRetries: 0,
+              }).result()
+      expect(result.stopReason).toBe('error')
+      expect(received).toBeDefined()
+      const wire = JSON.stringify(received)
+      expect(wire.split('WIRE_USER_MARKER')).toHaveLength(2)
+      expect(wire.indexOf('WIRE_ATTACHMENT')).toBeLessThan(wire.indexOf('WIRE_USER_MARKER'))
+      expect(wire).toContain('image')
+    } finally {
+      await server.stop(true)
+    }
+  })
+}

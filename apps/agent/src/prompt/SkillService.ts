@@ -678,7 +678,7 @@ export class SkillService {
             cause.code === 'SKILL_SELECTION_UNAVAILABLE' &&
             skill.path.startsWith('plugin://')
           )
-            return `引用的插件技能 ${JSON.stringify(skill.name)} 当前不可用；引用不能启用插件。`
+            return `Referenced plugin skill ${JSON.stringify(skill.name)} is unavailable; a reference cannot enable its plugin.`
           throw cause
         }
       }),
@@ -687,7 +687,7 @@ export class SkillService {
       ...loaded,
       ...unavailable.map(
         (selection) =>
-          `引用的插件技能 ${JSON.stringify(selection.name)} 当前不可用；引用不能启用插件。`,
+          `Referenced plugin skill ${JSON.stringify(selection.name)} is unavailable; a reference cannot enable its plugin.`,
       ),
     ]
   }

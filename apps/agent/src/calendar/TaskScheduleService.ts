@@ -273,7 +273,7 @@ export class TaskScheduleService {
     return prepareScheduledTaskDefinition(this.db.repositories.automations, {
       kind: execution.kind,
       name: task.name,
-      prompt: `开始执行\n\n执行以下已选定的方案（SHA-256: ${task.plan.contentHash}）：\n${task.plan.content}`,
+      prompt: `Start execution\n\nImplement this selected plan (SHA-256: ${task.plan.contentHash}):\n${task.plan.content}`,
       projectId: execution.projectId,
       targetThreadId: execution.targetThreadId,
       execution: execution.environment,

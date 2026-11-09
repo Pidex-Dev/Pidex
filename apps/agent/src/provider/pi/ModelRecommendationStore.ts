@@ -16,6 +16,7 @@ export class ModelRecommendationStore {
   private readonly cache: SharedModelCatalogCache
   private readonly request: (input: string | URL | Request, init?: RequestInit) => Promise<Response>
   private refreshTimer: ReturnType<typeof setInterval> | undefined
+  private onAutoUpdated: (() => void | Promise<void>) | undefined
 
   constructor(
     path?: string,
@@ -25,10 +26,11 @@ export class ModelRecommendationStore {
     this.request = request
   }
 
-  startAutoRefresh() {
+  startAutoRefresh(onUpdated?: () => void | Promise<void>) {
+    if (onUpdated) this.onAutoUpdated = onUpdated
     if (this.refreshTimer) return
     const update = () => {
-      void this.refresh().catch(() => undefined)
+      void this.refresh().then(() => this.onAutoUpdated?.()).catch(() => undefined)
     }
     update()
     this.refreshTimer = setInterval(update, REFRESH_INTERVAL_MS)
@@ -36,6 +38,7 @@ export class ModelRecommendationStore {
   }
 
   dispose() {
+    this.onAutoUpdated = undefined
     if (this.refreshTimer) clearInterval(this.refreshTimer)
     this.refreshTimer = undefined
   }

@@ -509,36 +509,39 @@ export const requestPermissionsDefinition: ToolDefinition<
   sdkName: 'request_permissions',
   name: 'request_permissions',
   description: [
-    '为下一次工具调用、当前 turn 或当前运行会话请求临时权限，并等待用户或自动审核的决定。',
-    '普通文件读取、外部写入和联网均应直接调用实际工具，由宿主根据当前预设和已有授权决定是否审批；不要预先调用本工具。仅在实际工具明确要求申请临时权限时使用。授权不能覆盖敏感路径规则、Plan 或显式只读根。never 策略下本工具不可用。',
-    '每条申请都必须给出 justification，并至少包含一项 readPaths、writePaths 或 networkDomains；没有可申请权限时不要调用本工具。',
+    'Request temporary permissions for the next tool call, current turn or running session, and wait for the user or reviewer decision.',
+    'Call ordinary file, write and network tools directly; the host applies current policy and grants. Use this tool only when an actual tool explicitly requires temporary permission. Grants cannot override protected paths, Plan or explicit read-only roots. Unavailable under never approval policy.',
+    'Each request requires justification and at least one readPaths, writePaths or networkDomains entry. Do not call without a requestable permission.',
   ].join('\n'),
   schema: requestPermissionsSchema,
   inputSchema: jsonObject(
     {
       scope: {
         enum: ['tool-call', 'turn', 'session'],
-        description: '临时权限的生效范围：仅下一次工具调用、当前 turn，或当前运行会话。',
+        description: 'Grant lifetime: the next tool call, current turn or running session.',
       },
       readPaths: {
         type: 'array',
         items: { type: 'string' },
-        description: '需要额外读取的绝对路径。完全访问模式下工作区外文件无需在此申请。',
+        description:
+          'Absolute paths requiring additional read access. Full access does not require a separate request for outside-workspace files.',
       },
       writePaths: {
         type: 'array',
         items: { type: 'string' },
-        description: '需要额外写入的绝对路径。完全访问模式下工作区外文件无需在此申请。',
+        description:
+          'Absolute paths requiring additional write access. Full access does not require a separate request for outside-workspace files.',
       },
       networkDomains: {
         type: 'array',
         items: { type: 'string' },
-        description: '需要 Shell 访问的域名，例如 npmjs.org；完全访问模式下无需申请联网权限。',
+        description:
+          'Domains the shell needs to access, such as npmjs.org. Full access does not require a network permission request.',
       },
       escalationToken: { type: 'string', format: 'uuid' },
       justification: {
         type: 'string',
-        description: '必填。向用户说明为什么当前任务需要这些权限。',
+        description: 'Required explanation to the user of why the task needs these permissions.',
       },
     },
     ['scope', 'justification'],
@@ -572,7 +575,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     sdkName: 'Read',
     name: 'workspace.read',
     description:
-      '读取 UTF-8 文本文件，并保存完整快照供后续写入使用。读取工作区外文件时，直接用绝对路径调用本工具，由宿主判定是否允许或需要审批。',
+      'Read a UTF-8 text file and retain its full snapshot for subsequent edits. Returned text is paginated; continue reading when needed. For outside-workspace files, call with an absolute path and let the host authorize access.',
     schema: z
       .object({
         file_path: z.string().min(1),
@@ -585,7 +588,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
         file_path: {
           type: 'string',
           description:
-            '已确认存在的工作区 UTF-8 文本文件路径；只接受文件，不接受目录或未经确认的猜测路径。',
+            'An observed existing UTF-8 file path, relative to the workspace or absolute where host policy permits. Files only, not directories or guessed paths.',
         },
         offset: { type: 'number', minimum: 0 },
         limit: { type: 'number', minimum: 1, maximum: 10_000 },
@@ -620,14 +623,14 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     sdkName: 'Write',
     name: 'workspace.write',
     description:
-      '创建或完整覆写文件。已有文件必须先 Read，快照由执行器自动维护。写入工作区外文件时，直接用绝对路径调用本工具，由宿主判定是否允许或需要审批。',
+      'Create or fully overwrite a file. Read existing files first; the executor maintains snapshots. For outside-workspace files, use absolute paths and let the host authorize access.',
     schema: z.object({ file_path: z.string().min(1), content: z.string() }).strict(),
     inputSchema: jsonObject(
       {
         file_path: {
           type: 'string',
           description:
-            '工作区文件路径；更新已有文件前必须先成功 Read 同一路径，创建新文件可直接写入。',
+            'Target file path. Existing files require a successful Read of the same path; new files can be written directly.',
         },
         content: { type: 'string' },
       },
@@ -739,28 +742,30 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     sdkName: 'Edit',
     name: 'workspace.edit',
     description:
-      '对已 Read 的工作区文件执行一组精确且原子的文本编辑。每项 oldText 必须在原文件中唯一匹配，所有编辑均基于同一份原文定位；完全访问模式下同样适用于工作区外的绝对路径。',
+      'Apply precise atomic edits to a previously read file. Each oldText must match uniquely, and all edits refer to the same original text. Absolute outside-workspace paths are subject to host authorization. On stale or ambiguous context, Read again and rebuild the edits.',
     schema: editInputSchema,
     inputSchema: jsonObject(
       {
         path: {
           type: 'string',
-          description: '已存在的工作区文件路径；必须先成功 Read 同一路径，并基于最新完整原文编辑。',
+          description:
+            'Existing file path previously read with Read. Base edits on the latest complete original snapshot.',
         },
         edits: {
           type: 'array',
           minItems: 1,
-          description: '要原子应用的编辑列表；每项 oldText 必须包含足够上下文以保证唯一匹配。',
+          description:
+            'Atomic edits against the same original text. Include enough oldText context for a unique match.',
           items: jsonObject(
             {
               oldText: {
                 type: 'string',
                 minLength: 1,
-                description: '文件中精确且唯一存在的原文。',
+                description: 'Exact original text occurring uniquely in the file.',
               },
               newText: {
                 type: 'string',
-                description: '用于替换 oldText 的新文本；空字符串表示删除。',
+                description: 'Replacement text; an empty string deletes oldText.',
               },
             },
             ['oldText', 'newText'],
@@ -841,7 +846,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     sdkName: 'Glob',
     name: 'workspace.glob',
     description:
-      '优先使用受管或本机 ripgrep 在工作区内按 glob 模式查找文件；无法获取 ripgrep 时使用有界原生搜索。path 默认为 .，优先传工作区相对路径，也接受工作区内绝对路径；完全访问模式下可搜索工作区外的绝对目录。',
+      'Find files by glob using managed or local ripgrep, with bounded native search as fallback. path defaults to .; prefer workspace-relative directories. Absolute directories are subject to host policy, including outside-workspace access.',
     schema: z
       .object({
         pattern: z.string().min(1).max(1_000),
@@ -854,11 +859,11 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
         pattern: {
           type: 'string',
           maxLength: 1_000,
-          description: '用于筛选文件名或相对路径的 glob 模式。',
+          description: 'Glob pattern matching filenames or relative paths.',
         },
         path: {
           type: 'string',
-          description: '可选的已存在工作区目录；不得传文件路径，文件筛选请写入 pattern。',
+          description: 'Optional existing directory, not a file. Filter filenames with pattern.',
         },
         limit: { type: 'number', minimum: 1, maximum: 500 },
       },
@@ -940,7 +945,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     sdkName: 'Grep',
     name: 'workspace.grep',
     description:
-      '优先使用受管或本机 ripgrep 在工作区内执行有界正则搜索；无法获取 ripgrep 时使用有界原生搜索。path 默认为 .，优先传工作区相对路径，也接受工作区内绝对路径；支持文件过滤、上下文和多种输出模式，完全访问模式下可搜索工作区外的绝对目录。',
+      'Perform bounded regular-expression content search using managed or local ripgrep, with bounded native search as fallback. path defaults to .; prefer workspace-relative directories. Supports file filtering, context and output modes. Absolute directories are subject to host policy.',
     schema: z
       .object({
         pattern: z.string().min(1).max(10_000),
@@ -964,12 +969,12 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
         pattern: { type: 'string', maxLength: 10_000 },
         path: {
           type: 'string',
-          description: '可选的已存在工作区目录；不得传文件路径，限制文件范围请使用 glob。',
+          description: 'Optional existing directory, not a file. Restrict filenames with glob.',
         },
         glob: {
           type: 'string',
           maxLength: 1_000,
-          description: '可选的文件 glob 过滤器；不要把文件路径传给 path。',
+          description: 'Optional file glob filter. Do not pass a file as path.',
         },
         output_mode: { enum: ['content', 'files_with_matches', 'count'], default: 'content' },
         '-A': { type: 'integer', minimum: 0, maximum: 100 },
@@ -999,8 +1004,8 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     name: sdkName,
     description:
       sdkName === 'Bash'
-        ? '以工作区为默认 cwd，经 Pi tool_call、统一权限、Hook、hard-deny 与幂等门禁后，以当前用户身份执行 Bash 命令。Plan 与 Grill 只允许用于调查（读取、搜索、测试、构建和检查），不得实施；无 OS 文件或网络沙箱。'
-        : '以工作区为默认 cwd，经 Pi tool_call、统一权限、Hook、hard-deny 与幂等门禁后，以当前用户身份执行 PowerShell 命令。Plan 与 Grill 只允许用于调查（读取、搜索、测试、构建和检查），不得实施；无 OS 文件或网络沙箱。',
+        ? 'Execute Bash commands on the host as the current user, with workspace cwd by default and normal host authorization. No OS filesystem or network isolation. In Plan and Grill, investigate only; do not implement changes.'
+        : 'Execute PowerShell commands on the host as the current user, with workspace cwd by default and normal host authorization. No OS filesystem or network isolation. In Plan and Grill, investigate only; do not implement changes.',
     schema: shellSchema,
     inputSchema: shellInputSchema,
     capabilities: {
@@ -1024,7 +1029,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     sdkName: 'ToolSearch',
     name: 'tool.search',
     description:
-      '搜索当前可发现范围内的延迟工具并请求激活：query 匹配工具名称、描述与 MCP server 名称，query="*" 浏览整个目录，用 offset 分页、max_results 上限 20；命中的工具在下一次请求即可调用。select:<exact-name> 精确激活并返回完整参数 schema。',
+      'Discover and activate deferred tools within the allowed catalog. query matches names, descriptions and MCP server names. Use * to browse, offset to paginate and max_results up to 20. Matches become callable on the next request. select:<exact-name> activates an exact tool and returns its full schema.',
     schema: z
       .object({
         query: z.string().min(1),
@@ -1038,14 +1043,14 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
           type: 'string',
           minLength: 1,
           description:
-            '搜索关键词，匹配工具名称、描述与 MCP server 名称；传 "*" 浏览整个目录，或传 select:<exact-name> 精确激活。',
+            'Keywords matching names, descriptions and MCP server names; * browses the catalog, select:<exact-name> selects an exact tool.',
         },
         max_results: { type: 'integer', minimum: 1, maximum: 20, default: 5 },
         offset: {
           type: 'integer',
           minimum: 0,
           default: 0,
-          description: '分页起点，用于浏览或宽泛搜索时查看被上限省略的后续结果。',
+          description: 'Pagination offset for browsing results omitted by the result limit.',
         },
       },
       ['query'],

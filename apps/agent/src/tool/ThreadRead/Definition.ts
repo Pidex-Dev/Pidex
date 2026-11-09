@@ -108,7 +108,7 @@ export const createThreadReadDefinition = (
   name: 'read_thread',
   schema,
   description:
-    '读取指定线程的最近对话记录（用户消息、助手结果、计划与工具摘要），用于在后续任务中恢复上下文。只读，不会修改任何数据。',
+    'Read recent conversation history for a specified thread, including user messages, assistant results, plans and tool summaries. Use to recover context for follow-up work. Read-only; does not change data.',
   capabilities: {
     filesystem: 'none',
     network: 'none',
@@ -128,14 +128,17 @@ export const createThreadReadDefinition = (
       thread_ref: {
         type: 'string',
         minLength: 1,
-        description: '线程 ID 或 Pidex 深链（如 pidex://threads/<id>）。',
+        description: 'Thread ID or Pidex deep link, such as pidex://threads/<id>.',
       },
-      before: { type: 'string', description: '上一页返回的 olderCursor；用于继续读取更早的历史。' },
+      before: {
+        type: 'string',
+        description: 'The olderCursor from the previous page, to continue reading earlier history.',
+      },
       limit: {
         type: 'integer',
         minimum: 1,
         maximum: 50,
-        description: '本次返回的 turn 数量上限，默认 10。',
+        description: 'Maximum turns returned; default 10.',
       },
     },
     required: ['thread_ref'],

@@ -65,6 +65,7 @@ export const Capabilities = [
   'model.catalog.paged.v1',
   'provider.config.pi.v1',
   'provider.modelSync.v1',
+  'provider.modelSpecs.v1',
   'provider.protocolDetection.v1',
   'provider.deepseekProtocol.v1',
   'provider.builtinOverrides.v1',

@@ -35,18 +35,26 @@ import {
 } from '../../session/GoalDirectiveService'
 import { AgentHarnessError } from '../harness/Types'
 
-const promptContext = (request: HarnessRuntimeRequest, contextItems: readonly unknown[]) => {
+export const promptContext = (request: HarnessRuntimeRequest, contextItems: readonly unknown[]) => {
   const attachments =
     request.attachments?.flatMap((attachment) =>
       attachment.kind === 'text'
         ? [`<attachment name=${JSON.stringify(attachment.name)}>${attachment.text}</attachment>`]
         : [],
     ) ?? []
-  const contextual = contextItems.flatMap((item) => {
-    const content = (item as { content?: Array<{ text?: unknown }> }).content
-    return content?.flatMap((part) => (typeof part.text === 'string' ? [part.text] : [])) ?? []
-  })
-  return [...contextual, ...attachments, request.content].filter(Boolean).join('\n\n')
+  const current = contextItems.find(
+    (item) => (item as { sectionID?: string }).sectionID === 'turn.user-message',
+  )
+  const contextual = contextItems
+    .filter((item) => item !== current)
+    .flatMap((item) => {
+      const content = (item as { content?: Array<{ text?: unknown }> }).content
+      return content?.flatMap((part) => (typeof part.text === 'string' ? [part.text] : [])) ?? []
+    })
+  const userText = current
+    ? (current as { content: Array<{ text: string }> }).content.map((part) => part.text).join('\n')
+    : request.content
+  return [...contextual, ...attachments, userText].filter(Boolean).join('\n\n')
 }
 
 const promptImages = (request: HarnessRuntimeRequest): ImageContent[] =>
@@ -403,25 +411,25 @@ export async function executeHarnessRun(
   if (options.lifecycle?.finalizeResult && request.exposedTools.includes('finalize_result')) {
     singleToolCallReasons.set(
       'finalize_result',
-      'finalize_result 必须是该条回复中唯一的工具调用；先完成并验证其他工作，然后在单独一条回复中提交。',
+      'finalize_result must be the only tool call in its response. Finish and verify other work first, then submit separately.',
     )
   }
   if (options.lifecycle?.submitPlan) {
     singleToolCallReasons.set(
       'submit_plan',
-      'submit_plan 必须是该条回复中唯一的工具调用；先完成调查，然后在单独一条回复中提交方案。',
+      'submit_plan must be the only tool call in its response. Complete investigation, then submit the plan separately.',
     )
   }
   if (options.lifecycle?.submitSchedulePlan) {
     singleToolCallReasons.set(
       'submit_schedule_plan',
-      'submit_schedule_plan 必须是该条回复中唯一的工具调用；先完成调查与澄清，然后在单独一条回复中提交草案。',
+      'submit_schedule_plan must be the only tool call in its response. Complete investigation and clarification, then submit the draft separately.',
     )
   }
   if (options.lifecycle?.submitTaskSchedule)
     singleToolCallReasons.set(
       'submit_task_schedule',
-      '时间安排草案必须在调查和澄清完成后单独提交。',
+      'Submit timing drafts separately after investigation and clarification.',
     )
   if (singleToolCallReasons.size > 0 || options.beforeToolCall || options.goalBudget)
     harness.on('tool_call', async (event) => {
@@ -434,7 +442,7 @@ export async function executeHarnessRun(
         return {
           block: true,
           reason:
-            '预算已变更。请先读取下一请求中的新预算通知，检查是否已交付并调整剩余计划及子任务，再执行工具。',
+            'The budget changed. Read the updated budget notice in the next request, check delivered work and revise remaining plans and child assignments before further tool use.',
         }
       if (wrapupStatus) return { block: true, reason: '目标预算收尾仅允许文本，工具已关闭。' }
       const singleCallReason = singleToolCallReasons.get(event.toolName)

@@ -172,45 +172,50 @@ export const structuredResultParameters = Type.Object(
       [Type.Literal('succeeded'), Type.Literal('partial'), Type.Literal('blocked')],
       {
         description:
-          '你对任务结果的陈述：succeeded=已完成；partial=部分完成；blocked=受阻或无法继续',
+          'Faithful outcome: succeeded means complete; partial means incomplete; blocked means unable to proceed',
       },
     ),
     summary: Type.String({
       minLength: 1,
-      description: '非空的一段交付摘要，说明做了什么、结果如何',
+      description: 'Nonempty delivery summary describing the work and outcome',
     }),
     findings: Type.Array(
       Type.Object({
-        title: Type.String({ description: '结论标题' }),
-        detail: Type.String({ description: '结论说明' }),
+        title: Type.String({ description: 'Finding title' }),
+        detail: Type.String({ description: 'Finding details' }),
         severity: Type.Union([
           Type.Literal('info'),
           Type.Literal('warning'),
           Type.Literal('error'),
         ]),
       }),
-      { description: '关键结论；没有内容时提交空数组' },
+      { description: 'Key findings; use an empty array when absent' },
     ),
     changedFiles: Type.Array(
       Type.Object({
-        path: Type.String({ description: '改动文件路径' }),
-        summary: Type.String({ description: '改动说明' }),
+        path: Type.String({ description: 'Changed file path' }),
+        summary: Type.String({ description: 'Change summary' }),
       }),
-      { description: '实际改动过的文件；没有内容时提交空数组' },
+      { description: 'Files actually changed; use an empty array when absent' },
     ),
     validation: Type.Array(
       Type.Object({
-        command: Type.String({ description: '执行的验证命令或验证项' }),
+        command: Type.String({ description: 'Verification command or check actually performed' }),
         status: Type.Union([
           Type.Literal('passed'),
           Type.Literal('failed'),
           Type.Literal('skipped'),
         ]),
-        output: Type.Optional(Type.String({ description: '验证输出的关键摘要' })),
+        output: Type.Optional(Type.String({ description: 'Key verification output' })),
       }),
-      { description: '实际执行过的验证及其结果，禁止编造未执行的验证为通过；没有内容时提交空数组' },
+      {
+        description:
+          'Checks actually run and their results. Never claim unperformed checks passed; use an empty array when absent',
+      },
     ),
-    risks: Type.Array(Type.String(), { description: '遗留风险或未决事项；没有时提交空数组' }),
+    risks: Type.Array(Type.String(), {
+      description: 'Remaining risks or unresolved issues; use an empty array when absent',
+    }),
     references: Type.Array(
       Type.Object({
         kind: Type.Union([
@@ -219,14 +224,17 @@ export const structuredResultParameters = Type.Object(
           Type.Literal('thread'),
           Type.Literal('subagent'),
         ]),
-        value: Type.String({ description: '引用地址' }),
-        label: Type.Optional(Type.String({ description: '引用标签' })),
+        value: Type.String({ description: 'Reference location' }),
+        label: Type.Optional(Type.String({ description: 'Reference label' })),
       }),
-      { description: '结论引用的文件、链接、会话或子 Agent；没有时提交空数组' },
+      {
+        description:
+          'Files, links, conversations or subagents supporting findings; use an empty array when absent',
+      },
     ),
   },
   {
-    description: '结构化交付结果：所有数组字段都必须提供，没有内容就提交空数组',
+    description: 'Structured delivery: provide every array field, using empty arrays when absent',
     additionalProperties: false,
   },
 )

@@ -23,7 +23,7 @@ const ASSOCIATIONS: Record<string, readonly HostManagedMcpDeclaration[]> = {
     {
       server: NODE_REPL_SERVER_NAME,
       title: 'Node REPL',
-      description: '宿主提供的 JavaScript 执行入口，电脑控制只通过它调用。',
+      description: 'Host-provided JavaScript execution entry point for computer control.',
     },
   ],
 }

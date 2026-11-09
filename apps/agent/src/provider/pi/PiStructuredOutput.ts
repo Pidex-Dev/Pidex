@@ -136,13 +136,13 @@ export async function generatePiObject<TSchema extends z.ZodType>(input: {
     const context: Context = {
       systemPrompt: [
         input.system,
-        `必须调用 ${toolName} 提交符合 ${input.schemaName} 的结果，不要返回说明文字。`,
+        `Call ${toolName} to submit a result conforming to ${input.schemaName}. Do not return explanatory text.`,
       ].join('\n'),
       messages: [{ role: 'user', content: input.prompt, timestamp: Date.now() }],
       tools: [
         {
           name: toolName,
-          description: `提交符合 ${input.schemaName} schema 的结构化结果`,
+          description: `Submit a structured result conforming to the ${input.schemaName} schema`,
           parameters,
           constrainedSampling: {
             type: 'json_schema',

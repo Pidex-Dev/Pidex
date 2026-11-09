@@ -160,14 +160,14 @@ export function composeExecutionPrompt(draft: {
   return [
     draft.prompt.trim(),
     '',
-    '## 已确认的任务计划（固定上下文，不要重新规划）',
+    '## Confirmed task plan (fixed context; do not replan)',
     formatStructuredPlanMarkdown(draft.taskPlan.structured),
     '',
-    '## 验收标准',
+    '## Acceptance criteria',
     summarizeAcceptance(draft.acceptance),
     '',
-    '## 执行要求',
-    '先简短重述用户目标和试图解决的问题，然后重新读取相关代码确认事实，再完成实施与必要验证。',
+    '## Execution requirements',
+    'Briefly restate the user objective and problem, re-read relevant code to confirm facts, then complete implementation and necessary verification.',
   ].join('\n')
 }
 

@@ -92,10 +92,24 @@ export interface DiscoverOpenAIModelsOptions {
 export interface DiscoveredOpenAIModel {
   readonly id: string
   readonly name: string
+  readonly contextWindow?: number
+  readonly maxInputTokens?: number
+  readonly maxTokens?: number
 }
 
 const MAX_DISCOVERY_BYTES = 1024 * 1024
 const DISCOVERY_TIMEOUT_MS = 8_000
+
+const asRecord = (value: unknown): Record<string, unknown> | undefined =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined
+
+/** 只接受上游明确声明的额度字段；缺失保持缺失，不从名称或数量级推断。 */
+const explicitLimit = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= Number.MAX_SAFE_INTEGER
+    ? value
+    : undefined
 
 export const discoverOpenAIModels = async (
   options: DiscoverOpenAIModelsOptions,
@@ -156,9 +170,22 @@ export const discoverOpenAIModels = async (
     const id = codex ? record.slug : record.id
     const name = codex ? record.display_name : record.name
     if (typeof id === 'string' && id.trim()) {
+      const topProvider = asRecord(record.top_provider)
+      const contextWindow = explicitLimit(
+        record.context_window ?? record.context_length ?? topProvider?.context_length,
+      )
+      const maxInputTokens = explicitLimit(record.max_input_tokens)
+      const maxTokens = explicitLimit(
+        record.max_output_tokens ??
+          record.max_completion_tokens ??
+          topProvider?.max_completion_tokens,
+      )
       models.set(id, {
         id,
         name: typeof name === 'string' && name.trim() ? name : id,
+        ...(contextWindow ? { contextWindow } : {}),
+        ...(maxInputTokens ? { maxInputTokens } : {}),
+        ...(maxTokens ? { maxTokens } : {}),
       })
     }
   }

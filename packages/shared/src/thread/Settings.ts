@@ -11,7 +11,7 @@ export type TaskMode = typeof TaskModeSchema.Type
 export const isReadOnlyTaskMode = (mode: TaskMode): boolean => mode === 'plan' || mode === 'grill'
 
 export const MaxContextTokensSchema = Schema.Int.check(
-  Schema.isBetween({ minimum: 1, maximum: 10_000_000 }),
+  Schema.isBetween({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER }),
 )
 export type MaxContextTokens = typeof MaxContextTokensSchema.Type
 

@@ -332,12 +332,12 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
   sdkName: 'apply_patch',
   name: 'workspace.apply_patch',
   description: [
-    '按需使用确定性的多文件补丁新增或更新工作区 UTF-8 文本文件。普通单文件编辑应优先使用 Edit；Update File 必须先 Read 每个目标文件。',
-    '完全访问模式下补丁也可作用于工作区外的绝对路径。',
-    '格式必须以 *** Begin Patch 开始、以 *** End Patch 结束；支持 *** Add File: path、*** Update File: path、多个 @@ hunk 和 *** End of File。',
-    '新补丁的 hunk 头必须使用不含行号计数的 @@ 或 @@ <精确上下文>；不要生成 @@ -旧行,+新行 @@。',
-    '上下文必须精确且唯一；只等价处理 LF/CRLF，不进行空白、缩进或 Unicode 模糊匹配。',
-    '当前不支持 Delete File 或 Move to；Add File 的每一行必须以 + 开头。',
+    'Apply a deterministic multi-file patch to add or update UTF-8 files. Prefer Edit for ordinary single-file changes. Read every existing Update File target first. Use bare @@ hunk headers without line counts; after parse or context failure, Read and rebuild rather than replaying unchanged.',
+    'With full access, patches may target outside-workspace absolute paths subject to host policy.',
+    'Start with *** Begin Patch and end with *** End Patch. Supports *** Add File: path, *** Update File: path, multiple @@ hunks and *** End of File.',
+    'Use @@ or @@ <exact context> hunk headers without line counts; do not generate unified-diff line-number headers.',
+    'Context must match exactly and uniquely. LF/CRLF are equivalent; whitespace, indentation and Unicode are not fuzzy-matched.',
+    'Delete File and Move to are unsupported. Prefix every Add File content line with +.',
   ].join('\n'),
   schema: applyPatchInputSchema,
   inputSchema: {
@@ -346,10 +346,10 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
       patch: {
         type: 'string',
         description: [
-          '完整补丁原文。首行必须直接是 *** Begin Patch，禁止 Markdown 代码围栏；末行必须是 *** End Patch。',
-          '最小示例：\n*** Begin Patch\n*** Add File: path/to/file.txt\n+content\n*** End Patch',
-          'Update 示例：\n*** Begin Patch\n*** Update File: path/to/file.txt\n@@\n-old\n+new\n*** End Patch',
-          'Update File 必须基于刚刚 Read 的完整原文；解析或 context 失败后重新 Read 并重建补丁，禁止原样重放。',
+          'Complete raw patch. Start directly with *** Begin Patch and end with *** End Patch. Do not use Markdown code fences.',
+          'Minimal example:\n*** Begin Patch\n*** Add File: path/to/file.txt\n+content\n*** End Patch',
+          'Update example:\n*** Begin Patch\n*** Update File: path/to/file.txt\n@@\n-old\n+new\n*** End Patch',
+          'Update File must use the complete original just read. After parse or context failure, Read again and rebuild; do not replay unchanged.',
         ].join('\n'),
         minLength: 1,
         maxLength: MAX_PATCH_BYTES,

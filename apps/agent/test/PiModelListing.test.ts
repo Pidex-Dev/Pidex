@@ -27,14 +27,14 @@ const capture = (respond: (request: CapturedRequest) => Response) => {
   return { requests, fetch }
 }
 
-const expectListingError = async (operation: Promise<unknown>, message?: string) => {
+const expectListingError = async (operation: Promise<unknown>, message?: string, code = 'PROVIDER_UNAVAILABLE', status = 400) => {
   const error = (await operation.then(
     () => undefined,
     (cause: unknown) => cause,
   )) as unknown
   expect(error).toBeInstanceOf(AgentError)
-  expect((error as AgentError).code).toBe('PROVIDER_UNAVAILABLE')
-  expect((error as AgentError).status).toBe(502)
+  expect((error as AgentError).code).toBe(code)
+  expect((error as AgentError).status).toBe(status)
   if (message) expect((error as AgentError).message).toContain(message)
   return error as AgentError
 }
@@ -108,6 +108,59 @@ describe('Pi model listing', () => {
       }),
       '格式无效',
     )
+  })
+
+  test('keeps only explicitly declared upstream limits and ignores unrelated fields', async () => {
+    const result = await listProviderModels({
+      api: 'openai-completions',
+      baseUrl: 'https://gateway.example/v1',
+      fetch: async () =>
+        Response.json({
+          data: [
+            {
+              id: 'a',
+              context_length: 200_000,
+              max_input_tokens: 180_000,
+              max_output_tokens: 64_000,
+            },
+            {
+              id: 'b',
+              context_window: 1_000_000,
+              top_provider: { context_length: 900_000, max_completion_tokens: 32_000 },
+            },
+            { id: 'c', limit: { context: 1_000, output: 10 }, max_tokens: 5_000 },
+            { id: 'd', context_length: -1, max_output_tokens: 1.5 },
+          ],
+        }),
+    })
+    expect(result.models).toEqual([
+      { id: 'a', name: 'a', contextWindow: 200_000, maxInputTokens: 180_000, maxTokens: 64_000 },
+      { id: 'b', name: 'b', contextWindow: 1_000_000, maxTokens: 32_000 },
+      { id: 'c', name: 'c' },
+      { id: 'd', name: 'd' },
+    ])
+
+    const gemini = capture(() =>
+      Response.json({
+        models: [
+          { name: 'models/gemini-x', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
+        ],
+      }),
+    )
+    const google = await listProviderModels({
+      api: 'google-generative-ai',
+      baseUrl: 'https://gateway.example/v1beta',
+      fetch: gemini.fetch,
+    })
+    expect(google.models).toEqual([
+      {
+        id: 'gemini-x',
+        name: 'gemini-x',
+        contextWindow: 1_048_576,
+        maxInputTokens: 1_048_576,
+        maxTokens: 65_536,
+      },
+    ])
   })
 
   test('lists Anthropic models with pagination and caller-selected authorization', async () => {
@@ -225,7 +278,7 @@ describe('Pi model listing', () => {
         apiKey: secretKey,
         fetch: async () => new Response(body, { status: 503 }),
       }),
-      'HTTP 503',
+      'HTTP 503', 'PROVIDER_UNAVAILABLE', 502,
     )
     const openaiHttp = await expectListingError(
       listProviderModels({
@@ -234,7 +287,7 @@ describe('Pi model listing', () => {
         apiKey: secretKey,
         fetch: async () => new Response(body, { status: 401 }),
       }),
-      'HTTP 401',
+      'HTTP 401', 'PROVIDER_AUTH_FAILED', 400,
     )
     for (const error of [http, openaiHttp]) {
       expect(JSON.stringify(error)).not.toContain(secretKey)
@@ -267,7 +320,7 @@ describe('Pi model listing', () => {
           throw new DOMException('The operation timed out.', 'TimeoutError')
         },
       }),
-      '超时',
+      '超时', 'PROVIDER_TIMEOUT', 502,
     )
     await expectListingError(
       listProviderModels({
@@ -285,4 +338,13 @@ describe('Pi model listing', () => {
       }),
     ).rejects.toMatchObject({ code: 'INVALID_REQUEST', status: 400 })
   })
+})
+
+
+test('Google 模型发现保留 1.5 亿输入额度', async () => {
+  const result = await listProviderModels({
+    api: 'google-generative-ai', baseUrl: 'https://gateway.example/v1beta',
+    fetch: async () => Response.json({ models: [{ name: 'models/large-context', inputTokenLimit: 150_000_000, outputTokenLimit: 32768 }] }),
+  })
+  expect(result.models[0]).toMatchObject({ contextWindow: 150_000_000, maxInputTokens: 150_000_000 })
 })

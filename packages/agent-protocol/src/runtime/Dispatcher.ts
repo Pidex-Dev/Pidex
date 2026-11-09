@@ -114,6 +114,9 @@ export async function dispatchRpcMessageWithMethods<Context extends RpcHandlerCo
           ...(cause.details === undefined ? {} : { details: cause.details }),
         })
     }
+    console.error(
+      `[dispatcher] rpc ${method} failed: ${String((cause as Error)?.stack ?? cause)}`,
+    )
     return failure(request.id, RPC_INTERNAL_ERROR, 'Internal RPC error', {
       code: 'INTERNAL_ERROR',
       retryable: false,

@@ -1,3 +1,5 @@
+import type { ProviderFailure } from '@pidex/agent-protocol'
+import { providerRequestError } from '../ProviderError'
 import { ModelRecommendationStore } from './ModelRecommendationStore'
 import {
   ProviderDirectoryStore,
@@ -36,6 +38,7 @@ import {
   type EncryptedCredentialStoreOptions,
 } from './EncryptedCredentialStore'
 import {
+  CUSTOM_PROVIDER_APIS,
   parsePiProviderCatalog,
   PI_PROVIDER_CONFIG_SCHEMA_VERSION,
   DEEPSEEK_PROVIDER_ID,
@@ -82,7 +85,7 @@ export class PiModelServiceError extends Error {
       | 'DISPOSED',
     message: string,
     options?: ErrorOptions,
-    readonly refreshFailures: readonly string[] = [],
+    readonly refreshFailures: readonly ProviderFailure[] = [],
   ) {
     super(message, options)
     this.name = 'PiModelServiceError'
@@ -514,6 +517,24 @@ export class PiModelService {
     return definitions.map(clone)
   }
 
+  async discoverBuiltinModels(providerID: string) {
+    const config = await this.syncProviders()
+    if (!this.builtinProviderIDs.has(providerID) || config.providers[providerID]?.kind === 'custom')
+      throw new AgentError('PROVIDER_NOT_FOUND', '内置供应商不存在', 404)
+    return this.pi.getModels(providerID).map((model) => ({
+      id: model.id,
+      name: model.name,
+      api: (CUSTOM_PROVIDER_APIS as readonly string[]).includes(model.api) ? model.api as CustomProviderApi : 'openai-completions' as const,
+      enabled: false,
+      contextWindow: model.contextWindow,
+      maxTokens: model.maxTokens,
+      reasoning: model.reasoning,
+      tools: piModelToInfo(model, false).capabilities.tools,
+      input: effectiveInput(model),
+      cost: model.cost,
+    }))
+  }
+
   async models(providerID?: Provider.ID): Promise<readonly Model.Info[]> {
     this.assertActive()
     const config = await this.syncProviders()
@@ -723,7 +744,8 @@ export class PiModelService {
         ]).get(error.message)
         const reason = `${discoveryReason ?? providerFailureMessage(category, 'request')}${httpStatus ? `（HTTP ${httpStatus}）` : ''}`
         this.options.logger?.warn('provider.catalog.refresh.failed', { provider, category, reason })
-        return `${provider}：${reason}`
+        const failure = providerRequestError(error, provider)
+        return { providerId: provider, code: failure.code as ProviderFailure['code'], retryable: failure.retryable, ...(httpStatus ? { httpStatus: Number(httpStatus) } : {}) }
       })
       throw new PiModelServiceError(
         'CATALOG_REFRESH_FAILED',
@@ -871,7 +893,7 @@ export class PiModelService {
   }
 
   /**
-   * 运行时合成：已启用智能配置的模型，用当前推荐值覆盖 `pinned` 之外的字段。
+   * 运行时合成：已启用智能配置的模型，用当前推荐值覆盖全部推荐字段。
    * 只作用于交给 Pi 的运行时配置；`parsedConfig` 仍保存用户原始值，
    * 否则 UI 读到的推荐值会被当成用户值回写并永久固定。
    */
@@ -882,7 +904,8 @@ export class PiModelService {
     if (!Object.values(provider.models).some((model) => model.smartConfig)) return provider
     const models: Record<string, PiCustomModelConfig> = {}
     for (const [id, model] of Object.entries(provider.models)) {
-      if (!model.smartConfig) {
+      // 旧版逐字段固定配置按整份手动配置保留，重新采用推荐后切换自动模式。
+      if (!model.smartConfig || model.smartConfig.pinned.length > 0) {
         models[id] = model
         continue
       }
@@ -901,7 +924,7 @@ export class PiModelService {
             optionSpecs: overlayRecommendedOptionSpecs(baseRecommended.optionSpecs, zcode),
           }
         : baseRecommended
-      const applied = applyRecommendation(model, recommended, model.smartConfig.pinned)
+      const applied = applyRecommendation(model, recommended)
       // 用户显式配置优先于推荐；只有缺失时才从推荐（含 ZCode）继承。
       models[id] =
         !model.optionSpecs && recommended.optionSpecs
@@ -1145,7 +1168,7 @@ export class PiModelService {
   private modelEnabled(model: PiModel<Api>, config: ParsedPiProviderCatalog) {
     if (!this.providerEnabled(model.provider, config)) return false
     const provider = config.providers?.[model.provider]
-    if (!provider) return true
+    if (!provider) return false
     if (provider.kind === 'custom') {
       return (
         provider.models[model.id]?.enabled !== false &&
@@ -1156,7 +1179,8 @@ export class PiModelService {
     }
     if (provider.allowModels.length > 0 && !provider.allowModels.includes(model.id)) return false
     if (provider.denyModels.includes(model.id)) return false
-    return provider.models[model.id]?.enabled !== false
+    return provider.models[model.id]?.enabled !== false &&
+      (provider.models[model.id] !== undefined || provider.allowModels.includes(model.id))
   }
 
   private assertActive() {

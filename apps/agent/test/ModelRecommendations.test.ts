@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import fixture from './fixtures/models-dev-catalog.json'
+import regression from './fixtures/model-recommendation-regressions.json'
 import {
   ModelRecommendationIndex,
   applyRecommendation,
@@ -95,13 +96,14 @@ describe('models.dev recommendations', () => {
     expect(input.modelId).toBe('example')
   })
 
-  test('剥离日期、网关标记与量化后缀后仍精确命中；相似但不同的名字不猜', () => {
+  test('日期版本必须真实存在；不剥离日期、网关标记或量化尾', () => {
     const index = new ModelRecommendationIndex({
       models: {
         'anthropic/claude-sonnet-4-5': row(200000),
         'openai/gpt-4o': row(128000),
         'meta-llama/llama-3.3-70b-instruct': row(131072),
         'qwen/qwen2.5-7b-instruct': row(32768),
+        'deepseek/deepseek-v4.1-flash-1017': row(1000000),
       },
       providers: {},
     })
@@ -110,14 +112,19 @@ describe('models.dev recommendations', () => {
       'gpt-4o-2024-08-06',
       'meta-llama/llama-3.3-70b-instruct:free',
       'qwen2.5-7b-instruct-q4_k_m',
+      'qwen/deepseek-v4.1-flash',
     ])
-      expect(index.resolve({ ...input, modelId }).status).toBe('matched')
+      expect(index.resolve({ ...input, modelId }).status).toBe('unmatched')
+    // 目录里确实存在的日期版本才命中。
+    const dated = index.resolve({ ...input, modelId: 'workbuddy/deepseek-v4.1-flash-1017' })
+    expect(dated.status).toBe('matched')
+    expect(dated.identity).toBe('deepseek/deepseek-v4.1-flash-1017')
     // 相似但确实是另一个模型的名字不能被当成同一个。
     for (const modelId of ['claude-sonnet-4', 'gpt-4o-mini', 'qwen2.5-14b-instruct'])
       expect(index.resolve({ ...input, modelId }).status).toBe('unmatched')
   })
 
-  test('推荐值只覆盖未固定字段，固定字段保留保存值', () => {
+  test('采用推荐覆盖已有值，缺失字段保留保存值', () => {
     const model = {
       name: '自定义名字',
       contextWindow: 8_192,
@@ -136,7 +143,7 @@ describe('models.dev recommendations', () => {
       input: ['text' as const, 'image' as const],
       cost: { input: 3, output: 15 },
     }
-    const merged = applyRecommendation(model, recommended, [])
+    const merged = applyRecommendation(model, recommended)
     expect(merged).toMatchObject({
       name: '推荐名字',
       contextWindow: 200_000,
@@ -146,10 +153,7 @@ describe('models.dev recommendations', () => {
       input: ['text', 'image'],
       cost: { input: 3, output: 15, cacheRead: 0, cacheWrite: 0 },
     })
-    const pinned = applyRecommendation(model, recommended, ['contextWindow', 'imageInput'])
-    expect(pinned.contextWindow).toBe(8_192)
-    expect(pinned.maxTokens).toBe(64_000)
-    expect(pinned.input).toEqual(['text'])
+
   })
 
   test('没有推荐时原样返回', () => {
@@ -179,17 +183,129 @@ describe('models.dev recommendations', () => {
     ).toBe('ambiguous')
   })
 
-  test('缺少通用值采用多数值、数值平票取小值，能力平票保持未知', () => {
+  test('缺少官方字段保持缺失，第三方同名条目不再投票补齐', () => {
     const payload = {
-      models: {},
+      models: { 'maker/example': { name: 'Example', reasoning: true } },
       providers: {
-        a: { models: { example: row(128000) } },
-        b: { models: { example: row(64000, { tool_call: true }) } },
+        a: { models: { example: { canonical_model_id: 'maker/example', ...row(128000) } } },
+        b: { models: { example: { canonical_model_id: 'maker/example', limit: { context: 64000 } } } },
       },
     }
     const result = new ModelRecommendationIndex(payload).resolve(input).recommended
-    expect(result.contextWindow).toBe(64000)
-    expect(result.tools).toBeUndefined()
+    expect(result.contextWindow).toBeUndefined()
+    expect(result.maxTokens).toBeUndefined()
+    expect(result.reasoning).toBe(true)
+  })
+
+  test('官方身份优先：普通网关前缀只在官方目录匹配裸名，不改真实 ID', () => {
+    const index = new ModelRecommendationIndex(regression)
+    for (const prefix of ['qwen', 'workbuddy', 'magpie', 'QWEN']) {
+      const result = index.resolve({ ...input, modelId: `${prefix}/qwen3.8-max` })
+      expect(result).toMatchObject({
+        status: 'matched',
+        identity: 'alibaba/qwen3.8-max',
+        source: 'official',
+      })
+      expect(result.recommended).toMatchObject({
+        contextWindow: 1000000,
+        maxTokens: 131072,
+      })
+      // models.dev 未提供最大输入时保持缺失，不从上下文推导。
+      expect(result.recommended.maxInputTokens).toBeUndefined()
+    }
+    // 目录里确有该供应商的完整条目时采用供应商规格。
+    const hyper = index.resolve({ ...input, modelId: 'hyper/qwen3.8-max' })
+    expect(hyper).toMatchObject({
+      status: 'matched',
+      identity: 'alibaba/qwen3.8-max-preview',
+      source: 'provider',
+    })
+    expect(hyper.recommended.maxTokens).toBe(65536)
+    expect(hyper.recommended.cost).toMatchObject({ input: 2, output: 6 })
+  })
+
+  test('日期版本、大小写、显式别名、推理后缀与目录冲突', () => {
+    const index = new ModelRecommendationIndex(regression)
+    expect(index.resolve({ ...input, modelId: 'qwen/deepseek-v4.1-flash' })).toMatchObject({
+      status: 'matched',
+      identity: 'deepseek/deepseek-v4.1-flash',
+      source: 'official',
+    })
+    expect(index.resolve({ ...input, modelId: 'alibaba/qwen3.8-max(high)' }).identity).toBe(
+      'alibaba/qwen3.8-max',
+    )
+    // 多段命名空间只取末段模型名。
+    expect(index.resolve({ ...input, modelId: 'qwen/alibaba/qwen3.8-max' }).identity).toBe(
+      'alibaba/qwen3.8-max',
+    )
+    expect(index.resolve({ ...input, modelId: 'ALIBABA/QWEN3.8-MAX' }).identity).toBe(
+      'alibaba/qwen3.8-max',
+    )
+    // 目录不存在的日期版本不回退基础型号。
+    expect(
+      index.resolve({ ...input, modelId: 'qwen/deepseek-v4.1-flash-1018' }).status,
+    ).toBe('unmatched')
+    // 第三方条目的 canonical 指向别的身份，不能否决官方条目。
+    expect(index.resolve({ ...input, modelId: 'qwen3.8-max-0902' }).identity).toBe(
+      'alibaba/qwen3.8-max-0902',
+    )
+    expect(
+      index.resolve({
+        ...input,
+        providerId: 'conflict',
+        baseUrl: 'https://conflict.example/v1',
+        modelId: 'qwen3.8-max-0902',
+      }),
+    ).toMatchObject({
+      identity: 'alibaba/qwen3.8-max-0902',
+      source: 'official',
+    })
+    expect(
+      index.resolve({
+        ...input,
+        providerId: 'relay',
+        baseUrl: 'https://relay.example/v1',
+        modelId: 'qwen3.8-max-0902',
+      }),
+    ).toMatchObject({
+      identity: 'alibaba/qwen3.8-max-0902',
+      source: 'provider',
+      recommended: { maxTokens: 32768 },
+    })
+    // 官方目录明确给出 limit.input 时原样保留。
+    expect(index.resolve({ ...input, modelId: 'maker/example' }).recommended.maxInputTokens).toBe(
+      120000,
+    )
+    // 官方目录本身对应多个身份时才是真歧义。
+    const conflict = index.resolve({ ...input, modelId: 'shared-name' })
+    expect(conflict.status).toBe('ambiguous')
+    expect(conflict.candidates).toEqual(['maker/example', 'other/example'])
+  })
+
+  test('供应商身份或规范化端点匹配价格，未知网关使用原厂参考价', () => {
+    const index = new ModelRecommendationIndex(regression)
+    // 未知网关使用原厂供应商参考价，不继承任意第三方价格。
+    const relay = index.resolve({
+      ...input,
+      providerId: 'relay',
+      baseUrl: 'https://relay.example/v1/',
+      modelId: 'qwen3.8-max',
+    })
+    expect(relay.source).toBe('official')
+    expect(relay.recommended.cost).toMatchObject({ input: 2, output: 6 })
+    expect(relay.priceSource).toEqual({ kind: 'reference', providerId: 'alibaba' })
+
+    const bare = index.resolve({ ...input, modelId: 'alibaba/qwen3.8-max' })
+    expect(bare.recommended.cost).toMatchObject({ input: 2, output: 6 })
+
+    // 当前供应商身份被目录识别时叠加该供应商规格与价格。
+    const officialProvider = index.resolve({
+      ...input,
+      providerId: 'alibaba',
+      modelId: 'qwen3.8-max',
+    })
+    expect(officialProvider).toMatchObject({ source: 'provider' })
+    expect(officialProvider.recommended.cost).toMatchObject({ input: 2, cacheWrite: 2.5 })
   })
 
   test('手动刷新写入共享缓存、重启读缓存、失败保留及未知格式拒绝覆盖', async () => {
@@ -250,4 +366,104 @@ describe('models.dev recommendations', () => {
       await rm(fresh, { recursive: true, force: true })
     }
   })
+})
+
+
+test('价格优先当前供应商，否则取原厂参考价并覆盖已有价格', () => {
+  const payload = catalog()
+  Object.assign(payload.providers, {
+    maker: { models: { example: row(128000, {
+      canonical_model_id: 'maker/example', cost: { input: 10, output: 20, cache_read: 1 },
+    }) } },
+  })
+  const index = new ModelRecommendationIndex(payload)
+  const reference = index.resolve(input)
+  expect(reference.recommended.cost).toEqual({ input: 10, output: 20, cacheRead: 1 })
+  expect(reference.priceSource).toEqual({ kind: 'reference', providerId: 'maker' })
+  for (const request of [
+    { ...input, providerId: 'vendor' },
+    { ...input, baseUrl: 'https://vendor.example/v1/' },
+    { ...input, modelId: 'vendor/example' },
+  ]) {
+    const result = index.resolve(request)
+    expect(result.recommended.cost).toEqual({ input: 2, output: 3 })
+    expect(result.priceSource).toEqual({ kind: 'provider', providerId: 'vendor' })
+  }
+  const model = {
+    name: 'Example', contextWindow: 128000, maxTokens: 4000, reasoning: false,
+    input: ['text'] as const, cost: { input: 99, output: 88, cacheRead: 77, cacheWrite: 66 },
+  }
+  expect(applyRecommendation(model, reference.recommended).cost)
+    .toEqual({ input: 10, output: 20, cacheRead: 1, cacheWrite: 66 })
+  const missingPrice = catalog()
+  Object.assign(missingPrice.providers, structuredClone(payload.providers))
+  delete (missingPrice.providers.vendor.models.example as Record<string, unknown>).cost
+  expect(new ModelRecommendationIndex(missingPrice).resolve({ ...input, providerId: 'vendor' }))
+    .toMatchObject({ priceSource: { kind: 'reference', providerId: 'maker' }, recommended: { cost: { input: 10, output: 20 } } })
+  expect(new ModelRecommendationIndex(catalog()).resolve(input).recommended.cost).toBeUndefined()
+})
+
+
+test('推荐目录保留 1.5 亿上下文，不再按 1000 万丢弃', () => {
+  const result = new ModelRecommendationIndex(catalog(150_000_000)).resolve(input)
+  expect(result.recommended.contextWindow).toBe(150_000_000)
+  expect(result.recommended.maxInputTokens).toBe(149_999_000)
+})
+
+
+test('已开启智能配置的未知模型保留原值，目录更新后采用新增推荐', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'pidex-follow-model-'))
+  let payload: unknown = { models: { 'maker/other': row(128000) }, providers: {} }
+  const store = new ModelRecommendationStore(join(directory, 'recommendations.json'), async () => Response.json(payload))
+  const saved = {
+    name: 'Example', contextWindow: 64000, maxTokens: 8192, reasoning: false,
+    input: ['text'] as const, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    smartConfig: { pinned: [] },
+  }
+  try {
+    await store.refresh()
+    const missing = await store.resolve(input)
+    expect(missing.status).toBe('unmatched')
+    expect(applyRecommendation(saved, missing.recommended)).toEqual(saved)
+    payload = catalog(256000)
+    await store.refresh()
+    const matched = await store.resolve(input)
+    expect(matched.status).toBe('matched')
+    expect(applyRecommendation(saved, matched.recommended)).toMatchObject({
+      contextWindow: 256000, smartConfig: { pinned: [] },
+    })
+  } finally {
+    store.dispose()
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+
+test('后台目录同步通知可在启动后注册，失败不通知且不重复启动定时器', async () => {
+  const store = new ModelRecommendationStore()
+  const refresh = spyOn(store, 'refresh').mockResolvedValue({ updatedAt: 1 })
+  const interval = spyOn(globalThis, 'setInterval')
+  let updates = 0
+  try {
+    store.startAutoRefresh()
+    store.startAutoRefresh(() => { updates++ })
+    await Promise.resolve()
+    expect(updates).toBe(1)
+    expect(interval).toHaveBeenCalledTimes(1)
+    const tick = interval.mock.calls[0]![0] as () => void
+    refresh.mockRejectedValueOnce(new Error('offline'))
+    tick()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(updates).toBe(1)
+    tick()
+    await Promise.resolve()
+    expect(updates).toBe(2)
+    await store.refresh()
+    expect(updates).toBe(2)
+  } finally {
+    store.dispose()
+    refresh.mockRestore()
+    interval.mockRestore()
+  }
 })

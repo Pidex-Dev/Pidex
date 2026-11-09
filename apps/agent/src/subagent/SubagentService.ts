@@ -21,7 +21,7 @@ import {
 import type { ApprovalService } from '../permission/ApprovalService'
 import type { QuestionService } from '../session/QuestionService'
 import { ResumeCheckpointResolver, toPlanCheckpoint } from '../interaction/ResumeCheckpointResolver'
-import { executionPolicyFromV4 } from '../permission/ExecutionPolicy'
+import { formatPermissionInstructions } from '../prompt/PermissionInstructions'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import { globalEventSequence } from '../storage/events/EventPublisher'
@@ -847,7 +847,6 @@ export class SubagentService {
         const input = active ? this.db.getTurnInput(active.id) : null
         if (input) this.assertPermissionCeiling(input.permissionConfig, permissionConfig)
       }
-      const executionPolicy = executionPolicyFromV4(permissionConfig)
       const input = this.db.getTurnInput(agent.turnID)
       if (!input) throw new Error(`Subagent turn ${agent.turnID} 没有输入`)
       const acquiredResume = this.resumeCheckpoints.acquire(
@@ -936,13 +935,19 @@ export class SubagentService {
           subagent: true,
         }) ?? []
       const promptSections = createPromptSections({
-        permissionInstructions: `子 Agent resolved file access=${executionPolicy.fileAccess}; Shell environment=${executionPolicy.shellEnvironment}; approval=${JSON.stringify(permissionConfig.approvalPolicy)}; reviewer=${permissionConfig.approvalsReviewer}。只能收紧，不能提升父任务 ceiling。`,
+        permissionInstructions: formatPermissionInstructions(
+          permissionConfig,
+          parentMode,
+          task.profile,
+        ),
         mode: parentMode,
         profile: task.profile,
-        environment: `工作区：${workspace.rootPath}`,
+        environment: `Workspace: ${workspace.rootPath}`,
         projectInstructions: instructionSources.sources,
         skills: skillCatalog.skills,
-        memories: memories.map((entry) => `可能过期的项目参考记忆：${entry.content}`),
+        memories: memories.map(
+          (entry) => `Possibly outdated project reference memory: ${entry.content}`,
+        ),
         stableExternalData:
           projectSourceCatalog && projectSourceCatalog.total > 0
             ? [projectSourceCatalog.content]

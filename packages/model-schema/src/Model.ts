@@ -66,7 +66,7 @@ export const ReasoningLevelOptionSpec = Schema.Struct({
 export type ReasoningLevelOptionSpec = typeof ReasoningLevelOptionSpec.Type
 
 export const MaxOutputTokensOptionSpec = Schema.Struct({
-  max: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 10_000_000 }))),
+  max: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER }))),
   map: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
 })
 export type MaxOutputTokensOptionSpec = typeof MaxOutputTokensOptionSpec.Type
@@ -80,13 +80,13 @@ export type OptionSpecs = typeof OptionSpecs.Type
 export const Recommendation = Schema.Struct({
   name: Schema.optional(Schema.String),
   contextWindow: Schema.optional(
-    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 10_000_000 })),
+    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER })),
   ),
   maxInputTokens: Schema.optional(
-    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 10_000_000 })),
+    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER })),
   ),
   maxTokens: Schema.optional(
-    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 10_000_000 })),
+    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER })),
   ),
   reasoning: Schema.optional(Schema.Boolean),
   tools: Schema.optional(Schema.Boolean),

@@ -1,3 +1,4 @@
+import { formatPermissionInstructions } from '../prompt/PermissionInstructions'
 import { randomUUID } from 'node:crypto'
 import { Effect } from 'effect'
 import { contentText, type Api, type Model as PiModel, type Models } from '@earendil-works/pi-ai'
@@ -1476,7 +1477,11 @@ export class AgentRuntimeService implements AgentRuntime {
       section.id === 'permission.resolved'
         ? {
             ...section,
-            content: `Resolved permission config: ${JSON.stringify(effectivePermissionConfig)}.`,
+            content: formatPermissionInstructions(
+              effectivePermissionConfig,
+              request.taskMode,
+              request.profile ?? 'main',
+            ),
           }
         : section,
     )
@@ -1676,8 +1681,8 @@ export class AgentRuntimeService implements AgentRuntime {
         let resolutionText =
           request.resume.decision === 'deny'
             ? request.resume.answer
-              ? `用户拒绝了此工具调用，并要求：${request.resume.answer}`
-              : '用户拒绝了此工具调用，请改用其他方案。'
+              ? `The user denied this tool call and requested: ${request.resume.answer}`
+              : 'The user denied this tool call. Choose another authorized approach.'
             : (request.resume.answer ?? request.resume.decision ?? 'continue')
         let resolutionDetails: unknown
         let isError = request.resume.decision === 'deny'
@@ -2191,7 +2196,7 @@ export class AgentRuntimeService implements AgentRuntime {
         },
       }
       const resumedContent = request.resume
-        ? `<interaction_resolution toolCallId=${JSON.stringify(request.resume.toolCallID ?? 'unknown')}>${JSON.stringify({ answer: request.resume.answer, decision: request.resume.decision ?? null })}</interaction_resolution>\n继续处理已恢复的 Pi session；复用上述 toolCallId 的处理结果，不得重复执行该 ID，也不得自行换工具或等价命令绕过用户拒绝。此限制不禁止用户后续明确要求再次执行相同命令：那是新的工具调用，必须使用新的 toolCallId 并重新判权，不能复用一次批准。若用户给出调整要求，必须据此处理。`
+        ? `<interaction_resolution toolCallId=${JSON.stringify(request.resume.toolCallID ?? 'unknown')}>${JSON.stringify({ answer: request.resume.answer, decision: request.resume.decision ?? null })}</interaction_resolution>\nContinue the restored Pi session using the result for that toolCallId. Do not repeat that ID or bypass denial with another tool or equivalent command. A later explicit user request to rerun the command is a new call requiring a new toolCallId and fresh authorization; it cannot reuse a one-time approval. Apply user-requested adjustments.`
         : request.content
       const threadLimit = this.options.db.repositories.threads.getThreadSettings(
         request.threadID,

@@ -6,7 +6,7 @@ import { defaultTaskSchedule } from '@pidex/shared/task-schedule'
 import { RpcMethods, type RpcMethod, type RpcParams, type RpcResult } from '../src/methods/index'
 import { AllRpcMethods } from '../src/methods/Host'
 import { Capabilities, ProtocolCapabilitySchema } from '../src/runtime/Capabilities'
-import { ModelHealthItemSchema, ModelHealthRunSchema } from '../src/methods/Extended'
+import { ProviderModelDefinitionSchema, ModelHealthItemSchema, ModelHealthRunSchema } from '../src/methods/Extended'
 import { EventManifest } from '../src/wire/Events'
 
 const providerId = Schema.decodeUnknownSync(Provider.ID)('provider:test')
@@ -174,6 +174,9 @@ const memoryEntry = {
 } as const
 
 const promptPreview = {
+  previewKind: 'frozen',
+  turnId: 'turn-fixture',
+  compositionId: 'rc:turn-fixture',
   instructions: 'Fixture instructions',
   contextItems: [],
   diagnostics: [],
@@ -926,6 +929,41 @@ const fixtures = {
   'model/recommendation/refresh': {
     params: { operationId: 'recommendations:1' },
     result: { updatedAt: 1 },
+  },
+  'provider/model/specs/preview': {
+    params: { providerId: providerId },
+    result: {
+      providerId,
+      configVersion: 'version-1',
+      catalogUpdatedAt: 1,
+      items: [
+        {
+          modelId,
+          name: 'Example',
+          match: { status: 'official', identity: modelId, updatedAt: 1 },
+          fields: [
+            {
+              field: 'contextWindow',
+              current: 32_768,
+              suggested: 128_000,
+              pinned: false,
+              noRepair: false,
+              defaultSelected: true,
+            },
+          ],
+        },
+      ],
+    },
+  },
+  'provider/model/specs/apply': {
+    params: {
+      providerId,
+      expectedConfigVersion: 'version-1',
+      expectedCatalogUpdatedAt: 1,
+      selections: [{ modelId, fields: ['contextWindow', 'maxTokens'] }],
+      operationId: 'operation:specs',
+    },
+    result: { providerId, updatedModels: 1, updatedFields: 2 },
   },
   'model/embed': methodFixture(
     'model/embed',
@@ -6327,7 +6365,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(352)
+    expect(methods).toHaveLength(354)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -6695,7 +6733,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(331)
+    expect(Object.keys(RpcMethods)).toHaveLength(333)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })
@@ -7303,4 +7341,13 @@ test('消息阶段为可选字段，未知阶段降级且事件按独立能力�
   expect(
     Schema.decodeUnknownSync(event.payload)({ item: { ...item, phase: 'final_answer' } }).item.id,
   ).toBe('text')
+})
+
+
+test('模型规格与推荐契约允许 1.5 亿上下文，拒绝不安全整数', () => {
+  expect(Schema.decodeUnknownSync(ProviderModelDefinitionSchema)({
+    id: modelId, api: 'google-generative-ai', contextWindow: 150_000_000, maxInputTokens: 150_000_000, maxTokens: 32768,
+  }).contextWindow).toBe(150_000_000)
+  expect(Schema.decodeUnknownSync(Model.Recommendation)({ contextWindow: 150_000_000 }).contextWindow).toBe(150_000_000)
+  expect(() => Schema.decodeUnknownSync(Model.Recommendation)({ contextWindow: Number.MAX_SAFE_INTEGER + 1 })).toThrow()
 })

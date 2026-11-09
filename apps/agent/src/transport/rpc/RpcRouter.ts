@@ -1,3 +1,5 @@
+import { JsonValueSchema, ProviderErrorDetailsSchema } from '@pidex/agent-protocol'
+import { ProviderRequestError } from '../../provider/ProviderError'
 import type { ComputerUseService } from '../../computer/ComputerUseService'
 import {
   PermissionConfigSchema,
@@ -424,6 +426,7 @@ export class RpcRouter {
   private applicationError(method: RpcMethod, cause: unknown) {
     if (cause instanceof RpcApplicationError) return cause
     if (!(cause instanceof AgentError)) {
+      console.error(`[agent] rpc ${method} threw unexpected error:`, cause)
       return new RpcApplicationError('INTERNAL_ERROR', 'Agent 内部错误', false)
     }
     const declared = RpcMethods[method].errors as readonly string[]
@@ -438,12 +441,15 @@ export class RpcRouter {
             ? 'PERMISSION_DENIED'
             : 'INTERNAL_ERROR'
     const code = exact ?? mapped ?? fallback
+    if (code === 'INTERNAL_ERROR' && !(cause instanceof RpcApplicationError)) {
+      console.error(`[agent] rpc ${method} failed:`, cause)
+    }
     const exposeMessage = exact !== null || mapped !== null || code !== 'INTERNAL_ERROR'
     return new RpcApplicationError(
       code,
       exposeMessage ? cause.message : 'Agent 内部错误',
-      cause.status === 429 || cause.status >= 500,
-      safeErrorDetails(code, cause.details),
+      cause instanceof ProviderRequestError ? cause.retryable : cause.status === 429 || cause.status >= 500,
+      safeErrorDetails(code, cause.details, cause instanceof ProviderRequestError),
     )
   }
 
@@ -973,7 +979,20 @@ export const decodeOffsetCursor = (value: unknown) => {
   return Number(value.slice('offset:'.length))
 }
 
-const safeErrorDetails = (code: ApplicationErrorCode, value: unknown): JsonValue | undefined => {
+const safeErrorDetails = (
+  code: ApplicationErrorCode,
+  value: unknown,
+  providerError = false,
+): JsonValue | undefined => {
+  if (providerError) {
+    try {
+      return Schema.decodeUnknownSync(JsonValueSchema)(
+        Schema.decodeUnknownSync(ProviderErrorDetailsSchema)(value),
+      )
+    } catch {
+      return undefined
+    }
+  }
   if (code === 'REVIEW_SNAPSHOT_EXPIRED') {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
     const details = value as Record<string, unknown>

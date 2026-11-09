@@ -19,10 +19,10 @@ export const truncateCapabilityText = (value: string, max = CAPABILITY_DESCRIPTI
   value.length <= max ? value : `${value.slice(0, Math.max(0, max - 1))}…`
 
 const GUIDANCE = [
-  '以下能力需要先发现并激活，才会出现在可调用工具中；工具声明里直接出现的普通工具不需要搜索。',
-  '这份目录只列延迟工具，不是本轮全部工具；目录中没有某个名字不代表该工具不可用。直接可调用的工具以本轮工具声明为准，不沿用历史回复中关于工具缺失的判断。',
-  '用 ToolSearch 发现延迟工具：query 匹配工具名称、描述与 MCP server 名称，query="*" 浏览整个目录，用 offset 分页、max_results 上限 20；命中的工具在下一次请求即可调用，select:<exact-name> 精确激活并获取完整参数 schema。',
-  'Skill 目录（名称、描述与来源位置）见同轮上下文的 skills.catalog；需要时用 Read 加载对应 SKILL.md 全文，再按其中步骤执行。这里不预加载 Skill 正文。',
+  'Discover and activate deferred tools before calling them. Ordinary tools directly declared in this request do not require a search.',
+  'This catalog lists deferred tools only, not all tools for this turn. An absent name does not imply unavailability: consult the current tool declarations, not historical claims about missing tools.',
+  'Use ToolSearch: query matches names, descriptions and MCP server names. query="*" browses the catalog; use offset for pagination and max_results up to 20. Matches become callable on the next request. select:<exact-name> activates an exact tool with its full schema.',
+  'See skills.catalog for Skill names, descriptions and locations. Use Read to load the full SKILL.md when needed, then follow its steps. Skill bodies are not preloaded here.',
 ].join('\n')
 
 const toolLine = (tool: CapabilityToolSummary) => {
@@ -40,9 +40,9 @@ export const buildCapabilityCatalogSection = (
   tools: readonly CapabilityToolSummary[],
 ): PromptSection => {
   const lines: string[] = []
-  const header = `${GUIDANCE}\n\n可发现能力（延迟工具）：`
+  const header = `${GUIDANCE}\n\nDiscoverable capabilities (deferred tools):`
   const omission = (count: number) =>
-    `目录共 ${tools.length} 项，此处仅列出前 ${count} 项；还有 ${tools.length - count} 项未展示，请用 ToolSearch（可用 offset）分页发现。`
+    `Catalog has ${tools.length} entries; showing the first ${count}. ${tools.length - count} more entries are omitted; use ToolSearch with offset to discover further pages.`
   let used = header.length
   for (const tool of tools) {
     const line = toolLine(tool)
@@ -55,7 +55,7 @@ export const buildCapabilityCatalogSection = (
   const omitted = tools.length - lines.length
   const body = [
     ...lines,
-    ...(tools.length === 0 ? ['- 当前没有可发现的延迟工具。'] : []),
+    ...(tools.length === 0 ? ['- No deferred tools are currently discoverable.'] : []),
     ...(omitted > 0 ? [omission(lines.length)] : []),
   ].join('\n')
   return {

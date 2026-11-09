@@ -21,7 +21,7 @@ export const createAttachPullRequestDefinition = (
   name: 'attach_pull_request',
   schema,
   description: [
-    '把当前会话关联到一个真实存在的 GitHub Pull Request，使其出现在 PR 侧栏。',
+    'Attach this conversation to an existing GitHub pull request for the PR sidebar.',
     '成功创建 PR 后，无论通过 Shell 还是其他工具创建，都必须携带返回的真实 URL 调用本工具；多个 PR 逐个绑定。',
     '用户明确要求分析、审查、更新、继续处理或关联已有 PR 时也必须绑定，包括只读分析、只要求简短摘要或只提供仓库与 PR 编号的任务。取得真实 PR URL 后，在最终回复前调用；绑定只写当前会话的关联，不修改 GitHub。',
     '仅作示例、参考、依赖、对比或背景的 PR 不绑定。不要在 PR 尚未创建、只有计划、标题或分支名时调用。',
@@ -46,7 +46,7 @@ export const createAttachPullRequestDefinition = (
         type: 'string',
         minLength: 1,
         description:
-          '真实存在的 github.com Pull Request URL，例如 https://github.com/owner/repo/pull/123。',
+          'An existing github.com pull request URL, such as https://github.com/owner/repo/pull/123.',
       },
     },
     required: ['url'],

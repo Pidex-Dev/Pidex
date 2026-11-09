@@ -928,6 +928,9 @@ export const PromptBaselineSchema = Schema.Struct({
 })
 
 export const PromptPreviewSchema = Schema.Struct({
+  previewKind: Schema.optional(Schema.Literals(['frozen', 'estimated'])),
+  turnId: Schema.optional(OpaqueIDSchema),
+  compositionId: Schema.optional(NonEmptyStringSchema),
   instructions: Schema.String,
   contextItems: Schema.Array(JsonValueSchema),
   diagnostics: Schema.Array(PromptSectionDiagnosticSchema),

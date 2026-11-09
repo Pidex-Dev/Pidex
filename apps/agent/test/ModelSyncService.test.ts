@@ -8,8 +8,9 @@ import { removeFixturePaths } from './FixtureCleanup'
 import type { ProviderCredentialRepository } from '../src/auth/ProviderCredentialRepository'
 import { ConfigService } from '../src/config/ConfigService'
 import { ModelSyncService } from '../src/provider/ModelSyncService'
-import { PiModelService } from '../src/provider/pi'
+import { ModelRecommendationStore, PiModelService } from '../src/provider/pi'
 import type { ProviderModelFetch } from '../src/provider/pi'
+import recommendationCatalog from './fixtures/model-recommendation-regressions.json'
 
 const roots: string[] = []
 const fixtures: Fixture[] = []
@@ -49,7 +50,12 @@ const customProvider = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
-const startRuntime = async (root: string, configPath: string, env: Record<string, string> = {}) => {
+const startRuntime = async (
+  root: string,
+  configPath: string,
+  env: Record<string, string> = {},
+  recommendations?: ModelRecommendationStore,
+) => {
   const config = new ConfigService(configPath)
   await config.initialize()
   const piModels = new PiModelService(repository, {
@@ -60,6 +66,7 @@ const startRuntime = async (root: string, configPath: string, env: Record<string
       },
     }),
     env,
+    ...(recommendations ? { recommendations } : {}),
     config: () => {
       const snapshot = config.snapshot()
       const catalog =
@@ -99,6 +106,7 @@ const startRuntime = async (root: string, configPath: string, env: Record<string
 const createFixture = async (
   providers: Record<string, unknown>,
   env: Record<string, string> = {},
+  withRecommendations = false,
 ): Promise<Fixture> => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-model-sync-'))
   roots.push(root)
@@ -112,7 +120,22 @@ const createFixture = async (
     )}\n`,
     'utf8',
   )
-  const runtime = await startRuntime(root, configPath, env)
+  const recommendations = withRecommendations
+    ? new ModelRecommendationStore(join(root, 'model-recommendations.json'))
+    : undefined
+  if (recommendations) {
+    await writeFile(
+      join(root, 'model-recommendations.json'),
+      JSON.stringify({
+        owner: 'pidex',
+        formatVersion: 1,
+        updatedAt: 99,
+        catalog: recommendationCatalog,
+      }),
+      'utf8',
+    )
+  }
+  const runtime = await startRuntime(root, configPath, env, recommendations)
   const fixture: Fixture = {
     root,
     configPath,
@@ -188,12 +211,12 @@ describe('ModelSyncService', () => {
       name: 'alpha',
       api: 'openai-completions',
       enabled: false,
-      contextWindow: 32_768,
-      maxTokens: 8_192,
-      reasoning: false,
-      input: ['text'],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     })
+    // 目录不可用时规格保持缺失，不再补 32K 占位。
+    expect(result.matches).toEqual([
+      { id: 'alpha', status: 'no-cache' },
+      { id: 'beta', status: 'no-cache' },
+    ])
 
     const saved = fixture.snapshotProvider('gateway')
     expect(saved.models).toEqual(before.models)
@@ -259,12 +282,12 @@ describe('ModelSyncService', () => {
     const before = fixture.snapshotProvider('gateway')
     await expect(
       fixture.sync.sync('gateway', { fetch: async () => Response.json({ data: [] }) }),
-    ).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE', status: 502 })
+    ).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE', status: 400 })
     await expect(
       fixture.sync.sync('gateway', {
         fetch: async () => new Response('upstream failure', { status: 503 }),
       }),
-    ).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE', status: 502 })
+    ).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE', status: 502, retryable: true })
     expect(fixture.writes).toEqual([])
     expect(fixture.snapshotProvider('gateway')).toEqual(before)
   })
@@ -378,7 +401,7 @@ describe('ModelSyncService', () => {
     const missing = await createFixture({ gateway: provider })
     await expect(
       missing.sync.sync('gateway', { fetch: openaiFetch(['alpha']) }),
-    ).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' })
+    ).rejects.toMatchObject({ code: 'CREDENTIAL_NOT_FOUND' })
     expect(missing.writes).toEqual([])
   })
 
@@ -422,11 +445,6 @@ describe('ModelSyncService', () => {
         name: 'Claude',
         api: 'anthropic-messages',
         enabled: false,
-        contextWindow: 32_768,
-        maxTokens: 8_192,
-        reasoning: false,
-        input: ['text'],
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       },
     ])
 
@@ -439,6 +457,120 @@ describe('ModelSyncService', () => {
       embeddings.sync.sync('gateway', { fetch: openaiFetch(['alpha']) }),
     ).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
     expect(await embeddings.piModels.modelSyncSummary('gateway')).toBeUndefined()
+  })
+
+  test('候选规格统一解析：上游明确额度使用手动模式，其余取官方/供应商推荐', async () => {
+    const fixture = await createFixture(
+      { gateway: customProvider({ models: { manual: { api: 'openai-completions' } } }) },
+      {},
+      true,
+    )
+    const result = await fixture.sync.sync('gateway', {
+      fetch: async () =>
+        Response.json({
+          data: [
+            {
+              id: 'qwen3.8-max',
+              context_length: 500_000,
+              max_input_tokens: 991_000,
+              max_output_tokens: 32_000,
+            },
+            { id: 'hyper/qwen3.8-max' },
+            { id: 'mystery-model' },
+          ],
+        }),
+    })
+    const byId = Object.fromEntries(result.candidates.map((model) => [model.id, model]))
+    // 上游明确额度使用整份手动模式，不生成字段固定状态。
+    expect(byId['qwen3.8-max']).toMatchObject({
+      contextWindow: 500_000,
+      maxInputTokens: 991_000,
+      maxTokens: 32_000,
+      reasoning: true,
+    })
+    expect(byId['qwen3.8-max']?.smartConfig).toBeUndefined()
+    // 供应商前缀命中目录条目时采用供应商规格。
+    expect(byId['hyper/qwen3.8-max']).toMatchObject({
+      contextWindow: 1_000_000,
+      maxTokens: 65_536,
+      smartConfig: { pinned: [] },
+    })
+    // 未命中时不补任何规格，也不启用智能配置。
+    expect(byId['mystery-model']).toEqual({
+      id: 'mystery-model',
+      name: 'mystery-model',
+      api: 'openai-completions',
+      enabled: false,
+    })
+    expect(result.matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'qwen3.8-max',
+          status: 'official',
+          identity: 'alibaba/qwen3.8-max',
+          updatedAt: 99,
+        }),
+        expect.objectContaining({
+          id: 'hyper/qwen3.8-max',
+          status: 'provider',
+          identity: 'alibaba/qwen3.8-max-preview',
+        }),
+        expect.objectContaining({ id: 'mystery-model', status: 'unmatched' }),
+      ]),
+    )
+  })
+
+  test('discoverDraft 与 discoverSaved 使用同一解析规则', async () => {
+    const fixture = await createFixture({}, {}, true)
+    const draft = await fixture.sync.discoverDraft({
+      api: 'openai-completions',
+      draft: { baseUrl: 'https://relay.example/v1', auth: 'none' },
+      fetch: openaiFetch(['qwen/deepseek-v4.1-flash', 'mystery-model']),
+    })
+    expect(draft.models[0]).toMatchObject({
+      id: 'mystery-model',
+      enabled: true,
+    })
+    const matchedDraft = draft.models.find(
+      (model) => model.id === 'qwen/deepseek-v4.1-flash',
+    )!
+    expect(matchedDraft).toMatchObject({
+      contextWindow: 1_000_000,
+      maxTokens: 384_000,
+      smartConfig: { pinned: [] },
+    })
+    expect(
+      draft.matches?.find((match) => match.id === 'qwen/deepseek-v4.1-flash'),
+    ).toMatchObject({
+      status: 'official',
+      identity: 'deepseek/deepseek-v4.1-flash',
+    })
+
+    const saved = await createFixture(
+      {
+        gateway: customProvider({
+          models: { manual: { api: 'openai-completions' } },
+        }),
+      },
+      {},
+      true,
+    )
+    const discovered = await saved.sync.discoverSaved('gateway', 'openai-completions', {
+      fetch: openaiFetch(['qwen3.8-max']),
+    })
+    expect(discovered.models[0]).toMatchObject({
+      contextWindow: 1_000_000,
+      maxTokens: 131_072,
+    })
+    // models.dev 没有最大输入时不生成该字段，也不拿上下文顶替。
+    expect(discovered.models[0]?.maxInputTokens).toBeUndefined()
+    expect(discovered.matches).toEqual([
+      expect.objectContaining({
+        id: 'qwen3.8-max',
+        status: 'official',
+        identity: 'alibaba/qwen3.8-max',
+      }),
+    ])
   })
 
   test('拒绝不存在的 Provider 与内置 Provider', async () => {
@@ -468,8 +600,9 @@ describe('ModelSyncService', () => {
       fetch: openaiFetch(['alpha', 'beta'], requests),
     })
     expect(requests[0]?.href).toBe('https://proxy.example/v1/models')
-    expect(models.map((model) => model.id)).toEqual(['alpha', 'beta'])
-    expect(models[0]).toMatchObject({ enabled: true, api: 'openai-responses' })
+    expect(models.models.map((model) => model.id)).toEqual(['alpha', 'beta'])
+    expect(models.models[0]).toMatchObject({ enabled: true, api: 'openai-responses' })
+    expect(models.matches?.map((match) => match.status)).toEqual(['no-cache', 'no-cache'])
     expect(fixture.writes).toEqual([])
     expect(fixture.snapshotProvider('gateway').model_sync).toBeUndefined()
   })
@@ -503,11 +636,6 @@ describe('ModelSyncService', () => {
         name: 'draft-model',
         api: 'openai-completions',
         enabled: true,
-        contextWindow: 32_768,
-        maxTokens: 8_192,
-        reasoning: false,
-        input: ['text'],
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       },
     ])
     expect(discovered.fetchedAt).toBeGreaterThan(0)
@@ -579,7 +707,7 @@ describe('ModelSyncService', () => {
         draft: { baseUrl: 'https://draft.example/v1', auth: 'api-key' },
         fetch: openaiFetch(['x']),
       }),
-    ).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' })
+    ).rejects.toMatchObject({ code: 'CREDENTIAL_NOT_FOUND' })
   })
 })
 

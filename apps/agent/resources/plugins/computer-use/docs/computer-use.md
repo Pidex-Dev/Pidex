@@ -1,12 +1,12 @@
 # Computer Use JavaScript API
 
-`mcp__node_repl__js` 是电脑控制唯一的模型可见入口，由宿主提供。本页是参数与返回字段参考；流程与纪律见 `skills/computer-use/SKILL.md`。
+`mcp__node_repl__js` is the host-provided model entry point for computer control. This page documents parameters and return fields; see `skills/computer-use/SKILL.md` for the workflow.
 
-## 调用约定
+## Calling conventions
 
-- 每次调用在独立子进程中执行，超时或取消会被终止；globals、imports 与模块缓存不跨调用保留。
-- 只暴露 `computer` 和 `nodeRepl`。没有任意模块导入、Shell、文件、网络或原生 Helper 凭据。
-- 支持顶层 `await`。脚本抛出的错误作为工具错误返回；`nodeRepl.write` 的文本进入工具结果。
+- Each chat owns an isolated process and persistent evaluation context. Bindings persist across cells until js_reset or connection shutdown; separate chats remain isolated. Timeout or cancellation ends the active cell.
+- Only `computer` and `nodeRepl` are exposed. No arbitrary imports, Shell, filesystem, network or native helper credentials.
+- Top-level await is supported. Script errors become tool errors; nodeRepl.write text becomes tool output.
 
 ## nodeRepl
 
@@ -15,7 +15,7 @@ nodeRepl.write(value: unknown): void
 nodeRepl.emitImage(data: Uint8Array | string, mimeType?: string): void
 ```
 
-`computer.read` 的截图已通过既有模型图片结果链返回，不需要再 `emitImage` 一次；同一次结果里出现第二张栅格会导致图片被整体移除。
+Screenshots from computer.read already use model image results. Do not emit the same screenshot again; a second raster in one result causes images to be removed.
 
 ## computer
 
@@ -63,10 +63,10 @@ type ComputerOperation = {
 }
 ```
 
-约束与三个内建电脑工具一致：`type_text` 需要 `text`，`press_key` 需要 `key`，`hotkey` 需要 `keys`，`scroll` 需要 `direction`；点击类操作需要 `elementToken` 或 `x`/`y`；`drag` 始终需要 `x`、`y`、`endX`、`endY`。
+Constraints match the host computer tools: type_text requires text; press_key requires key; hotkey requires keys; scroll requires direction. Click actions require elementToken or x/y. Drag always requires x, y, endX and endY.
 
-## 权限与审批
+## Authorization and approval
 
-- `computer.apps()` 与 `computer.read()` 只观察；`computer.action()` 声明外部状态与用户交互，Plan 模式不可用。
-- 每次电脑 API 调用都回到宿主注册、校验、hooks、判权与审批链，并按内建 `ComputerApps`/`ComputerRead`/`ComputerAction` 记录审计。
-- `computer.read` 首次访问需要聊天审批。需要批准时当前脚本结束，被阻塞的读取写入审批 checkpoint；批准后只执行该读取并把结果作为本次 `mcp__node_repl__js` 调用的结果返回，原脚本其余部分不执行。
+- computer.apps and computer.read observe only. computer.action changes external state and interacts with applications; it is unavailable in Plan.
+- Every computer API call passes host registration, validation, hooks, authorization and approval, audited as ComputerApps/ComputerRead/ComputerAction.
+- Initial computer.read access requires chat approval. The script ends when approval is needed and the read is checkpointed. Approval executes only that read and returns its result for the MCP call; remaining script code does not execute.

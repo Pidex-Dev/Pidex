@@ -33,10 +33,14 @@ const reasonExcluded = (
 
 const contextualItem = (section: PromptSection): PromptContextItem => ({
   role: 'user',
+  sectionID: section.id,
   content: [
     {
       type: 'input_text',
-      text: `<context_data section_id=${JSON.stringify(section.id)} authority=${JSON.stringify(section.authority)} source=${JSON.stringify(sourceLabel(section))}>\n${section.content}\n</context_data>`,
+      text:
+        section.id === 'turn.user-message'
+          ? section.content
+          : `<context_data section_id=${JSON.stringify(section.id)} authority=${JSON.stringify(section.authority)} source=${JSON.stringify(sourceLabel(section))}>\n${section.content}\n</context_data>`,
     },
   ],
 })

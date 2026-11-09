@@ -13,7 +13,7 @@ export const createWorkgroupReadDefinition = (
   sdkName: 'workgroup_read',
   name: 'workgroup_read',
   description:
-    '读取当前会话所属工作组的成员会话、有效共享条目与近期进展，用于跨项目参考组内已有和后续的成果。返回成员会话 ID 后可用 read_thread 分页读取其完整历史（含加入工作组之前的要求、成果与计划）。只读，不会修改任何数据。',
+    'Read member conversations, effective shared entries and recent progress of this conversation workgroup. Use member IDs with read_thread to page through full histories, including requirements and results from before joining. Read-only; does not change data.',
   schema,
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   capabilities: {

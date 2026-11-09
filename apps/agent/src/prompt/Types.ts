@@ -1,6 +1,7 @@
 import type { SubagentProfile, TaskMode } from '../Domain'
 
 export interface PromptContextItem {
+  sectionID?: string
   role: 'user'
   content: Array<{ type: 'input_text'; text: string }>
 }

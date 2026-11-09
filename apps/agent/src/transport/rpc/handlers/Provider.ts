@@ -1,3 +1,4 @@
+import { catalogRefreshError } from '../../../provider/ProviderError'
 import type { RpcMethod } from '@pidex/agent-protocol'
 import { Provider } from '@pidex/model-schema'
 import {
@@ -219,13 +220,7 @@ export const providerHandlers = {
           else await providers.refresh(true, stringParam(params, 'providerId'))
         } catch (cause) {
           if (cause instanceof PiModelServiceError && cause.code === 'CATALOG_REFRESH_FAILED') {
-            throw new AgentError(
-              'PROVIDER_UNAVAILABLE',
-              cause.refreshFailures.length > 0
-                ? `模型目录刷新失败（${cause.refreshFailures.length} 个提供商）：${cause.refreshFailures.slice(0, 5).join('；')}${cause.refreshFailures.length > 5 ? '；其余失败请查看 Agent 日志' : ''}。`
-                : '模型目录刷新失败，请检查提供商连接、凭据和模型接口后重试。',
-              502,
-            )
+            throw catalogRefreshError(cause.refreshFailures)
           }
           throw cause
         }
@@ -546,13 +541,18 @@ export const providerHandlers = {
             draft: draft as never,
             ...(providerID ? { providerId: providerID } : {}),
           })
-          return { models: result.models }
+          return { models: result.models, matches: result.matches }
         }
         if (!providerID) {
           throw new AgentError('INVALID_REQUEST', '模型发现需要 providerId 或草稿配置', 400)
         }
+        const definition = (await piModels.providerDefinitions()).find((item) => item.id === providerID)
+        if (definition?.kind === 'builtin') {
+          const models = await piModels.discoverBuiltinModels(providerID)
+          return { models, matches: models.map((model) => ({ id: model.id, status: 'provider' })) }
+        }
         const discovered = await modelSync.discoverSaved(providerID, api)
-        return { models: discovered }
+        return { models: discovered.models, matches: discovered.matches }
       }
       case 'provider/model/sync': {
         const providerID = stringParam(params, 'providerId')

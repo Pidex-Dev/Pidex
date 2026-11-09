@@ -33,7 +33,7 @@ export function taskScheduleDefinitions(service: TaskScheduleService): ToolDefin
       sdkName: 'task_schedule_view',
       name: 'task_schedule.view',
       description:
-        '读取任务、会话关联、每次执行与验收状态、待处理提醒及排程草案；安排时间前读取现有任务与日历。',
+        'Read tasks, conversation associations, run and acceptance states, pending reminders and schedule drafts. Inspect existing tasks and calendars before scheduling.',
       schema: z.object({}).strict(),
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       capabilities: { ...capabilities, externalState: false, readOnly: true },
@@ -46,7 +46,7 @@ export function taskScheduleDefinitions(service: TaskScheduleService): ToolDefin
       sdkName: 'task_schedule_create',
       name: 'task_schedule.create',
       description:
-        '用户要求创建任务时，仅用名称即可创建；不要求先写方案或选择模型。创建不执行，人工验收默认开启。',
+        'Create a task when requested by the user; only a name is required, not a plan or model selection. Creation does not execute it. Human acceptance defaults to enabled.',
       schema: task,
       inputSchema: z.toJSONSchema(task),
       capabilities,
@@ -65,7 +65,7 @@ export function taskScheduleDefinitions(service: TaskScheduleService): ToolDefin
       sdkName: 'task_schedule_propose',
       name: 'task_schedule.propose',
       description:
-        '保存批量时间安排草案，不激活执行。默认保留已有安排，按可用时间、优先级、预计时长、截止时间与依赖排程；无法安排的任务必须给出原因。用户在自动化页面统一确认。',
+        'Save a batch scheduling draft without activating execution. Preserve existing arrangements by default; account for availability, priority, duration, deadlines and dependencies. Explain unschedulable tasks. The user confirms the draft on the automation page.',
       schema: arrangement,
       inputSchema: z.toJSONSchema(arrangement),
       capabilities,
@@ -132,7 +132,7 @@ export const taskScheduleCheckDefinition: ToolDefinition<z.infer<typeof fileChec
   ...base,
   sdkName: 'task_schedule_check',
   name: 'task_schedule.check',
-  description: '检查非空文件或 UTF-8 Markdown 章节，用于任务自动验收。',
+  description: 'Check nonempty files or UTF-8 Markdown sections for automatic task acceptance.',
   schema: fileCheck,
   inputSchema: z.toJSONSchema(fileCheck),
   capabilities: { ...capabilities, filesystem: 'read', externalState: false },

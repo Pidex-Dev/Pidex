@@ -195,8 +195,8 @@ export function nodeReplToolDefinition(
     sdkName: NODE_REPL_TOOL_NAME,
     name: NODE_REPL_TOOL_NAME,
     description: external
-      ? '通过配置的 stdio MCP node_repl 服务执行 JavaScript。使用 computer 桥接时每次操作仍经过 Pidex 判权。外部运行时的可用 API 由该服务决定。'
-      : '电脑控制：在独立进程中执行一段 JavaScript，通过 computer API 发现 Windows 应用（computer.apps）、读取窗口界面与截图（computer.read）、执行操作（computer.action）。同一 chat 内的调用共享同一个求值上下文：变量、函数与对象身份跨调用保留，不同 chat 之间（各自独立进程）互不可见；调用 js_reset 清除当前 chat 的上下文。只提供 computer 与 nodeRepl，没有 import、Shell、文件或网络。仅主 Agent、聊天模式可用；每次电脑操作仍走统一权限与审批链。',
+      ? 'Execute JavaScript through the configured stdio MCP node_repl service. Computer bridge operations still pass through Pidex authorization. Available external runtime APIs are defined by that service.'
+      : 'Execute JavaScript in the chat-specific process using computer.apps, computer.read and computer.action. Cells in the same chat retain bindings and object identity; separate chats are isolated. Use js_reset to clear this chat context. Only computer and nodeRepl are available: no imports, shell, file or network access. Main agent in Chat mode only. Every computer action passes host authorization and approval.',
     schema: jsSchema,
     inputSchema: z.toJSONSchema(jsSchema),
     origin: origin('js'),
@@ -305,7 +305,7 @@ export function nodeReplResetToolDefinition(
     sdkName: NODE_REPL_RESET_TOOL_NAME,
     name: NODE_REPL_RESET_TOOL_NAME,
     description:
-      '清除当前 chat 的 node_repl JavaScript 上下文：变量、函数、对象与全局状态全部丢弃，下一次 js 调用从干净上下文开始。其他 chat 不受影响。',
+      'Reset the node_repl JavaScript context of this chat, discarding variables, functions, objects and globals. The next js call starts clean. Other chats are unaffected.',
     schema: resetSchema,
     inputSchema: z.toJSONSchema(resetSchema),
     origin: mcpOrigin(deps, 'js_reset'),
