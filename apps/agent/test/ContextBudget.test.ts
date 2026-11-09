@@ -9,6 +9,7 @@ const model = fauxProvider({
 describe('request context budget', () => {
   test('reserves the configured output, SDK headroom and a smaller explicit input limit', () => {
     expect(contextBudget(model)).toMatchObject({
+      outputReserveTokens: 64_000,
       inputBudgetTokens: 131_904,
       triggerTokens: 131_904,
       targetTokens: 110_000,
@@ -18,7 +19,33 @@ describe('request context budget', () => {
       triggerTokens: 90_000,
       targetTokens: 89_999,
     })
-    expect(() => contextBudget({ ...model, maxTokens: 200_000 })).toThrow('模型输入与输出额度')
+    // 官方最大输出等于上下文时，输出预留按半窗截断，仍为输入留出空间。
+    expect(contextBudget({ ...model, maxTokens: 200_000 })).toMatchObject({
+      outputReserveTokens: 97_952,
+      inputBudgetTokens: 97_952,
+      triggerTokens: 97_952,
+      targetTokens: 97_951,
+    })
+    // 显式无效规格仍报清晰配置错误。
+    expect(() => contextBudget({ ...model, maxTokens: 0 })).toThrow('模型输入与输出额度')
+    expect(() => contextBudget({ ...model, maxTokens: -1 })).toThrow('模型输入与输出额度')
+    expect(() => contextBudget({ ...model, maxInputTokens: 0 })).toThrow('模型输入与输出额度')
+  })
+
+  test('output reserve is capped at half the available window, input never goes negative', () => {
+    const hugeOutput = fauxProvider({
+      models: [{ id: 'huge', contextWindow: 200_000, maxTokens: 10_000_000 }],
+    }).getModel()
+    expect(contextBudget(hugeOutput)).toMatchObject({
+      outputReserveTokens: 97_952,
+      inputBudgetTokens: 97_952,
+    })
+    // 用户降低有效窗口后，预算不超过新窗口。
+    expect(contextBudget(hugeOutput, 64_000)).toMatchObject({
+      outputReserveTokens: 29_952,
+      inputBudgetTokens: 29_952,
+      triggerTokens: 29_952,
+    })
   })
 
   test('calculates effective window budget with maxContextTokens and preserves headroom for large maxTokens', () => {
@@ -26,9 +53,17 @@ describe('request context budget', () => {
       models: [{ id: 'large', contextWindow: 1_000_000, maxTokens: 8_192 }],
     }).getModel()
 
+    expect(contextBudget(millionModel)).toMatchObject({
+      contextWindowTokens: 1_000_000,
+      inputBudgetTokens: 987_712,
+      triggerTokens: 800_000,
+      targetTokens: 550_000,
+    })
+
     expect(contextBudget(millionModel, 500_000)).toMatchObject({
       contextWindowTokens: 1_000_000,
-      inputBudgetTokens: 500_000,
+      outputReserveTokens: 8_192,
+      inputBudgetTokens: 487_712,
       triggerTokens: 400_000,
       targetTokens: 275_000,
     })
@@ -40,17 +75,19 @@ describe('request context budget', () => {
     expect(() => contextBudget(largeOutputModel, 128_000)).not.toThrow()
     expect(contextBudget(largeOutputModel, 128_000)).toMatchObject({
       contextWindowTokens: 1_000_000,
-      inputBudgetTokens: 128_000,
-      triggerTokens: 102_400,
-      targetTokens: 70_400,
+      outputReserveTokens: 61_952,
+      inputBudgetTokens: 61_952,
+      triggerTokens: 61_952,
+      targetTokens: 61_951,
     })
 
     expect(() => contextBudget(largeOutputModel, 200_000)).not.toThrow()
     expect(contextBudget(largeOutputModel, 200_000)).toMatchObject({
       contextWindowTokens: 1_000_000,
-      inputBudgetTokens: 200_000,
-      triggerTokens: 160_000,
-      targetTokens: 110_000,
+      outputReserveTokens: 97_952,
+      inputBudgetTokens: 97_952,
+      triggerTokens: 97_952,
+      targetTokens: 97_951,
     })
   })
 

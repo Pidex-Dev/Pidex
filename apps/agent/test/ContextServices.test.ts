@@ -689,9 +689,10 @@ describe('手动上下文压缩', () => {
       const service = {
         get: () => undefined,
         db: { activeTurn: () => null },
-        promptPreview: async () => null,
+        promptPreviewInternal: async () => ({ instructions: 'internal prompt content' }),
         orchestrator: {
-          compact: async () => {
+          compact: async (_threadID: string, _instructions?: string, prompt?: string) => {
+            expect(prompt).toBe('internal prompt content')
             throw failure
           },
         },

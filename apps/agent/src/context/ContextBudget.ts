@@ -10,16 +10,11 @@ export function contextBudget(
   maxContextTokens?: number | null,
 ) {
   const physicalWindow = model.contextWindow || DEFAULT_CONTEXT_WINDOW_TOKENS
-  const outputReserveTokens = model.maxTokens
-  const physicalInputLimit = Math.min(
-    model.maxInputTokens ?? physicalWindow,
-    physicalWindow - outputReserveTokens - CONTEXT_SAFETY_TOKENS,
-  )
-  if (
-    ![physicalWindow, outputReserveTokens, physicalInputLimit].every(
-      (n) => Number.isInteger(n) && n > 0,
-    )
-  ) {
+  const specOutputTokens = model.maxTokens
+  const specInputTokens = model.maxInputTokens ?? physicalWindow
+  const invalid = (value: number) => !Number.isInteger(value) || value <= 0
+  // 显式无效规格仍然报清晰配置错误，不通过扩大上下文或静默改写恢复。
+  if (invalid(physicalWindow) || invalid(specOutputTokens) || invalid(specInputTokens)) {
     throw new Error('模型输入与输出额度没有可用的上下文空间，请检查模型配置')
   }
 
@@ -27,7 +22,16 @@ export function contextBudget(
     typeof maxContextTokens === 'number' && maxContextTokens > 0
       ? Math.min(maxContextTokens, physicalWindow)
       : physicalWindow
-  const inputBudgetTokens = Math.min(effectiveWindow, physicalInputLimit)
+  const availableWindow = effectiveWindow - CONTEXT_SAFETY_TOKENS
+  // 输出预留不超过半窗：官方最大输出等于上下文时仍要为输入留出空间。
+  const outputReserveTokens = Math.min(
+    specOutputTokens,
+    Math.floor(availableWindow / 2),
+  )
+  const inputBudgetTokens = Math.min(specInputTokens, availableWindow - outputReserveTokens)
+  if (invalid(outputReserveTokens) || invalid(inputBudgetTokens)) {
+    throw new Error('模型输入与输出额度没有可用的上下文空间，请检查模型配置')
+  }
   const triggerTokens = Math.min(Math.ceil(effectiveWindow * 0.8), inputBudgetTokens)
   const targetTokens = Math.min(Math.floor(effectiveWindow * 0.55), triggerTokens - 1)
 
@@ -35,7 +39,7 @@ export function contextBudget(
     contextWindowTokens: physicalWindow,
     outputReserveTokens,
     inputBudgetTokens,
-    physicalInputBudgetTokens: physicalInputLimit,
+    physicalInputBudgetTokens: inputBudgetTokens,
     triggerTokens,
     targetTokens,
   }

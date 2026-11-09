@@ -200,6 +200,19 @@ export class McpConnectionManager {
     return this.ensure(runtime, true)
   }
 
+  async previewCatalog(workspace?: string) {
+    const identity = await this.configs.workspace(workspace)
+    const generation = this.runtimes.get(identity?.hash ?? 'global')?.current
+    const managed = (await this.managed?.definitions(workspace)) ?? []
+    return {
+      catalog: new TurnToolCatalog(this.baseCatalog, [
+        ...(generation?.definitions ?? []),
+        ...managed,
+      ]),
+      serverInstructions: generation?.serverInstructions ?? [],
+    }
+  }
+
   async acquire(workspace?: string): Promise<McpTurnLease> {
     const runtime = await this.runtime(workspace)
     await this.ensure(runtime, false)

@@ -90,7 +90,7 @@ const turnStatus = (status: string): Turn['status'] => {
 
 const inputState = (status: string): Input['state'] => {
   if (status === 'queued') return 'queued'
-  if (status === 'mailbox' || status === 'consumed') return 'merged'
+  if (status === 'consumed') return 'merged'
   if (status === 'cancelled') return 'cancelled'
   if (status === 'completed') return 'completed'
   return 'active'

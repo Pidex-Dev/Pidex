@@ -958,6 +958,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       threadGoals,
       computer,
       plugins,
+      threadPullRequests,
     )
     approvals.setTurnInterruptHandler((threadID, turnID) => {
       // Never await the stop from inside approval evaluation: the turn is still
@@ -1441,6 +1442,14 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       scheduledTasks,
       schedulePlans,
       memoryManager,
+    })
+    piModels.recommendations.startAutoRefresh(async () => {
+      if (disposed) return
+      await providers.reload()
+      if (disposed) return
+      await publishAgentEvent(db, hub, null, null, 'catalog/updated', {
+        catalogVersion: Math.max(1, providers.catalogRevision?.() ?? 0),
+      })
     })
     const initialCatalogRevision = providers.catalogRevision?.() ?? 0
     void providers
