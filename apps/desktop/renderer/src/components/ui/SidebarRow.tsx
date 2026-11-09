@@ -48,7 +48,7 @@ export const SidebarRow = forwardRef<HTMLElement, SidebarRowProps>(function Side
     leadingMode === 'none' ? 'sidebar-row--no-leading' : undefined,
     // Row shell: 30px row, 8px gutter, 10px radius, 2px column gap between the
     // leading slot, the label and the trailing slot.
-    'tw:relative tw:grid tw:w-full tw:box-border tw:h-[var(--sidebar-row-height,30px)] tw:min-h-[var(--sidebar-row-height,30px)] tw:items-center tw:gap-x-0.5 tw:rounded-md tw:px-2 tw:text-left tw:type-body tw:no-underline tw:select-none tw:cursor-pointer tw:outline-none tw:transition-colors tw:duration-feedback tw:ease-out',
+    'tw:relative tw:grid tw:w-full tw:box-border tw:h-[var(--sidebar-row-height,30px)] tw:min-h-[var(--sidebar-row-height,30px)] tw:items-center tw:rounded-md tw:text-left tw:type-body tw:no-underline tw:select-none tw:cursor-pointer tw:outline-none tw:transition-colors tw:duration-feedback tw:ease-out',
     leadingMode === 'none'
       ? trailing != null
         ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
@@ -147,7 +147,7 @@ function renderRowContent({
         {children}
       </span>
       {hasTrailing ? (
-        <span className="sidebar-row-trailing tw:flex tw:w-full tw:min-w-0 tw:items-center tw:justify-end tw:gap-x-0.5 tw:[&>svg:not([data-icon-kind=artwork])]:size-icon-sm">
+        <span className="sidebar-row-trailing tw:flex tw:min-w-0 tw:items-center tw:justify-self-end tw:gap-x-0.5 tw:[&>svg:not([data-icon-kind=artwork])]:size-icon-sm">
           {trailing}
         </span>
       ) : null}

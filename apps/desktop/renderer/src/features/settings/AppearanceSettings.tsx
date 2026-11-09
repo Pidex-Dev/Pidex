@@ -163,7 +163,7 @@ function ColorControl({
       <AnchoredPopover
         data-popover-size="md"
         align="end"
-        className="appearance-color-popover tw:p-1"
+        className="appearance-color-popover"
         contentLabel={`${ariaLabel}颜色选项`}
         contentRole="dialog"
         trigger={

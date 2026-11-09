@@ -487,7 +487,7 @@ function SetupVariablesPopover(): React.ReactNode {
     <AnchoredPopover
       align="end"
       arrow
-      className="tw:grid tw:gap-3"
+      className="tw:grid"
       collisionPadding={8}
 
       sideOffset={6}

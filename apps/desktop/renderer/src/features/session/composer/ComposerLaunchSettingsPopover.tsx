@@ -4,6 +4,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
   FolderCog,
   GitBranch,
   GitFork,
@@ -56,11 +57,9 @@ type Props = {
 type View = 'settings' | 'branch' | 'environment'
 
 const CONTENT_CLASS =
-  'popover-surface popover tw:z-popover tw:grid tw:w-[min(320px,calc(100vw-16px))] tw:max-h-[min(480px,calc(100vh-96px))] tw:gap-1 tw:overflow-hidden tw:p-1.5 tw:text-app-text'
+  'popover-surface popover popover-menu-spacing tw:z-popover tw:grid tw:max-h-none tw:overflow-hidden tw:text-app-text'
 const NOTE_CLASS = 'tw:m-0 tw:px-2 tw:pb-1 tw:text-app-text-meta tw:type-caption'
-const DIVIDER_CLASS = 'tw:my-1 tw:h-px tw:w-full tw:bg-app-border-subtle'
-const LIST_CLASS =
-  'branch-popover-list-scroll tw:grid tw:max-h-[min(260px,calc(100vh-220px))] tw:gap-px tw:overflow-y-auto tw:overscroll-contain'
+
 
 /**
  * 首页发起前的执行位置设置：新建工作树开关、待使用分支与项目环境。
@@ -168,36 +167,7 @@ export function ComposerLaunchSettingsPopover({
     }
   }, [open])
 
-  const explicitExecutionSupported = capabilities?.explicitExecution === true
-  const branchDisabledReason = !projectKey
-    ? '请先选择项目'
-    : !gitAvailable
-      ? '当前项目不是 Git 仓库'
-      : !capabilities
-        ? '正在检查 Agent 能力…'
-        : !explicitExecutionSupported
-          ? '当前 Agent 不支持指定执行位置，沿用项目默认设置'
-          : branchOptions.length === 0
-            ? '当前项目没有可用分支'
-            : null
-  const worktreeDisabledReason = !projectKey
-    ? '请先选择项目'
-    : !gitAvailable
-      ? '当前项目不是 Git 仓库'
-      : !capabilities
-        ? '正在检查 Agent 能力…'
-        : !explicitExecutionSupported
-          ? '当前 Agent 不支持指定执行位置'
-          : !pendingBranch
-            ? '请先选择分支'
-            : null
-  const environmentDisabledReason = !projectId
-    ? '当前项目暂不支持环境设置'
-    : !capabilities
-      ? '正在检查 Agent 能力…'
-      : !capabilities.environments
-        ? '当前 Agent 不支持多环境设置'
-        : null
+  const executionDisabled = !projectKey || !gitAvailable || capabilities?.explicitExecution !== true
   // 只列出已保存的有效环境；默认项回退到列表首项。
   const selectableEnvironments = useMemo<ComposerEnvironmentCatalog | null>(
     () =>
@@ -275,123 +245,103 @@ export function ComposerLaunchSettingsPopover({
         >
           {view === 'settings' ? (
             <>
-              <div className="popover-header tw:px-2 tw:pt-1 tw:pb-0.5">配置本地环境</div>
-              <SidebarRow
-                className="popover-item"
-                leading={
-                  <span className="popover-item-icon">
-                    <GitFork size={APP_ICON_SIZE} />
-                  </span>
-                }
-                trailing={
-                  <ToggleSwitch
-                    ariaLabel="新建工作树"
-                    checked={settings.createWorktree}
-                    disabled={worktreeDisabledReason !== null}
-                    onChange={(checked) => updateSettings({ ...settings, createWorktree: checked })}
-                  />
-                }
-              >
-                <span className="popover-item-label">新建工作树</span>
-              </SidebarRow>
-              <p className={NOTE_CLASS}>
-                {worktreeDisabledReason ??
-                  (settings.createWorktree
-                    ? `从 ${pendingBranch ?? '所选分支'} 创建托管工作树，不复制本地未提交修改。`
-                    : '关闭时使用项目本地目录。')}
-              </p>
-              <div className={DIVIDER_CLASS} />
-              <SidebarRow
-                asChild
-                className="popover-item"
-                leading={
-                  <span className="popover-item-icon">
-                    <GitBranch size={APP_ICON_SIZE} />
-                  </span>
-                }
-                trailing={
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="popover-item-arrow"
-                    size={APP_ICON_SIZES.sm}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
-                }
-              >
-                <button
-                  type="button"
-                  disabled={branchDisabledReason !== null}
-                  onClick={() => {
-                    setBranchSearch('')
-                    setView('branch')
-                  }}
-                >
-                  <span className="popover-item-label tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
-                    <span className="tw:text-app-text-soft">分支</span>
-                    <span className="tw:min-w-0 tw:truncate" title={pendingBranch ?? undefined}>
-                      {pendingBranch ?? '未选择'}
-                    </span>
-                  </span>
-                </button>
-              </SidebarRow>
-              <p className={NOTE_CLASS}>
-                {branchDisabledReason ?? '选择只更新草稿，发送时才生效。'}
-              </p>
-              <SidebarRow
-                asChild
-                className="popover-item"
-                leading={
-                  <span className="popover-item-icon">
-                    <FolderCog size={APP_ICON_SIZE} />
-                  </span>
-                }
-                trailing={
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="popover-item-arrow"
-                    size={APP_ICON_SIZES.sm}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
-                }
-              >
-                <button
-                  type="button"
-                  disabled={environmentDisabledReason !== null}
-                  onClick={() => setView('environment')}
-                >
-                  <span className="popover-item-label tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
-                    <span className="tw:text-app-text-soft">环境</span>
-                    <span className="tw:min-w-0 tw:truncate" title={environmentValue}>
-                      {environmentValue}
-                    </span>
-                  </span>
-                </button>
-              </SidebarRow>
-              <p className={NOTE_CLASS}>
-                {environmentDisabledReason ?? '沿用项目默认环境；切换后其他界面同步刷新。'}
-              </p>
-              <div className={DIVIDER_CLASS} />
-              <SidebarRow
-                asChild
-                className="popover-item"
-                leading={
-                  <span className="popover-item-icon">
-                    <Settings2 size={APP_ICON_SIZE} />
-                  </span>
-                }
-              >
-                <button
-                  type="button"
-                  disabled={!projectId || !onOpenEnvironmentSettings}
-                  onClick={() => {
-                    if (!projectId || !onOpenEnvironmentSettings) return
-                    setOpen(false)
-                    onOpenEnvironmentSettings(projectId)
-                  }}
-                >
-                  <span className="popover-item-label">管理环境…</span>
-                </button>
-              </SidebarRow>
+              <div className="popover-header">配置本地环境</div>
+              <Tooltip content="在独立工作树中运行" side="left">
+                <div className="tw:grid tw:min-w-0">
+                  <SidebarRow
+                    className="popover-item"
+                    leading={
+                      <span className="popover-item-icon">
+                        <GitFork size={APP_ICON_SIZE} />
+                      </span>
+                    }
+                    trailing={
+                      <ToggleSwitch
+                        size="sm"
+                        ariaLabel="新建工作树"
+                        checked={settings.createWorktree}
+                        disabled={executionDisabled || !pendingBranch}
+                        onChange={(checked) => updateSettings({ ...settings, createWorktree: checked })}
+                      />
+                    }
+                  >
+                    <span className="popover-item-label">新建工作树</span>
+                  </SidebarRow>
+                </div>
+              </Tooltip>
+
+              <Tooltip content="选择起始分支" side="left">
+                <div className="tw:grid tw:min-w-0">
+                  <SidebarRow
+                    asChild
+                    className="popover-item"
+                    leading={
+                      <span className="popover-item-icon">
+                        <GitBranch size={APP_ICON_SIZE} />
+                      </span>
+                    }
+                    trailing={
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="popover-item-arrow"
+                        size={APP_ICON_SIZES.sm}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
+                    }
+                  >
+                    <button
+                      type="button"
+                      disabled={executionDisabled || branchOptions.length === 0}
+                      onClick={() => {
+                        setBranchSearch('')
+                        setView('branch')
+                      }}
+                    >
+                      <span className="popover-item-label tw:flex tw:w-full tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
+                        <span className="tw:text-app-text-soft">分支</span>
+                        <span className="tw:ml-auto tw:min-w-0 tw:truncate tw:text-app-text-soft">
+                          {pendingBranch ?? '未选择'}
+                        </span>
+                      </span>
+                    </button>
+                  </SidebarRow>
+                </div>
+              </Tooltip>
+              <Tooltip content={settings.createWorktree ? '选择项目环境' : '启用工作树后即可选择环境'} side="left">
+                <div className="tw:grid tw:min-w-0">
+                  <SidebarRow
+                    asChild
+                    className="popover-item"
+                    leading={
+                      <span className="popover-item-icon">
+                        <FolderCog size={APP_ICON_SIZE} />
+                      </span>
+                    }
+                    trailing={
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="popover-item-arrow"
+                        size={APP_ICON_SIZES.sm}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
+                    }
+                  >
+                    <button
+                      type="button"
+                      disabled={!settings.createWorktree || !projectId || capabilities?.environments !== true}
+                      onClick={() => setView('environment')}
+                    >
+                      <span className="popover-item-label tw:flex tw:w-full tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
+                        <span className="tw:text-app-text-soft">环境</span>
+                        <span className="tw:ml-auto tw:min-w-0 tw:truncate tw:text-app-text-soft">
+                          {environmentValue}
+                        </span>
+                      </span>
+                    </button>
+                  </SidebarRow>
+                </div>
+              </Tooltip>
+
             </>
           ) : null}
 
@@ -410,7 +360,7 @@ export function ComposerLaunchSettingsPopover({
                 />
               </div>
               {visibleBranches.length ? (
-                <div className={LIST_CLASS}>
+                <div className="popover-menu-list">
                   {visibleBranches.map((branch) => (
                     <BranchOptionRow
                       key={branch}
@@ -448,7 +398,7 @@ export function ComposerLaunchSettingsPopover({
                   </Button>
                 </div>
               ) : selectableEnvironments?.environments.length ? (
-                <div className={LIST_CLASS}>
+                <div className="popover-menu-list">
                   {selectableEnvironments?.environments.map((environment) => {
                     const selected = environment.id === selectedEnvironmentId
                     return (
@@ -496,6 +446,27 @@ export function ComposerLaunchSettingsPopover({
                   {environmentLoading ? '正在加载环境…' : '项目暂无环境，可在设置中创建。'}
                 </p>
               )}
+              <SidebarRow
+                asChild
+                className="popover-item"
+                leading={
+                  <span className="popover-item-icon">
+                    <ExternalLink size={APP_ICON_SIZE} />
+                  </span>
+                }
+              >
+                <button
+                  type="button"
+                  disabled={!projectId || !onOpenEnvironmentSettings}
+                  onClick={() => {
+                    if (!projectId || !onOpenEnvironmentSettings) return
+                    setOpen(false)
+                    onOpenEnvironmentSettings(projectId)
+                  }}
+                >
+                  <span className="popover-item-label">环境设置</span>
+                </button>
+              </SidebarRow>
             </>
           ) : null}
         </Popover.Content>

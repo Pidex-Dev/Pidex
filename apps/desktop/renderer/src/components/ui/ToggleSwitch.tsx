@@ -11,10 +11,11 @@ type Props = {
   ariaLabelledby?: string
   ariaDescribedby?: string | null
   disabled?: boolean
+  size?: 'sm' | 'md'
 }
 
 export const ToggleSwitch = forwardRef<HTMLButtonElement, Props>(function ToggleSwitch(
-  { checked, onChange, ariaLabel, ariaLabelledby, ariaDescribedby, disabled = false },
+  { checked, onChange, ariaLabel, ariaLabelledby, ariaDescribedby, disabled = false, size = 'md' },
   ref,
 ) {
   return (
@@ -24,7 +25,8 @@ export const ToggleSwitch = forwardRef<HTMLButtonElement, Props>(function Toggle
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledby}
       className={cx(
-        'toggle-switch tw:relative tw:box-border tw:h-6 tw:w-8 tw:shrink-0 tw:cursor-pointer tw:rounded-full tw:border tw:border-app-border tw:bg-app-text/10 tw:p-0',
+        'toggle-switch tw:relative tw:box-border tw:shrink-0 tw:cursor-pointer tw:rounded-full tw:border tw:border-app-border tw:bg-app-text/10 tw:p-0',
+        size === 'sm' ? 'tw:h-5 tw:min-h-5! tw:w-8' : 'tw:h-6 tw:w-10',
         'tw:transition-[background-color,border-color,opacity] tw:duration-state tw:ease-standard',
         'tw:not-disabled:hover:bg-app-text/20',
 
@@ -43,9 +45,10 @@ export const ToggleSwitch = forwardRef<HTMLButtonElement, Props>(function Toggle
     >
       <Switch.Thumb
         className={cx(
-          'toggle-knob tw:absolute tw:top-1/2 tw:-translate-y-1/2 tw:left-px tw:box-border tw:size-4 tw:rounded-full tw:border tw:shadow-sm tw:translate-x-0',
+          'toggle-knob tw:absolute tw:top-1/2 tw:-translate-y-1/2 tw:left-px tw:box-border tw:rounded-full tw:border tw:shadow-sm tw:translate-x-0',
+          size === 'sm' ? 'tw:size-3' : 'tw:size-4',
           'tw:transition-[background-color,border-color,translate] tw:duration-state tw:ease-standard',
-          'tw:data-[state=checked]:translate-x-3',
+          size === 'sm' ? 'tw:data-[state=checked]:translate-x-4' : 'tw:data-[state=checked]:translate-x-5',
           'tw:data-[disabled]:shadow-none',
         )}
       />

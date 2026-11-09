@@ -268,7 +268,7 @@ const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
         className={
           isUnstyled
             ? className
-            : `popover-surface popover ${asChild ? '' : 'tw:p-3.5'} tw:text-app-text ${className}`
+            : `popover-surface popover ${asChild ? '' : 'popover-panel-spacing'} tw:text-app-text ${className}`
         }
       />
     )

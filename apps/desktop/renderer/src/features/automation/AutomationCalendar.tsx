@@ -274,7 +274,7 @@ export function AutomationCalendar({
             <Popover.Portal>
               <Popover.Content
                 size="md"
-                className="popover-surface automation-calendar__month-picker-popover tw:flex tw:flex-col tw:gap-3 tw:p-3"
+                className="popover-surface automation-calendar__month-picker-popover tw:flex tw:flex-col"
                 side="bottom"
                 align="start"
                 sideOffset={6}
@@ -348,7 +348,7 @@ export function AutomationCalendar({
             <Popover.Portal>
               <Popover.Content
                 size="md"
-                className="popover-surface automation-calendar__tasks-popover tw:flex tw:max-h-88 tw:flex-col tw:gap-2 tw:p-3"
+                className="popover-surface automation-calendar__tasks-popover tw:flex tw:max-h-88 tw:flex-col"
                 side="bottom"
                 align="start"
                 sideOffset={6}
@@ -362,7 +362,7 @@ export function AutomationCalendar({
                   </span>
                 </div>
                 <div
-                  className="automation-calendar__tasks-popover-list tw:flex tw:max-h-68 tw:flex-col tw:gap-1 tw:overflow-y-auto"
+                  className="automation-calendar__tasks-popover-list popover-menu-list tw:max-h-68 tw:overflow-y-auto"
                   role="list"
                 >
                   {currentMonthOccurrences.length === 0 ? (

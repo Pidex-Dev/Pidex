@@ -210,13 +210,13 @@ const PERMISSION_TRIGGER_OPEN_CLASS = 'tw:bg-app-selected'
 const PERMISSION_TRIGGER_LABEL_CLASS =
   'permission-select-trigger-label composer-footer-label tw:min-w-0 tw:truncate'
 const PERMISSION_ITEM_ICON_CLASS =
-  'permission-select-item-icon tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text tw:[&>svg]:block tw:[&>svg]:size-icon tw:[&>svg]:[stroke-width:var(--cpx-sys-icon-stroke-width)]'
+  'permission-select-item-icon menu-column-leading tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text tw:[&>svg]:block tw:[&>svg]:size-icon tw:[&>svg]:[stroke-width:var(--cpx-sys-icon-stroke-width)]'
 const PERMISSION_ITEM_BODY_CLASS =
-  'permission-select-item-body tw:min-w-0 tw:flex-1 tw:grid tw:gap-0'
+  'permission-select-item-body menu-column-label tw:min-w-0 tw:flex-1 tw:grid tw:gap-0'
 const PERMISSION_ITEM_DETAIL_CLASS =
-  'permission-select-item-detail tw:whitespace-normal tw:text-app-text-soft tw:type-secondary'
+  'permission-select-item-detail menu-column-detail tw:whitespace-normal tw:text-app-text-soft tw:type-secondary'
 const PERMISSION_ITEM_INDICATOR_CLASS =
-  'permission-select-item-indicator tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text'
+  'permission-select-item-indicator menu-column-trailing tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text'
 
 /*
  * Composer shell chrome. The silhouette (radius, corner shape) stays in
@@ -1911,7 +1911,7 @@ export function ComposerCard({
                   side="top"
                   sideOffset={4}
                 >
-                  <div className="permission-select-scroll-area tw:grid tw:max-h-[max(80px,calc(min(440px,calc(100vh-96px))-12px))] tw:overflow-x-hidden tw:overflow-y-auto">
+                  <div className="permission-select-scroll-area tw:grid tw:overflow-x-hidden tw:overflow-y-auto">
                     <div className="permission-select-scroll-content tw:grid tw:min-w-0">
                       {permissionUnavailableReason ? (
                         <p
@@ -2307,6 +2307,8 @@ export function ComposerCard({
                   selectedModelMetadata?.contextWindow ?? contextUsage?.contextWindow ?? 128_000
                 }
                 physicalInputLimit={contextUsage?.budget?.physicalInputBudgetTokens}
+                inputBudgetTokens={contextUsage?.budget?.inputBudgetTokens}
+                outputReserveTokens={contextUsage?.budget?.outputReserveTokens}
                 minimumContextTokens={
                   contextUsage &&
                   selectedModel &&

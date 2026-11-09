@@ -884,7 +884,7 @@ function CommentDraftEditor({
     <div className="review-comment draft tw:flex tw:flex-col tw:gap-1 tw:p-2 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised tw:text-app-text tw:type-reading tw:shadow-none">
       <textarea
         autoFocus
-        className="tw:w-full tw:min-h-[5.385em] tw:resize-y tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-reading"
+        className="tw:w-full tw:field-sizing-content tw:min-h-[5.385em] tw:max-h-60 tw:resize-y tw:overflow-y-auto tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-reading"
         placeholder="写下这行的问题或修改建议"
         value={body}
         onChange={(event) => setBody(event.target.value)}

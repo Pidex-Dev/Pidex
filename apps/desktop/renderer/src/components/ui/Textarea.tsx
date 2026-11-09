@@ -4,6 +4,7 @@ import { cx } from '../../utils/Cx.js'
 import type { InputSize } from './Input.js'
 
 export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  autoGrow?: boolean
   invalid?: boolean
   size?: InputSize
 }
@@ -15,7 +16,7 @@ const SIZE_CLASSES: Record<InputSize, string> = {
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
-  { className, invalid = false, readOnly = false, size = 'md', ...textareaProps },
+  { autoGrow = false, className, invalid = false, readOnly = false, size = 'md', ...textareaProps },
   ref,
 ): React.ReactNode {
   return (
@@ -25,6 +26,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
       aria-invalid={invalid || undefined}
       className={cx(
         'ui-textarea tw:min-w-0 tw:min-h-16 tw:resize-y tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-control tw:text-app-text tw:shadow-none',
+        autoGrow && 'tw:field-sizing-content',
         'tw:py-control-block tw:px-control-inline',
         'tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard',
         'tw:enabled:hover:border-app-border-strong',

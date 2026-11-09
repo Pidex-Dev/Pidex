@@ -68,7 +68,7 @@ export function resolveAppContextMenuActions(
  */
 const CONTEXT_ITEM_LAYOUT_CLASSNAMES: Record<AppContextMenuLayout, string> = {
   flex: 'tw:flex tw:items-center tw:gap-row-gap',
-  grid: 'tw:grid tw:grid-cols-[var(--cpx-comp-menu-icon-size)_minmax(0,1fr)_max-content] tw:items-center tw:gap-x-row-gap',
+  grid: 'tw:grid tw:grid-cols-[max-content_minmax(0,1fr)_max-content] tw:items-center tw:gap-x-row-gap',
 }
 
 const CONTEXT_LEADING_LAYOUT_CLASSNAMES: Record<AppContextMenuLayout, string> = {
@@ -175,7 +175,7 @@ function renderAction(
     case 'separator':
       return (
         <ContextMenu.Separator
-          className="app-context-menu-separator sidebar-context-menu-separator"
+          className="app-context-menu-separator popover-menu-separator"
           key={key}
         />
       )
@@ -227,7 +227,6 @@ function renderAction(
               size="sm"
               className={`app-context-menu-content app-context-menu-sub-content sidebar-context-menu-content app-context-menu--${action.layout}`}
               collisionPadding={6}
-              sideOffset={4}
             >
               {action.children.map((child, childKey) =>
                 renderAction(child, childKey, action.layout),

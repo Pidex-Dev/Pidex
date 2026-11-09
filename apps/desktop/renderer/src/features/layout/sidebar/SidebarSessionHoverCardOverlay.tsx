@@ -103,7 +103,7 @@ export function SidebarSessionHoverCardOverlay({
     <SidebarHoverCardSurface
       {...interactionProps}
       ariaLabel="会话详情"
-      className="sidebar-session-hover-card tw:min-w-[200px] tw:max-w-[280px] tw:max-h-[min(24rem,calc(100vh-2rem))] tw:overflow-y-auto tw:px-3 tw:py-2"
+      className="sidebar-session-hover-card tw:max-h-[min(24rem,calc(100vh-2rem))] tw:overflow-y-auto"
       focusRef={editing ? inputRef : undefined}
       focusRequest={editing ? focusRequest : 0}
       onFocusRequestHandled={onFocusRequestHandled}

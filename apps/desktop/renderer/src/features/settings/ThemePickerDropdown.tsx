@@ -156,13 +156,12 @@ export function ThemePickerDropdown({
         <DropdownMenu.Portal>
           <DropdownMenu.SubContent
             aria-label={t('Codex 主题列表')}
-            className="popover-surface popover popover-sub-content tw:py-1 tw:max-h-80 tw:overflow-y-auto"
+            className="popover-surface popover tw:max-h-80 tw:overflow-y-auto"
             collisionPadding={6}
             data-theme-component="dropdown-surface"
-            sideOffset={4}
             size="sm"
           >
-            <div className="tw:flex tw:min-w-0 tw:flex-col tw:gap-0.5">
+            <div className="popover-menu-list tw:min-w-0">
               {otherThemes.map((theme) => (
                 <PopoverItem
                   key={theme.slug}

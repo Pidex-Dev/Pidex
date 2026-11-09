@@ -7,6 +7,7 @@ import { InfoTooltip } from '../../../components/ui/InfoTooltip.js'
 import { StopSlider } from '../../../components/ui/StopSlider.js'
 import { cx } from '../../../utils/Cx.js'
 import { resolveThinkingLabel } from './ThinkingLevelPopover.js'
+import { formatCompactNumber } from '../../../utils/UsageFormatters.js'
 
 export type ContextLimitPreset = {
   label: string
@@ -28,6 +29,9 @@ export type ModelRuntimeParametersPopoverProps = {
   physicalWindow?: number
   /** 模型物理输入上界（扣除输出预留与安全余量），预设与自定义值按它过滤/夹紧。 */
   physicalInputLimit?: number
+  /** 本次请求实际可用的输入预算与输出预留，来自统一 contextBudget 结果。 */
+  inputBudgetTokens?: number
+  outputReserveTokens?: number
   minimumContextTokens?: number
   maxContextTokens?: number | null
   onMaxContextTokensChange: (tokens: number | null) => void
@@ -80,6 +84,8 @@ export function ModelRuntimeParametersSummary({
 export type ModelRuntimeParametersContentProps = {
   physicalWindow?: number
   physicalInputLimit?: number
+  inputBudgetTokens?: number
+  outputReserveTokens?: number
   minimumContextTokens?: number
   maxContextTokens?: number | null
   onMaxContextTokensChange: (tokens: number | null) => void
@@ -92,6 +98,8 @@ export type ModelRuntimeParametersContentProps = {
 export function ModelRuntimeParametersContent({
   physicalWindow,
   physicalInputLimit,
+  inputBudgetTokens,
+  outputReserveTokens,
   minimumContextTokens,
   maxContextTokens,
   onMaxContextTokensChange,
@@ -162,7 +170,7 @@ export function ModelRuntimeParametersContent({
     }
   }, [maxContextTokens, isCustomValue, isCustomMode])
 
-  const maxK = Math.min(physicalInputLimit ?? physicalWindow ?? 10_000_000, 10_000_000) / 1000
+  const maxK = (physicalInputLimit ?? physicalWindow ?? Number.MAX_SAFE_INTEGER) / 1000
   const rangeHint =
     minimumTokens > maxK * 1000
       ? '可用空间不足，请调整模型或工具配置'
@@ -376,6 +384,12 @@ export function ModelRuntimeParametersContent({
           />
         </div>
 
+        {inputBudgetTokens !== undefined && outputReserveTokens !== undefined ? (
+          <span className="tw:type-caption tw:text-app-text-meta">
+            {`实际输入预算 ${formatCompactNumber(inputBudgetTokens)} · 输出预留 ${formatCompactNumber(outputReserveTokens)}`}
+          </span>
+        ) : null}
+
         {inputError ? (
           <span
             id={`${customInputId}-error`}
@@ -398,6 +412,8 @@ export function ModelRuntimeParametersPopover({
   modelName,
   physicalWindow,
   physicalInputLimit,
+  inputBudgetTokens,
+  outputReserveTokens,
   minimumContextTokens,
   maxContextTokens,
   onMaxContextTokensChange,
@@ -460,22 +476,26 @@ export function ModelRuntimeParametersPopover({
       <Popover.Trigger asChild>{customTrigger ?? defaultTrigger}</Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
+          asChild
           side={side}
           align={align}
           sideOffset={sideOffset}
-          className="composer-runtime-params-popover-content tw:w-80 tw:p-3.5"
         >
-          <ModelRuntimeParametersContent
-            physicalWindow={physicalWindow}
-            physicalInputLimit={physicalInputLimit}
-            minimumContextTokens={minimumContextTokens}
-            maxContextTokens={maxContextTokens}
-            onMaxContextTokensChange={onMaxContextTokensChange}
-            showThinkingOptions={showThinkingOptions}
-            thinkingMode={thinkingMode}
-            thinkingOptions={thinkingOptions}
-            onThinkingChange={onThinkingChange}
-          />
+          <div className="composer-runtime-params-popover-content tw:w-65 tw:p-2.5">
+            <ModelRuntimeParametersContent
+              physicalWindow={physicalWindow}
+              physicalInputLimit={physicalInputLimit}
+              inputBudgetTokens={inputBudgetTokens}
+              outputReserveTokens={outputReserveTokens}
+              minimumContextTokens={minimumContextTokens}
+              maxContextTokens={maxContextTokens}
+              onMaxContextTokensChange={onMaxContextTokensChange}
+              showThinkingOptions={showThinkingOptions}
+              thinkingMode={thinkingMode}
+              thinkingOptions={thinkingOptions}
+              onThinkingChange={onThinkingChange}
+            />
+          </div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -489,7 +509,7 @@ export function parseContextLimitK(
 ): number | null {
   if (!value.trim()) return null
   const tokens = Number(value) * 1000
-  if (!Number.isFinite(tokens) || !Number.isInteger(tokens) || tokens < 1) return null
-  const bounded = Math.min(tokens, maxTokens, 10_000_000)
+  if (!Number.isSafeInteger(tokens) || tokens < 1) return null
+  const bounded = Math.min(tokens, maxTokens)
   return bounded < minimumTokens ? null : bounded
 }

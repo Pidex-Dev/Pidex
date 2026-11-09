@@ -55,7 +55,7 @@ export function Dropdown({
           side={side}
           sideOffset={sideOffset}
         >
-          <div className="popover-scroll-content tw:flex tw:min-w-0 tw:max-w-full tw:flex-col tw:gap-0.5">
+          <div className="popover-scroll-content popover-menu-list tw:min-w-0 tw:max-w-full">
             {children}
           </div>
         </DropdownMenu.Content>

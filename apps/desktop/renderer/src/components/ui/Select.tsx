@@ -48,8 +48,8 @@ function OptionContent({
 }): React.ReactNode {
   return (
     <div className="ui-select-item-inner settings-dropdown-item-inner tw:type-row-title tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2">
-      {option.icon}
-      <div className="ui-select-item-copy settings-dropdown-item-copy tw:grid tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:gap-1">
+      {option.icon ? <span className="menu-column-leading">{option.icon}</span> : null}
+      <div className="ui-select-item-copy settings-dropdown-item-copy menu-column-label tw:grid tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:gap-1">
         <OverflowTitle
           className="ui-select-item-label settings-dropdown-item-label tw:min-w-0 tw:type-row-title"
           variant="menu"
@@ -57,7 +57,7 @@ function OptionContent({
           {option.label}
         </OverflowTitle>
         {option.detail ? (
-          <span className="ui-select-item-detail settings-dropdown-item-detail tw:truncate tw:text-app-text-meta tw:type-caption">
+          <span className="ui-select-item-detail settings-dropdown-item-detail menu-column-detail tw:whitespace-normal tw:wrap-anywhere tw:text-app-text-meta tw:type-caption">
             {option.detail}
           </span>
         ) : null}
@@ -65,7 +65,7 @@ function OptionContent({
       {showSelectedIndicator && selected ? (
         <Check
           aria-hidden="true"
-          className="ui-select-item-indicator settings-dropdown-item-indicator tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center"
+          className="ui-select-item-indicator settings-dropdown-item-indicator menu-column-trailing tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center"
           size={APP_ICON_SIZES.sm}
         />
       ) : null}

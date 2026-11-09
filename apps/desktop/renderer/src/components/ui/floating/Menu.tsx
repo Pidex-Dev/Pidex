@@ -564,6 +564,7 @@ export function MenuSubContent({
     contentRef,
     isOpen: root.open && sub.open,
     placement: 'right-start',
+    submenu: true,
     offset: sideOffset,
     collisionPadding,
   })
@@ -640,7 +641,7 @@ export function MenuSubContent({
       data-popover-size={size}
       data-theme-component="dropdown-surface"
       data-menu-subcontent=""
-      className={`popover-surface popover tw:py-1.5 ${className}`}
+      className={`popover-surface popover popover-menu-list ${className}`}
       style={{ ...floatingStyle, ...props.style }}
       onPointerEnter={(e) => {
         onPointerEnter?.(e)
@@ -801,7 +802,7 @@ export function ContextContent({
       data-align={placement.align}
       data-popover-size={size}
       data-theme-component="dropdown-surface"
-      className={`popover-surface tw:py-1.5 ${className}`}
+      className={`popover-surface popover-menu-list ${className}`}
       style={{
         ...props.style,
         position: 'fixed',

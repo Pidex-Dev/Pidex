@@ -43,7 +43,7 @@ export function ProjectAppearancePicker({
 
   return (
     <AnchoredPopover
-      className="project-appearance-popover tw:z-popover tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2 tw:text-app-text tw:outline-none"
+      className="project-appearance-popover tw:z-popover tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text tw:outline-none"
       contentLabel="项目图标和颜色"
       open={open}
       trigger={

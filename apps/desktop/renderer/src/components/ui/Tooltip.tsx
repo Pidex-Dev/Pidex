@@ -868,7 +868,7 @@ export const TooltipContent = forwardRef<HTMLDivElement, TooltipContentProps>(
     const isUnstyled = variant === 'unstyled'
     const baseClasses = isUnstyled
       ? 'tooltip-presence'
-      : 'tooltip-presence tooltip-content tw:inline-flex tw:items-center tw:px-2.5 tw:py-1.5 tw:rounded-sm tw:type-caption tw:max-w-[min(280px,calc(100vw-16px))] tw:break-words tw:select-none tw:box-border tw:z-tooltip'
+      : 'tooltip-presence tooltip-content tw:inline-flex tw:items-center tw:px-2 tw:py-1 tw:rounded-sm tw:type-caption tw:max-w-[min(280px,calc(100vw-16px))] tw:break-words tw:select-none tw:box-border tw:z-tooltip'
     const variantClasses = isUnstyled ? '' : VARIANT_STYLES[variant] || VARIANT_STYLES.default
 
     const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {

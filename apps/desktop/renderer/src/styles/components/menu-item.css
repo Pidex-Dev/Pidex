@@ -41,7 +41,7 @@
   .menubar-item {
     display: grid;
     grid-template-columns: minmax(0, 1fr) max-content;
-    column-gap: calc(var(--cpx-comp-row-gap) + var(--cpx-comp-row-gap));
+    column-gap: var(--cpx-comp-row-gap);
     align-items: center;
   }
 

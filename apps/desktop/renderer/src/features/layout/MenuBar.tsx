@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import * as Menubar from '@radix-ui/react-menubar'
 import type { DesktopEditAction } from '@pidex/shared/desktop-edit-ipc'
 import {
@@ -18,6 +18,7 @@ import {
   APP_ICON_SIZES,
 } from '../../components/ui/IconTokens.js'
 import { Button } from '../../components/ui/Button.js'
+import { Tooltip } from '../../components/ui/Tooltip.js'
 import { OverflowTitle } from '../../components/ui/OverflowTitle.js'
 import { type PopoverSizingProps } from '../../components/ui/PopoverSizing.js'
 import { cx } from '../../utils/Cx.js'
@@ -79,6 +80,7 @@ type Props = {
   isMaximized: boolean
   canNavigateBack: boolean
   canNavigateForward: boolean
+  onSidebarBoundaryChange?: (width: number) => void
   onToggleSidebar: () => void
   onMinimize: () => void
   onToggleMaximize: () => void
@@ -139,7 +141,7 @@ function MenuItem({ children, disabled, shortcut, onSelect }: MenuItemProps): Re
 }
 
 function MenuSeparator(): React.ReactNode {
-  return <Menubar.Separator className="menubar-separator tw:my-1 tw:h-px tw:bg-app-border" />
+  return <Menubar.Separator className="menubar-separator popover-menu-separator" />
 }
 
 type AppMenuProps = {
@@ -151,13 +153,12 @@ type AppMenuProps = {
   value: AppMenuValue
 } & PopoverSizingProps
 
-type AppMenuValue = 'file' | 'edit' | 'view' | 'window' | 'help'
+type AppMenuValue = 'file' | 'edit' | 'view' | 'help'
 
 const MENU_MNEMONICS: Record<string, AppMenuValue> = {
   f: 'file',
   e: 'edit',
   v: 'view',
-  w: 'window',
   h: 'help',
 }
 
@@ -199,7 +200,7 @@ function AppMenu({
           data-theme-component="dropdown-surface"
           align="start"
           className={cx(
-            'popover-surface menubar-content tw:flex tw:flex-col tw:gap-1 tw:py-1',
+            'popover-surface menubar-content popover-menu-list',
             // Radix 浮动层用 CSS 变量下发可用高度与变换原点，回退链无法用刻度表达。
             'tw:origin-[var(--radix-menubar-content-transform-origin,top_left)]',
             'tw:max-h-[min(calc(100vh_-_96px),var(--radix-menubar-content-available-height,calc(100vh_-_96px)))]',
@@ -226,6 +227,7 @@ export function MenuBar({
   isMaximized,
   canNavigateBack,
   canNavigateForward,
+  onSidebarBoundaryChange,
   onToggleSidebar,
   onMinimize,
   onToggleMaximize,
@@ -243,6 +245,23 @@ export function MenuBar({
   const restoreFocusRef = useRef<HTMLElement | null>(null)
   const ignoreStaleCloseRef = useRef(false)
   const [openMenu, setOpenMenu] = useState<AppMenuValue | ''>('')
+
+  useLayoutEffect(() => {
+    const lastButton = helpMenuTriggerRef.current
+    const menuBar = lastButton?.closest('.app-menubar')
+    if (!lastButton || !menuBar || !onSidebarBoundaryChange) return
+    const update = (): void => {
+      onSidebarBoundaryChange(
+        Math.floor(lastButton.getBoundingClientRect().right - menuBar.getBoundingClientRect().left),
+      )
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(menuBar)
+    observer.observe(lastButton.closest('.menubar-root')!)
+    return () => observer.disconnect()
+  }, [onSidebarBoundaryChange])
+
 
   function closeMenu(): void {
     ignoreStaleCloseRef.current = false
@@ -304,7 +323,7 @@ export function MenuBar({
   }
 
   useEffect(() => {
-    // Windows 桌面菜单行为：Alt/F10 聚焦菜单栏，Alt+F/E/V/W/H 直接打开对应菜单。
+    // Windows 桌面菜单行为：Alt/F10 聚焦菜单栏，Alt+F/E/V/H 直接打开对应菜单。
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.ctrlKey || event.metaKey) return
       if (event.key === 'F10') {
@@ -337,40 +356,50 @@ export function MenuBar({
     >
       <div className="menubar-titlebar tw:flex tw:h-chrome tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:pl-3">
         <div className="menubar-left tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-1 tw:overflow-visible">
-          <Button
-            isIconOnly
-            data-app-shell-sidebar-trigger
-            onClick={onToggleSidebar}
-            color="ghost"
-            size="toolbar"
-            title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+          <Tooltip content="后退" shortcut="Ctrl+[" side="bottom">
+            <Button
+              isIconOnly
+              disabled={!canNavigateBack}
+              color="ghost"
+              onClick={() => onViewMenuAction('back')}
+              size="toolbar"
+              title="后退"
+            >
+              <ChevronLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </Button>
+          </Tooltip>
+          <Tooltip content="前进" shortcut="Ctrl+]" side="bottom">
+            <Button
+              isIconOnly
+              disabled={!canNavigateForward}
+              color="ghost"
+              onClick={() => onViewMenuAction('forward')}
+              size="toolbar"
+              title="前进"
+            >
+              <ChevronRight size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </Button>
+          </Tooltip>
+          <Tooltip
+            content={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+            shortcut="Ctrl+B"
+            side="bottom"
           >
-            {sidebarCollapsed ? (
-              <PanelLeftOpen size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            ) : (
-              <PanelLeftClose size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            )}
-          </Button>
-          <Button
-            isIconOnly
-            disabled={!canNavigateBack}
-            color="ghost"
-            onClick={() => onViewMenuAction('back')}
-            size="toolbar"
-            title="后退"
-          >
-            <ChevronLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </Button>
-          <Button
-            isIconOnly
-            disabled={!canNavigateForward}
-            color="ghost"
-            onClick={() => onViewMenuAction('forward')}
-            size="toolbar"
-            title="前进"
-          >
-            <ChevronRight size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </Button>
+            <Button
+              isIconOnly
+              data-app-shell-sidebar-trigger
+              onClick={onToggleSidebar}
+              color="ghost"
+              size="toolbar"
+              title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpen size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              ) : (
+                <PanelLeftClose size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              )}
+            </Button>
+          </Tooltip>
 
           <Menubar.Root
             aria-label="应用菜单"
@@ -509,7 +538,7 @@ export function MenuBar({
             </AppMenu>
 
             <AppMenu
-              label="查看"
+              label="视图"
               onRequestClose={closeMenu}
               triggerRef={(ref) => {
                 menuTriggerRefs.current.view = ref
@@ -624,18 +653,6 @@ export function MenuBar({
               >
                 切换全屏
               </MenuItem>
-            </AppMenu>
-
-            <AppMenu
-              contentClassName="menubar-content-window"
-              label="窗口"
-              onRequestClose={closeMenu}
-              triggerRef={(ref) => {
-                menuTriggerRefs.current.window = ref
-              }}
-              value="window"
-              size="md"
-            >
               <MenuItem
                 disabled={!isWindowActionEnabled('minimize')}
                 shortcut="Ctrl+M"

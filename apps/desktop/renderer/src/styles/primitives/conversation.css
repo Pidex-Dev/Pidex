@@ -105,10 +105,6 @@
     max-width: 100%;
   }
 
-  .conversation-page .thread-summary-panel {
-    border-color: color-mix(in srgb, var(--cpx-sys-color-border-subtle) 82%, transparent);
-  }
-
   /*
    * The timeline container is shared with other hosts, so the conversation
    * shell keeps its own full-width reset instead of a global utility.

@@ -48,7 +48,7 @@ export function BrowserAnnotationCard({
           <div>
             <textarea
               aria-label="编辑批注反馈"
-              className="tw:my-1 tw:block tw:w-full tw:resize-y tw:rounded-sm tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-1 tw:text-inherit tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+              className="tw:my-1 tw:block tw:w-full tw:field-sizing-content tw:min-h-14 tw:max-h-48 tw:resize-y tw:overflow-y-auto tw:rounded-sm tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-1 tw:text-inherit tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
               value={body}
               onChange={(event) => {
                 setBody(event.target.value)

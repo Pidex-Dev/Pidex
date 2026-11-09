@@ -45,27 +45,7 @@
   /* --- Branch popover internals ------------------------------------- */
 
   .popover.popover-thread-summary-branch {
-    width: min(360px, calc(100vw - 32px));
     max-height: min(320px, calc(100vh - 96px));
-    padding: var(--cpx-sys-space-1);
-  }
-
-  .popover.popover-thread-summary-branch .popover-item,
-  .popover.popover-thread-summary-branch .popover-sub-trigger {
-    gap: var(--cpx-sys-space-2);
-    min-height: 32px;
-    padding: var(--cpx-sys-space-2);
-    border-radius: var(--cpx-sys-radius-md);
-  }
-
-  .popover.popover-thread-summary-branch .popover-section-title {
-    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3) var(--cpx-sys-space-2);
-    font: var(--cpx-sys-type-label);
-  }
-
-  .popover.popover-thread-summary-branch .popover-empty {
-    padding: var(--cpx-sys-space-3);
-    font: var(--cpx-sys-type-body-sm);
   }
 
   .popover.popover-branch,
@@ -466,32 +446,12 @@
 
   /* --- Thread summary panel ----------------------------------------- */
 
-  .thread-summary-panel,
-  .thread-summary-error {
-    border-radius: var(--cpx-sys-radius-prominent);
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
   @supports (corner-shape: superellipse(1.5)) {
-    .thread-summary-panel,
     .thread-summary-error {
       corner-shape: var(--cpx-sys-corner-shape);
     }
   }
 
-  /*
-   * The panel keeps its base surface and the popover reset in one layer:
-   * `max-height`/`border-radius` resolve through `inherit`, so the override has
-   * to outrank the panel inside the same cascade layer as before.
-   */
-  .thread-summary-panel {
-    max-height: 100%;
-    border: 0;
-    background: var(--cpx-sys-color-surface-raised);
-    box-shadow: var(--cpx-sys-shadow-prominent);
-  }
-
-  .thread-summary-popover .thread-summary-panel,
   .thread-summary-popover .thread-summary-error {
     max-height: inherit;
     border: 0;
@@ -557,12 +517,6 @@
     --thread-scroll-viewport-height: 100%;
 
     scrollbar-gutter: stable;
-  }
-
-  /* --- Thread summary geometry -------------------------------------- */
-
-  .thread-summary-popover {
-    --thread-summary-inline-width: calc(var(--cpx-sys-space-1) * 75);
   }
 
   /* --- Quick chat surface geometry ---------------------------------- */
@@ -641,7 +595,6 @@
   /* --- Forced-colors surfaces --------------------------------------- */
 
   @media (forced-colors: active) {
-    .thread-summary-panel,
     .thread-summary-error {
       outline: 1px solid CanvasText;
       box-shadow: none;
@@ -683,6 +636,7 @@
   .thread-summary-error {
     border: var(--cpx-comp-surface-edge);
     border-radius: var(--cpx-sys-radius-container);
+    color: var(--cpx-sys-color-fg-primary);
     background: var(--cpx-comp-surface-raised);
     backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
     box-shadow: var(--cpx-sys-shadow-raised);

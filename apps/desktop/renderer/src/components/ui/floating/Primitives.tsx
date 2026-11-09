@@ -98,7 +98,14 @@ export function Portal({ children, container, anchor }: PortalProps) {
           '[role="dialog"], [role="alertdialog"]',
         ) ?? document.body),
   )
-  const host = container ?? defaultHost
+  const fullscreen = typeof document === 'undefined' ? null : document.fullscreenElement
+  const host =
+    container ??
+    (fullscreen &&
+    fullscreen instanceof HTMLElement &&
+    fullscreen.contains(anchor ?? document.activeElement)
+      ? fullscreen
+      : defaultHost)
   if (!host) return null
   return createPortal(
     <PortalContext.Provider value={host}>{children}</PortalContext.Provider>,

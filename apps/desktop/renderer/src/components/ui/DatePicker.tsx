@@ -250,7 +250,7 @@ export function DatePicker({
           size="lg"
           align="start"
           aria-label={`${t(ariaLabel)} ${t('日历')}`}
-          className="popover-surface ui-date-picker-content tw:z-popover tw:p-3"
+          className="popover-surface ui-date-picker-content tw:z-popover"
           collisionPadding={8}
           sideOffset={4}
           onEscapeKeyDown={() => requestAnimationFrame(() => triggerRef.current?.focus())}

@@ -1,3 +1,4 @@
+import { Button } from '../../../components/ui/Button.js'
 import {
   APP_ICON_SIZES,
   APP_ICON_STROKE_WIDTH,
@@ -172,6 +173,8 @@ export type ProviderModelOption = {
   providerID: ModelProviderID
   displayName: string
   modelPresets: ModelPreset[]
+  /** 未配置凭据的自定义供应商也会进入列表，用于在选择器内直达配置入口。 */
+  apiKeyConfigured?: boolean
   logoURL?: string
   modelMetadata?: Record<string, DesktopModelMetadata>
 }
@@ -288,6 +291,7 @@ export function ModelPickerPopover({
   )
 
   const filteredModels = useMemo(() => {
+    if (currentProvider.apiKeyConfigured === false) return []
     const query = filterText.trim().toLowerCase()
     const models = query
       ? currentProvider.modelPresets.filter(
@@ -769,8 +773,24 @@ export function ModelPickerPopover({
                           )
                         })
                       ) : (
-                        <div className={MODELS_EMPTY_CLASS}>
-                          {filterText ? '没有匹配的模型' : '暂无可用的预设模型'}
+                        <div className={cx(MODELS_EMPTY_CLASS, 'tw:grid tw:justify-items-center tw:gap-2')}>
+                          {currentProvider.apiKeyConfigured === false ? (
+                            <>
+                              <span>该供应商尚未配置 API Key，配置后即可选择模型。</span>
+                              {onOpenModelSettings ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    onOpenChange(false)
+                                    onOpenModelSettings()
+                                  }}
+                                >
+                                  去配置凭据
+                                </Button>
+                              ) : null}
+                            </>
+                          ) : filterText ? '没有匹配的模型' : '暂无可用的预设模型'}
                         </div>
                       )}
                     </div>

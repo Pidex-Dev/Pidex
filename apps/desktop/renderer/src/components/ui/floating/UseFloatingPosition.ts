@@ -39,6 +39,7 @@ export function computeFloatingPosition({
   offset = 6,
   collisionPadding = 8,
   avoidCollisions = true,
+  submenu = false,
 }: {
   anchorRect: Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom' | 'width' | 'height'>
   contentWidth: number
@@ -49,6 +50,7 @@ export function computeFloatingPosition({
   offset?: number
   collisionPadding?: FloatingCollisionPadding
   avoidCollisions?: boolean
+  submenu?: boolean
 }): FloatingCoordinates {
   const padding =
     typeof collisionPadding === 'number'
@@ -60,6 +62,7 @@ export function computeFloatingPosition({
         }
       : { top: 8, right: 8, bottom: 8, left: 8, ...collisionPadding }
   let [side, align = 'center'] = (placement === 'auto' ? 'bottom-start' : placement).split('-')
+  let maxWidth: number | undefined
   if (avoidCollisions) {
     const available = {
       top: anchorRect.top - offset - padding.top,
@@ -70,8 +73,16 @@ export function computeFloatingPosition({
     const opposite = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' } as const
     const current = side as keyof typeof opposite
     const length = side === 'top' || side === 'bottom' ? contentHeight : contentWidth
-    if (available[current] < length && available[opposite[current]] >= length)
+    if (
+      available[current] < length &&
+      (available[opposite[current]] >= length ||
+        (submenu && available[opposite[current]] > available[current]))
+    )
       side = opposite[current]
+    if (submenu) {
+      maxWidth = Math.max(0, Math.floor(side === 'left' ? available.left : available.right))
+      contentWidth = Math.min(contentWidth, maxWidth)
+    }
   }
   let top =
     side === 'top'
@@ -95,12 +106,14 @@ export function computeFloatingPosition({
             : anchorRect.left + (anchorRect.width - contentWidth) / 2
   if (avoidCollisions) {
     top = Math.max(padding.top, Math.min(top, viewportHeight - contentHeight - padding.bottom))
-    left = Math.max(padding.left, Math.min(left, viewportWidth - contentWidth - padding.right))
+    if (!submenu)
+      left = Math.max(padding.left, Math.min(left, viewportWidth - contentWidth - padding.right))
   }
   return {
     top: Math.round(top),
     left: Math.round(left),
     actualPlacement: (side + (align === 'center' ? '' : '-' + align)) as FloatingPlacement,
+    ...(maxWidth === undefined ? {} : { maxWidth }),
   }
 }
 
@@ -118,6 +131,8 @@ export interface UseFloatingPositionOptions {
   /** 距离视口边界的安全内边距（px），默认 8 */
   collisionPadding?: FloatingCollisionPadding
   avoidCollisions?: boolean
+  /** Keep a submenu outside the parent surface and fit it into the chosen side. */
+  submenu?: boolean
   /** 是否使用 fixed 定位（用于 Portal 挂载到 body），默认 true */
   portal?: boolean
 }
@@ -126,6 +141,7 @@ export interface FloatingCoordinates {
   top: number
   left: number
   actualPlacement: FloatingPlacement
+  maxWidth?: number
 }
 
 export interface FloatingUpdateScheduler {
@@ -171,6 +187,7 @@ export function useFloatingPosition({
   offset = 6,
   collisionPadding = 8,
   avoidCollisions = true,
+  submenu = false,
   portal = true,
 }: UseFloatingPositionOptions) {
   const [coords, setCoords] = useState<FloatingCoordinates | null>(null)
@@ -188,8 +205,22 @@ export function useFloatingPosition({
     const contentEl = contentRef.current
     if (!anchorEl || !contentEl || !isOpen) return
 
+    const triggerRect = anchorEl.getBoundingClientRect()
+    const parentRect =
+      submenu && anchorEl instanceof Element
+        ? anchorEl.closest('[data-theme-component="dropdown-surface"]')?.getBoundingClientRect()
+        : undefined
     const computed = computeFloatingPosition({
-      anchorRect: anchorEl.getBoundingClientRect(),
+      anchorRect: parentRect
+        ? {
+            top: triggerRect.top,
+            bottom: triggerRect.bottom,
+            height: triggerRect.height,
+            left: parentRect.left,
+            right: parentRect.right,
+            width: parentRect.width,
+          }
+        : triggerRect,
       contentWidth: contentEl.offsetWidth || 200,
       contentHeight: contentEl.offsetHeight || 180,
       viewportWidth: window.innerWidth,
@@ -198,6 +229,7 @@ export function useFloatingPosition({
       offset,
       collisionPadding,
       avoidCollisions,
+      submenu,
     })
     let { top, left } = computed
     // 非 Portal 模式下转换为相对 offsetParent 的坐标
@@ -219,11 +251,13 @@ export function useFloatingPosition({
         prev &&
         prev.top === nextTop &&
         prev.left === nextLeft &&
-        prev.actualPlacement === nextPlacement
+        prev.actualPlacement === nextPlacement &&
+        prev.maxWidth === computed.maxWidth
       ) {
         return prev
       }
       return {
+        ...computed,
         top: nextTop,
         left: nextLeft,
         actualPlacement: nextPlacement,
@@ -237,6 +271,7 @@ export function useFloatingPosition({
     offset,
     collisionPadding,
     avoidCollisions,
+    submenu,
     portal,
   ])
 
@@ -284,6 +319,7 @@ export function useFloatingPosition({
     position: portal ? 'fixed' : 'absolute',
     top: coords ? `${coords.top}px` : '-9999px',
     left: coords ? `${coords.left}px` : '-9999px',
+    maxWidth: coords?.maxWidth,
     visibility: coords ? 'visible' : 'hidden',
     pointerEvents: coords ? 'auto' : 'none',
   }

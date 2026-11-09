@@ -368,13 +368,12 @@ describe('Codex CPX design system token contract', () => {
   })
 
   test('keeps prominent elevation distinct from flat and transient surfaces', async () => {
-    const [systemTokens, componentTokens, composer, summary, rightDock] = await Promise.all([
+    const [systemTokens, componentTokens, composer, rightDock] = await Promise.all([
       Bun.file(new URL('../src/styles/design-system/tokens.css', import.meta.url)).text(),
       Bun.file(
         new URL('../src/styles/design-system/codex-semantic-tokens.css', import.meta.url),
       ).text(),
       Bun.file(new URL('../src/styles/primitives/composer.css', import.meta.url)).text(),
-      Bun.file(new URL('../src/styles/primitives/session.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/features/layout-right-dock.css', import.meta.url)).text(),
     ])
 
@@ -388,12 +387,6 @@ describe('Codex CPX design system token contract', () => {
       /\.composer\s*\{[\s\S]*?box-shadow: var\(--cpx-comp-composer-shadow\);/,
     )
     expectSourceNotContains(composer, 'box-shadow: var(--cpx-sys-shadow-floating)')
-    expect(summary).toMatch(
-      /\.thread-summary-panel\s*\{[\s\S]*?box-shadow: var\(--cpx-sys-shadow-prominent\);/,
-    )
-    expect(summary).toMatch(
-      /\.thread-summary-popover \.thread-summary-panel,[\s\S]*?box-shadow: none;/,
-    )
     expectSourceNotContains(rightDock, '--cpx-sys-shadow-prominent')
   })
 
@@ -541,7 +534,7 @@ describe('Codex CPX design system token contract', () => {
     )
     expectSourceNotContains(conversation, 'var(--cpx-sys-radius-optical-scale)')
     expectSourceContains(conversation, 'corner-shape: var(--cpx-sys-corner-shape);')
-    expectSourceContains(summary, 'border-radius: var(--cpx-sys-radius-prominent);')
+    expectSourceContains(summary, 'border-radius: var(--cpx-sys-radius-container);')
     expectSourceContains(summary, 'corner-shape: var(--cpx-sys-corner-shape);')
     expectSourceNotContains(rightDock, '--cpx-sys-radius-prominent')
   })
@@ -564,20 +557,14 @@ describe('Codex CPX design system token contract', () => {
     expectSourceContains(conversation, 'background: var(--cpx-sys-color-message-user-bg);')
     expectSourceNotContains(conversation, 'var(--cpx-sys-color-surface-panel) 78%')
 
-    expect(summary.match(/--thread-summary-inline-width:/g)).toHaveLength(1)
-    expect(summary).toMatch(
-      /\.thread-summary-popover\s*\{[\s\S]*?--thread-summary-inline-width: calc\(var\(--cpx-sys-space-1\) \* 75\);/,
-    )
+    expect(summary).not.toContain('--thread-summary-inline-width')
+    expect(threadSummary).not.toContain('tw:w-[var(--thread-summary-inline-width)]')
+    expect(threadSummary).toContain('thread-summary-popover tw:w-65 tw:p-1.25')
     expect(threadSummary).toContain(
-      'thread-summary-popover tw:w-[var(--thread-summary-inline-width)]',
+      'tw:w-full tw:flex tw:min-h-0 tw:flex-col tw:gap-1',
     )
-    expect(threadSummary).toContain('tw:[&]:p-0')
-    expect(threadSummary).toContain(
-      'thread-summary-panel tw:w-full tw:flex tw:min-h-0 tw:flex-col tw:gap-1',
-    )
-    expect(threadSummary).toContain('tw:overflow-y-auto tw:py-2')
+    expect(threadSummary).toContain('tw:overflow-y-auto tw:[scrollbar-width:thin]')
     expect(threadSummary).toContain('tw:pb-2 tw:last:pb-0')
-    expect(threadSummary).toContain('tw:max-w-[calc(100vw-24px)]')
     expect(threadSummary).not.toContain('thread-summary-inline tw:absolute')
     expect(conversation).not.toContain('--conversation-shift-offset')
   })
@@ -787,7 +774,7 @@ describe('UI-Design native floating behavior', () => {
       Bun.file(new URL('../src/features/settings/ProfileSettings.tsx', import.meta.url)).text(),
     ])
     expect(actions).toContain('popover-surface popover popover-menu--grid tw:text-app-text')
-    expect(popover).toContain("asChild ? '' : 'tw:p-3.5'")
+    expect(popover).toContain("asChild ? '' : 'popover-panel-spacing'")
     expect(profile).toContain('style={{ padding: 0 }}')
   })
   test('search filters text and descriptions, supports Chinese and clearing', () => {
@@ -959,6 +946,22 @@ describe('UI-Design native floating behavior', () => {
         collisionPadding: { right: 20 },
       }).left,
     ).toBe(500)
+  })
+
+  test('fits a wide submenu beside its parent even when neither side fits its natural width', () => {
+    const anchorRect = { left: 260, right: 660, top: 550, bottom: 580, width: 400, height: 30 }
+    const position = computeFloatingPosition({
+      anchorRect,
+      contentWidth: 320,
+      contentHeight: 200,
+      viewportWidth: 800,
+      viewportHeight: 600,
+      placement: 'right-start',
+      offset: 4,
+      submenu: true,
+    })
+    expect(position).toEqual({ actualPlacement: 'left-start', left: 8, top: 392, maxWidth: 248 })
+    expect(position.left + (position.maxWidth ?? 0)).toBe(anchorRect.left - 4)
   })
 
   test('native layered dismissal, controlled search and submenu focus stay in shared components', async () => {

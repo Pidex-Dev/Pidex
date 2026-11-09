@@ -40,11 +40,6 @@ type RadioItemProps = BaseProps & {
   value: string
 }
 
-/*
- * Shortcuts sit on the row's right edge out of flow, so a keyboard hint never
- * widens the menu. They fade in on hover or keyboard highlight, while
- * `OverflowTitle` reserves their measured width along with the label scroll.
- */
 function renderShortcut(shortcut: React.ReactNode): React.ReactNode {
   if (!shortcut) return null
   return (
@@ -54,11 +49,6 @@ function renderShortcut(shortcut: React.ReactNode): React.ReactNode {
   )
 }
 
-/*
- * Rows with any trailing content keep the shortcut inside that cell (left of the
- * check mark or arrow) so nothing overlaps; rows without trailing content get a
- * zero-width trailing cell that still anchors the shortcut on the row edge.
- */
 function renderTrailingWithShortcut({
   arrowDirection,
   indicator,
@@ -74,8 +64,8 @@ function renderTrailingWithShortcut({
   if (!trailing && !shortcut) return undefined
   return (
     <>
-      {trailing}
       {renderShortcut(shortcut)}
+      {trailing}
     </>
   )
 }
@@ -338,7 +328,7 @@ export function PopoverLabel({
 }: React.ComponentPropsWithoutRef<typeof DropdownMenu.Label>): React.ReactNode {
   return (
     <DropdownMenu.Label
-      className={cx(className, 'tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label')}
+      className={cx(className, 'popover-header')}
     >
       {children}
     </DropdownMenu.Label>
@@ -348,5 +338,5 @@ export function PopoverLabel({
 export function PopoverSeparator({
   className = 'popover-divider',
 }: React.ComponentPropsWithoutRef<typeof DropdownMenu.Separator>): React.ReactNode {
-  return <DropdownMenu.Separator className={cx(className, 'tw:h-px tw:my-1 tw:bg-app-border')} />
+  return <DropdownMenu.Separator className={cx(className, 'popover-menu-separator')} />
 }

@@ -173,13 +173,6 @@ function QuestionAnswerFormInstance({
   }, [questionCount])
 
   React.useLayoutEffect(() => {
-    const input = customInputRef.current
-    if (!input) return
-    input.style.height = 'auto'
-    input.style.height = `${Math.min(input.scrollHeight, 120)}px`
-  }, [currentQuestionIndex, questionStates])
-
-  React.useLayoutEffect(() => {
     if (!focusFirstOptionRef.current) return
     focusFirstOptionRef.current = false
     approvalRef.current
@@ -478,7 +471,7 @@ function QuestionAnswerFormInstance({
         ) : null}
         <textarea
           ref={customInputRef}
-          className="ask-user-question-custom-input tw:block tw:w-full tw:min-w-0 tw:min-h-[1.5em] tw:max-h-[120px] tw:resize-none tw:overflow-y-auto tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:type-body tw:wrap-anywhere tw:outline-none tw:placeholder:text-app-text-meta"
+          className="ask-user-question-custom-input tw:block tw:w-full tw:min-w-0 tw:field-sizing-content tw:min-h-[1.5em] tw:max-h-[120px] tw:resize-none tw:overflow-y-auto tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:type-body tw:wrap-anywhere tw:outline-none tw:placeholder:text-app-text-meta"
           aria-label="自定义回答"
           placeholder="输入你的回答"
           rows={1}

@@ -67,7 +67,7 @@ function GitBoardCommitHoverCardOverlay({
     <SidebarHoverCardSurface
       {...interactionProps}
       ariaLabel={ariaLabel}
-      className="sidebar-commit-hover-card tw:min-w-[200px] tw:max-w-[280px] tw:px-3 tw:py-2"
+      className="sidebar-commit-hover-card"
       positionOutsideSidebar
     >
       <SidebarHoverCardFrame className="sidebar-commit-hover-card-content tw:flex tw:min-w-0 tw:flex-col tw:gap-2">

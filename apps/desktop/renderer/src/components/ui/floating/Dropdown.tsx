@@ -290,7 +290,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
         data-theme-component="dropdown-surface"
         tabIndex={-1}
         style={{ ...floatingStyle, ...style }}
-        className={`popover-surface popover tw:py-1.5 tw:select-none tw:text-[var(--cpx-sys-color-fg-primary)] ${className}`}
+        className={`popover-surface popover popover-menu-list tw:select-none tw:text-[var(--cpx-sys-color-fg-primary)] ${className}`}
         onKeyDown={(event) => {
           onKeyDown?.(event)
           if (
@@ -356,7 +356,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
           role={context.mode === 'menu' ? 'menu' : 'listbox'}
           id={listboxId}
           aria-label={listLabel ?? props['aria-label'] ?? (title || searchPlaceholder)}
-          className={`tw:flex tw:flex-col tw:gap-0.5 ${context.mode === 'select' ? 'tw:max-h-[220px] tw:overflow-y-auto' : ''}`}
+          className={`popover-menu-list ${context.mode === 'select' ? 'tw:max-h-[220px] tw:overflow-y-auto' : ''}`}
         >
           <SearchContext.Provider value={showSearch ? query : ''}>
             {children}
@@ -486,33 +486,31 @@ const DropdownItem = forwardRef<HTMLDivElement, DropdownItemProps>(
         className={
           asChild
             ? `${hidden ? 'tw:hidden' : ''} ${className}`
-            : `tw:px-2.5 tw:py-1.5 tw:type-control tw:rounded-[var(--cpx-sys-radius-control)] tw:cursor-pointer tw:items-center tw:justify-between tw:transition-colors tw:outline-none ${hidden ? 'tw:hidden' : 'tw:flex'} ${disabled || context.disabled ? 'tw:opacity-40 tw:cursor-not-allowed' : highlighted ? 'tw:bg-[var(--cpx-sys-color-hover)] tw:text-[var(--cpx-sys-color-fg-primary)]' : selected ? 'tw:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]' : 'tw:text-[var(--cpx-sys-color-fg-secondary)] tw:hover:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]'} ${className}`
+            : `popover-menu-option tw:type-control tw:rounded-[var(--cpx-sys-radius-control)] tw:cursor-pointer tw:items-center tw:justify-between tw:transition-colors tw:outline-none ${hidden ? 'tw:hidden' : 'tw:flex'} ${disabled || context.disabled ? 'tw:opacity-40 tw:cursor-not-allowed' : highlighted ? 'tw:bg-[var(--cpx-sys-color-hover)] tw:text-[var(--cpx-sys-color-fg-primary)]' : selected ? 'tw:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]' : 'tw:text-[var(--cpx-sys-color-fg-secondary)] tw:hover:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]'} ${className}`
         }
       >
         {asChild ? (
           children
         ) : (
           <>
-            <div className="tw:flex tw:items-center tw:gap-2 tw:min-w-0 tw:pr-1">
-              {icon && (
-                <span className="tw:shrink-0 tw:[&>svg]:size-[var(--inline-icon-size,1em)]">
-                  {icon}
-                </span>
+            {icon && (
+              <span className="menu-column-leading tw:shrink-0 tw:[&>svg]:size-[var(--inline-icon-size,1em)]">
+                {icon}
+              </span>
+            )}
+            <div className="menu-column-label tw:min-w-0">
+              <div className="tw:truncate">{children}</div>
+              {description && (
+                <div className="menu-column-detail tw:type-caption tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:whitespace-normal tw:wrap-anywhere tw:mt-0.5">
+                  {description}
+                </div>
               )}
-              <div className="tw:min-w-0">
-                <div className="tw:truncate">{children}</div>
-                {description && (
-                  <div className="tw:type-caption tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:truncate tw:mt-0.5">
-                    {description}
-                  </div>
-                )}
-              </div>
             </div>
             {selected && (
               <Check
                 size="var(--inline-icon-size, 1em)"
                 strokeWidth={2.8}
-                className="tw:flex-shrink-0 tw:ml-1.5"
+                className="menu-column-trailing tw:shrink-0"
               />
             )}
           </>
