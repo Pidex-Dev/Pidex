@@ -161,6 +161,7 @@ import { toastStore } from '../../../components/toast/ToastState.js'
 import { Archive } from 'lucide-react'
 import { toUserErrorMessage } from '../../../utils/Errors.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { MediaViewerHost } from '../../session/attachments/MediaViewer.js'
 import type { ThreadArtifactPreviewInput } from '../../session/attachments/AttachmentPreviewDescriptor.js'
 import { desktopBrowserClient } from '../../../services/desktop-client/DesktopBrowserClient.js'
 
@@ -3681,6 +3682,7 @@ export function DesktopLayout(): React.ReactNode {
     () =>
       isQuickChatPage || isConversationRoute
         ? {
+            previewComposer: true,
             inputBinding,
             messages: isConversationRoute ? [] : messages,
             placement: isQuickChatPage ? 'new-session' : 'thread',
@@ -4075,7 +4077,7 @@ export function DesktopLayout(): React.ReactNode {
   const rightDockNode = renderWorkbenchPanel('right')
   const bottomPanelNode = renderWorkbenchPanel('bottom')
 
-  return (
+  const desktop = (
     <AutomationControllerProvider
       enabled={location.pathname === '/automations' || scheduledSidebarMounted}
     >
@@ -4381,6 +4383,11 @@ export function DesktopLayout(): React.ReactNode {
         />
       </div>
     </AutomationControllerProvider>
+  )
+  return (
+    <MediaViewerHost onOpenInDock={openRightDockTab} sessionId={sessionId}>
+      {desktop}
+    </MediaViewerHost>
   )
 }
 

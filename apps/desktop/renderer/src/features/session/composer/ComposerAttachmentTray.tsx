@@ -1,3 +1,6 @@
+import { useMediaViewer } from '../attachments/MediaViewerContext.js'
+import { createDraftAttachmentPreviewTab } from '../attachments/AttachmentPreviewDescriptor.js'
+import { isMediaPreviewKind } from '../attachments/AttachmentPreviewSupport.js'
 import {
   APP_ICON_SIZES,
   APP_ICON_STROKE_WIDTH,
@@ -133,7 +136,28 @@ function resolveFileCategory(name: string, kind: string): { bg: string; icon: Re
   }
 }
 
-export function ComposerAttachmentTray({ attachments, onOpen, onRemove }: Props): React.ReactNode {
+export function ComposerAttachmentTray({
+  attachments,
+  onOpen: openInDock,
+  onRemove,
+}: Props): React.ReactNode {
+  const viewer = useMediaViewer()
+  const onOpen =
+    openInDock &&
+    ((attachment: DesktopComposerAttachment) => {
+      if (viewer && attachment.kind !== 'video' && isMediaPreviewKind(attachment.kind)) {
+        const items = attachments
+          .filter((item) => isMediaPreviewKind(item.kind))
+          .map(createDraftAttachmentPreviewTab)
+          .filter((item) => item !== null)
+        const index = items.findIndex((item) => item.attachment.id === attachment.id)
+        if (index !== -1) {
+          viewer.open(items, index)
+          return
+        }
+      }
+      openInDock(attachment)
+    })
   if (attachments.length === 0) return null
 
   return (

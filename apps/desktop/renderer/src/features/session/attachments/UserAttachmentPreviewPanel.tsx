@@ -1,5 +1,9 @@
+import { AttachmentMediaPlayer } from './AttachmentMediaPlayer.js'
+import { createPortal } from 'react-dom'
+import { useMediaViewer } from './MediaViewerContext.js'
+import { isMediaPreviewKind } from './AttachmentPreviewSupport.js'
 import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
-import { Copy, Download, Maximize2, Minus, Plus } from 'lucide-react'
+import { Copy, Download, Maximize2 } from 'lucide-react'
 import {
   lazy,
   Suspense,
@@ -11,9 +15,9 @@ import {
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
-  type WheelEvent as ReactWheelEvent,
 } from 'react'
 import { Button } from '../../../components/ui/Button.js'
+import { Select } from '../../../components/ui/Select.js'
 
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
@@ -32,6 +36,9 @@ const IMAGE_SCALE_STEP = 1.2
 
 type Props = {
   tab: UserAttachmentPreviewTab
+  fullscreen?: boolean
+  imageToolbar?: HTMLElement | null
+  imageComposer?: HTMLElement | null
 }
 
 export type FormattedAttachmentText = {
@@ -41,14 +48,33 @@ export type FormattedAttachmentText = {
   jsonInvalid: boolean
 }
 
-export function UserAttachmentPreviewPanel({ tab }: Props): React.ReactNode {
+export function UserAttachmentPreviewPanel({
+  tab,
+  fullscreen,
+  imageToolbar,
+  imageComposer,
+}: Props): React.ReactNode {
   if (tab.attachment.kind === 'directory') {
     return <DirectoryAttachmentPreview tab={tab} />
   }
-  return <UserAttachmentFilePreview tab={tab} />
+  return (
+    <UserAttachmentFilePreview
+      key={tab.attachment.id}
+      tab={tab}
+      fullscreen={fullscreen}
+      imageToolbar={imageToolbar}
+      imageComposer={imageComposer}
+    />
+  )
 }
 
-function UserAttachmentFilePreview({ tab }: Props): React.ReactNode {
+function UserAttachmentFilePreview({
+  tab,
+  fullscreen,
+  imageToolbar,
+  imageComposer,
+}: Props): React.ReactNode {
+  const viewer = useMediaViewer()
   const state = useUserAttachmentPreview(tab)
 
   if (state.status === 'loading') {
@@ -66,6 +92,11 @@ function UserAttachmentFilePreview({ tab }: Props): React.ReactNode {
   }
 
   const { attachment, data, encoding } = state.value
+  const isMedia = isMediaPreviewKind(attachment.kind)
+  const openFullscreen = viewer && isMedia && !fullscreen ? () => viewer.open([tab], 0) : undefined
+  if ((attachment.kind === 'video' || attachment.kind === 'audio') && encoding === 'base64') {
+    return <PlayableAttachment value={state.value} />
+  }
   const supported =
     attachment.kind === 'image'
       ? encoding === 'base64' && IMAGE_MEDIA_TYPES.has(attachment.mediaType)
@@ -83,7 +114,13 @@ function UserAttachmentFilePreview({ tab }: Props): React.ReactNode {
   }
 
   return attachment.kind === 'image' ? (
-    <ImageAttachmentPreview value={state.value} />
+    <ImageAttachmentPreview
+      value={state.value}
+      onFullscreen={openFullscreen}
+      fullscreen={fullscreen}
+      imageToolbar={imageToolbar}
+      imageComposer={imageComposer}
+    />
   ) : (
     <TextAttachmentPreview value={state.value} />
   )
@@ -245,36 +282,72 @@ function AttachmentToolbar({
   )
 }
 
-function ImageAttachmentPreview({ value }: { value: LoadedUserAttachment }): React.ReactNode {
+function ImageAttachmentPreview({
+  value,
+  onFullscreen,
+  fullscreen,
+  imageToolbar,
+  imageComposer,
+}: {
+  value: LoadedUserAttachment
+  onFullscreen?: () => void
+  fullscreen?: boolean
+  imageToolbar?: HTMLElement | null
+  imageComposer?: HTMLElement | null
+}): React.ReactNode {
   const viewportRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ pointerId: number; x: number; y: number } | null>(null)
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 })
   const [scale, setScale] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [message, setMessage] = useState('')
-  const source = `data:${value.attachment.mediaType};base64,${value.data}`
+  const { source, failed, setFailed } = useMediaObjectUrl(value)
 
   const fitImage = useCallback(() => {
     const viewport = viewportRef.current
     if (!viewport || naturalSize.width <= 0 || naturalSize.height <= 0) return
+    const bounds = viewport.getBoundingClientRect()
+    const top = imageToolbar
+      ? Math.max(0, imageToolbar.getBoundingClientRect().bottom - bounds.top) + 12
+      : 0
+    const bottom = imageComposer
+      ? Math.max(0, bounds.bottom - imageComposer.getBoundingClientRect().top) + 12
+      : 0
     setScale(
       calculateImageContainScale(
         viewport.clientWidth,
-        viewport.clientHeight,
+        Math.max(1, viewport.clientHeight - top - bottom),
         naturalSize.width,
         naturalSize.height,
       ),
     )
-    setPan({ x: 0, y: 0 })
-  }, [naturalSize])
+    setPan({ x: 0, y: (top - bottom) / 2 })
+  }, [naturalSize, imageToolbar, imageComposer])
 
   useEffect(() => {
     const viewport = viewportRef.current
     if (!viewport || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(() => fitImage())
+    fitImage()
+    const fitBounds = () =>
+      [
+        viewport.clientWidth,
+        viewport.clientHeight,
+        imageToolbar?.getBoundingClientRect().bottom ?? 0,
+        imageComposer?.getBoundingClientRect().top ?? 0,
+      ].join(':')
+    let previousBounds = fitBounds()
+    const observer = new ResizeObserver(() => {
+      const bounds = fitBounds()
+      // 百分比变化只改变工具栏宽度，不应把用户缩放重置为适应窗口。
+      if (bounds === previousBounds) return
+      previousBounds = bounds
+      fitImage()
+    })
     observer.observe(viewport)
+    if (imageToolbar) observer.observe(imageToolbar)
+    if (imageComposer) observer.observe(imageComposer)
     return () => observer.disconnect()
-  }, [fitImage])
+  }, [fitImage, imageToolbar, imageComposer])
 
   useLayoutEffect(() => {
     setNaturalSize({ width: 0, height: 0 })
@@ -312,11 +385,24 @@ function ImageAttachmentPreview({ value }: { value: LoadedUserAttachment }): Rea
   const handlePointerEnd = (event: ReactPointerEvent<HTMLImageElement>) => {
     if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null
   }
-  const handleWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
-    if (!event.ctrlKey) return
-    event.preventDefault()
-    changeScale(event.deltaY < 0 ? IMAGE_SCALE_STEP : 1 / IMAGE_SCALE_STEP)
-  }
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      if (event.ctrlKey) {
+        if (event.deltaY) changeScale(event.deltaY < 0 ? IMAGE_SCALE_STEP : 1 / IMAGE_SCALE_STEP)
+      } else {
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientHeight : 1
+        setPan((current) => ({
+          x: current.x - event.deltaX * unit,
+          y: current.y - event.deltaY * unit,
+        }))
+      }
+    }
+    viewport.addEventListener('wheel', handleWheel, { passive: false })
+    return () => viewport.removeEventListener('wheel', handleWheel)
+  }, [changeScale])
   const handleDownload = () => {
     setMessage('')
     void saveOriginalAttachment(value).then(
@@ -325,91 +411,153 @@ function ImageAttachmentPreview({ value }: { value: LoadedUserAttachment }): Rea
     )
   }
 
-  return (
-    <section style={panelStyle}>
-      <AttachmentToolbar value={value}>
+  const controls = (
+    <>
+      {onFullscreen ? (
         <Button
           isIconOnly
-          color="ghostSecondary"
-          disabled={scale <= MIN_IMAGE_SCALE}
-          onClick={() => changeScale(1 / IMAGE_SCALE_STEP)}
           size="toolbar"
-          title="缩小"
-        >
-          <Minus size={APP_ICON_SIZE} />
-        </Button>
-        <small style={zoomStyle}>{Math.round(scale * 100)}%</small>
-        <Button
-          isIconOnly
-          color="ghostSecondary"
-          onClick={fitImage}
-          size="toolbar"
-          title="适应窗口"
+          aria-label="全屏预览"
+          title="全屏预览"
+          onClick={onFullscreen}
         >
           <Maximize2 size={APP_ICON_SIZE} />
         </Button>
-        <Button
-          isIconOnly
-          color="ghostSecondary"
-          disabled={scale >= MAX_IMAGE_SCALE}
-          onClick={() => changeScale(IMAGE_SCALE_STEP)}
-          size="toolbar"
-          title="放大"
-        >
-          <Plus size={APP_ICON_SIZE} />
-        </Button>
-        <Button
-          isIconOnly
-          color="ghostSecondary"
-          onClick={handleDownload}
-          size="toolbar"
-          title="下载"
-        >
-          <Download size={APP_ICON_SIZE} />
-        </Button>
-      </AttachmentToolbar>
-      <div onWheel={handleWheel} ref={viewportRef} style={imageViewportStyle}>
-        <img
-          alt={value.attachment.name}
-          draggable={false}
-          onLoad={(event) => {
-            const nextSize = {
-              width: event.currentTarget.naturalWidth,
-              height: event.currentTarget.naturalHeight,
-            }
-            setNaturalSize(nextSize)
-            const viewport = viewportRef.current
-            if (viewport) {
-              setScale(
-                calculateImageContainScale(
-                  viewport.clientWidth,
-                  viewport.clientHeight,
-                  nextSize.width,
-                  nextSize.height,
-                ),
-              )
-            }
+      ) : null}
+      <Select
+        ariaLabel="图片缩放"
+        triggerClassName={
+          fullscreen
+            ? 'tw:rounded-control tw:h-10 tw:px-3 tw:bg-app-canvas tw:text-app-text'
+            : undefined
+        }
+        size="sm"
+        value={String(scale)}
+        placeholder={Math.round(scale * 100) + '%'}
+        options={[
+          { value: 'fit', label: '适应窗口' },
+          ...[25, 50, 100, 150, 200].map((percent) => ({
+            value: String(percent / 100),
+            label: percent + '%',
+          })),
+        ]}
+        onValueChange={(next) => {
+          if (next === 'fit') fitImage()
+          else {
+            setScale(Number(next))
             setPan({ x: 0, y: 0 })
-          }}
-          onPointerCancel={handlePointerEnd}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerEnd}
-          src={source}
-          style={{
-            ...imageStyle,
-            cursor: canPan() ? 'grab' : 'default',
-            height: naturalSize.height > 0 ? naturalSize.height * scale : undefined,
-            touchAction: canPan() ? 'none' : 'auto',
-            transform: `translate(${pan.x}px, ${pan.y}px)`,
-            width: naturalSize.width > 0 ? naturalSize.width * scale : undefined,
-          }}
-        />
+          }
+        }}
+      />
+      <Button
+        isIconOnly
+        variant="primary"
+        className={fullscreen ? 'tw:bg-app-canvas tw:text-app-text' : undefined}
+        onClick={handleDownload}
+        shape="round"
+        size={fullscreen ? 'lg' : 'toolbar'}
+        title="下载"
+      >
+        <Download size={APP_ICON_SIZE} />
+      </Button>
+    </>
+  )
+
+  return (
+    <section style={panelStyle}>
+      {fullscreen ? (
+        imageToolbar && createPortal(controls, imageToolbar)
+      ) : (
+        <AttachmentToolbar value={value}>{controls}</AttachmentToolbar>
+      )}
+      <div
+        ref={viewportRef}
+        style={
+          fullscreen ? { ...imageViewportStyle, background: 'transparent' } : imageViewportStyle
+        }
+      >
+        {failed ? (
+          <p role="status">图片无法显示。</p>
+        ) : (
+          source && (
+            <img
+              onError={() => setFailed(true)}
+              alt={value.attachment.name}
+              draggable={false}
+              onLoad={(event) => {
+                const nextSize = {
+                  width: event.currentTarget.naturalWidth,
+                  height: event.currentTarget.naturalHeight,
+                }
+                setNaturalSize(nextSize)
+              }}
+              onPointerCancel={handlePointerEnd}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerEnd}
+              src={source}
+              style={{
+                ...imageStyle,
+                flexShrink: 0,
+                cursor: canPan() ? 'grab' : 'default',
+                height: naturalSize.height > 0 ? naturalSize.height * scale : undefined,
+                touchAction: canPan() ? 'none' : 'auto',
+                transform: `translate(${pan.x}px, ${pan.y}px)`,
+                width: naturalSize.width > 0 ? naturalSize.width * scale : undefined,
+              }}
+            />
+          )
+        )}
       </div>
       <div aria-live="polite" style={messageStyle}>
         {message}
       </div>
     </section>
+  )
+}
+
+function useMediaObjectUrl(value: LoadedUserAttachment) {
+  const [source, setSource] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    setFailed(false)
+    let url: string
+    try {
+      const bytes = Uint8Array.from(atob(value.data), (char) => char.charCodeAt(0))
+      url = URL.createObjectURL(new Blob([bytes], { type: value.attachment.mediaType }))
+    } catch {
+      setSource(null)
+      setFailed(true)
+      return
+    }
+    setSource(url)
+    return () => URL.revokeObjectURL(url)
+  }, [value.data, value.attachment.mediaType])
+  return { source, failed, setFailed }
+}
+
+function PlayableAttachment({ value }: { value: LoadedUserAttachment }): React.ReactNode {
+  const { source, failed, setFailed } = useMediaObjectUrl(value)
+  if (failed)
+    return (
+      <div className="right-dock-empty-state" role="status">
+        当前编码无法播放。
+      </div>
+    )
+  if (!source)
+    return (
+      <div className="right-dock-empty-state" role="status">
+        正在读取媒体…
+      </div>
+    )
+  return (
+    <AttachmentMediaPlayer
+      key={source}
+      kind={value.attachment.kind === 'video' ? 'video' : 'audio'}
+      name={value.attachment.name}
+      source={source}
+      onError={() => setFailed(true)}
+    />
   )
 }
 
@@ -566,6 +714,9 @@ function formatByteSize(sizeBytes: number): string {
 const panelStyle: CSSProperties = {
   position: 'relative',
   display: 'flex',
+  flex: '1 1 auto',
+  width: '100%',
+  minWidth: 0,
   minHeight: 0,
   height: '100%',
   flexDirection: 'column',
@@ -577,7 +728,6 @@ const metadataTextStyle: CSSProperties = {
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
 }
-const zoomStyle: CSSProperties = { minWidth: 42, textAlign: 'center' }
 const imageViewportStyle: CSSProperties = {
   display: 'flex',
   minHeight: 0,

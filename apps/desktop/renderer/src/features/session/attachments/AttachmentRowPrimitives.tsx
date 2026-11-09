@@ -453,6 +453,7 @@ type AttachmentFilePillProps = {
 }
 
 export function AttachmentFilePill({
+  detail,
   path,
   error = false,
   name,
@@ -471,6 +472,7 @@ export function AttachmentFilePill({
       />
       <span className={FILE_PILL_TEXT_CLASS}>
         <span className={FILE_PILL_NAME_CLASS}>{name}</span>
+        {detail ? <span className="tw:type-caption tw:text-app-text-meta">{detail}</span> : null}
       </span>
     </>
   )
