@@ -585,7 +585,8 @@ export function ConversationPage(): React.ReactNode {
       workspacePath,
     ],
   )
-  const threadSummary = useThreadSummaryController()
+  const workflowBodyRef = React.useRef<HTMLDivElement>(null)
+  const threadSummary = useThreadSummaryController(workflowBodyRef)
   // 切换会话时关闭浮层，分区折叠状态按会话保留在内存里。
   const closeSummaryPopover = threadSummary.setPopoverOpen
   const EMPTY_COLLAPSED_SECTIONS = React.useMemo<ReadonlySet<ThreadSummarySectionId>>(
@@ -1239,7 +1240,7 @@ export function ConversationPage(): React.ReactNode {
     workspacePath,
   ])
 
-  const workspaceHeaderActions = React.useMemo(() => {
+  const { workspaceHeaderActions, inlineSummaryPanel } = React.useMemo(() => {
     const summaryAvailable = !isThreadLoading && threadSummaryModel.hasContent
     const summaryPanel = (
       <ThreadSummaryErrorBoundary>
@@ -1301,27 +1302,40 @@ export function ConversationPage(): React.ReactNode {
         color={threadSummary.isPopoverOpen ? 'ghostActive' : 'ghostSecondary'}
         title={threadSummary.isPopoverOpen ? '关闭概览' : '打开概览'}
         aria-pressed={threadSummary.isPopoverOpen}
+        onClick={
+          summaryAvailable && threadSummary.isInline
+            ? () => threadSummary.setPopoverOpen(!threadSummary.isPopoverOpen)
+            : undefined
+        }
         size="toolbar"
       >
         <LayoutList size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
       </Button>
     )
 
-    return (
-      <div className="chat-session-actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:whitespace-nowrap">
-        {summaryAvailable ? (
-          <ThreadSummaryPopover
-            open={threadSummary.isPopoverOpen}
-            panel={summaryPanel}
-            onOpenChange={threadSummary.setPopoverOpen}
-          >
-            {summaryToggle}
-          </ThreadSummaryPopover>
-        ) : (
-          <Tooltip content="当前对话暂无可展示的摘要">{summaryToggle}</Tooltip>
-        )}
-      </div>
-    )
+    return {
+      workspaceHeaderActions: (
+        <div className="chat-session-actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:whitespace-nowrap">
+          {!summaryAvailable ? (
+            <Tooltip content="当前对话暂无可展示的摘要">{summaryToggle}</Tooltip>
+          ) : threadSummary.isInline ? (
+            summaryToggle
+          ) : (
+            <ThreadSummaryPopover
+              open={threadSummary.isPopoverOpen}
+              panel={summaryPanel}
+              onOpenChange={threadSummary.setPopoverOpen}
+            >
+              {summaryToggle}
+            </ThreadSummaryPopover>
+          )}
+        </div>
+      ),
+      inlineSummaryPanel:
+        summaryAvailable && threadSummary.isInline && threadSummary.isPopoverOpen
+          ? summaryPanel
+          : null,
+    }
   }, [
     branches,
     activeSessionId,
@@ -1566,7 +1580,10 @@ export function ConversationPage(): React.ReactNode {
           />
         </React.Suspense>
       ) : null}
-      <div className="workflow-page__body tw:flex tw:w-full tw:min-h-0 tw:flex-1 tw:overflow-hidden">
+      <div
+        ref={workflowBodyRef}
+        className="workflow-page__body tw:relative tw:flex tw:w-full tw:min-h-0 tw:flex-1 tw:overflow-hidden"
+      >
         <main className="workflow-page__main tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-1 tw:flex-col tw:bg-transparent">
           <div className="workflow-main-scroll-frame tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-1 tw:overflow-hidden">
             <ConversationTurnNavRail
@@ -1579,7 +1596,7 @@ export function ConversationPage(): React.ReactNode {
               onToggleBookmark={toggleThreadBookmark}
             />
             <ThreadScrollLayout
-              className="workflow-main-scroll-area tw:flex tw:min-h-0 tw:flex-1 tw:flex-col"
+              className={`workflow-main-scroll-area tw:flex tw:min-h-0 tw:flex-1 tw:flex-col${inlineSummaryPanel ? ' tw:pe-69' : ''}`}
               footer={composerFooter}
               footerClassName="workflow-main-scroll-footer tw:px-0 tw:pb-4"
               footerRef={threadFooterRef}
@@ -1633,6 +1650,14 @@ export function ConversationPage(): React.ReactNode {
             </ThreadScrollLayout>
           </div>
         </main>
+        {inlineSummaryPanel ? (
+          <div
+            className="thread-summary-inline tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-65 tw:min-h-0 tw:flex-col tw:max-h-[calc(100%-32px)] tw:rounded-floating tw:bg-app-raised tw:p-1.25"
+            data-testid="thread-summary-inline"
+          >
+            {inlineSummaryPanel}
+          </div>
+        ) : null}
       </div>
     </section>
   )
@@ -1696,9 +1721,8 @@ function SessionSubmenu({
         <DropdownMenu.SubContent
           size="sm"
           data-theme-component="dropdown-surface"
-          className="popover-surface popover popover-sub-content popover-menu--grid"
+          className="popover-surface popover popover-menu--grid"
           collisionPadding={6}
-          sideOffset={4}
         >
           {children}
         </DropdownMenu.SubContent>

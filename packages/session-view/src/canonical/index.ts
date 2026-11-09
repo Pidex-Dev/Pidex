@@ -127,6 +127,7 @@ export type RenderBlocker =
 
 export interface RenderTurnEntry extends VisibleTurnEntry {
   userItems: Input[]
+  inlineInputs: Input[]
   processItems: RenderItem[]
   assistantResultItems: Array<Extract<Item, { type: 'text' }>>
   postAssistantItems: RenderItem[]
@@ -545,6 +546,8 @@ export function createRenderTurnEntriesSelector(): RenderTurnEntriesSelector {
 }
 
 export function buildRenderTurnEntry(entry: VisibleTurnEntry): RenderTurnEntry {
+  const isInlineInput = (input: Input): boolean =>
+    input.delivery === 'steer' && input.id !== entry.turn.sourceInputID
   const processItems: Item[] = []
   const assistantResultItems: Array<Extract<Item, { type: 'text' }>> = []
   const postAssistantItems: Item[] = []
@@ -626,7 +629,8 @@ export function buildRenderTurnEntry(entry: VisibleTurnEntry): RenderTurnEntry {
 
   return {
     ...entry,
-    userItems: entry.userInputs,
+    userItems: entry.userInputs.filter((input) => !isInlineInput(input)),
+    inlineInputs: entry.userInputs.filter(isInlineInput).sort(compareCreated),
     processItems,
     assistantResultItems,
     postAssistantItems,

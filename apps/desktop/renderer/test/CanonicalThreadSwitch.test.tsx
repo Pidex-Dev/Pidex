@@ -179,6 +179,7 @@ describe('canonical thread switch', () => {
       turn: { id: 'turn', status: 'completed', elapsedSeconds: 1, error: null },
       items: [delivery],
       userItems: [],
+      inlineInputs: [],
       attachments: [],
       contextReferences: [],
       processItems: [delivery],
@@ -434,13 +435,67 @@ describe('canonical thread switch', () => {
       model.units.map((unit) =>
         unit.kind === 'group'
           ? ['group', ...unit.items.map((item) => item.id)]
-          : [unit.kind, unit.item.id],
+          : [unit.kind, (unit.kind === 'user' ? unit.input : unit.item).id],
       ),
     ).toEqual([
       ['activity', 'tool-a'],
       ['group', 'agent-a', 'agent-b'],
       ['activity', 'tool-b'],
     ])
+  })
+
+  test('inserts steer between activity items, with existing items first on equal timestamps', () => {
+    const before = {
+      id: 'before',
+      messageID: 'message-before',
+      turnId: 'turn-1',
+      agentId: 'agent-1',
+      type: 'text',
+      placement: 'process',
+      text: 'before',
+      status: 'completed',
+      createdAt: 10,
+    } satisfies Item
+    const steer: React.ComponentProps<typeof CanonicalUserInput>['input'] = {
+      id: 'steer',
+      threadId: 'thread-1',
+      turnId: before.turnId,
+      content: '追加检查',
+      delivery: 'steer',
+      mode: 'chat',
+      model: { providerID: 'openai', id: 'gpt-5' },
+      permissionConfig: {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+      },
+      state: 'active',
+      createdAt: 10,
+    }
+    const after = { ...before, id: 'after', createdAt: 11 }
+    const { units } = buildProcessActivityModel(
+      [before, after],
+      { activitySliceClosed: false, turnActive: true },
+      [steer],
+    )
+    expect(units.map((unit) => unit.key)).toEqual([
+      'process-standalone:before',
+      'process-user:steer',
+      'process-standalone:after',
+    ])
+    for (const state of ['active', 'merged'] as const) {
+      const markup = renderToStaticMarkup(
+        <CanonicalTestProviders>
+          <CanonicalUserInput
+            input={{ ...steer, state }}
+            inline
+            attachments={[]}
+            contextReferences={[]}
+          />
+        </CanonicalTestProviders>,
+      )
+      expect(markup.includes('等待模型接收')).toBe(state === 'active')
+    }
   })
 
   test('renders subagents as a single non-expandable line that opens the directory', () => {
@@ -483,6 +538,7 @@ describe('canonical thread switch', () => {
       turn: { id: 'turn-1', status: 'completed', elapsedSeconds: 5, error: null },
       items: [spawned, subagent('Frontend'), subagent('Backend')],
       userItems: [],
+      inlineInputs: [],
       attachments: [],
       contextReferences: [],
       processItems: [spawned, subagent('Frontend'), subagent('Backend')],
@@ -620,7 +676,7 @@ describe('canonical thread switch', () => {
       model.units.map((unit) =>
         unit.kind === 'group'
           ? ['group', ...unit.items.map((item) => item.id)]
-          : [unit.kind, unit.item.id],
+          : [unit.kind, (unit.kind === 'user' ? unit.input : unit.item).id],
       ),
     ).toEqual([
       ['group', 'tool-1', 'tool-2'],
@@ -892,6 +948,7 @@ describe('canonical thread switch', () => {
               },
               items: [commentary, answer, question],
               userItems: [],
+              inlineInputs: [],
               attachments: [],
               processItems: [commentary],
               assistantResultItems: [answer],
@@ -1030,6 +1087,7 @@ describe('canonical thread switch', () => {
       },
       items: [processText, planTool, tool, answer, patch, compactionActivity],
       userItems: [],
+      inlineInputs: [],
       attachments: [],
       processItems: [processText, planTool, tool, compactionActivity],
       assistantResultItems: [answer],
@@ -1317,6 +1375,7 @@ test('Radix 强制展开不覆盖保存选择，结束后恢复且内层分组�
               turn: { id: 'turn', status: 'running', elapsedSeconds: 2, error: null },
               items: [process, final],
               userItems: [],
+              inlineInputs: [],
               attachments: [],
               processItems: [process],
               assistantResultItems: [final],
@@ -1578,6 +1637,7 @@ test.each(['running', 'completed'] as const)(
       },
       items: [item],
       userItems: [],
+      inlineInputs: [],
       attachments: [],
       contextReferences: [],
       processItems: [item],

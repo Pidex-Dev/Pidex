@@ -232,11 +232,13 @@ export function CanonicalUserInput({
   attachments,
   contextReferences,
   input,
+  inline = false,
   registerInputRow,
 }: {
   attachments: readonly Attachment[]
   contextReferences: readonly LocalContextReference[]
   input: Input
+  inline?: boolean
   registerInputRow?: (inputId: string, node: HTMLElement | null) => void
 }): React.ReactNode {
   const inputRef = React.useCallback(
@@ -251,7 +253,7 @@ export function CanonicalUserInput({
     editableInputId,
     sessionStatus,
   } = useConversationItemContext()
-  const editingAllowed = Boolean(canEditUserMessage && editableInputId === input.id)
+  const editingAllowed = Boolean(!inline && canEditUserMessage && editableInputId === input.id)
   const operationRef = React.useRef(crypto.randomUUID())
   const [editing, setEditing] = React.useState(false)
   const displayText = input.skills?.length
@@ -438,29 +440,32 @@ export function CanonicalUserInput({
         skills={input.skills}
         withActions={false}
       />
-      <div className="canonical-message-actions" aria-label="用户消息操作">
-        <MessageSentTime sentAt={input.createdAt} />
-        <CopyButton text={displayText} />
-        {editingAllowed ? (
-          <Tooltip content="修改并重新发送">
-            <Button
-              isIconOnly
-              aria-label="修改并重新发送"
-              color="ghostSecondary"
-              size="xs"
-              title="修改并重新发送"
-              disabled={
-                sessionStatus === 'running' ||
-                sessionStatus === 'waiting' ||
-                sessionStatus === 'queued'
-              }
-              onClick={startEditing}
-            >
-              <Pencil aria-hidden="true" size={APP_ICON_SIZE} />
-            </Button>
-          </Tooltip>
-        ) : null}
-      </div>
+      {inline && input.state === 'active' ? <small role="status">等待模型接收…</small> : null}
+      {!inline && (
+        <div className="canonical-message-actions" aria-label="用户消息操作">
+          <MessageSentTime sentAt={input.createdAt} />
+          <CopyButton text={displayText} />
+          {editingAllowed ? (
+            <Tooltip content="修改并重新发送">
+              <Button
+                isIconOnly
+                aria-label="修改并重新发送"
+                color="ghostSecondary"
+                size="xs"
+                title="修改并重新发送"
+                disabled={
+                  sessionStatus === 'running' ||
+                  sessionStatus === 'waiting' ||
+                  sessionStatus === 'queued'
+                }
+                onClick={startEditing}
+              >
+                <Pencil aria-hidden="true" size={APP_ICON_SIZE} />
+              </Button>
+            </Tooltip>
+          ) : null}
+        </div>
+      )}
     </article>
   )
 }

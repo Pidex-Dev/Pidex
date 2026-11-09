@@ -2144,3 +2144,31 @@ test('手动压缩生命周期在同一个会话节点更新，多次操作保�
     status: 'completed',
   })
 })
+
+test('projects only follow-up steer inputs inline in stable time order', () => {
+  const current = turn('steered')
+  const opener = input(current.sourceInputID, current.id, 1)
+  const waiting = { ...input('steer-waiting', current.id, 3), delivery: 'steer' as const }
+  const consumed = {
+    ...input('steer-consumed', current.id, 2),
+    delivery: 'steer' as const,
+    state: 'merged' as const,
+  }
+  const [entry] = selectRenderTurnEntries(
+    createCanonicalThreadState(
+      page([
+        {
+          turn: current,
+          inputs: [waiting, opener, consumed],
+          messages: [],
+          agents: [],
+          items: [],
+          approvals: [],
+          attachments: [],
+        },
+      ]),
+    ),
+  )
+  expect(entry.userItems).toEqual([opener])
+  expect(entry.inlineInputs).toEqual([consumed, waiting])
+})

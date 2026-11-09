@@ -83,12 +83,11 @@ export type DeliverCanonicalBatchOptions = {
 }
 
 /**
- * 先 deliverBatch，再检查同一批是否含终态 turn 事件（turn/completed、
- * turn/failed、turn/interrupted 任一个或多个）。含终态时只读取一次最新
+ * 先 deliverBatch，再检查同一批是否含终态 turn 事件或 steer 状态更新。命中时只读取一次最新
  * 历史并 rehydrate 当前 coordinator，且用 threadId + generation 双校验拒绝
  * 旧结果；对账失败保留实时投影，仅通过 onReconciliationError 做安全诊断，
  * 不设置页面错误、不清空时间线、不循环重连。
- * @returns 是否对终态批次执行了对账读取。
+ * @returns 是否对该批次执行了对账读取。
  */
 export async function deliverCanonicalBatch(
   envelopes: readonly EventEnvelope[],
@@ -96,7 +95,16 @@ export async function deliverCanonicalBatch(
 ): Promise<boolean> {
   if (!options.isCurrent()) return false
   await options.coordinator.deliverBatch(envelopes)
-  if (!hasTerminalTurnEvent(envelopes)) return false
+  if (
+    !hasTerminalTurnEvent(envelopes) &&
+    !envelopes.some(
+      (envelope) =>
+        envelope.type === 'queue/updated' &&
+        (envelope.payload.action === 'steer-accepted' ||
+          envelope.payload.action === 'steer-consumed'),
+    )
+  )
+    return false
   if (!options.isCurrent()) return false
   try {
     const replacement = await options.readLatest()
@@ -242,7 +250,7 @@ export function useCanonicalThreadConversation(
             readLatest,
             isCurrent,
             onReconciliationError: () => {
-              console.error('终态事件对账失败，保留实时投影。')
+              console.error('会话事件对账失败，保留实时投影。')
             },
           })
         },

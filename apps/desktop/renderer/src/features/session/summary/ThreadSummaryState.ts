@@ -20,7 +20,24 @@ export function resolveThreadSummaryAgentsAutoCollapse(input: {
   return 'schedule-collapse'
 }
 
-export function useThreadSummaryController() {
+// The former 300px panel switched at 1096px. The current panel needs 40px less.
+export const THREAD_SUMMARY_INLINE_MIN_WIDTH = 1056
+
+export function useThreadSummaryController(containerRef: React.RefObject<HTMLElement | null>) {
   const [isPopoverOpen, setPopoverOpen] = React.useState(false)
-  return { isPopoverOpen, setPopoverOpen }
+  const [isInline, setInline] = React.useState(false)
+
+  React.useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const update = () =>
+      setInline(container.getBoundingClientRect().width >= THREAD_SUMMARY_INLINE_MIN_WIDTH)
+    update()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(update)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [containerRef])
+
+  return { isInline, isPopoverOpen, setPopoverOpen }
 }

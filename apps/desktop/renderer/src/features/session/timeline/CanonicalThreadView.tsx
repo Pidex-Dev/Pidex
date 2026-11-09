@@ -10,7 +10,7 @@ import React from 'react'
 import { VisualizationView } from '../../visualization/VisualizationView.js'
 import { ChevronRight, CircleAlert, LoaderCircle, RotateCcw, type LucideIcon } from 'lucide-react'
 import type { RenderBlocker, RenderTurnEntry } from '@pidex/session-view'
-import type { Item, ThreadForkOrigin } from '@pidex/shared/thread'
+import type { Input, Item, ThreadForkOrigin } from '@pidex/shared/thread'
 import type { DesktopDiffMarkerStyle } from '../../../../shared/Types.js'
 import type { VirtualizerHandle } from 'virtua'
 import { FullScreenWhaleLoading } from '../../../components/ui/FullScreenWhaleLoading.js'
@@ -68,7 +68,10 @@ import { questionTimelineItems } from './QuestionItemView.js'
 export type ProcessActivityProjection =
   { kind: 'groupable'; item: Item } | { kind: 'standalone'; item: Item } | { kind: 'hidden' }
 
+type ProcessUserUnit = { kind: 'user'; key: string; input: Input }
+
 export type ProcessUnit =
+  | ProcessUserUnit
   | { kind: 'group'; key: string; items: Item[] }
   | { kind: 'activity'; key: string; item: Item }
   | { kind: 'standalone'; key: string; item: Item }
@@ -80,7 +83,9 @@ export type ProcessActivityModel = {
 }
 
 type RawProcessUnit =
-  { kind: 'group'; key: string; items: Item[] } | { kind: 'standalone'; key: string; item: Item }
+  | ProcessUserUnit
+  | { kind: 'group'; key: string; items: Item[] }
+  | { kind: 'standalone'; key: string; item: Item }
 
 export type TimelineDisclosureProps = ProcessSummary & {
   canExpand?: boolean
@@ -301,7 +306,7 @@ function isSubagentLifecycleTool(item: Item): boolean {
   return SUBAGENT_LIFECYCLE_TOOLS.has(leaf)
 }
 
-function groupProcessItems(items: readonly Item[]): RawProcessUnit[] {
+function groupProcessItems(items: readonly Item[], inputs: readonly Input[]): RawProcessUnit[] {
   const units: RawProcessUnit[] = []
   let pendingItems: Item[] = []
   const isSubagentGroup = (): boolean => pendingItems[0]?.type === 'subagent'
@@ -319,7 +324,15 @@ function groupProcessItems(items: readonly Item[]): RawProcessUnit[] {
     pendingItems = []
   }
 
+  let nextInput = 0
+  const appendInput = (input: Input): void => {
+    flush()
+    units.push({ kind: 'user', key: `process-user:${input.id}`, input })
+  }
   for (const item of items) {
+    while (nextInput < inputs.length && inputs[nextInput]!.createdAt < item.createdAt) {
+      appendInput(inputs[nextInput++]!)
+    }
     if (absorbsLifecycleRows && isSubagentLifecycleTool(item)) continue
     const projection = projectProcessItem(item)
     switch (projection.kind) {
@@ -345,6 +358,7 @@ function groupProcessItems(items: readonly Item[]): RawProcessUnit[] {
         break
     }
   }
+  for (const input of inputs.slice(nextInput)) appendInput(input)
   flush()
   return units
 }
@@ -360,14 +374,15 @@ export function buildProcessActivityModel(
     hasBlockingRequest?: boolean
     turnActive: boolean
   },
+  inlineInputs: readonly Input[] = [],
 ): ProcessActivityModel {
-  const rawUnits = groupProcessItems(items)
+  const rawUnits = groupProcessItems(items, inlineInputs)
   const lastUnitIndex = rawUnits.length - 1
   const sliceActive = turnActive && !activitySliceClosed
   let activeGroupKey: string | null = null
 
   const units = rawUnits.map((unit, unitIndex): ProcessUnit => {
-    if (unit.kind === 'standalone') return unit
+    if (unit.kind !== 'group') return unit
     const [single] = unit.items
     // 子智能体组自带各任务状态，交由摘要句判断，不跟随父 turn 的 active。
     const isSubagentUnit = single?.type === 'subagent'
@@ -395,6 +410,7 @@ export function buildProcessActivityModel(
     sliceActive &&
     !hasBlockingRequest &&
     (!lastUnit ||
+      lastUnit.kind === 'user' ||
       (lastUnit.kind === 'standalone' &&
         (lastUnit.item.type === 'reasoning' || !isProcessItemActive(lastUnit.item))))
 
@@ -618,10 +634,10 @@ function CanonicalThreadViewComponent({
 }: CanonicalThreadViewProps): React.ReactNode {
   const itemContext = React.useContext(ConversationItemContext)
   const lastInput = turns
-    .flatMap((turn) => turn.userItems)
+    .flatMap((turn) => turn.userInputs)
     .findLast((input) => input.origin !== 'goal-continuation')
   const editableInputId =
-    lastInput && turns.find((turn) => turn.turn.id === lastInput.turnId)?.userItems.length === 1
+    lastInput && turns.find((turn) => turn.turn.id === lastInput.turnId)?.userInputs.length === 1
       ? lastInput.id
       : null
   const editContext = React.useMemo(
@@ -629,6 +645,15 @@ function CanonicalThreadViewComponent({
     [itemContext, editableInputId],
   )
   const disclosureState = useTimelineDisclosureState(threadId)
+  const expandActivityForInput = React.useCallback(
+    ({ turnId, inputId, rowIndex }: { turnId: string; inputId: string; rowIndex: number }) => {
+      const entry = turns[rowIndex]
+      if (entry?.id === turnId && entry.inlineInputs.some((input) => input.id === inputId)) {
+        disclosureState.setExpanded(`turn-activity:${turnId}`, true)
+      }
+    },
+    [disclosureState, turns],
+  )
   const loadOlderPreservingAnchor = React.useCallback(async (): Promise<void> => {
     await onLoadOlder(() => captureThreadHistoryAnchor(listRef.current, scrollRef.current))
   }, [listRef, onLoadOlder, scrollRef])
@@ -742,6 +767,7 @@ function CanonicalThreadViewComponent({
           items={turns}
           listRef={listRef}
           navigationRef={navigationRef}
+          onRevealInput={expandActivityForInput}
           onCanReturnToBottomChange={onCanReturnToBottomChange}
           onScroll={onScroll}
           scrollRef={scrollRef}
@@ -939,7 +965,8 @@ function CanonicalConversationTurnComponent({
     entry.assistantResultItems.length > 0 ||
     historicalDeliveries.length > 0 ||
     entry.contentBlocks.some((block) => block.kind === 'visualization')
-  const activitySliceClosed = hasAssistantResult && !entry.forceExpandActivity
+  const hasPendingSteer = entry.inlineInputs.some((input) => input.state === 'active')
+  const activitySliceClosed = hasAssistantResult && !entry.forceExpandActivity && !hasPendingSteer
   const processActivity = buildProcessActivityModel(
     questionTimelineItems(processItems, entry.items),
     {
@@ -947,6 +974,7 @@ function CanonicalConversationTurnComponent({
       hasBlockingRequest: entry.blockers.length > 0,
       turnActive: active,
     },
+    entry.inlineInputs,
   )
   const hasVisibleActivityContent =
     processActivity.units.length > 0 || processActivity.showThinkingFallback
@@ -961,9 +989,24 @@ function CanonicalConversationTurnComponent({
     activitySliceClosed && hasVisibleActivityContent && !compactionOnly
   const syntheticPatch =
     !active && entry.patchItems.length === 0 ? syntheticPatchDisplay(entry.processItems) : null
+  const renderUserInput = (input: Input, inline = false): React.ReactNode => (
+    <CanonicalUserInput
+      key={input.id}
+      input={input}
+      inline={inline}
+      attachments={entry.attachments.filter((attachment) =>
+        input.attachmentIds?.includes(attachment.id),
+      )}
+      contextReferences={entry.contextReferences.filter((reference) =>
+        input.contextReferenceIds?.includes(reference.id),
+      )}
+      registerInputRow={registerInputRow}
+    />
+  )
   const activityContent = hasVisibleActivityContent ? (
     <section className="canonical-turn__process" aria-label="处理过程">
       {processActivity.units.map((unit) => {
+        if (unit.kind === 'user') return renderUserInput(unit.input, true)
         if (unit.kind === 'activity') {
           return (
             <React.Fragment key={unit.key}>
@@ -1053,19 +1096,7 @@ function CanonicalConversationTurnComponent({
     <article className="canonical-turn" data-status={entry.turn.status}>
       {entry.userItems.length ? (
         <section className="canonical-turn__user" aria-label="用户消息">
-          {entry.userItems.map((input) => (
-            <CanonicalUserInput
-              attachments={entry.attachments.filter((attachment) =>
-                input.attachmentIds?.includes(attachment.id),
-              )}
-              contextReferences={entry.contextReferences.filter((reference) =>
-                input.contextReferenceIds?.includes(reference.id),
-              )}
-              input={input}
-              registerInputRow={registerInputRow}
-              key={input.id}
-            />
-          ))}
+          {entry.userItems.map((input) => renderUserInput(input))}
         </section>
       ) : null}
       <CanonicalTurnActivityController

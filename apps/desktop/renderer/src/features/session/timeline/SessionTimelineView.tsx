@@ -27,6 +27,7 @@ export type SessionTimelineViewProps<T> = {
   listRef?: React.RefObject<VirtualizerHandle | null>
   /** Commands used by overlays that navigate within the virtual timeline. */
   navigationRef?: React.Ref<ThreadTimelineNavigationHandle>
+  onRevealInput?: (target: { turnId: string; inputId: string; rowIndex: number }) => void
   /** The single overflow element owned by ThreadScrollLayout. */
   scrollRef: React.RefObject<HTMLElement | null>
   /** Called when the user scrolls (for scroll-position persistence). */
@@ -65,6 +66,7 @@ export function SessionTimelineView<T>({
   renderItem,
   listRef: externalListRef,
   navigationRef,
+  onRevealInput,
   scrollRef,
   onScroll,
   onCanReturnToBottomChange,
@@ -134,6 +136,7 @@ export function SessionTimelineView<T>({
         const handle = listHandle.current
         if (!root || !handle) return false
         pauseFollowing()
+        onRevealInput?.(target)
         const alignInput = (): boolean => {
           const input = [...root.querySelectorAll<HTMLElement>('[data-input-navigation-id]')].find(
             (node) =>
@@ -202,6 +205,7 @@ export function SessionTimelineView<T>({
     }),
     [
       cancelNavigation,
+      onRevealInput,
       listHandle,
       reducedMotion,
       scrollRef,

@@ -122,15 +122,17 @@ export function ThreadSummaryPopover({
       <Popover.Trigger asChild>{children}</Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
+          asChild
           size="lg"
           align="end"
           aria-label="会话概览"
-          className="thread-summary-popover tw:w-[var(--thread-summary-inline-width)] tw:[&]:p-0 tw:max-w-[calc(100vw-24px)] tw:max-h-[min(680px,calc(100vh-80px))]"
           collisionPadding={12}
           side="bottom"
           sideOffset={8}
         >
-          {panel}
+          <div className="thread-summary-popover tw:w-65 tw:p-1.25 tw:max-h-[min(680px,calc(100vh-80px))]">
+            {panel}
+          </div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -245,7 +247,7 @@ export function ThreadSummaryPanel({
 
   return (
     <aside
-      className={`thread-summary-panel tw:w-full tw:flex tw:min-h-0 tw:flex-col tw:gap-1 tw:overflow-x-hidden tw:overflow-y-auto tw:py-2 tw:[scrollbar-width:thin]`}
+      className={`tw:w-full tw:flex tw:min-h-0 tw:flex-col tw:gap-1 tw:overflow-x-hidden tw:overflow-y-auto tw:[scrollbar-width:thin]`}
       aria-label="会话概览"
     >
       {model.gitDetection === 'error' ? (
@@ -966,11 +968,11 @@ function ThreadSummarySection({
       aria-labelledby={headingId}
       className={
         first
-          ? 'thread-summary-section thread-summary-section--first tw:relative tw:z-0 tw:flex tw:flex-col tw:pb-2 tw:last:pb-0'
+          ? 'thread-summary-section thread-summary-section--first tw:relative tw:z-0 tw:flex tw:flex-col tw:gap-1.25 tw:pb-2 tw:last:pb-0'
           : 'thread-summary-section tw:relative tw:z-0 tw:flex tw:flex-col tw:pb-2 tw:last:pb-0'
       }
     >
-      <header className="tw:sticky tw:top-0 tw:z-local tw:flex tw:h-7 tw:w-full tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-transparent tw:px-3 tw:py-0 tw:text-app-text-soft tw:type-row-title">
+      <header className="tw:sticky tw:top-0 tw:z-local tw:flex tw:h-7 tw:w-full tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-transparent tw:px-2 tw:py-0 tw:text-app-text-soft tw:type-row-title">
         <h2 className="tw:m-0 tw:text-inherit tw:[font:inherit]">
           <button
             aria-controls={contentId}
@@ -995,7 +997,7 @@ function ThreadSummarySection({
       </header>
       <DisclosureContent
         className="thread-summary-section__content tw:relative tw:z-0"
-        contentClassName="thread-summary-section__rows tw:grid tw:min-h-0 tw:gap-0 tw:overflow-hidden tw:px-3 tw:pt-0"
+        contentClassName="thread-summary-section__rows tw:grid tw:min-h-0 tw:gap-0 tw:overflow-hidden tw:px-2"
         expanded={expanded}
         id={contentId}
       >
