@@ -96,7 +96,11 @@ test('static OpenAI catalogs discover remote models, preserve metadata and cache
   )
   try {
     await service.refresh(true, 'nvidia')
-    expect((await service.models()).map((model) => String(model.id))).toContain('remote-only')
+    // 上游发现的模型作为候选进入同步弹窗，未显式添加前不进入模型选择器。
+    expect((await service.discoverBuiltinModels('nvidia')).map((model) => String(model.id))).toContain(
+      'remote-only',
+    )
+    expect((await service.models()).map((model) => String(model.id))).not.toContain('remote-only')
     expect(service.pi.getModel('nvidia', 'known')).toMatchObject({
       name: 'Known model',
       contextWindow: 131072,

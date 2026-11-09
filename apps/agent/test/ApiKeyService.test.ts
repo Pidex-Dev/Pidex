@@ -85,7 +85,7 @@ describe('API Key 测试', () => {
     const result = await fixture.service.test(fixture.credentialID)
 
     expect(result.ok).toBeFalse()
-    expect(result.message).toBe('凭据鉴权失败')
+    expect(result.message).toBe('供应商鉴权失败，请检查凭据和接口配置。')
     expect(result.credential.health).toMatchObject({
       status: 'auth-failed',
       errorCategory: 'authentication',
