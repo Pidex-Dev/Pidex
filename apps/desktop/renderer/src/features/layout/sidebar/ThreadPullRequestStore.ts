@@ -4,6 +4,7 @@ import { useStore } from 'zustand/react'
 import { useShallow } from 'zustand/react/shallow'
 import { createStore } from 'zustand/vanilla'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { THREAD_PULL_REQUESTS_UPDATED_EVENT } from '../../../services/desktop-client/SessionCatalogCoordinator.js'
 
 /**
  * 后台刷新间隔：首次 5 分钟，无业务变化依次退避到 10、20、30 分钟，
@@ -98,6 +99,7 @@ export class ThreadPullRequestScheduler {
   /** 本批结算时唤醒的首次展示与主动刷新等待者。 */
   private batchWaiters = new Set<() => void>()
   private inFlight = false
+  private readonly updatedDuringFetch = new Set<string>()
   private intervalIndex = 0
   private supported = true
   private recorded: ReadonlyMap<string, readonly ThreadPullRequestSummary[]> = EMPTY_BY_THREAD
@@ -233,6 +235,13 @@ export class ThreadPullRequestScheduler {
    * 应用一批列表并比较业务变化：只有 PR 标识、主关联与状态变化才重置退避。
    */
   applyLists(lists: readonly ThreadPullRequestList[]): void {
+    if (this.inFlight) {
+      for (const { threadId } of lists) this.updatedDuringFetch.add(threadId)
+    }
+    this.commitLists(lists)
+  }
+
+  private commitLists(lists: readonly ThreadPullRequestList[]): void {
     const byThread = new Map(threadPullRequestStore.getState().byThread)
     let changed = false
     for (const thread of lists) {
@@ -349,11 +358,15 @@ export class ThreadPullRequestScheduler {
     try {
       // 后台轮询只刷新远端状态；主动读取才重新探测本地目录。
       const lists = await this.fetchLists(threadIds, active)
-      if (lists && this.supported) this.applyLists(lists)
+      if (lists && this.supported) {
+        const current = lists.filter(({ threadId }) => !this.updatedDuringFetch.has(threadId))
+        if (current.length > 0) this.commitLists(current)
+      }
     } catch {
       // 保留旧值；侧栏标记维持灰色未知，不逐行弹错误。
     } finally {
       this.inFlight = false
+      this.updatedDuringFetch.clear()
       this.releaseBatchWaiters()
     }
     // 请求期间产生的新订阅或主动刷新进入下一批，而不是被 inFlight 丢弃。
@@ -412,6 +425,48 @@ export const threadPullRequestScheduler = new ThreadPullRequestScheduler(
 /** 关联/解除关联返回的最新列表直接回填，不等待下一轮刷新。 */
 export function applyThreadPullRequestList(thread: ThreadPullRequestList): void {
   threadPullRequestScheduler.applyLists([thread])
+}
+
+/**
+ * 监听 Agent 分发的 `thread/pull-requests/updated` 持久事件：负载已携带
+ * `{threadId, items}` 最新集合，直接回填 PR store，不做全量目录刷新。
+ * 在 PR 订阅挂载期间保持监听，返回取消订阅函数。
+ */
+function subscribeThreadPullRequestUpdates(): () => void {
+  if (typeof window === 'undefined') return () => undefined
+  const handleUpdated = (event: Event): void => {
+    const detail = (event as CustomEvent).detail as
+      { threadId?: unknown; items?: unknown } | undefined
+    if (typeof detail?.threadId !== 'string' || !Array.isArray(detail.items)) return
+    applyThreadPullRequestList({
+      threadId: detail.threadId,
+      items: detail.items as ThreadPullRequestSummary[],
+    })
+  }
+  window.addEventListener(THREAD_PULL_REQUESTS_UPDATED_EVENT, handleUpdated)
+  return () => window.removeEventListener(THREAD_PULL_REQUESTS_UPDATED_EVENT, handleUpdated)
+}
+
+let updateSubscriptionCount = 0
+let stopUpdateSubscription: (() => void) | null = null
+
+/**
+ * 事件订阅按挂载实例引用计数：多个侧栏分组共享一个窗口监听，
+ * 最后一个 PR 订阅者卸载时移除。
+ */
+export function observeThreadPullRequestUpdates(): () => void {
+  updateSubscriptionCount += 1
+  stopUpdateSubscription ??= subscribeThreadPullRequestUpdates()
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    updateSubscriptionCount -= 1
+    if (updateSubscriptionCount === 0 && stopUpdateSubscription) {
+      stopUpdateSubscription()
+      stopUpdateSubscription = null
+    }
+  }
 }
 
 /** 悬浮卡打开：只请求目标会话并重新校验本地环境，不再刷新整个订阅集合。 */

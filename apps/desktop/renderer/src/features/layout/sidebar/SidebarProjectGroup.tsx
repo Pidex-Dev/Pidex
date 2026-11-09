@@ -71,6 +71,8 @@ type Props = {
   titleLoadingIds: ReadonlySet<string>
   project: DesktopWorkspace
   sessionFallbackTitles: Record<string, string>
+  /** 上层读取一次的 `gitShowPrIconsInSidebar` 设置，控制会话行 PR 图标显隐。 */
+  showPullRequestIcons?: boolean
   sort?: DesktopSidebarSort
   manualOrderByScope?: Record<string, string[]>
   workspace: DesktopWorkspace | null
@@ -107,6 +109,7 @@ function SidebarProjectGroupComponent({
   titleLoadingIds,
   project,
   sessionFallbackTitles,
+  showPullRequestIcons = true,
   sort = 'priority',
   manualOrderByScope = {},
   workspace,
@@ -458,6 +461,7 @@ function SidebarProjectGroupComponent({
             now={now}
             sessionFallbackTitles={sessionFallbackTitles}
             sessions={projectSessions}
+            showPullRequestIcons={showPullRequestIcons}
             sort={sort}
             onArchiveSessions={onArchiveSessions}
             onManualOrderChange={onManualOrderChange}

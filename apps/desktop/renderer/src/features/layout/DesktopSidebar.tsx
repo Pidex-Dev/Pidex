@@ -185,6 +185,7 @@ export function DesktopSidebar({
     setSidebarActivityShowChat,
     sidebarActivityShowPinned,
     setSidebarActivityShowPinned,
+    gitShowPrIconsInSidebar,
     syncExternalSettingsPatch,
   } = useDesktopSettingsField(useShallow(sidebarSettingsSelector))
   const sidebarCustomizationRef = useRef(sidebarCustomization)
@@ -724,6 +725,7 @@ export function DesktopSidebar({
         titleLoadingIds={titleLoadingIds}
         disclosureStore={sidebarDisclosureState.store}
         organization={sidebarOrganization}
+        showPullRequestIcons={gitShowPrIconsInSidebar}
         timeline={timeline}
         showActivityPriority={sidebarTimelinePriorityEnabled}
         onShowActivityPriorityChange={setSidebarTimelinePriorityEnabled}
@@ -965,6 +967,7 @@ function sidebarSettingsSelector(settings: UseDesktopSettingsResult) {
     setSidebarActivityShowChat: settings.setSidebarActivityShowChat,
     sidebarActivityShowPinned: settings.sidebarActivityShowPinned,
     setSidebarActivityShowPinned: settings.setSidebarActivityShowPinned,
+    gitShowPrIconsInSidebar: settings.gitShowPrIconsInSidebar,
     syncExternalSettingsPatch: settings.syncExternalSettingsPatch,
   }
 }

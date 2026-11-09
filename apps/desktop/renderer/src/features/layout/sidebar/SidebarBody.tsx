@@ -125,6 +125,8 @@ type Props = {
   activeSessionId: string | null
   disclosureStore: KeyedDisclosureStore
   organization: DesktopSidebarOrganization
+  /** 由侧栏上层读取一次的 `gitShowPrIconsInSidebar` 设置，向下控制 PR 图标显隐。 */
+  showPullRequestIcons?: boolean
   showProjectsInRecents?: boolean
   onShowProjectsInRecentsChange?: (value: boolean) => void
   showActivityPriority?: boolean
@@ -234,6 +236,7 @@ function SidebarBodyContent({
   activeSessionId,
   disclosureStore,
   organization,
+  showPullRequestIcons = true,
   showProjectsInRecents = false,
   onShowProjectsInRecentsChange,
   timeline,
@@ -660,6 +663,7 @@ function SidebarBodyContent({
         titleLoadingIds={titleLoadingIds}
         project={project}
         sessionFallbackTitles={sessionFallbackTitles}
+        showPullRequestIcons={showPullRequestIcons}
         sort={projectSort}
         workspace={workspace}
         onArchiveSessions={onArchiveSessions}
@@ -770,6 +774,7 @@ function SidebarBodyContent({
             sessionFallbackTitles={sessionFallbackTitles}
             sessions={[item.session]}
             showConversationIcon
+            showPullRequestIcons={showPullRequestIcons}
             onArchiveSessions={onArchiveSessions}
             onMoveToDefault={onMoveSessionToDefault}
             onMoveToSection={onMoveSessionToSection}
@@ -810,6 +815,7 @@ function SidebarBodyContent({
             <Timeline
               showPriority={showActivityPriority}
               onShowPriorityChange={onShowActivityPriorityChange}
+              showPullRequestIcons={showPullRequestIcons}
               showSources={showActivitySources}
               hasReadActivity={hasReadActivity}
               onClearReadActivity={onClearReadActivity}
@@ -924,6 +930,7 @@ function SidebarBodyContent({
                       sectionOptions={customSectionOptions}
                       selectedKeys={selectedKeys}
                       sessionFallbackTitles={sessionFallbackTitles}
+                      showPullRequestIcons={showPullRequestIcons}
                       titleLoadingIds={titleLoadingIds}
                       unavailableProjectKeys={unavailableProjectKeys}
                       onArchiveSessions={onArchiveSessions}
@@ -1071,6 +1078,7 @@ function SidebarBodyContent({
                     unavailableProjectKeys={unavailableProjectKeys}
                     sessionFallbackTitles={sessionFallbackTitles}
                     sessions={recentSessions}
+                    showPullRequestIcons={showPullRequestIcons}
                     sort={sessionSort}
                     onArchiveSessions={onArchiveSessions}
                     onManualOrderChange={onManualOrderChange}
@@ -1122,6 +1130,7 @@ function Timeline({
   titleLoadingIds,
   unavailableProjectKeys,
   sessionFallbackTitles,
+  showPullRequestIcons,
   onArchiveSessions,
   onPinSession,
   onSelectSession,
@@ -1137,6 +1146,7 @@ function Timeline({
   titleLoadingIds: ReadonlySet<string>
   unavailableProjectKeys: ReadonlySet<string>
   sessionFallbackTitles: Record<string, string>
+  showPullRequestIcons: boolean
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
   onPinSession: (session: SessionListItem) => void
   onSelectSession: (session: SessionListItem) => void
@@ -1193,6 +1203,7 @@ function Timeline({
     titleLoadingIds,
     unavailableProjectKeys,
     sessionFallbackTitles,
+    showPullRequestIcons,
     onArchiveSessions,
     onPinSession,
     onSelectSession,
@@ -1342,6 +1353,7 @@ function FocusSectionGroup({
   titleLoadingIds,
   unavailableProjectKeys,
   sessionFallbackTitles,
+  showPullRequestIcons,
   onArchiveSessions,
   onPinSession,
   onSelectSession,
@@ -1359,6 +1371,7 @@ function FocusSectionGroup({
   titleLoadingIds: ReadonlySet<string>
   unavailableProjectKeys: ReadonlySet<string>
   sessionFallbackTitles: Record<string, string>
+  showPullRequestIcons: boolean
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
   onPinSession: (session: SessionListItem) => void
   onSelectSession: (session: SessionListItem) => void
@@ -1393,6 +1406,7 @@ function FocusSectionGroup({
             unavailableProjectKeys={unavailableProjectKeys}
             sessionFallbackTitles={sessionFallbackTitles}
             sessions={section.sessions}
+            showPullRequestIcons={showPullRequestIcons}
             onArchiveSessions={onArchiveSessions}
             onPinSession={onPinSession}
             onSelectSession={onSelectSession}
@@ -1664,6 +1678,7 @@ function SidebarCustomSection({
   sectionOptions,
   selectedKeys,
   sessionFallbackTitles,
+  showPullRequestIcons,
   titleLoadingIds,
   unavailableProjectKeys,
   onArchiveSessions,
@@ -1689,6 +1704,7 @@ function SidebarCustomSection({
   sectionOptions: readonly { id: string; title: string }[]
   selectedKeys: readonly string[]
   sessionFallbackTitles: Record<string, string>
+  showPullRequestIcons: boolean
   titleLoadingIds: ReadonlySet<string>
   unavailableProjectKeys: ReadonlySet<string>
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
@@ -1772,6 +1788,7 @@ function SidebarCustomSection({
           sessionFallbackTitles={sessionFallbackTitles}
           sessions={[entry.session]}
           showConversationIcon
+          showPullRequestIcons={showPullRequestIcons}
           sort="preserve"
           titleLoadingIds={titleLoadingIds}
           unavailableProjectKeys={unavailableProjectKeys}
@@ -1861,7 +1878,7 @@ function SidebarCustomSection({
               size="sm"
               onOpenChange={setMenuOpen}
             >
-              <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">
+              <PopoverLabel className="popover-sidebar-organize-heading">
                 排序方式
               </PopoverLabel>
               <PopoverRadioGroup

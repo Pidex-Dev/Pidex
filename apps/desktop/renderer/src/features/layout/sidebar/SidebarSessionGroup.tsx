@@ -6,6 +6,7 @@ import {
   memo,
   Suspense,
   useCallback,
+  useEffect,
   useMemo,
   useId,
   useRef,
@@ -73,6 +74,7 @@ import { useSidebarActivityPreview } from './UseSidebarActivityPreview.js'
 import type { ThreadPullRequestSummary } from '@pidex/shared/thread'
 import {
   applyThreadPullRequestList,
+  observeThreadPullRequestUpdates,
   useThreadPullRequestEnvironments,
   useThreadPullRequestLifecycle,
   useThreadPullRequests,
@@ -101,6 +103,8 @@ type Props = {
   sessionFallbackTitles: Record<string, string>
   sessions: SessionListItem[]
   showConversationIcon?: boolean
+  /** 上层读取一次的 `gitShowPrIconsInSidebar` 设置；false 时隐藏会话行 PR 图标。 */
+  showPullRequestIcons?: boolean
   /** 'preserve' 表示调用方已排好序，不再重排（时间线优先任务组使用） */
   sort?: DesktopSidebarSort | 'preserve'
   manualOrderByScope?: Record<string, string[]>
@@ -141,6 +145,7 @@ function SidebarSessionGroupComponent({
   sessionFallbackTitles,
   sessions,
   showConversationIcon = false,
+  showPullRequestIcons = true,
   sort = 'priority',
   manualOrderByScope = {},
   presentation = 'compact',
@@ -275,6 +280,9 @@ function SidebarSessionGroupComponent({
   )
   const pullRequests = useThreadPullRequests(displayedSessionIds)
   useThreadPullRequestLifecycle()
+  // `thread/pull-requests/updated` 持久事件到达时直接回填 PR store，
+  // 不等待下一轮轮询，也不触发目录全量刷新。
+  useEffect(() => observeThreadPullRequestUpdates(), [])
   useThreadPullRequestEnvironments(
     useMemo(
       () =>
@@ -522,6 +530,7 @@ function SidebarSessionGroupComponent({
       session={session}
       sessionIndent={sessionIndent}
       showConversationIcon={showConversationIcon}
+      showPullRequestIcons={showPullRequestIcons}
       titleRegenerating={titleLoadingIds.has(session.id)}
       unlinkPullRequest={unlinkPullRequest}
       onArchiveSessions={onArchiveSessions}
@@ -710,6 +719,7 @@ type SidebarSessionRowProps = {
   session: SessionListItem
   sessionIndent: 'content' | 'gutter'
   showConversationIcon: boolean
+  showPullRequestIcons: boolean
   titleRegenerating: boolean
   unlinkPullRequest: (sessionId: string, item: ThreadPullRequestSummary) => Promise<void>
   moveSessionByKeyboard: (sessionId: string, offset: -1 | 1) => void
@@ -749,6 +759,7 @@ function SidebarSessionRowComponent({
   session,
   sessionIndent,
   showConversationIcon,
+  showPullRequestIcons,
   titleRegenerating,
   unlinkPullRequest,
   moveSessionByKeyboard,
@@ -923,27 +934,32 @@ function SidebarSessionRowComponent({
               <Clock3 aria-hidden="true" size={APP_ICON_SIZES.sm} />
             </span>
           )}
-          {showIndicators && primaryPullRequest && PrimaryPullRequestIcon && (
-            <button
-              aria-label={pullRequestItems.map((item) => `Pull Request #${item.number}`).join(', ')}
-              className="sidebar-indicator sidebar-pull-request tw:inline-flex tw:size-6 tw:flex-none tw:cursor-pointer tw:items-center tw:justify-center tw:border-0 tw:bg-transparent tw:p-0 tw:[&>svg]:size-icon-sm"
-              title={pullRequestItems
-                .map((item) => threadPullRequestTitle(item.number, item.title, item.status))
-                .join('\n')}
-              type="button"
-              onClick={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                void desktopClient.openExternalURL(primaryPullRequest.url)
-              }}
-            >
-              <PrimaryPullRequestIcon
-                aria-hidden="true"
-                className={primaryPullRequestVisual?.className}
-                size={APP_ICON_SIZES.sm}
-              />
-            </button>
-          )}
+          {showPullRequestIcons &&
+            showIndicators &&
+            primaryPullRequest &&
+            PrimaryPullRequestIcon && (
+              <button
+                aria-label={pullRequestItems
+                  .map((item) => `Pull Request #${item.number}`)
+                  .join(', ')}
+                className="sidebar-indicator sidebar-pull-request tw:inline-flex tw:size-6 tw:flex-none tw:cursor-pointer tw:items-center tw:justify-center tw:border-0 tw:bg-transparent tw:p-0 tw:[&>svg]:size-icon-sm"
+                title={pullRequestItems
+                  .map((item) => threadPullRequestTitle(item.number, item.title, item.status))
+                  .join('\n')}
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  void desktopClient.openExternalURL(primaryPullRequest.url)
+                }}
+              >
+                <PrimaryPullRequestIcon
+                  aria-hidden="true"
+                  className={primaryPullRequestVisual?.className}
+                  size={APP_ICON_SIZES.sm}
+                />
+              </button>
+            )}
           {showActions ? (
             <div className="sidebar-session-actions tw:flex tw:w-full tw:items-center tw:justify-end">
               {session.pinnedAt ? (

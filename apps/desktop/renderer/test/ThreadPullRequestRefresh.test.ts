@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import type { ThreadPullRequestList, ThreadPullRequestSummary } from '@pidex/shared/thread'
 import {
+  observeThreadPullRequestUpdates,
   THREAD_PULL_REQUEST_REFRESH_INTERVALS_MS,
   THREAD_PULL_REQUEST_REQUEST_WINDOW_MS,
   ThreadPullRequestScheduler,
@@ -8,6 +9,8 @@ import {
   threadPullRequestStore,
   type ThreadPullRequestSchedulerHost,
 } from '../src/features/layout/sidebar/ThreadPullRequestStore.js'
+import { SessionCatalogCoordinator } from '../src/services/desktop-client/SessionCatalogCoordinator.js'
+import type { EventEnvelope } from '@pidex/agent-protocol'
 
 const BATCH_DELAY_MS = 40
 /** 等待本批 `setTimeout` 与请求 promise 结算。 */
@@ -386,4 +389,83 @@ describe('ThreadPullRequestScheduler focus and hover card', () => {
     await clock.advance(BATCH_DELAY_MS)
     expect(calls).toHaveLength(1)
   })
+})
+
+describe('thread/pull-requests/updated 事件分发', () => {
+  const originalWindow = globalThis.window
+  afterEach(() => {
+    globalThis.window = originalWindow
+  })
+
+  /** 只提供协调器与 PR store 监听用到的 window 事件 API。 */
+  function useEventWindow(): Window & typeof globalThis {
+    const target = new EventTarget()
+    globalThis.window = {
+      addEventListener: target.addEventListener.bind(target),
+      removeEventListener: target.removeEventListener.bind(target),
+      dispatchEvent: target.dispatchEvent.bind(target),
+    } as unknown as Window & typeof globalThis
+    return globalThis.window
+  }
+
+  const updatedEvent = (threadId: string, items: ThreadPullRequestSummary[]): EventEnvelope =>
+    ({
+      eventId: `event-${threadId}`,
+      streamId: threadId,
+      type: 'thread/pull-requests/updated',
+      version: 1,
+      occurredAt: 2,
+      threadId,
+      durability: 'durable',
+      sequence: 1,
+      payload: { threadId, items },
+    }) as unknown as EventEnvelope
+
+  test('事件到达后 PR store 立即刷新，不触发目录刷新', async () => {
+    useEventWindow()
+    const refreshed: string[][] = []
+    const coordinator = new SessionCatalogCoordinator({
+      onCatalogUpdated: () => {},
+      onProviderCredentialUpdated: () => {},
+      onConfigUpdated: () => {},
+      onWorkspaceFileChanged: () => {},
+      onWorkspaceGitChanged: () => {},
+      onLifecycleUpdated: () => {},
+      refreshThreads: async (threadIds) => {
+        refreshed.push([...threadIds])
+      },
+    })
+    const release = observeThreadPullRequestUpdates()
+    try {
+      await coordinator.deliverBatch([updatedEvent('thread-1', [summary(7)])])
+      const items = threadPullRequestStore.getState().byThread.get('thread-1')
+      expect(items?.map((item) => item.number)).toEqual([7])
+      // 事件负载即最新集合：不得触发目录刷新或全量重读。
+      expect(refreshed).toEqual([])
+    } finally {
+      release()
+    }
+
+    // 取消订阅后事件不再回填。
+    await coordinator.deliverBatch([updatedEvent('thread-2', [summary(8)])])
+    expect(threadPullRequestStore.getState().byThread.has('thread-2')).toBe(false)
+  })
+})
+
+test('a poll cannot overwrite a newer association update for the same thread', async () => {
+  const clock = fakeHost()
+  let finish!: (lists: ThreadPullRequestList[]) => void
+  const scheduler = new ThreadPullRequestScheduler(clock.host, () => new Promise((resolve) => {
+    finish = resolve
+  }))
+  scheduler.syncSubscriptions(['a', 'b'])
+  scheduler.request(['a', 'b'])
+  await clock.advance(BATCH_DELAY_MS)
+
+  scheduler.applyLists([list('a', [])])
+  finish([list('a', [summary(1)]), list('b', [summary(2)])])
+  await settle()
+
+  expect(threadPullRequestStore.getState().byThread.get('a')).toEqual([])
+  expect(threadPullRequestStore.getState().byThread.get('b')).toEqual([summary(2)])
 })
