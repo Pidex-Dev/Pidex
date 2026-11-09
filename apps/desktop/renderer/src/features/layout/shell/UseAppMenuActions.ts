@@ -6,6 +6,12 @@ import type {
   WindowMenuAction,
 } from '../MenuBar.js'
 import type { DesktopClient } from '../../../services/desktop-client/Types.js'
+import type { AppPage } from '../../routing/PageDefinitions.js'
+import {
+  canRunAppCommand,
+  type AppCommandContext,
+  type AppCommandId,
+} from './AppCommandAvailability.js'
 
 type Action = () => void | Promise<unknown>
 type Options = {
@@ -29,6 +35,10 @@ type Options = {
     | undefined
   browserAvailable: boolean
   browserOpen: boolean
+  /** 当前页面解析结果，决定工作区级动作是否可用。 */
+  page: AppPage | null
+  hasWorkspace: boolean
+  sideChatSupported: boolean
   canNavigateBack: boolean
   canNavigateForward: boolean
   navigate: (path: string) => void
@@ -50,6 +60,16 @@ type Options = {
 
 export function createAppMenuActions(options: Options) {
   const { bridge, client } = options
+  const commandContext: AppCommandContext = {
+    page: options.page,
+    hasWorkspace: options.hasWorkspace,
+    browserAvailable: options.browserAvailable,
+    browserOpen: options.browserOpen,
+    sideChatSupported: options.sideChatSupported,
+  }
+  // 不可用的动作直接留空：菜单据此禁用，快捷键也不会拦截该按键。
+  const allowed = (command: AppCommandId, action: Action) =>
+    canRunAppCommand(command, commandContext) ? action : undefined
   const file: Record<FileMenuAction, Action | undefined> = {
     close: bridge?.close ? () => client.closeWindow() : undefined,
     newWindow: bridge?.openWindow ? () => client.newWindow() : undefined,
@@ -63,12 +83,11 @@ export function createAppMenuActions(options: Options) {
   }
   const view: Record<ViewMenuAction, Action | undefined> = {
     toggleSidebar: options.toggleSidebar,
-    toggleBottomPanel: () => options.togglePanel('bottom'),
-    toggleSidePanel: options.stepWorkspaceLayout,
-    toggleFileTree: options.openFiles,
-    openBrowserTab: options.browserAvailable ? options.openBrowser : undefined,
-    reloadBrowserPage:
-      options.browserAvailable && options.browserOpen ? options.reloadBrowser : undefined,
+    toggleBottomPanel: allowed('toggleBottomPanel', () => options.togglePanel('bottom')),
+    toggleSidePanel: allowed('stepWorkspaceLayout', options.stepWorkspaceLayout),
+    toggleFileTree: allowed('openFiles', options.openFiles),
+    openBrowserTab: allowed('openBrowser', options.openBrowser),
+    reloadBrowserPage: allowed('reloadBrowser', options.reloadBrowser),
     back: options.canNavigateBack ? options.navigateBack : undefined,
     forward: options.canNavigateForward ? options.navigateForward : undefined,
     zoomIn: bridge?.changePageZoom ? () => bridge.changePageZoom?.('in') : undefined,
@@ -109,6 +128,8 @@ export function createAppMenuActions(options: Options) {
     }
   }
   return {
+    /** 供菜单之外的快捷键入口复用同一可用判定。 */
+    canRunCommand: (command: AppCommandId) => canRunAppCommand(command, commandContext),
     isFileActionEnabled: (action: FileMenuAction) => Boolean(file[action]),
     isViewActionEnabled: (action: ViewMenuAction) => Boolean(view[action]),
     isWindowActionEnabled: (action: WindowMenuAction) => Boolean(windowActions[action]),

@@ -1,11 +1,16 @@
 import { describe, expect, test } from 'bun:test'
 import { createAppMenuActions } from '../src/features/layout/shell/UseAppMenuActions.js'
+import { APP_PAGES } from '../src/features/routing/PageDefinitions.js'
 import { createDesktopClient } from '../src/services/desktop-client/index.js'
 import type { DesktopClientEnvironment } from '../src/services/desktop-client/Types.js'
 
 type Options = Parameters<typeof createAppMenuActions>[0]
 type Actions = ReturnType<typeof createAppMenuActions>
 type ClientBridge = NonNullable<NonNullable<DesktopClientEnvironment['window']>['DesktopBridge']>
+
+/** 聊天工作区页面：工作区级菜单动作默认在这里可用。 */
+const WORKSPACE_PAGE = APP_PAGES.find((page) => page.id === 'chat')!
+const SETTINGS_PAGE = APP_PAGES.find((page) => page.id === 'settings')!
 
 function setup(overrides: Partial<Options> = {}) {
   const calls: unknown[] = []
@@ -34,6 +39,9 @@ function setup(overrides: Partial<Options> = {}) {
     bridge,
     browserAvailable: true,
     browserOpen: true,
+    page: WORKSPACE_PAGE,
+    hasWorkspace: true,
+    sideChatSupported: true,
     canNavigateBack: true,
     canNavigateForward: true,
     navigate: record,
@@ -217,6 +225,53 @@ describe('application menu actions', () => {
       expect(calls).toEqual(enabled ? ['reload', 'reload'] : [])
       expect(event.defaultPrevented).toBe(enabled)
     }
+  })
+
+  test('非聊天工作区禁用工作区级动作，菜单与快捷键结果一致', () => {
+    for (const page of [SETTINGS_PAGE, null]) {
+      const { actions, calls } = setup({ page })
+      for (const action of [
+        'toggleBottomPanel',
+        'toggleSidePanel',
+        'toggleFileTree',
+        'openBrowserTab',
+        'reloadBrowserPage',
+      ] as const) {
+        expect(actions.isViewActionEnabled(action)).toBe(false)
+        actions.onViewMenuAction(action)
+      }
+      for (const event of [
+        key('j'),
+        key('b', { shiftKey: true }),
+        key('e', { shiftKey: true }),
+        key('t'),
+        key('r'),
+      ]) {
+        actions.handleShortcut(event)
+        expect(event.defaultPrevented).toBe(false)
+      }
+      expect(calls).toEqual([])
+    }
+  })
+
+  test('缺工作区时文件面板不可用，快捷键不拦截', () => {
+    const { actions, calls } = setup({ hasWorkspace: false })
+    expect(actions.isViewActionEnabled('toggleFileTree')).toBe(false)
+    const event = key('e', { shiftKey: true })
+    actions.handleShortcut(event)
+    expect(event.defaultPrevented).toBe(false)
+    expect(calls).toEqual([])
+    // 同页其余工作区动作不受工作区缺失影响。
+    expect(actions.isViewActionEnabled('toggleBottomPanel')).toBe(true)
+  })
+
+  test('可用动作只执行一次', () => {
+    const { actions, calls } = setup()
+    actions.onViewMenuAction('toggleFileTree')
+    actions.onViewMenuAction('toggleBottomPanel')
+    actions.onViewMenuAction('toggleSidePanel')
+    actions.onViewMenuAction('openBrowserTab')
+    expect(calls).toEqual(['files', 'bottom', 'workspaceLayout', 'browser'])
   })
 
   test('ignores handled, composing, repeating and unrelated modifier keys', () => {

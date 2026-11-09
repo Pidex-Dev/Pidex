@@ -1,21 +1,9 @@
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { createElement, useEffect, useState } from 'react'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { ProtocolCapability } from '@pidex/agent-protocol'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import {
-  Bell,
-  BrainCircuit,
-  Clock3,
-  Egg,
-  FolderKanban,
-  GitBranch,
-  MessagesSquare,
-  Plug,
-  Search,
-  SquarePen,
-  X,
-} from 'lucide-react'
+import { Bell, Search, X } from 'lucide-react'
 import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { Select } from '../../../components/ui/Select.js'
@@ -23,6 +11,7 @@ import type { SidebarProductMode } from '../../../../shared/Types.js'
 import type { AppView } from '../../../UiTypes.js'
 import { newSessionPath } from '../../session/NewSessionSurface.js'
 import type { NewSessionSurface } from '../../session/NewSessionSurface.js'
+import { APP_PAGES, type AppPageNav } from '../../routing/PageDefinitions.js'
 
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
@@ -75,74 +64,26 @@ export function useSidebarCapabilities(): SidebarCapabilityState {
   return state
 }
 
-export const TOP_NAV_ITEMS: SidebarNavItem[] = [
-  {
-    view: 'new',
-    label: '新建任务',
-    icon: <SquarePen size={APP_ICON_SIZES.sm} />,
-    path: '/new',
-    availability: { kind: 'always' },
-  },
-  {
-    view: 'sessionGroups',
-    label: '工作组',
-    icon: <MessagesSquare size={APP_ICON_SIZES.sm} />,
-    path: '/workflows',
-    availability: {
-      kind: 'any-capability',
-      capabilities: ['workflow.v1' as ProtocolCapability, 'session-group.v1' as ProtocolCapability],
-    },
-  },
-  {
-    view: 'automations',
-    label: '已安排',
-    icon: <Clock3 size={APP_ICON_SIZES.sm} />,
-    path: '/automations',
-    availability: { kind: 'always' },
-  },
-  {
-    view: 'git',
-    label: 'Git 看板',
-    icon: <GitBranch size={APP_ICON_SIZES.sm} />,
-    path: '/git',
-    availability: { kind: 'any-capability', capabilities: ['git.review.v1'] },
-  },
-  {
-    view: 'plugins',
-    label: '插件',
-    icon: <Plug size={APP_ICON_SIZES.sm} />,
-    path: '/plugins',
-    availability: {
-      kind: 'any-capability',
-      capabilities: ['skills.manage.v1', 'mcp.manage.v1'],
-    },
-  },
-  {
-    view: 'providers',
-    label: '供应商',
-    icon: <BrainCircuit size={APP_ICON_SIZES.sm} />,
-    path: '/providers',
-    availability: { kind: 'always' },
-  },
-  {
-    view: 'pets',
-    label: '宠物市场',
-    icon: <Egg size={APP_ICON_SIZES.sm} />,
-    path: '/pets',
-    availability: {
-      kind: 'any-capability',
-      capabilities: ['pets.management.v1'],
-    },
-  },
-]
-
-export const PROJECTS_NAV_ITEM: SidebarNavItem = {
-  view: 'projects',
-  label: '项目',
-  icon: <FolderKanban size={APP_ICON_SIZES.sm} />,
-  path: '/projects',
-  availability: { kind: 'always' },
+function navItemFromPage(nav: AppPageNav): SidebarNavItem {
+  return {
+    view: nav.view,
+    label: nav.label,
+    icon: createElement(nav.icon, { size: APP_ICON_SIZES.sm }),
+    path: nav.path,
+    availability: nav.capabilities
+      ? { kind: 'any-capability', capabilities: nav.capabilities }
+      : { kind: 'always' },
+  }
 }
+
+const TOP_NAV_PAGES = APP_PAGES.flatMap((page) => (page.nav ? [page.nav] : []))
+
+/** 固定入口在前，其余按页面定义顺序排列；不含可选的“项目”入口。 */
+export const TOP_NAV_ITEMS: SidebarNavItem[] = TOP_NAV_PAGES.filter(
+  (nav) => nav.view !== 'projects',
+).map(navItemFromPage)
+
+const PROJECTS_NAV_ITEM = TOP_NAV_PAGES.find((nav) => nav.view === 'projects')
 
 export function getSidebarTopNavItems({
   showProjects,
@@ -156,9 +97,10 @@ export function getSidebarTopNavItems({
   const newItem = surface
     ? { ...TOP_NAV_ITEMS[0]!, path: newSessionPath(surface) }
     : TOP_NAV_ITEMS[0]!
-  const items = showProjects
-    ? [newItem, TOP_NAV_ITEMS[1]!, PROJECTS_NAV_ITEM, ...TOP_NAV_ITEMS.slice(2)]
-    : [newItem, ...TOP_NAV_ITEMS.slice(1)]
+  const items = [newItem, ...TOP_NAV_ITEMS.slice(1)]
+  if (showProjects && PROJECTS_NAV_ITEM) {
+    items.splice(2, 0, navItemFromPage(PROJECTS_NAV_ITEM))
+  }
 
   // capability 未就绪或不可用时，仅暴露 always 入口，避免点入未接线的能力。
   if (capabilityState.status !== 'ready') {

@@ -61,10 +61,28 @@ describe('workbench chrome contract', () => {
 
     expectSourceNotContains(menuBar, 'workspaceHeader')
     expectSourceNotContains(menuBar, 'menubar-workspace-header')
+    expectSourceNotContains(menuBar, 'label="窗口"')
+    expectSourceNotContains(menuBar, "w: 'window'")
+    const viewMenu = menuBar.slice(menuBar.indexOf('label="视图"'), menuBar.indexOf('label="帮助"'))
+    for (const action of ['minimize', 'zoom', 'close']) {
+      expectSourceContains(viewMenu, `onWindowMenuAction('${action}')`)
+    }
     expect(windowControlsIndex).toBeGreaterThan(menuBar.indexOf('</Menubar.Root>'))
-    for (const label of ['文件', '编辑', '查看', '窗口', '帮助']) {
+    for (const label of ['文件', '编辑', '视图', '帮助']) {
       expectSourceContains(menuBar, `label="${label}"`)
     }
+  })
+
+  test('caps the sidebar minimum at the last menu button without limiting expansion', () => {
+    const menuBar = readRendererFile('src/features/layout/MenuBar.tsx')
+    const controller = readRendererFile('src/features/layout/shell/UseWorkbenchShellController.ts')
+    const layout = readRendererFile('src/features/layout/shell/DesktopLayout.tsx')
+
+    expectSourceContains(menuBar, 'lastButton.getBoundingClientRect().right - menuBar.getBoundingClientRect().left')
+    expectSourceContains(menuBar, 'observer.disconnect()')
+    expectSourceContains(layout, 'onSidebarBoundaryChange={setSidebarMenuBoundary}')
+    expectSourceContains(controller, 'Math.min(MODERN_SIDEBAR_MIN_WIDTH, sidebarMenuBoundary)')
+    expectSourceContains(controller, 'sidebarMaxWidth: SIDEBAR_MAX_WIDTH')
   })
 
   test('keeps high-frequency edit and settings drafts out of the workbench shell', () => {
