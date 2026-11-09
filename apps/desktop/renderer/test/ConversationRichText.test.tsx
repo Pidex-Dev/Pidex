@@ -105,4 +105,15 @@ describe('conversation rich text', () => {
       copy.mockRestore()
     }
   })
+
+  test('hides the copy button while a markdown fence is unclosed and restores it after closing', () => {
+    const code = 'const value = 1'
+    expect(renderToStaticMarkup(<CodeBlock code={code} fenceOpen />)).not.toContain('复制代码')
+    expect(renderToStaticMarkup(<CodeBlock code={code} fenceOpen streaming />)).not.toContain(
+      '复制代码',
+    )
+    expect(renderToStaticMarkup(<CodeBlock code={code} />)).toContain('复制代码')
+    // 命令执行卡等非 Markdown 场景保持 streaming 行为不变：复制按钮仍显示。
+    expect(renderToStaticMarkup(<CodeBlock code={code} streaming />)).toContain('复制代码')
+  })
 })

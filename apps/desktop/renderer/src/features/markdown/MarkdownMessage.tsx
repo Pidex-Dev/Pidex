@@ -343,7 +343,7 @@ function renderToken(token: MarkdownToken, context: RenderContext, key: string):
   }
   if (token.type === 'streaming_code') {
     const code = token as MarkdownStreamingCodeToken
-    return renderCode(code.text, code.lang, true, context, key)
+    return renderCode(code.text, code.lang, true, context, key, true)
   }
   if (token.type === 'streaming_text') {
     const pending = token as MarkdownStreamingTextToken
@@ -523,6 +523,7 @@ function renderCode(
   streaming: boolean,
   context: RenderContext,
   key: string,
+  fenceOpen = false,
 ): React.ReactNode {
   const normalizedLanguage = language?.trim().split(/\s+/u)[0].toLowerCase()
   if (normalizedLanguage === 'mermaid') {
@@ -546,6 +547,7 @@ function renderCode(
         code={code}
         language={normalizedLanguage}
         streaming={streaming}
+        fenceOpen={fenceOpen}
         showWrapControl={context.presentation === 'conversation'}
       />
     </LazyRender>

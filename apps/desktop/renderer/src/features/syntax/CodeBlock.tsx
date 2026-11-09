@@ -28,6 +28,8 @@ export type CodeBlockProps = {
   code: string
   language?: string | null
   streaming?: boolean
+  /** 围栏未闭合（流式内容中 ``` 开启但未关闭）时隐藏复制按钮，闭合后恢复显示。 */
+  fenceOpen?: boolean
   onChangeCode?: (code: string) => void
   onChangeLanguage?: (language: string) => void
 }
@@ -44,6 +46,7 @@ export function CodeBlock({
   code,
   language,
   streaming = false,
+  fenceOpen = false,
   onChangeCode,
   onChangeLanguage,
 }: CodeBlockProps): ReactNode {
@@ -291,26 +294,32 @@ export function CodeBlock({
             />
           </Button>
         ) : null}
-        <Button
-          isIconOnly
-          className="md-code-copy tw:transition-colors tw:duration-exit"
-          variant="ghost"
-          size="xs"
-          aria-label={copied ? '已复制代码' : copyLabel}
-          title={copied ? '已复制代码' : copyLabel}
-          type="button"
-          onClick={() => void handleCopy()}
-        >
-          {copied ? (
-            <Check
-              aria-hidden="true"
-              size={APP_ICON_SIZES.sm}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
-          ) : (
-            <Copy aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          )}
-        </Button>
+        {fenceOpen ? null : (
+          <Button
+            isIconOnly
+            className="md-code-copy tw:transition-colors tw:duration-exit"
+            variant="ghost"
+            size="xs"
+            aria-label={copied ? '已复制代码' : copyLabel}
+            title={copied ? '已复制代码' : copyLabel}
+            type="button"
+            onClick={() => void handleCopy()}
+          >
+            {copied ? (
+              <Check
+                aria-hidden="true"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            ) : (
+              <Copy
+                aria-hidden="true"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            )}
+          </Button>
+        )}
       </span>
       {collapsible ? (
         <details className="md-code-disclosure">

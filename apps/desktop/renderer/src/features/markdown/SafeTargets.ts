@@ -11,8 +11,12 @@ export type SafeMarkdownTarget =
 const WINDOWS_PATH = /^[a-zA-Z]:[\\/]/
 const RELATIVE_PATH = /^(?:\.{1,2}[\\/])/
 const UNIX_PATH = /^\//
-const BARE_FILE_PATH =
-  /^(?![a-zA-Z][a-zA-Z\d+.-]*:)(?:[^<>"|?*\r\n]+[\\/])?[^<>"|?*\r\n]+\.[a-zA-Z\d]{1,12}(?:(?:#L\d+(?:-L?\d+)?)|(?::\d+(?::\d+)?))?$/u
+// 必须包含路径分隔符才视为文件路径，避免把 v1.2.3、Foo.Bar 这类普通文本误判为链接。
+const SEPARATED_FILE_PATH =
+  /^(?![a-zA-Z][a-zA-Z\d+.-]*:)[^<>"|?*\r\n]+[\\/][^<>"|?*\r\n]+\.[a-zA-Z\d]{1,12}(?:(?:#L\d+(?:-L?\d+)?)|(?::\d+(?::\d+)?))?$/u
+// 不含分隔符的裸文件名仅在携带行列引用（如 foo.ts:12:3、foo.ts#L10-L12）时才识别为文件。
+const BARE_FILE_LINE_REFERENCE =
+  /^(?![a-zA-Z][a-zA-Z\d+.-]*:\/\/)[^<>"|?*\r\n\\/:\s]+\.[a-zA-Z\d]{1,12}(?:#L\d+(?:-L?\d+)?|:\d+(?::\d+)?)$/u
 
 export function classifyMarkdownTarget(target: string): SafeMarkdownTarget {
   const value = target.trim()
@@ -21,7 +25,7 @@ export function classifyMarkdownTarget(target: string): SafeMarkdownTarget {
   if (WINDOWS_PATH.test(value) || RELATIVE_PATH.test(value) || UNIX_PATH.test(value)) {
     return { kind: 'file', ...parseMarkdownFileReference(value) }
   }
-  if (BARE_FILE_PATH.test(value)) {
+  if (SEPARATED_FILE_PATH.test(value) || BARE_FILE_LINE_REFERENCE.test(value)) {
     return { kind: 'file', ...parseMarkdownFileReference(value) }
   }
 

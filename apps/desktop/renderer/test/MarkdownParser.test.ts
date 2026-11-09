@@ -254,6 +254,35 @@ describe('safe markdown targets', () => {
     })
   })
 
+  test('keeps version-like bare names as plain text while still recognizing real references', () => {
+    for (const plain of ['v1.2.3', 'version.2', 'Foo.Bar', 'foo.ts', 'Node.js']) {
+      expect(classifyMarkdownTarget(plain).kind).not.toBe('file')
+    }
+    expect(classifyMarkdownTarget('./a.ts')).toEqual({ kind: 'file', path: './a.ts' })
+    expect(classifyMarkdownTarget('src/bar.ts')).toEqual({ kind: 'file', path: 'src/bar.ts' })
+    expect(classifyMarkdownTarget('C:\\repo\\file.ts')).toEqual({
+      kind: 'file',
+      path: 'C:\\repo\\file.ts',
+    })
+    expect(classifyMarkdownTarget('/etc/hosts')).toEqual({ kind: 'file', path: '/etc/hosts' })
+    expect(classifyMarkdownTarget('file:///C:/repo/file.ts')).toEqual({
+      kind: 'file',
+      path: 'C:/repo/file.ts',
+    })
+    expect(classifyMarkdownTarget('foo.ts:12:3')).toEqual({
+      kind: 'file',
+      path: 'foo.ts',
+      line: 12,
+      column: 3,
+    })
+    expect(classifyMarkdownTarget('foo.ts#L10-L12')).toEqual({
+      kind: 'file',
+      path: 'foo.ts',
+      line: 10,
+      endLine: 12,
+    })
+  })
+
   test('rejects executable and embedded-data schemes', () => {
     expect(classifyMarkdownTarget('javascript:alert(1)')).toEqual({
       kind: 'unsafe',
