@@ -11,12 +11,17 @@ import { GOAL_WRAPUP_OUTPUT_TOKENS, goalBudgetAdmission } from '../src/session/G
 import { removeFixturePaths } from './FixtureCleanup'
 
 const paths: string[] = []
-afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
+const databases: AgentDatabase[] = []
+afterEach(async () => {
+  for (const db of databases.splice(0)) db.close()
+  await removeFixturePaths(paths.splice(0))
+}, 30_000)
 
 const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-goal-wrapup-'))
   paths.push(root)
   const db = new AgentDatabase(join(root, 'agent.sqlite'))
+  databases.push(db)
   const service = new ThreadGoalService(db, await Effect.runPromise(EventHub.make))
   const thread = db.createThread('预算收尾')
   const goal = (

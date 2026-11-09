@@ -740,7 +740,7 @@ describe('ProtocolDetectionService', () => {
       )
       expect(
         unauthorized.models[0]!.cells.find((cell) => cell.protocol === 'openai-completions'),
-      ).toMatchObject({ status: 'failed', category: 'authentication', message: '凭据鉴权失败' })
+      ).toMatchObject({ status: 'failed', category: 'authentication', message: '供应商鉴权失败，请检查凭据和接口配置。' })
     } finally {
       server.stop(true)
     }

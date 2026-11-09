@@ -75,7 +75,7 @@ describe('能力目录', () => {
     expect(rendered.length).toBeLessThan(CAPABILITY_DESCRIPTION_MAX_CHARS + 20)
     expect(rendered).toContain('…')
     expect(section.content).toContain('offset')
-    expect(section.content).toContain('不是本轮全部工具')
+    expect(section.content).toContain('not all tools for this turn')
   })
 
   test('超出总预算时明确说明还有未展示能力', () => {
@@ -83,13 +83,15 @@ describe('能力目录', () => {
       Array.from({ length: 200 }, (_, index) => summary(`tool_${index}`, '描述'.repeat(60))),
     )
     expect(section.content.length).toBeLessThanOrEqual(CAPABILITY_CATALOG_MAX_CHARS)
-    expect(section.content).toContain('还有')
+    expect(section.content).toContain('more entries are omitted')
     expect(section.content).toContain('ToolSearch')
     expect(section.content).not.toContain('- tool_199')
   })
 
   test('没有可发现能力时给出空目录而不是省略说明', () => {
-    expect(buildCapabilityCatalogSection([]).content).toContain('当前没有可发现的延迟工具')
+    expect(buildCapabilityCatalogSection([]).content).toContain(
+      'No deferred tools are currently discoverable',
+    )
   })
 })
 
@@ -760,27 +762,29 @@ describe('电脑控制提示', () => {
 
   test('就绪时告知能力与延迟工具入口', () => {
     const instructions = compose({ enabled: () => true, available: () => true })
-    expect(instructions).toContain('本机电脑控制已就绪')
+    expect(instructions).toContain('Computer control is ready')
     expect(instructions).toContain('ToolSearch')
-    expect(instructions).toContain('ComputerApps')
+    expect(instructions).toContain('mcp__node_repl__js')
     expect(instructions).toContain('Read')
     expect(instructions).toContain('computer-use SKILL.md')
-    expect(instructions).toContain('插件启用不改变应用授权与工具权限')
-    expect(instructions).not.toContain('未开启')
+    expect(instructions).toContain(
+      'Enabling a plugin does not grant application access or tool permissions',
+    )
+    expect(instructions).not.toContain('plugin is disabled')
   })
 
   test('已开启但运行时未连接时指出需要重启桌面应用', () => {
     const instructions = compose({ enabled: () => true, available: () => false })
-    expect(instructions).toContain('原生运行时尚未连接')
-    expect(instructions).toContain('重启 Pidex 桌面应用')
-    expect(instructions).not.toContain('本机电脑控制已就绪')
+    expect(instructions).toContain('Windows runtime is disconnected')
+    expect(instructions).toContain('restart Pidex Desktop')
+    expect(instructions).not.toContain('Computer control is ready')
   })
 
   test('未开启时告诉模型入口而不是否认能力', () => {
     const instructions = compose({ enabled: () => false, available: () => false })
-    expect(instructions).toContain('当前未开启')
-    expect(instructions).toContain('设置 → 集成 → 电脑控制')
-    expect(instructions).toContain('不要回答本机不具备该能力')
+    expect(instructions).toContain('plugin is disabled')
+    expect(instructions).toContain('Settings > Integrations > Computer control')
+    expect(instructions).toContain('Do not claim the capability does not exist')
   })
 
   test('没有电脑控制服务时不注入该提示', () => {
@@ -805,28 +809,32 @@ describe('协作模式提示', () => {
       userMessage: '你好',
     }).find((section) => section.id === 'profile.explorer')!.content
     for (const content of [mode('plan'), mode('grill'), explorer]) {
-      expect(content).toContain('不修改受版本控制文件的测试、构建和检查')
-      expect(content).toContain('不得创建、修改或删除业务文件')
-      expect(content).toContain('显式拒绝')
+      expect(content).toContain(
+        'tests, builds and checks that do not modify version-controlled files',
+      )
+      expect(content).toContain('Do not create, modify or delete business files')
+      expect(content).toContain('Explicit denials')
     }
     expect(mode('plan')).not.toContain('禁用通用 Shell')
     expect(mode('grill')).not.toContain('只读调查工具')
   })
 
   test('Grill 模式要求设计树、暂定假设与无默认出口门禁', () => {
-    expect(mode('grill')).toContain('设计树')
-    expect(mode('grill')).toContain('概念层 Frontier')
-    expect(mode('grill')).toContain('[依赖暂定假设')
-    expect(mode('grill')).toContain('需求共识清单')
-    expect(mode('grill')).toContain('三个选项都不得标记 recommended')
-    expect(mode('grill')).toContain('不设置 autoResolutionMs')
-    expect(mode('grill')).toContain('这两个出口都只确认需求，不是实施授权')
-    expect(mode('grill')).toContain('不要仅凭延迟目录或历史会话')
+    expect(mode('grill')).toContain('design tree')
+    expect(mode('grill')).toContain('conceptual Frontier')
+    expect(mode('grill')).toContain('[Depends on provisional assumption')
+    expect(mode('grill')).toContain('summarize confirmed requirements')
+    expect(mode('grill')).toContain('three options, none recommended')
+    expect(mode('grill')).toContain('do not set autoResolutionMs')
+    expect(mode('grill')).toContain(
+      'first two exits confirm requirements only, not implementation authorization',
+    )
+    expect(mode('grill')).toContain('not replace it with plain-text questions')
   })
 
   test('Plan 模式选项与题数上限与工具契约一致', () => {
-    expect(mode('plan')).toContain('最多五题')
-    expect(mode('plan')).toContain('选项二至五个')
+    expect(mode('plan')).toContain('at most five independent questions')
+    expect(mode('plan')).toContain('two to five meaningful options')
     expect(mode('plan')).toContain('multiSelect')
   })
 })

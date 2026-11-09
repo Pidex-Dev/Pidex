@@ -302,7 +302,7 @@ describe('submit_plan runtime delivery', () => {
     const submitted = setup.finished.filter((entry) => entry.tool === 'submit_plan')
     expect(submitted).toHaveLength(2)
     expect(submitted[0]!.isError).toBe(true)
-    expect(submitted[0]!.result).toContain('唯一的工具调用')
+    expect(submitted[0]!.result).toContain('only tool call')
     expect(submitted[1]!.isError).toBe(false)
     expect(hostInputs).toHaveLength(1)
     await setup.runtime.dispose()

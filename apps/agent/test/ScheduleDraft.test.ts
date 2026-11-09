@@ -223,10 +223,10 @@ describe('任务规划草案', () => {
       prompt: string
     }>
     expect(tasks).toHaveLength(1)
-    expect(tasks[0]!.prompt).toContain('## 已确认的任务计划（固定上下文，不要重新规划）')
+    expect(tasks[0]!.prompt).toContain('## Confirmed task plan (fixed context; do not replan)')
     expect(tasks[0]!.prompt).toContain('改善登录页的可用性与错误提示。')
     expect(tasks[0]!.prompt).toContain('人工验收')
-    expect(tasks[0]!.prompt).toContain('先简短重述用户目标和试图解决的问题')
+    expect(tasks[0]!.prompt).toContain('Briefly restate the user objective and problem')
     // 重试同一个 operationId 只返回同一份结果，不会产生第二组任务。
     const retried = await service.commitDraft({
       id: draft.id,

@@ -287,6 +287,11 @@ describe('持久化队列', () => {
       { ...input, content: 'second steer', strategy: 'guide' },
       'input:steer:second',
     )
+    expect(
+      new ThreadProjection(db)
+        .snapshot(thread.id)!
+        .inputs.find((row) => row.id === firstSteer.inputID),
+    ).toMatchObject({ delivery: 'steer', state: 'active' })
     const existing = db.createTurn(thread.id, {
       ...input,
       content: 'existing follow-up',

@@ -307,9 +307,9 @@ describe('TaskSuggestionService', () => {
     const cachedWorking = await service.generate(params(project.id, 'working'))
 
     expect(systems).toHaveLength(2)
-    expect(systems[0]).toContain('编码任务建议')
-    expect(systems[1]).toContain('恰好返回 3 条')
-    expect(systems[1]).toContain('不得把所有结果都描述成编码任务')
+    expect(systems[0]).toContain('next coding-task suggestions')
+    expect(systems[1]).toContain('exactly 3 concrete tasks')
+    expect(systems[1]).toContain('do not frame all results as coding')
     expect(working.contextKey).not.toBe(coding.contextKey)
     expect(cachedWorking).toEqual(working)
     expect(working.suggestions).toHaveLength(3)

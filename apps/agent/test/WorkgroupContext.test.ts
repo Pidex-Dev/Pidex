@@ -131,16 +131,16 @@ describe('工作组共享上下文', () => {
 
     const prompt = service.promptForThread(targetThread.id)
     expect(prompt).toBeString()
-    expect(prompt).toContain('工作组：登录改造')
-    expect(prompt).toContain('说明：共享登录设计与实施')
-    expect(prompt).toContain('当前项目：当前项目')
+    expect(prompt).toContain('Workgroup: 登录改造')
+    expect(prompt).toContain('Description: 共享登录设计与实施')
+    expect(prompt).toContain('Current project: 当前项目')
     // 成员索引按项目标注来源，且带会话 ID 供 read_thread 定位。
     expect(prompt).toContain('[来源项目] 来源设计会话')
     expect(prompt).toContain(sourceThread.id)
     expect(prompt).toContain('[当前项目] 实施会话')
     // 引导按需读取完整历史，并声明工作组不扩大权限。
     expect(prompt).toContain('read_thread')
-    expect(prompt).toContain('不会扩大当前会话的文件权限')
+    expect(prompt).toContain('not broader file access')
   })
 
   test('未加入工作组时不注入任何上下文', async () => {
@@ -181,11 +181,11 @@ describe('工作组共享上下文', () => {
 
     const prompt = service.promptForThread(threads[0]!.id)!
     expect(prompt.length).toBeLessThanOrEqual(12_000)
-    expect(prompt).toContain('工作组：超大组')
+    expect(prompt).toContain('Workgroup: 超大组')
     // 预算耗尽时先省略摘要，成员索引与共享条目仍然保留。
-    expect(prompt).toContain('成员会话：')
-    expect(prompt).toContain('有效共享条目：')
-    expect(prompt).not.toContain('进展摘要：')
+    expect(prompt).toContain('Member conversations:')
+    expect(prompt).toContain('Effective shared entries:')
+    expect(prompt).not.toContain('Progress digest:')
     expect(prompt.endsWith('</session_group_context>')).toBe(true)
   })
 

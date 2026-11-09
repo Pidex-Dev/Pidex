@@ -1561,8 +1561,8 @@ describe('RPC v4 Router', () => {
         providerId: 'google',
       })
       expect(result.error).toMatchObject({
-        message: '模型目录刷新失败，请检查提供商连接、凭据和模型接口后重试。',
-        data: { code: 'PROVIDER_UNAVAILABLE', retryable: true },
+        message: '模型目录刷新失败，请检查供应商配置和连接。',
+        data: { code: 'PROVIDER_UNAVAILABLE', retryable: false },
       })
       expect(JSON.stringify(result)).not.toContain('private')
     } finally {
@@ -1578,7 +1578,7 @@ describe('RPC v4 Router', () => {
             'CATALOG_REFRESH_FAILED',
             'private upstream failure',
             { cause: new Error('private credential') },
-            ['openai：凭据鉴权失败（HTTP 401）'],
+            [{ providerId: 'openai', code: 'PROVIDER_AUTH_FAILED', retryable: false, httpStatus: 401 }],
           )
         },
       } as unknown as RpcRouterDependencies['providers'],
@@ -1590,10 +1590,11 @@ describe('RPC v4 Router', () => {
         providerId: 'openai',
       })
       expect(result.error).toMatchObject({
-        message: '模型目录刷新失败（1 个提供商）：openai：凭据鉴权失败（HTTP 401）。',
-        data: { code: 'PROVIDER_UNAVAILABLE', retryable: true },
+        message: '模型目录刷新失败',
+        data: { code: 'PROVIDER_AUTH_FAILED', retryable: false, details: { providerId: 'openai', httpStatus: 401 } },
       })
       expect(JSON.stringify(result)).not.toContain('private')
+
     } finally {
       db.close()
     }

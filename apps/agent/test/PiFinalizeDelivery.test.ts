@@ -396,7 +396,7 @@ describe('finalize_result structured delivery runtime', () => {
     const finalizeFinished = setup.finished.filter((entry) => entry.tool === 'finalize_result')
     expect(finalizeFinished).toHaveLength(2)
     expect(finalizeFinished[0]!.isError).toBe(true)
-    expect(finalizeFinished[0]!.result).toContain('唯一的工具调用')
+    expect(finalizeFinished[0]!.result).toContain('only tool call')
     expect(finalizeFinished[1]!.isError).toBe(false)
     await setup.runtime.dispose()
   })

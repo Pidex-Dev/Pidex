@@ -16,7 +16,11 @@ import { GoalContinuationCoordinator } from '../src/orchestration/GoalContinuati
 import { removeFixturePaths } from './FixtureCleanup'
 
 const paths: string[] = []
-afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
+const databases: AgentDatabase[] = []
+afterEach(async () => {
+  for (const db of databases.splice(0)) db.close()
+  await removeFixturePaths(paths.splice(0))
+}, 30_000)
 
 const submit = (content: string) => ({
   content,
@@ -34,6 +38,7 @@ const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-goal-verifier-'))
   paths.push(root)
   const db = new AgentDatabase(join(root, 'agent.sqlite'))
+  databases.push(db)
   const service = new ThreadGoalService(db, await Effect.runPromise(EventHub.make))
   const thread = db.createThread('verifier')
   const goal = (

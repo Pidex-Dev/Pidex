@@ -179,11 +179,11 @@ describe('PluginManagementService', () => {
     // An already scanned service must not read a disabled plugin from its frozen catalog.
     await expect(skills.read('computer-use')).rejects.toThrow('插件技能已禁用')
     expect((await pluginReferenceData(content, service, root, skills.list())).join('')).toContain(
-      '当前不可用',
+      'is unavailable',
     )
     await skills.scan({ workspaceRoot: root, dataRoot: root, userHome: root })
     expect(skills.resolveInvocations('继续', [selection])).toEqual([])
-    expect((await skills.invocationData('继续', [selection])).join('')).toContain('当前不可用')
+    expect((await skills.invocationData('继续', [selection])).join('')).toContain('is unavailable')
     expect(await service.enabledSkillRoots()).toEqual([])
   })
 
@@ -646,7 +646,7 @@ describe('downloaded plugin lifecycle', () => {
       (
         await pluginReferenceData('[@Demo](plugin://pidex-demo)', restarted, root, skills.list())
       )[0],
-    ).toContain('用户引用了插件')
+    ).toContain('The user referenced this plugin')
     expect(fixture.calls()).toBe(beforeScan)
     await restarted.setEnabled({
       pluginId: input.pluginId,

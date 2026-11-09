@@ -152,7 +152,7 @@ test('后续消息 FIFO、幂等及整树停止等待实际退出', async () => 
   const started: string[] = []
   const release = new Map<string, () => void>()
   const { service, root, repo } = fixture(async (request) => {
-    const label = request.content.startsWith('子 Agent 任务：') ? '初始' : request.content
+    const label = request.content.startsWith('Subagent task:') ? '初始' : request.content
     started.push(label)
     await new Promise<void>((resolve) => {
       release.set(label, resolve)

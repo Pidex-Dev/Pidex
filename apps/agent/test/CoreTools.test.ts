@@ -1,3 +1,5 @@
+import { ThreadGoalService } from '../src/session/ThreadGoalService'
+import { EventHub } from '../src/storage/events/EventHub'
 import { ContextCompactionService } from '../src/context/ContextCompactionService'
 import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -280,14 +282,16 @@ describe('核心工具面', () => {
       'additionalPermissions',
     ])
     expect(properties('ToolSearch')).toEqual(['query', 'max_results', 'offset'])
-    expect(property('Read', 'file_path')?.description).toContain('只接受文件')
-    expect(property('Write', 'file_path')?.description).toContain('必须先成功 Read')
-    expect(property('Edit', 'path')?.description).toContain('必须先成功 Read')
-    expect(property('Glob', 'path')?.description).toContain('不得传文件路径')
-    expect(property('Grep', 'path')?.description).toContain('限制文件范围请使用 glob')
+    expect(property('Read', 'file_path')?.description).toContain('Files only')
+    expect(property('Write', 'file_path')?.description).toContain('require a successful Read')
+    expect(property('Edit', 'path')?.description).toContain('previously read with Read')
+    expect(property('Glob', 'path')?.description).toContain('not a file')
+    expect(property('Grep', 'path')?.description).toContain('Restrict filenames with glob')
     expect(property('apply_patch', 'patch')?.description).toContain('*** Begin Patch')
     expect(property('apply_patch', 'patch')?.description).toContain('*** End Patch')
-    expect(property('apply_patch', 'patch')?.description).toContain('禁止 Markdown 代码围栏')
+    expect(property('apply_patch', 'patch')?.description).toContain(
+      'Do not use Markdown code fences',
+    )
     await Bun.write(join(context.workspace.rootPath, 'internal.txt'), 'internal')
     await expect(
       executor
@@ -539,7 +543,7 @@ describe('核心工具面', () => {
       },
     ])
     try {
-      let releases = 0
+      let previewReads = 0
       const threads = new ThreadService(
         db,
         {} as never,
@@ -563,14 +567,12 @@ describe('核心工具面', () => {
         undefined,
         undefined,
         {
-          acquire: async (cwd: string) => {
+          previewCatalog: async (cwd: string) => {
             expect(cwd).toBe(root)
+            previewReads++
             return {
               catalog: registry,
               serverInstructions: [],
-              release: async () => {
-                releases++
-              },
             }
           },
         } as never,
@@ -580,12 +582,15 @@ describe('核心工具面', () => {
         undefined,
         false,
       )
+      const settingsBeforePreview = db.getThreadPromptSettings(thread.id)
       const preview = await threads.promptPreview(thread.id)
+      expect(db.getThreadPromptSettings(thread.id)).toEqual(settingsBeforePreview)
       const previewCatalog = preview.sections.find(
         (section) => section.id === 'capabilities.catalog',
       )!
       expect(previewCatalog.content).toContain('mcp_report')
-      expect(releases).toBe(1)
+      expect(previewReads).toBe(1)
+      expect(preview.previewKind).toBe('estimated')
       await runtime.run(request)
       expect(deferredResult).toMatchObject({ role: 'toolResult', isError: false })
       expect(prompts[0]).toContain('mcp_report')
@@ -594,11 +599,56 @@ describe('核心工具面', () => {
       const frozen = repository.get(turn.turnID)!.snapshot
       expect(frozen.prompt.instructions).toContain(previewCatalog.content)
       expect(frozen.tools.deferred).toContain('mcp_report')
+      const frozenPreview = await threads.promptPreview(thread.id)
+      expect(frozenPreview.previewKind).toBe('frozen')
+      if (frozenPreview.previewKind !== 'frozen') throw new Error('expected frozen preview')
+      expect(frozenPreview.turnId).toBe(turn.turnID)
+      expect(frozenPreview.compositionId).toBe(frozen.identity.id)
+      expect(frozenPreview.instructions).toBe(frozen.prompt.instructions)
+      expect(frozenPreview.baseHash).toBe(frozen.prompt.baseHash)
+      expect(frozenPreview.sections).toEqual([])
+      expect(previewReads).toBe(1)
+      expect(repository.latestForThread(thread.id)?.turnID).toBe(turn.turnID)
+
       registerDeferredTool(registry, 'new_live_tool', '新工具')
       faux.setResponses([capture])
       await runtime.run({ ...request, resume: { state: '', interruption: null, answer: null } })
       expect(prompts.at(-1)).not.toContain('new_live_tool')
       expect(repository.get(turn.turnID)!.snapshot.identity.hash).toBe(frozen.identity.hash)
+      db.updateTurnStatus(turn.turnID, 'completed')
+      expect((await threads.promptPreview(thread.id)).previewKind).toBe('frozen')
+      db.sqlite
+        .query("UPDATE runtime_composition_plans SET snapshot_hash = 'invalid' WHERE turn_id = ?")
+        .run(turn.turnID)
+      await expect(threads.promptPreview(thread.id)).rejects.toMatchObject({
+        code: 'RUNTIME_COMPOSITION_UNAVAILABLE',
+      })
+      expect(previewReads).toBe(1)
+      const goals = new ThreadGoalService(db, await Effect.runPromise(EventHub.make))
+      await goals.set({
+        threadId: thread.id,
+        objective: 'preview goal',
+        expectedVersion: null,
+        operationId: 'preview-goal',
+      })
+      db.saveThreadPromptSettings(thread.id, {
+        engine: 'prompt-engine-v2',
+        version: 2,
+        settings: { appendSystemPrompt: 'APPEND_PREFERENCE', defaultModeRequestUserInput: true },
+      })
+      const next = db.createTurn(thread.id, {
+        content: 'next',
+        model,
+        permissionConfig,
+        strategy: 'queue',
+        taskMode: 'chat',
+      })
+      db.claimTurnExecution(next.turnID)
+      const estimated = await threads.promptPreview(thread.id)
+      expect(estimated.previewKind).toBe('estimated')
+      expect(estimated.instructions).toContain('A goal is attached to this thread')
+      expect(estimated.instructions).toContain('APPEND_PREFERENCE')
+      expect(previewReads).toBe(2)
     } finally {
       await runtime.dispose()
       db.close()

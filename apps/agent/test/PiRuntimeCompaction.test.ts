@@ -330,7 +330,7 @@ describe('Harness runtime context compaction', () => {
   test('explicit budget compresses early and continues without raising the budget', async () => {
     let requests = 0
     const setup = await createRuntime({
-      history: 'x'.repeat(34_000),
+      history: 'x'.repeat(340_000),
       shouldAutoCompact: true,
       responses: [
         () => {
@@ -343,9 +343,11 @@ describe('Harness runtime context compaction', () => {
         },
       ],
     })
+    // 输出预留最多半窗；明确降低窗口后仍要能容纳一次摘要请求。
+    setup.request.model = { ...setup.request.model, contextWindow: 200_000, maxTokens: 8_192 }
     try {
       await expect(
-        setup.runtime.run({ ...setup.request, maxContextTokens: 10_000 }),
+        setup.runtime.run({ ...setup.request, maxContextTokens: 100_000 }),
       ).resolves.toMatchObject({ output: 'within budget' })
       expect(setup.compacted).toEqual(['automatic'])
       expect(requests).toBe(2)
