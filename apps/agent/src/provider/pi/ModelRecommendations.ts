@@ -103,6 +103,11 @@ export function applyRecommendation<T extends PiModelFields>(
     ...(reasoning !== undefined ? { reasoning } : {}),
     ...(tools !== undefined ? { tools } : {}),
     ...(input !== undefined ? { input } : {}),
+    ...(recommended.optionSpecs ? { optionSpecs: {
+      ...model.optionSpecs, ...recommended.optionSpecs,
+      ...(recommended.optionSpecs.reasoningLevel ? { reasoningLevel: { ...model.optionSpecs?.reasoningLevel, ...recommended.optionSpecs.reasoningLevel } } : {}),
+      ...(recommended.optionSpecs.maxOutputTokens ? { maxOutputTokens: { ...model.optionSpecs?.maxOutputTokens, ...recommended.optionSpecs.maxOutputTokens } } : {}),
+    } } : {}),
     ...(inputCost !== undefined ||
     outputCost !== undefined ||
     cacheReadCost !== undefined ||
@@ -121,6 +126,7 @@ export function applyRecommendation<T extends PiModelFields>(
 }
 
 type PiModelFields = {
+  readonly optionSpecs?: Model.OptionSpecs | undefined
   readonly name: string
   readonly contextWindow: number
   readonly maxInputTokens?: number | undefined
@@ -148,6 +154,7 @@ function values(raw: JsonObject): Model.Recommendation {
         return option.type === 'effort' && Array.isArray(option.values) ? option.values : []
       })
     : []
+  const explicitEfforts = [...new Set(efforts.filter((value): value is string => typeof value === 'string' && value.length > 0))]
   const levels = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
   return Schema.decodeUnknownSync(Model.Recommendation)({
     ...(typeof raw.name === 'string' && raw.name ? { name: raw.name } : {}),
@@ -163,6 +170,7 @@ function values(raw: JsonObject): Model.Recommendation {
           ),
         }
       : {}),
+    ...(explicitEfforts.length ? { optionSpecs: { reasoningLevel: { values: explicitEfforts } } } : {}),
     ...(efforts.length
       ? {
           reasoningLevels: levels.filter(
@@ -392,6 +400,7 @@ export class ModelRecommendationIndex {
       }
     const { maxTokens: _maxTokens, reasoning: _reasoning, ...rest } = recommended
     const {
+      optionSpecs: _optionSpecs,
       reasoningLevels: _reasoningLevels,
       tools: _tools,
       ...nonChat

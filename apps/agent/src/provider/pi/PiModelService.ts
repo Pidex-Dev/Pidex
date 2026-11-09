@@ -176,15 +176,17 @@ const supportedThinkingLevels = (model: PiModel<Api>): readonly string[] => {
     : []
 }
 
-/** 逐字段叠加：next（更高优先级，如 ZCode）覆盖 base，缺失字段继续继承。 */
+/** 模型明确档位优先；静态规则补充协议映射及缺失规格。 */
 const overlayRecommendedOptionSpecs = (
-  base: Model.OptionSpecs | undefined,
+  recommendation: Model.Recommendation,
   next: Model.OptionSpecs | undefined,
 ): Model.OptionSpecs | undefined => {
-  if (!base && !next) return undefined
+  const base = recommendation.optionSpecs
+  const values = base?.reasoningLevel?.values ?? recommendation.reasoningLevels
+  if (!base && !next && !values?.length) return undefined
   const reasoningLevel =
-    base?.reasoningLevel || next?.reasoningLevel
-      ? { ...(base?.reasoningLevel ?? {}), ...(next?.reasoningLevel ?? {}) }
+    base?.reasoningLevel || next?.reasoningLevel || values?.length
+      ? { ...(next?.reasoningLevel ?? {}), ...(base?.reasoningLevel ?? {}), ...(values?.length ? { values } : {}) }
       : undefined
   const maxOutputTokens =
     base?.maxOutputTokens || next?.maxOutputTokens
@@ -877,7 +879,7 @@ export class PiModelService {
       ...resolved,
       recommended: {
         ...resolved.recommended,
-        optionSpecs: overlayRecommendedOptionSpecs(resolved.recommended.optionSpecs, zcode),
+        optionSpecs: overlayRecommendedOptionSpecs(resolved.recommended, zcode),
       },
     }
   }
@@ -916,20 +918,16 @@ export class PiModelService {
         modelId: model.id,
         modelType: model.modelType ?? 'chat',
       })
-      // ZCode 优先于 models.dev 推荐：逐字段覆盖，缺失继续继承。
+      // 模型明确档位优先于静态通用档位，协议 map 继续由静态规则补齐。
       const zcode = resolveZCodeOptionSpecs({ modelId: model.id, api: model.api, baseUrl })
       const recommended = zcode
         ? {
             ...baseRecommended,
-            optionSpecs: overlayRecommendedOptionSpecs(baseRecommended.optionSpecs, zcode),
+            optionSpecs: overlayRecommendedOptionSpecs(baseRecommended, zcode),
           }
         : baseRecommended
       const applied = applyRecommendation(model, recommended)
-      // 用户显式配置优先于推荐；只有缺失时才从推荐（含 ZCode）继承。
-      models[id] =
-        !model.optionSpecs && recommended.optionSpecs
-          ? { ...applied, optionSpecs: recommended.optionSpecs }
-          : applied
+      models[id] = applied
     }
     return { ...provider, models }
   }
@@ -1114,9 +1112,25 @@ export class PiModelService {
           continue
         const source =
           id === DEEPSEEK_PROVIDER_ID ? (this.deepSeekProtocol?.provider ?? base) : base
+        let runtimeConfig = configured
+        if (configured?.kind === 'builtin') {
+          const models = { ...configured.models }
+          for (const [modelID, override] of Object.entries(models)) {
+            if (!override.enabled || (override.optionSpecs && !override.smartConfig) || override.smartConfig?.pinned.length) continue
+            const native = source.getModels().find((model) => model.id === modelID)
+            if (!native) continue
+            const api = override.api ?? configured.protocol ?? native.api
+            const baseUrl = configured.endpoints?.[api as CustomProviderApi] ?? configured.baseUrl ?? native.baseUrl
+            const { recommended } = await this.recommendations.resolve({ providerId: id, modelId: modelID, modelType: 'chat', baseUrl })
+            if (!recommended.optionSpecs?.reasoningLevel?.values?.length && !recommended.reasoningLevels?.length) continue
+            const optionSpecs = overlayRecommendedOptionSpecs(recommended, resolveZCodeOptionSpecs({ modelId: modelID, api, baseUrl }))
+            models[modelID] = optionSpecs ? { ...override, optionSpecs } : override
+          }
+          runtimeConfig = { ...configured, models }
+        }
         this.mutablePi?.setProvider(
-          configured?.kind === 'builtin'
-            ? withPiBuiltinProviderOverrides(source, configured)
+          runtimeConfig?.kind === 'builtin'
+            ? withPiBuiltinProviderOverrides(source, runtimeConfig)
             : source,
         )
       }

@@ -467,3 +467,12 @@ test('后台目录同步通知可在启动后注册，失败不通知且不重�
     interval.mockRestore()
   }
 })
+
+
+test('模型明确思考档位保留原始值、顺序和非固定七档，不被规范化替换', () => {
+  const payload = catalog()
+  payload.models['maker/example'] = row(128000, { reasoning_options: [{ type: 'effort', values: ['none', 'low', 'high', 'adaptive'] }] })
+  payload.providers = {} as typeof payload.providers
+  expect(new ModelRecommendationIndex(payload).resolve(input).recommended.optionSpecs?.reasoningLevel?.values)
+    .toEqual(['none', 'low', 'high', 'adaptive'])
+})

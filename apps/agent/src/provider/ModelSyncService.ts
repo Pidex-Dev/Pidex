@@ -28,6 +28,7 @@ export interface ProviderModelDefinition {
   readonly contextWindow?: number
   readonly maxInputTokens?: number
   readonly maxTokens?: number
+  readonly optionSpecs?: Model.OptionSpecs
   readonly reasoning?: boolean
   readonly tools?: boolean
   readonly input?: readonly ('text' | 'image' | 'audio' | 'video')[]
@@ -315,6 +316,7 @@ export class ModelSyncService {
         ...(contextWindow !== undefined ? { contextWindow } : {}),
         ...(maxInputTokens !== undefined ? { maxInputTokens } : {}),
         ...(maxTokens !== undefined ? { maxTokens } : {}),
+        ...(recommendation.status === 'matched' && recommended.optionSpecs ? { optionSpecs: recommended.optionSpecs } : {}),
         ...(recommended.reasoning !== undefined ? { reasoning: recommended.reasoning } : {}),
         ...(recommended.tools !== undefined ? { tools: recommended.tools } : {}),
         ...(recommended.input ? { input: recommended.input } : {}),

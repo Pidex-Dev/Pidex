@@ -7,6 +7,8 @@ import { join } from 'node:path'
 import type { EncryptedCredentialRepository } from '../src/auth/EncryptedCredentialRepository'
 import { ProviderDirectoryStore } from '../src/provider/pi/ProviderDirectoryStore'
 import { normalizeContext } from '@earendil-works/pi-ai'
+import { ModelRecommendationStore } from '../src/provider/pi/ModelRecommendationStore'
+import { compileOptionSpecs, applyModelOptionMap } from '../src/provider/pi/PiModelOptionMapping'
 import { ModelSyncService } from '../src/provider/ModelSyncService'
 import type { ConfigService } from '../src/config/ConfigService'
 import {
@@ -942,4 +944,44 @@ describe('PiModelService', () => {
       await service.dispose()
     }
   })
+})
+
+
+test('明确三档贯通推荐、旧自动配置、内置模型和协议映射，手动配置保留', async () => {
+  const recommendations = new ModelRecommendationStore()
+  const resolve = spyOn(recommendations, 'resolve').mockResolvedValue({
+    status: 'matched', recommended: { reasoning: true, optionSpecs: { reasoningLevel: { values: ['none', 'low', 'high'] } } },
+  })
+  const oldOptions = { reasoningLevel: { values: ['disabled', 'enabled'], map: '{}' } }
+  const config = { providers: {
+    gateway: { kind: 'custom', enabled: true, name: 'Gateway', base_url: 'https://gateway.example/v1', auth: 'none', models: {
+      'hy4-preview': { api: 'openai-completions', reasoning: true, smart_config: { pinned: [] }, option_specs: oldOptions },
+      manual: { api: 'openai-completions', reasoning: true, option_specs: oldOptions },
+    } },
+    google: { kind: 'builtin', enabled: true, models: {} as Record<string, unknown> },
+  } }
+  let service = new PiModelService(repository().adapter, { recommendations, config })
+  const builtinID = service.pi.getModels('google')[0]!.id
+  config.providers.google.models[builtinID] = { enabled: true, smart_config: { pinned: [] }, option_specs: oldOptions }
+  try {
+    const preview = await service.previewRecommendation({ providerId: 'gateway', modelId: 'hy4-preview', modelType: 'chat' })
+    expect(preview.recommended.optionSpecs?.reasoningLevel?.values).toEqual(['none', 'low', 'high'])
+    const check = async () => {
+      expect((await service.models('gateway' as never)).find((model) => model.id === 'hy4-preview')?.variants.map((variant) => String(variant.id))).toEqual(['none', 'low', 'high'])
+      expect((await service.models('gateway' as never)).find((model) => model.id === 'manual')?.variants.map((variant) => String(variant.id))).toEqual(['disabled', 'enabled'])
+      expect((await service.models('google' as never))[0]?.variants.map((variant) => String(variant.id))).toEqual(['none', 'low', 'high'])
+    }
+    await check()
+    const model = await service.getPiModel({ providerID: 'gateway', id: 'hy4-preview', variant: 'low' } as never)
+    const specs = (model as typeof model & { optionSpecs: Parameters<typeof compileOptionSpecs>[0] }).optionSpecs
+    const patch = applyModelOptionMap({}, compileOptionSpecs(specs)!, { reasoningLevel: 'low' })
+    expect(patch).toMatchObject({ reasoning_effort: 'low', reasoning: { effort: 'low' } })
+    expect(config.providers.gateway.models['hy4-preview'].option_specs).toEqual(oldOptions)
+    await service.dispose()
+    service = new PiModelService(repository().adapter, { recommendations, config })
+    await check()
+  } finally {
+    await service.dispose()
+    resolve.mockRestore()
+  }
 })

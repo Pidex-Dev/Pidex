@@ -7,10 +7,11 @@ export function fillModelDraft(
   recommended: ModelRecommendation,
 ): EditableModel {
   const specs = recommended.optionSpecs
+  const reasoningValues = specs?.reasoningLevel?.values ?? recommended.reasoningLevels
   const optionSpecFields: Partial<EditableModel> = specs
     ? {
-        ...(specs.reasoningLevel?.values !== undefined
-          ? { reasoningLevelValues: specs.reasoningLevel.values.join('\n') }
+        ...(reasoningValues !== undefined
+          ? { reasoningLevelValues: reasoningValues.join('\n') }
           : {}),
         ...(specs.reasoningLevel?.map !== undefined
           ? { reasoningLevelMap: specs.reasoningLevel.map }
