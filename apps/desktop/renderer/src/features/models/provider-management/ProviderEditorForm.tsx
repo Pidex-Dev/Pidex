@@ -1,3 +1,6 @@
+import type { ModelPricing, ModelUnitPrices } from '@pidex/agent-protocol'
+import { ModelPricingEditor } from './ModelPricingEditor.js'
+import { ModelCatalogDetails } from './ModelCatalogDetails.js'
 import { useSmartModelConfig } from './UseSmartModelConfig.js'
 import * as Dialog from '@radix-ui/react-dialog'
 import type { SmartConfig } from '@pidex/agent-protocol'
@@ -169,7 +172,9 @@ export type EditableModel = {
   maxOutputTokensMax: number
   /** optionSpecs.maxOutputTokens.map（受限 CEL 源串）。 */
   maxOutputTokensMap: string
+  costTiers?: NonNullable<DesktopProviderModelDefinition['cost']>['tiers']
   /** 已脱离推荐值的字段；缺失表示该模型未启用智能配置。 */
+  pricing?: ModelPricing
   smartConfig?: SmartConfig
 }
 
@@ -1619,6 +1624,14 @@ export function ModelEditor({
   return (
     <div className="provider-editor-tab-panel tw:grid tw:gap-6">
       {smart.controls}
+      {smart.recommended?.catalog && <details>
+        <summary>模型目录资料</summary>
+        <ModelCatalogDetails model={{ id: model.id, api: model.api, ...smart.recommended }}
+          current={{ id: model.id, api: model.api, contextWindow: model.contextWindow,
+            ...(model.maxInputTokens !== undefined ? { maxInputTokens: model.maxInputTokens } : {}),
+            maxTokens: model.maxTokens,
+            cost: { input: model.inputCost, output: model.outputCost, cacheRead: model.cacheReadCost, cacheWrite: model.cacheWriteCost } }} />
+      </details>}
       <section aria-label="模型基础信息" className="tw:grid tw:gap-4">
         <h3 className="tw:m-0 tw:type-title-sm">模型基础信息</h3>
         <label className={MODEL_EDITOR_ROW_CLASS}>
@@ -1753,6 +1766,7 @@ export function ModelEditor({
       </section>
       <section aria-label="模型价格" className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-6">
         <h3 className="tw:m-0 tw:type-title-sm">模型价格</h3>
+        <ModelPricingEditor rowClassName={MODEL_EDITOR_ROW_CLASS} value={model.pricing} onChange={(pricing) => onChange({ ...model, pricing })} />
         <div className={MODEL_EDITOR_ROW_CLASS}>
           <span>输入价格</span>
           <Input
@@ -1854,7 +1868,9 @@ export function editableModel(model: DesktopProviderModelDefinition): EditableMo
     reasoningLevelMap: model.optionSpecs?.reasoningLevel?.map ?? '',
     maxOutputTokensMax: model.optionSpecs?.maxOutputTokens?.max ?? 0,
     maxOutputTokensMap: model.optionSpecs?.maxOutputTokens?.map ?? '',
-    ...(model.smartConfig ? { smartConfig: { pinned: [...model.smartConfig.pinned] } } : {}),
+    pricing: model.pricing,
+    costTiers: model.cost?.tiers,
+    ...(model.smartConfig ? { smartConfig: structuredClone(model.smartConfig) } : {}),
   }
 }
 
@@ -2034,11 +2050,13 @@ export function normalizeEditableModel(
       output: model.outputCost || 0,
       cacheRead: model.cacheReadCost || 0,
       cacheWrite: model.cacheWriteCost || 0,
+      ...(model.costTiers ? { tiers: model.costTiers } : {}),
     },
     headers: modelHeaders,
     thinkingLevelMap: thinkingLevelMap ? (thinkingLevelMap as never) : undefined,
     compat: compat ?? undefined,
     optionSpecs: optionSpecs as never,
-    smartConfig: model.smartConfig ? { pinned: [...model.smartConfig.pinned] } : undefined,
+    pricing: model.pricing,
+    smartConfig: model.smartConfig ? structuredClone(model.smartConfig) : undefined,
   } as unknown as DesktopProviderModelDefinition
 }

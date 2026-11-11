@@ -84,7 +84,7 @@ export function ApplicationUsagePanel({
     },
     {
       label: '估算成本',
-      value: formatUsdAmount(data.totals.estimatedCostUsd),
+      value: `${formatUsdAmount(data.totals.estimatedCostUsd)}${data.totals.unknownCostRequests ? '（估算不完整）' : ''}${data.totals.conservativeCostRequests ? '（含日历缺失的较高价估算）' : ''}`,
       note: '按调用记录中的模型价格估算',
     },
   ]

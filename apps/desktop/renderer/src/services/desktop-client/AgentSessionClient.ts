@@ -3720,6 +3720,11 @@ export function createAgentSessionDesktopClient(
       notifyModelProviderChanged()
     },
     modelRecommendations: {
+      documentsSupported: async () => (await isAgentAvailable()) && agentCapabilities.has('model.documents.v1'),
+      extractDocument: async (input) => { requireAgentCapability('model.documents.v1'); return rpc.call('model/document/extract', input) },
+      cancelDocument: async (operationId) => rpc.call('model/document/cancel', { operationId }),
+      refreshPricing: async (force = true) => rpc.call('model/pricing/refresh', { operationId: crypto.randomUUID(), force }),
+
       supported: async () =>
         (await isAgentAvailable()) && agentCapabilities.has('model.recommendations.v1'),
       preview: async (input) => {

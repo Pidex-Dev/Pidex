@@ -1,3 +1,5 @@
+import { SmartConfigPinnedFields } from '@pidex/agent-protocol'
+import { ModelDocumentEditor } from './ModelDocumentEditor.js'
 import { useEffect, useRef, useState } from 'react'
 import type { ModelRecommendation, RpcResult } from '@pidex/agent-protocol'
 import { desktopClient } from '../../../services/desktop-client/index.js'
@@ -40,7 +42,7 @@ export function useSmartModelConfig(
   const sequence = useRef(0)
   const latest = useRef({ model, onChange })
   latest.current = { model, onChange }
-  const enabled = supported && model.smartConfig !== undefined && model.smartConfig.pinned.length === 0
+  const enabled = supported && model.smartConfig !== undefined && model.smartConfig.pinned.length === 0 && model.smartConfig.enabled !== false
 
   async function load(fill: boolean) {
     if (!supported) return
@@ -60,9 +62,12 @@ export function useSmartModelConfig(
       })
       if (request !== sequence.current) return
       setPreview(result)
-      if (fill && result.status === 'matched') {
+      if (fill) {
         const current = latest.current
-        current.onChange({ ...fillModelDraft(current.model, result.recommended), smartConfig: { pinned: [] } })
+        const config = current.model.smartConfig ?? { pinned: [] }
+        const base = result.status === 'matched' ? fillModelDraft(current.model, result.recommended) : current.model
+        const filled = config.source === 'document' && config.document ? fillModelDraft(base, config.document.data) : base
+        current.onChange({ ...filled, smartConfig: { ...config, pinned: [], enabled: true } })
       }
     } catch (cause) {
       if (request === sequence.current) {
@@ -84,7 +89,7 @@ export function useSmartModelConfig(
     }
     // 只在身份或目录更新时重新匹配；手动编辑不触发重新填充。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supported, providerId, baseUrl, model.id, model.modelType, model.api, catalogRevision])
+  }, [supported, providerId, baseUrl, model.id, model.modelType, model.api, catalogRevision, model.smartConfig?.source, model.smartConfig?.document?.extractedAt])
 
   const setEnabled = (next: boolean) => {
     if (next) {
@@ -92,13 +97,13 @@ export function useSmartModelConfig(
         setError('请先填写模型 ID，再开启智能配置。')
         return
       }
-      latest.current.onChange({ ...latest.current.model, smartConfig: { pinned: [] } })
+      latest.current.onChange({ ...latest.current.model, smartConfig: { ...latest.current.model.smartConfig, pinned: [], enabled: true } })
       void load(true)
     } else {
       sequence.current++
       setBusy(false)
       setError(null)
-      latest.current.onChange({ ...latest.current.model, smartConfig: undefined })
+      latest.current.onChange({ ...latest.current.model, smartConfig: latest.current.model.smartConfig ? { ...latest.current.model.smartConfig, enabled: false, pinned: [...SmartConfigPinnedFields] } : undefined })
     }
   }
 
@@ -114,6 +119,7 @@ export function useSmartModelConfig(
         </div>
         <ToggleSwitch ariaLabel="智能配置" checked={enabled} onChange={setEnabled} />
       </div>
+      <ModelDocumentEditor model={model} onChange={onChange} />
       {error || busy || (enabled && preview?.status !== 'matched') ? (
         <p role={error ? 'alert' : 'status'} className="tw:m-0">
           {error ??
@@ -139,7 +145,7 @@ export function useSmartModelConfig(
               size="xs"
               disabled={busy}
               onClick={() => {
-                void desktopClient.modelRecommendations?.refresh().finally(() => void load(latest.current.model.smartConfig?.pinned.length === 0))
+                void desktopClient.modelRecommendations?.refresh().finally(() => void load(latest.current.model.smartConfig?.pinned.length === 0 && latest.current.model.smartConfig.enabled !== false))
               }}
             >
               立即刷新推荐数据
@@ -160,7 +166,7 @@ export function useSmartModelConfig(
       sequence.current++
       setBusy(false)
       setError(null)
-      onChange({ ...next, smartConfig: undefined })
+      onChange({ ...next, smartConfig: next.smartConfig ? { ...next.smartConfig, enabled: false, pinned: [...SmartConfigPinnedFields] } : undefined })
     },
   }
 }

@@ -127,3 +127,17 @@ describe('模型智能填充', () => {
     expect(filled.maxOutputTokensMap).toBe('{"max_tokens": maxOutputTokens}')
   })
 })
+
+
+test('过滤仅去掉 undefined，保留 false、零、空字符串和空数组', () => {
+  const original = { ...draft(), reasoningLevelMap: 'old', maxInputTokens: 123 }
+  const filled = fillModelDraft(original, { name: '', reasoning: false, tools: false,
+    cost: { input: 0, output: 0, tiers: [] },
+    optionSpecs: { reasoningLevel: { map: '' } },
+  })
+  expect(filled).toMatchObject({ name: '', reasoning: false, tools: false,
+    inputCost: 0, outputCost: 0, costTiers: [], reasoningLevelMap: '', maxInputTokens: 123,
+    imageInput: true,
+  })
+  expect(original.reasoningLevelMap).toBe('old')
+})

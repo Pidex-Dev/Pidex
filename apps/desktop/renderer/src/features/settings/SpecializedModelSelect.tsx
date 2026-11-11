@@ -47,13 +47,15 @@ export function SpecializedModelSelect({
   mainModel,
   specializedModelKey,
   onChange,
+  label: customLabel,
 }: {
+  label?: string
   value: string
   mainModel: string
   specializedModelKey: SpecializedModelKey
   onChange: (newValue: string) => void
 }): React.ReactNode {
-  const label = SPECIALIZED_MODEL_LABELS[specializedModelKey]
+  const label = customLabel ?? SPECIALIZED_MODEL_LABELS[specializedModelKey]
 
   const [providers, setProviders] = useState<DesktopModelProviderSummary[]>([])
   const [providerModels, setProviderModels] = useState<Record<string, string[]>>({})

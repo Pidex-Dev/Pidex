@@ -608,6 +608,7 @@ export type ModelProviderID = CoreModelProviderID
 export type DesktopModelProviderKind = ModelProviderKind
 
 export type DesktopModelMetadata = ModelMetadata & {
+  catalog?: NonNullable<DesktopProviderModelDefinition['catalog']>
   inputTokens?: number
   nativeApi?: string
   variants?: string[]
@@ -1940,6 +1941,11 @@ export type DesktopApi = {
   updateProvider(providerId: ModelProviderID, definition: DesktopProviderDefinition): Promise<void>
   deleteProvider(providerId: ModelProviderID): Promise<void>
   modelRecommendations?: {
+    documentsSupported(): Promise<boolean>
+    extractDocument(input: RpcParams<'model/document/extract'>): Promise<RpcResult<'model/document/extract'>>
+    cancelDocument(operationId: string): Promise<RpcResult<'model/document/cancel'>>
+    refreshPricing(force?: boolean): Promise<RpcResult<'model/pricing/refresh'>>
+
     supported(): Promise<boolean>
     preview(
       input: RpcParams<'model/recommendation/preview'>,

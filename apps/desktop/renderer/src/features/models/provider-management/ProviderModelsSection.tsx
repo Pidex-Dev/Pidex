@@ -1,3 +1,4 @@
+import { ModelCatalogDetails, modelPrice } from './ModelCatalogDetails.js'
 import * as Dialog from '@radix-ui/react-dialog'
 import {
   Activity,
@@ -117,6 +118,7 @@ export function ProviderModelsSection({
   const [addedModelIds, setAddedModelIds] = useState<Set<string>>(new Set())
   const [togglingModelIds, setTogglingModelIds] = useState<Set<string>>(new Set())
   const [modalSearchQuery, setModalSearchQuery] = useState('')
+  const [expandedModelId, setExpandedModelId] = useState<string | null>(null)
   const pendingConfigRef = useRef<DesktopProviderDefinition | null>(null)
   const saveChainRef = useRef<Promise<void>>(Promise.resolve())
   const { onCloseAutoFocus } = useDialogFocusRestore(discoveredModels !== null)
@@ -134,6 +136,7 @@ export function ProviderModelsSection({
     setDiscoveredModels([])
     setCandidateMatches({})
     setModalSearchQuery('')
+    setExpandedModelId(null)
     setSaving(true)
     try {
       const result = await desktopClient.discoverProviderModels({
@@ -320,11 +323,13 @@ export function ProviderModelsSection({
       input: metadata?.modalities?.input ?? (metadata?.vision ? ['text', 'image'] : ['text']),
       ...configured,
       ...candidate,
+      catalog: candidate?.catalog ?? metadata?.catalog,
       cost: {
         input: candidate?.cost?.input ?? metadata?.inputCost ?? 0,
         output: candidate?.cost?.output ?? metadata?.outputCost ?? 0,
         cacheRead: candidate?.cost?.cacheRead ?? metadata?.cacheReadCost ?? 0,
         cacheWrite: candidate?.cost?.cacheWrite ?? metadata?.cacheWriteCost ?? 0,
+        ...candidate?.cost,
         ...configured?.cost,
       },
     } as DesktopProviderModelDefinition
@@ -694,6 +699,9 @@ export function ProviderModelsSection({
                           metadata={modelMetadata[model.id]}
                           isSelected={addedModelIds.has(model.id)}
                           isToggling={togglingModelIds.size > 0}
+                          expanded={expandedModelId === model.id}
+                          onExpand={() => setExpandedModelId(expandedModelId === model.id ? null : model.id)}
+                          current={provider.config?.models.find((entry) => entry.id === model.id) as DesktopProviderModelDefinition | undefined}
                           onToggle={() => void toggleModel(model)}
                         />
                       ))}
@@ -916,8 +924,8 @@ export function resolveModelCapabilities(
   const text = `${model.id} ${model.name ?? ''}`.toLowerCase()
 
   const isReasoning = Boolean(
-    model.reasoning ||
-    metadata?.reasoning ||
+    model.reasoning ??
+    metadata?.reasoning ??
     /reason|deepseek-r1|qwq|o1|o3|o4|thinking/i.test(text),
   )
   if (isReasoning) {
@@ -957,6 +965,17 @@ export function resolveModelCapabilities(
       badgeClass: 'tw:bg-amber-500/10 tw:text-amber-600 dark:tw:text-amber-400',
     })
   }
+
+  for (const kind of ['video', 'pdf'] as const) {
+    if ((model.catalog?.input ?? model.input)?.includes(kind)) caps.push({
+      key: kind, label: kind === 'pdf' ? 'PDF（目录）' : '视频', icon: Eye,
+      badgeClass: 'tw:bg-app-hover tw:text-app-text-soft',
+    })
+  }
+  if (model.catalog?.structuredOutput) caps.push({
+    key: 'structured', label: '结构化输出', icon: Code,
+    badgeClass: 'tw:bg-app-hover tw:text-app-text-soft',
+  })
 
   const isCode = Boolean(/coder|coding|code/i.test(text))
   if (isCode) {
@@ -1032,6 +1051,9 @@ export type DiscoveredModelCardProps = {
   isSelected: boolean
   isToggling: boolean
   onToggle: () => void
+  expanded?: boolean
+  onExpand?: () => void
+  current?: DesktopProviderModelDefinition
 }
 
 export function DiscoveredModelCard({
@@ -1042,9 +1064,11 @@ export function DiscoveredModelCard({
   isSelected,
   isToggling,
   onToggle,
+  expanded, onExpand, current,
 }: DiscoveredModelCardProps): React.ReactNode {
   const vendor = resolveModelVendor(model, provider)
   const capabilities = resolveModelCapabilities(model, metadata)
+    .sort((a, b) => Number(b.key === 'tools') - Number(a.key === 'tools'))
   const contextWindow = resolveModelContextWindow(model, metadata)
   const importable = isImportableCandidate(model, match)
   const matchLabel = candidateMatchLabel(match?.status)
@@ -1052,6 +1076,7 @@ export function DiscoveredModelCard({
   const logo = modelLogoURL(model.id, model.name) ?? provider.logoURL
 
   return (
+    <div className="tw:min-w-0 tw:self-start">
     <button
       type="button"
       role="checkbox"
@@ -1063,7 +1088,7 @@ export function DiscoveredModelCard({
       disabled={isToggling}
       onClick={onToggle}
       className={cx(
-        'discovered-model-card tw:group tw:relative tw:flex tw:flex-col tw:justify-between tw:gap-2.5 tw:rounded-xl tw:p-3.5 tw:text-left tw:transition-all tw:duration-150 tw:cursor-pointer tw:outline-none tw:select-none tw:min-h-[118px]',
+        'discovered-model-card tw:group tw:relative tw:flex tw:flex-col tw:justify-between tw:gap-2.5 tw:rounded-xl tw:p-3.5 tw:text-left tw:transition-all tw:duration-150 tw:cursor-pointer tw:outline-none tw:select-none tw:min-h-[118px] tw:w-full',
         'tw:focus-visible:ring-2 tw:focus-visible:ring-app-focus tw:focus-visible:ring-offset-1',
         isSelected
           ? 'tw:bg-app-accent-subtle/80 tw:border tw:border-app-accent tw:ring-1 tw:ring-app-accent tw:shadow-md tw:shadow-app-accent/20 dark:tw:shadow-app-accent/35'
@@ -1121,9 +1146,11 @@ export function DiscoveredModelCard({
         </div>
       </div>
 
+      <span className="tw:truncate tw:font-mono tw:type-caption tw:text-app-text-meta tw:w-full" title={model.id}>{model.id}</span>
+      {model.catalog?.status && <span>{model.catalog.status}</span>}
       {/* 第二行：模型的信息，例如视觉，推理等 */}
       <div className="tw:flex tw:items-center tw:gap-1.5 tw:flex-wrap tw:min-h-5">
-        {capabilities.map((cap) => {
+        {capabilities.slice(0, 4).map((cap) => {
           const Icon = cap.icon
           return (
             <span
@@ -1140,6 +1167,7 @@ export function DiscoveredModelCard({
         })}
       </div>
 
+      {capabilities.length > 4 && <span>+{capabilities.length - 4}</span>}
       {/* 第三行：模型的上下文长度 */}
       <div className="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:type-caption tw:text-app-text-soft tw:pt-1 tw:border-t tw:border-app-border-subtle/40">
         <div className="tw:flex tw:items-center tw:gap-1.5 tw:min-w-0">
@@ -1149,23 +1177,15 @@ export function DiscoveredModelCard({
             <strong className="tw:text-app-text">
               {contextWindow ? formatCompactNumber(contextWindow) : '未知'}
             </strong>
-            {model.maxTokens ? (
-              <>
-                {' · '}最大输出:{' '}
-                <strong className="tw:text-app-text">{formatCompactNumber(model.maxTokens)}</strong>
-              </>
-            ) : null}
+            {' · '}最大输出:{' '}
+            <strong className="tw:text-app-text">{model.maxTokens ? formatCompactNumber(model.maxTokens) : '未知'}</strong>
           </span>
         </div>
-        {model.id !== modelName ? (
-          <span
-            className="tw:truncate tw:font-mono tw:text-app-text-meta tw:type-caption"
-            title={model.id}
-          >
-            {model.id}
-          </span>
-        ) : null}
       </div>
+      <span className="tw:type-caption tw:text-app-text-soft">输入 {modelPrice(model.cost?.input)} / 输出 {modelPrice(model.cost?.output)} · USD / 百万 tokens{model.catalog?.priceSource?.kind === 'reference' ? ' · 原厂参考价' : model.catalog?.priceSource ? ' · 供应商价格' : ''}</span>
     </button>
+    {onExpand && <button type="button" aria-expanded={expanded === true} onClick={onExpand} className="tw:py-2 tw:text-app-accent-fg tw:type-caption">{expanded ? '收起详情' : '查看详情'}</button>}
+    {expanded && <ModelCatalogDetails model={model} current={current} />}
+    </div>
   )
 }

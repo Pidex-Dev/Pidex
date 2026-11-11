@@ -16,6 +16,7 @@ export function catalogProviderToDesktop(
       const cost = model.cost[0]
       const metadata: DesktopModelMetadata = {
         id: model.id,
+        ...(model.catalog ? { catalog: model.catalog } : {}),
         name: model.name || model.id,
         contextWindow: model.limit.context,
         inputTokens: model.limit.input,
@@ -25,7 +26,7 @@ export function catalogProviderToDesktop(
         cacheReadCost: cost?.cache.read,
         cacheWriteCost: cost?.cache.write,
         toolCall: model.capabilities.tools,
-        structuredOutput: model.capabilities.output.some(
+        structuredOutput: model.catalog?.structuredOutput ?? model.capabilities.output.some(
           (output) => output === 'json' || output === 'structured',
         ),
         vision: model.capabilities.input.includes('image'),

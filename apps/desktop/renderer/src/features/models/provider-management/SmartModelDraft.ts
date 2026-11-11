@@ -1,6 +1,12 @@
 import type { ModelRecommendation } from '@pidex/agent-protocol'
 import type { EditableModel } from './ProviderEditorForm.js'
 
+function omitUndefined<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== undefined),
+  ) as Partial<T>
+}
+
 /** 推荐只填普通草稿字段，保存继续走现有模型配置。 */
 export function fillModelDraft(
   model: EditableModel,
@@ -8,59 +14,33 @@ export function fillModelDraft(
 ): EditableModel {
   const specs = recommended.optionSpecs
   const reasoningValues = specs?.reasoningLevel?.values ?? recommended.reasoningLevels
-  const optionSpecFields: Partial<EditableModel> = specs
-    ? {
-        ...(reasoningValues !== undefined
-          ? { reasoningLevelValues: reasoningValues.join('\n') }
-          : {}),
-        ...(specs.reasoningLevel?.map !== undefined
-          ? { reasoningLevelMap: specs.reasoningLevel.map }
-          : {}),
-        ...(specs.maxOutputTokens?.max !== undefined
-          ? { maxOutputTokensMax: specs.maxOutputTokens.max }
-          : {}),
-        ...(specs.maxOutputTokens?.map !== undefined
-          ? { maxOutputTokensMap: specs.maxOutputTokens.map }
-          : {}),
-      }
-    : recommended.reasoningLevels !== undefined
-      ? { reasoningLevelValues: recommended.reasoningLevels.join('\n') }
-      : {}
+  const optionSpecFields = omitUndefined({
+    reasoningLevelValues: reasoningValues?.join('\n'),
+    reasoningLevelMap: specs?.reasoningLevel?.map,
+    maxOutputTokensMax: specs?.maxOutputTokens?.max,
+    maxOutputTokensMap: specs?.maxOutputTokens?.map,
+  })
   return {
     ...model,
+    ...(recommended.cost && !recommended.pricing ? { pricing: undefined } : {}),
     ...optionSpecFields,
-    ...(recommended.name !== undefined ? { name: recommended.name } : {}),
-    ...(recommended.contextWindow !== undefined
-      ? { contextWindow: recommended.contextWindow }
-      : {}),
-    ...(recommended.maxInputTokens !== undefined
-      ? { maxInputTokens: recommended.maxInputTokens }
-      : {}),
-    ...(recommended.maxTokens !== undefined
-      ? { maxTokens: recommended.maxTokens }
-      : {}),
-    ...(recommended.reasoning !== undefined
-      ? { reasoning: recommended.reasoning }
-      : {}),
-    ...(recommended.tools !== undefined ? { tools: recommended.tools } : {}),
-    ...(recommended.input !== undefined
-      ? {
-          imageInput: recommended.input.includes('image'),
-          audioInput: recommended.input.includes('audio'),
-          videoInput: recommended.input.includes('video'),
-        }
-      : {}),
-    ...(recommended.cost?.input !== undefined
-      ? { inputCost: recommended.cost.input }
-      : {}),
-    ...(recommended.cost?.output !== undefined
-      ? { outputCost: recommended.cost.output }
-      : {}),
-    ...(recommended.cost?.cacheRead !== undefined
-      ? { cacheReadCost: recommended.cost.cacheRead }
-      : {}),
-    ...(recommended.cost?.cacheWrite !== undefined
-      ? { cacheWriteCost: recommended.cost.cacheWrite }
-      : {}),
+    ...omitUndefined({
+      pricing: recommended.pricing,
+      modelType: recommended.modelType,
+      name: recommended.name,
+      contextWindow: recommended.contextWindow,
+      maxInputTokens: recommended.maxInputTokens,
+      maxTokens: recommended.maxTokens,
+      reasoning: recommended.reasoning,
+      tools: recommended.tools,
+      costTiers: recommended.cost?.tiers,
+      imageInput: recommended.input?.includes('image'),
+      audioInput: recommended.input?.includes('audio'),
+      videoInput: recommended.input?.includes('video'),
+      inputCost: recommended.cost?.input,
+      outputCost: recommended.cost?.output,
+      cacheReadCost: recommended.cost?.cacheRead,
+      cacheWriteCost: recommended.cost?.cacheWrite,
+    }),
   }
 }
