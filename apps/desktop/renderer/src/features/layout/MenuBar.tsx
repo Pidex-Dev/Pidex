@@ -20,6 +20,7 @@ import {
 import { Button } from '../../components/ui/Button.js'
 import { Tooltip } from '../../components/ui/Tooltip.js'
 import { OverflowTitle } from '../../components/ui/OverflowTitle.js'
+import { PidexMarkIcon } from '../../components/ui/PidexMarkIcon.js'
 import { usePrefersReducedMotion } from '../../hooks/UsePrefersReducedMotion.js'
 import { type PopoverSizingProps } from '../../components/ui/PopoverSizing.js'
 import { cx } from '../../utils/Cx.js'
@@ -149,78 +150,56 @@ function MenuSeparator(): React.ReactNode {
   return <Menubar.Separator className="menubar-separator popover-menu-separator" />
 }
 
-type AppMenuProps = {
+type MenuSubProps = {
   children: React.ReactNode
   contentClassName?: string
   label: string
-  onRequestClose: () => void
-  triggerRef?: React.Ref<HTMLButtonElement>
-  value: AppMenuValue
-} & PopoverSizingProps
-
-type AppMenuValue = 'file' | 'edit' | 'view' | 'help'
-
-const MENU_MNEMONICS: Record<string, AppMenuValue> = {
-  f: 'file',
-  e: 'edit',
-  v: 'view',
-  h: 'help',
+  size?: PopoverSizingProps['size']
 }
 
-function AppMenu({
+function MenuSub({
   children,
   contentClassName = '',
   label,
-  onRequestClose,
-  triggerRef,
-  value,
-  size,
-}: AppMenuProps): React.ReactNode {
-  const focusModality = useFloatingFocusModality()
+  size = 'md',
+}: MenuSubProps): React.ReactNode {
   return (
-    <Menubar.Menu value={value}>
-      <Menubar.Trigger
-        asChild
-        {...focusModality.triggerInteractionProps}
-        onPointerDown={(event) => {
-          focusModality.triggerInteractionProps.onPointerDown()
-          if (
-            event.currentTarget.dataset.state === 'open' &&
-            event.button === 0 &&
-            event.ctrlKey === false
-          ) {
-            event.preventDefault()
-            onRequestClose()
-          }
-        }}
-        ref={triggerRef}
-      >
-        <Button className="menubar-trigger" color="ghost" size="toolbar">
+    <Menubar.Sub>
+      <Menubar.SubTrigger className="menubar-item tw:outline-none">
+        <OverflowTitle className={cx('menubar-item-label', 'tw:min-w-0')} variant="menu">
           {label}
-        </Button>
-      </Menubar.Trigger>
+        </OverflowTitle>
+        <span className="menubar-item-trailing tw:min-w-0 tw:justify-self-end tw:flex tw:items-center">
+          <ChevronRight size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </span>
+      </Menubar.SubTrigger>
       <Menubar.Portal>
-        <Menubar.Content
+        <Menubar.SubContent
           data-popover-size={size}
           data-theme-component="dropdown-surface"
-          align="start"
+          alignOffset={-4}
           className={cx(
             'popover-surface menubar-content popover-menu-list',
-            // Radix 浮动层用 CSS 变量下发可用高度与变换原点，回退链无法用刻度表达。
             'tw:origin-[var(--radix-menubar-content-transform-origin,top_left)]',
             'tw:max-h-[min(calc(100vh_-_96px),var(--radix-menubar-content-available-height,calc(100vh_-_96px)))]',
             contentClassName,
           )}
           collisionPadding={6}
           data-edit-command-preserve-target
-          onCloseAutoFocus={focusModality.suppressFocusRingOnClose}
-          sideOffset={4}
+          sideOffset={2}
         >
           {children}
-        </Menubar.Content>
+        </Menubar.SubContent>
       </Menubar.Portal>
-    </Menubar.Menu>
+    </Menubar.Sub>
   )
+}
+
+const MENU_MNEMONICS: Record<string, string> = {
+  f: 'file',
+  e: 'edit',
+  v: 'view',
+  h: 'help',
 }
 
 export function MenuBar({
@@ -247,8 +226,9 @@ export function MenuBar({
 }: Props): React.ReactNode {
   const { activeCapabilities: editMenuCapabilities, perform: performEditCommand } =
     useEditCommands()
-  const helpMenuTriggerRef = useRef<HTMLButtonElement>(null)
-  const menuTriggerRefs = useRef<Partial<Record<AppMenuValue, HTMLButtonElement | null>>>({})
+  const focusModality = useFloatingFocusModality()
+  const menuTriggerRef = useRef<HTMLButtonElement>(null)
+  const sidebarTriggerRef = useRef<HTMLButtonElement>(null)
   const menuBarFocusedRef = useRef(false)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
   const ignoreStaleCloseRef = useRef(false)
@@ -256,7 +236,7 @@ export function MenuBar({
   const tabsTrackRef = useRef<HTMLDivElement | null>(null)
   const reducedMotion = usePrefersReducedMotion()
   const [activeScrollTabId, setActiveScrollTabId] = useState<string | null>(null)
-  const [openMenu, setOpenMenu] = useState<AppMenuValue | ''>('')
+  const [openMenu, setOpenMenu] = useState<'app' | ''>('')
 
   const handleTabsWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     const track = event.currentTarget
@@ -278,8 +258,9 @@ export function MenuBar({
   }, [reducedMotion, sessionTabs])
 
   useLayoutEffect(() => {
-    const lastButton = helpMenuTriggerRef.current
+    const lastButton = sidebarTriggerRef.current
     const menuBar = lastButton?.closest('.app-menubar')
+    const leftCluster = lastButton?.closest('.menubar-left')
     if (!lastButton || !menuBar || !onSidebarBoundaryChange) return
     const update = (): void => {
       onSidebarBoundaryChange(
@@ -289,10 +270,9 @@ export function MenuBar({
     update()
     const observer = new ResizeObserver(update)
     observer.observe(menuBar)
-    observer.observe(lastButton.closest('.menubar-root')!)
+    if (leftCluster) observer.observe(leftCluster)
     return () => observer.disconnect()
   }, [onSidebarBoundaryChange])
-
 
   function closeMenu(): void {
     ignoreStaleCloseRef.current = false
@@ -304,7 +284,7 @@ export function MenuBar({
     // after switching the controlled Root to another Menu.
     if (!value && ignoreStaleCloseRef.current) return
     ignoreStaleCloseRef.current = Boolean(value)
-    setOpenMenu(value as AppMenuValue | '')
+    setOpenMenu((value as 'app') || '')
     if (value) queueMicrotask(() => (ignoreStaleCloseRef.current = false))
   }
 
@@ -318,14 +298,14 @@ export function MenuBar({
   function focusMenuBar(): void {
     rememberFocusSource()
     menuBarFocusedRef.current = true
-    menuTriggerRefs.current.file?.focus({ preventScroll: true })
+    menuTriggerRef.current?.focus({ preventScroll: true })
   }
 
-  function openMenuByMnemonic(value: AppMenuValue): void {
+  function openMenuByMnemonic(): void {
     rememberFocusSource()
     menuBarFocusedRef.current = true
-    setOpenMenu(value)
-    menuTriggerRefs.current[value]?.focus({ preventScroll: true })
+    setOpenMenu('app')
+    menuTriggerRef.current?.focus({ preventScroll: true })
   }
 
   function restoreMenuBarFocus(): void {
@@ -335,7 +315,7 @@ export function MenuBar({
     if (target && target.isConnected) {
       target.focus({ preventScroll: true })
     } else {
-      menuTriggerRefs.current.file?.blur()
+      menuTriggerRef.current?.blur()
     }
   }
 
@@ -354,7 +334,7 @@ export function MenuBar({
   }
 
   useEffect(() => {
-    // Windows 桌面菜单行为：Alt/F10 聚焦菜单栏，Alt+F/E/V/H 直接打开对应菜单。
+    // Windows 桌面菜单行为：Alt/F10 聚焦菜单栏，Alt+F/E/V/H 直接打开菜单。
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.ctrlKey || event.metaKey) return
       if (event.key === 'F10') {
@@ -370,7 +350,7 @@ export function MenuBar({
       if (mnemonic && (event.altKey || menuBarFocusedRef.current)) {
         event.preventDefault()
         event.stopPropagation()
-        openMenuByMnemonic(mnemonic)
+        openMenuByMnemonic()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -387,6 +367,381 @@ export function MenuBar({
     >
       <div className="menubar-titlebar tw:flex tw:h-chrome tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:pl-3">
         <div className="menubar-left tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:overflow-visible">
+          <Menubar.Root
+            aria-label="应用菜单"
+            className="menubar-root tw:flex tw:min-w-0 tw:flex-none tw:items-center tw:outline-none tw:select-none"
+            loop
+            onValueChange={handleMenuValueChange}
+            value={openMenu}
+          >
+            <Menubar.Menu value="app">
+              <Menubar.Trigger
+                asChild
+                {...focusModality.triggerInteractionProps}
+                onPointerDown={(event) => {
+                  focusModality.triggerInteractionProps.onPointerDown()
+                  if (
+                    event.currentTarget.dataset.state === 'open' &&
+                    event.button === 0 &&
+                    event.ctrlKey === false
+                  ) {
+                    event.preventDefault()
+                    closeMenu()
+                  }
+                }}
+                ref={menuTriggerRef}
+              >
+                <Button
+                  aria-label="应用菜单"
+                  className="menubar-trigger menubar-logo-trigger"
+                  color="ghost"
+                  isIconOnly
+                  size="toolbar"
+                  title="应用菜单"
+                >
+                  <PidexMarkIcon size={APP_ICON_SIZE} />
+                </Button>
+              </Menubar.Trigger>
+              <Menubar.Portal>
+                <Menubar.Content
+                  data-popover-size="sm"
+                  data-theme-component="dropdown-surface"
+                  align="start"
+                  className={cx(
+                    'popover-surface menubar-content popover-menu-list',
+                    'tw:origin-[var(--radix-menubar-content-transform-origin,top_left)]',
+                    'tw:max-h-[min(calc(100vh_-_96px),var(--radix-menubar-content-available-height,calc(100vh_-_96px)))]',
+                  )}
+                  collisionPadding={6}
+                  data-edit-command-preserve-target
+                  onCloseAutoFocus={focusModality.suppressFocusRingOnClose}
+                  sideOffset={4}
+                >
+                  <MenuSub label="文件" size="md">
+                    <MenuItem
+                      disabled={!isFileActionEnabled('close')}
+                      shortcut="Ctrl+W"
+                      onSelect={() => onFileMenuAction('close')}
+                    >
+                      关闭
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isFileActionEnabled('newWindow')}
+                      shortcut="Ctrl+Shift+N"
+                      onSelect={() => onFileMenuAction('newWindow')}
+                    >
+                      新建窗口
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isFileActionEnabled('newChat')}
+                      shortcut="Ctrl+N"
+                      onSelect={() => onFileMenuAction('newChat')}
+                    >
+                      新建聊天
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isFileActionEnabled('quickChat')}
+                      shortcut="Alt+Ctrl+N"
+                      onSelect={() => onFileMenuAction('quickChat')}
+                    >
+                      快速聊天
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isFileActionEnabled('openFolder')}
+                      shortcut="Ctrl+O"
+                      onSelect={() => onFileMenuAction('openFolder')}
+                    >
+                      打开文件夹...
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      disabled={!isFileActionEnabled('openSettings')}
+                      shortcut="Ctrl+逗号"
+                      onSelect={() => onFileMenuAction('openSettings')}
+                    >
+                      设置...
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      disabled={!isFileActionEnabled('exit')}
+                      onSelect={() => onFileMenuAction('exit')}
+                    >
+                      退出桌面端（后台继续运行）
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isFileActionEnabled('stopBackendAndExit')}
+                      onSelect={() => onFileMenuAction('stopBackendAndExit')}
+                    >
+                      停止后端并退出
+                    </MenuItem>
+                  </MenuSub>
+
+                  <MenuSub label="编辑" size="md">
+                    <MenuItem
+                      disabled={!editMenuCapabilities.undo}
+                      shortcut="Ctrl+Z"
+                      onSelect={() => void performEditCommand('undo')}
+                    >
+                      撤销
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!editMenuCapabilities.redo}
+                      shortcut="Ctrl+Y"
+                      onSelect={() => void performEditCommand('redo')}
+                    >
+                      重做
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      disabled={!editMenuCapabilities.cut}
+                      shortcut="Ctrl+X"
+                      onSelect={() => void performEditCommand('cut')}
+                    >
+                      剪切
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!editMenuCapabilities.copy}
+                      shortcut="Ctrl+C"
+                      onSelect={() => void performEditCommand('copy')}
+                    >
+                      复制
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!editMenuCapabilities.paste}
+                      shortcut="Ctrl+V"
+                      onSelect={() => void performEditCommand('paste')}
+                    >
+                      粘贴
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!editMenuCapabilities.delete}
+                      shortcut="Delete"
+                      onSelect={() => void performEditCommand('delete')}
+                    >
+                      删除
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      disabled={!editMenuCapabilities.selectAll}
+                      shortcut="Ctrl+A"
+                      onSelect={() => void performEditCommand('selectAll')}
+                    >
+                      全选
+                    </MenuItem>
+                  </MenuSub>
+
+                  <MenuSub label="视图" size="md">
+                    <MenuItem
+                      disabled={!isViewActionEnabled('toggleSidebar')}
+                      shortcut="Ctrl+B"
+                      onSelect={() => onViewMenuAction('toggleSidebar')}
+                    >
+                      切换侧边栏
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isViewActionEnabled('toggleSidePanel')}
+                      shortcut="Ctrl+Shift+B"
+                      onSelect={() => onViewMenuAction('toggleSidePanel')}
+                    >
+                      切换右侧工作区标签页
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isViewActionEnabled('toggleBottomPanel')}
+                      onSelect={() => onViewMenuAction('toggleBottomPanel')}
+                    >
+                      切换底部面板
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isViewActionEnabled('toggleFileTree')}
+                      shortcut="Ctrl+Shift+E"
+                      onSelect={() => onViewMenuAction('toggleFileTree')}
+                    >
+                      切换文件树
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isViewActionEnabled('openBrowserTab')}
+                      shortcut="Ctrl+T"
+                      onSelect={() => onViewMenuAction('openBrowserTab')}
+                    >
+                      打开浏览器标签
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isViewActionEnabled('reloadBrowserPage')}
+                      shortcut="Ctrl+R"
+                      onSelect={() => onViewMenuAction('reloadBrowserPage')}
+                    >
+                      重新加载浏览器
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isViewActionEnabled('find')}
+                      shortcut="Ctrl+F"
+                      onSelect={() => onViewMenuAction('find')}
+                    >
+                      查找
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      disabled={!isViewActionEnabled('previousChat')}
+                      shortcut="Ctrl+Shift+["
+                      onSelect={() => onViewMenuAction('previousChat')}
+                    >
+                      上一个聊天
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isViewActionEnabled('nextChat')}
+                      shortcut="Ctrl+Shift+]"
+                      onSelect={() => onViewMenuAction('nextChat')}
+                    >
+                      下一个聊天
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isViewActionEnabled('back')}
+                      shortcut="Ctrl+["
+                      onSelect={() => onViewMenuAction('back')}
+                    >
+                      后退
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isViewActionEnabled('forward')}
+                      shortcut="Ctrl+]"
+                      onSelect={() => onViewMenuAction('forward')}
+                    >
+                      前进
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      disabled={!isViewActionEnabled('zoomIn')}
+                      shortcut="Ctrl+Shift+="
+                      onSelect={() => onViewMenuAction('zoomIn')}
+                    >
+                      放大
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isViewActionEnabled('zoomOut')}
+                      shortcut="Ctrl+-"
+                      onSelect={() => onViewMenuAction('zoomOut')}
+                    >
+                      缩小
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isViewActionEnabled('actualSize')}
+                      shortcut="Ctrl+0"
+                      onSelect={() => onViewMenuAction('actualSize')}
+                    >
+                      实际大小
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      disabled={!isViewActionEnabled('toggleFullScreen')}
+                      shortcut="F11"
+                      onSelect={() => onViewMenuAction('toggleFullScreen')}
+                    >
+                      切换全屏
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isWindowActionEnabled('minimize')}
+                      shortcut="Ctrl+M"
+                      onSelect={() => onWindowMenuAction('minimize')}
+                    >
+                      最小化
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isWindowActionEnabled('zoom')}
+                      onSelect={() => onWindowMenuAction('zoom')}
+                    >
+                      缩放
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isWindowActionEnabled('close')}
+                      shortcut="Ctrl+W"
+                      onSelect={() => onWindowMenuAction('close')}
+                    >
+                      关闭
+                    </MenuItem>
+                  </MenuSub>
+
+                  <MenuSub contentClassName="menubar-content-help" label="帮助" size="md">
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('pidexDocumentation')}
+                      onSelect={() => onHelpMenuAction('pidexDocumentation')}
+                    >
+                      Pidex 文档
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('whatsNew')}
+                      onSelect={() => onHelpMenuAction('whatsNew', menuTriggerRef.current)}
+                    >
+                      新特性
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('automations')}
+                      onSelect={() => onHelpMenuAction('automations')}
+                    >
+                      自动化
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('localEnvironments')}
+                      onSelect={() => onHelpMenuAction('localEnvironments')}
+                    >
+                      本地环境
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('worktrees')}
+                      onSelect={() => onHelpMenuAction('worktrees')}
+                    >
+                      工作树
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('skills')}
+                      onSelect={() => onHelpMenuAction('skills')}
+                    >
+                      技能
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('modelContextProtocol')}
+                      onSelect={() => onHelpMenuAction('modelContextProtocol')}
+                    >
+                      模型上下文协议
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('troubleshooting')}
+                      onSelect={() => onHelpMenuAction('troubleshooting')}
+                    >
+                      故障排查
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('sendFeedback')}
+                      onSelect={() => onHelpMenuAction('sendFeedback')}
+                    >
+                      发送反馈
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('startPerformanceTrace')}
+                      onSelect={() => onHelpMenuAction('startPerformanceTrace')}
+                    >
+                      启动性能追踪
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('keyboardShortcuts')}
+                      shortcut="Ctrl+Shift+/"
+                      onSelect={() => onHelpMenuAction('keyboardShortcuts')}
+                    >
+                      键盘快捷键
+                    </MenuItem>
+                    <MenuItem
+                      disabled={!isHelpActionEnabled('aboutPidex')}
+                      onSelect={() => onHelpMenuAction('aboutPidex')}
+                    >
+                      关于 Pidex
+                    </MenuItem>
+                  </MenuSub>
+                </Menubar.Content>
+              </Menubar.Portal>
+            </Menubar.Menu>
+          </Menubar.Root>
+
           <Tooltip content="后退" shortcut="Ctrl+[" side="bottom">
             <Button
               isIconOnly
@@ -421,6 +776,7 @@ export function MenuBar({
               data-app-shell-sidebar-trigger
               onClick={onToggleSidebar}
               color="ghost"
+              ref={sidebarTriggerRef}
               size="toolbar"
               title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
             >
@@ -431,369 +787,6 @@ export function MenuBar({
               )}
             </Button>
           </Tooltip>
-
-          <Menubar.Root
-            aria-label="应用菜单"
-            className="menubar-root tw:flex tw:min-w-0 tw:flex-none tw:items-center tw:outline-none tw:select-none"
-            loop
-            onValueChange={handleMenuValueChange}
-            value={openMenu}
-          >
-            <AppMenu
-              label="文件"
-              onRequestClose={closeMenu}
-              triggerRef={(ref) => {
-                menuTriggerRefs.current.file = ref
-              }}
-              value="file"
-              size="md"
-            >
-              <MenuItem
-                disabled={!isFileActionEnabled('close')}
-                shortcut="Ctrl+W"
-                onSelect={() => onFileMenuAction('close')}
-              >
-                关闭
-              </MenuItem>
-              <MenuItem
-                disabled={!isFileActionEnabled('newWindow')}
-                shortcut="Ctrl+Shift+N"
-                onSelect={() => onFileMenuAction('newWindow')}
-              >
-                新建窗口
-              </MenuItem>
-              <MenuItem
-                disabled={!isFileActionEnabled('newChat')}
-                shortcut="Ctrl+N"
-                onSelect={() => onFileMenuAction('newChat')}
-              >
-                新建聊天
-              </MenuItem>
-              <MenuItem
-                disabled={!isFileActionEnabled('quickChat')}
-                shortcut="Alt+Ctrl+N"
-                onSelect={() => onFileMenuAction('quickChat')}
-              >
-                快速聊天
-              </MenuItem>
-              <MenuItem
-                disabled={!isFileActionEnabled('openFolder')}
-                shortcut="Ctrl+O"
-                onSelect={() => onFileMenuAction('openFolder')}
-              >
-                打开文件夹...
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                disabled={!isFileActionEnabled('openSettings')}
-                shortcut="Ctrl+逗号"
-                onSelect={() => onFileMenuAction('openSettings')}
-              >
-                设置...
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                disabled={!isFileActionEnabled('exit')}
-                onSelect={() => onFileMenuAction('exit')}
-              >
-                退出桌面端（后台继续运行）
-              </MenuItem>
-              <MenuItem
-                disabled={!isFileActionEnabled('stopBackendAndExit')}
-                onSelect={() => onFileMenuAction('stopBackendAndExit')}
-              >
-                停止后端并退出
-              </MenuItem>
-            </AppMenu>
-
-            <AppMenu
-              label="编辑"
-              onRequestClose={closeMenu}
-              triggerRef={(ref) => {
-                menuTriggerRefs.current.edit = ref
-              }}
-              value="edit"
-              size="md"
-            >
-              <MenuItem
-                disabled={!editMenuCapabilities.undo}
-                shortcut="Ctrl+Z"
-                onSelect={() => void performEditCommand('undo')}
-              >
-                撤销
-              </MenuItem>
-              <MenuItem
-                disabled={!editMenuCapabilities.redo}
-                shortcut="Ctrl+Y"
-                onSelect={() => void performEditCommand('redo')}
-              >
-                重做
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                disabled={!editMenuCapabilities.cut}
-                shortcut="Ctrl+X"
-                onSelect={() => void performEditCommand('cut')}
-              >
-                剪切
-              </MenuItem>
-              <MenuItem
-                disabled={!editMenuCapabilities.copy}
-                shortcut="Ctrl+C"
-                onSelect={() => void performEditCommand('copy')}
-              >
-                复制
-              </MenuItem>
-              <MenuItem
-                disabled={!editMenuCapabilities.paste}
-                shortcut="Ctrl+V"
-                onSelect={() => void performEditCommand('paste')}
-              >
-                粘贴
-              </MenuItem>
-              <MenuItem
-                disabled={!editMenuCapabilities.delete}
-                shortcut="Delete"
-                onSelect={() => void performEditCommand('delete')}
-              >
-                删除
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                disabled={!editMenuCapabilities.selectAll}
-                shortcut="Ctrl+A"
-                onSelect={() => void performEditCommand('selectAll')}
-              >
-                全选
-              </MenuItem>
-            </AppMenu>
-
-            <AppMenu
-              label="视图"
-              onRequestClose={closeMenu}
-              triggerRef={(ref) => {
-                menuTriggerRefs.current.view = ref
-              }}
-              value="view"
-              size="md"
-            >
-              <MenuItem
-                disabled={!isViewActionEnabled('toggleSidebar')}
-                shortcut="Ctrl+B"
-                onSelect={() => onViewMenuAction('toggleSidebar')}
-              >
-                切换侧边栏
-              </MenuItem>
-              <MenuItem
-                disabled={!isViewActionEnabled('toggleSidePanel')}
-                shortcut="Ctrl+Shift+B"
-                onSelect={() => onViewMenuAction('toggleSidePanel')}
-              >
-                切换右侧工作区标签页
-              </MenuItem>
-              <MenuItem
-                disabled={!isViewActionEnabled('toggleBottomPanel')}
-                onSelect={() => onViewMenuAction('toggleBottomPanel')}
-              >
-                切换底部面板
-              </MenuItem>
-              <MenuItem
-                disabled={!isViewActionEnabled('toggleFileTree')}
-                shortcut="Ctrl+Shift+E"
-                onSelect={() => onViewMenuAction('toggleFileTree')}
-              >
-                切换文件树
-              </MenuItem>
-              <MenuItem
-                disabled={!isViewActionEnabled('openBrowserTab')}
-                shortcut="Ctrl+T"
-                onSelect={() => onViewMenuAction('openBrowserTab')}
-              >
-                打开浏览器标签
-              </MenuItem>
-              <MenuItem
-                disabled={!isViewActionEnabled('reloadBrowserPage')}
-                shortcut="Ctrl+R"
-                onSelect={() => onViewMenuAction('reloadBrowserPage')}
-              >
-                重新加载浏览器
-              </MenuItem>
-              <MenuItem
-                disabled={!isViewActionEnabled('find')}
-                shortcut="Ctrl+F"
-                onSelect={() => onViewMenuAction('find')}
-              >
-                查找
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                disabled={!isViewActionEnabled('previousChat')}
-                shortcut="Ctrl+Shift+["
-                onSelect={() => onViewMenuAction('previousChat')}
-              >
-                上一个聊天
-              </MenuItem>
-              <MenuItem
-                disabled={!isViewActionEnabled('nextChat')}
-                shortcut="Ctrl+Shift+]"
-                onSelect={() => onViewMenuAction('nextChat')}
-              >
-                下一个聊天
-              </MenuItem>
-              <MenuItem
-                disabled={!isViewActionEnabled('back')}
-                shortcut="Ctrl+["
-                onSelect={() => onViewMenuAction('back')}
-              >
-                后退
-              </MenuItem>
-              <MenuItem
-                disabled={!isViewActionEnabled('forward')}
-                shortcut="Ctrl+]"
-                onSelect={() => onViewMenuAction('forward')}
-              >
-                前进
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                disabled={!isViewActionEnabled('zoomIn')}
-                shortcut="Ctrl+Shift+="
-                onSelect={() => onViewMenuAction('zoomIn')}
-              >
-                放大
-              </MenuItem>
-              <MenuItem
-                disabled={!isViewActionEnabled('zoomOut')}
-                shortcut="Ctrl+-"
-                onSelect={() => onViewMenuAction('zoomOut')}
-              >
-                缩小
-              </MenuItem>
-              <MenuItem
-                disabled={!isViewActionEnabled('actualSize')}
-                shortcut="Ctrl+0"
-                onSelect={() => onViewMenuAction('actualSize')}
-              >
-                实际大小
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                disabled={!isViewActionEnabled('toggleFullScreen')}
-                shortcut="F11"
-                onSelect={() => onViewMenuAction('toggleFullScreen')}
-              >
-                切换全屏
-              </MenuItem>
-              <MenuItem
-                disabled={!isWindowActionEnabled('minimize')}
-                shortcut="Ctrl+M"
-                onSelect={() => onWindowMenuAction('minimize')}
-              >
-                最小化
-              </MenuItem>
-              <MenuItem
-                disabled={!isWindowActionEnabled('zoom')}
-                onSelect={() => onWindowMenuAction('zoom')}
-              >
-                缩放
-              </MenuItem>
-              <MenuItem
-                disabled={!isWindowActionEnabled('close')}
-                shortcut="Ctrl+W"
-                onSelect={() => onWindowMenuAction('close')}
-              >
-                关闭
-              </MenuItem>
-            </AppMenu>
-
-            <AppMenu
-              contentClassName="menubar-content-help"
-              label="帮助"
-              onRequestClose={closeMenu}
-              triggerRef={(ref) => {
-                helpMenuTriggerRef.current = ref
-                menuTriggerRefs.current.help = ref
-              }}
-              value="help"
-              size="md"
-            >
-              <MenuItem
-                disabled={!isHelpActionEnabled('pidexDocumentation')}
-                onSelect={() => onHelpMenuAction('pidexDocumentation')}
-              >
-                Pidex 文档
-              </MenuItem>
-              <MenuItem
-                disabled={!isHelpActionEnabled('whatsNew')}
-                onSelect={() => onHelpMenuAction('whatsNew', helpMenuTriggerRef.current)}
-              >
-                新特性
-              </MenuItem>
-              <MenuItem
-                disabled={!isHelpActionEnabled('automations')}
-                onSelect={() => onHelpMenuAction('automations')}
-              >
-                自动化
-              </MenuItem>
-              <MenuItem
-                disabled={!isHelpActionEnabled('localEnvironments')}
-                onSelect={() => onHelpMenuAction('localEnvironments')}
-              >
-                本地环境
-              </MenuItem>
-              <MenuItem
-                disabled={!isHelpActionEnabled('worktrees')}
-                onSelect={() => onHelpMenuAction('worktrees')}
-              >
-                工作树
-              </MenuItem>
-              <MenuItem
-                disabled={!isHelpActionEnabled('skills')}
-                onSelect={() => onHelpMenuAction('skills')}
-              >
-                技能
-              </MenuItem>
-              <MenuItem
-                disabled={!isHelpActionEnabled('modelContextProtocol')}
-                onSelect={() => onHelpMenuAction('modelContextProtocol')}
-              >
-                模型上下文协议
-              </MenuItem>
-              <MenuItem
-                disabled={!isHelpActionEnabled('troubleshooting')}
-                onSelect={() => onHelpMenuAction('troubleshooting')}
-              >
-                故障排查
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                disabled={!isHelpActionEnabled('sendFeedback')}
-                onSelect={() => onHelpMenuAction('sendFeedback')}
-              >
-                发送反馈
-              </MenuItem>
-              <MenuItem
-                disabled={!isHelpActionEnabled('startPerformanceTrace')}
-                onSelect={() => onHelpMenuAction('startPerformanceTrace')}
-              >
-                启动性能追踪
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                disabled={!isHelpActionEnabled('keyboardShortcuts')}
-                shortcut="Ctrl+Shift+/"
-                onSelect={() => onHelpMenuAction('keyboardShortcuts')}
-              >
-                键盘快捷键
-              </MenuItem>
-              <MenuItem
-                disabled={!isHelpActionEnabled('aboutPidex')}
-                onSelect={() => onHelpMenuAction('aboutPidex')}
-              >
-                关于 Pidex
-              </MenuItem>
-            </AppMenu>
-          </Menubar.Root>
         </div>
 
         {sessionTabs.length > 0 ? (
