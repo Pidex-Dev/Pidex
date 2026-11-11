@@ -23,7 +23,51 @@
   .window-control-button,
   .desktop-workspace-header-shell-controls,
   .desktop-workspace-header-item,
+  .menubar-session-tab,
+  .menubar-session-tab *,
+  .menubar-session-tabs-track,
   .auxiliary-titlebar button {
     -webkit-app-region: no-drag;
+  }
+
+  .menubar-session-tabs-track {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .menubar-session-tabs-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Titlebar session tabs: long titles dissolve before the project badge and close button, and scroll on hover */
+  .menubar-session-tab-title {
+    text-overflow: ellipsis;
+  }
+
+  .menubar-session-tab-title[data-overflowing='true'] {
+    mask-image: linear-gradient(to right, black calc(100% - var(--cpx-sys-space-4)), transparent);
+    text-overflow: clip;
+  }
+
+  .menubar-session-tab-title[data-overflowing='true'][data-scrolling='true'] {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black var(--cpx-sys-space-2),
+      black calc(100% - var(--cpx-sys-space-4)),
+      transparent
+    );
+  }
+
+  .menubar-session-tab-title-track[data-scrolling='true'] {
+    transform: translateX(calc(-1 * var(--tab-title-scroll-distance)));
+    transition: transform var(--tab-title-scroll-duration) var(--cpx-sys-ease-linear)
+      var(--cpx-sys-motion-micro);
+  }
+
+  @media (forced-colors: active) {
+    .menubar-session-tab-title[data-overflowing='true'] {
+      mask-image: none;
+    }
   }
 }

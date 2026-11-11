@@ -4,7 +4,7 @@ import { cx } from '../../utils/Cx.js'
 
 const TITLE_SCROLL_MIN_SECONDS = 4
 const TITLE_SCROLL_PIXELS_PER_SECOND = 20
-export type OverflowTitleVariant = 'sidebar' | 'composer' | 'menu'
+export type OverflowTitleVariant = 'sidebar' | 'composer' | 'menu' | 'tab'
 type OverflowTitlePresentation = 'compact' | 'workspace-meta' | 'activity'
 type MeasuredPresentation = Exclude<OverflowTitleVariant, 'menu'>
 
@@ -38,6 +38,12 @@ function overflowStyle(
     return {
       '--sidebar-title-scroll-distance': distance,
       '--sidebar-title-scroll-duration': duration,
+    } as React.CSSProperties
+  }
+  if (variant === 'tab') {
+    return {
+      '--tab-title-scroll-distance': distance,
+      '--tab-title-scroll-duration': duration,
     } as React.CSSProperties
   }
   return {
@@ -99,14 +105,23 @@ export function OverflowTitle({
   }
 
   const scrolling = active && overflowDistance !== null && !reducedMotion
-  const rootClassName = variant === 'sidebar' ? 'sidebar-session-title' : 'composer-model-name'
+  const rootClassName =
+    variant === 'sidebar'
+      ? 'sidebar-session-title'
+      : variant === 'tab'
+        ? 'menubar-session-tab-title'
+        : 'composer-model-name'
   return (
     <span
       aria-live={variant === 'sidebar' ? 'polite' : undefined}
       className={cx(
         rootClassName,
-        ROOT_CLASS,
-        variant === 'sidebar' ? SIDEBAR_PRESENTATION_CLASS[presentation] : COMPOSER_EXTRA_CLASS,
+        variant === 'tab' ? MENU_ROOT_CLASS : ROOT_CLASS,
+        variant === 'sidebar'
+          ? SIDEBAR_PRESENTATION_CLASS[presentation]
+          : variant === 'tab'
+            ? 'tw:grow tw:shrink tw:basis-auto'
+            : COMPOSER_EXTRA_CLASS,
         className,
       )}
       data-overflowing={overflowDistance !== null || undefined}

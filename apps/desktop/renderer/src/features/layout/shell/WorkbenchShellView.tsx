@@ -56,6 +56,7 @@ export function WorkbenchShellView({
       data-bottom-panel-visible={bottomPanelVisible}
       data-resize-active={resizeActive}
       data-workspace-layout={workspaceLayout}
+      style={workspaceStyle}
     >
       <div className="desktop-menubar tw:h-chrome tw:shrink-0 tw:bg-app-titlebar">{menuBar}</div>
       <div

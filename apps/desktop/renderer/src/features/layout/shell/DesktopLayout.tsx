@@ -58,6 +58,14 @@ import {
   type ConversationUiState,
   type ReviewTabUiState,
 } from '../tabs/ConversationUiState.js'
+import {
+  closeTitlebarSessionTab,
+  openTitlebarSessionTab,
+  pruneTitlebarSessionTabs,
+  readStoredTitlebarSessionTabIds,
+  writeStoredTitlebarSessionTabIds,
+  type TitlebarSessionTabItem,
+} from '../tabs/TitlebarSessionTabsState.js'
 import { DesktopSidebar } from '../DesktopSidebar.js'
 import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
@@ -573,6 +581,9 @@ export function DesktopLayout(): React.ReactNode {
   const [whatsNewDialogOpen, setWhatsNewDialogOpen] = useState(false)
   const [whatsNewRestoreFocusElement, setWhatsNewRestoreFocusElement] =
     useState<HTMLElement | null>(null)
+  const [titlebarSessionTabIds, setTitlebarSessionTabIds] = useState<string[]>(() =>
+    readStoredTitlebarSessionTabIds(),
+  )
   const browserState = useStore(desktopBrowserClient.tabsStore, (state) =>
     state.displayTabId ? (state.tabs.get(state.displayTabId) ?? null) : null,
   )
@@ -837,6 +848,33 @@ export function DesktopLayout(): React.ReactNode {
   useEffect(() => {
     registerActivitySessions(sessions)
   }, [registerActivitySessions, sessions])
+
+  // 当处于会话路由时，自动将其加入顶部会话标签
+  useEffect(() => {
+    if (!routedSessionId) return
+    setTitlebarSessionTabIds((current) => {
+      const next = openTitlebarSessionTab(current, routedSessionId)
+      if (next !== current) {
+        writeStoredTitlebarSessionTabIds(next)
+      }
+      return next
+    })
+  }, [routedSessionId])
+
+  // 当会话列表加载完毕后，清理已被归档或不存在的会话 ID（保护当前路由）
+  useEffect(() => {
+    if (!sessionsHydrated || sessions.length === 0) return
+    const valid = new Set(
+      sessions.filter((item) => !item.archivedAt).map((item) => item.id),
+    )
+    setTitlebarSessionTabIds((current) => {
+      const next = pruneTitlebarSessionTabs(current, valid, routedSessionId)
+      if (next !== current) {
+        writeStoredTitlebarSessionTabIds(next)
+      }
+      return next
+    })
+  }, [routedSessionId, sessions, sessionsHydrated])
 
   const effectiveRightDockVisible =
     (isHomeOrConversationRoute && rightDockVisible) || providerPanelVisible
@@ -2542,6 +2580,75 @@ export function DesktopLayout(): React.ReactNode {
     }
   }, [])
 
+  const handleCloseTitlebarSessionTab = useCallback(
+    (targetSessionId: string): void => {
+      let nextActive: string | null | undefined
+      setTitlebarSessionTabIds((current) => {
+        const result = closeTitlebarSessionTab(current, targetSessionId, routedSessionId)
+        nextActive = result.nextActiveSessionId
+        writeStoredTitlebarSessionTabIds(result.nextTabIds)
+        return result.nextTabIds
+      })
+      if (nextActive !== undefined) {
+        if (nextActive === null) {
+          navigate(QUICK_CHAT_PATH)
+        } else {
+          navigate(sessionPath(nextActive))
+        }
+      }
+    },
+    [navigate, routedSessionId],
+  )
+
+  const titlebarSessionTabs = useMemo<TitlebarSessionTabItem[]>(() => {
+    const sessionMap = new Map<string, SessionListItem>(sessions.map((s) => [s.id, s]))
+
+    // 统计当前打开标签中涉及的工作区集合（以 workspacePath 为标识）
+    const workspacesInTabs = new Set<string>()
+    for (const id of titlebarSessionTabIds) {
+      const item = sessionMap.get(id)
+      if (item?.workspacePath) {
+        workspacesInTabs.add(item.workspacePath)
+      } else if (id === sessionId && currentWorkspace?.path) {
+        workspacesInTabs.add(currentWorkspace.path)
+      }
+    }
+    const hasMultipleWorkspaces = workspacesInTabs.size > 1
+
+    return titlebarSessionTabIds.map((id) => {
+      const item = sessionMap.get(id)
+      let title = id
+      let workspaceLabel: string | null = null
+
+      if (item) {
+        const fallback =
+          id === sessionId ? activeSessionFallbackTitle : sessionFallbackTitles[id]
+        title = sessionDisplayTitle(item, fallback)
+        workspaceLabel = item.workspaceName || (item.workspacePath ? item.workspacePath.split(/[\\/]/).pop() ?? null : null)
+      } else if (id === sessionId && quickChatSessionTitle) {
+        title = quickChatSessionTitle
+        workspaceLabel = currentWorkspace?.name || (currentWorkspace?.path ? currentWorkspace.path.split(/[\\/]/).pop() ?? null : null)
+      }
+
+      return {
+        id,
+        title,
+        subtitle: hasMultipleWorkspaces ? workspaceLabel : null,
+        active: id === routedSessionId,
+      }
+    })
+  }, [
+    activeSessionFallbackTitle,
+    currentWorkspace?.name,
+    currentWorkspace?.path,
+    quickChatSessionTitle,
+    routedSessionId,
+    sessionId,
+    sessionFallbackTitles,
+    sessions,
+    titlebarSessionTabIds,
+  ])
+
   const menuBar = useMemo(
     () => (
       <MenuBar
@@ -2550,6 +2657,9 @@ export function DesktopLayout(): React.ReactNode {
         isMaximized={isWindowMaximized}
         canNavigateBack={canNavigateBack}
         canNavigateForward={canNavigateForward}
+        sessionTabs={titlebarSessionTabs}
+        onSelectSessionTab={(targetId) => navigate(sessionPath(targetId))}
+        onCloseSessionTab={handleCloseTitlebarSessionTab}
         onToggleSidebar={toggleSidebarCollapsed}
         onClose={() => {
           void desktopClient.closeWindow()
@@ -2569,6 +2679,9 @@ export function DesktopLayout(): React.ReactNode {
       isWindowMaximized,
       canNavigateBack,
       canNavigateForward,
+      titlebarSessionTabs,
+      navigate,
+      handleCloseTitlebarSessionTab,
       toggleSidebarCollapsed,
       setIsWindowMaximized,
       menuActions,

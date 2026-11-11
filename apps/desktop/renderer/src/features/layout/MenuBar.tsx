@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import * as Menubar from '@radix-ui/react-menubar'
 import type { DesktopEditAction } from '@pidex/shared/desktop-edit-ipc'
 import {
@@ -20,10 +20,12 @@ import {
 import { Button } from '../../components/ui/Button.js'
 import { Tooltip } from '../../components/ui/Tooltip.js'
 import { OverflowTitle } from '../../components/ui/OverflowTitle.js'
+import { usePrefersReducedMotion } from '../../hooks/UsePrefersReducedMotion.js'
 import { type PopoverSizingProps } from '../../components/ui/PopoverSizing.js'
 import { cx } from '../../utils/Cx.js'
 import { useFloatingFocusModality } from '../../utils/FloatingFocus.js'
 import { useEditCommands } from '../../components/ui/EditCommandProvider.js'
+import type { TitlebarSessionTabItem } from './tabs/TitlebarSessionTabsState.js'
 
 export type FileMenuAction =
   | 'close'
@@ -80,6 +82,9 @@ type Props = {
   isMaximized: boolean
   canNavigateBack: boolean
   canNavigateForward: boolean
+  sessionTabs?: readonly TitlebarSessionTabItem[]
+  onSelectSessionTab?: (sessionId: string) => void
+  onCloseSessionTab?: (sessionId: string) => void
   onSidebarBoundaryChange?: (width: number) => void
   onToggleSidebar: () => void
   onMinimize: () => void
@@ -227,6 +232,9 @@ export function MenuBar({
   isMaximized,
   canNavigateBack,
   canNavigateForward,
+  sessionTabs = [],
+  onSelectSessionTab,
+  onCloseSessionTab,
   onSidebarBoundaryChange,
   onToggleSidebar,
   onMinimize,
@@ -244,7 +252,30 @@ export function MenuBar({
   const menuBarFocusedRef = useRef(false)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
   const ignoreStaleCloseRef = useRef(false)
+  const tabButtonRefs = useRef(new Map<string, HTMLButtonElement>())
+  const tabsTrackRef = useRef<HTMLDivElement | null>(null)
+  const reducedMotion = usePrefersReducedMotion()
+  const [activeScrollTabId, setActiveScrollTabId] = useState<string | null>(null)
   const [openMenu, setOpenMenu] = useState<AppMenuValue | ''>('')
+
+  const handleTabsWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    const track = event.currentTarget
+    if (track.scrollWidth <= track.clientWidth) return
+    if (Math.abs(event.deltaY) >= Math.abs(event.deltaX)) {
+      track.scrollLeft += event.deltaY
+      event.preventDefault()
+    }
+  }, [])
+
+  useEffect(() => {
+    const activeTab = sessionTabs.find((t) => t.active)
+    if (!activeTab) return
+    tabButtonRefs.current.get(activeTab.id)?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+      behavior: reducedMotion ? 'auto' : 'smooth',
+    })
+  }, [reducedMotion, sessionTabs])
 
   useLayoutEffect(() => {
     const lastButton = helpMenuTriggerRef.current
@@ -355,7 +386,7 @@ export function MenuBar({
       onKeyDown={handleMenuBarKeyDown}
     >
       <div className="menubar-titlebar tw:flex tw:h-chrome tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:pl-3">
-        <div className="menubar-left tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-1 tw:overflow-visible">
+        <div className="menubar-left tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:overflow-visible">
           <Tooltip content="后退" shortcut="Ctrl+[" side="bottom">
             <Button
               isIconOnly
@@ -765,6 +796,142 @@ export function MenuBar({
           </Menubar.Root>
         </div>
 
+        {sessionTabs.length > 0 ? (
+          <div
+            aria-label="会话标签页"
+            className="menubar-session-tabs tw:flex tw:h-chrome tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:mr-3"
+            role="tablist"
+          >
+            <div
+              className="menubar-session-tabs-track tw:flex tw:h-full tw:w-full tw:items-center tw:gap-1.5 tw:overflow-x-auto tw:px-1"
+              onWheel={handleTabsWheel}
+              ref={tabsTrackRef}
+            >
+              {sessionTabs.map((tab, index) => {
+                const active = tab.active
+                const isHoveredOrFocused = activeScrollTabId === tab.id
+                const fullTooltip = tab.subtitle ? `${tab.title} (${tab.subtitle})` : tab.title
+                const showSubtitle = tab.subtitle && (sessionTabs.length <= 3 || active)
+                return (
+                  <div
+                    className={cx(
+                      'menubar-session-tab tw:group tw:relative tw:flex tw:h-7 tw:items-center tw:gap-1 tw:overflow-hidden tw:rounded-md tw:border tw:transition-colors',
+                      active
+                        ? 'tw:flex-[1.5_1_0%] tw:min-w-12 tw:max-w-64 tw:border-transparent tw:bg-app-selected tw:px-2 tw:text-app-text'
+                        : 'tw:flex-1 tw:min-w-8 tw:max-w-56 tw:border-app-border-subtle tw:bg-transparent tw:px-1.5 tw:text-app-text-meta tw:hover:border-app-border tw:hover:bg-app-hover tw:hover:text-app-text',
+                    )}
+                    key={tab.id}
+                    onMouseEnter={() => setActiveScrollTabId(tab.id)}
+                    onMouseLeave={() =>
+                      setActiveScrollTabId((current) => (current === tab.id ? null : current))
+                    }
+                  >
+                    <button
+                      aria-selected={active}
+                      className="tw:flex tw:h-full tw:min-w-0 tw:flex-1 tw:items-center tw:gap-1.5 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:outline-none tw:type-control"
+                      onBlur={() =>
+                        setActiveScrollTabId((current) => (current === tab.id ? null : current))
+                      }
+                      onClick={() => onSelectSessionTab?.(tab.id)}
+                      onFocus={() => setActiveScrollTabId(tab.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'ArrowLeft') {
+                          event.preventDefault()
+                          const prev = sessionTabs[(index - 1 + sessionTabs.length) % sessionTabs.length]
+                          if (prev) {
+                            onSelectSessionTab?.(prev.id)
+                            tabButtonRefs.current.get(prev.id)?.focus()
+                          }
+                        } else if (event.key === 'ArrowRight') {
+                          event.preventDefault()
+                          const next = sessionTabs[(index + 1) % sessionTabs.length]
+                          if (next) {
+                            onSelectSessionTab?.(next.id)
+                            tabButtonRefs.current.get(next.id)?.focus()
+                          }
+                        } else if (event.key === 'Delete') {
+                          event.preventDefault()
+                          onCloseSessionTab?.(tab.id)
+                        }
+                      }}
+                      onMouseDown={(event) => {
+                        if (event.button === 1) event.preventDefault()
+                      }}
+                      onAuxClick={(event) => {
+                        if (event.button === 1) {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          onCloseSessionTab?.(tab.id)
+                        }
+                      }}
+                      ref={(element) => {
+                        if (element) tabButtonRefs.current.set(tab.id, element)
+                        else tabButtonRefs.current.delete(tab.id)
+                      }}
+                      role="tab"
+                      tabIndex={active ? 0 : -1}
+                      title={fullTooltip}
+                      type="button"
+                    >
+                      <div className="tw:min-w-0 tw:flex-1 tw:overflow-hidden">
+                        <OverflowTitle
+                          active={isHoveredOrFocused}
+                          reducedMotion={reducedMotion}
+                          variant="tab"
+                        >
+                          {tab.title}
+                        </OverflowTitle>
+                      </div>
+                      {showSubtitle ? (
+                        <span
+                          className={cx(
+                            'tw:min-w-0 tw:max-w-24 tw:shrink tw:truncate tw:type-caption',
+                            active ? 'tw:text-app-text-meta' : 'tw:text-app-text-disabled',
+                          )}
+                        >
+                          {tab.subtitle}
+                        </span>
+                      ) : null}
+                    </button>
+                    <div
+                      className={cx(
+                        'tw:flex tw:h-5 tw:flex-shrink-0 tw:items-center tw:justify-center tw:transition-all',
+                        active
+                          ? 'tw:w-5 tw:opacity-100'
+                          : 'tw:w-0 tw:overflow-hidden tw:opacity-0 tw:group-hover:w-5 tw:group-hover:opacity-100 tw:group-focus-within:w-5 tw:group-focus-within:opacity-100',
+                      )}
+                    >
+                      <Button
+                        className={cx(
+                          'tw:transition-opacity tw:duration-feedback tw:ease-standard',
+                          active
+                            ? 'tw:pointer-events-auto tw:opacity-100'
+                            : 'tw:pointer-events-none tw:opacity-0 tw:group-hover:pointer-events-auto tw:group-hover:opacity-100 tw:group-has-[:focus-visible]:pointer-events-auto tw:group-has-[:focus-visible]:opacity-100',
+                        )}
+                        isIconOnly
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onCloseSessionTab?.(tab.id)
+                        }}
+                        onMouseDown={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                        }}
+                        shape="pill"
+                        size="iconSm"
+                        title={`关闭 ${tab.title}`}
+                        variant="text"
+                      >
+                        <X size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
+
         <WindowControls
           isMaximized={isMaximized}
           onClose={onClose}
@@ -785,42 +952,47 @@ export function WindowControls({
   const controlClassName =
     'window-control-button tw:flex tw:h-full tw:w-[46px] tw:items-center tw:justify-center tw:text-app-text-meta tw:[&_svg]:size-3'
   return (
-    <div className="window-controls tw:hidden tw:h-full tw:items-center tw:gap-1">
-      <button
-        aria-label="最小化"
-        className={cx(controlClassName, 'tw:hover:bg-app-hover')}
-        onClick={onMinimize}
-        title="最小化"
-        type="button"
-      >
-        <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-      </button>
-      <button
-        aria-label={isMaximized ? '还原' : '最大化'}
-        className={cx(controlClassName, 'tw:hover:bg-app-hover')}
-        onClick={onToggleMaximize}
-        title={isMaximized ? '还原' : '最大化'}
-        type="button"
-      >
-        {isMaximized ? (
-          <Copy
-            className="window-restore-icon tw:-scale-x-100"
-            size={APP_ICON_SIZE}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
-          />
-        ) : (
-          <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        )}
-      </button>
-      <button
-        aria-label="关闭"
-        className={cx(controlClassName, 'close tw:hover:bg-app-danger tw:hover:text-app-text')}
-        onClick={onClose}
-        title="关闭"
-        type="button"
-      >
-        <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-      </button>
+    <div
+      aria-hidden="true"
+      className="window-controls-host tw:flex tw:h-full tw:w-[138px] tw:shrink-0 tw:items-center tw:justify-end tw:pointer-events-none"
+    >
+      <div className="window-controls tw:hidden tw:h-full tw:items-center tw:gap-1">
+        <button
+          aria-label="最小化"
+          className={cx(controlClassName, 'tw:hover:bg-app-hover')}
+          onClick={onMinimize}
+          title="最小化"
+          type="button"
+        >
+          <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </button>
+        <button
+          aria-label={isMaximized ? '还原' : '最大化'}
+          className={cx(controlClassName, 'tw:hover:bg-app-hover')}
+          onClick={onToggleMaximize}
+          title={isMaximized ? '还原' : '最大化'}
+          type="button"
+        >
+          {isMaximized ? (
+            <Copy
+              className="window-restore-icon tw:-scale-x-100"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+          ) : (
+            <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          )}
+        </button>
+        <button
+          aria-label="关闭"
+          className={cx(controlClassName, 'close tw:hover:bg-app-danger tw:hover:text-app-text')}
+          onClick={onClose}
+          title="关闭"
+          type="button"
+        >
+          <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        </button>
+      </div>
     </div>
   )
 }

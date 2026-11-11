@@ -123,6 +123,9 @@ export function SidebarFrame({
     allocatedWidthAnimationRef.current?.stop()
     allocatedWidthAnimationRef.current = null
     allocatedWidth.set(nextWidth)
+    document
+      .querySelector<HTMLElement>('.app-shell')
+      ?.style.setProperty('--sidebar-w', `${nextWidth}px`)
   })
 
   useEffect(() => {
