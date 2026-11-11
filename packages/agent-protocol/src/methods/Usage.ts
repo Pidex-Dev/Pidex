@@ -88,6 +88,8 @@ const LocalTokenTotalsSchema = Schema.Struct({
   cachedTokens: NonNegativeFiniteIntSchema,
   totalTokens: NonNegativeFiniteIntSchema,
   estimatedCostUsd: DecimalAmountSchema,
+  unknownCostRequests: Schema.optional(NonNegativeFiniteIntSchema),
+  conservativeCostRequests: Schema.optional(NonNegativeFiniteIntSchema),
 })
 
 const LocalDailyModelUsageSchema = Schema.Struct({

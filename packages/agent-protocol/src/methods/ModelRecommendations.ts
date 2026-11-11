@@ -85,7 +85,25 @@ export const ModelSpecRepairRpcMethods = {
   }),
 } as const
 
+export const ModelDocumentRpcMethods = {
+  'model/document/extract': defineMethod({
+    params: Schema.Struct({ operationId: OpaqueIDSchema, url: Schema.String.check(Schema.isMaxLength(2048)), modelId: Schema.String, extractor: Schema.optional(Model.Ref) }),
+    result: Schema.Struct({ candidates: Schema.Array(Schema.Struct({ modelId: Schema.String, snapshot: Model.DocumentSnapshot })) }),
+    errors: ['INVALID_REQUEST', 'PROVIDER_UNAVAILABLE'], capability: 'model.documents.v1', mutation: true, exactParams: true,
+  }),
+  'model/document/cancel': defineMethod({
+    params: Schema.Struct({ operationId: OpaqueIDSchema }), result: Schema.Struct({ cancelled: Schema.Boolean }),
+    errors: ['INVALID_REQUEST'], capability: 'model.documents.v1', mutation: true, exactParams: true,
+  }),
+  'model/pricing/refresh': defineMethod({
+    params: Schema.Struct({ operationId: OpaqueIDSchema, force: Schema.optional(Schema.Boolean), year: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 2000, maximum: 2200 }))) }),
+    result: Schema.Struct({ fxRate: Schema.optional(Schema.Finite), fxDate: Schema.optional(Schema.String), calendarYear: Schema.Int, calendarAvailable: Schema.Boolean }),
+    errors: ['INVALID_REQUEST', 'PROVIDER_UNAVAILABLE'], capability: 'model.documents.v1', mutation: true, exactParams: true,
+  }),
+} as const
+
 export const ModelRecommendationRpcMethods = {
+  ...ModelDocumentRpcMethods,
   'model/recommendation/preview': defineMethod({
     params: RecommendationPreviewParams,
     result: Schema.Struct({
@@ -123,3 +141,6 @@ export type ModelRecommendation = Model.Recommendation
 export type SmartConfig = Model.SmartConfig
 export type SmartConfigPinnedField = Model.SmartConfigPinnedField
 export const SmartConfigPinnedFields = Model.SmartConfigPinnedFields
+
+export type ModelPricing = Model.Pricing
+export type ModelUnitPrices = Model.UnitPrices

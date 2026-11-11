@@ -922,6 +922,9 @@ function taskScheduleFixtures() {
   }
 }
 const fixtures = {
+  'model/document/extract': methodFixture('model/document/extract', { operationId: 'document-1', url: 'https://example.com/models', modelId: 'example' }, { candidates: [] }),
+  'model/document/cancel': methodFixture('model/document/cancel', { operationId: 'document-1' }, { cancelled: true }),
+  'model/pricing/refresh': methodFixture('model/pricing/refresh', { operationId: 'pricing-1' }, { calendarYear: 2026, calendarAvailable: false }),
   'model/recommendation/preview': {
     params: { providerId: 'relay', modelId: 'example', modelType: 'chat' },
     result: { status: 'matched', recommended: { contextWindow: 128000 }, updatedAt: 1 },
@@ -6365,7 +6368,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(354)
+    expect(methods).toHaveLength(357)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -6733,7 +6736,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(333)
+    expect(Object.keys(RpcMethods)).toHaveLength(336)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })

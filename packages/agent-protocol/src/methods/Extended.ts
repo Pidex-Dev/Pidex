@@ -85,6 +85,7 @@ export const PiProviderApiSchema = Schema.Literals([
 const NonNegativeNumberSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0))
 
 const ProviderModelCostSchema = Schema.Struct({
+  tiers: Schema.optional(Schema.Array(Model.PriceTier)),
   input: Schema.optional(NonNegativeNumberSchema),
   output: Schema.optional(NonNegativeNumberSchema),
   cacheRead: Schema.optional(NonNegativeNumberSchema),
@@ -102,6 +103,7 @@ const ThinkingLevelMapSchema = Schema.Struct({
 })
 
 export const ProviderModelDefinitionSchema = Schema.Struct({
+  catalog: Schema.optional(Model.CatalogDetails),
   id: Model.ID,
   group: Schema.optional(Schema.String.check(Schema.isMaxLength(128))),
   name: Schema.optional(NonEmptyStringSchema),
@@ -133,6 +135,7 @@ export const ProviderModelDefinitionSchema = Schema.Struct({
   compat: Schema.optional(Schema.Record(Schema.String, JsonValueSchema)),
   /** 已脱离推荐值的字段清单；其余字段继续跟随 models.dev 推荐。 */
   smartConfig: Schema.optional(Model.SmartConfig),
+  pricing: Schema.optional(Model.Pricing),
 })
 
 /**
