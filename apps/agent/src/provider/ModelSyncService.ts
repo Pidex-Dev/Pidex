@@ -1,3 +1,4 @@
+import { omitUndefined } from '../OmitUndefined'
 import { Model } from '@pidex/model-schema'
 import { ConfigServiceError, type ConfigService, type ConfigValue } from '../config/ConfigService'
 import { AgentError } from '../Domain'
@@ -20,6 +21,7 @@ import type { PiModelService } from './pi/PiModelService'
 
 /** Protocol-shaped candidate returned by sync and discovery results. */
 export interface ProviderModelDefinition {
+  readonly catalog?: Model.CatalogDetails
   readonly id: string
   readonly name: string
   readonly api: ListableChatApi
@@ -37,6 +39,7 @@ export interface ProviderModelDefinition {
     readonly output?: number | undefined
     readonly cacheRead?: number | undefined
     readonly cacheWrite?: number | undefined
+    readonly tiers?: readonly (typeof Model.PriceTier.Type)[] | undefined
   } | undefined
   readonly smartConfig?: { readonly pinned: readonly Model.SmartConfigPinnedField[] }
 }
@@ -302,6 +305,19 @@ export class ModelSyncService {
       const contextWindow = model.contextWindow ?? recommended.contextWindow
       const maxInputTokens = model.maxInputTokens ?? recommended.maxInputTokens
       const maxTokens = model.maxTokens ?? recommended.maxTokens
+      // 上游明确档位是最精确的模型事实，覆盖推荐目录与静态规则的 values；
+      // 协议 map 仍沿用推荐合成结果，只替换值域。
+      const optionSpecs = model.reasoningLevels?.length
+        ? {
+            ...recommended.optionSpecs,
+            reasoningLevel: {
+              ...recommended.optionSpecs?.reasoningLevel,
+              values: [...model.reasoningLevels],
+            },
+          }
+        : recommendation.status === 'matched'
+          ? recommended.optionSpecs
+          : undefined
       // 上游明确额度属于手动规格，其他完整推荐使用自动模式。
       const smartConfig =
         contextWindow !== undefined && maxTokens !== undefined &&
@@ -313,14 +329,17 @@ export class ModelSyncService {
         name: model.name,
         api,
         enabled,
-        ...(contextWindow !== undefined ? { contextWindow } : {}),
-        ...(maxInputTokens !== undefined ? { maxInputTokens } : {}),
-        ...(maxTokens !== undefined ? { maxTokens } : {}),
-        ...(recommendation.status === 'matched' && recommended.optionSpecs ? { optionSpecs: recommended.optionSpecs } : {}),
-        ...(recommended.reasoning !== undefined ? { reasoning: recommended.reasoning } : {}),
-        ...(recommended.tools !== undefined ? { tools: recommended.tools } : {}),
+        ...omitUndefined({
+          contextWindow,
+          maxInputTokens,
+          maxTokens,
+          reasoning: recommended.reasoning,
+          tools: recommended.tools,
+        }),
+        ...(optionSpecs ? { optionSpecs } : {}),
         ...(recommended.input ? { input: recommended.input } : {}),
         ...(recommended.cost ? { cost: recommended.cost } : {}),
+        ...(recommended.catalog ? { catalog: recommended.catalog } : {}),
         ...(smartConfig ? { smartConfig } : {}),
       })
       matches.push({

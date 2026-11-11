@@ -459,6 +459,33 @@ describe('ModelSyncService', () => {
     expect(await embeddings.piModels.modelSyncSummary('gateway')).toBeUndefined()
   })
 
+  test('上游明确档位进入候选规格，协议 map 沿用推荐合成结果', async () => {
+    const fixture = await createFixture({}, {}, true)
+    const discovered = await fixture.sync.discoverDraft({
+      api: 'openai-completions',
+      draft: { baseUrl: 'https://relay.example/v1', auth: 'none' },
+      fetch: async () =>
+        Response.json({
+          data: [
+            {
+              id: 'qwen/deepseek-v4.1-flash',
+              reasoning_levels: ['high', 'max'],
+            },
+            { id: 'mystery-model', reasoning_levels: ['low', 'high'] },
+          ],
+        }),
+    })
+    const byId = Object.fromEntries(discovered.models.map((model) => [model.id, model]))
+    // 上游声明覆盖推荐目录的 values，协议 map 仍由推荐合成结果补充。
+    expect(byId['qwen/deepseek-v4.1-flash']?.optionSpecs?.reasoningLevel?.values).toEqual([
+      'high',
+      'max',
+    ])
+    expect(byId['qwen/deepseek-v4.1-flash']?.optionSpecs?.reasoningLevel?.map).toBeDefined()
+    // 未命中目录时仍然保留上游档位。
+    expect(byId['mystery-model']?.optionSpecs?.reasoningLevel?.values).toEqual(['low', 'high'])
+  })
+
   test('候选规格统一解析：上游明确额度使用手动模式，其余取官方/供应商推荐', async () => {
     const fixture = await createFixture(
       { gateway: customProvider({ models: { manual: { api: 'openai-completions' } } }) },

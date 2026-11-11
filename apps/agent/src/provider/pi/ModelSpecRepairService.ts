@@ -64,7 +64,7 @@ export class ModelSpecRepairService {
             suggested,
             pinned: false,
             noRepair,
-            defaultSelected: !!model.smartConfig && model.smartConfig.pinned.length === 0 && !noRepair,
+            defaultSelected: !!model.smartConfig && model.smartConfig.enabled !== false && model.smartConfig.pinned.length === 0 && !noRepair,
           },
         ]
       })

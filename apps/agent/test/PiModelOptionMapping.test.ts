@@ -90,6 +90,31 @@ describe('PiModelOptionMapping — 双层 values/map 协议映射', () => {
     expect(out.reasoning_effort).toBe('enabled')
   })
 
+  test('空 merge patch（`{}`）等价于无映射，不清除 Pi 生成的思考与输出字段', () => {
+    expect(
+      compileOptionSpecs(
+        specs({
+          reasoningLevel: { values: ['disabled', 'enabled'], map: '{}' },
+          maxOutputTokens: { max: 128000 },
+        }),
+      ),
+    ).toBeUndefined()
+    const compiled = compileOptionSpecs(
+      specs({
+        reasoningLevel: { map: ' {} ' },
+        maxOutputTokens: { max: 8192, map: '{"max_tokens": maxOutputTokens}' },
+      }),
+    )
+    expect(compiled?.reasoningLevel).toBeUndefined()
+    const body = { reasoning_effort: 'high', reasoning: { effort: 'high' }, max_tokens: 1024 }
+    const out = applyModelOptionMap(body, compiled!, { reasoningLevel: 'enabled', maxOutputTokens: 4096 })
+    expect(out).toEqual({
+      reasoning_effort: 'high',
+      reasoning: { effort: 'high' },
+      max_tokens: 4096,
+    })
+  })
+
   test('两层 values/map 独立覆盖，且不产生重复 reasoning/输出字段', () => {
     const compiled = compileOptionSpecs(
       specs({

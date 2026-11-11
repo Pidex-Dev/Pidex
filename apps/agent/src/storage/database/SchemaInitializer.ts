@@ -1,3 +1,4 @@
+import { MODEL_PRICING_SCHEMA } from '../repositories/ModelPricingRepository'
 import { CONTEXT_LIFECYCLE_SCHEMA } from '../repositories/ContextRepository'
 import { THREAD_EDIT_SCHEMA } from '../repositories/ThreadEditRepository'
 import { Database } from 'bun:sqlite'
@@ -90,6 +91,7 @@ const SCHEDULE_CALENDAR_SCHEMA = [
 ] as const
 
 export const FINAL_SCHEMA = [
+  ...MODEL_PRICING_SCHEMA,
   'CREATE TABLE thread_project_memberships (thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE, project_id TEXT, removal_operation_id TEXT, updated_at INTEGER NOT NULL)',
   'CREATE TABLE approval_reviews (id TEXT PRIMARY KEY, thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE, tool_call_id TEXT NOT NULL, invocation TEXT NOT NULL, fingerprint TEXT NOT NULL, decision TEXT NOT NULL, risk TEXT NOT NULL, reason TEXT NOT NULL, retry_operation_id TEXT, retry_consumed_at INTEGER, created_at INTEGER NOT NULL, confidence TEXT, categories TEXT, user_authorization TEXT, fallback_reason TEXT, review_source TEXT, review_status TEXT, score_lag INTEGER, reviewed_at INTEGER, action_hash TEXT, authorization_version TEXT)',
   'CREATE INDEX IF NOT EXISTS idx_approval_reviews_thread_created ON approval_reviews(thread_id, created_at DESC)',
@@ -1487,6 +1489,7 @@ export class SchemaInitializer {
     const migrations: Record<number, () => void> =
       this.kind === 'history'
         ? {
+            72: () => this.sqlite.exec(MODEL_PRICING_SCHEMA.map(statement => statement.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ')).join(';')),
             // 子智能体展示职能：nullable 列，旧写入方无需提供，不回填历史推断结果。
             71: () => {
               // 极老的库还没建过 subagent_tasks；这类库由后续建表语句补全，不需要 ALTER。

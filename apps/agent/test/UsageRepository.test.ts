@@ -193,3 +193,15 @@ describe('UsageRepository', () => {
     expect(result.totals.providerCalls).toBe(1)
   })
 })
+
+
+test('未知费用不当免费，缺日历的保守估算保留到汇总', async () => {
+  const { db, main, now, addSession } = await setup()
+  addSession('pricing-flags', main.id, [
+    { type: 'message', timestamp: '2026-03-03T00:01:00.000Z', message: { role: 'assistant', provider: 'deepseek', model: 'test', content: [], usage: { ...usage(100, 10), costUnknown: true, priceSnapshotId: 'snapshot:unknown' }, stopReason: 'stop', timestamp: 0 } },
+    { type: 'message', timestamp: '2026-03-03T00:02:00.000Z', message: { role: 'assistant', provider: 'deepseek', model: 'test', content: [], usage: { ...usage(100, 10, 0, 0, .5), conservativeCost: true, priceSnapshotId: 'snapshot:conservative' }, stopReason: 'stop', timestamp: 0 } },
+  ])
+  const result = new UsageRepository(db, () => now).getLocalUsage('all', 'UTC')
+  expect(result.totals).toMatchObject({ estimatedCostUsd: '0.5', unknownCostRequests: 1, conservativeCostRequests: 1 })
+  expect(result.models[0]).toMatchObject({ unknownCostRequests: 1, conservativeCostRequests: 1 })
+})

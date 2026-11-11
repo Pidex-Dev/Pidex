@@ -106,3 +106,20 @@ test('dual-source refresh commits atomically, restores offline and refuses forei
     await rm(root, { recursive: true, force: true })
   }
 })
+
+
+test('v1 模型级 SDK、shape 与地址覆盖默认协议；目录 body 与 headers 不进入配置', () => {
+  const entries = parseProviderDirectory({ owner: 'pidex-provider-directory', formatVersion: 1, pi,
+    modelsDev: { ...modelsDev, providers: { ...modelsDev.providers,
+      other: { name: 'Other', npm: '@ai-sdk/openai-compatible', api: 'https://other.example/v1', env: [],
+        models: { example: { provider: { npm: '@ai-sdk/openai', shape: 'responses', api: 'https://responses.example/v1',
+          body: { store: true }, headers: { 'x-extra': 'ignored' } }, limit: { context: 128000, output: 8192 } } },
+      },
+    } },
+  })
+  const other = entries.find((entry) => entry.id === 'other')!
+  expect(other.models.example?.api).toBe('openai-responses')
+  expect(other.modelBaseUrls?.example).toBe('https://responses.example/v1')
+  expect(other.models.example?.headers).toBeUndefined()
+  expect(other.models.example?.body).toBeUndefined()
+})

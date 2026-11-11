@@ -1,3 +1,4 @@
+import { omitUndefined } from '../OmitUndefined'
 import { UsageRequestError } from './SafeFetch'
 import {
   emptySource,
@@ -616,12 +617,12 @@ const openRouterKey = adapter({
         id: 'key-limit',
         label: 'Key 限额',
         unit: 'credits',
-        ...(limit === undefined ? {} : { limit }),
-        ...(remaining === undefined ? {} : { remaining }),
-        ...(number(data?.usage) === undefined ? {} : { used: number(data?.usage)! }),
-        ...(nextReset(data?.limit_reset, context.now) === undefined
-          ? {}
-          : { resetsAt: nextReset(data?.limit_reset, context.now)! }),
+        ...omitUndefined({
+          limit,
+          remaining,
+          used: number(data?.usage),
+          resetsAt: nextReset(data?.limit_reset, context.now),
+        }),
         state: remaining === 0 ? 'exhausted' : 'normal',
       })
     return {
@@ -699,8 +700,7 @@ const fireworks = adapter({
             id: text(quota.name) ?? `quota-${group.quotaWindows.length + 1}`,
             label: text(quota.name) ?? 'Quota',
             unit: 'requests',
-            ...(limit === undefined ? {} : { limit }),
-            ...(used === undefined ? {} : { used }),
+            ...omitUndefined({ limit, used }),
             ...(limit === undefined || used === undefined
               ? {}
               : { remaining: Math.max(0, limit - used) }),
@@ -1238,8 +1238,7 @@ const xaiManagement = adapter({
         id: 'monthly-spending',
         label: '月度支出上限',
         unit: 'currency',
-        ...(max === undefined ? {} : { limit: max }),
-        ...(used === undefined ? {} : { used }),
+        ...omitUndefined({ limit: max, used }),
         ...(max === undefined || used === undefined ? {} : { remaining: Math.max(0, max - used) }),
         state: max !== undefined && used !== undefined && used >= max ? 'exhausted' : 'normal',
       })
@@ -1370,9 +1369,7 @@ const claudeSubscription = adapter({
               remaining: 100 - usedPercent,
               remainingPercent: 100 - usedPercent,
             }),
-        ...(timestamp(window.resets_at) === undefined
-          ? {}
-          : { resetsAt: timestamp(window.resets_at)! }),
+        ...omitUndefined({ resetsAt: timestamp(window.resets_at) }),
         state: usedPercent !== undefined && usedPercent >= 100 ? 'exhausted' : 'normal',
       })
     }
@@ -1384,8 +1381,7 @@ const claudeSubscription = adapter({
         id: 'extra-usage',
         label: 'Extra Usage',
         unit: 'credits',
-        ...(limit === undefined ? {} : { limit }),
-        ...(used === undefined ? {} : { used }),
+        ...omitUndefined({ limit, used }),
         ...(limit === undefined || used === undefined
           ? {}
           : { remaining: Math.max(0, limit - used) }),
@@ -1430,18 +1426,14 @@ const kimiCode = adapter({
         id: 'overview',
         label: '套餐总览',
         unit: 'requests',
-        ...(maximum === undefined ? {} : { limit: maximum }),
-        ...(used === undefined ? {} : { used }),
-        ...(remaining === undefined ? {} : { remaining }),
-        ...(timestamp(
-          overview.reset_at ?? overview.resetAt ?? overview.reset_time ?? overview.resetTime,
-        ) === undefined
-          ? {}
-          : {
-              resetsAt: timestamp(
-                overview.reset_at ?? overview.resetAt ?? overview.reset_time ?? overview.resetTime,
-              )!,
-            }),
+        ...omitUndefined({
+          limit: maximum,
+          used,
+          remaining,
+          resetsAt: timestamp(
+            overview.reset_at ?? overview.resetAt ?? overview.reset_time ?? overview.resetTime,
+          ),
+        }),
         state:
           remaining === 0
             ? 'exhausted'
@@ -1474,32 +1466,21 @@ const kimiCode = adapter({
         id: `limit-${index + 1}`,
         label,
         unit: 'requests',
-        ...(maximum === undefined ? {} : { limit: maximum }),
-        ...(used === undefined ? {} : { used }),
-        ...(remaining === undefined ? {} : { remaining }),
-        ...(timestamp(
-          envelope?.reset_at ??
-            envelope?.resetAt ??
-            envelope?.reset_time ??
-            envelope?.resetTime ??
-            limit.reset_at ??
-            limit.resetAt ??
-            limit.reset_time ??
-            limit.resetTime,
-        ) === undefined
-          ? {}
-          : {
-              resetsAt: timestamp(
-                envelope?.reset_at ??
-                  envelope?.resetAt ??
-                  envelope?.reset_time ??
-                  envelope?.resetTime ??
-                  limit.reset_at ??
-                  limit.resetAt ??
-                  limit.reset_time ??
-                  limit.resetTime,
-              )!,
-            }),
+        ...omitUndefined({
+          limit: maximum,
+          used,
+          remaining,
+          resetsAt: timestamp(
+            envelope?.reset_at ??
+              envelope?.resetAt ??
+              envelope?.reset_time ??
+              envelope?.resetTime ??
+              limit.reset_at ??
+              limit.resetAt ??
+              limit.reset_time ??
+              limit.resetTime,
+          ),
+        }),
         state:
           remaining === 0
             ? 'exhausted'
@@ -1585,15 +1566,13 @@ const zhipuCoding = (region: 'global' | 'cn') =>
           id: `quota-${index + 1}`,
           label,
           unit: type === 'TIME_LIMIT' ? 'requests' : 'tokens',
-          ...(number(limit.usage) === undefined ? {} : { limit: number(limit.usage)! }),
-          ...(number(limit.currentValue) === undefined
-            ? {}
-            : { used: number(limit.currentValue)! }),
-          ...(number(limit.remaining) === undefined ? {} : { remaining: number(limit.remaining)! }),
-          ...(usedPercent === undefined ? {} : { remainingPercent: 100 - usedPercent }),
-          ...(timestamp(limit.nextResetTime) === undefined
-            ? {}
-            : { resetsAt: timestamp(limit.nextResetTime)! }),
+          ...omitUndefined({
+            limit: number(limit.usage),
+            used: number(limit.currentValue),
+            remaining: number(limit.remaining),
+            remainingPercent: usedPercent === undefined ? undefined : 100 - usedPercent,
+            resetsAt: timestamp(limit.nextResetTime),
+          }),
           state: usedPercent !== undefined && usedPercent >= 100 ? 'exhausted' : 'normal',
         })
       }

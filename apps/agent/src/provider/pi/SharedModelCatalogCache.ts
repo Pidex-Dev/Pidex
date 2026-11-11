@@ -1,3 +1,4 @@
+import { omitUndefined } from '../../OmitUndefined'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -80,11 +81,14 @@ const isEnoent = (error: unknown): boolean =>
   !!error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT'
 
 const LIMIT_KEYS = ['context', 'input', 'output'] as const
-const COST_KEYS = ['input', 'output', 'cache_read', 'cache_write'] as const
+const COST_KEYS = ['input', 'output', 'cache_read', 'cache_write', 'reasoning', 'input_audio', 'output_audio', 'tiers', 'context_over_200k'] as const
 
 /** 只保留下游实际消费的字段。 */
 const trimFacts = (raw: Record<string, unknown>): CatalogFacts => {
   const facts: CatalogFacts = {}
+  for (const key of ['description', 'family', 'knowledge', 'release_date', 'last_updated', 'status', 'open_weights', 'license', 'links', 'weights', 'benchmarks', 'attachment', 'temperature', 'structured_output', 'interleaved', 'provider']) {
+    if (raw[key] !== undefined) facts[key] = raw[key]
+  }
   if (typeof raw.name === 'string') facts.name = raw.name
   if (raw.type !== undefined) facts.type = raw.type
   if (typeof raw.canonical_model_id === 'string') facts.canonical_model_id = raw.canonical_model_id
@@ -110,8 +114,8 @@ const trimFacts = (raw: Record<string, unknown>): CatalogFacts => {
   if (Array.isArray(raw.reasoning_options)) {
     const options = raw.reasoning_options.flatMap((item) => {
       const option = asObject(item)
-      return option && option.type === 'effort' && Array.isArray(option.values)
-        ? [{ type: 'effort' as const, values: option.values }]
+      return option && ['effort', 'toggle', 'budget_tokens'].includes(String(option.type))
+        ? [option]
         : []
     })
     if (options.length) facts.reasoning_options = options
@@ -213,10 +217,7 @@ const toRawCatalog = (document: StorageCatalog): RawCatalog => {
     for (const [modelId, delta] of Object.entries(entry.models))
       models[modelId] = reconstruct(delta, document.models)
     providers[id] = {
-      ...(entry.name !== undefined ? { name: entry.name } : {}),
-      ...(entry.api !== undefined ? { api: entry.api } : {}),
-      ...(entry.env !== undefined ? { env: entry.env } : {}),
-      ...(entry.npm !== undefined ? { npm: entry.npm } : {}),
+      ...omitUndefined({ name: entry.name, api: entry.api, env: entry.env, npm: entry.npm }),
       models,
     }
   }

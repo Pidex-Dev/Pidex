@@ -145,14 +145,26 @@ export const parseProviderDirectory = (snapshot: Snapshot): DirectoryProvider[] 
       const api = typeof raw.npm === 'string' ? sdkApis[raw.npm] : undefined
       const baseUrl = address(raw.api)
       const models: DirectoryProvider['models'] = {}
+      const endpoints: Partial<Record<CustomProviderApi, string>> = {}
+      const modelBaseUrls: Record<string, string> = {}
       for (const [modelID, inputModel] of Object.entries(record(raw.models))) {
         const model = record(inputModel)
-        if ((model.type !== undefined && model.type !== 'chat') || !api) continue
+        const override = model.provider && typeof model.provider === 'object' ? record(model.provider) : {}
+        const sdk = typeof override.npm === 'string' ? override.npm : raw.npm
+        const modelApi = sdk === '@ai-sdk/openai' && override.shape === 'responses'
+          ? 'openai-responses'
+          : typeof sdk === 'string' ? sdkApis[sdk] : undefined
+        if ((model.type !== undefined && model.type !== 'chat') || !modelApi) continue
+        const modelBaseUrl = address(override.api) ?? baseUrl
+        if (modelBaseUrl) {
+          endpoints[modelApi] ??= modelBaseUrl
+          modelBaseUrls[modelID] = modelBaseUrl
+        }
         const limit = model.limit === undefined ? {} : record(model.limit)
         const modalities = model.modalities === undefined ? {} : record(model.modalities)
         if (Array.isArray(modalities.output) && !modalities.output.includes('text')) continue
         models[modelID] = {
-          api,
+          api: modelApi,
           name: typeof model.name === 'string' ? model.name : modelID,
           contextWindow: positiveLimit(limit.context, 32768),
           maxTokens: positiveLimit(limit.output, 8192),
@@ -177,6 +189,8 @@ export const parseProviderDirectory = (snapshot: Snapshot): DirectoryProvider[] 
             )
           : [],
         models,
+        endpoints,
+        modelBaseUrls,
       })
     }
   } catch {
@@ -233,8 +247,8 @@ export const parseProviderDirectory = (snapshot: Snapshot): DirectoryProvider[] 
         ...(resolvedApi ? { api: resolvedApi } : {}),
         env: previous?.env ?? [],
         models: { ...previous?.models, ...models },
-        endpoints,
-        modelBaseUrls,
+        endpoints: { ...previous?.endpoints, ...endpoints },
+        modelBaseUrls: { ...previous?.modelBaseUrls, ...modelBaseUrls },
       })
     }
   } catch {

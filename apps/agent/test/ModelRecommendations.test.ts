@@ -476,3 +476,59 @@ test('模型明确思考档位保留原始值、顺序和非固定七档，不�
   expect(new ModelRecommendationIndex(payload).resolve(input).recommended.optionSpecs?.reasoningLevel?.values)
     .toEqual(['none', 'low', 'high', 'adaptive'])
 })
+
+
+test('v1 资料与三种推理控制保留；PDF 只在目录资料中，分项价格不参与基础计费', () => {
+  const index = new ModelRecommendationIndex({
+    models: { 'maker/example': row(400000, {
+      description: 'Model description', family: 'example', release_date: '2026-01-01',
+      modalities: { input: ['text', 'pdf', 'audio'], output: ['text'] },
+      reasoning_options: [{ type: 'toggle' }, { type: 'budget_tokens', min: 1024, max: 8192 }],
+      temperature: false, structured_output: true,
+    }) },
+    providers: { maker: { models: { example: {
+      canonical_model_id: 'maker/example', status: 'deprecated',
+      cost: { input: 0, output: 3, reasoning: 5, input_audio: 8, output_audio: 12,
+        cache_read: 0.2, cache_write: 1,
+        tiers: [{ tier: { type: 'context', size: 200000 }, input: 4, output: 6, cache_read: 0.4, cache_write: 2 }],
+      },
+    } } } },
+  })
+  const result = index.resolve({ ...input, providerId: 'maker' })
+  expect(result.recommended.input).toEqual(['text', 'audio'])
+  expect(result.recommended.reasoningLevels).toBeUndefined()
+  expect(result.recommended.catalog).toMatchObject({
+    description: 'Model description', temperature: false, structuredOutput: true,
+    input: ['text', 'pdf', 'audio'], status: 'deprecated',
+    reasoningOptions: [{ type: 'toggle' }, { type: 'budget_tokens', min: 1024, max: 8192 }],
+    reasoningCost: 5, inputAudioCost: 8, outputAudioCost: 12,
+  })
+  expect(result.recommended.cost).toEqual({ input: 0, output: 3, cacheRead: 0.2, cacheWrite: 1,
+    tiers: [{ inputTokensAbove: 200000, input: 4, output: 6, cacheRead: 0.4, cacheWrite: 2 }],
+  })
+})
+
+
+test('目录输入为空或只有 PDF 时不返回空 input，仍保留原始目录模态', () => {
+  for (const modalities of [[], ['pdf'], ['unsupported']]) {
+    const index = new ModelRecommendationIndex({ models: { 'maker/example': row(128000, {
+      modalities: { input: modalities, output: ['text'] },
+    }) }, providers: {} })
+    const recommended = index.resolve(input).recommended
+    expect(recommended.input).toBeUndefined()
+    expect(recommended.catalog?.input).toEqual(modalities)
+  }
+})
+
+
+test('推荐过滤只移除 undefined，保留 false、零、空字符串与未提供的原配置', () => {
+  const model = { name: 'saved', contextWindow: 32000, maxTokens: 8000, reasoning: true, tools: true,
+    input: ['text' as const], cost: { input: 2, output: 3, cacheRead: 1, cacheWrite: 1 } }
+  const result = applyRecommendation(model, { name: '', reasoning: false, tools: false,
+    maxInputTokens: undefined, cost: { input: 0, output: undefined },
+  })
+  expect(result).toMatchObject({ name: '', reasoning: false, tools: false, contextWindow: 32000,
+    cost: { input: 0, output: 3, cacheRead: 1, cacheWrite: 1 } })
+  expect(Object.hasOwn(result, 'maxInputTokens')).toBe(false)
+  expect(applyRecommendation(model, { cost: {} }).cost).toBe(model.cost)
+})

@@ -1,3 +1,4 @@
+import { omitUndefined } from '../../OmitUndefined'
 /**
  * ZCode 静态模型参数规则的查询层。
  *
@@ -31,10 +32,7 @@ const overlayReasoning = (
   const values = next.values !== undefined ? [...next.values] : base?.values
   const map = next.map !== undefined ? next.map : base?.map
   if (values === undefined && map === undefined) return base
-  return {
-    ...(values !== undefined ? { values } : {}),
-    ...(map !== undefined ? { map } : {}),
-  }
+  return omitUndefined({ values, map })
 }
 
 const overlayMax = (
@@ -45,10 +43,7 @@ const overlayMax = (
   const max = next.max !== undefined ? next.max : base?.max
   const map = next.map !== undefined ? next.map : base?.map
   if (max === undefined && map === undefined) return base
-  return {
-    ...(max !== undefined ? { max } : {}),
-    ...(map !== undefined ? { map } : {}),
-  }
+  return omitUndefined({ max, map })
 }
 
 const overlay = (
@@ -80,16 +75,33 @@ const ruleMatches = (
   return true
 }
 
+/** 不限定协议与地址的纯通配规则，任何模型都会命中（ZCode 的 `.*` 兜底层）。 */
+const isGenericRule = (rule: ZCodeOptionRule): boolean =>
+  rule.modelMatch === '.*' && rule.apiTypeMatch === undefined && rule.baseUrlMatch === undefined
+
+export interface ZCodeOptionResolution {
+  readonly optionSpecs: Model.OptionSpecs | undefined
+  /** 最终档位值域来自纯通配兜底规则，而不是模型专用规则或协议映射层。 */
+  readonly genericReasoningValues: boolean
+}
+
 const resolveFrom = (
   rules: readonly ZCodeOptionRule[],
   input: { modelId: string; api: string; baseUrl?: string | undefined },
-): Model.OptionSpecs | undefined => {
+): ZCodeOptionResolution => {
   let result: Model.OptionSpecs | undefined
+  let genericReasoningValues = false
   for (const rule of rules) {
     if (!ruleMatches(rule, input)) continue
+    if (rule.optionSpecs.reasoningLevel?.values !== undefined) {
+      genericReasoningValues = isGenericRule(rule)
+    }
     result = overlay(result, rule.optionSpecs)
   }
-  return result && (result.reasoningLevel || result.maxOutputTokens) ? result : undefined
+  return {
+    optionSpecs: result && (result.reasoningLevel || result.maxOutputTokens) ? result : undefined,
+    genericReasoningValues,
+  }
 }
 
 export interface ZCodeOptionInput {
@@ -103,10 +115,18 @@ export interface ZCodeOptionInput {
  * 规则是逐条正则覆盖，不做裸名模糊匹配，避免把相似模型误合并。
  */
 export const resolveZCodeOptionSpecs = (input: ZCodeOptionInput): Model.OptionSpecs | undefined =>
-  resolveFrom(ZCODE_MODEL_OPTION_RULES, input)
+  resolveFrom(ZCODE_MODEL_OPTION_RULES, input).optionSpecs
+
+/**
+ * 带来源的解析。`genericReasoningValues` 为真表示档位只是 `.*` 兜底的
+ * disabled/enabled，调用方必须让位给模型自身或推荐目录里更精确的档位。
+ */
+export const resolveZCodeOptionSpecsDetailed = (
+  input: ZCodeOptionInput,
+): ZCodeOptionResolution => resolveFrom(ZCODE_MODEL_OPTION_RULES, input)
 
 /** 允许测试注入自定义规则集（默认使用生成的静态数据）。 */
 export const resolveZCodeOptionSpecsFrom = (
   rules: readonly ZCodeOptionRule[],
   input: ZCodeOptionInput,
-): Model.OptionSpecs | undefined => resolveFrom(rules, input)
+): Model.OptionSpecs | undefined => resolveFrom(rules, input).optionSpecs

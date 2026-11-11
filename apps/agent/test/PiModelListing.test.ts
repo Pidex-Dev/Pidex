@@ -110,6 +110,30 @@ describe('Pi model listing', () => {
     )
   })
 
+  test('keeps explicitly declared upstream reasoning levels in declared order', async () => {
+    const result = await listProviderModels({
+      api: 'openai-responses',
+      baseUrl: 'https://gateway.example/v1',
+      fetch: async () =>
+        Response.json({
+          data: [
+            { id: 'listed', reasoning_levels: ['low', 'high', 'low', ''] },
+            { id: 'efforts', supported_reasoning_levels: [{ effort: 'none' }, { effort: 'max' }] },
+            { id: 'declared-both', reasoning_levels: ['medium'], supported_reasoning_levels: [{ effort: 'low' }] },
+            { id: 'none' },
+            { id: 'invalid', reasoning_levels: [1, null], supported_reasoning_levels: 'low' },
+          ],
+        }),
+    })
+    expect(result.models).toEqual([
+      { id: 'declared-both', name: 'declared-both', reasoningLevels: ['medium'] },
+      { id: 'efforts', name: 'efforts', reasoningLevels: ['none', 'max'] },
+      { id: 'invalid', name: 'invalid' },
+      { id: 'listed', name: 'listed', reasoningLevels: ['low', 'high'] },
+      { id: 'none', name: 'none' },
+    ])
+  })
+
   test('keeps only explicitly declared upstream limits and ignores unrelated fields', async () => {
     const result = await listProviderModels({
       api: 'openai-completions',

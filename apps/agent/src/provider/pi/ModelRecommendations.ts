@@ -1,3 +1,4 @@
+import { omitUndefined } from '../../OmitUndefined'
 import { Schema } from 'effect'
 import { Model } from '@pidex/model-schema'
 
@@ -82,43 +83,38 @@ export function applyRecommendation<T extends PiModelFields>(
   recommended: Model.Recommendation | undefined,
 ): T {
   if (!recommended || !Object.keys(recommended).length) return model
-  const pick = <K extends keyof Model.Recommendation>(key: K) => recommended[key]
-  const name = pick('name')
-  const contextWindow = pick('contextWindow')
-  const maxInputTokens = pick('maxInputTokens')
-  const maxTokens = pick('maxTokens')
-  const reasoning = pick('reasoning')
-  const tools = pick('tools')
-  const inputCost = recommended.cost?.input
-  const outputCost = recommended.cost?.output
-  const cacheReadCost = recommended.cost?.cacheRead
-  const cacheWriteCost = recommended.cost?.cacheWrite
-  const input = recommended.input
+  const cost = omitUndefined({
+    input: recommended.cost?.input,
+    output: recommended.cost?.output,
+    cacheRead: recommended.cost?.cacheRead,
+    cacheWrite: recommended.cost?.cacheWrite,
+  })
   return {
     ...model,
-    ...(name !== undefined ? { name } : {}),
-    ...(contextWindow !== undefined ? { contextWindow } : {}),
-    ...(maxInputTokens !== undefined ? { maxInputTokens } : {}),
-    ...(maxTokens !== undefined ? { maxTokens } : {}),
-    ...(reasoning !== undefined ? { reasoning } : {}),
-    ...(tools !== undefined ? { tools } : {}),
-    ...(input !== undefined ? { input } : {}),
-    ...(recommended.optionSpecs ? { optionSpecs: {
-      ...model.optionSpecs, ...recommended.optionSpecs,
-      ...(recommended.optionSpecs.reasoningLevel ? { reasoningLevel: { ...model.optionSpecs?.reasoningLevel, ...recommended.optionSpecs.reasoningLevel } } : {}),
-      ...(recommended.optionSpecs.maxOutputTokens ? { maxOutputTokens: { ...model.optionSpecs?.maxOutputTokens, ...recommended.optionSpecs.maxOutputTokens } } : {}),
+    ...(recommended.cost && !recommended.pricing ? { pricing: undefined } : {}),
+    ...(recommended.catalog ? { catalog: recommended.catalog } : {}),
+    ...omitUndefined({
+      pricing: recommended.pricing,
+      modelType: recommended.modelType,
+      name: recommended.name,
+      contextWindow: recommended.contextWindow,
+      maxInputTokens: recommended.maxInputTokens,
+      maxTokens: recommended.maxTokens,
+      reasoning: recommended.reasoning,
+      tools: recommended.tools,
+      input: recommended.input,
+    }),
+    ...((recommended.optionSpecs || recommended.reasoningLevels) ? { optionSpecs: {
+      ...model.optionSpecs, ...(recommended.reasoningLevels ? { reasoningLevel: { ...model.optionSpecs?.reasoningLevel, values: recommended.reasoningLevels } } : {}), ...recommended.optionSpecs,
+      ...(recommended.optionSpecs?.reasoningLevel ? { reasoningLevel: { ...model.optionSpecs?.reasoningLevel, ...recommended.optionSpecs?.reasoningLevel } } : {}),
+      ...(recommended.optionSpecs?.maxOutputTokens ? { maxOutputTokens: { ...model.optionSpecs?.maxOutputTokens, ...recommended.optionSpecs?.maxOutputTokens } } : {}),
     } } : {}),
-    ...(inputCost !== undefined ||
-    outputCost !== undefined ||
-    cacheReadCost !== undefined ||
-    cacheWriteCost !== undefined
+    ...(Object.keys(cost).length
       ? {
           cost: {
             ...model.cost,
-            ...(inputCost !== undefined ? { input: inputCost } : {}),
-            ...(outputCost !== undefined ? { output: outputCost } : {}),
-            ...(cacheReadCost !== undefined ? { cacheRead: cacheReadCost } : {}),
-            ...(cacheWriteCost !== undefined ? { cacheWrite: cacheWriteCost } : {}),
+            ...cost,
+            ...(recommended.cost?.tiers ? { tiers: recommended.cost.tiers } : {}),
           },
         }
       : {}),
@@ -145,6 +141,9 @@ type PiModelFields = {
 function values(raw: JsonObject): Model.Recommendation {
   const limit = raw.limit === undefined ? {} : object(raw.limit)
   const modalities = raw.modalities === undefined ? {} : object(raw.modalities)
+  const supportedInput = Array.isArray(modalities.input)
+    ? modalities.input.filter((value) => ['text', 'image', 'audio', 'video'].includes(String(value)))
+    : []
   const cost = raw.cost === undefined ? undefined : object(raw.cost)
   const positive = (v: unknown) =>
     typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= Number.MAX_SAFE_INTEGER ? v : undefined
@@ -155,22 +154,42 @@ function values(raw: JsonObject): Model.Recommendation {
       })
     : []
   const explicitEfforts = [...new Set(efforts.filter((value): value is string => typeof value === 'string' && value.length > 0))]
+  const toggle = Array.isArray(raw.reasoning_options) && raw.reasoning_options.some((item) => object(item).type === 'toggle')
   const levels = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+  const catalog = Schema.decodeUnknownSync(Model.CatalogDetails)(omitUndefined({
+    description: raw.description, family: raw.family, knowledge: raw.knowledge,
+    releaseDate: raw.release_date, lastUpdated: raw.last_updated, status: raw.status,
+    openWeights: raw.open_weights, license: raw.license, attachment: raw.attachment,
+    temperature: raw.temperature, structuredOutput: raw.structured_output,
+    ...(raw.provider && typeof raw.provider === 'object' ? {
+      providerSdk: object(raw.provider).npm, apiShape: object(raw.provider).shape,
+    } : {}),
+    ...(raw.interleaved && typeof raw.interleaved === 'object' ? { interleavedField: object(raw.interleaved).field } : {}),
+    input: modalities.input, output: modalities.output, reasoningOptions: raw.reasoning_options,
+    links: raw.links, weights: raw.weights, benchmarks: raw.benchmarks,
+    reasoningCost: cost?.reasoning, inputAudioCost: cost?.input_audio, outputAudioCost: cost?.output_audio,
+  }))
+  const rawTiers = Array.isArray(cost?.tiers) ? cost.tiers : cost?.context_over_200k
+    ? [{ ...object(cost.context_over_200k), tier: { size: 200_000 } }] : undefined
+  const tiers = rawTiers?.map((item) => {
+    const tier = object(item)
+    return {
+      inputTokensAbove: object(tier.tier).size,
+      input: tier.input, output: tier.output,
+      cacheRead: tier.cache_read ?? cost?.cache_read ?? 0,
+      cacheWrite: tier.cache_write ?? cost?.cache_write ?? 0,
+    }
+  })
   return Schema.decodeUnknownSync(Model.Recommendation)({
+    ...(Object.values(catalog).some((value) => value !== undefined) ? { catalog } : {}),
     ...(typeof raw.name === 'string' && raw.name ? { name: raw.name } : {}),
     ...(positive(limit.context) ? { contextWindow: limit.context } : {}),
     ...(positive(limit.input) ? { maxInputTokens: limit.input } : {}),
     ...(positive(limit.output) ? { maxTokens: limit.output } : {}),
     ...(typeof raw.reasoning === 'boolean' ? { reasoning: raw.reasoning } : {}),
     ...(typeof raw.tool_call === 'boolean' ? { tools: raw.tool_call } : {}),
-    ...(Array.isArray(modalities.input)
-      ? {
-          input: modalities.input.filter((v) =>
-            ['text', 'image', 'audio', 'video'].includes(String(v)),
-          ),
-        }
-      : {}),
-    ...(explicitEfforts.length ? { optionSpecs: { reasoningLevel: { values: explicitEfforts } } } : {}),
+    ...(supportedInput.length ? { input: supportedInput } : {}),
+    ...(explicitEfforts.length || toggle ? { optionSpecs: { reasoningLevel: { values: explicitEfforts.length ? explicitEfforts : ['disabled', 'enabled'] } } } : {}),
     ...(efforts.length
       ? {
           reasoningLevels: levels.filter(
@@ -185,6 +204,7 @@ function values(raw: JsonObject): Model.Recommendation {
             output: cost.output,
             cacheRead: cost.cache_read,
             cacheWrite: cost.cache_write,
+            ...(tiers ? { tiers } : {}),
           },
         }
       : {}),
@@ -192,7 +212,9 @@ function values(raw: JsonObject): Model.Recommendation {
 }
 
 const mergeValues = (entries: readonly Entry[]): Model.Recommendation =>
-  entries.reduce<Model.Recommendation>((merged, entry) => ({ ...merged, ...entry.values }), {})
+  entries.reduce<Model.Recommendation>((merged, entry) => ({ ...merged, ...entry.values,
+    ...(merged.catalog || entry.values.catalog ? { catalog: { ...merged.catalog, ...entry.values.catalog } } : {}),
+  }), {})
 
 /**
  * 模型身份解析索引。
@@ -305,7 +327,7 @@ export class ModelRecommendationIndex {
         (candidate) => candidate.canonical.toLowerCase() === identity.toLowerCase(),
       )
       return this.finalize(
-        { status: 'matched', recommended: { ...mergeValues(base), ...entry.values } },
+        { status: 'matched', recommended: mergeValues([...base, entry]) },
         identity,
         'provider',
         input,
@@ -350,7 +372,7 @@ export class ModelRecommendationIndex {
       return this.finalize(
         {
           status: 'matched',
-          recommended: { ...mergeValues(family.entries), ...specific.values },
+          recommended: mergeValues([...family.entries, specific]),
         },
         identity,
         'provider',
@@ -393,6 +415,13 @@ export class ModelRecommendationIndex {
           providerId: price.provider!,
         }
       : undefined
+    if (recommended.catalog || priceSource) recommended.catalog = {
+      ...recommended.catalog,
+      reasoningCost: price?.values.catalog?.reasoningCost,
+      inputAudioCost: price?.values.catalog?.inputAudioCost,
+      outputAudioCost: price?.values.catalog?.outputAudioCost,
+      ...(priceSource ? { priceSource } : {}),
+    }
     if (input.modelType === 'chat')
       return {
         status: 'matched', recommended, identity, source,

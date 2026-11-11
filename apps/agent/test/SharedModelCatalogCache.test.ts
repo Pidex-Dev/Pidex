@@ -110,9 +110,9 @@ test('写入前裁剪：只保存消费字段，供应商层仅存差异且可�
     )
     await store.refresh()
     const persisted = await readFile(sharedPath, 'utf8')
-    // 噪音字段不落盘。
-    for (const noise of ['noise description', 'noise-family', 'release_date', 'family'])
-      expect(persisted).not.toContain(noise)
+    // v1 展示资料保留，未知字段仍裁剪。
+    for (const field of ['noise description', 'noise-family', 'release_date', 'family'])
+      expect(persisted).toContain(field)
     const document = JSON.parse(persisted)
     expect(document.models['maker/example']).toMatchObject({
       name: 'Common model',

@@ -29,6 +29,8 @@ export interface ListedProviderModel {
   readonly contextWindow?: number
   readonly maxInputTokens?: number
   readonly maxTokens?: number
+  /** 上游明确声明的思考档位；缺失表示未声明，由推荐目录决定。 */
+  readonly reasoningLevels?: readonly string[]
 }
 
 type ListedLimits = Pick<ListedProviderModel, 'contextWindow' | 'maxInputTokens' | 'maxTokens'>
@@ -241,6 +243,7 @@ const listOpenAIModels = async (
           ...(model.contextWindow ? { contextWindow: model.contextWindow } : {}),
           ...(model.maxInputTokens ? { maxInputTokens: model.maxInputTokens } : {}),
           ...(model.maxTokens ? { maxTokens: model.maxTokens } : {}),
+          ...(model.reasoningLevels ? { reasoningLevels: model.reasoningLevels } : {}),
         },
       ]),
     )

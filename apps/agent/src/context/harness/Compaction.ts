@@ -1,3 +1,4 @@
+import type { Model as PidexModel } from '@pidex/model-schema'
 import {
   type AssistantMessage,
   type Context,
@@ -147,7 +148,11 @@ export async function completeSimpleWithRetries(
 }
 
 function combineUsage(first: Usage, second: Usage): Usage {
+  const a = first as Usage & PidexModel.RequestPriceUsage
+  const b = second as typeof a
+
   return {
+    ...({ priceSnapshotIds: [...(a.priceSnapshotIds ?? (a.priceSnapshotId ? [a.priceSnapshotId] : [])), ...(b.priceSnapshotIds ?? (b.priceSnapshotId ? [b.priceSnapshotId] : []))], costUnknown: a.costUnknown || b.costUnknown, conservativeCost: a.conservativeCost || b.conservativeCost } as object),
     input: first.input + second.input,
     output: first.output + second.output,
     cacheRead: first.cacheRead + second.cacheRead,

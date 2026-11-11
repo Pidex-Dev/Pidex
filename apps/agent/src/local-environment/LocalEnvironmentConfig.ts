@@ -1,3 +1,4 @@
+import { omitUndefined } from '../OmitUndefined'
 import type { ConfigObject } from '../config/ConfigService'
 import {
   LOCAL_ENVIRONMENT_SCHEMA_VERSION,
@@ -34,15 +35,11 @@ const platformCommand = (value: unknown, path: string): PlatformCommand => {
   if (!isObject(value)) throw new LocalEnvironmentConfigError(`${path} 必须是对象`)
   return {
     script: nonEmpty(value.script, `${path}.script`),
-    ...(optionalString(value.windows, `${path}.windows`) !== undefined
-      ? { windows: value.windows as string }
-      : {}),
-    ...(optionalString(value.macos, `${path}.macos`) !== undefined
-      ? { macos: value.macos as string }
-      : {}),
-    ...(optionalString(value.linux, `${path}.linux`) !== undefined
-      ? { linux: value.linux as string }
-      : {}),
+    ...omitUndefined({
+      windows: optionalString(value.windows, `${path}.windows`),
+      macos: optionalString(value.macos, `${path}.macos`),
+      linux: optionalString(value.linux, `${path}.linux`),
+    }),
   }
 }
 
@@ -56,10 +53,7 @@ const action = (value: unknown, index: number): LocalEnvironmentAction => {
   return {
     name: nonEmpty(value.name, `${path}.name`),
     command: nonEmpty(value.command, `${path}.command`),
-    ...(icon !== undefined ? { icon } : {}),
-    ...(windows !== undefined ? { windows } : {}),
-    ...(macos !== undefined ? { macos } : {}),
-    ...(linux !== undefined ? { linux } : {}),
+    ...omitUndefined({ icon, windows, macos, linux }),
   }
 }
 

@@ -22,6 +22,8 @@ type MutableUsage = {
   requests: number
   modelResponses: number
   costUsd: number
+  conservativeCostRequests: number
+  unknownCostRequests: number
 }
 
 const emptyUsage = (): MutableUsage => ({
@@ -32,6 +34,8 @@ const emptyUsage = (): MutableUsage => ({
   requests: 0,
   modelResponses: 0,
   costUsd: 0,
+  conservativeCostRequests: 0,
+  unknownCostRequests: 0,
 })
 
 const finiteNonNegativeInteger = (value: unknown): number | null =>
@@ -52,6 +56,7 @@ const usageFrom = (entry: SessionTreeEntry) => {
   const cacheRead = finiteNonNegativeInteger(raw.cacheRead)
   const cacheWrite = finiteNonNegativeInteger(raw.cacheWrite)
   const cost = finiteNonNegative(raw.cost?.total)
+  const pricing = raw as typeof raw & Model.RequestPriceUsage
   if (input === null || output === null || cacheRead === null || cacheWrite === null) return null
   const cachedTokens = cacheRead + cacheWrite
   const totalTokens = input + output + cachedTokens
@@ -62,6 +67,8 @@ const usageFrom = (entry: SessionTreeEntry) => {
     cachedTokens,
     totalTokens,
     costUsd: cost ?? 0,
+    conservativeCostRequests: pricing.conservativeCost ? 1 : 0,
+    unknownCostRequests: pricing.costUnknown ? 1 : 0,
   }
 }
 
@@ -90,6 +97,8 @@ const add = (
   target.requests += 1
   if (assistantResponse) target.modelResponses += 1
   target.costUsd += usage.costUsd
+  target.unknownCostRequests += usage.unknownCostRequests
+  target.conservativeCostRequests += usage.conservativeCostRequests
 }
 
 const decimal = (value: number) => {
@@ -251,6 +260,8 @@ export class UsageRepository {
           cachedTokens: usage.cachedTokens,
           totalTokens: usage.totalTokens,
           estimatedCostUsd: decimal(usage.costUsd),
+          unknownCostRequests: usage.unknownCostRequests,
+          conservativeCostRequests: usage.conservativeCostRequests,
         },
         models: [...usage.models]
           .map(([key, modelUsage]) => {
@@ -264,6 +275,8 @@ export class UsageRepository {
               cachedTokens: modelUsage.cachedTokens,
               totalTokens: modelUsage.totalTokens,
               estimatedCostUsd: decimal(modelUsage.costUsd),
+              unknownCostRequests: modelUsage.unknownCostRequests,
+              conservativeCostRequests: modelUsage.conservativeCostRequests,
               modelResponses: modelUsage.modelResponses,
             }
           })
@@ -284,6 +297,8 @@ export class UsageRepository {
         cachedTokens: usage.cachedTokens,
         totalTokens: usage.totalTokens,
         estimatedCostUsd: decimal(usage.costUsd),
+          unknownCostRequests: usage.unknownCostRequests,
+          conservativeCostRequests: usage.conservativeCostRequests,
         modelResponses: usage.modelResponses,
         sharePercent:
           totals.totalTokens > 0
@@ -300,6 +315,8 @@ export class UsageRepository {
         cachedTokens: totals.cachedTokens,
         totalTokens: totals.totalTokens,
         estimatedCostUsd: decimal(totals.costUsd),
+        unknownCostRequests: totals.unknownCostRequests,
+        conservativeCostRequests: totals.conservativeCostRequests,
         rootTasks: rootTasks.size,
         modelResponses: totals.modelResponses,
         providerCalls: totals.requests,

@@ -1,3 +1,4 @@
+import { omitUndefined } from '../OmitUndefined'
 import { isAbsolute, normalize } from 'node:path'
 import type { AgentHarnessEvent } from '../orchestration/harness/Types'
 import type { EventEnvelope } from '../Domain'
@@ -82,9 +83,8 @@ const toolDetails = (
     const command = text(input.command) ?? text(data.command)
     const timeoutMs = nonNegativeInteger(input.timeoutMs ?? input.timeout)
     return {
-      ...(command === undefined ? {} : { commandBytes: Buffer.byteLength(command, 'utf8') }),
+      ...omitUndefined({ commandBytes: byteLength(command), timeoutMs }),
       cwdScope: cwdScope(input.cwd ?? data.cwd),
-      ...(timeoutMs === undefined ? {} : { timeoutMs }),
     }
   }
 
@@ -93,7 +93,7 @@ const toolDetails = (
     const contentBytes = byteLength(input.content)
     return {
       ...(path ? { path, fileCount: 1 } : {}),
-      ...(contentBytes === undefined ? {} : { contentBytes }),
+      ...omitUndefined({ contentBytes }),
     }
   }
 
@@ -128,10 +128,7 @@ const toolDetails = (
       fileCount,
       createCount,
       updateCount,
-      ...(patchBytes === undefined ? {} : { patchBytes }),
-      ...(hunkCount === undefined ? {} : { hunkCount }),
-      ...(additions === undefined ? {} : { additions }),
-      ...(deletions === undefined ? {} : { deletions }),
+      ...omitUndefined({ patchBytes, hunkCount, additions, deletions }),
     }
   }
 
@@ -168,7 +165,7 @@ const toolRecord = (
     details: {
       tool,
       ...(text(item.status) ? { status: text(item.status) } : {}),
-      ...(durationMs === undefined ? {} : { durationMs }),
+      ...omitUndefined({ durationMs }),
       ...toolDetails(tool, input, data),
     },
   }

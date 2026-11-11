@@ -1,3 +1,4 @@
+import { parseLocalEnvironmentConfig } from '../src/local-environment/LocalEnvironmentConfig'
 import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -624,4 +625,19 @@ describe('LocalEnvironmentService', () => {
     ).rejects.toMatchObject({ code: 'LOCAL_ENVIRONMENT_CONFLICT' })
     expect(revoked).toBe(true)
   }, 30_000)
+})
+
+
+test('可选平台字段过滤 undefined，仍拒绝 null、空字符串和非字符串', () => {
+  const base = { schema_version: 1, name: 'Test', actions: [] }
+  const parsed = parseLocalEnvironmentConfig({ ...base, setup: { script: 'echo ok', linux: 'echo linux' } })
+  expect(parsed.setup).toEqual({ script: 'echo ok', linux: 'echo linux' })
+  expect(Object.hasOwn(parsed.setup!, 'windows')).toBe(false)
+  expect(Object.hasOwn(parsed, 'cleanup')).toBe(false)
+  expect(parseLocalEnvironmentConfig({ ...base, actions: null }).actions).toEqual([])
+  for (const value of [null, '', ' ', false, 0]) {
+    expect(() => parseLocalEnvironmentConfig({ ...base, setup: { script: 'echo ok', windows: value } })).toThrow('setup.windows 必须是非空字符串')
+    expect(() => parseLocalEnvironmentConfig({ ...base, actions: [{ name: 'Run', command: 'echo ok', icon: value }] })).toThrow('actions[0].icon 必须是非空字符串')
+  }
+  expect(() => parseLocalEnvironmentConfig({ ...base, setup: null })).toThrow('setup 必须是对象')
 })

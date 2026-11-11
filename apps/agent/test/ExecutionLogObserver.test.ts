@@ -411,3 +411,22 @@ describe('execution log observers', () => {
     expect(JSON.stringify(logged)).not.toContain('private')
   })
 })
+
+
+test('日志保留零字节和零统计，省略无效指标且不记录命令正文', async () => {
+  const { logger, read } = await setup()
+  const observer = new ExecutionLogObserver(logger)
+  observer.observeEvent(event('tool/callStarted', { item: { id: 'empty-shell', data: {
+    tool: 'PowerShell', input: { command: '', timeoutMs: 0 },
+  } } }))
+  observer.observeEvent(event('tool/callCompleted', { item: { id: 'zero-patch', data: {
+    tool: 'apply_patch', durationMs: 0,
+    input: { hunkCount: 0, additions: 0, deletions: -1, patchBytes: NaN },
+  } } }))
+  const records = await read()
+  expect(records[0]?.details).toMatchObject({ commandBytes: 0, timeoutMs: 0 })
+  expect(records[0]?.details).not.toHaveProperty('command')
+  expect(records[1]?.details).toMatchObject({ durationMs: 0, hunkCount: 0, additions: 0 })
+  expect(records[1]?.details).not.toHaveProperty('deletions')
+  expect(records[1]?.details).not.toHaveProperty('patchBytes')
+})

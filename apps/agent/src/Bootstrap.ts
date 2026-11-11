@@ -1,3 +1,5 @@
+import { ModelPricingService } from './provider/ModelPricingService'
+import { ModelPricingRepository } from './storage/repositories/ModelPricingRepository'
 import { ModelRecommendationStore } from './provider/pi/ModelRecommendationStore'
 import { ProviderDirectoryStore } from './provider/pi/ProviderDirectoryStore'
 import { ComputerUseService } from './computer/ComputerUseService'
@@ -494,7 +496,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     memoryManager.registerHook('sqlite', () => db.shrinkMemory())
     memoryManager.registerHook('git_review', () => review.shrink())
     const git = new GitWorkspaceService(db, undefined, github)
+    const modelPricing = new ModelPricingService(new ModelPricingRepository(db.sqlite))
+    void modelPricing.refresh()
     const piModels = new PiModelService(providerCredentialStore, {
+      pricing: modelPricing,
       logger,
       directory: new ProviderDirectoryStore(
         join(dirname(config.piModelCachePath), 'provider-directory.json'),

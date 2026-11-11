@@ -1,3 +1,6 @@
+import { validatePricing, PricingValidationError } from '../ModelPricing'
+import { omitUndefined } from '../../OmitUndefined'
+import { Schema } from 'effect'
 import type {
   Api,
   Model as PiModel,
@@ -101,6 +104,7 @@ export interface PiCustomModelConfig {
     readonly output: number
     readonly cacheRead: number
     readonly cacheWrite: number
+    readonly tiers?: (typeof Model.PriceTier.Type)[]
   }
   readonly headers: Readonly<Record<string, string>>
   readonly thinkingLevelMap?: NonNullable<PiModel<Api>['thinkingLevelMap']>
@@ -111,6 +115,7 @@ export interface PiCustomModelConfig {
    * 已脱离推荐值的字段清单。字段值本身仍写在普通模型字段里；
    * 缺失表示整份配置都跟随推荐（老数据默认行为）。
    */
+  readonly pricing?: Model.Pricing
   readonly smartConfig?: Model.SmartConfig
 }
 
@@ -387,7 +392,9 @@ const parseSmartConfig = (value: unknown): Model.SmartConfig | undefined => {
       ),
     ),
   ] as Model.SmartConfig['pinned']
-  return { pinned }
+  const parsed = Schema.decodeUnknownSync(Model.SmartConfig)({ ...value, pinned })
+  if (parsed.document?.data.pricing) validatePricing(parsed.document.data.pricing)
+  return parsed
 }
 
 const assertOptionMapCompiles = (
@@ -528,11 +535,13 @@ const parseCustomModel = (
       output: finiteNonNegative(cost.output, 0),
       cacheRead: finiteNonNegative(cost.cache_read ?? cost.cacheRead, 0),
       cacheWrite: finiteNonNegative(cost.cache_write ?? cost.cacheWrite, 0),
+      ...(cost.tiers !== undefined ? { tiers: [...Schema.decodeUnknownSync(Schema.Array(Model.PriceTier))(cost.tiers)] } : {}),
     },
     headers: assertSafeProviderHeaders(value.headers, `model ${providerID}/${configuredID}`),
     ...(thinkingLevelMap ? { thinkingLevelMap } : {}),
     ...(compat ? { compat } : {}),
     ...(smartConfig ? { smartConfig } : {}),
+    ...(value.pricing !== undefined ? { pricing: validatePricing(value.pricing) } : {}),
     ...(optionSpecs ? { optionSpecs } : {}),
   }
 }
@@ -638,6 +647,7 @@ const parseBuiltinModel = (
     'thinkingLevelMap',
     'thinking_level_map',
     'compat',
+    'pricing',
     'smartConfig',
     'smart_config',
     'optionSpecs',
@@ -802,7 +812,7 @@ export const parsePiProviderCatalog = (config: PiModelCatalogConfig): ParsedPiPr
       // 仅当我们自己的 optionSpecs 受限 CEL 校验提供安全、面向用户的具体信息时才附带，
       // 其他内部解析错误保持原有 issue 形状（不扩大暴露面）。
       const safeMessage =
-        /Map \(CEL\)|optionSpecs/u.test(message) && message.trim() ? message.trim() : undefined
+        (cause instanceof PricingValidationError || /Map \(CEL\)|optionSpecs/u.test(message)) && message.trim() ? message.trim() : undefined
       issues.push({
         providerID,
         path: `model_providers.${providerID}`,
@@ -900,19 +910,17 @@ export const serializePiProviderDefinition = (
               {
                 id: model.id,
                 api: model.api,
-                ...(model.group !== undefined ? { group: model.group } : {}),
-                ...(model.name !== undefined ? { name: model.name } : {}),
-                ...(model.enabled !== undefined ? { enabled: model.enabled } : {}),
-                ...(model.contextWindow !== undefined
-                  ? { context_window: model.contextWindow }
-                  : {}),
-                ...(model.modelType !== undefined ? { modelType: model.modelType } : {}),
-                ...(model.tools !== undefined ? { tools: model.tools } : {}),
-                ...(model.maxInputTokens !== undefined
-                  ? { max_input_tokens: model.maxInputTokens }
-                  : {}),
-                ...(model.maxTokens !== undefined ? { max_tokens: model.maxTokens } : {}),
-                ...(model.reasoning !== undefined ? { reasoning: model.reasoning } : {}),
+                ...omitUndefined({
+                  group: model.group,
+                  name: model.name,
+                  enabled: model.enabled,
+                  context_window: model.contextWindow,
+                  modelType: model.modelType,
+                  tools: model.tools,
+                  max_input_tokens: model.maxInputTokens,
+                  max_tokens: model.maxTokens,
+                  reasoning: model.reasoning,
+                }),
                 ...(model.input !== undefined ? { input: [...model.input] } : {}),
                 ...(model.cost !== undefined
                   ? {
@@ -921,6 +929,7 @@ export const serializePiProviderDefinition = (
                         output: model.cost.output,
                         cache_read: model.cost.cacheRead,
                         cache_write: model.cost.cacheWrite,
+                        ...(model.cost.tiers ? { tiers: model.cost.tiers } : {}),
                       },
                     }
                   : {}),
@@ -933,8 +942,9 @@ export const serializePiProviderDefinition = (
                     }
                   : {}),
                 ...(model.compat !== undefined ? { compat: structuredClone(model.compat) } : {}),
+                ...(model.pricing !== undefined ? { pricing: validatePricing(model.pricing) } : {}),
                 ...(model.smartConfig !== undefined
-                  ? { smart_config: { pinned: [...model.smartConfig.pinned] } }
+                  ? { smart_config: structuredClone(model.smartConfig) }
                   : {}),
                 ...(model.optionSpecs !== undefined
                   ? { option_specs: serializeOptionSpecs(model.optionSpecs) }
@@ -997,14 +1007,14 @@ export const serializePiProviderDefinition = (
                   id: model.id,
                   api: model.api,
                   name: model.name,
-                  ...(model.group !== undefined ? { group: model.group } : {}),
+                  ...omitUndefined({
+                    group: model.group,
+                    modelType: model.modelType,
+                    tools: model.tools,
+                    max_input_tokens: model.maxInputTokens,
+                  }),
                   enabled: model.enabled,
                   context_window: model.contextWindow,
-                  ...(model.modelType !== undefined ? { modelType: model.modelType } : {}),
-                  ...(model.tools !== undefined ? { tools: model.tools } : {}),
-                  ...(model.maxInputTokens !== undefined
-                    ? { max_input_tokens: model.maxInputTokens }
-                    : {}),
                   max_tokens: model.maxTokens,
                   reasoning: model.reasoning,
                   input: [...model.input],
@@ -1013,6 +1023,7 @@ export const serializePiProviderDefinition = (
                     output: model.cost.output,
                     cache_read: model.cost.cacheRead,
                     cache_write: model.cost.cacheWrite,
+                    ...(model.cost.tiers ? { tiers: model.cost.tiers } : {}),
                   },
                   ...(Object.keys(model.headers).length ? { headers: { ...model.headers } } : {}),
                   ...(model.thinkingLevelMap
@@ -1023,8 +1034,9 @@ export const serializePiProviderDefinition = (
                       }
                     : {}),
                   ...(model.compat ? { compat: structuredClone(model.compat) } : {}),
+                  ...(model.pricing !== undefined ? { pricing: validatePricing(model.pricing) } : {}),
                   ...(model.smartConfig
-                    ? { smart_config: { pinned: [...model.smartConfig.pinned] } }
+                    ? { smart_config: structuredClone(model.smartConfig) }
                     : {}),
                   ...(model.optionSpecs
                     ? { option_specs: serializeOptionSpecs(model.optionSpecs) }
