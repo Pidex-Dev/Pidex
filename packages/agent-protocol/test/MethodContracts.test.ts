@@ -163,15 +163,25 @@ const localContextReference = {
   createdAt: 1,
 } as const
 
-const memoryEntry = {
-  id: 'memory:1',
-  scope: 'project',
-  projectId: project.id,
-  content: 'Use Bun for this project.',
-  sourceThreadId: threadListItem.id,
-  createdAt: 1,
+const memoryNamespace = { kind: 'project', projectId: project.id } as const
+
+const memoryFile = {
+  path: 'stack.md',
+  name: 'stack',
+  description: 'Use Bun for this project.',
+  type: 'project',
+  revision: 'a'.repeat(64),
+  size: 128,
   updatedAt: 1,
+  indexed: true,
+  source: { threadId: threadListItem.id, turnId: null, updatedAt: 1 },
+  diagnostics: [],
 } as const
+
+const memoryIndexContent = ['# 索引', '', '- [stack](stack.md)'].join(String.fromCharCode(10))
+const memoryBodyContent = ['---', 'name: stack', '---', '', 'Use Bun.'].join(
+  String.fromCharCode(10),
+)
 
 const promptPreview = {
   previewKind: 'frozen',
@@ -2681,6 +2691,63 @@ const fixtures = {
       updatedAt: 2,
     },
   ),
+  'hook/list': methodFixture(
+    'hook/list',
+    { cwd: 'C:\\workspace' },
+    {
+      groups: [
+        {
+          id: 'config:user',
+          kind: 'config',
+          scope: 'user',
+          displayName: '用户配置',
+          scopeLabel: '所有项目',
+          hooks: [
+            {
+              identity: 'a'.repeat(64),
+              id: 'audit-shell',
+              event: 'pre_tool_use',
+              command: 'node hook.js',
+              matcher: 'Shell',
+              timeoutMs: 10_000,
+              filePath: 'C:\\Users\\fixture\\.pidex\\hooks.json',
+              enabled: true,
+            },
+          ],
+          diagnostics: [],
+        },
+      ],
+      generation: 1,
+      updatedAt: 1,
+    },
+  ),
+  'hook/setEnabled': methodFixture(
+    'hook/setEnabled',
+    {
+      identity: 'a'.repeat(64),
+      enabled: false,
+      operationId: 'op-1',
+    },
+    { identity: 'a'.repeat(64), enabled: false, generation: 2, updatedAt: 2 },
+  ),
+  'hook/runs/list': methodFixture(
+    'hook/runs/list',
+    { cwd: 'C:\\workspace', hookId: 'audit-shell', limit: 20 },
+    {
+      runs: [
+        {
+          id: 'run:1',
+          hookId: 'audit-shell',
+          event: 'pre_tool_use',
+          status: 'completed',
+          startedAt: 10,
+          finishedAt: 12,
+          durationMs: 2,
+        },
+      ],
+      generation: 1,
+    },
+  ),
   'minimaxCli/status': methodFixture(
     'minimaxCli/status',
     {
@@ -3072,53 +3139,108 @@ const fixtures = {
   ),
   'memory/list': methodFixture(
     'memory/list',
+    { namespace: memoryNamespace, cursor: 'cursor:1', limit: 20 },
     {
-      scope: 'project',
-      projectId: project.id,
-      cursor: 'cursor:1',
-      limit: 20,
+      namespace: memoryNamespace,
+      files: [memoryFile],
+      index: { content: memoryIndexContent, revision: 'b'.repeat(64), exists: true },
+      diagnostics: [],
+      nextCursor: null,
     },
-    { entries: [memoryEntry], nextCursor: null },
   ),
   'memory/read': methodFixture(
     'memory/read',
+    { namespace: memoryNamespace, path: memoryFile.path, offset: 0 },
     {
-      scope: 'project',
-      projectId: project.id,
-      id: memoryEntry.id,
+      namespace: memoryNamespace,
+      file: { ...memoryFile, content: memoryBodyContent },
+      nextOffset: null,
+      truncated: false,
     },
-    { entry: memoryEntry },
   ),
   'memory/save': methodFixture(
     'memory/save',
     {
-      scope: 'project',
-      projectId: project.id,
-      id: memoryEntry.id,
-      content: memoryEntry.content,
+      namespace: memoryNamespace,
+      path: memoryFile.path,
+      content: memoryBodyContent,
+      expectedRevision: memoryFile.revision,
       operationId: 'operation:memory-save',
     },
-    { entry: memoryEntry },
+    {
+      namespace: memoryNamespace,
+      path: memoryFile.path,
+      revision: 'c'.repeat(64),
+      created: false,
+    },
   ),
   'memory/delete': methodFixture(
     'memory/delete',
     {
-      scope: 'project',
-      projectId: project.id,
-      id: memoryEntry.id,
+      namespace: memoryNamespace,
+      path: memoryFile.path,
+      expectedRevision: memoryFile.revision,
       operationId: 'operation:memory-delete',
     },
-    { deleted: true, id: memoryEntry.id },
+    { namespace: memoryNamespace, path: memoryFile.path, deleted: true },
   ),
   'memory/reset': methodFixture(
     'memory/reset',
-    {
-      scope: 'project',
-      projectId: project.id,
-      includeEventLog: true,
-      operationId: 'operation:memory-reset',
-    },
+    { namespace: memoryNamespace, operationId: 'operation:memory-reset' },
     { deleted: 1 },
+  ),
+  'memory/organize': methodFixture(
+    'memory/organize',
+    { namespace: memoryNamespace, operationId: 'operation:memory-organize' },
+    { taskId: 'task:memory-organize', queued: true },
+  ),
+  'memory/tasks': methodFixture(
+    'memory/tasks',
+    { namespace: memoryNamespace, limit: 20 },
+    {
+      tasks: [
+        {
+          id: 'task:memory-organize',
+          namespace: memoryNamespace,
+          kind: 'organize',
+          status: 'queued',
+          trigger: 'manual',
+          threadId: null,
+          turnId: null,
+          error: null,
+          createdAt: 1,
+          startedAt: null,
+          finishedAt: null,
+        },
+      ],
+      autoOrganize: true,
+    },
+  ),
+  'memory/usage': methodFixture(
+    'memory/usage',
+    { namespace: memoryNamespace, cursor: 'cursor:1', limit: 20 },
+    {
+      records: [
+        {
+          id: 'usage:1',
+          namespace: memoryNamespace,
+          kind: 'index',
+          threadId: threadListItem.id,
+          turnId: null,
+          path: 'MEMORY.md',
+          revision: 'b'.repeat(64),
+          truncated: false,
+          bytes: 64,
+          createdAt: 1,
+        },
+      ],
+      nextCursor: null,
+    },
+  ),
+  'memory/settings': methodFixture(
+    'memory/settings',
+    { namespace: memoryNamespace, autoOrganize: true, operationId: 'operation:memory-settings' },
+    { autoOrganize: true, directory: 'C:/data/memories/projects/p1', namedAgents: ['reviewer'] },
   ),
   'task-suggestion/generate': methodFixture(
     'task-suggestion/generate',
@@ -6368,7 +6490,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(357)
+    expect(methods).toHaveLength(364)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -6736,7 +6858,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(336)
+    expect(Object.keys(RpcMethods)).toHaveLength(343)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })
@@ -6900,30 +7022,44 @@ describe('RPC method schema contracts', () => {
     })
   })
 
-  test('requires authorized projectId instead of internal projectKey for project memory', () => {
+  test('memory RPC uses an explicit namespace and relative path, never projectKey', () => {
     for (const method of [
       'memory/list',
       'memory/read',
       'memory/save',
       'memory/delete',
       'memory/reset',
+      'memory/organize',
+      'memory/tasks',
+      'memory/usage',
+      'memory/settings',
     ] as const) {
-      const invalid: Record<string, unknown> = {
-        ...(fixtures[method].params as Record<string, unknown>),
-        projectKey: 'F:\\private-workspace',
+      const params = fixtures[method].params as Record<string, unknown>
+      expect(params, method).not.toHaveProperty('projectKey')
+      expect(params, method).not.toHaveProperty('workspacePath')
+      if (params.namespace !== undefined) {
+        const namespace = params.namespace as Record<string, unknown>
+        expect(namespace, method).not.toHaveProperty('projectKey')
+        // A workspace path is never a valid memory identity.
+        expect(
+          () =>
+            Schema.decodeUnknownSync(RpcMethods[method].params)({
+              ...params,
+              namespace: { kind: 'project', projectId: 'F:/private-workspace' },
+            }),
+          `${method} namespace`,
+        ).toThrow()
       }
-      delete invalid.projectId
-      expect(() => Schema.decodeUnknownSync(RpcMethods[method].params)(invalid), method).toThrow()
     }
 
-    for (const method of ['memory/list', 'memory/read', 'memory/save'] as const) {
+    for (const method of ['memory/list', 'memory/read'] as const) {
       const result = structuredClone(fixtures[method].result) as Record<string, unknown>
       const entry =
         method === 'memory/list'
-          ? (result.entries as Array<Record<string, unknown>>)[0]
-          : (result.entry as Record<string, unknown>)
+          ? (result.files as Array<Record<string, unknown>>)[0]
+          : (result.file as Record<string, unknown>)
       if (entry === undefined) throw new Error(`Missing ${method} fixture entry`)
-      entry.projectKey = 'F:\\private-workspace'
+      entry.projectKey = 'F:/private-workspace'
       expect(
         () =>
           Schema.decodeUnknownSync(RpcMethods[method].result, { onExcessProperty: 'error' })(

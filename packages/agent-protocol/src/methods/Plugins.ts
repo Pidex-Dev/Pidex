@@ -64,12 +64,30 @@ export const PluginComponentSchema = Schema.Struct({
   managedBy: Schema.Literals(['plugin', 'host']),
 })
 
+/**
+ * Install provenance shown before an install is confirmed. `catalogRevision` is
+ * the pinned marketplace commit the details were read from; echoing it back in
+ * `plugin/install` makes the install fail with CONFLICT if the catalog moved on.
+ */
+export const PluginInstallSourceSchema = Schema.Struct({
+  /** Marketplace or local repository identifier; never a filesystem path. */
+  repository: NonEmptyStringSchema,
+  catalogRevision: Schema.optional(NonEmptyStringSchema),
+  version: NonEmptyStringSchema,
+  /** Components the host would activate after install. */
+  components: Schema.Array(PluginComponentSchema),
+  /** Declared components the host only diagnoses (commands, agents, hooks). */
+  unsupportedComponents: Schema.Array(NonEmptyStringSchema),
+})
+
 export const PluginDetailsSchema = Schema.Struct({
   pluginId: NonEmptyStringSchema,
   longDescription: Schema.String,
   displayCapabilities: Schema.Array(NonEmptyStringSchema),
   defaultPrompts: Schema.Array(NonEmptyStringSchema),
   skills: Schema.Array(PluginDetailSkillSchema),
+  /** Optional install provenance; older clients can ignore it. */
+  installSource: Schema.optional(PluginInstallSourceSchema),
   /** Optional plugin component inventory; older clients can ignore it. */
   components: Schema.optional(Schema.Array(PluginComponentSchema)),
   websiteURL: Schema.optional(NonEmptyStringSchema),
@@ -116,6 +134,15 @@ export const PluginLifecycleParamsSchema = Schema.Struct({
   ...OperationParamsSchema.fields,
 })
 
+/**
+ * Install-only extension. `expectedCatalogRevision` is optional so older
+ * callers keep working; when present the host compares it before downloading.
+ */
+export const PluginInstallParamsSchema = Schema.Struct({
+  ...PluginLifecycleParamsSchema.fields,
+  expectedCatalogRevision: Schema.optional(NonEmptyStringSchema),
+})
+
 export const PluginLifecycleResultSchema = Schema.Struct({
   pluginId: NonEmptyStringSchema,
   generation: SequenceSchema,
@@ -149,7 +176,7 @@ export const PluginRpcMethods = {
     exactResult: true,
   }),
   'plugin/install': defineMethod({
-    params: PluginLifecycleParamsSchema,
+    params: PluginInstallParamsSchema,
     result: PluginLifecycleResultSchema,
     errors: PluginErrors,
     capability: 'plugins.lifecycle.v1',
@@ -202,5 +229,6 @@ export type PluginSummary = typeof PluginSummarySchema.Type
 export type PluginDetailSkill = typeof PluginDetailSkillSchema.Type
 export type PluginComponent = typeof PluginComponentSchema.Type
 export type PluginDetails = typeof PluginDetailsSchema.Type
+export type PluginInstallSource = typeof PluginInstallSourceSchema.Type
 export type PluginAssetKind = typeof PluginAssetKindSchema.Type
 export type PluginMarketplaceSection = typeof PluginMarketplaceSectionSchema.Type

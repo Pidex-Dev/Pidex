@@ -604,7 +604,7 @@ export type Item = typeof ItemSchema.Type
 
 export const ToolAffectedPathSchema = Schema.Struct({
   path: Schema.String,
-  operation: Schema.Literals(['create', 'update']),
+  operation: Schema.Literals(['create', 'update', 'delete']),
 })
 export type ToolAffectedPath = typeof ToolAffectedPathSchema.Type
 

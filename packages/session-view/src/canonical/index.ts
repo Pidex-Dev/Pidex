@@ -1223,7 +1223,7 @@ function approvalFromPayload(payload: {
   command?: string
   cwd?: string
   computerApp?: ApprovalRequest['computerApp']
-  affectedPaths?: readonly { path: string; operation: 'create' | 'update' }[]
+  affectedPaths?: readonly { path: string; operation: 'create' | 'update' | 'delete' }[]
   reviewSummary?: {
     fileCount: number
     hunkCount: number

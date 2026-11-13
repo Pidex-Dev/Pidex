@@ -131,6 +131,8 @@ export const SubagentTaskSchema = Schema.Struct({
   profile: Schema.Literals(['default', 'explorer', 'worker']),
   /** 显式指派的展示职能；缺失表示没有显式角色。 */
   role: Schema.optional(SubagentRoleSchema),
+  /** 可选的命名记忆身份（1–64 位 ASCII，宿主统一小写）；缺失表示不使用命名记忆。 */
+  memoryKey: Schema.optional(Schema.String),
   task: Schema.String,
   permissionCeiling: PermissionConfigSchema,
   workspace: SubagentWorkspaceSchema,

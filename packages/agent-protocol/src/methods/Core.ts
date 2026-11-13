@@ -116,6 +116,7 @@ const LocalContextErrors = [
 const MemoryErrors = [
   'MEMORY_NOT_FOUND',
   'MEMORY_REJECTED',
+  'CONFLICT',
   'PERMISSION_DENIED',
   ...CommonErrors,
 ] as const
@@ -1270,85 +1271,193 @@ export const LocalContextPathListResultSchema = Schema.Struct({
   nextCursor: NullableCursorSchema,
 })
 
-export const MemoryScopeSchema = Schema.Literals(['user', 'project'])
-export const MemoryEntrySchema = Schema.Struct({
-  id: OpaqueIDSchema,
-  scope: MemoryScopeSchema,
-  projectId: Schema.NullOr(OpaqueIDSchema),
-  content: Schema.String,
-  sourceThreadId: Schema.NullOr(OpaqueIDSchema),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
-})
+/**
+ * Namespace identity is an opaque project id plus an optional named-agent key.
+ * Neither may carry a filesystem path: memory files stay inside the data root.
+ */
+const MemoryProjectIdSchema = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(128),
+  // Reject path separators and drive prefixes; memory folders stay under the
+  // data root and never accept a workspace path as identity.
+  Schema.isPattern(/^(?!.*[\\/])(?!^[A-Za-z]:)/),
+)
+const MemoryKeySchema = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(64),
+  Schema.isPattern(/^(?!.*[\\/])[A-Za-z0-9_-]+$/),
+)
 
-const UserMemoryScopeFields = { scope: Schema.Literal('user') }
-const ProjectMemoryScopeFields = { scope: Schema.Literal('project'), projectId: OpaqueIDSchema }
-
-export const MemoryListParamsSchema = Schema.Union([
+export const MemoryNamespaceSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal('user') }),
+  Schema.Struct({ kind: Schema.Literal('project'), projectId: MemoryProjectIdSchema }),
   Schema.Struct({
-    ...UserMemoryScopeFields,
-    cursor: Schema.optional(CursorSchema),
-    limit: Schema.optional(LimitSchema),
-  }),
-  Schema.Struct({
-    ...ProjectMemoryScopeFields,
-    cursor: Schema.optional(CursorSchema),
-    limit: Schema.optional(LimitSchema),
+    kind: Schema.Literal('agent'),
+    projectId: MemoryProjectIdSchema,
+    memoryKey: MemoryKeySchema,
   }),
 ])
+
+export const MemoryTypeSchema = Schema.Literals(['user', 'feedback', 'project', 'reference'])
+
+const MemoryFileDiagnosticSchema = Schema.Struct({
+  path: Schema.String,
+  code: Schema.Literals([
+    'invalid-frontmatter',
+    'invalid-type',
+    'duplicate-name',
+    'too-large',
+    'case-alias',
+  ]),
+  message: Schema.String,
+})
+
+export const MemoryFileSummarySchema = Schema.Struct({
+  path: NonEmptyStringSchema,
+  name: Schema.NullOr(Schema.String),
+  description: Schema.NullOr(Schema.String),
+  type: Schema.NullOr(MemoryTypeSchema),
+  revision: NonEmptyStringSchema,
+  size: NonNegativeIntSchema,
+  updatedAt: TimestampSchema,
+  indexed: Schema.Boolean,
+  source: Schema.NullOr(
+    Schema.Struct({
+      threadId: Schema.NullOr(OpaqueIDSchema),
+      turnId: Schema.NullOr(OpaqueIDSchema),
+      updatedAt: TimestampSchema,
+    }),
+  ),
+  diagnostics: Schema.Array(MemoryFileDiagnosticSchema),
+})
+
+export const MemoryIndexSchema = Schema.Struct({
+  content: Schema.String,
+  revision: NonEmptyStringSchema,
+  exists: Schema.Boolean,
+})
+
+export const MemoryListParamsSchema = Schema.Struct({
+  namespace: MemoryNamespaceSchema,
+  cursor: Schema.optional(CursorSchema),
+  limit: Schema.optional(LimitSchema),
+})
 export const MemoryListResultSchema = Schema.Struct({
-  entries: Schema.Array(MemoryEntrySchema),
+  namespace: MemoryNamespaceSchema,
+  files: Schema.Array(MemoryFileSummarySchema),
+  index: MemoryIndexSchema,
+  diagnostics: Schema.Array(MemoryFileDiagnosticSchema),
   nextCursor: NullableCursorSchema,
 })
 
-export const MemoryReadParamsSchema = Schema.Union([
-  Schema.Struct({ ...UserMemoryScopeFields, id: OpaqueIDSchema }),
-  Schema.Struct({ ...ProjectMemoryScopeFields, id: OpaqueIDSchema }),
-])
-export const MemoryReadResultSchema = Schema.Struct({ entry: MemoryEntrySchema })
-
-export const MemorySaveParamsSchema = Schema.Union([
-  Schema.Struct({
-    ...UserMemoryScopeFields,
-    id: Schema.optional(OpaqueIDSchema),
-    content: NonEmptyStringSchema,
-    ...OperationParamsSchema.fields,
-  }),
-  Schema.Struct({
-    ...ProjectMemoryScopeFields,
-    id: Schema.optional(OpaqueIDSchema),
-    content: NonEmptyStringSchema,
-    ...OperationParamsSchema.fields,
-  }),
-])
-export const MemorySaveResultSchema = Schema.Struct({ entry: MemoryEntrySchema })
-
-export const MemoryDeleteParamsSchema = Schema.Union([
-  Schema.Struct({ ...UserMemoryScopeFields, id: OpaqueIDSchema, ...OperationParamsSchema.fields }),
-  Schema.Struct({
-    ...ProjectMemoryScopeFields,
-    id: OpaqueIDSchema,
-    ...OperationParamsSchema.fields,
-  }),
-])
-export const MemoryDeleteResultSchema = Schema.Struct({
-  deleted: Schema.Boolean,
-  id: OpaqueIDSchema,
+export const MemoryReadParamsSchema = Schema.Struct({
+  namespace: MemoryNamespaceSchema,
+  path: NonEmptyStringSchema,
+  offset: Schema.optional(NonNegativeIntSchema),
+})
+export const MemoryReadResultSchema = Schema.Struct({
+  namespace: MemoryNamespaceSchema,
+  file: Schema.Struct({ ...MemoryFileSummarySchema.fields, content: Schema.String }),
+  nextOffset: Schema.NullOr(NonNegativeIntSchema),
+  truncated: Schema.Boolean,
 })
 
-export const MemoryResetParamsSchema = Schema.Union([
-  Schema.Struct({
-    ...UserMemoryScopeFields,
-    includeEventLog: Schema.Boolean,
-    ...OperationParamsSchema.fields,
-  }),
-  Schema.Struct({
-    ...ProjectMemoryScopeFields,
-    includeEventLog: Schema.Boolean,
-    ...OperationParamsSchema.fields,
-  }),
-])
+export const MemorySaveParamsSchema = Schema.Struct({
+  namespace: MemoryNamespaceSchema,
+  path: NonEmptyStringSchema,
+  content: NonEmptyStringSchema,
+  expectedRevision: Schema.optional(Schema.NullOr(Schema.String)),
+  ...OperationParamsSchema.fields,
+})
+export const MemorySaveResultSchema = Schema.Struct({
+  namespace: MemoryNamespaceSchema,
+  path: NonEmptyStringSchema,
+  revision: NonEmptyStringSchema,
+  created: Schema.Boolean,
+})
+
+export const MemoryDeleteParamsSchema = Schema.Struct({
+  namespace: MemoryNamespaceSchema,
+  path: NonEmptyStringSchema,
+  expectedRevision: Schema.optional(Schema.NullOr(Schema.String)),
+  ...OperationParamsSchema.fields,
+})
+export const MemoryDeleteResultSchema = Schema.Struct({
+  namespace: MemoryNamespaceSchema,
+  path: NonEmptyStringSchema,
+  deleted: Schema.Boolean,
+})
+
+export const MemoryResetParamsSchema = Schema.Struct({
+  namespace: MemoryNamespaceSchema,
+  ...OperationParamsSchema.fields,
+})
 export const MemoryResetResultSchema = Schema.Struct({ deleted: NonNegativeIntSchema })
+
+export const MemoryOrganizeParamsSchema = Schema.Struct({
+  namespace: MemoryNamespaceSchema,
+  ...OperationParamsSchema.fields,
+})
+export const MemoryOrganizeResultSchema = Schema.Struct({
+  taskId: Schema.NullOr(OpaqueIDSchema),
+  queued: Schema.Boolean,
+})
+
+export const MemoryTaskSchema = Schema.Struct({
+  id: OpaqueIDSchema,
+  namespace: MemoryNamespaceSchema,
+  kind: Schema.Literals(['extract', 'organize']),
+  status: Schema.Literals(['queued', 'running', 'completed', 'failed', 'cancelled']),
+  trigger: Schema.Literals(['turn', 'manual', 'auto']),
+  threadId: Schema.NullOr(OpaqueIDSchema),
+  turnId: Schema.NullOr(OpaqueIDSchema),
+  error: Schema.NullOr(Schema.String),
+  createdAt: TimestampSchema,
+  startedAt: Schema.NullOr(TimestampSchema),
+  finishedAt: Schema.NullOr(TimestampSchema),
+})
+
+export const MemoryTasksParamsSchema = Schema.Struct({
+  namespace: Schema.optional(MemoryNamespaceSchema),
+  limit: Schema.optional(LimitSchema),
+})
+export const MemoryTasksResultSchema = Schema.Struct({
+  tasks: Schema.Array(MemoryTaskSchema),
+  autoOrganize: Schema.Boolean,
+})
+
+export const MemoryUsageParamsSchema = Schema.Struct({
+  namespace: Schema.optional(MemoryNamespaceSchema),
+  cursor: Schema.optional(CursorSchema),
+  limit: Schema.optional(LimitSchema),
+})
+export const MemoryUsageRecordSchema = Schema.Struct({
+  id: OpaqueIDSchema,
+  namespace: MemoryNamespaceSchema,
+  kind: Schema.Literals(['index', 'body']),
+  threadId: Schema.NullOr(OpaqueIDSchema),
+  turnId: Schema.NullOr(OpaqueIDSchema),
+  path: Schema.NullOr(Schema.String),
+  revision: Schema.NullOr(Schema.String),
+  truncated: Schema.Boolean,
+  bytes: NonNegativeIntSchema,
+  createdAt: TimestampSchema,
+})
+export const MemoryUsageResultSchema = Schema.Struct({
+  records: Schema.Array(MemoryUsageRecordSchema),
+  nextCursor: NullableCursorSchema,
+})
+
+export const MemorySettingsParamsSchema = Schema.Struct({
+  namespace: Schema.optional(MemoryNamespaceSchema),
+  autoOrganize: Schema.optional(Schema.Boolean),
+  ...OperationParamsSchema.fields,
+})
+export const MemorySettingsResultSchema = Schema.Struct({
+  autoOrganize: Schema.Boolean,
+  directory: Schema.String,
+  namedAgents: Schema.Array(Schema.String),
+})
 
 export const CoreRpcMethods = {
   initialize: defineMethod({
@@ -1984,23 +2093,25 @@ export const CoreRpcMethods = {
     params: MemoryListParamsSchema,
     result: MemoryListResultSchema,
     errors: MemoryErrors,
-    capability: 'memory.v2',
+    capability: 'memory.v3',
     mutation: false,
+    exactParams: true,
     exactResult: true,
   }),
   'memory/read': defineMethod({
     params: MemoryReadParamsSchema,
     result: MemoryReadResultSchema,
     errors: MemoryErrors,
-    capability: 'memory.v2',
+    capability: 'memory.v3',
     mutation: false,
+    exactParams: true,
     exactResult: true,
   }),
   'memory/save': defineMethod({
     params: MemorySaveParamsSchema,
     result: MemorySaveResultSchema,
     errors: MemoryErrors,
-    capability: 'memory.v2',
+    capability: 'memory.v3',
     mutation: true,
     exactParams: true,
     exactResult: true,
@@ -2009,7 +2120,7 @@ export const CoreRpcMethods = {
     params: MemoryDeleteParamsSchema,
     result: MemoryDeleteResultSchema,
     errors: MemoryErrors,
-    capability: 'memory.v2',
+    capability: 'memory.v3',
     mutation: true,
     exactParams: true,
     exactResult: true,
@@ -2018,7 +2129,43 @@ export const CoreRpcMethods = {
     params: MemoryResetParamsSchema,
     result: MemoryResetResultSchema,
     errors: MemoryErrors,
-    capability: 'memory.v2',
+    capability: 'memory.v3',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'memory/organize': defineMethod({
+    params: MemoryOrganizeParamsSchema,
+    result: MemoryOrganizeResultSchema,
+    errors: MemoryErrors,
+    capability: 'memory.v3',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'memory/tasks': defineMethod({
+    params: MemoryTasksParamsSchema,
+    result: MemoryTasksResultSchema,
+    errors: MemoryErrors,
+    capability: 'memory.v3',
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'memory/usage': defineMethod({
+    params: MemoryUsageParamsSchema,
+    result: MemoryUsageResultSchema,
+    errors: MemoryErrors,
+    capability: 'memory.v3',
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'memory/settings': defineMethod({
+    params: MemorySettingsParamsSchema,
+    result: MemorySettingsResultSchema,
+    errors: MemoryErrors,
+    capability: 'memory.v3',
     mutation: true,
     exactParams: true,
     exactResult: true,
