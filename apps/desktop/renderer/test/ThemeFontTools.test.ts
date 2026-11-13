@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { findExternalFontById } from '@pidex/shared/desktop-external-fonts'
 
 import {
   DEFAULT_CODE_FONT,
@@ -13,13 +14,18 @@ import {
   escapeCssString,
   extractWeightFromFace,
   fontFamilyWithFace,
+  generateExternalFontFaceCss,
   generateThemeFontFaceCss,
   themeFontFaceAlias,
 } from '../src/features/theme/ThemeFontFaces.js'
 import {
+  DEFAULT_WEIGHT_VALUE,
   SYSTEM_DEFAULT_FAMILY_VALUE,
   buildFamilyOptions,
+  buildWeightOptions,
+  faceForExternalWeight,
   fontPickerCurrentFamilyValue,
+  selectedWeightValue,
 } from '../src/features/settings/ThemeFontPickerModel.js'
 import { deriveThemeVariables } from '../src/features/theme/ThemeVariables.js'
 
@@ -432,5 +438,44 @@ describe('external fonts in ThemeFontPickerModel', () => {
     })
     expect(vars['--cpx-sys-font-family-sans']).toBe(DEFAULT_UI_FONT)
     expect(vars['--cpx-sys-font-family-mono']).toBe(DEFAULT_CODE_FONT)
+  })
+
+  test('supports per-font weight options and generates external weight alias CSS', () => {
+    const jbSpec = findExternalFontById('jetbrains-mono')!
+    const weightOptions = buildWeightOptions(jbSpec)
+    expect(weightOptions.map((o) => o.label)).toContain('ExtraBold')
+    expect(selectedWeightValue(jbSpec, null)).toBe(DEFAULT_WEIGHT_VALUE)
+
+    const extraBoldFace = faceForExternalWeight(jbSpec, '800')
+    expect(extraBoldFace).toEqual({
+      family: 'JetBrains Mono',
+      fullName: 'JetBrains Mono ExtraBold',
+      postscriptName: 'JetBrainsMono-ExtraBold',
+    })
+    expect(selectedWeightValue(jbSpec, extraBoldFace)).toBe('800')
+    expect(faceForExternalWeight(jbSpec, '400')).toBeNull()
+
+    const jbAliasCss = generateExternalFontFaceCss(
+      'Pidex-Selected-Mono',
+      jbSpec,
+      `@font-face { font-family: 'JetBrains Mono'; font-weight: 100 800; src: url(data:font/woff2;base64,AAA); }`,
+      extraBoldFace!,
+    )
+    expect(jbAliasCss).toContain('font-family: "Pidex-Selected-Mono"')
+    expect(jbAliasCss).toContain("font-variation-settings: 'wght' 800;")
+
+    const miSpec = findExternalFontById('misans')!
+    const miMediumFace = faceForExternalWeight(miSpec, '500')!
+    const miAliasCss = generateExternalFontFaceCss(
+      'Pidex-Selected-Sans',
+      miSpec,
+      `@font-face{font-family: 'MiSans';font-weight:330;src:url(data:font/woff2;base64,R);}
+@font-face{font-family: 'MiSans';font-weight:380;src:url(data:font/woff2;base64,M);}`,
+      miMediumFace,
+    )
+    expect(miAliasCss).toContain('font-family: "Pidex-Selected-Sans"')
+    expect(miAliasCss).toContain('font-weight: 100 900')
+    expect(miAliasCss).toContain('base64,M')
+    expect(miAliasCss).not.toContain('base64,R')
   })
 })
