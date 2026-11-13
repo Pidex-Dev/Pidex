@@ -405,8 +405,8 @@ describe('InfoTooltip specifications', () => {
     expect(html).toContain('tw:cursor-help')
     expect(html).toContain('tw:rounded-full')
     // 交互热区统一为 24px（Commit fdecc9559），图标本身仍是 16px。
-    expect(html).toContain('tw:w-6')
-    expect(html).toContain('tw:h-6')
+    expect(html).toContain('tw:w-5')
+    expect(html).toContain('tw:h-5')
     // Lucide Info icon renders svg with width="16" and stroke-width="1.6" (APP_ICON_STROKE_WIDTH)
     expect(html).toContain(`width="${APP_ICON_SIZE}"`)
     expect(html).toContain(`height="${APP_ICON_SIZE}"`)

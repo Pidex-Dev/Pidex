@@ -154,10 +154,10 @@ describe('PrimaryPageLayout', () => {
     expect(html).toContain('primary-page-layout tw:@container')
     expect(html).toContain('primary-page-layout__header--with-search')
     expect(html).toContain(
-      'primary-page-layout__title-row tw:flex tw:min-h-7 tw:min-w-0 tw:items-center',
+      'primary-page-layout__title-row tw:flex tw:min-h-6 tw:min-w-0 tw:items-center',
     )
     expect(html).toContain(
-      'primary-page-layout__actions tw:flex tw:min-h-7 tw:shrink-0 tw:flex-wrap tw:items-center',
+      'primary-page-layout__actions tw:flex tw:min-h-6 tw:shrink-0 tw:flex-wrap tw:items-center',
     )
     expect(html).not.toContain(
       'primary-page-layout__actions tw:flex tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:pt-1',
@@ -174,7 +174,7 @@ describe('PrimaryPageLayout', () => {
 
     expect(html).not.toContain('primary-page-layout__header--with-search')
     expect(html).toContain(
-      'primary-page-layout__title-row tw:flex tw:min-h-7 tw:min-w-0 tw:items-center',
+      'primary-page-layout__title-row tw:flex tw:min-h-6 tw:min-w-0 tw:items-center',
     )
   })
 

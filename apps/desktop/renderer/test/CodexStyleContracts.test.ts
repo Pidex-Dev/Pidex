@@ -279,11 +279,11 @@ describe('Codex CPX design system token contract', () => {
     expect(settings).not.toMatch(/(?:^|[\r\n])\s*\.settings-row,\s*$/m)
     expect(settings).not.toMatch(/(?:^|[\r\n])\s*\.settings-row-control\s*\{/m)
     // 迁移后内边距/间距由 TSX utility 承担：导航滚动区 = space-2 内边距 +
-    // space-4 分组间距（原 `--settings-nav-inline-gutter` 语义）。
+    // space-2 分组间距。
     const navScrollClass =
       navigation.match(/contentClassName="(settings-nav-scroll-content [^"]*)"/)?.[1] ?? ''
     expect(navScrollClass).toContain('tw:px-2')
-    expect(navScrollClass).toContain('tw:gap-4')
+    expect(navScrollClass).toContain('tw:gap-2')
   })
 
   test('keeps provider and extension management on shared settings geometry', async () => {
@@ -437,15 +437,13 @@ describe('Codex CPX design system token contract', () => {
     expectSourceContains(systemTokens, '--cpx-sys-corner-shape: round;')
     expectSourceNotContains(systemTokens, '--cpx-sys-corner-shape: superellipse(1.5);')
     const expectedSizes: Record<string, string> = {
-      '2xs': '5px',
-      xs: '5px',
-      sm: '8px',
-      md: '10px',
-      lg: '14px',
-      xl: '18px',
-      '2xl': '18px',
-      '3xl': '24px',
-      '4xl': '24px',
+      none: '0px',
+      '1': '3px',
+      '2': '4px',
+      '3': '6px',
+      '4': '8px',
+      '5': '12px',
+      '6': '16px',
       full: '9999px',
     }
     for (const [size, value] of Object.entries(expectedSizes)) {
@@ -453,24 +451,28 @@ describe('Codex CPX design system token contract', () => {
       expectSourceContains(systemTokens, `--cpx-sys-radius-${size}: ${value};`)
     }
     for (const [role, size] of [
-      ['indicator', 'xs'],
-      ['compact', 'xs'],
-      ['control', 'md'],
-      ['container', 'lg'],
-      ['floating', 'lg'],
-      ['prominent', 'xl'],
+      ['indicator', '1'],
+      ['compact', '2'],
+      ['inline-code', '2'],
+      ['tooltip', '2'],
+      ['item', '3'],
+      ['control', '3'],
+      ['item-lg', '4'],
+      ['floating', '4'],
+      ['container', '5'],
+      ['prominent', '6'],
       ['pill', 'full'],
     ]) {
       expect(systemTokens.match(new RegExp(`--cpx-sys-radius-${role}:`, 'g'))).toHaveLength(1)
       expectSourceContains(systemTokens, `--cpx-sys-radius-${role}: var(--cpx-sys-radius-${size});`)
     }
-    for (const size of ['2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', 'full']) {
+    for (const size of ['none', '1', '2', '3', '4', '5', '6', 'full']) {
       expectSourceContains(tailwind, `--radius-${size}: var(--cpx-sys-radius-${size});`)
     }
     expectSourceNotContains(tailwind, 'corner-shape: var(--cpx-sys-corner-shape);')
     expectSourceContains(
       componentTokens,
-      '--cpx-comp-modal-radius: var(--cpx-sys-radius-prominent);',
+      '--cpx-comp-modal-radius: var(--cpx-sys-radius-container);',
     )
     expectSourceContains(
       componentTokens,
@@ -479,8 +481,8 @@ describe('Codex CPX design system token contract', () => {
 
     // 圆角由语义角色 utility 表达，不再使用按档位缩放的局部变量。
     expectSourceNotContains(buttons, '--button-radius-scale')
-    // 圆角按尺寸档位读取语义 token，胶囊形状统一读 full。
-    expect(buttons).toMatch(/border-radius: var\(--cpx-sys-radius-(?:xs|sm|md|full)\)/)
+    // 圆角按尺寸档位读取 6 级刻度，胶囊形状统一读 full。
+    expect(buttons).toMatch(/border-radius: var\(--cpx-sys-radius-(?:2|3|4|control|full)\)/)
     expectSourceNotContains(buttons, '@supports (corner-shape: superellipse(1.5))')
     expectSourceContains(composer, '--composer-radius: var(--cpx-sys-radius-prominent);')
     expect(composer).toMatch(
@@ -510,7 +512,7 @@ describe('Codex CPX design system token contract', () => {
       '.composer-stack[data-composer-layout="multiline"][data-composer-radius-variant="default"]',
     )
     expectSourceNotContains(composer, 'calc(var(--cpx-sys-radius-xl) * 2)')
-    expect(conversation.match(/border-radius: var\(--cpx-sys-radius-2xl\);/g)).toHaveLength(1)
+    expect(conversation.match(/border-radius: var\(--cpx-sys-radius-5\);/g)).toHaveLength(1)
     expectSourceContains(conversation, 'border-radius: var(--user-message-bubble-radius);')
     expectSourceNotContains(
       conversation,
