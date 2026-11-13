@@ -1000,7 +1000,7 @@ function createBrowserVisualReviewSmallPatch(): string {
     "  test('keeps diff backgrounds separate from raw decoration colors', async () => {",
     '    const stylesheet = await Bun.file(',
     '      new URL(',
-    "        '../src/styles/design-system/codex-semantic-tokens.scss',",
+    "        '../src/styles/design-system/tokens.css',",
     '        import.meta.url,',
     '      ),',
     '    ).text()',

@@ -1203,6 +1203,7 @@ export type {
   DesktopThemeFonts,
   DesktopThemeMode,
   DesktopThemeVariant,
+  DesktopUiDensity,
 } from '@pidex/shared/desktop-theme'
 import type {
   DesktopChromeTheme,

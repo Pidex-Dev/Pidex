@@ -1,15 +1,5 @@
 import { resolveSessionCreationExecution } from '../../features/session/TaskExecutionMode.js'
 import { reconcileQuestionDrafts } from '../../features/session/approvals/AskUserQuestionModel.js'
-import {
-  DESKTOP_AGENT_EVENT_CHANNEL,
-  DESKTOP_API_METHODS,
-  DESKTOP_SETTINGS_CHANGE_CHANNEL,
-  DESKTOP_SESSION_STORE_CHANGE_CHANNEL,
-  DESKTOP_UI_COMMAND_CHANNEL,
-  DESKTOP_WORKFLOW_EVENT_CHANNEL,
-  type DesktopApiMethod,
-} from '../../../shared/IpcChannels.js'
-import { encodeDesktopBridgeArgs } from '../../../shared/DesktopBridgeArgs.js'
 import { arePathsEqual } from '../../utils/PathUtils.js'
 import { toUserErrorMessage } from '../../utils/Errors.js'
 import {
@@ -25,7 +15,6 @@ import type { CatalogProvider, ModelRef, Project } from '@pidex/shared'
 import { ModelRefSchema } from '@pidex/shared'
 import type {
   PermissionConfig,
-  SubagentProjection,
   ThreadListItem,
   ThreadSettings,
   ThreadSettingsPatch,
@@ -42,17 +31,11 @@ import {
   withSessionStatusOverride,
   type SessionStatusOverride,
 } from './SessionStatusOverrides.js'
-import {
-  DEFAULT_DESKTOP_THEME_SETTINGS,
-  isNewerDesktopThemeSettingsVersion,
-  normalizeDesktopThemeSettings,
-} from '../../../shared/Theme.js'
 import { formatCanonicalSkillInvocation } from '../../../shared/DesktopUserMessage.js'
 import { resolvePreferredOpenTarget } from './OpenTargetSelection.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
-  DesktopWorktreeEligibility,
   DesktopApi,
   DesktopMessageDelivery,
   DesktopFileEntry,
@@ -66,16 +49,10 @@ import type {
   DesktopModelMetadata,
   DesktopPermissionDecision,
   DesktopPermissionMode,
-  DesktopMemoryNamespace,
-  DesktopProjectMemory,
-  DesktopProjectMemoryContent,
-  DesktopMemoryTask,
   DesktopReviewDiffResult,
   DesktopReviewSource,
-  DesktopSessionEvent,
   DesktopSessionCatalogStatus,
   DesktopSessionMetadataPatch,
-  DesktopRuntimeStatus,
   GenerateDesktopTaskSuggestionsInput,
   GenerateDesktopComposerPredictionInput,
   DesktopProjectSource,
@@ -85,8 +62,6 @@ import type {
   DesktopSessionSnapshot,
   DesktopSessionListItem,
   DesktopStoredSettings,
-  DesktopThemeSettings,
-  DesktopSubagentRead,
   DesktopUserMessageInput,
   DesktopWorkspace,
   ModelProviderID,
@@ -412,8 +387,6 @@ export function createAgentSessionDesktopClient(
   const automaticReadGenerationBySessionId = new Map<string, number>()
   const pendingSettingsUpdates = new Map<string, Promise<void>>()
   const approvalRetryOperations = new Map<string, string>()
-  const pendingDesktopSettingsSaves = new Map<string, Promise<DesktopStoredSettings>>()
-  let desktopSettingsSaveTail: Promise<void> = Promise.resolve()
   let sessionStoreReconcile: Promise<void> | null = null
   let backgroundReconcileFailed = false
   const reconciliationErrorListeners = new Set<(error: unknown) => void>()
@@ -587,37 +560,6 @@ export function createAgentSessionDesktopClient(
 
   async function awaitPendingSettingsUpdate(sessionId: string): Promise<void> {
     await pendingSettingsUpdates.get(sessionId)
-  }
-
-  function queueDesktopSettingsSave(
-    settings: DesktopStoredSettings,
-  ): Promise<DesktopStoredSettings> {
-    const normalized = normalizeDesktopStoredSettings(settings)
-    const fingerprint = JSON.stringify(normalized)
-    const pending = pendingDesktopSettingsSaves.get(fingerprint)
-    if (pending) return pending
-
-    const operation = desktopSettingsSaveTail
-      .catch(() => undefined)
-      .then(async () => {
-        const saver = environment.window?.DesktopBridge?.saveDesktopSettings
-        if (!saver) return mockClient.saveDesktopSettings(normalized)
-        const saved = normalizeDesktopStoredSettings(await saver(normalized))
-        await mockClient.saveDesktopSettings(saved)
-        return saved
-      })
-    desktopSettingsSaveTail = operation.then(
-      () => undefined,
-      () => undefined,
-    )
-    pendingDesktopSettingsSaves.set(fingerprint, operation)
-    const clearPending = () => {
-      if (pendingDesktopSettingsSaves.get(fingerprint) === operation) {
-        pendingDesktopSettingsSaves.delete(fingerprint)
-      }
-    }
-    void operation.then(clearPending, clearPending)
-    return operation
   }
 
   function invalidateModelCatalog(): void {
@@ -924,44 +866,6 @@ export function createAgentSessionDesktopClient(
         })
     projectsByIdCache = null
     return ensureDesktopProjectTrusted(response.project)
-  }
-
-  /** Memory namespaces never take a filesystem path; project identity comes from RPC. */
-  async function projectNamespace(
-    workspacePath: string | null | undefined,
-  ): Promise<DesktopMemoryNamespace> {
-    const normalized = workspacePath?.trim()
-    if (!normalized) return { kind: 'user' }
-    const project = await loadProjectForPath(normalized)
-    return { kind: 'project', projectId: project.id }
-  }
-
-  function memoryFileView(file: RpcResult<'memory/list'>['files'][number]): DesktopProjectMemory {
-    return {
-      relativePath: file.path,
-      absolutePath: file.path,
-      type: file.type ?? undefined,
-      description: file.description,
-      size: file.size,
-      mtimeMs: file.updatedAt,
-      revision: file.revision,
-      indexed: file.indexed,
-      sourceThreadId: file.source?.threadId ?? null,
-      sourceTurnId: file.source?.turnId ?? null,
-    }
-  }
-
-  function memoryContentView(
-    response: RpcResult<'memory/read'>,
-  ): DesktopProjectMemoryContent {
-    const view = memoryFileView(response.file)
-    return {
-      ...view,
-      content: response.file.content,
-      revision: response.file.revision,
-      nextOffset: response.nextOffset,
-      truncated: response.truncated,
-    }
   }
 
   async function chooseProjectForPath(rootPath: string): Promise<Project | null> {
@@ -2094,6 +1998,62 @@ export function createAgentSessionDesktopClient(
     return agentProviderModelSyncApiPromise
   }
 
+  type AgentMemoryApi = ReturnType<(typeof import('./AgentMemoryApi.js'))['createAgentMemoryApi']>
+  let agentMemoryApiPromise: Promise<AgentMemoryApi> | null = null
+  const loadAgentMemoryApi = (): Promise<AgentMemoryApi> => {
+    agentMemoryApiPromise ??= import('./AgentMemoryApi.js').then((module) =>
+      module.createAgentMemoryApi({
+        loadProjectForPath,
+        mockClient,
+        requireAgentCapability,
+        rpc,
+        withAgentOrMock,
+      }),
+    )
+    return agentMemoryApiPromise
+  }
+
+  type AgentGoalSubagentApi = ReturnType<
+    (typeof import('./AgentGoalSubagentApi.js'))['createAgentGoalSubagentApi']
+  >
+  let agentGoalSubagentApiPromise: Promise<AgentGoalSubagentApi> | null = null
+  const loadAgentGoalSubagentApi = (): Promise<AgentGoalSubagentApi> => {
+    agentGoalSubagentApiPromise ??= import('./AgentGoalSubagentApi.js').then((module) =>
+      module.createAgentGoalSubagentApi({
+        emitSessionStoreChange,
+        findPendingInteraction,
+        hasGoalCapability: () => agentCapabilities.has('thread.goal.v1'),
+        loadAgentSessionSnapshot,
+        mockClient,
+        respondToInteraction,
+        respondToPermissionInteraction,
+        rpc,
+        runGoalMutation,
+        turnQueueClient,
+        unsupportedAgentOperation,
+        withAgentOrMock,
+      }),
+    )
+    return agentGoalSubagentApiPromise
+  }
+
+  type AgentConfigSettingsApi = ReturnType<
+    (typeof import('./AgentConfigSettingsApi.js'))['createAgentConfigSettingsApi']
+  >
+  let agentConfigSettingsApiPromise: Promise<AgentConfigSettingsApi> | null = null
+  const loadAgentConfigSettingsApi = (): Promise<AgentConfigSettingsApi> => {
+    agentConfigSettingsApiPromise ??= import('./AgentConfigSettingsApi.js').then((module) =>
+      module.createAgentConfigSettingsApi({
+        environment,
+        mockClient,
+        requireAgentCapability,
+        rpc,
+        withAgentOrMock,
+      }),
+    )
+    return agentConfigSettingsApiPromise
+  }
+
   type AgentProtocolDetectionApi = ReturnType<
     (typeof import('./AgentProtocolDetectionApi.js'))['createAgentProtocolDetectionApi']
   >
@@ -3108,14 +3068,7 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.unwatchWorkspaceFile(workspacePath, filePath),
       ),
-    readConfig: (params) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('config.manage.v1')
-          return rpc.call('config/read', params ?? {})
-        },
-        () => mockClient.readConfig(params),
-      ),
+    readConfig: (params) => loadAgentConfigSettingsApi().then((api) => api.readConfig(params)),
     pauseQuestion: (interactionId, expectedVersion) =>
       withRequiredAgent(async () => {
         requireAgentCapability('interaction.questionPause.v1')
@@ -3160,403 +3113,52 @@ export function createAgentSessionDesktopClient(
         })
       }),
     writeConfigBatch: (params) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('config.manage.v1')
-          return rpc.call('config/batchWrite', params)
-        },
-        () => mockClient.writeConfigBatch(params),
-      ),
+      loadAgentConfigSettingsApi().then((api) => api.writeConfigBatch(params)),
     listConfigProfiles: () =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('config.profiles.v1')
-          return rpc.call('config/profile/list', {})
-        },
-        () => mockClient.listConfigProfiles(),
-      ),
+      loadAgentConfigSettingsApi().then((api) => api.listConfigProfiles()),
     selectConfigProfile: (profileId) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('config.profiles.v1')
-          return rpc.call('config/profile/select', { profileId })
-        },
-        () => mockClient.selectConfigProfile(profileId),
-      ),
-    getDesktopSettings: async () => {
-      const getter = environment.window?.DesktopBridge?.getDesktopSettings
-      return getter
-        ? normalizeDesktopStoredSettings(await getter())
-        : mockClient.getDesktopSettings()
-    },
-    getThemeSettings: async () => {
-      try {
-        requireAgentCapability('config.manage.v1')
-        const result = await rpc.call('config/read', {})
-        const desktop =
-          result.config.desktop &&
-          typeof result.config.desktop === 'object' &&
-          !Array.isArray(result.config.desktop)
-            ? (result.config.desktop as Record<string, unknown>)
-            : {}
-        if (isNewerDesktopThemeSettingsVersion(desktop.appearance)) {
-          throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级读取。')
-        }
-        if (
-          desktop.appearance &&
-          typeof desktop.appearance === 'object' &&
-          !Array.isArray(desktop.appearance)
-        ) {
-          return normalizeDesktopThemeSettings(desktop.appearance)
-        }
-      } catch {
-        // The initial Electron value remains the upgrade fallback until Agent migration completes.
-      }
-      const getter = environment.window?.DesktopBridge?.getAppearanceSettings
-      return getter ? getter().then(normalizeDesktopThemeSettings) : mockClient.getThemeSettings()
-    },
-    saveThemeSettings: async (settings) => {
-      const normalized = normalizeDesktopThemeSettings(settings)
-      try {
-        requireAgentCapability('config.manage.v1')
-        const current = await rpc.call('config/read', { includeLayers: true })
-        const currentDesktop =
-          current.config.desktop &&
-          typeof current.config.desktop === 'object' &&
-          !Array.isArray(current.config.desktop)
-            ? (current.config.desktop as Record<string, unknown>)
-            : null
-        if (isNewerDesktopThemeSettingsVersion(currentDesktop?.appearance)) {
-          throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级保存。')
-        }
-        const version = current.layers?.find((layer) => layer.kind === 'user')?.version
-        const flatten = (
-          value: Record<string, unknown>,
-          prefix: string[],
-        ): Array<{ keyPath: string[]; value: never }> =>
-          Object.entries(value).flatMap(([key, child]) =>
-            child && typeof child === 'object' && !Array.isArray(child)
-              ? flatten(child as Record<string, unknown>, [...prefix, key])
-              : [{ keyPath: [...prefix, key], value: child as never }],
-          )
-        await rpc.call('config/batchWrite', {
-          edits: flatten(normalized as unknown as Record<string, unknown>, [
-            'desktop',
-            'appearance',
-          ]),
-          ...(version ? { expectedVersion: version } : {}),
-        })
-      } catch (error) {
-        if (
-          environment.window?.DesktopBridge &&
-          (!error ||
-            typeof error !== 'object' ||
-            !('code' in error) ||
-            error.code !== 'AGENT_OPERATION_UNSUPPORTED')
-        ) {
-          throw error
-        }
-      }
-      const saver = environment.window?.DesktopBridge?.saveAppearanceSettings
-      if (saver) {
-        await saver(normalized)
-        await mockClient.saveThemeSettings(normalized)
-        return
-      }
-      await mockClient.saveThemeSettings(normalized)
-    },
-    canRestorePreviousAppearance: async () => {
-      const checker = environment.window?.DesktopBridge?.canRestorePreviousAppearance
-      if (checker) {
-        return checker()
-      }
-      return mockClient.canRestorePreviousAppearance()
-    },
-    restorePreviousAppearance: async () => {
-      const restorer = environment.window?.DesktopBridge?.restorePreviousAppearance
-      if (restorer) {
-        const restored = await restorer()
-        const normalized = normalizeDesktopThemeSettings(restored)
-        await mockClient.saveThemeSettings(normalized)
-        return normalized
-      }
-      return mockClient.restorePreviousAppearance()
-    },
-    applyNewDesignTheme: async () => {
-      const applier = environment.window?.DesktopBridge?.applyNewDesignTheme
-      if (applier) {
-        const applied = await applier()
-        const normalized = normalizeDesktopThemeSettings(applied)
-        await mockClient.saveThemeSettings(normalized)
-        return normalized
-      }
-      return mockClient.applyNewDesignTheme()
-    },
-    saveDesktopSettings: queueDesktopSettingsSave,
+      loadAgentConfigSettingsApi().then((api) => api.selectConfigProfile(profileId)),
+    getDesktopSettings: () =>
+      loadAgentConfigSettingsApi().then((api) => api.getDesktopSettings()),
+    getThemeSettings: () => loadAgentConfigSettingsApi().then((api) => api.getThemeSettings()),
+    saveThemeSettings: (settings) =>
+      loadAgentConfigSettingsApi().then((api) => api.saveThemeSettings(settings)),
+    canRestorePreviousAppearance: () =>
+      loadAgentConfigSettingsApi().then((api) => api.canRestorePreviousAppearance()),
+    restorePreviousAppearance: () =>
+      loadAgentConfigSettingsApi().then((api) => api.restorePreviousAppearance()),
+    applyNewDesignTheme: () =>
+      loadAgentConfigSettingsApi().then((api) => api.applyNewDesignTheme()),
+    saveDesktopSettings: (settings) =>
+      loadAgentConfigSettingsApi().then((api) => api.saveDesktopSettings(settings)),
     listProjectMemories: (workspacePath, namespace) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const target = namespace ?? (await projectNamespace(workspacePath))
-          const response = await rpc.call<RpcResult<'memory/list'>>('memory/list', {
-            namespace: target,
-          })
-          return {
-            namespace: target,
-            memoryDir: target.kind === 'user' ? '用户记忆' : '项目记忆',
-            entrypointPath: response.index.exists ? response.index.content : 'MEMORY.md',
-            diagnostics: response.diagnostics,
-            indexContent: response.index.content,
-            memories: response.files.map(memoryFileView),
-          }
-        },
-        () => mockClient.listProjectMemories(workspacePath, namespace),
-      ),
+      loadAgentMemoryApi().then((api) => api.listProjectMemories(workspacePath, namespace)),
     readProjectMemory: (workspacePath, relativePath, namespace) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const target = namespace ?? (await projectNamespace(workspacePath))
-          const response = await rpc.call<RpcResult<'memory/read'>>('memory/read', {
-            namespace: target,
-            path: relativePath,
-          })
-          return memoryContentView(response)
-        },
-        () => mockClient.readProjectMemory(workspacePath, relativePath, namespace),
+      loadAgentMemoryApi().then((api) =>
+        api.readProjectMemory(workspacePath, relativePath, namespace),
       ),
     saveProjectMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const target = input.namespace ?? (await projectNamespace(input.workspacePath))
-          const response = await rpc.call<RpcResult<'memory/save'>>('memory/save', {
-            namespace: target,
-            path: input.relativePath,
-            content: input.content,
-            ...(input.expectedRevision ? { expectedRevision: input.expectedRevision } : {}),
-            operationId: crypto.randomUUID(),
-          })
-          const saved: DesktopProjectMemory = {
-            relativePath: response.path,
-            absolutePath: response.path,
-            description: null,
-            size: input.content.length,
-            mtimeMs: Date.now(),
-            revision: response.revision,
-            indexed: false,
-          }
-          return saved
-        },
-        () => mockClient.saveProjectMemory(input),
-      ),
+      loadAgentMemoryApi().then((api) => api.saveProjectMemory(input)),
     deleteProjectMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const target = input.namespace ?? (await projectNamespace(input.workspacePath))
-          await rpc.call('memory/delete', {
-            namespace: target,
-            path: input.relativePath,
-            ...(input.expectedRevision ? { expectedRevision: input.expectedRevision } : {}),
-            operationId: crypto.randomUUID(),
-          })
-        },
-        () => mockClient.deleteProjectMemory(input),
-      ),
+      loadAgentMemoryApi().then((api) => api.deleteProjectMemory(input)),
     resetProjectMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const target = input.namespace ?? (await projectNamespace(input.workspacePath))
-          await rpc.call('memory/reset', { namespace: target, operationId: crypto.randomUUID() })
-        },
-        () => mockClient.resetProjectMemory(input),
-      ),
+      loadAgentMemoryApi().then((api) => api.resetProjectMemory(input)),
     listMemoryUsage: (workspacePath, namespace) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const target = namespace ?? (await projectNamespace(workspacePath))
-          const response = await rpc.call<RpcResult<'memory/usage'>>('memory/usage', {
-            namespace: target,
-            limit: 100,
-          })
-          return response.records.map((record) => ({
-            id: record.id,
-            namespace: record.namespace,
-            kind: record.kind,
-            threadId: record.threadId,
-            turnId: record.turnId,
-            relativePath: record.path,
-            revision: record.revision,
-            truncated: record.truncated,
-            bytes: record.bytes,
-            createdAt: record.createdAt,
-          }))
-        },
-        () => mockClient.listMemoryUsage?.(workspacePath, namespace) ?? Promise.resolve([]),
-      ),
+      loadAgentMemoryApi().then((api) => api.listMemoryUsage(workspacePath, namespace)),
     listMemoryTasks: (workspacePath, namespace) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const target = namespace ?? (await projectNamespace(workspacePath))
-          const response = await rpc.call<RpcResult<'memory/tasks'>>('memory/tasks', {
-            namespace: target,
-            limit: 50,
-          })
-          return {
-            tasks: response.tasks.map((task): DesktopMemoryTask => ({
-              id: task.id,
-              namespace: task.namespace,
-              kind: task.kind,
-              status: task.status,
-              trigger: task.trigger,
-              threadId: task.threadId,
-              turnId: task.turnId,
-              error: task.error,
-              createdAt: task.createdAt,
-              startedAt: task.startedAt,
-              finishedAt: task.finishedAt,
-            })),
-            autoOrganize: response.autoOrganize,
-          }
-        },
-        () =>
-          mockClient.listMemoryTasks?.(workspacePath, namespace) ??
-          Promise.resolve({ tasks: [], autoOrganize: true }),
-      ),
-    organizeMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const target = input.namespace ?? (await projectNamespace(input.workspacePath))
-          return rpc.call<RpcResult<'memory/organize'>>('memory/organize', {
-            namespace: target,
-            operationId: crypto.randomUUID(),
-          })
-        },
-        () =>
-          mockClient.organizeMemory?.(input) ?? Promise.resolve({ taskId: null, queued: false }),
-      ),
+      loadAgentMemoryApi().then((api) => api.listMemoryTasks(workspacePath, namespace)),
+    organizeMemory: (input) => loadAgentMemoryApi().then((api) => api.organizeMemory(input)),
     readMemorySettings: (workspacePath, namespace) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const target = namespace ?? (await projectNamespace(workspacePath))
-          const response = await rpc.call<RpcResult<'memory/settings'>>('memory/settings', {
-            namespace: target,
-            operationId: crypto.randomUUID(),
-          })
-          return {
-            autoOrganize: response.autoOrganize,
-            memoryDir: response.directory,
-            namedAgents: [...response.namedAgents],
-          }
-        },
-        () =>
-          mockClient.readMemorySettings?.(workspacePath, namespace) ??
-          Promise.resolve({ autoOrganize: true, memoryDir: '', namedAgents: [] }),
-      ),
+      loadAgentMemoryApi().then((api) => api.readMemorySettings(workspacePath, namespace)),
     saveMemorySettings: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const target = input.namespace ?? (await projectNamespace(input.workspacePath))
-          const response = await rpc.call<RpcResult<'memory/settings'>>('memory/settings', {
-            namespace: target,
-            autoOrganize: input.autoOrganize,
-            operationId: crypto.randomUUID(),
-          })
-          return {
-            autoOrganize: response.autoOrganize,
-            memoryDir: response.directory,
-            namedAgents: [...response.namedAgents],
-          }
-        },
-        () =>
-          mockClient.saveMemorySettings?.(input) ??
-          Promise.resolve({ autoOrganize: input.autoOrganize, memoryDir: '', namedAgents: [] }),
-      ),
-    listUserMemories: () =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const response = await rpc.call<RpcResult<'memory/list'>>('memory/list', {
-            namespace: { kind: 'user' },
-          })
-          return {
-            memoryDir: '用户记忆',
-            profilePath: 'MEMORY.md',
-            preferencesPath: 'MEMORY.md',
-            eventsPath: 'memory_usage',
-            conversationIndexPath: 'history.sqlite',
-            memories: response.files.map(memoryFileView),
-          }
-        },
-        () => mockClient.listUserMemories(),
-      ),
+      loadAgentMemoryApi().then((api) => api.saveMemorySettings(input)),
+    listUserMemories: () => loadAgentMemoryApi().then((api) => api.listUserMemories()),
     readUserMemory: (relativePath) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const response = await rpc.call<RpcResult<'memory/read'>>('memory/read', {
-            namespace: { kind: 'user' },
-            path: relativePath,
-          })
-          return memoryContentView(response)
-        },
-        () => mockClient.readUserMemory(relativePath),
-      ),
-    saveUserMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          const response = await rpc.call<RpcResult<'memory/save'>>('memory/save', {
-            namespace: { kind: 'user' },
-            path: input.relativePath,
-            content: input.content,
-            ...(input.expectedRevision ? { expectedRevision: input.expectedRevision } : {}),
-            operationId: crypto.randomUUID(),
-          })
-          const saved: DesktopProjectMemory = {
-            relativePath: response.path,
-            absolutePath: response.path,
-            description: null,
-            size: input.content.length,
-            mtimeMs: Date.now(),
-            revision: response.revision,
-            indexed: false,
-          }
-          return saved
-        },
-        () => mockClient.saveUserMemory(input),
-      ),
+      loadAgentMemoryApi().then((api) => api.readUserMemory(relativePath)),
+    saveUserMemory: (input) => loadAgentMemoryApi().then((api) => api.saveUserMemory(input)),
     deleteUserMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          await rpc.call('memory/delete', {
-            namespace: { kind: 'user' },
-            path: input.relativePath,
-            ...(input.expectedRevision ? { expectedRevision: input.expectedRevision } : {}),
-            operationId: crypto.randomUUID(),
-          })
-        },
-        () => mockClient.deleteUserMemory(input),
-      ),
-    resetUserMemory: () =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 3)
-          await rpc.call('memory/reset', {
-            namespace: { kind: 'user' },
-            operationId: crypto.randomUUID(),
-          })
-        },
-        () => mockClient.resetUserMemory({}),
-      ),
+      loadAgentMemoryApi().then((api) => api.deleteUserMemory(input)),
+    resetUserMemory: (input) => loadAgentMemoryApi().then((api) => api.resetUserMemory(input)),
 
     generateTaskSuggestions: (input: GenerateDesktopTaskSuggestionsInput) =>
       withRequiredAgent(async () => {
@@ -4023,53 +3625,28 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.synchronizeSession(sessionId),
       ),
-    listSubagents: async (threadId) => {
-      const response = await rpc.call<{ subagents: SubagentProjection[] }>('subagent/list', {
-        threadId,
-      })
-      return response.subagents
-    },
-    readSubagent: (taskId) => rpc.call<DesktopSubagentRead>('subagent/read', { taskId }),
-    stopSubagent: (taskId) =>
-      rpc.call('subagent/stop', { taskId, operationId: crypto.randomUUID() }),
+    listSubagents: (threadId) =>
+      loadAgentGoalSubagentApi().then((api) => api.listSubagents(threadId)),
+    readSubagent: (taskId) => loadAgentGoalSubagentApi().then((api) => api.readSubagent(taskId)),
+    stopSubagent: (taskId) => loadAgentGoalSubagentApi().then((api) => api.stopSubagent(taskId)),
     retrySubagent: (taskId) =>
-      rpc.call('subagent/retry', { taskId, operationId: crypto.randomUUID() }),
+      loadAgentGoalSubagentApi().then((api) => api.retrySubagent(taskId)),
     sendSubagent: (taskId, message) =>
-      rpc.call('subagent/send', { taskId, message, operationId: crypto.randomUUID() }),
+      loadAgentGoalSubagentApi().then((api) => api.sendSubagent(taskId, message)),
     followupSubagent: (taskId, message) =>
-      rpc.call('subagent/followup', { taskId, message, operationId: crypto.randomUUID() }),
+      loadAgentGoalSubagentApi().then((api) => api.followupSubagent(taskId, message)),
     applySubagentWorktree: (taskId) =>
-      rpc.call('subagent/worktree/apply', { taskId, operationId: crypto.randomUUID() }),
+      loadAgentGoalSubagentApi().then((api) => api.applySubagentWorktree(taskId)),
     discardSubagentWorktree: (taskId) =>
-      rpc.call('subagent/worktree/discard', { taskId, operationId: crypto.randomUUID() }),
+      loadAgentGoalSubagentApi().then((api) => api.discardSubagentWorktree(taskId)),
     restoreSubagentWorkspace: (taskId) =>
-      rpc.call('subagent/workspace/restore', { taskId, operationId: crypto.randomUUID() }),
-    respondSubagentApproval: async (approval, decision) => {
-      const interaction = await findPendingInteraction(
-        (candidate) =>
-          candidate.kind === 'approval' &&
-          (candidate.interactionId === approval.id || candidate.toolCallId === approval.toolCallID),
-        approval.threadId,
-      )
-      if (interaction.kind !== 'approval') return
-      await respondToInteraction(interaction, {
-        kind: 'approval',
-        decision,
-      })
-    },
-    respondSubagentPermission: async (approval, behavior, grantScope) => {
-      const interaction = await findPendingInteraction(
-        (candidate) =>
-          candidate.kind === 'permission' &&
-          (candidate.interactionId === approval.id || candidate.toolCallId === approval.toolCallID),
-        approval.threadId,
-      )
-      if (interaction.kind !== 'permission') return
-      await respondToPermissionInteraction(interaction, {
-        behavior,
-        ...(behavior === 'allow' ? { grantScope } : {}),
-      })
-    },
+      loadAgentGoalSubagentApi().then((api) => api.restoreSubagentWorkspace(taskId)),
+    respondSubagentApproval: (approval, decision) =>
+      loadAgentGoalSubagentApi().then((api) => api.respondSubagentApproval(approval, decision)),
+    respondSubagentPermission: (approval, behavior, grantScope) =>
+      loadAgentGoalSubagentApi().then((api) =>
+        api.respondSubagentPermission(approval, behavior, grantScope),
+      ),
     getActiveSessionId: () =>
       withAgentOrMock(
         async () => activeSessionId,
@@ -4415,138 +3992,11 @@ export function createAgentSessionDesktopClient(
     rollbackSession: (input) =>
       withUnsupportedAgentFallback('rollbackSession', () => mockClient.rollbackSession(input)),
     getSessionGoal: (sessionId) =>
-      withAgentOrMock(
-        async () => {
-          if (!agentCapabilities.has('thread.goal.v1'))
-            unsupportedAgentOperation('getSessionGoal (thread.goal.v1)')
-          return (await rpc.call('thread/goal/get', { threadId: sessionId })).goal
-        },
-        () => mockClient.getSessionGoal(sessionId),
-      ),
-    setSessionGoal: (sessionId, input) => {
-      let originalGoal: { id: string; objective: string } | null | undefined
-      return withAgentOrMock(
-        async () =>
-          runGoalMutation(
-            sessionId,
-            async () => {
-              if (!agentCapabilities.has('thread.goal.v1'))
-                unsupportedAgentOperation('setSessionGoal (thread.goal.v1)')
-              const current = (await rpc.call('thread/goal/get', { threadId: sessionId })).goal
-              if (
-                originalGoal !== undefined &&
-                (originalGoal?.id !== current?.id || originalGoal?.objective !== current?.objective)
-              )
-                throw Object.assign(new Error('目标已被替换，已刷新，请确认新目标后重试。'), {
-                  code: 'GOAL_VERSION_CONFLICT',
-                })
-              originalGoal = current
-              if (
-                current &&
-                input.tokenBudget !== undefined &&
-                input.tokenBudget !== current.tokenBudget &&
-                !input.budgetBaseline
-              )
-                throw new Error('修改已有目标预算需要当前目标与预算基准，请刷新后重试。')
-              // A budget edit is computed from the budget the panel showed. Re-read
-              // that baseline before writing, so a concurrent replacement or budget
-              // change is reported instead of applying a total derived from stale data.
-              if (input.budgetBaseline) {
-                const baseline = input.budgetBaseline
-                if (
-                  current?.id !== baseline.goalId ||
-                  (current?.tokenBudget ?? null) !== baseline.tokenBudget
-                ) {
-                  await loadAgentSessionSnapshot(sessionId).catch(() => null)
-                  emitSessionStoreChange()
-                  throw Object.assign(new Error('目标或预算已被更新，已刷新，请确认后重试。'), {
-                    code: 'GOAL_VERSION_CONFLICT',
-                  })
-                }
-              }
-              const snapshot = input.objective?.trim()
-                ? (await rpc.call('thread/read', { threadId: sessionId })).snapshot
-                : null
-              const running = snapshot?.turns.some((turn) =>
-                [
-                  'queued',
-                  'running',
-                  'waiting-permission',
-                  'waiting-question',
-                  'waiting-subagents',
-                ].includes(turn.status),
-              )
-              if (!current && input.objective?.trim() && input.status !== 'paused' && !running) {
-                await turnQueueClient.submitMessage(
-                  sessionId,
-                  { text: input.objective.trim() },
-                  'start',
-                  {
-                    goal: {
-                      objective: input.objective.trim(),
-                      expectedVersion: current?.version ?? null,
-                      ...(input.tokenBudget === undefined
-                        ? {}
-                        : { tokenBudget: input.tokenBudget }),
-                    },
-                  },
-                )
-                return (await rpc.call('thread/goal/get', { threadId: sessionId })).goal!
-              }
-              const result = await rpc.call('thread/goal/set', {
-                threadId: sessionId,
-                expectedVersion: current?.version ?? null,
-                operationId: crypto.randomUUID(),
-                ...(input.objective === undefined ? {} : { objective: input.objective }),
-                ...(input.status === undefined ? {} : { status: input.status }),
-                ...(input.tokenBudget === undefined ? {} : { tokenBudget: input.tokenBudget }),
-              })
-              await loadAgentSessionSnapshot(sessionId)
-              emitSessionStoreChange()
-              return result.goal
-            },
-            input.objective === undefined && input.tokenBudget === undefined,
-          ),
-        () => mockClient.setSessionGoal(sessionId, input),
-      )
-    },
-    clearSessionGoal: (sessionId) => {
-      let originalGoal: { id: string; objective: string } | null | undefined
-      return withAgentOrMock(
-        async () =>
-          runGoalMutation(
-            sessionId,
-            async () => {
-              if (!agentCapabilities.has('thread.goal.v1'))
-                unsupportedAgentOperation('clearSessionGoal (thread.goal.v1)')
-              const current = (await rpc.call('thread/goal/get', { threadId: sessionId })).goal
-              if (!current) {
-                await loadAgentSessionSnapshot(sessionId)
-                emitSessionStoreChange()
-                return true
-              }
-              if (
-                originalGoal &&
-                (originalGoal.id !== current.id || originalGoal.objective !== current.objective)
-              )
-                throw Object.assign(new Error('目标已被替换，已刷新，请确认新目标后重试。'), {
-                  code: 'GOAL_VERSION_CONFLICT',
-                })
-              originalGoal = current
-              await rpc.call('thread/goal/clear', {
-                threadId: sessionId,
-                expectedVersion: current.version,
-                operationId: crypto.randomUUID(),
-              })
-              await loadAgentSessionSnapshot(sessionId)
-              emitSessionStoreChange()
-              return true
-            },
-            true,
-          ),
-        () => mockClient.clearSessionGoal(sessionId),
-      )
-    },
+      loadAgentGoalSubagentApi().then((api) => api.getSessionGoal(sessionId)),
+    setSessionGoal: (sessionId, input) =>
+      loadAgentGoalSubagentApi().then((api) => api.setSessionGoal(sessionId, input)),
+    clearSessionGoal: (sessionId) =>
+      loadAgentGoalSubagentApi().then((api) => api.clearSessionGoal(sessionId)),
     listThreadBookmarks: (sessionId) =>
       withAgentOrMock(
         async () => {
