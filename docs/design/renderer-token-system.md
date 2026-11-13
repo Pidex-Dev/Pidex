@@ -87,7 +87,7 @@ Tailwind 工具类 `tw:type-1`..`tw:type-9` 与 `tw:type-code` 仅声明 `font-f
 | 控件结构     | 各组件自身几何                                                                        | Checkbox 勾选、Radio 圆点、Switch 旋钮、Slider 手柄                                                        |
 | 品牌和内容   | 原有槽位                                                                              | 头像、鲸鱼、Provider／插件／Skill Logo、宠物、插图、内容图片、图表及原生窗口按钮                           |
 
-功能图标尺寸采用固定像素 Token 与已有 `APP_ICON_SIZES`：小型功能标记（折叠箭头、菜单勾选）为 12px，普通前置图标为 16px，主要操作图标为 20px，不随字号、语言或字体改变。明确图形与槽位分离（如侧栏 24px 图标列居中容纳 16px 图标）。样式只作用于组件拥有的图标槽位，不得全局覆盖 SVG／图片。普通 Lucide 图标继续使用描边 1.6；品牌占位 Lucide 标记 `data-icon-kind="artwork"` 并保留描边 2。
+功能图标尺寸采用随 `--cpx-sys-scaling`（`0.9 / 1 / 1.1`）等比缩放的四档系统 Token（`--cpx-sys-icon-size-xs/sm/md/lg`，基准 `12 / 14 / 16 / 20px`，对应 `tw:size-icon-xs/sm/md/lg`）与已有 `APP_ICON_SIZES`：微型标记（折叠箭头、菜单勾选、小关闭按钮）为 `xs`（12px），紧凑前置图标为 `sm`（14px），普通前置图标为 `md`（16px），主要操作图标为 `lg`（20px），不随字号、语言或字体改变。独立图标须通过 `tw:size-icon-*` 类（而非仅传 Lucide 数字 `size` 或混用 `tw:size-3/4`）受控缩放；明确图形与槽位分离（如侧栏 24px 图标列居中容纳 16px 图标）。样式只作用于组件拥有的图标槽位，不得全局覆盖 SVG／图片。普通 Lucide 图标继续使用描边 1.6；品牌占位 Lucide 标记 `data-icon-kind="artwork"` 并保留描边 2。
 
 ### 指针目标
 
@@ -121,17 +121,18 @@ Tailwind 工具类 `tw:type-1`..`tw:type-9` 与 `tw:type-code` 仅声明 `font-f
 
 ### 圆角
 
-圆角采用“基础刻度 + 语义角色”双层结构。基础刻度是唯一数值来源：
+圆角采用参考 Radix Themes Medium 的“6 级基础刻度 + 语义角色”双层结构。基础刻度是唯一数值来源：
 
-| 基础 Token                     |   数值 | 映射语义角色与使用场景                                     |
-| ------------------------------ | -----: | ---------------------------------------------------------- |
-| `--cpx-sys-radius-2xs` / `xs`  |    5px | `indicator` / `compact`：状态指示点、微型标签、徽标        |
-| `--cpx-sys-radius-sm`          |    8px | `item`：菜单项、侧边栏导航行、Tooltip                      |
-| `--cpx-sys-radius-md`          |   10px | `control` / `item-lg`：普通按钮、输入框、分段控件          |
-| `--cpx-sys-radius-lg`          |   14px | `container` / `floating`：卡片容器、下拉浮层、Popover 面板 |
-| `--cpx-sys-radius-xl` / `2xl`  |   18px | `prominent`：对话框（Modal）、Composer 悬浮容器、消息气泡  |
-| `--cpx-sys-radius-3xl` / `4xl` |   24px | 大型展示容器、导引面板                                     |
-| `--cpx-sys-radius-full`        | 9999px | `pill`：胶囊按钮、Switch 开关、标签胶囊、药丸触发器        |
+| 基础 Token              |   数值 | 映射语义角色与使用场景                                               |
+| ----------------------- | -----: | -------------------------------------------------------------------- |
+| `--cpx-sys-radius-none` |    0px | `none`：无圆角                                                       |
+| `--cpx-sys-radius-1`    |    3px | `indicator`：Checkbox、状态指示点、微型徽标、`kbd`                   |
+| `--cpx-sys-radius-2`    |    4px | `compact` / `inline-code` / `tooltip`：行内代码、紧凑标签、Tooltip、紧凑按钮 |
+| `--cpx-sys-radius-3`    |    6px | `item` / `control`：标准按钮、输入框、Select、菜单项、侧栏行、Dock Tab |
+| `--cpx-sys-radius-4`    |    8px | `floating` / `item-lg`：Dropdown 菜单、Popover 浮层、大号按钮、列表行 |
+| `--cpx-sys-radius-5`    |   12px | `container`：标准卡片、面板、Modal 对话框、Composer 容器、Toast      |
+| `--cpx-sys-radius-6`    |   16px | `prominent`：大型展示弹窗、Hero 容器、引导面板                       |
+| `--cpx-sys-radius-full` | 9999px | `pill`：胶囊按钮（`shape="pill"`）、Switch 开关、圆形头像/触发器    |
 
 光学校正统一为 `1.0`（纯净几何圆角，无超椭圆畸变）。`full` 只用于真正的胶囊、圆形控件、Badge、Chip、Toggle track 等，不得用于普通卡片、列表行、Dialog 或矩形表面。嵌套表面优先继承外层半径，或根据 `inner radius = max(outer radius - inset, 0)` 计算并映射到最近的已有 Token。
 
