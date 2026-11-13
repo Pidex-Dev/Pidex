@@ -126,7 +126,7 @@ export function SearchablePopoverAction({
         withArrow ? (
           <ChevronRight
             aria-hidden="true"
-            className="popover-item-arrow"
+            className="popover-item-arrow tw:size-icon-sm"
             size={APP_ICON_SIZES.sm}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />

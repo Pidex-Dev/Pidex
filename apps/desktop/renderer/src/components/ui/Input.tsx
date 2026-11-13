@@ -26,7 +26,7 @@ export const Input = forwardRef<HTMLInputElement, Props>(function Input(
       ref={ref}
       aria-invalid={invalid || undefined}
       className={cx(
-        'ui-input tw:min-w-0 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-control tw:text-app-text tw:shadow-none',
+        'ui-input tw:min-w-0 tw:border tw:border-app-border-subtle tw:rounded-3 tw:bg-app-control tw:text-app-text tw:shadow-none',
         'tw:py-control-block tw:px-control-inline',
         'tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard',
         'tw:enabled:hover:border-app-border-strong',

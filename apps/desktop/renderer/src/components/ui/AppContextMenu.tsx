@@ -216,7 +216,7 @@ function renderAction(
               )}
             >
               <ChevronRight
-                className="app-context-menu-arrow sidebar-context-menu-arrow"
+                className="app-context-menu-arrow sidebar-context-menu-arrow tw:size-icon-sm"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
@@ -274,7 +274,7 @@ function renderAction(
               CONTEXT_TRAILING_LAYOUT_CLASSNAMES[layout],
             )}
           >
-            {action.checked ? <Check size={APP_ICON_SIZES.sm} /> : null}
+            {action.checked ? <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} /> : null}
             {action.shortcut ? (
               <span
                 className="app-context-menu-shortcut sidebar-context-menu-shortcut"

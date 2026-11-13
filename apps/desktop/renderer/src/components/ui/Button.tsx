@@ -361,7 +361,7 @@ const BUTTON_STYLES = String.raw`
     align-items: center;
     justify-content: center;
     border: 1px solid transparent;
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-control);
     margin: 0;
     padding: var(--cpx-comp-button-padding-block) var(--button-padding-inline);
     background: transparent;
@@ -426,7 +426,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-xs);
+    border-radius: var(--cpx-sys-radius-2);
   }
 
   :is(button, a)[data-size][data-variant][data-size='default'] {
@@ -435,7 +435,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='iconMd'],
@@ -445,7 +445,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-xs);
+    border-radius: var(--cpx-sys-radius-2);
   }
 
   :is(button, a)[data-size][data-variant][data-size='sm'] {
@@ -454,7 +454,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-sm);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='composer'] {
@@ -463,7 +463,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='composerSm'] {
@@ -472,7 +472,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='composerUtility'] {
@@ -481,7 +481,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='icon'] {
@@ -490,7 +490,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-sm);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='toolbar'] {
@@ -499,7 +499,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap-compact);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-sm);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='toolbarLabel'] {
@@ -508,7 +508,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap-compact);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-sm);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='medium'] {
@@ -517,7 +517,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='md'] {
@@ -526,7 +526,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='lg'] {
@@ -535,7 +535,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-4);
   }
 
   :is(button, a)[data-size][data-variant][data-size='iconLarge'] {
@@ -544,7 +544,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-2);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-4);
   }
 
   :is(button, a)[data-size][data-variant][data-size='large'] {
@@ -553,7 +553,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-2);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-4);
   }
 
   :is(button, a)[data-size][data-variant][data-size='tabStripAction'] {
@@ -562,7 +562,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap-compact);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   /*

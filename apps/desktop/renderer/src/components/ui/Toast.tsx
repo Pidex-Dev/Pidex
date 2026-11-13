@@ -14,7 +14,7 @@ export const Toast = forwardRef<
     <div
       {...props}
       ref={ref}
-      className={`tw:inline-flex tw:items-center tw:gap-2 tw:rounded-[var(--cpx-sys-radius-xl)] tw:border tw:border-app-border-subtle ${bgClass} tw:px-3 tw:py-2 tw:type-2 tw:text-app-text ${shadowClass} tw:[-webkit-app-region:no-drag] ${appearance === 'action' ? 'tw:min-h-[var(--cpx-sys-space-8)]' : 'tw:min-h-[var(--cpx-sys-space-7)]'} ${className}`}
+      className={`tw:inline-flex tw:items-center tw:gap-2 tw:rounded-[var(--cpx-sys-radius-5)] tw:border tw:border-app-border-subtle ${bgClass} tw:px-3 tw:py-2 tw:type-2 tw:text-app-text ${shadowClass} tw:[-webkit-app-region:no-drag] ${appearance === 'action' ? 'tw:min-h-[var(--cpx-sys-space-8)]' : 'tw:min-h-[var(--cpx-sys-space-7)]'} ${className}`}
     />
   )
 })

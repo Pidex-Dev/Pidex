@@ -42,9 +42,9 @@ const SIZE_BOX_CLASS: Record<SegmentedControlSize, string> = {
 const RADIUS_CLASSES: Record<SegmentedControlShape, Record<SegmentedControlSize, string>> = {
   default: {
     xs: 'tw:rounded-item',
-    sm: 'tw:rounded-sm',
-    md: 'tw:rounded-md',
-    lg: 'tw:rounded-md',
+    sm: 'tw:rounded-3',
+    md: 'tw:rounded-3',
+    lg: 'tw:rounded-3',
   },
   pill: {
     xs: 'tw:rounded-full',

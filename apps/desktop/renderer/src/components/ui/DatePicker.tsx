@@ -219,7 +219,7 @@ export function DatePicker({
           ref={triggerRef}
           aria-label={ariaLabel}
           className={cx(
-            'ui-date-picker-trigger tw:inline-flex tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-control-gap tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-control tw:px-control-inline tw:py-control-block tw:text-app-text tw:outline-none tw:transition-[background-color,border-color] tw:duration-feedback tw:ease-standard tw:enabled:hover:border-app-border-strong tw:focus-visible:border-app-focus tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled tw:disabled:opacity-55',
+            'ui-date-picker-trigger tw:inline-flex tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-control-gap tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-control tw:px-control-inline tw:py-control-block tw:text-app-text tw:outline-none tw:transition-[background-color,border-color] tw:duration-feedback tw:ease-standard tw:enabled:hover:border-app-border-strong tw:focus-visible:border-app-focus tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled tw:disabled:opacity-55',
             className,
           )}
           disabled={disabled}
@@ -258,7 +258,7 @@ export function DatePicker({
           <div className="ui-date-picker-header tw:mb-2 tw:flex tw:items-center tw:justify-between">
             <button
               aria-label={t('上个月')}
-              className="ui-date-picker-nav tw:inline-grid tw:size-7 tw:cursor-pointer tw:place-items-center tw:rounded-control tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:outline-none tw:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1"
+              className="ui-date-picker-nav tw:inline-grid tw:size-5 tw:cursor-pointer tw:place-items-center tw:rounded-control tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:outline-none tw:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1"
               type="button"
               onClick={() => navigateMonth(-1)}
             >
@@ -272,7 +272,7 @@ export function DatePicker({
             </div>
             <button
               aria-label={t('下个月')}
-              className="ui-date-picker-nav tw:inline-grid tw:size-7 tw:cursor-pointer tw:place-items-center tw:rounded-control tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:outline-none tw:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1"
+              className="ui-date-picker-nav tw:inline-grid tw:size-5 tw:cursor-pointer tw:place-items-center tw:rounded-control tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:outline-none tw:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1"
               type="button"
               onClick={() => navigateMonth(1)}
             >
@@ -364,7 +364,7 @@ export function DatePicker({
           </div>
           <div className="ui-date-picker-footer tw:mt-2 tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-app-border-subtle tw:pt-2">
             <button
-              className="ui-date-picker-footer-action tw:min-h-7 tw:cursor-pointer tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none tw:enabled:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled"
+              className="ui-date-picker-footer-action tw:min-h-5 tw:cursor-pointer tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none tw:enabled:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled"
               disabled={isUnavailable(today)}
               type="button"
               onClick={() => chooseDate(today)}
@@ -372,7 +372,7 @@ export function DatePicker({
               {t('今天')}
             </button>
             <button
-              className="ui-date-picker-footer-action tw:min-h-7 tw:cursor-pointer tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none tw:enabled:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled"
+              className="ui-date-picker-footer-action tw:min-h-5 tw:cursor-pointer tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none tw:enabled:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled"
               disabled={!value}
               type="button"
               onClick={() => {

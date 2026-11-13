@@ -64,8 +64,8 @@ const DEFAULT_VARIANT_SIZE_CLASSES: Record<SearchInputVariant, string> = {
 
 const DEFAULT_VARIANT_RADIUS_CLASSES: Record<SearchInputVariant, string> = {
   outlined: 'tw:rounded-control',
-  standard: 'tw:rounded-md',
-  compact: 'tw:rounded-md',
+  standard: 'tw:rounded-3',
+  compact: 'tw:rounded-3',
   embedded: 'tw:rounded-none',
 }
 

@@ -356,7 +356,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
           role={context.mode === 'menu' ? 'menu' : 'listbox'}
           id={listboxId}
           aria-label={listLabel ?? props['aria-label'] ?? (title || searchPlaceholder)}
-          className={`popover-menu-list ${context.mode === 'select' ? 'tw:max-h-[220px] tw:overflow-y-auto' : ''}`}
+          className={`popover-menu-list ${context.mode === 'select' ? 'tw:max-h-[var(--dropdown-list-max-height,220px)] tw:overflow-y-auto' : ''}`}
         >
           <SearchContext.Provider value={showSearch ? query : ''}>
             {children}

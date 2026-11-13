@@ -27,7 +27,7 @@ export function SearchHeading({
   }, [expanded])
 
   return (
-    <div className="search-heading tw:relative tw:flex tw:min-h-9 tw:min-w-0 tw:flex-1 tw:items-center">
+    <div className="search-heading tw:relative tw:flex tw:min-h-6 tw:min-w-0 tw:flex-1 tw:items-center">
       <div className={cx('tw:min-w-0 tw:flex-1 tw:pe-10', expanded && 'tw:invisible')}>{title}</div>
       <div
         ref={containerRef}
@@ -35,7 +35,7 @@ export function SearchHeading({
         aria-hidden={!expanded}
         className={cx(
           'tw:absolute tw:right-0 tw:overflow-hidden tw:transition-[width] tw:duration-state tw:ease-standard tw:motion-reduce:transition-none tw:[&_.search-input]:w-full',
-          expanded ? 'tw:w-full' : 'tw:w-9',
+          expanded ? 'tw:w-full' : 'tw:w-6',
         )}
       >
         <div className={expanded ? 'tw:visible' : 'tw:invisible'}>

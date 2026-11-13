@@ -25,7 +25,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
       ref={ref}
       aria-invalid={invalid || undefined}
       className={cx(
-        'ui-textarea tw:min-w-0 tw:min-h-16 tw:resize-y tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-control tw:text-app-text tw:shadow-none',
+        'ui-textarea tw:min-w-0 tw:min-h-16 tw:resize-y tw:border tw:border-app-border-subtle tw:rounded-3 tw:bg-app-control tw:text-app-text tw:shadow-none',
         autoGrow && 'tw:field-sizing-content',
         'tw:py-control-block tw:px-control-inline',
         'tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard',

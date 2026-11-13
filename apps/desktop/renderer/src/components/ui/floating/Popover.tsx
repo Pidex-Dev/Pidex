@@ -362,7 +362,7 @@ const PopoverClose = forwardRef<HTMLElement, PopoverCloseProps>(
           if (!event.defaultPrevented) context.setOpen(false)
         }}
       >
-        {children ?? <X size={12} strokeWidth={2.4} />}
+        {children ?? <X className="tw:size-icon-xs" size={12} strokeWidth={2.4} />}
       </Component>
     )
   },
