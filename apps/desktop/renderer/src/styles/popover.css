@@ -563,7 +563,7 @@
 
 @layer overrides {
   /* Nested list and scroll wrappers share the surface's column tracks. */
-  :is([data-theme-component='dropdown-surface'], .popover-menu-spacing):not(.chat-input__dropdown):has(
+  :is([data-theme-component='dropdown-surface'], .popover-menu-spacing):not(.chat-input__dropdown, .ui-select-content):has(
       :is(.sidebar-row-main, .sidebar-context-menu-label, .menubar-item-label, .menu-column-label)
     ) {
     display: grid;
@@ -577,6 +577,7 @@
     & :where(:has(:is(.sidebar-row-main, .sidebar-context-menu-label, .menubar-item-label, .menu-column-label))):not([hidden]) {
       display: grid;
       grid-template-columns: subgrid;
+      align-items: center;
       column-gap: 0;
     }
 
