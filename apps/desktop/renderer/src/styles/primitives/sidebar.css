@@ -71,7 +71,7 @@
    */
   .desktop-sidebar {
     --sidebar-inline-gutter: var(--cpx-sys-space-2);
-    --sidebar-leading-width: var(--cpx-sys-icon-size-sm);
+    --sidebar-leading-width: var(--cpx-sys-space-5);
     --sidebar-icon-size: var(--cpx-sys-icon-size-sm);
     --sidebar-icon-button-size: var(--cpx-sys-space-6);
     --sidebar-item-gap: var(--cpx-sys-space-2);
@@ -79,7 +79,7 @@
     --sidebar-padding-x: var(--sidebar-inline-gutter);
     --sidebar-row-pad-y: var(--cpx-sys-space-1);
     --sidebar-row-height: 30px;
-    --sidebar-row-radius: var(--cpx-sys-radius-md);
+    --sidebar-row-radius: var(--cpx-sys-radius-3);
     --sidebar-indent-step: var(--cpx-sys-space-4);
     --sidebar-section-gap: var(--cpx-sys-space-4);
     --sidebar-trailing-gap: calc(var(--cpx-sys-space-1) / 2);
@@ -329,7 +329,7 @@
  */
 @layer overrides {
   .sidebar-account-menu {
-    --sidebar-leading-width: var(--cpx-sys-icon-size-sm);
+    --sidebar-leading-width: var(--cpx-sys-space-5);
   }
 
   .desktop-sidebar :is(.sidebar-row, .sidebar-show-more-actions),

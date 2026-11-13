@@ -136,7 +136,7 @@
 
   /* `ProseMirror-selectednode` is mounted by the editor, not by this app. */
   .composer-inline-skill-token:is(.ProseMirror-selectednode, :focus-visible) {
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
     outline: none;
     box-shadow: var(--cpx-sys-focus-ring-inset);
   }
@@ -237,7 +237,7 @@
     flex: 0 0 auto;
     overflow: visible;
     border: 1px solid var(--cpx-sys-color-border-default);
-    border-radius: var(--cpx-sys-radius-lg);
+    border-radius: var(--cpx-sys-radius-4);
     background: var(--cpx-sys-color-surface-editor);
     box-shadow: var(--cpx-sys-shadow-resting);
   }

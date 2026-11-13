@@ -387,31 +387,29 @@
     --cpx-sys-glass-border: var(--cpx-sys-color-border-subtle);
     --cpx-sys-glass-shadow: var(--cpx-sys-shadow-floating);
 
-    /* System Radius (Foundational Scale - UI-Design Standards) */
+    /* System Radius (Radix Themes Medium 6-Step Scale) */
     --cpx-sys-radius-optical-scale: 1;
     --cpx-sys-corner-shape: round;
     --cpx-sys-radius-none: 0px;
-    --cpx-sys-radius-2xs: 5px;
-    --cpx-sys-radius-xs: 5px;
-    --cpx-sys-radius-sm: 8px;
-    --cpx-sys-radius-md: 10px;
-    --cpx-sys-radius-lg: 14px;
-    --cpx-sys-radius-xl: 18px;
-    --cpx-sys-radius-2xl: 18px;
-    --cpx-sys-radius-3xl: 24px;
-    --cpx-sys-radius-4xl: 24px;
+    --cpx-sys-radius-1: 3px;
+    --cpx-sys-radius-2: 4px;
+    --cpx-sys-radius-3: 6px;
+    --cpx-sys-radius-4: 8px;
+    --cpx-sys-radius-5: 12px;
+    --cpx-sys-radius-6: 16px;
     --cpx-sys-radius-full: 9999px;
 
     /* System Radius (Semantic Roles) */
-    --cpx-sys-radius-indicator: var(--cpx-sys-radius-xs);
-    --cpx-sys-radius-compact: var(--cpx-sys-radius-xs);
-    --cpx-sys-radius-inline-code: 6px;
-    --cpx-sys-radius-item: var(--cpx-sys-radius-sm);
-    --cpx-sys-radius-control: var(--cpx-sys-radius-md);
-    --cpx-sys-radius-item-lg: var(--cpx-sys-radius-md);
-    --cpx-sys-radius-container: var(--cpx-sys-radius-lg);
-    --cpx-sys-radius-floating: var(--cpx-sys-radius-lg);
-    --cpx-sys-radius-prominent: var(--cpx-sys-radius-xl);
+    --cpx-sys-radius-indicator: var(--cpx-sys-radius-1);
+    --cpx-sys-radius-compact: var(--cpx-sys-radius-2);
+    --cpx-sys-radius-inline-code: var(--cpx-sys-radius-2);
+    --cpx-sys-radius-tooltip: var(--cpx-sys-radius-2);
+    --cpx-sys-radius-item: var(--cpx-sys-radius-3);
+    --cpx-sys-radius-control: var(--cpx-sys-radius-3);
+    --cpx-sys-radius-item-lg: var(--cpx-sys-radius-4);
+    --cpx-sys-radius-floating: var(--cpx-sys-radius-4);
+    --cpx-sys-radius-container: var(--cpx-sys-radius-5);
+    --cpx-sys-radius-prominent: var(--cpx-sys-radius-6);
     --cpx-sys-radius-pill: var(--cpx-sys-radius-full);
 
     /* System Typography */
@@ -557,10 +555,11 @@
       color-mix(in srgb, var(--cpx-sys-color-border-focus) 18%, transparent);
     --cpx-sys-focus-ring-inset: inset 0 0 0 1px var(--cpx-sys-color-border-focus);
 
-    /* Button icon and action sizing */
-    --cpx-sys-icon-size-sm: 14px;
-    --cpx-sys-icon-size-md: 16px;
-    --cpx-sys-icon-size-lg: 20px;
+    /* Button icon and action sizing (scaled by --cpx-sys-scaling) */
+    --cpx-sys-icon-size-xs: calc(12px * var(--cpx-sys-scaling));
+    --cpx-sys-icon-size-sm: calc(14px * var(--cpx-sys-scaling));
+    --cpx-sys-icon-size-md: calc(16px * var(--cpx-sys-scaling));
+    --cpx-sys-icon-size-lg: calc(20px * var(--cpx-sys-scaling));
     --cpx-sys-icon-stroke-width: 1.6;
     --cpx-sys-icon-size: var(--cpx-sys-icon-size-md);
     --button-icon-size-xs: var(--cpx-sys-icon-size-sm);
@@ -612,14 +611,14 @@
     --cpx-comp-button-hover-bg: var(--cpx-sys-color-hover);
     --cpx-comp-button-active-bg: var(--cpx-sys-color-active);
     --cpx-comp-button-pressed: var(--cpx-sys-color-active);
-    --cpx-comp-button-radius-md: var(--cpx-sys-radius-md);
-    --cpx-comp-button-radius-lg: var(--cpx-sys-radius-lg);
-    --cpx-comp-button-radius-xl: var(--cpx-sys-radius-xl);
-    --cpx-comp-button-radius-2xl: var(--cpx-sys-radius-2xl);
+    --cpx-comp-button-radius-md: var(--cpx-sys-radius-control);
+    --cpx-comp-button-radius-lg: var(--cpx-sys-radius-4);
+    --cpx-comp-button-radius-xl: var(--cpx-sys-radius-5);
+    --cpx-comp-button-radius-2xl: var(--cpx-sys-radius-6);
     --cpx-comp-button-size-compact: 24px;
-    --cpx-comp-button-size-toolbar: 28px;
+    --cpx-comp-button-size-toolbar: 24px;
     --cpx-comp-button-size-medium: 32px;
-    --cpx-comp-button-size-large: 36px;
+    --cpx-comp-button-size-large: 40px;
     --cpx-comp-button-primary-bg: var(--cpx-sys-color-fg-primary);
     --cpx-comp-button-primary-fg: var(--cpx-sys-color-surface-canvas);
     --cpx-comp-button-primary-hover-bg: color-mix(
@@ -662,7 +661,7 @@
     --cpx-comp-input-border: var(--cpx-sys-color-border-subtle);
     --cpx-comp-input-placeholder-fg: var(--cpx-sys-color-fg-tertiary);
     --cpx-comp-input-focus-border: var(--cpx-sys-color-border-focus);
-    --cpx-comp-input-radius: var(--cpx-sys-radius-md);
+    --cpx-comp-input-radius: var(--cpx-sys-radius-control);
     --cpx-comp-input-disabled-bg: var(--cpx-sys-color-surface-control);
     --cpx-comp-input-disabled-fg: var(--cpx-sys-color-fg-disabled);
     --cpx-comp-input-validation-error-bg: var(--cpx-sys-color-danger);
@@ -690,7 +689,7 @@
 
     /* Tooltip 只保留外投影；暗色模式顶部微光只属于通用浮层表面。 */
     --cpx-comp-tooltip-shadow: var(--cpx-sys-shadow-floating-outer);
-    --cpx-comp-tooltip-radius: var(--cpx-sys-radius-sm);
+    --cpx-comp-tooltip-radius: var(--cpx-sys-radius-tooltip);
     --cpx-comp-scrollbar-slider-bg: var(--cpx-sys-color-border-default);
     --cpx-comp-scrollbar-slider-hover-bg: var(--cpx-sys-color-border-strong);
     --cpx-comp-scrollbar-slider-active-bg: var(--cpx-sys-color-border-strong);
@@ -741,7 +740,7 @@
     --cpx-comp-modal-backdrop-filter: none;
     --cpx-comp-modal-border: 1px solid var(--cpx-sys-color-border-subtle);
     --cpx-comp-modal-shadow: var(--cpx-sys-shadow-floating);
-    --cpx-comp-modal-radius: var(--cpx-sys-radius-prominent);
+    --cpx-comp-modal-radius: var(--cpx-sys-radius-container);
     --cpx-comp-modal-preformat-bg: var(--cpx-sys-color-surface-editor);
     --cpx-comp-modal-scrim: var(--cpx-sys-color-scrim);
 
@@ -779,7 +778,7 @@
     --cpx-comp-composer-safe-pad: 78px;
     --cpx-comp-composer-border: var(--cpx-sys-color-border-default);
     --cpx-comp-composer-shadow: var(--cpx-sys-shadow-prominent);
-    --cpx-comp-composer-radius: var(--cpx-sys-radius-prominent);
+    --cpx-comp-composer-radius: var(--cpx-sys-radius-container);
 
     /* 12. Terminal Component */
     --cpx-comp-terminal-bg: var(--cpx-sys-color-surface-editor);
@@ -821,9 +820,9 @@
     --cpx-comp-row-height-nav: 32px;
     --cpx-comp-row-height-menu: 32px;
     --cpx-comp-row-height-menu-rich: 40px;
-    --cpx-comp-row-height-toolbar: 28px;
-    --cpx-comp-row-height-composer: 28px;
-    --cpx-comp-row-radius: var(--cpx-sys-radius-lg);
+    --cpx-comp-row-height-toolbar: 24px;
+    --cpx-comp-row-height-composer: 24px;
+    --cpx-comp-row-radius: var(--cpx-sys-radius-item-lg);
     --cpx-comp-row-padding-inline: 8px;
     --cpx-comp-row-padding-block: 4px;
     --cpx-comp-row-padding-block-rich: 8px;
@@ -886,6 +885,7 @@
     --cpx-comp-dropdown-icon-size: var(--cpx-sys-icon-size);
 
     /* Icon */
+    --cpx-comp-icon-size-xs: var(--cpx-sys-icon-size-xs);
     --cpx-comp-icon-size-sm: var(--cpx-sys-icon-size-sm);
     --cpx-comp-icon-size-md: var(--cpx-sys-icon-size-md);
     --cpx-comp-icon-size-lg: var(--cpx-sys-icon-size-lg);

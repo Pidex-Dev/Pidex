@@ -78,6 +78,10 @@
     max-width: calc(100vw - 16px);
   }
 
+  .permission-select-content {
+    --dropdown-list-max-height: none;
+  }
+
   .permission-select-scroll-area {
     max-height: max(80px, calc(min(440px, 100vh - 96px) - 2 * var(--popover-surface-inset)));
   }

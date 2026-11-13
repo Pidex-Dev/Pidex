@@ -193,13 +193,13 @@
   }
 
   .file-breadcrumb-toolbar__open {
-    border-radius: var(--cpx-sys-radius-md) 0 0 var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3) 0 0 var(--cpx-sys-radius-3);
   }
 
   .file-breadcrumb-toolbar__open-menu {
     --file-open-target-seam: -1px;
     margin-left: var(--file-open-target-seam);
-    border-radius: 0 var(--cpx-sys-radius-md) var(--cpx-sys-radius-md) 0;
+    border-radius: 0 var(--cpx-sys-radius-3) var(--cpx-sys-radius-3) 0;
   }
 
   .file-breadcrumb-open-target-icon {

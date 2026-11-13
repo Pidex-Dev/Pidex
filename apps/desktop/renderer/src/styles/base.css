@@ -43,7 +43,7 @@
     left: var(--cpx-sys-space-2);
     padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     border: 1px solid var(--cpx-sys-color-border-default);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
     background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
     text-decoration: none;

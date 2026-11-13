@@ -116,20 +116,19 @@
   --text-code--line-height: var(--cpx-sys-line-height-code);
 
   --radius-none: var(--cpx-sys-radius-none);
-  --radius-2xs: var(--cpx-sys-radius-2xs);
-  --radius-xs: var(--cpx-sys-radius-xs);
-  --radius-sm: var(--cpx-sys-radius-sm);
-  --radius-md: var(--cpx-sys-radius-md);
-  --radius-lg: var(--cpx-sys-radius-lg);
-  --radius-xl: var(--cpx-sys-radius-xl);
-  --radius-2xl: var(--cpx-sys-radius-2xl);
-  --radius-3xl: var(--cpx-sys-radius-3xl);
-  --radius-4xl: var(--cpx-sys-radius-4xl);
+  --radius-1: var(--cpx-sys-radius-1);
+  --radius-2: var(--cpx-sys-radius-2);
+  --radius-3: var(--cpx-sys-radius-3);
+  --radius-4: var(--cpx-sys-radius-4);
+  --radius-5: var(--cpx-sys-radius-5);
+  --radius-6: var(--cpx-sys-radius-6);
   --radius-full: var(--cpx-sys-radius-full);
   --radius-indicator: var(--cpx-sys-radius-indicator);
   --radius-compact: var(--cpx-sys-radius-compact);
+  --radius-tooltip: var(--cpx-sys-radius-tooltip);
   --radius-item: var(--cpx-sys-radius-item);
   --radius-control: var(--cpx-sys-radius-control);
+  --radius-item-lg: var(--cpx-sys-radius-item-lg);
   --radius-container: var(--cpx-sys-radius-container);
   --radius-floating: var(--cpx-sys-radius-floating);
   --radius-prominent: var(--cpx-sys-radius-prominent);
@@ -195,6 +194,7 @@
   --height-toolbar: var(--workspace-toolbar-height);
   --height-pane-toolbar: var(--pane-toolbar-height);
 
+  --size-icon-xs: var(--cpx-sys-icon-size-xs);
   --size-icon-sm: var(--cpx-sys-icon-size-sm);
   --size-icon-md: var(--cpx-sys-icon-size-md);
   --size-icon-lg: var(--cpx-sys-icon-size-lg);
