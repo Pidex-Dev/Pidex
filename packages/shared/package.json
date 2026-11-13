@@ -12,6 +12,7 @@
     "./task-schedule": "./src/TaskSchedule.ts",
     "./events": "./src/LlmEvent.ts",
     "./desktop-theme": "./src/DesktopTheme.ts",
+    "./desktop-external-fonts": "./src/DesktopExternalFonts.ts",
     "./desktop-pet-overlay": "./src/DesktopPetOverlay.ts",
     "./desktop-data-location-ipc": "./src/DesktopDataLocationIpc.ts",
     "./desktop-deep-link-ipc": "./src/DesktopDeepLinkIpc.ts",
