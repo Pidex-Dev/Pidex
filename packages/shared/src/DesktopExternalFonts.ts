@@ -1,5 +1,11 @@
 export type DesktopExternalFontKind = 'ui' | 'code'
 
+export type DesktopExternalFontWeightOption = {
+  label: string
+  weight: number
+  sourceWeight?: number
+}
+
 export type DesktopExternalFontSpec = {
   id: string
   family: string
@@ -9,6 +15,8 @@ export type DesktopExternalFontSpec = {
   fontsourceVersion: string
   cssEntryFiles: readonly string[]
   sourceFamilyName: string
+  isVariable: boolean
+  weights: readonly DesktopExternalFontWeightOption[]
 }
 
 export const DESKTOP_EXTERNAL_FONTS: readonly DesktopExternalFontSpec[] = [
@@ -26,6 +34,13 @@ export const DESKTOP_EXTERNAL_FONTS: readonly DesktopExternalFontSpec[] = [
       'lib/Normal/MiSans-Bold.min.css',
     ],
     sourceFamilyName: 'MiSans',
+    isVariable: false,
+    weights: [
+      { label: 'Regular', weight: 400, sourceWeight: 330 },
+      { label: 'Medium', weight: 500, sourceWeight: 380 },
+      { label: 'Demibold', weight: 600, sourceWeight: 450 },
+      { label: 'Bold', weight: 700, sourceWeight: 630 },
+    ],
   },
   {
     id: 'google-sans',
@@ -36,6 +51,13 @@ export const DESKTOP_EXTERNAL_FONTS: readonly DesktopExternalFontSpec[] = [
     fontsourceVersion: '5.3.2',
     cssEntryFiles: ['index.css'],
     sourceFamilyName: 'Google Sans Variable',
+    isVariable: true,
+    weights: [
+      { label: 'Regular', weight: 400 },
+      { label: 'Medium', weight: 500 },
+      { label: 'SemiBold', weight: 600 },
+      { label: 'Bold', weight: 700 },
+    ],
   },
   {
     id: 'jetbrains-mono',
@@ -46,6 +68,17 @@ export const DESKTOP_EXTERNAL_FONTS: readonly DesktopExternalFontSpec[] = [
     fontsourceVersion: '5.2.5',
     cssEntryFiles: ['index.css'],
     sourceFamilyName: 'JetBrains Mono Variable',
+    isVariable: true,
+    weights: [
+      { label: 'Thin', weight: 100 },
+      { label: 'ExtraLight', weight: 200 },
+      { label: 'Light', weight: 300 },
+      { label: 'Regular', weight: 400 },
+      { label: 'Medium', weight: 500 },
+      { label: 'SemiBold', weight: 600 },
+      { label: 'Bold', weight: 700 },
+      { label: 'ExtraBold', weight: 800 },
+    ],
   },
   {
     id: 'google-sans-code',
@@ -56,6 +89,15 @@ export const DESKTOP_EXTERNAL_FONTS: readonly DesktopExternalFontSpec[] = [
     fontsourceVersion: '5.3.2',
     cssEntryFiles: ['index.css'],
     sourceFamilyName: 'Google Sans Code Variable',
+    isVariable: true,
+    weights: [
+      { label: 'Light', weight: 300 },
+      { label: 'Regular', weight: 400 },
+      { label: 'Medium', weight: 500 },
+      { label: 'SemiBold', weight: 600 },
+      { label: 'Bold', weight: 700 },
+      { label: 'ExtraBold', weight: 800 },
+    ],
   },
 ] as const
 
