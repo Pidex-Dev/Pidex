@@ -151,12 +151,13 @@ export function PluginSettingsDetailsView({
   // About metadata fields
   const categoryText = item.category === 'manageable' ? '效率' : item.category === 'included' ? '系统' : '扩展'
   const developerText = item.developerName || '官方'
-  const versionText = item.version || '—'
-  const websiteUrl = details?.websiteURL || ''
-  const privacyUrl = details?.privacyPolicyURL
-  const termsUrl = details?.termsOfServiceURL
-  const mcpUrl = matchingMcpServer?.summary || details?.websiteURL || null
-  const authTypeText = hasMcpAuth || requiresLogin ? 'OAuth' : '无'
+  const versionText = item.version?.trim() || ''
+  const websiteUrl = details?.websiteURL?.trim() || ''
+  const privacyUrl = details?.privacyPolicyURL?.trim() || ''
+  const termsUrl = details?.termsOfServiceURL?.trim() || ''
+  const mcpUrl = matchingMcpServer?.summary?.trim() || details?.websiteURL?.trim() || ''
+  const displayUrl = mcpUrl || (websiteUrl.startsWith('http') ? websiteUrl : '')
+  const authTypeText = hasMcpAuth || requiresLogin ? 'OAuth' : ''
 
   return (
     <div className="plugin-settings-details-view tw:w-full tw:min-w-0 tw:pb-12">
@@ -396,16 +397,18 @@ export function PluginSettingsDetailsView({
           </div>
 
           {/* 版本 */}
-          <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
-            <span className="tw:type-body-sm tw:text-app-text-soft">版本</span>
-            <span className="tw:type-body-sm tw:text-app-text">{versionText}</span>
-          </div>
+          {versionText ? (
+            <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
+              <span className="tw:type-body-sm tw:text-app-text-soft">版本</span>
+              <span className="tw:type-body-sm tw:text-app-text">{versionText}</span>
+            </div>
+          ) : null}
 
           {/* 网站 */}
-          <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
-            <span className="tw:type-body-sm tw:text-app-text-soft">网站</span>
-            <span className="tw:type-body-sm tw:text-app-text tw:truncate">
-              {websiteUrl ? (
+          {websiteUrl ? (
+            <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
+              <span className="tw:type-body-sm tw:text-app-text-soft">网站</span>
+              <span className="tw:type-body-sm tw:text-app-text tw:truncate">
                 <button
                   type="button"
                   onClick={() => handleOpenExternal(websiteUrl)}
@@ -414,17 +417,15 @@ export function PluginSettingsDetailsView({
                   <span className="tw:truncate">{websiteUrl}</span>
                   <ExternalLink size={12} className="tw:shrink-0" aria-hidden="true" />
                 </button>
-              ) : (
-                '—'
-              )}
-            </span>
-          </div>
+              </span>
+            </div>
+          ) : null}
 
           {/* 隐私政策 */}
-          <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
-            <span className="tw:type-body-sm tw:text-app-text-soft">隐私政策</span>
-            <span className="tw:type-body-sm tw:text-app-text">
-              {privacyUrl ? (
+          {privacyUrl ? (
+            <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
+              <span className="tw:type-body-sm tw:text-app-text-soft">隐私政策</span>
+              <span className="tw:type-body-sm tw:text-app-text">
                 <button
                   type="button"
                   onClick={() => handleOpenExternal(privacyUrl)}
@@ -433,17 +434,15 @@ export function PluginSettingsDetailsView({
                   查看隐私政策
                   <ExternalLink size={12} className="tw:shrink-0" aria-hidden="true" />
                 </button>
-              ) : (
-                '—'
-              )}
-            </span>
-          </div>
+              </span>
+            </div>
+          ) : null}
 
           {/* 服务条款 */}
-          <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
-            <span className="tw:type-body-sm tw:text-app-text-soft">服务条款</span>
-            <span className="tw:type-body-sm tw:text-app-text">
-              {termsUrl ? (
+          {termsUrl ? (
+            <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
+              <span className="tw:type-body-sm tw:text-app-text-soft">服务条款</span>
+              <span className="tw:type-body-sm tw:text-app-text">
                 <button
                   type="button"
                   onClick={() => handleOpenExternal(termsUrl)}
@@ -452,25 +451,25 @@ export function PluginSettingsDetailsView({
                   查看条款
                   <ExternalLink size={12} className="tw:shrink-0" aria-hidden="true" />
                 </button>
-              ) : (
-                '—'
-              )}
-            </span>
-          </div>
+              </span>
+            </div>
+          ) : null}
 
           {/* URL */}
-          <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
-            <span className="tw:type-body-sm tw:text-app-text-soft">URL</span>
-            <span className="tw:type-body-sm tw:text-app-text tw:truncate">
-              {mcpUrl || (websiteUrl.startsWith('http') ? websiteUrl : '—')}
-            </span>
-          </div>
+          {displayUrl ? (
+            <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
+              <span className="tw:type-body-sm tw:text-app-text-soft">URL</span>
+              <span className="tw:type-body-sm tw:text-app-text tw:truncate">{displayUrl}</span>
+            </div>
+          ) : null}
 
           {/* 支持的授权方式 */}
-          <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
-            <span className="tw:type-body-sm tw:text-app-text-soft">支持的授权方式</span>
-            <span className="tw:type-body-sm tw:text-app-text">{authTypeText}</span>
-          </div>
+          {authTypeText ? (
+            <div className="tw:grid tw:grid-cols-[140px_1fr] tw:items-center tw:px-3 tw:py-2 tw:gap-4">
+              <span className="tw:type-body-sm tw:text-app-text-soft">支持的授权方式</span>
+              <span className="tw:type-body-sm tw:text-app-text">{authTypeText}</span>
+            </div>
+          ) : null}
         </div>
       </section>
 
