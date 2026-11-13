@@ -51,34 +51,28 @@ Pidex 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Design`）
 
 ### 排版
 
-排版先按内容职责分为展示、结构、交互、阅读和代码五条层级，再通过 `--cpx-sys-type-*` 使用。系统字体优先使用 `MiSans`，并回退到平台系统字体；代码字体优先使用 `JetBrains Mono`，并回退到等宽系统字体。字重遵循稳定的 `400 / 500 / 600`。排版采用无单位行高（如 `1.2 / 1.333 / 1.429 / 1.5` 等）与字符间距角色（`--cpx-sys-letter-spacing-*`）。需要单独设置属性时，复用角色所依赖的 `--cpx-sys-font-size-*`、`--cpx-sys-line-height-*`、`--cpx-sys-letter-spacing-*` 和 `--cpx-sys-font-weight-*`，不得写裸字号或行高。
+排版采用参考 Radix Themes 的 **9 级比例刻度**（`--cpx-sys-font-size-1..9`：`12 / 14 / 16 / 18 / 20 / 24 / 28 / 35 / 60px`），彻底取消 `13px`，确保相邻层级至少跨 2px 以上以凸显主次。系统字体优先使用 `MiSans`，并回退到平台系统字体；代码字体优先使用 `JetBrains Mono`，并回退到等宽系统字体。字重遵循 4 档独立刻度 `300 / 400 / 500 / 700`（`tw:weight-light` / `tw:weight-regular` / `tw:weight-medium` / `tw:weight-bold`）。
 
-| 角色         | 默认字号 / 行高 / 字重 / 字距                 | 内容职责                                 | 默认前景色                         |
-| ------------ | --------------------------------------------- | ---------------------------------------- | ---------------------------------- |
-| `display`    | `28 / 1.20 / 600 / -0.70px`                   | Coding、Working 与 Chat 首页 Hero        | `fg-primary`                       |
-| `caption`    | `12 / 1.40 / 400 / 0px`                       | 时间、路径、计数和辅助状态               | `fg-tertiary`                      |
-| `label`      | `12 / 1.30 / 500 / 0.45px`                    | 分组名、字段标签和短状态标签             | 按上下文选择 secondary 或 tertiary |
-| `body-sm`    | `13 / 1.45 / 400 / 0px`                       | 次级说明、工具活动和侧栏辅助文字         | `fg-secondary`                     |
-| `control`    | `13 / 1.20 / 500 / -0.05px`                   | Button、Input、Menu、紧凑导航和文件行    | `fg-primary`                       |
-| `body`       | `14 / 1.50 / 400 / -0.05px`                   | 普通 UI 正文、评论和表单说明             | `fg-primary`                       |
-| `row-title`  | `14 / 1.50 / 500 / -0.05px`                   | 设置行、卡片行和普通对象名称             | `fg-primary`                       |
-| `reading`    | `14 / 1.50 / 400 / -0.05px`                   | 用户消息、Agent 最终回答和 Markdown 长文 | `fg-primary`                       |
-| `body-lg`    | `16 / 1.50 / 400 / -0.12px`                   | 首页 Prompt 和短引导正文                 | `fg-primary`                       |
-| `page-title` | `20 / 1.20 / 500 / -0.45px`                   | 设置页面主标题和对应加载占位             | `fg-primary`                       |
-| `heading-sm` | `18 / 1.25 / 600 / -0.25px`                   | Section、Dialog、Popover 和 Markdown H3  | `fg-primary`                       |
-| `heading-md` | `20 / 1.33 / 600 / -0.25px`                   | 重点卡片和详情页局部主标题               | `fg-primary`                       |
-| `heading-lg` | `24 / 1.20 / 600 / -0.45px`                   | Markdown H2 和强信息分区                 | `fg-primary`                       |
-| `heading-xl` | `28 / 1.20 / 600 / -0.70px`                   | 一级页面、Setup 主标题和 Markdown H1     | `fg-primary`                       |
-| `metric`     | `20 / 1.20 / 600 / -0.45px`                   | 金额、用量和统计值；使用 tabular figures | `fg-primary`                       |
-| `code`       | `13 / 1.50 / 400 / 0px`（随代码字号动态更新） | 代码、命令、Diff 和终端                  | 按语法或上下文选择                 |
+Tailwind 工具类 `tw:type-1`..`tw:type-9` 与 `tw:type-code` 仅声明 `font-family`、`font-size`、`line-height` 与 `letter-spacing`（不使用 `font:` 简写），可与 `tw:weight-*`、`tw:tabular-nums` 及前景色自由组合。需要单独设置属性时，复用 `--cpx-sys-font-size-*`、`--cpx-sys-line-height-*`、`--cpx-sys-letter-spacing-*` 和 `--cpx-sys-font-weight-*`，不得写裸字号或行高。
 
-设置页主标题使用 `page-title`（Tailwind：`tw:type-page-title`），分组标题与行标题使用 `row-title`，说明使用 `body-sm`，辅助元信息保留 `caption`；通过分组间距与对齐区分层级。
+| 刻度 | 基准字号 / 行高 / 字距 | 典型场景与默认字重 / 颜色 |
+| :--- | :--- | :--- |
+| `type-1` | `12px / 1.3333 / 0.0025em` | 行描述、辅助说明、标签、时间戳、计数元信息（`regular 400` / `medium 500`；`fg-secondary` 或 `fg-tertiary`） |
+| `type-2` | `14px / 1.4286 / 0em` | 默认 UI 正文、设置行标题（`medium 500`）、表单控件、导航项、对话正文（`fg-primary`） |
+| `type-3` | `16px / 1.5000 / 0em` | 长文引导正文、首页 Prompt（`regular 400`；`fg-primary`） |
+| `type-4` | `18px / 1.4444 / -0.0025em` | 分区标题（Section Heading）、次级标题（`bold 700`；`fg-primary`） |
+| `type-5` | `20px / 1.4000 / -0.005em` | 卡片 / 弹窗标题（Dialog / Card Title）、统计指标（搭配 `tw:tabular-nums`）（`bold 700`；`fg-primary`） |
+| `type-6` | `24px / 1.2500 / -0.00625em` | 页面主标题（如设置页主标题）、Markdown H2（`bold 700`；`fg-primary`） |
+| `type-7` | `28px / 1.2857 / -0.0075em` | 首页 / 引导页 Hero 主标题、Markdown H1（`bold 700`；`fg-primary`） |
+| `type-8` | `35px / 1.1429 / -0.01em` | 大型空状态 / 展示标题（`bold 700`；`fg-primary`） |
+| `type-9` | `60px / 1.0000 / -0.025em` | 极大展示数字 / 品牌级 Display（`bold 700`；`fg-primary`） |
+| `type-code` | `12px（随代码字号动态更新） / 1.50 / 0em` | 代码、命令、Diff 和终端（`font-mono`；`regular 400`） |
 
-普通正文使用 `400`，控件、标签和行标题使用 `500`，结构标题、指标和真正的强调使用 `600`。选中态通过背景和前景色表达，不得为了选中而改变普通列表项字重。UI 文本不得借用 `reading` 获取额外行距，工具活动也不得借用 `body` 与最终回答争夺层级。
+设置页主标题使用 `tw:type-6 tw:weight-bold`（`24px / 700`），分区标题使用 `tw:type-4 tw:weight-bold`（`18px / 700`），行标题使用 `tw:type-2 tw:weight-medium`（`14px / 500`），行描述与辅助说明使用 `tw:type-1`（`12px / 400`）。同组标题与描述至少拉开两档以上视觉反差（字号、字重与颜色协同）。
 
-会话 Markdown 使用 `--cpx-sys-line-height-prose`（1.625）和正常字距；全局 `reading` 默认值保持不变。会话标题按正文字号的 1.5 / 1.25 / 1.125 倍显示，行内代码使用 `--cpx-sys-radius-inline-code`（6px），不改变其他 UI 宿主的排版。
+会话 Markdown 使用 `--cpx-sys-line-height-prose`（1.625）和正常字距；会话标题按正文字号的 1.5 / 1.25 / 1.125 倍显示，行内代码使用 `--cpx-sys-radius-inline-code`（6px），不改变其他 UI 宿主的排版。
 
-界面字号与代码字号设置仍是两个独立主题输入。UI 默认字号是 `14px`，运行时按 `Math.round(base * uiFontSize / 14)` 对 `12 / 13 / 14 / 16 / 18 / 20 / 24 / 28px` 完整刻度进行比例缩放，因此所有语义角色在 UI 字号 `11–16px` 范围内保持相对层级。代码字号在 `8–24px` 范围独立更新 `--cpx-sys-font-size-code`，不参与 UI 比例缩放；新设置默认使用 `13px`，已有用户设置原样保留。
+界面字号与代码字号设置仍是两个独立主题输入。UI 默认字号是 `14px`，运行时按 `Math.round(base * uiFontSize / 14)` 对 `12 / 14 / 16 / 18 / 20 / 24 / 28 / 35 / 60px` 完整刻度进行比例缩放，因此所有刻度在 UI 字号 `11–16px` 范围内保持相对层级。代码字号在 `8–24px` 范围独立更新 `--cpx-sys-font-size-code`，不参与 UI 比例缩放。
 
 颜色与排版角色互相独立：正文和关键值使用 `--cpx-sys-color-fg-primary`，说明使用 `fg-secondary`，时间、路径和其他辅助元信息使用 `fg-tertiary`，`fg-disabled` 只用于真实禁用态。业务成功、警告和错误继续使用对应 tone，不以异常字号或额外粗体代替状态语义。
 
@@ -105,13 +99,25 @@ Pidex 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Design`）
 
 ### 间距
 
-普通 padding、margin 和 gap 只使用开放 4px 刻度：
+普通 padding、margin 和 gap 采用参考 Radix Themes 的 **9 级非线性刻度**（`--cpx-sys-space-1..9`：`4 / 8 / 12 / 16 / 24 / 32 / 40 / 48 / 64px`），并引入全局密度缩放因子 `--cpx-sys-scaling`（默认 `1`，`[data-ui-density="compact"]` 为 `0.9`，`[data-ui-density="spacious"]` 为 `1.1`）：
 
-| Token                  | 值                                      |
-| ---------------------- | --------------------------------------- |
-| `--cpx-sys-space-1..8` | `4 / 8 / 12 / 16 / 20 / 24 / 28 / 32px` |
+| Token                  | 值                                      | 典型场景                                      |
+| ---------------------- | --------------------------------------- | --------------------------------------------- |
+| `--cpx-sys-space-1`    | `calc(4px * var(--cpx-sys-scaling))`    | 紧凑微距、图标与文字最小间距                  |
+| `--cpx-sys-space-2`    | `calc(8px * var(--cpx-sys-scaling))`    | 控件内默认间距、列表项间隙、常规 `gap-2`      |
+| `--cpx-sys-space-3`    | `12px`                                  | 工具栏/表单控件内边距、小分区间距             |
+| `--cpx-sys-space-4`    | `16px`                                  | 卡片内边距/间隙、常规区块内边距               |
+| `--cpx-sys-space-5`    | `24px`                                  | 标准卡片内边距（`--cpx-sys-layout-card-padding`）、独立区块间距 |
+| `--cpx-sys-space-6`    | `32px`                                  | 页面左右留白（`--cpx-sys-layout-page-padding-inline`）、大分区间距 |
+| `--cpx-sys-space-7`    | `40px`                                  | 宽松页面区块间距                              |
+| `--cpx-sys-space-8`    | `48px`                                  | 大型展示/引导区间距                           |
+| `--cpx-sys-space-9`    | `64px`                                  | 页面底部安全留白（`--cpx-sys-layout-page-padding-bottom`） |
 
-页面边距、阅读宽度、Composer 安全区和侧栏缩进等跨 Feature 约束使用 `--cpx-sys-layout-*`。响应式 `vh/vw`、运行时面板宽度或拖拽边界必须声明为拥有选择器的局部变量；不得把实例尺寸提升为系统 Token。
+- **严禁小数 spacing utility**：禁止在 TSX 中使用 `0.5`、`1.5`、`2.5`、`3.5` 等小数 Tailwind spacing utility（如 `tw:gap-1.5`、`tw:px-2.5`、`tw:py-0.5`、`tw:p-3.5`），统一收敛至标准整数刻度 `1..9`。
+- **淘汰非标组件间距**：禁止在 `--cpx-comp-*` 与基础组件中新增或保留 `3px`、`5px`、`6px`、`18px` 等非标间距值，统一对齐到 4px 网格（`4 / 8 / 12 / 16px`；极少数纵向紧密行距允许 `2px`）。
+- **锁定菜单栏与 WCAG 热区底线**：`.desktop-menubar` 高度 Token（`--cpx-comp-menubar-height` / `--chrome-h` / `--application-menubar-height`）严格锁定为 `36px`，不乘 `--cpx-sys-scaling`；所有可交互控件高度使用显式 `24 / 28 / 32 / 36 / 40px` 档位并保证 `min-height >= 24px` + `flex items-center`，守住 WCAG 2.2 SC 2.5.8 点击热区底线。
+
+页面边距、阅读宽度、Composer 安全区和侧栏缩进等跨 Feature 约束使用 `--cpx-sys-layout-*`（直接引用 `--cpx-sys-space-1..9`）。响应式 `vh/vw`、运行时面板宽度或拖拽边界必须声明为拥有选择器的局部变量；不得把实例尺寸提升为系统 Token。
 
 ### 圆角
 
@@ -158,11 +164,11 @@ Pidex 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Design`）
 
 组件与页面外观写在 TSX 的 `tw:` utility 里，Token 通过 `src/styles/tailwind.css` 的 `@theme` / `@theme inline` 映射消费。
 
-- 引用运行时变量（浅色/深色/自定义主题会改变的值）写在 `@theme inline`，例如 `--color-app-panel: var(--cpx-sys-color-surface-panel)`，让 utility 直接用 `var(--cpx-sys-color-*)`，而不是复制一份静态值。
-- 静态值（如 `--spacing: 0.25rem`）写在普通 `@theme`；`--*: initial` 先清空 Tailwind 默认调色板，使 `--cpx-sys-*` 成为唯一真源。
+- 引用运行时变量（浅色/深色/自定义主题/密度会改变的值）写在 `@theme inline`，例如 `--color-app-panel: var(--cpx-sys-color-surface-panel)` 与 `--spacing-1: var(--cpx-sys-space-1)`..`--spacing-9: var(--cpx-sys-space-9)`，让 utility 直接用 `var(--cpx-sys-*)`，而不是复制一份静态值。
+- 静态字距与关键帧写在普通 `@theme`；`--*: initial` 先清空 Tailwind 默认调色板与默认 `--spacing: 0.25rem` 线性倍乘，使 `--cpx-sys-*` 成为唯一真源。
 - 排版用 `@utility type-*` 消费完整字体角色（`tw:type-title-md`、`tw:type-caption` 等），不在页面里逐条拼字号与字重。
 - 颜色、圆角、阴影、模糊、语义层级、面板尺寸、图标尺寸与动效时长都有对应映射：`tw:bg-app-*`、`tw:rounded-control`、`tw:shadow-md`、`tw:z-popover`、`tw:max-w-conversation`、`tw:size-icon-md`、`tw:duration-state`。
-- 普通间距沿用 4px 刻度：`--cpx-sys-space-N` 对应 `tw:gap-N` / `tw:px-N`。不在刻度上的控件几何用命名间距条目，例如 `--spacing-control-block: var(--cpx-comp-input-padding-block)` → `tw:py-control-block`。
+- 普通间距沿用 Radix 9 级非线性刻度：`--cpx-sys-space-1..9` 对应 `tw:gap-1..9` / `tw:px-1..9` / `tw:p-1..9` / `tw:w-1..9` / `tw:h-1..9`。控件与行几何（已对齐 4px 网格）使用命名间距条目，例如 `--spacing-control-block: var(--cpx-comp-input-padding-block)` → `tw:py-control-block`。
 - 每个 utility 与变体都必须带 `tw:` 前缀，且前缀在最前（`tw:hover:bg-app-hover`、`tw:data-[expanded=false]:grid-rows-[0fr]`）。漏写时 Tailwind 不报错也不生成规则，契约检查会直接失败。
 - 无法用 utility 表达的规则（伪元素、`color-mix` 计算的表面、需要被 `transitionend`/`getComputedStyle`/测试读取的属性、第三方生成 DOM）写入 `src/styles/primitives/<name>.css`，由 `src/styles/tailwind.css` 加载到 `primitives` 层，并在文件头注释说明原因。
 
