@@ -66,11 +66,11 @@ import { ProjectService } from './project/ProjectService'
 import { MemoryService } from './memory/MemoryService'
 import { secretScrubber } from './security/SecretScrubber'
 import { HookService } from './hooks/HookService'
+import { createHostHookRunner } from './hooks/HookHostRunner'
 import { createHooksManagement } from './hooks/HooksManagementService'
 import { HookSettingsRepository } from './storage/repositories/HookSettingsRepository'
 import { z } from 'zod'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { homedir, tmpdir } from 'node:os'
+import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { BrowserService } from './browser/BrowserService'
 import { browserToolDefinitions } from './tool/Browser/Definition'
@@ -162,6 +162,7 @@ import { createThreadReadDefinition } from './tool/ThreadRead/Definition'
 import { createWorkgroupReadDefinition } from './tool/WorkgroupRead/Definition'
 import { createAttachPullRequestDefinition } from './tool/AttachPullRequest/Definition'
 import { createMemoryToolDefinitions } from './tool/Memory/Definition'
+import { createSelfManageTools } from './tool/SelfManage'
 import { createMemoryAgentRunner } from './memory/MemoryAgentRunner'
 import { ThreadReadViewRepository } from './session/ThreadReadViewRepository'
 import {
@@ -768,66 +769,23 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     }
     const hooks = new HookService(
       db,
-      {
-        run: async (input) => {
-          if (!input.threadID || !input.turnID)
-            throw new Error('Hook command 缺少 thread/turn 上下文')
-          const turn = db.getTurnInput(input.turnID) ?? hostTurnInputs.get(input.turnID)
-          if (!turn) throw new Error('Hook command 无法解析权限快照')
-          const runtime = await workspaceResolver.resolve(input.threadID)
-          const workspace = runtime.workspace
-          const evidenceDir = await mkdtemp(join(tmpdir(), 'pidex-hook-evidence-'))
-          const evidencePath = join(evidenceDir, 'evidence.json')
-          await writeFile(evidencePath, input.evidence, 'utf8')
-          const quotedEvidencePath = evidencePath.replaceAll("'", "''")
-          const pluginDataDir =
-            input.pluginRoot && input.pluginId
-              ? join(config.dataDir, 'plugins', 'data', input.pluginId)
-              : null
-          if (pluginDataDir) await mkdir(pluginDataDir, { recursive: true })
-          const psCommand = input.pluginRoot
-            ? [
-                `$__prevClaudePluginRoot = $env:CLAUDE_PLUGIN_ROOT`,
-                `$__prevPluginData = $env:PLUGIN_DATA`,
-                `$env:CLAUDE_PLUGIN_ROOT = '${input.pluginRoot.replaceAll("'", "''")}'`,
-                ...(pluginDataDir
-                  ? [`$env:PLUGIN_DATA = '${pluginDataDir.replaceAll("'", "''")}'`]
-                  : []),
-                `try { Get-Content -Raw -LiteralPath '${quotedEvidencePath}' | & { ${input.command} } } finally { $env:CLAUDE_PLUGIN_ROOT = $__prevClaudePluginRoot; $env:PLUGIN_DATA = $__prevPluginData }`,
-              ].join('; ')
-            : `Get-Content -Raw -LiteralPath '${quotedEvidencePath}' | & { ${input.command} }`
-          try {
-            const result = await toolExecutor.execute<{
-              stdout: string
-              stderr: string
-            }>(
-              'PowerShell',
-              {
-                command: psCommand,
-                timeout: input.timeoutMs,
-                description: `执行 Hook ${input.hookID}`,
-              },
-              {
-                threadID: input.threadID,
-                turnID: input.turnID,
-                taskMode: turn.taskMode,
-                signal: new AbortController().signal,
-                workspace,
-                defaultCwd: runtime.cwd,
-                permissionConfig: turn.permissionConfig,
-                model: turn.model,
-                taskSummary: `Hook ${input.hookID}`,
-                skipHooks: true,
-              },
-            )
+      createHostHookRunner({
+        dataDir: config.dataDir,
+        resolveContext: async ({ threadID, workspaceRoot }) => {
+          if (threadID) {
+            const runtime = await workspaceResolver.resolve(threadID)
             return {
-              output: `${result.stdout}${result.stderr ? `\n${result.stderr}` : ''}`.trim(),
+              cwd: runtime.cwd,
+              projectDir: runtime.workspace.rootPath,
             }
-          } finally {
-            await rm(evidenceDir, { recursive: true, force: true }).catch(() => undefined)
+          }
+          const fallback = workspaceRoot ?? process.cwd()
+          return {
+            cwd: fallback,
+            projectDir: fallback,
           }
         },
-      },
+      }),
       (value) => secretScrubber.scrubText(value),
       async (event) => {
         await Effect.runPromise(hub.publish(event))
@@ -852,6 +810,15 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         pluginHookSources,
       },
     )
+    for (const definition of createSelfManageTools({
+      configService,
+      skillManagement: skills,
+      hooksManagement,
+      mcp,
+      plugins,
+    })) {
+      tools.register(definition)
+    }
     toolExecutor = new ToolExecutor(tools, {
       dataDir: config.dataDir,
       userConfigPath: config.storage.userConfig,

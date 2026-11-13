@@ -1,6 +1,7 @@
-import { realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { isAbsolute, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type {
   HookListResult,
   HookRunsListResult,
@@ -16,7 +17,13 @@ import {
   HookSettingsConflictError,
   type HookSettingsRepository,
 } from '../storage/repositories/HookSettingsRepository'
-import { HookConfigError } from './HookDefinitions'
+import {
+  HookConfigError,
+  MAX_HOOK_CONFIG_BYTES,
+  parseHookDefinition,
+  parseHookDefinitions,
+  type HookDefinition,
+} from './HookDefinitions'
 import { discoverHooks, type PluginHookSource } from './HookDiscovery'
 import type { HookService } from './HookService'
 import type { HooksManagementService } from './HooksManagement'
@@ -229,6 +236,107 @@ export class HooksManagement implements HooksManagementService {
   private safeErrorSummary(value: string) {
     const scrubbed = this.scrub(value).replace(/\s+/g, ' ').trim()
     return scrubbed.slice(0, MAX_ERROR_SUMMARY) || 'Hook 执行失败'
+  }
+
+  resolveHooksFile(scope: 'user' | 'project', cwd?: string): string {
+    if (scope === 'user') return resolve(this.input.userHooksFile)
+    if (!cwd) throw new AgentError('PATH_DENIED', '项目级 Hook 需要绑定工作区路径', 403)
+    const root = this.projectRootFor(cwd)
+    return join(root, '.pidex', 'hooks.json')
+  }
+
+  private async readHooksFile(filePath: string): Promise<{
+    root: Record<string, unknown>
+    hooks: HookDefinition[]
+  }> {
+    if (!existsSync(filePath)) return { root: {}, hooks: [] }
+    const raw = await readFile(filePath, 'utf8')
+    if (Buffer.byteLength(raw, 'utf8') > MAX_HOOK_CONFIG_BYTES) {
+      throw new HookConfigError('HOOK_INVALID', `Hook 配置文件超过 ${MAX_HOOK_CONFIG_BYTES} bytes`)
+    }
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      throw new HookConfigError('HOOK_INVALID', `Hook 配置文件不是有效的 JSON: ${filePath}`)
+    }
+    if (Array.isArray(parsed)) {
+      return { root: {}, hooks: parseHookDefinitions(parsed, filePath) }
+    }
+    if (!parsed || typeof parsed !== 'object') {
+      throw new HookConfigError('HOOK_INVALID', `Hook 配置文件必须是 JSON 对象: ${filePath}`)
+    }
+    const obj = parsed as Record<string, unknown>
+    if (obj.hooks === undefined) return { root: obj, hooks: [] }
+    if (Array.isArray(obj.hooks)) {
+      return { root: obj, hooks: parseHookDefinitions(obj.hooks, filePath) }
+    }
+    throw new HookConfigError(
+      'HOOK_INVALID',
+      `当前文件 ${filePath} 使用非数组 hooks 结构，请使用 hooks 数组格式或直接编辑该文件`,
+    )
+  }
+
+  async upsertHook(input: {
+    scope: 'user' | 'project'
+    cwd?: string | undefined
+    hook: HookDefinition
+  }) {
+    try {
+      const filePath = this.resolveHooksFile(input.scope, input.cwd)
+      const normalized = parseHookDefinition(input.hook, `Hook ${input.hook?.id ?? ''}`)
+      const { root, hooks } = await this.readHooksFile(filePath)
+      const index = hooks.findIndex((item) => item.id === normalized.id)
+      const nextHooks = [...hooks]
+      const action = index >= 0 ? 'updated' : 'created'
+      if (index >= 0) nextHooks[index] = normalized
+      else nextHooks.push(normalized)
+      const nextPayload = JSON.stringify({ ...root, hooks: nextHooks }, null, 2) + '\n'
+      if (Buffer.byteLength(nextPayload, 'utf8') > MAX_HOOK_CONFIG_BYTES) {
+        throw new HookConfigError('HOOK_INVALID', 'Hook 配置体积超出限制')
+      }
+      await mkdir(dirname(filePath), { recursive: true })
+      await writeFile(filePath, nextPayload, 'utf8')
+      const sources = await this.listSources(input.cwd)
+      return {
+        action,
+        filePath,
+        hook: normalized,
+        projectTrusted:
+          input.scope === 'project' && input.cwd
+            ? this.input.configService.isProjectTrusted(this.projectRootFor(input.cwd))
+            : true,
+        groups: sources.groups,
+      }
+    } catch (cause) {
+      return mapHookError(cause)
+    }
+  }
+
+  async removeHook(input: {
+    scope: 'user' | 'project'
+    cwd?: string | undefined
+    id: string
+  }) {
+    try {
+      const filePath = this.resolveHooksFile(input.scope, input.cwd)
+      const { root, hooks } = await this.readHooksFile(filePath)
+      const nextHooks = hooks.filter((item) => item.id !== input.id)
+      if (nextHooks.length === hooks.length) {
+        throw new AgentError('HOOK_NOT_FOUND', `Hook "${input.id}" 在 ${filePath} 中不存在`, 404)
+      }
+      const nextPayload = JSON.stringify({ ...root, hooks: nextHooks }, null, 2) + '\n'
+      await mkdir(dirname(filePath), { recursive: true })
+      await writeFile(filePath, nextPayload, 'utf8')
+      const sources = await this.listSources(input.cwd)
+      return {
+        removed: input.id,
+        filePath,
+        groups: sources.groups,
+      }
+    } catch (cause) {
+      return mapHookError(cause)
+    }
   }
 }
 

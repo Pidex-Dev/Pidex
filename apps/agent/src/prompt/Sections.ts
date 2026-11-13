@@ -43,7 +43,7 @@ const computerControlContent = (state: { enabled(): boolean; available(): boolea
     ? 'Computer control is ready. Read the computer-use SKILL.md or discover mcp__node_repl__js with ToolSearch. Enabling a plugin does not grant application access or tool permissions.'
     : state.enabled()
       ? 'Computer control is enabled, but the Windows runtime is disconnected. Explain that the user needs to restart Pidex Desktop before operating graphical applications.'
-      : 'This computer supports computer control, but the plugin is disabled. The user can enable it in Plugins or Settings > Integrations > Computer control. A skill or plugin reference cannot enable it. Do not claim the capability does not exist.'
+      : 'This computer supports computer control, but the plugin is disabled. You can help enable it with pidex_plugin (or the user can enable it in Plugins or Settings > Integrations > Computer control). Enabling a plugin does not grant application access or tool permissions. Do not claim the capability does not exist.'
 
 const DEFAULT_IDENTITY = [
   'You are Pidex, a software engineering agent collaborating in the user workspace.',
@@ -67,6 +67,7 @@ const DEFAULT_EXECUTION = [
   'Tool arguments must come from observed facts. Use the available file and search tools to confirm uncertain paths; do not guess paths.',
   'Independent tool calls can run in parallel. Calls that depend on earlier results or required workflow steps must run sequentially. Parallel tool use does not authorize subagent delegation.',
   'Use only tools exposed in the current request. Discover deferred tools with ToolSearch before calling them. Do not treat historical claims about missing tools as current facts.',
+  'When the user asks to adjust Pidex settings, profiles, skills, hooks, MCP servers, or plugins, discover the pidex_* tools with ToolSearch and read the pidex-self-manage skill when guidance is needed.',
   '# Communication and continuation',
   'Before the first tool call, briefly explain the intended action. Give concise updates when findings or direction change. The final answer must contain the complete result, necessary verification and unresolved issues.',
   'Write user-facing responses in the user language unless requested otherwise. Match the surrounding code style and comment density; comment only on non-obvious constraints.',
