@@ -1,4 +1,4 @@
-import { desktopClient } from '../../services/desktop-client/index.js'
+import { CONFIG_UPDATED_EVENT, desktopClient } from '../../services/desktop-client/index.js'
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
@@ -57,19 +57,46 @@ export function DesktopThemeProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     let mounted = true
-    void desktopClient
-      .getThemeSettings()
-      .then((next) => {
-        if (!mounted) return
-        const normalized = normalizeDesktopThemeSettings(next)
-        committedSettingsRef.current = normalized
-        draftSettingsRef.current = normalized
-        setSettings(normalized)
-        setDraftSettings(normalized)
-      })
-      .catch(() => undefined)
+    const syncThemeSettings = (event?: Event) => {
+      if (event instanceof CustomEvent) {
+        const detail = event.detail as { changedKeyPaths?: unknown } | undefined
+        const changedKeyPaths = detail?.changedKeyPaths
+        const touchesAppearance =
+          !Array.isArray(changedKeyPaths) ||
+          changedKeyPaths.length === 0 ||
+          changedKeyPaths.some(
+            (path) =>
+              Array.isArray(path) &&
+              path[0] === 'desktop' &&
+              (path.length === 1 || path[1] === 'appearance'),
+          )
+        if (!touchesAppearance) return
+      }
+      if (pendingSavesRef.current > 0) return
+      void desktopClient
+        .getThemeSettings()
+        .then((next) => {
+          if (!mounted || pendingSavesRef.current > 0) return
+          const normalized = normalizeDesktopThemeSettings(next)
+          const hasUnsavedDraft = !desktopThemeSettingsEqual(
+            draftSettingsRef.current,
+            committedSettingsRef.current,
+          )
+          committedSettingsRef.current = normalized
+          setSettings(normalized)
+          if (!hasUnsavedDraft) {
+            draftSettingsRef.current = normalized
+            setDraftSettings(normalized)
+          }
+        })
+        .catch(() => undefined)
+    }
+
+    syncThemeSettings()
+    window.addEventListener(CONFIG_UPDATED_EVENT, syncThemeSettings)
     return () => {
       mounted = false
+      window.removeEventListener(CONFIG_UPDATED_EVENT, syncThemeSettings)
     }
   }, [])
 
