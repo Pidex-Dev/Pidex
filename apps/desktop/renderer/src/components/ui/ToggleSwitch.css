@@ -1,8 +1,48 @@
 /*
- * ToggleSwitch private styles: forced-colors and thumb fills that cannot be utility-based.
+ * ToggleSwitch private styles: 4-tier sizing via CSS variables, thumb positioning/fills, and forced-colors.
  */
 @layer primitives {
+  .toggle-switch {
+    --cpx-switch-width: 38px;
+    --cpx-switch-height: 22px;
+    --cpx-switch-thumb-size: 16px;
+    --cpx-switch-thumb-gap: 2px;
+
+    inline-size: var(--cpx-switch-width);
+    block-size: var(--cpx-switch-height);
+    min-block-size: var(--cpx-switch-height);
+  }
+
+  .toggle-switch[data-size='xs'] {
+    --cpx-switch-width: 28px;
+    --cpx-switch-height: 16px;
+    --cpx-switch-thumb-size: 10px;
+  }
+
+  .toggle-switch[data-size='sm'] {
+    --cpx-switch-width: 32px;
+    --cpx-switch-height: 18px;
+    --cpx-switch-thumb-size: 12px;
+  }
+
+  .toggle-switch[data-size='md'] {
+    --cpx-switch-width: 38px;
+    --cpx-switch-height: 22px;
+    --cpx-switch-thumb-size: 16px;
+  }
+
+  .toggle-switch[data-size='lg'] {
+    --cpx-switch-width: 46px;
+    --cpx-switch-height: 26px;
+    --cpx-switch-thumb-size: 20px;
+  }
+
   .toggle-knob {
+    inset-block-start: 50%;
+    inset-inline-start: var(--cpx-switch-thumb-gap);
+    inline-size: var(--cpx-switch-thumb-size);
+    block-size: var(--cpx-switch-thumb-size);
+    transform: translate3d(0, -50%, 0);
     border-color: var(--cpx-sys-color-border-default);
     background: var(--cpx-comp-switch-thumb-fill);
   }
@@ -15,6 +55,12 @@
   .toggle-switch[data-state='checked'] .toggle-knob,
   .toggle-knob[data-state='checked'],
   .toggle-switch[aria-checked='true'] .toggle-knob {
+    /* 2px accounts for 1px border on left and right of .toggle-switch */
+    transform: translate3d(
+      calc(var(--cpx-switch-width) - 2px - var(--cpx-switch-thumb-size) - var(--cpx-switch-thumb-gap) * 2),
+      -50%,
+      0
+    );
     border-color: transparent;
     background: var(--cpx-comp-switch-thumb-fill);
   }
