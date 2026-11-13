@@ -324,12 +324,6 @@
     --cpx-comp-nav-section-gap: 18px;
     --cpx-comp-nav-session-indent: 30px;
 
-    /* Switch */
-    --cpx-comp-switch-width: 32px;
-    --cpx-comp-switch-height: 18px;
-    --cpx-comp-switch-thumb-size: 14px;
-    --cpx-comp-switch-thumb-gap: 2px;
-
     /* Card */
     --cpx-comp-card-padding: var(--cpx-sys-layout-card-padding);
     --cpx-comp-card-gap: var(--cpx-sys-layout-card-gap);
