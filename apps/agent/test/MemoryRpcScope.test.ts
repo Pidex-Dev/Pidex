@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeFixturePaths } from './FixtureCleanup'
 import { Capabilities, EventManifest, RpcMethods } from '@pidex/agent-protocol'
-import { MemoryService, projectMemoryKey } from '../src/memory/MemoryService'
+import { MemoryService } from '../src/memory/MemoryService'
+import { MemoryRepository } from '../src/storage/repositories/MemoryRepository'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { RpcRouter, type RpcRouterDependencies } from '../src/transport/rpc/RpcRouter'
 import { ThreadService } from '../src/session/ThreadService'
@@ -16,7 +17,7 @@ const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-memory-rpc-'))
   roots.push(root)
   const db = new AgentDatabase(join(root, 'agent.sqlite'))
-  const memory = new MemoryService(db, { enabled: true })
+  const memory = new MemoryService(db, { enabled: true, rootDirectory: join(root, 'memories') })
   const dependencies = {
     db,
     memory,
@@ -85,121 +86,166 @@ describe('Memory RPC 项目作用域', () => {
     }
   })
 
-  test('新 RPC 方法已在共享 schema 登记且 read/delete 校验 scope', async () => {
+  test('新 RPC 方法按命名空间隔离文件，跨命名空间读取返回 404', async () => {
     const { root, db, memory, call } = await fixture()
     const workspaceA = join(root, 'workspace-a')
     const workspaceB = join(root, 'workspace-b')
     await Promise.all([mkdir(workspaceA), mkdir(workspaceB)])
     const projectA = db.createProject({ rootPath: workspaceA })
     const projectB = db.createProject({ rootPath: workspaceB })
-    const entry = memory.remember({
-      scope: 'project',
-      projectKey: projectMemoryKey(projectA.id),
-      content: '仅属于 A',
-    })!
+    const namespaceA = { kind: 'project' as const, projectId: projectA.id }
+    const namespaceB = { kind: 'project' as const, projectId: projectB.id }
+    await memory.write({
+      namespace: namespaceA,
+      path: 'only-a.md',
+      content: ['---', 'name: only-a', 'description: A', 'type: project', '---', '', '正文 A', ''].join(String.fromCharCode(10)),
+    })
 
-    expect((await call('memory/read', { id: entry.id })).error).toMatchObject({ code: -32602 })
+    expect((await call('memory/read', { path: 'only-a.md' })).error).toMatchObject({ code: -32602 })
     expect(
-      (await call('memory/read', { id: entry.id, scope: 'project', projectId: projectB.id })).error,
+      (await call('memory/read', { namespace: namespaceB, path: 'only-a.md' })).error,
     ).toMatchObject({ code: -32000, data: { code: 'MEMORY_NOT_FOUND' } })
     expect(
-      (await call('memory/read', { id: entry.id, scope: 'project', projectId: projectA.id }))
-        .result,
-    ).toMatchObject({ entry: { id: entry.id, content: '仅属于 A' } })
+      (await call('memory/read', { namespace: namespaceA, path: 'only-a.md' })).result,
+    ).toMatchObject({ file: { path: 'only-a.md' } })
     expect(
       (
         await call('memory/delete', {
-          id: entry.id,
-          scope: 'project',
-          projectId: projectB.id,
+          namespace: namespaceB,
+          path: 'only-a.md',
           operationId: 'delete:b',
         })
       ).result,
-    ).toEqual({ deleted: false, id: entry.id })
-    expect(
-      memory.read({ id: entry.id, scope: 'project', projectKey: projectMemoryKey(projectA.id) }),
-    ).not.toBeNull()
+    ).toEqual({ namespace: namespaceB, path: 'only-a.md', deleted: false })
     expect(
       (
         await call('memory/delete', {
-          id: entry.id,
-          scope: 'project',
-          projectId: projectA.id,
+          namespace: namespaceA,
+          path: 'only-a.md',
           operationId: 'delete:a',
         })
       ).result,
-    ).toEqual({ deleted: true, id: entry.id })
+    ).toEqual({ namespace: namespaceA, path: 'only-a.md', deleted: true })
     db.close()
   })
 
-  test('project list/reset 缺少 projectId/threadId 时拒绝且不能跨项目清空', async () => {
+  test('project reset 只影响选定命名空间，其他项目文件保留', async () => {
     const { root, db, memory, call } = await fixture()
     const workspaceA = join(root, 'workspace-a')
     const workspaceB = join(root, 'workspace-b')
     await Promise.all([mkdir(workspaceA), mkdir(workspaceB)])
     const projectA = db.createProject({ rootPath: workspaceA })
     const projectB = db.createProject({ rootPath: workspaceB })
-    const threadA = db.createThread('A', projectA.id)
-    memory.remember({ scope: 'project', projectKey: projectMemoryKey(projectA.id), content: 'A' })
-    memory.remember({ scope: 'project', projectKey: projectMemoryKey(projectB.id), content: 'B' })
+    const namespaceA = { kind: 'project' as const, projectId: projectA.id }
+    const namespaceB = { kind: 'project' as const, projectId: projectB.id }
+    const document = (name: string) =>
+      ['---', `name: ${name}`, 'description: d', 'type: project', '---', '', name, ''].join(
+        String.fromCharCode(10),
+      )
+    await memory.write({ namespace: namespaceA, path: 'a.md', content: document('A') })
+    await memory.write({ namespace: namespaceB, path: 'b.md', content: document('B') })
 
-    expect((await call('memory/list', { scope: 'project' })).error).toMatchObject({ code: -32602 })
-    expect((await call('memory/reset', { scope: 'project' })).error).toMatchObject({ code: -32602 })
     expect(
-      (await call('memory/list', { scope: 'project', workspacePath: workspaceA })).error,
-    ).toMatchObject({ code: -32602 })
-    expect(
-      (
-        await call('memory/reset', {
-          scope: 'project',
-          projectId: projectB.id,
-          includeEventLog: false,
-          operationId: 'reset:b',
-        })
-      ).result,
+      (await call('memory/reset', { namespace: namespaceB, operationId: 'reset:b' })).result,
     ).toEqual({ deleted: 1 })
-    expect(
-      memory.list({ scope: 'project', projectKey: projectMemoryKey(projectA.id) }),
-    ).toHaveLength(1)
-    expect(
-      memory.list({ scope: 'project', projectKey: projectMemoryKey(projectB.id) }),
-    ).toHaveLength(0)
-    expect(
-      (await call('memory/list', { scope: 'project', projectId: projectA.id })).result,
-    ).toMatchObject({ entries: [{ content: 'A' }] })
-    expect(
-      (await call('memory/list', { scope: 'project', threadId: threadA.id })).error,
-    ).toMatchObject({ code: -32602 })
+    expect((await memory.list(namespaceA)).files).toHaveLength(1)
+    expect((await memory.list(namespaceB)).files).toHaveLength(0)
     db.close()
   })
 
-  test('memory/save 使用可选 id 原地更新', async () => {
+  test('memory/save 依赖 expectedRevision 阻止覆盖外部修改', async () => {
     const { db, call } = await fixture()
+    const namespace = { kind: 'user' as const }
     const created = await call('memory/save', {
-      scope: 'user',
-      content: '旧内容',
+      namespace,
+      path: 'pref.md',
+      content: '第一版',
       operationId: 'save:create',
     })
-    const id = (created.result as { entry: { id: string } }).entry.id
+    const revision = (created.result as { revision: string }).revision
     const updated = await call('memory/save', {
-      id,
-      scope: 'user',
-      content: '新内容',
+      namespace,
+      path: 'pref.md',
+      content: '第二版',
+      expectedRevision: revision,
       operationId: 'save:update',
     })
-    expect(updated.result).toMatchObject({ entry: { id, content: '新内容' } })
-    expect((await call('memory/list', { scope: 'user' })).result).toMatchObject({
-      entries: [{ id, content: '新内容' }],
+    expect(updated.result).toMatchObject({ path: 'pref.md', created: false })
+    expect(
+      (
+        await call('memory/save', {
+          namespace,
+          path: 'pref.md',
+          content: '第三版',
+          expectedRevision: revision,
+          operationId: 'save:conflict',
+        })
+      ).error,
+    ).toMatchObject({ code: -32000, data: { code: 'CONFLICT' } })
+    expect((await call('memory/list', { namespace })).result).toMatchObject({
+      files: [{ path: 'pref.md' }],
     })
-    for (const table of ['turns', 'inputs']) {
-      const columns = (
-        db.sqlite.query(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
-      ).map((column) => column.name)
-      expect(columns).not.toContain('permission_mode')
-    }
-    // MemoryService 的 drain 链通过微任务落定；先排空再关库，避免异步查询与
-    // close 竞态留下 Windows 上的 -wal/-shm 句柄。
     await Bun.sleep(0)
+    db.close()
+  })
+
+  // 仓储列存的是扁平存储键（user / project:<id>），wire 契约要求结构化联合；
+  // 出口漏转换会让 encodeSync 抛错并整包成 Internal RPC error，设置页四块数据同空。
+  test('memory/tasks 与 memory/usage 返回结构化 namespace 并通过 wire 校验', async () => {
+    const { root, db, memory, call } = await fixture()
+    const workspace = join(root, 'workspace')
+    await mkdir(workspace)
+    const project = db.createProject({ rootPath: workspace })
+    const projectNamespace = { kind: 'project' as const, projectId: project.id }
+    const agentNamespace = {
+      kind: 'agent' as const,
+      projectId: project.id,
+      memoryKey: 'reviewer',
+    }
+    const repository = new MemoryRepository(db)
+    for (const [namespace, key] of [
+      [{ kind: 'user' as const }, 'user'],
+      [projectNamespace, `project:${project.id}`],
+      [agentNamespace, `agent:${project.id}:reviewer`],
+    ] as const) {
+      repository.enqueueTask({ namespace: key, kind: 'organize', trigger: 'manual' })
+      memory.recordBodyUsage({
+        namespace,
+        threadId: 'thread:usage',
+        turnId: null,
+        path: 'MEMORY.md',
+        revision: 'a'.repeat(64),
+        truncated: false,
+        bytes: 16,
+      })
+    }
+
+    for (const namespace of [{ kind: 'user' as const }, projectNamespace, agentNamespace]) {
+      const tasks = await call('memory/tasks', { namespace, limit: 20 })
+      expect(tasks.error).toBeUndefined()
+      expect(tasks.result.tasks).toHaveLength(1)
+      expect(tasks.result.tasks[0].namespace).toEqual(namespace)
+      const usage = await call('memory/usage', { namespace, limit: 20 })
+      expect(usage.error).toBeUndefined()
+      expect(usage.result.records).toHaveLength(1)
+      expect(usage.result.records[0].namespace).toEqual(namespace)
+    }
+
+    // 不带 namespace 的全量读取同样必须是结构化联合，而不是存储键字符串。
+    const all = await call('memory/tasks', { limit: 20 })
+    expect(all.error).toBeUndefined()
+    expect(
+      [...all.result.tasks.map((task: { namespace: unknown }) => task.namespace)].sort((a, b) =>
+        JSON.stringify(a).localeCompare(JSON.stringify(b)),
+      ),
+    ).toEqual(
+      [agentNamespace, projectNamespace, { kind: 'user' }].sort((a, b) =>
+        JSON.stringify(a).localeCompare(JSON.stringify(b)),
+      ),
+    )
+    const allUsage = await call('memory/usage', { limit: 20 })
+    expect(allUsage.error).toBeUndefined()
+    expect(allUsage.result.records).toHaveLength(3)
     db.close()
   })
 

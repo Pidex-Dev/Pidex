@@ -280,7 +280,7 @@ export interface ToolInvocation {
 export interface ToolAffectedPath {
   /** Workspace-safe display path produced after host path validation. */
   path: string
-  operation: 'create' | 'update'
+  operation: 'create' | 'update' | 'delete'
 }
 
 export interface ToolReviewSummary {

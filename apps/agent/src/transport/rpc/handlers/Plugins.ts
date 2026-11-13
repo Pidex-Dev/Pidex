@@ -1,6 +1,7 @@
 import {
   PluginGetDetailsParamsSchema,
   PluginRpcMethods,
+  PluginInstallParamsSchema,
   PluginListParamsSchema,
   PluginSetEnabledParamsSchema,
   PluginLifecycleParamsSchema,
@@ -17,6 +18,7 @@ const decodeList = Schema.decodeUnknownSync(PluginListParamsSchema)
 const decodeGetDetails = Schema.decodeUnknownSync(PluginGetDetailsParamsSchema)
 const decodeSetEnabled = Schema.decodeUnknownSync(PluginSetEnabledParamsSchema)
 const decodeLifecycle = Schema.decodeUnknownSync(PluginLifecycleParamsSchema)
+const decodeInstall = Schema.decodeUnknownSync(PluginInstallParamsSchema)
 
 export const pluginHandlers = {
   name: 'plugins',
@@ -43,7 +45,7 @@ export const pluginHandlers = {
             Schema.decodeUnknownSync(PluginRpcMethods['plugin/readAsset'].params)(rawParams),
           )
         case 'plugin/install':
-          return await plugins.install(decodeLifecycle(rawParams))
+          return await plugins.install(decodeInstall(rawParams))
         case 'plugin/uninstall':
           return await plugins.uninstall(decodeLifecycle(rawParams))
         case 'plugin/list':

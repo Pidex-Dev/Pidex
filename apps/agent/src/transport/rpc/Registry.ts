@@ -14,6 +14,7 @@ import { localContextHandlers } from './handlers/LocalContext'
 import { mcpHandlers } from './handlers/Mcp'
 import { petHandlers } from './handlers/Pet'
 import { pluginHandlers } from './handlers/Plugins'
+import { hookHandlers } from './handlers/Hooks'
 import { miniMaxCliHandlers } from './handlers/MinimaxCli'
 import { releaseNotesHandlers } from './handlers/ReleaseNotes'
 import { permissionHandlers } from './handlers/Permission'
@@ -65,6 +66,7 @@ const groups: readonly RpcHandlerGroup[] = [
   gitHandlers,
   mcpHandlers,
   pluginHandlers,
+  hookHandlers,
   miniMaxCliHandlers,
   skillHandlers,
   githubHandlers,

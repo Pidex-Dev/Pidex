@@ -918,7 +918,9 @@ export class WorkspaceService {
   /**
    * Preflights and stages every mutation before writing. Each target commit is
    * atomic, but a cross-file commit can still fail partway and reports that
-   * state with PATCH_PARTIAL_COMMIT.
+   * state with PATCH_PARTIAL_COMMIT. Mutations are staged in the caller's order;
+   * deletes commit last so a create/delete pair (a move) can never remove its
+   * source before the target exists.
    */
   async commitEditorMutations(
     mutations: readonly EditorMutation[],
@@ -1069,7 +1071,15 @@ export class WorkspaceService {
           }
         }
 
-        const commitOrder = [...staged].sort((left, right) => left.key.localeCompare(right.key))
+        // Deletes always commit last: a failed create must never leave its source
+        // removed (move/rename), and creating a target is what makes the pair
+        // safe to order. Remaining ties stay deterministic by key.
+        const commitRank = (mutation: EditorMutation) => (mutation.operation === 'delete' ? 1 : 0)
+        const commitOrder = [...staged].sort(
+          (left, right) =>
+            commitRank(left.mutation) - commitRank(right.mutation) ||
+            left.key.localeCompare(right.key),
+        )
         for (const item of commitOrder) {
           const current = await this.inspectMutationPathInternal(
             item.mutation.path,

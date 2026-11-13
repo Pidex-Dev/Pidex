@@ -8,7 +8,8 @@ import type {
 } from '@pidex/agent-protocol'
 import { z } from 'zod'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
-import type { MemoryEntry, MemoryService } from '../memory/MemoryService'
+import type { MemoryListEntry, MemoryService } from '../memory/MemoryService'
+import type { MemoryNamespace } from '../memory/MemoryFiles'
 import type { PiModelService } from '../provider/pi/PiModelService'
 import { generatePiObject } from '../provider/pi/PiStructuredOutput'
 import { secretScrubber } from '../security/SecretScrubber'
@@ -127,9 +128,12 @@ const safeSuggestionText = (value: string, limit: number) =>
     .replace(/(^|[\s"'(])(?:[A-Za-z]:[\\/]|\\\\)[^\s"')\]}>,;]+/g, '$1<path>')
     .replace(/(^|[\s"'(])\/(?:[^/\s"')\]}>,;]+\/?)+/g, '$1<path>')
 
-const memoryKeyView = (entry: MemoryEntry) => ({
-  id: entry.id,
-  content: safeSuggestionText(entry.content, 2_000),
+/** Only index metadata reaches suggestions: bodies are never bulk-injected. */
+const memoryKeyView = (entry: MemoryListEntry) => ({
+  path: entry.path,
+  name: entry.name ? safeSuggestionText(entry.name, 200) : null,
+  description: entry.description ? safeSuggestionText(entry.description, 400) : null,
+  type: entry.type,
   updatedAt: entry.updatedAt,
 })
 
@@ -173,7 +177,7 @@ export class TaskSuggestionService {
   ): Promise<TaskSuggestionGenerateResult> {
     const surface = params.surface ?? 'coding'
     const context = this.normalizeContext(params, surface)
-    const memories = this.memories(params, projectKey)
+    const memories = await this.memories(params, projectKey)
     const selected = await this.selectModel(
       params.workspace.kind === 'project' ? params.workspace.projectId : undefined,
     )
@@ -271,20 +275,17 @@ export class TaskSuggestionService {
     }
   }
 
-  private memories(params: TaskSuggestionGenerateParams, projectKey?: string) {
-    const user = this.memory.list({
-      scope: 'user',
-      limit: MAX_MEMORIES_PER_SCOPE,
-    })
-    if (params.workspace.kind !== 'project' || !projectKey) return user
-    return [
-      ...user,
-      ...this.memory.list({
-        scope: 'project',
-        projectKey,
-        limit: MAX_MEMORIES_PER_SCOPE,
-      }),
-    ]
+  private async memories(
+    params: TaskSuggestionGenerateParams,
+    projectId?: string,
+  ): Promise<MemoryListEntry[]> {
+    const namespaces: MemoryNamespace[] = [{ kind: 'user' }]
+    if (params.workspace.kind === 'project' && projectId)
+      namespaces.push({ kind: 'project', projectId })
+    const listed = await Promise.all(
+      namespaces.map(async (namespace) => (await this.memory.list(namespace)).files),
+    )
+    return listed.flat().slice(0, MAX_MEMORIES_PER_SCOPE)
   }
 
   private async selectModel(projectId?: string) {
@@ -302,7 +303,7 @@ export class TaskSuggestionService {
   private async generateFresh(
     contextKey: string,
     context: ReturnType<TaskSuggestionService['normalizeContext']>,
-    memories: MemoryEntry[],
+    memories: MemoryListEntry[],
     ref: { providerID: string; id: string },
     model: PiModel<Api>,
     surface: TaskSuggestionSurface,

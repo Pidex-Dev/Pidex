@@ -31,6 +31,8 @@ const schemas = {
                 ])
                 .optional(),
               workspaceMode: z.enum(['shared', 'worktree']).optional(),
+              // 可选、稳定的命名记忆身份；仅限当前项目，宿主统一小写并校验格式。
+              memoryKey: z.string().min(1).max(64).optional(),
               model: z
                 .object({ providerID: z.string(), id: z.string(), variant: z.string().optional() })
                 .optional(),

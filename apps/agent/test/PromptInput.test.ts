@@ -96,7 +96,7 @@ test('first-party instruction and tool fixtures are English while reference cont
 })
 
 test('bundled skill metadata is valid and first-party skill prose is English', async () => {
-  for (const name of ['computer-use', 'task-planning']) {
+  for (const name of ['computer-use']) {
     const document = await Bun.file(
       new URL(`../resources/plugins/${name}/skills/${name}/SKILL.md`, import.meta.url),
     ).text()

@@ -96,6 +96,8 @@ export interface TransportDependencies {
   authSessions: PiAuthSessionService
   memory: MemoryService
   hooks: HookService
+  /** Optional: Hook 表单管理未装配时 `hook/*` 返回 INTERNAL_ERROR。 */
+  hooksManagement?: import('../hooks/HooksManagement').HooksManagementService
   review: GitReviewService
   github: GithubService
   prWatches?: PullRequestWatchService
@@ -531,6 +533,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     authSessions,
     memory,
     hooks,
+    ...(dependencies.hooksManagement ? { hooksManagement: dependencies.hooksManagement } : {}),
     review,
     github,
     git,

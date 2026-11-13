@@ -290,9 +290,15 @@ describe('BrowserService', () => {
       record: '{}',
       future_note: 'keep',
     })
-    db.sqlite.exec('PRAGMA user_version = 72; CREATE TABLE future_browser_data (id TEXT)')
+    // A version above this build models a store written by a newer release.
+    const futureVersion = SCHEMA_VERSION + 1
+    db.sqlite.exec(
+      `PRAGMA user_version = ${futureVersion}; CREATE TABLE future_browser_data (id TEXT)`,
+    )
     initializeSchema(db.sqlite)
-    expect(db.sqlite.query('PRAGMA user_version').get()).toMatchObject({ user_version: 72 })
+    expect(db.sqlite.query('PRAGMA user_version').get()).toMatchObject({
+      user_version: futureVersion,
+    })
     expect(
       db.sqlite.query("SELECT name FROM sqlite_master WHERE name = 'future_browser_data'").get(),
     ).not.toBeNull()
@@ -425,12 +431,15 @@ describe('BrowserService', () => {
     expect(db.sqlite.query('PRAGMA user_version').get()).toMatchObject({
       user_version: SCHEMA_VERSION,
     })
-    db.sqlite.exec('DROP TABLE browser_downloads; PRAGMA user_version=72')
+    const futureVersion = SCHEMA_VERSION + 1
+    db.sqlite.exec(`DROP TABLE browser_downloads; PRAGMA user_version=${futureVersion}`)
     initializeSchema(db.sqlite)
     expect(browser.available()).toBe(true)
     expect(browser.data.repository.available()).toBe(false)
     expect(() => browser.data.downloads()).toThrow('不可用')
-    expect(db.sqlite.query('PRAGMA user_version').get()).toMatchObject({ user_version: 72 })
+    expect(db.sqlite.query('PRAGMA user_version').get()).toMatchObject({
+      user_version: futureVersion,
+    })
   })
   test('device and page zoom survive guest generation changes', async () => {
     const { browser } = await fixture()

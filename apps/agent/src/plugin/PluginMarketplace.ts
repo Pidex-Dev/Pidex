@@ -1,7 +1,9 @@
 import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type {
+  PluginComponent,
   PluginDetails,
+  PluginInstallSource,
   PluginSummary,
   PluginMarketplaceSection,
   PluginAssetKind,
@@ -11,6 +13,7 @@ import {
   MAX_PLUGIN_ASSET_BYTES,
   pluginAssetResult,
   pluginPresentation,
+  unsupportedPluginComponents,
   type PluginAssets,
 } from './PluginPresentation'
 
@@ -46,7 +49,10 @@ export function marketplacePath(value: unknown): string {
   return path
 }
 
-export function parseCatalog(value: unknown): Pick<Catalog, 'entries' | 'sections'> {
+export function parseCatalog(
+  value: unknown,
+  catalogRevision?: string,
+): Pick<Catalog, 'entries' | 'sections'> {
   const catalog = object(value)
   if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.plugins)) throw new Error('无效目录')
   const ids = new Set<string>()
@@ -68,6 +74,19 @@ export function parseCatalog(value: unknown): Pick<Catalog, 'entries' | 'section
     const prompts = entry.defaultPrompts === undefined ? [] : entry.defaultPrompts
     if (!Array.isArray(skills) || !Array.isArray(prompts)) throw new Error('无效插件详情')
     const presentation = pluginPresentation(entry)
+    const parsedSkills = skills.map((rawSkill) => {
+      const skill = object(rawSkill)
+      return { id: text(skill.id), name: text(skill.name), description: text(skill.description) }
+    })
+    // The catalog only lists components the host would activate: Skills and
+    // host-managed MCP servers are resolved after download from the manifest.
+    const installComponents: PluginComponent[] = parsedSkills.map((skill) => ({
+      kind: 'skill',
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      managedBy: 'plugin',
+    }))
     const details: PluginDetails = {
       ...presentation.links,
       pluginId: id,
@@ -76,10 +95,17 @@ export function parseCatalog(value: unknown): Pick<Catalog, 'entries' | 'section
         ? entry.displayCapabilities.map(text)
         : [],
       defaultPrompts: prompts.map(text),
-      skills: skills.map((rawSkill) => {
-        const skill = object(rawSkill)
-        return { id: text(skill.id), name: text(skill.name), description: text(skill.description) }
-      }),
+      skills: parsedSkills,
+      installSource: {
+        repository: REPOSITORY,
+        ...(catalogRevision ? { catalogRevision } : {}),
+        version,
+        components: installComponents,
+        unsupportedComponents: unsupportedPluginComponents([
+          entry.commands,
+          entry.agents,
+        ]),
+      },
     }
     return {
       path: marketplacePath(entry.path),
@@ -168,6 +194,11 @@ export class PluginMarketplace {
     return this.catalog?.entries ?? []
   }
 
+  /** Pinned commit the current catalog was read from, if any. */
+  revision() {
+    return this.catalog?.commit
+  }
+
   sections() {
     return this.catalog?.sections ?? []
   }
@@ -213,7 +244,7 @@ export class PluginMarketplace {
           ),
         ),
       )
-      const parsed = parseCatalog(raw)
+      const parsed = parseCatalog(raw, commit)
       const temporary = join(this.root, `catalog-${crypto.randomUUID()}.tmp`)
       try {
         await writeFile(temporary, JSON.stringify({ commit, catalog: raw }), 'utf8')
@@ -233,7 +264,7 @@ export class PluginMarketplace {
           const cache = object(JSON.parse(decoder.decode(bytes)))
           const commit = text(cache.commit)
           if (!/^[0-9a-f]{40}$/.test(commit)) throw new Error('缓存无效')
-          this.catalog = { commit, ...parseCatalog(cache.catalog) }
+          this.catalog = { commit, ...parseCatalog(cache.catalog, commit) }
         } catch {
           /* 无缓存时仍保留本地插件。 */
         }

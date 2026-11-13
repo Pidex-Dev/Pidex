@@ -1,36 +1,24 @@
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { isAbsolute, relative, resolve } from 'node:path'
+import { realpathSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import { AgentError, type EventEnvelope } from '../Domain'
-import type { ConfigObject, ConfigService } from '../config/ConfigService'
+import type { ConfigService } from '../config/ConfigService'
+import { HookRunRepository } from '../storage/repositories/HookRunRepository'
+import type { HookSettingsRepository } from '../storage/repositories/HookSettingsRepository'
+import type { HookDecision, HookDefinition, HookEvent, HookResult } from './HookDefinitions'
+import {
+  discoverHooks,
+  type DiscoveredHookEntry,
+  type PluginHookSource,
+} from './HookDiscovery'
+import {
+  hookFileExists,
+  inlineHookDefinitions as readInlineHooks,
+  readStandaloneHookFile,
+} from './HookConfigStore'
 
-export type HookEvent =
-  | 'session_start'
-  | 'session_resume'
-  | 'user_prompt_submit'
-  | 'pre_tool_use'
-  | 'permission_request'
-  | 'post_tool_use'
-  | 'post_tool_error'
-  | 'pre_compact'
-  | 'stop'
-export type HookDecision = 'continue' | 'ask' | 'deny'
-
-export type HookDefinition = {
-  id: string
-  event: HookEvent
-  command: string
-  matcher?: string
-  timeoutMs?: number
-}
-
-export type HookResult = {
-  decision: HookDecision
-  reason?: string
-  suggestions?: string[]
-  narrowedInput?: Record<string, unknown>
-}
+export type { HookDecision, HookDefinition, HookEvent, HookResult } from './HookDefinitions'
 
 export interface HookToolRunner {
   run(input: {
@@ -41,6 +29,8 @@ export interface HookToolRunner {
     threadID?: string
     turnID?: string
     toolCallID?: string
+    pluginId?: string
+    pluginRoot?: string
   }): Promise<{ output: string }>
 }
 
@@ -50,7 +40,14 @@ export type HookRunContext = {
   turnID?: string
   toolCallID?: string
   toolName?: string
+  matcherValue?: string
   workspaceRoot?: string
+}
+export type HookServiceDiscovery = {
+  dataRoot?: string
+  userHome?: string
+  settings?: HookSettingsRepository
+  pluginHookSources?: (workspaceRoot?: string) => Promise<readonly PluginHookSource[]>
 }
 type HookConfiguration = {
   hooks: readonly HookDefinition[]
@@ -60,90 +57,44 @@ type HookConfiguration = {
   configPath: string | null
   configHash: string | null
 }
-const MAX_CONFIG_BYTES = 256 * 1024
 const MAX_OUTPUT_CHARS = 64 * 1024
-const EVENTS = new Set<HookEvent>([
-  'session_start',
-  'session_resume',
-  'user_prompt_submit',
-  'pre_tool_use',
-  'permission_request',
-  'post_tool_use',
-  'post_tool_error',
-  'pre_compact',
-  'stop',
-])
 
-const contained = (root: string, path: string) => {
-  const rel = relative(root, path)
-  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
-}
-
-const parseDefinitions = (hooks: unknown, source: string) => {
-  if (!Array.isArray(hooks)) throw new Error(`Hook 配置必须包含 hooks 数组: ${source}`)
-  return hooks.map((value, index) => {
-    if (!value || typeof value !== 'object' || Array.isArray(value))
-      throw new Error(`Hook #${index + 1} 无效`)
-    const hook = value as Record<string, unknown>
-    if (typeof hook.id !== 'string' || !hook.id.trim())
-      throw new Error(`Hook #${index + 1} 缺少 id`)
-    if (typeof hook.event !== 'string' || !EVENTS.has(hook.event as HookEvent))
-      throw new Error(`Hook ${hook.id} event 无效`)
-    if (typeof hook.command !== 'string' || !hook.command.trim())
-      throw new Error(`Hook ${hook.id} 缺少 command`)
-    if (
-      hook.timeoutMs !== undefined &&
-      (typeof hook.timeoutMs !== 'number' ||
-        !Number.isFinite(hook.timeoutMs) ||
-        hook.timeoutMs <= 0 ||
-        hook.timeoutMs > 60_000)
-    )
-      throw new Error(`Hook ${hook.id} timeoutMs 必须在 1..60000`)
-    if (hook.matcher !== undefined && typeof hook.matcher !== 'string')
-      throw new Error(`Hook ${hook.id} matcher 无效`)
-    return {
-      id: hook.id,
-      event: hook.event as HookEvent,
-      command: hook.command,
-      ...(typeof hook.matcher === 'string' ? { matcher: hook.matcher } : {}),
-      ...(typeof hook.timeoutMs === 'number' ? { timeoutMs: hook.timeoutMs } : {}),
-    }
-  })
-}
-
-const inlineHooks = (config: ConfigObject, source: string) => {
-  const hooks = config.hooks
-  if (!hooks) return []
-  if (Array.isArray(hooks)) return parseDefinitions(hooks, source)
-  if (typeof hooks !== 'object') throw new Error(`内联 Hook 配置无效: ${source}`)
-  const table = hooks as Record<string, unknown>
-  if (Array.isArray(table.config)) return parseDefinitions(table.config, source)
-  const definitions = Object.entries(table).flatMap(([id, value]) =>
-    value && typeof value === 'object' && !Array.isArray(value)
-      ? [{ id, ...(value as Record<string, unknown>) }]
-      : [],
-  )
-  return parseDefinitions(definitions, source)
-}
-
-const readConfig = (path: string, containmentRoot?: string) => {
-  const canonical = realpathSync(path)
-  if (containmentRoot && !contained(realpathSync(containmentRoot), canonical))
-    throw new Error(`Hook 配置逃出 workspace: ${path}`)
-  const bytes = readFileSync(canonical)
-  if (bytes.byteLength > MAX_CONFIG_BYTES)
-    throw new Error(`Hook 配置超过 ${MAX_CONFIG_BYTES} bytes`)
-  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-  const parsed = JSON.parse(text) as unknown
-  const hooks = Array.isArray(parsed) ? parsed : (parsed as { hooks?: unknown })?.hooks
-  const definitions = parseDefinitions(hooks, path)
-  return { definitions, canonical, hash: createHash('sha256').update(bytes).digest('hex') }
+const extractAdditionalContext = (value: Record<string, unknown>): string | undefined => {
+  const hookSpecific =
+    value.hookSpecificOutput &&
+    typeof value.hookSpecificOutput === 'object' &&
+    !Array.isArray(value.hookSpecificOutput)
+      ? (value.hookSpecificOutput as Record<string, unknown>)
+      : null
+  for (const candidate of [
+    hookSpecific?.additionalContext,
+    value.additionalContext,
+    value.additional_context,
+  ]) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim()
+  }
+  return undefined
 }
 
 const parseResult = (output: string): HookResult => {
-  const value = JSON.parse(output) as Record<string, unknown>
-  if (!value || !['continue', 'ask', 'deny'].includes(String(value.decision)))
+  const trimmed = output.trim()
+  if (!trimmed) return { decision: 'continue' }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    return { decision: 'continue', additionalContext: trimmed }
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Hook 输出缺少有效 decision')
+  }
+  const value = parsed as Record<string, unknown>
+  if (
+    value.decision !== undefined &&
+    !['continue', 'ask', 'deny'].includes(String(value.decision))
+  ) {
+    throw new Error('Hook 输出缺少有效 decision')
+  }
   if (
     value.narrowedInput !== undefined &&
     (!value.narrowedInput ||
@@ -151,8 +102,9 @@ const parseResult = (output: string): HookResult => {
       Array.isArray(value.narrowedInput))
   )
     throw new Error('Hook narrowedInput 无效')
+  const additionalContext = extractAdditionalContext(value)
   return {
-    decision: value.decision as HookDecision,
+    decision: (value.decision as HookDecision | undefined) ?? 'continue',
     ...(typeof value.reason === 'string' ? { reason: value.reason } : {}),
     ...(Array.isArray(value.suggestions)
       ? {
@@ -164,6 +116,7 @@ const parseResult = (output: string): HookResult => {
     ...(value.narrowedInput
       ? { narrowedInput: value.narrowedInput as Record<string, unknown> }
       : {}),
+    ...(additionalContext ? { additionalContext } : {}),
   }
 }
 
@@ -190,6 +143,7 @@ const isNarrowing = (original: unknown, narrowed: unknown): boolean => {
 export class HookService {
   private readonly configurations = new Map<string, HookConfiguration>()
   private readonly threadConfigurations = new Map<string, string>()
+  private readonly runs: HookRunRepository
 
   constructor(
     private readonly db: AgentDatabase,
@@ -197,42 +151,98 @@ export class HookService {
     private readonly scrub: HookScrubber = (value) => value,
     private readonly publishEvent?: (event: EventEnvelope) => Promise<void>,
     private readonly config?: ConfigService,
-  ) {}
+    private readonly discovery?: HookServiceDiscovery,
+  ) {
+    this.runs = new HookRunRepository(db.sqlite)
+  }
 
-  load(input: { userConfigPath?: string; projectRoot?: string; includeProjectHooks?: boolean }) {
+  /** Runtime reads of the run log, kept for the management service. */
+  get runRepository() {
+    return this.runs
+  }
+
+  async loadWithPlugins(input: {
+    userConfigPath?: string
+    projectRoot?: string
+    includeProjectHooks?: boolean
+  }) {
+    const pluginHookSources = this.discovery?.pluginHookSources
+      ? await this.discovery.pluginHookSources(
+          input.includeProjectHooks === false ? undefined : input.projectRoot,
+        )
+      : []
+    return this.load({ ...input, pluginHookSources })
+  }
+
+  load(input: {
+    userConfigPath?: string
+    projectRoot?: string
+    includeProjectHooks?: boolean
+    pluginHookSources?: readonly PluginHookSource[]
+  }) {
+    const disabled = this.discovery?.settings?.disabledIdentities() ?? new Set<string>()
     const layers = this.config?.snapshotLayers(input.projectRoot) ?? []
     const userLayer = layers.find((layer) => layer.kind === 'user')
     const projectLayer = layers.find((layer) => layer.kind === 'project' && layer.trusted)
-    const userHooks = [
-      ...(input.userConfigPath && existsSync(input.userConfigPath)
-        ? readConfig(input.userConfigPath).definitions
-        : []),
-      ...(userLayer ? inlineHooks(userLayer.config, userLayer.filePath ?? '用户 config.json') : []),
+
+    const discovered = discoverHooks({
+      ...(this.discovery?.dataRoot ? { dataRoot: this.discovery.dataRoot } : {}),
+      ...(this.discovery?.userHome ? { userHome: this.discovery.userHome } : {}),
+      ...(input.userConfigPath ? { userHooksFile: input.userConfigPath } : {}),
+      ...(input.projectRoot ? { workspaceRoot: input.projectRoot } : {}),
+      ...(input.includeProjectHooks !== undefined
+        ? { includeProjectHooks: input.includeProjectHooks }
+        : {}),
+      ...(input.pluginHookSources ? { pluginHookSources: input.pluginHookSources } : {}),
+    })
+
+    const isEnabled = (entry: DiscoveredHookEntry) => !disabled.has(entry.identity)
+    const discoveredUserHooks = [
+      ...discovered.userHooks.filter(isEnabled),
+      ...discovered.pluginHooks.filter((hook) => hook.scope === 'user' && isEnabled(hook)),
     ]
-    const projectHooks: HookDefinition[] = []
-    let projectConfig: ReturnType<typeof readConfig> | null = null
-    if (input.projectRoot && input.includeProjectHooks !== false) {
+    const discoveredProjectHooks = [
+      ...discovered.projectHooks.filter(isEnabled),
+      ...discovered.pluginHooks.filter((hook) => hook.scope === 'project' && isEnabled(hook)),
+    ]
+
+    // Preserve compatibility with ConfigService layers whose filePath may sit outside dataRoot (e.g. test fixtures).
+    const seenUserFiles = new Set(discoveredUserHooks.map((hook) => hook.filePath))
+    const extraUserHooks =
+      userLayer && (!userLayer.filePath || !seenUserFiles.has(userLayer.filePath))
+        ? readInlineHooks(userLayer.config, userLayer.filePath ?? '用户 config.json')
+        : []
+    const seenProjectFiles = new Set(discoveredProjectHooks.map((hook) => hook.filePath))
+    const extraProjectHooks =
+      input.includeProjectHooks !== false &&
+      projectLayer &&
+      (!projectLayer.filePath || !seenProjectFiles.has(projectLayer.filePath))
+        ? readInlineHooks(projectLayer.config, projectLayer.filePath ?? '项目 config.json')
+        : []
+
+    const userHooks: HookDefinition[] = [...discoveredUserHooks, ...extraUserHooks]
+    const projectHooks: HookDefinition[] = [...discoveredProjectHooks, ...extraProjectHooks]
+
+    let projectConfigHash = discovered.projectConfigHash
+    let projectConfigPath = discovered.projectPrimaryConfigPath
+    if (extraProjectHooks.length && projectLayer) {
+      projectConfigHash = createHash('sha256')
+        .update(`${projectConfigHash ?? ''}:${projectLayer.version}`)
+        .digest('hex')
+      projectConfigPath = projectLayer.filePath ?? projectConfigPath
+    } else if (input.projectRoot && input.includeProjectHooks !== false && !projectConfigPath) {
       const configFile = resolve(input.projectRoot, '.pidex/hooks.json')
-      if (existsSync(configFile)) {
-        const loaded = readConfig(configFile, input.projectRoot)
-        projectHooks.push(...loaded.definitions)
-        projectConfig = loaded
+      if (hookFileExists(configFile)) {
+        const loaded = readStandaloneHookFile(configFile, input.projectRoot)
+        projectConfigHash = loaded.hash
+        projectConfigPath = loaded.canonical
       }
     }
-    const projectInlineHooks =
-      input.includeProjectHooks !== false && projectLayer
-        ? inlineHooks(projectLayer.config, projectLayer.filePath ?? '项目 config.json')
-        : []
-    projectHooks.push(...projectInlineHooks)
-    const combinedProjectHash = projectInlineHooks.length
-      ? createHash('sha256')
-          .update(`${projectConfig?.hash ?? ''}:${projectLayer?.version ?? ''}`)
-          .digest('hex')
-      : (projectConfig?.hash ?? null)
+
     const hooks = Object.freeze([...userHooks, ...projectHooks])
     const key = input.projectRoot
       ? `workspace:${realpathSync(input.projectRoot)}`
-      : input.userConfigPath && existsSync(input.userConfigPath)
+      : input.userConfigPath && hookFileExists(input.userConfigPath)
         ? `user:${realpathSync(input.userConfigPath)}`
         : 'default'
     this.configurations.set(key, {
@@ -240,10 +250,8 @@ export class HookService {
       userHooks: Object.freeze([...userHooks]),
       projectHooks: Object.freeze([...projectHooks]),
       workspaceRoot: input.projectRoot ? realpathSync(input.projectRoot) : null,
-      configPath: projectInlineHooks.length
-        ? (projectLayer?.filePath ?? null)
-        : (projectConfig?.canonical ?? null),
-      configHash: combinedProjectHash,
+      configPath: projectConfigPath,
+      configHash: projectConfigHash,
     })
     return hooks.slice()
   }
@@ -286,23 +294,19 @@ export class HookService {
         const id = crypto.randomUUID()
         const startedAt = Date.now()
         const safeEvidence = this.scrub(JSON.stringify(evidence)).slice(0, MAX_OUTPUT_CHARS)
-        this.db.sqlite
-          .query(
-            "INSERT INTO hook_runs (id, thread_id, turn_id, tool_call_id, event, hook_id, status, input, command, cwd, evidence_summary, started_at) VALUES (?, ?, ?, ?, ?, ?, 'running', ?, ?, ?, ?, ?)",
-          )
-          .run(
-            id,
-            context.threadID ?? null,
-            context.turnID ?? null,
-            context.toolCallID ?? null,
-            event,
-            hook.id,
-            safeEvidence,
-            this.scrub(hook.command).slice(0, 4_000),
-            configuration.workspaceRoot,
-            safeEvidence.slice(0, 2_000),
-            startedAt,
-          )
+        this.runs.start({
+          id,
+          threadID: context.threadID ?? null,
+          turnID: context.turnID ?? null,
+          toolCallID: context.toolCallID ?? null,
+          event,
+          hookID: hook.id,
+          input: safeEvidence,
+          command: this.scrub(hook.command).slice(0, 4_000),
+          cwd: configuration.workspaceRoot,
+          evidenceSummary: safeEvidence.slice(0, 2_000),
+          startedAt,
+        })
         try {
           // The injected runner must route this command through the normal ToolExecutor.
           const execution = await this.runner.run({
@@ -310,6 +314,8 @@ export class HookService {
             command: hook.command,
             timeoutMs: Math.min(60_000, hook.timeoutMs ?? 10_000),
             evidence: safeEvidence,
+            ...(hook.pluginId ? { pluginId: hook.pluginId } : {}),
+            ...(hook.pluginRoot ? { pluginRoot: hook.pluginRoot } : {}),
             ...context,
           })
           const scrubbed = this.scrub(execution.output).slice(0, MAX_OUTPUT_CHARS)
@@ -322,29 +328,28 @@ export class HookService {
             if (!isNarrowing(originalInput, result.narrowedInput))
               throw new Error('Hook 试图扩大或替换 tool input scope')
           }
-          this.db.sqlite
-            .query(
-              "UPDATE hook_runs SET status = 'completed', output = ?, finished_at = ? WHERE id = ?",
-            )
-            .run(JSON.stringify(result), Date.now(), id)
+          this.runs.complete({ id, output: JSON.stringify(result), finishedAt: Date.now() })
           results.push({ hook, result })
         } catch (cause) {
           const error = this.scrub(cause instanceof Error ? cause.message : String(cause)).slice(
             0,
             4_000,
           )
-          this.db.sqlite
-            .query(
-              "UPDATE hook_runs SET status = 'failed', error = ?, finished_at = ? WHERE id = ?",
-            )
-            .run(error, Date.now(), id)
+          this.runs.fail({ id, error, finishedAt: Date.now() })
           throw new Error(`Hook ${hook.id} 执行失败: ${error}`)
         }
       }
     }
-    const matches = (hook: HookDefinition) =>
-      hook.event === event &&
-      (!hook.matcher || hook.matcher === '*' || hook.matcher === context.toolName)
+    const matchTarget = context.toolName ?? context.matcherValue
+    const matches = (hook: HookDefinition) => {
+      if (hook.event !== event) return false
+      if (!hook.matcher || hook.matcher === '*') return true
+      if (!matchTarget) return false
+      return hook.matcher
+        .split('|')
+        .map((part) => part.trim())
+        .includes(matchTarget)
+    }
     await execute(configuration.userHooks.filter(matches))
     const projectHooks = configuration.projectHooks.filter(matches)
     if (!projectHooks.length) return results

@@ -16,6 +16,7 @@ import { extractPluginReferences, pluginReferenceData } from '../src/plugin/Plug
 import type { RpcRouter } from '../src/transport/rpc/RpcRouter'
 import { pluginHandlers } from '../src/transport/rpc/handlers/Plugins'
 import { marketplacePath, parseCatalog } from '../src/plugin/PluginMarketplace'
+import { renameWithRetry } from '../src/plugin/PluginFileSystem'
 import {
   PluginSettingsConflictError,
   PluginSettingsRepository,
@@ -57,6 +58,7 @@ const writePlugin = async (input: {
   extension?: boolean
   details?: boolean
   skillsPath?: string
+  manifestExtra?: Record<string, unknown>
 }) => {
   const pluginRoot = join(input.root, input.id)
   const skillRoot = join(pluginRoot, 'skills', input.id)
@@ -70,6 +72,7 @@ const writePlugin = async (input: {
       description: '测试插件',
       author: { name: 'Pidex' },
       skills: input.skillsPath ?? './skills/',
+      ...input.manifestExtra,
       interface: {
         displayName: '任务规划',
         shortDescription: '拆解和规划复杂工作',
@@ -235,6 +238,20 @@ describe('PluginManagementService', () => {
           description: '测试规划技能',
         },
       ],
+      installSource: {
+        repository: 'bundled',
+        version: '1.0.0',
+        components: [
+          {
+            kind: 'skill',
+            id: 'task-planning',
+            name: 'task-planning',
+            description: '测试规划技能',
+            managedBy: 'plugin',
+          },
+        ],
+        unsupportedComponents: [],
+      },
     })
     expect(result.plugins).toContainEqual(
       expect.objectContaining({
@@ -546,9 +563,15 @@ function pluginZip(files: Record<string, string | Buffer>, symlink?: string) {
   return Buffer.concat([...local, central, end])
 }
 
-async function downloadablePlugin() {
+async function downloadablePlugin(
+  options: { manifestExtra?: Record<string, unknown>; fatalSettings?: () => boolean } = {},
+) {
   const root = await temporaryRoot()
-  const source = await writePlugin({ root: join(root, 'source'), id: 'pidex-demo' })
+  const source = await writePlugin({
+    root: join(root, 'source'),
+    id: 'pidex-demo',
+    ...(options.manifestExtra ? { manifestExtra: options.manifestExtra } : {}),
+  })
   const commit = 'a'.repeat(40)
   const prefix = `Pidex-Plugins-${commit}/plugins/pidex-demo`
   const manifest = await readFile(join(source, '.codex-plugin/plugin.json'), 'utf8')
@@ -571,6 +594,9 @@ async function downloadablePlugin() {
         description: 'Demo',
         developerName: 'Pidex',
         category: 'Demo',
+        skills: [{ id: 'pidex-demo', name: 'pidex-demo', description: '市场技能说明' }],
+        commands: ['./commands/cleanup.md'],
+        agents: { reviewer: { name: '代码审阅' } },
       },
     ],
   }
@@ -595,16 +621,30 @@ async function downloadablePlugin() {
     userHome: root,
     fetcher,
   }
-  const settings = new PluginSettingsRepository(settingsDatabase())
+  const database = settingsDatabase()
+  const settings = new PluginSettingsRepository(
+    options.fatalSettings
+      ? {
+          ...database,
+          setSetting(key: string, value: unknown) {
+            if (key === 'plugins.lifecycle.v1' && options.fatalSettings?.())
+              throw new Error('登记失败')
+            database.setSetting(key, value)
+          },
+        }
+      : database,
+  )
   const service = new PluginManagementService(settings, roots)
   return {
     root,
     roots,
     service,
     settings,
+    database,
     catalog,
     files,
     prefix,
+    commit,
     offline: () => {
       offline = true
     },
@@ -741,6 +781,279 @@ describe('downloaded plugin lifecycle', () => {
   })
 })
 
+describe('install disclosure and failure handling', () => {
+  test('discloses marketplace provenance without leaking absolute paths', async () => {
+    const fixture = await downloadablePlugin({
+      manifestExtra: {
+        mcpServers: { external_tools: {} },
+        commands: ['./commands/cleanup.md'],
+        agents: { reviewer: { name: '代码审阅' } },
+        hooks: [{ name: '自动格式化' }],
+      },
+    })
+    const listed = await fixture.service.list()
+    const entry = (await fixture.service.getDetails({ pluginId: 'pidex-demo' })).details
+    expect(entry.installSource).toEqual({
+      repository: 'codepilotx-dev/Pidex-Plugins',
+      catalogRevision: fixture.commit,
+      version: '1.0.0',
+      components: [
+        {
+          kind: 'skill',
+          id: 'pidex-demo',
+          name: 'pidex-demo',
+          description: '市场技能说明',
+          managedBy: 'plugin',
+        },
+      ],
+      unsupportedComponents: ['./commands/cleanup.md', '代码审阅'],
+    })
+    expect(JSON.stringify(entry)).not.toContain(fixture.root)
+    expect(listed.plugins[0]).toMatchObject({ id: 'pidex-demo', installed: false })
+
+    await fixture.service.install({ pluginId: 'pidex-demo', operationId: 'install' })
+    const installed = await fixture.service.listLocal()
+    const installedDetails = await fixture.service.getDetails({ pluginId: 'pidex-demo' })
+    expect(installed.plugins[0]).toMatchObject({ installed: true, source: 'installed' })
+    // Local sources disclose their source name only, and never a catalog revision.
+    expect(installedDetails.details.installSource).toEqual({
+      repository: 'installed',
+      version: '1.0.0',
+      components: [
+        {
+          kind: 'skill',
+          id: 'pidex-demo',
+          name: 'pidex-demo',
+          description: '测试规划技能',
+          managedBy: 'plugin',
+        },
+      ],
+      unsupportedComponents: ['./commands/cleanup.md', 'external_tools', '代码审阅'],
+    })
+    expect(JSON.stringify(installedDetails)).not.toContain(fixture.root)
+  })
+
+  test('host-managed MCP declarations are disclosed as activated components', async () => {
+    const root = await temporaryRoot()
+    await writePlugin({
+      root,
+      id: 'computer-use',
+      extension: true,
+      manifestExtra: { mcpServers: { node_repl: { managed: true } }, commands: ['on-open'] },
+    })
+    await mkdir(join(root, 'computer-use', '.cpx-plugin'), { recursive: true })
+    await writeFile(
+      join(root, 'computer-use', '.cpx-plugin', 'plugin.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        installation: 'INSTALLED_BY_DEFAULT',
+        capabilities: ['computer-use'],
+        hostMcpServers: ['node_repl'],
+      }),
+      'utf8',
+    )
+    const service = new PluginManagementService(new PluginSettingsRepository(settingsDatabase()), {
+      builtinPluginsRoot: root,
+      userHome: root,
+    })
+    const details = (await service.getDetails({ pluginId: 'computer-use' })).details
+    expect(details.installSource?.components).toEqual([
+      expect.objectContaining({ kind: 'skill', id: 'computer-use' }),
+      expect.objectContaining({ kind: 'mcp', id: 'node_repl', managedBy: 'host' }),
+    ])
+    expect(details.installSource?.unsupportedComponents).toEqual(['on-open'])
+  })
+
+  test('rejects a stale catalog revision before downloading', async () => {
+    const fixture = await downloadablePlugin()
+    await fixture.service.list()
+    const calls = fixture.calls()
+    await expect(
+      fixture.service.install({
+        pluginId: 'pidex-demo',
+        operationId: 'install-stale',
+        expectedCatalogRevision: 'b'.repeat(40),
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(fixture.calls()).toBe(calls)
+    expect(await readdir(join(fixture.root, 'plugins/installed'))).toEqual([])
+
+    await fixture.service.install({
+      pluginId: 'pidex-demo',
+      operationId: 'install-current',
+      expectedCatalogRevision: fixture.commit,
+    })
+    expect((await fixture.service.listLocal()).plugins[0]).toMatchObject({ installed: true })
+  })
+
+  test('omitted expectedCatalogRevision keeps the existing install behavior', async () => {
+    const fixture = await downloadablePlugin()
+    await fixture.service.install({ pluginId: 'pidex-demo', operationId: 'install' })
+    await fixture.service.uninstall({ pluginId: 'pidex-demo', operationId: 'remove' })
+    await fixture.service.install({ pluginId: 'pidex-demo', operationId: 'install-again' })
+    expect((await fixture.service.listLocal()).plugins[0]).toMatchObject({ installed: true })
+  })
+
+  test('rejects a conflicting pre-existing install directory without deleting it', async () => {
+    for (const kind of ['invalid', 'version'] as const) {
+      const fixture = await downloadablePlugin()
+      await fixture.service.list()
+      const target = join(fixture.root, 'plugins/installed/pidex-demo')
+      if (kind === 'version') {
+        await writePlugin({ root: join(fixture.root, 'plugins/installed'), id: 'pidex-demo' })
+        const manifestPath = join(target, '.codex-plugin/plugin.json')
+        const manifest = await readFile(manifestPath, 'utf8')
+        await writeFile(manifestPath, manifest.replace('1.0.0', '0.9.0'), 'utf8')
+      } else {
+        await mkdir(target, { recursive: true })
+        await writeFile(join(target, 'leftover.txt'), 'keep me', 'utf8')
+      }
+      await expect(
+        fixture.service.install({
+          pluginId: 'pidex-demo',
+          operationId: `install-${kind}`,
+          expectedCatalogRevision: fixture.commit,
+        }),
+      ).rejects.toMatchObject({ code: 'CONFLICT' })
+      expect(await readdir(target)).not.toEqual([])
+    }
+  })
+
+  test('reuses a valid activated directory to complete a failed registration retry', async () => {
+    let failing = true
+    const fixture = await downloadablePlugin({ fatalSettings: () => failing })
+    await fixture.service.list()
+    await expect(
+      fixture.service.install({ pluginId: 'pidex-demo', operationId: 'install-retry' }),
+    ).rejects.toMatchObject({ code: 'INTERNAL_ERROR', message: expect.stringContaining('刷新') })
+    // Files stay on disk and discovery still reports them as installed+ready.
+    expect((await fixture.service.listLocal()).plugins[0]).toMatchObject({ installed: true })
+
+    failing = false
+    const calls = fixture.calls()
+    const retried = await fixture.service.install({
+      pluginId: 'pidex-demo',
+      operationId: 'install-retry',
+    })
+    // The retry only registers: no second download.
+    expect(fixture.calls()).toBe(calls)
+    expect(retried.generation).toBeGreaterThan(1)
+    expect(
+      (await fixture.service.install({ pluginId: 'pidex-demo', operationId: 'install-retry' }))
+        .generation,
+    ).toBe(retried.generation)
+  })
+
+  test('restores files when uninstall registration fails', async () => {
+    let failing = false
+    const fixture = await downloadablePlugin({ fatalSettings: () => failing })
+    await fixture.service.install({ pluginId: 'pidex-demo', operationId: 'install' })
+    failing = true
+    await expect(
+      fixture.service.uninstall({ pluginId: 'pidex-demo', operationId: 'remove-failed' }),
+    ).rejects.toMatchObject({ code: 'INTERNAL_ERROR', message: expect.stringContaining('恢复') })
+    expect(
+      await Bun.file(
+        join(fixture.root, 'plugins/installed/pidex-demo/.codex-plugin/plugin.json'),
+      ).exists(),
+    ).toBe(true)
+    failing = false
+    await fixture.service.uninstall({ pluginId: 'pidex-demo', operationId: 'remove-failed' })
+    expect(await readdir(join(fixture.root, 'plugins/installed'))).toEqual([])
+  })
+
+  test('does not fail an uninstall when staging cleanup fails', async () => {
+    const fixture = await downloadablePlugin()
+    await fixture.service.install({ pluginId: 'pidex-demo', operationId: 'install' })
+    const warnings: string[] = []
+    const failingCleanup = new PluginManagementService(fixture.settings, {
+      ...fixture.roots,
+      removeDirectory: async () => {
+        throw Object.assign(new Error('locked'), { code: 'EBUSY' })
+      },
+      logger: {
+        warn: (event) => {
+          warnings.push(event)
+        },
+      },
+    })
+    const remove = await failingCleanup.uninstall({
+      pluginId: 'pidex-demo',
+      operationId: 'remove-cleanup-failed',
+    })
+    expect(remove.generation).toBeGreaterThan(1)
+    expect(warnings).toEqual(['plugins.lifecycle.cleanup.failed'])
+    // Files are staged out of the installed root even though cleanup failed.
+    const installedEntries = await readdir(join(fixture.root, 'plugins/installed'))
+    expect(installedEntries).not.toContain('pidex-demo')
+    expect(installedEntries.some((name) => name.startsWith('.remove-'))).toBe(true)
+  })
+
+  test('a throwing subscriber cannot rewrite a completed operation result', async () => {
+    const fixture = await downloadablePlugin()
+    fixture.service.subscribe(() => {
+      throw new Error('subscriber exploded')
+    })
+    const installed = await fixture.service.install({
+      pluginId: 'pidex-demo',
+      operationId: 'install',
+    })
+    expect(installed).toMatchObject({ pluginId: 'pidex-demo' })
+    expect((await fixture.service.listLocal()).plugins[0]).toMatchObject({ installed: true })
+  })
+})
+
+describe('renameWithRetry', () => {
+  test('retries transient occupancy errors a bounded number of times', async () => {
+    const delays: number[] = []
+    const attempts: string[] = []
+    let failures = 3
+    await renameWithRetry('from', 'to', {
+      delay: async (milliseconds) => {
+        delays.push(milliseconds)
+      },
+      rename: async () => {
+        attempts.push('rename')
+        if (failures-- > 0) throw Object.assign(new Error('busy'), { code: 'EBUSY' })
+      },
+    })
+    expect(delays).toEqual([25, 50, 100])
+    expect(attempts).toHaveLength(4)
+  })
+
+  test('gives up after three retries and surfaces the occupancy error', async () => {
+    const delays: number[] = []
+    await expect(
+      renameWithRetry('from', 'to', {
+        delay: async (milliseconds) => {
+          delays.push(milliseconds)
+        },
+        rename: async () => {
+          throw Object.assign(new Error('locked'), { code: 'EPERM' })
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'EPERM' })
+    expect(delays).toEqual([25, 50, 100])
+  })
+
+  test('never retries non-occupancy failures', async () => {
+    for (const code of ['ENOENT', 'EINVAL', 'EISDIR']) {
+      const delays: number[] = []
+      await expect(
+        renameWithRetry('from', 'to', {
+          delay: async (milliseconds) => {
+            delays.push(milliseconds)
+          },
+          rename: async () => {
+            throw Object.assign(new Error('bad path'), { code })
+          },
+        }),
+      ).rejects.toMatchObject({ code })
+      expect(delays).toEqual([])
+    }
+  })
+})
+
 const testPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aV1sAAAAASUVORK5CYII=',
   'base64',
@@ -836,4 +1149,63 @@ test('installed metadata and assets take precedence and reject unsafe/missing im
       plugins: [fixture.catalog.plugins[0], fixture.catalog.plugins[0]],
     }),
   ).toThrow()
+})
+
+test('PluginManagementService discovers https remote Git URL entries in marketplace.json and rejects unsafe URLs', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pidex-remote-marketplace-'))
+  try {
+    const db = new AgentDatabase(join(root, 'profile.sqlite'))
+    const home = join(root, 'home')
+    const dataRoot = join(root, 'data')
+    await mkdir(join(home, '.agents', 'plugins'), { recursive: true })
+    await writeFile(
+      join(home, '.agents', 'plugins', 'marketplace.json'),
+      JSON.stringify({
+        name: 'personal',
+        plugins: [
+          {
+            name: 'ponytail',
+            source: {
+              source: 'url',
+              url: 'https://github.com/DietrichGebert/ponytail.git',
+              ref: 'main',
+            },
+            policy: { installation: 'AVAILABLE' },
+            category: 'Productivity',
+          },
+          {
+            name: 'bad-url',
+            source: {
+              source: 'url',
+              url: 'file:///tmp/evil',
+            },
+          },
+        ],
+      }),
+      'utf8',
+    )
+    const service = new PluginManagementService(new PluginSettingsRepository(db), {
+      builtinPluginsRoot: join(root, 'builtin'),
+      userHome: home,
+      dataRoot,
+    })
+    const listed = await service.listLocal()
+    const ponytail = listed.plugins.find((p) => p.id === 'ponytail')
+    const badUrl = listed.plugins.find((p) => p.id === 'bad-url')
+    expect(ponytail).toMatchObject({
+      id: 'ponytail',
+      source: 'personal',
+      status: 'ready',
+      installed: false,
+      category: 'Productivity',
+    })
+    expect(badUrl).toMatchObject({
+      id: 'bad-url',
+      status: 'invalid',
+      unavailableReason: '插件远程仓库地址无效',
+    })
+    db.close()
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })

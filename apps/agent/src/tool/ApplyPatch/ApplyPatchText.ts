@@ -166,6 +166,20 @@ const replacementValue = (
   return `${eol}${newLines.join(eol)}${eol}`
 }
 
+/**
+ * A hunk is applied as one replacement per actually added/deleted run. Context
+ * lines are never rewritten, so their original bytes and mixed line endings
+ * survive even inside a single hunk.
+ */
+const chunkEdits = (chunk: ApplyPatchChunk) =>
+  chunk.edits ?? [
+    {
+      oldIndex: 0,
+      oldCount: chunk.oldLines.length,
+      newLines: chunk.newLines,
+    },
+  ]
+
 export const applyPatchText = (
   path: string,
   chunks: readonly ApplyPatchChunk[],
@@ -212,19 +226,51 @@ export const applyPatchText = (
     }
 
     const endLine = startLine + chunk.oldLines.length
-    const rawStart = startLine < lines.length ? lines[startLine]!.start : content.length
-    const rawEnd = chunk.oldLines.length > 0 ? lines[endLine - 1]!.end : rawStart
-    const replacement: Replacement = {
-      start: rawStart,
-      end: rawEnd,
-      value: replacementValue(content, lines, startLine, chunk.oldLines.length, chunk.newLines),
-      startLine,
-      endLine,
-      hunk,
+    const edits = chunkEdits(chunk)
+    if (edits.length === 0) {
+      // Context-only hunk: keep the original bytes but still reserve the range so
+      // a later hunk cannot silently overlap it.
+      const rawStart = startLine < lines.length ? lines[startLine]!.start : content.length
+      const rawEnd = chunk.oldLines.length > 0 ? lines[endLine - 1]!.end : rawStart
+      replacements.push({
+        start: rawStart,
+        end: rawEnd,
+        value: content.slice(rawStart, rawEnd),
+        startLine,
+        endLine,
+        hunk,
+      })
+      cursor = Math.max(cursor, endLine)
+      continue
     }
-    const conflict = replacements.find((existing) => overlaps(existing, replacement))
-    if (conflict) overlapError(path, conflict.hunk, hunk)
-    replacements.push(replacement)
+    for (const edit of edits) {
+      const editStart = startLine + edit.oldIndex
+      let rawStart: number
+      let rawEnd: number
+      if (edit.oldCount > 0) {
+        rawStart = lines[editStart]!.start
+        rawEnd = lines[editStart + edit.oldCount - 1]!.end
+      } else if (edit.oldIndex > 0) {
+        // Pure insertion belongs after the preceding context line, not before
+        // the following one.
+        rawStart = lines[editStart - 1]!.end
+        rawEnd = rawStart
+      } else {
+        rawStart = editStart < lines.length ? lines[editStart]!.start : content.length
+        rawEnd = rawStart
+      }
+      const replacement: Replacement = {
+        start: rawStart,
+        end: rawEnd,
+        value: replacementValue(content, lines, editStart, edit.oldCount, edit.newLines),
+        startLine: editStart,
+        endLine: editStart + edit.oldCount,
+        hunk,
+      }
+      const conflict = replacements.find((existing) => overlaps(existing, replacement))
+      if (conflict) overlapError(path, conflict.hunk, hunk)
+      replacements.push(replacement)
+    }
     cursor = Math.max(cursor, endLine)
   }
 
@@ -235,10 +281,22 @@ export const applyPatchText = (
   }
   return {
     content: hasBom ? `\uFEFF${updated}` : updated,
-    changes: replacements.map(({ hunk, startLine, endLine }) => ({
-      hunk,
-      startLine: startLine + 1,
-      endLine: Math.max(startLine + 1, endLine),
-    })),
+    changes: summarizeChanges(replacements),
   }
+}
+
+const summarizeChanges = (replacements: readonly Replacement[]) => {
+  const byHunk = new Map<number, { firstStart: number; lastEnd: number }>()
+  for (const replacement of replacements) {
+    const current = byHunk.get(replacement.hunk)
+    byHunk.set(replacement.hunk, {
+      firstStart: Math.min(current?.firstStart ?? replacement.startLine, replacement.startLine),
+      lastEnd: Math.max(current?.lastEnd ?? replacement.endLine, replacement.endLine),
+    })
+  }
+  return [...byHunk.entries()].map(([hunk, { firstStart, lastEnd }]) => ({
+    hunk,
+    startLine: firstStart + 1,
+    endLine: Math.max(firstStart + 1, lastEnd),
+  }))
 }

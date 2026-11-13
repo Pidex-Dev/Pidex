@@ -28,6 +28,7 @@ import { SUBAGENT_COLLABORATION_SCHEMA } from '../../subagent/SubagentCollaborat
 import { AUTOMATION_HOST_AUDIT_SCHEMA } from '../../automation/AutomationHostAuditRepository'
 import { PERMISSION_RULES_SCHEMA } from '../repositories/PermissionRuleRepository'
 import { MODEL_RUNTIME_PREFERENCE_SCHEMA } from '../repositories/ModelRuntimePreferenceRepository'
+import { MEMORY_FILE_SCHEMA } from '../repositories/MemoryRepository'
 
 import { PROFILE_APPLICATION_ID, PROFILE_SCHEMA_VERSION, SCHEMA_VERSION } from './Schema'
 
@@ -145,7 +146,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE sandbox_escalations (\n      token TEXT PRIMARY KEY,\n      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n      turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n      agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n      tool_call_id TEXT NOT NULL,\n      invocation TEXT NOT NULL,\n      invocation_hash TEXT NOT NULL DEFAULT '',\n      failure TEXT NOT NULL,\n      status TEXT NOT NULL,\n      output TEXT,\n      created_at INTEGER NOT NULL,\n      claimed_at INTEGER,\n      completed_at INTEGER\n    )",
   'CREATE TABLE subagent_controls (\n          id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES subagent_tasks(id) ON DELETE CASCADE,\n          run_id TEXT REFERENCES subagent_runs(id) ON DELETE CASCADE,\n          action TEXT NOT NULL,\n          payload TEXT NOT NULL,\n          status TEXT NOT NULL,\n          result TEXT,\n          error TEXT,\n          created_at INTEGER NOT NULL,\n          applied_at INTEGER\n        )',
   'CREATE TABLE subagent_runs (\n          id TEXT PRIMARY KEY,\n          task_id TEXT NOT NULL REFERENCES subagent_tasks(id) ON DELETE CASCADE,\n          generation INTEGER NOT NULL,\n          status TEXT NOT NULL,\n          queue_reason TEXT,\n          model_ref TEXT NOT NULL,\n          permission_config TEXT NOT NULL,\n          result TEXT,\n          error TEXT,\n          created_at INTEGER NOT NULL,\n          started_at INTEGER,\n          finished_at INTEGER,\n          updated_at INTEGER NOT NULL,\n          UNIQUE(task_id, generation)\n        )',
-  "CREATE TABLE subagent_tasks (\n          id TEXT PRIMARY KEY,\n          parent_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          parent_turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          parent_agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n          child_thread_id TEXT NOT NULL UNIQUE REFERENCES threads(id) ON DELETE CASCADE,\n          display_name TEXT NOT NULL,\n          profile TEXT NOT NULL,\n          role TEXT,\n          task TEXT NOT NULL,\n          permission_ceiling TEXT NOT NULL,\n          workspace_mode TEXT NOT NULL,\n          workspace_state TEXT NOT NULL DEFAULT '{}',\n          current_run_id TEXT,\n          status TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
+  "CREATE TABLE subagent_tasks (\n          id TEXT PRIMARY KEY,\n          parent_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          parent_turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          parent_agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n          child_thread_id TEXT NOT NULL UNIQUE REFERENCES threads(id) ON DELETE CASCADE,\n          display_name TEXT NOT NULL,\n          profile TEXT NOT NULL,\n          role TEXT,\n          memory_key TEXT,\n          task TEXT NOT NULL,\n          permission_ceiling TEXT NOT NULL,\n          workspace_mode TEXT NOT NULL,\n          workspace_state TEXT NOT NULL DEFAULT '{}',\n          current_run_id TEXT,\n          status TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE threads (\n        id TEXT PRIMARY KEY,\n        title TEXT NOT NULL,\n        kind TEXT NOT NULL DEFAULT 'main',\n        parent_thread_id TEXT REFERENCES threads(id) ON DELETE CASCADE,\n        creation_surface TEXT CHECK(creation_surface IS NULL OR creation_surface IN ('coding','working','chat')),\n        task_mode TEXT NOT NULL DEFAULT 'chat',\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      , project_id TEXT REFERENCES projects(id) ON DELETE SET NULL, workspace_kind TEXT NOT NULL DEFAULT 'legacy', workspace_root TEXT, workspace_cwd TEXT, workspace_roots TEXT, instruction_sources TEXT, output_directory TEXT, create_operation_id TEXT, create_request_hash TEXT, archived_at INTEGER, preview TEXT, first_user_message TEXT, message_count INTEGER NOT NULL DEFAULT 0, prompt_settings TEXT NOT NULL DEFAULT '{}', queue_version INTEGER NOT NULL DEFAULT 0, queue_pause_reason TEXT, git_branch TEXT, workspace_owner_thread_id TEXT)",
   "CREATE TABLE thread_execution_bindings (\n          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,\n          binding_id TEXT NOT NULL UNIQUE,\n          kind TEXT NOT NULL CHECK(kind IN ('local','worktree')),\n          project_id TEXT,\n          cwd TEXT NOT NULL,\n          worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE RESTRICT,\n          revision INTEGER NOT NULL DEFAULT 1,\n          environment_revision INTEGER NOT NULL DEFAULT 0,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          CHECK((kind = 'local' AND worktree_id IS NULL) OR (kind = 'worktree' AND project_id IS NOT NULL AND worktree_id IS NOT NULL))\n        )",
   "CREATE TABLE thread_handoff_operations (\n          operation_id TEXT PRIMARY KEY,\n          source_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          target_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          source_binding_id TEXT,\n          target_binding_id TEXT,\n          destination_kind TEXT CHECK(destination_kind IN ('local','worktree')),\n          destination_worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL,\n          direction TEXT NOT NULL CHECK(direction IN ('local-to-worktree','worktree-to-local')),\n          request_hash TEXT NOT NULL,\n          status TEXT NOT NULL CHECK(status IN ('running','await-client-transfer','completed','failed','rollback-failed')),\n          step TEXT NOT NULL,\n          revision INTEGER NOT NULL DEFAULT 1,\n          error_code TEXT,\n          warnings TEXT NOT NULL DEFAULT '[]',\n          rollback_journal TEXT NOT NULL DEFAULT '{}',\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          completed_at INTEGER\n        )",
@@ -198,6 +199,7 @@ export const FINAL_SCHEMA = [
   ...BROWSER_DATA_SCHEMA,
   ...PERMISSION_RULES_SCHEMA,
   ...MODEL_RUNTIME_PREFERENCE_SCHEMA,
+  ...MEMORY_FILE_SCHEMA,
   ...THREAD_CONTEXT_LIMITS_SCHEMA,
   'CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)',
   'CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)',
@@ -1489,6 +1491,27 @@ export class SchemaInitializer {
     const migrations: Record<number, () => void> =
       this.kind === 'history'
         ? {
+            73: () => {
+              // 文件记忆：Markdown 是唯一正文来源，这些独立表只保存代际、游标、
+              // 后台任务、来源与使用记录。旧 memory_entries/memory_jobs 保持基线形状。
+              // 子 Agent 命名记忆的 memory_key 只是 nullable 列，旧写入方无需提供。
+              this.sqlite.exec(
+                MEMORY_FILE_SCHEMA.map((statement) =>
+                  statement
+                    .replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ')
+                    .replace('CREATE INDEX ', 'CREATE INDEX IF NOT EXISTS '),
+                ).join(';'),
+              )
+              const columns = new Set(
+                (
+                  this.sqlite.query('PRAGMA table_info(subagent_tasks)').all() as Array<{
+                    name: string
+                  }>
+                ).map((column) => column.name),
+              )
+              if (columns.size > 0 && !columns.has('memory_key'))
+                this.sqlite.exec('ALTER TABLE subagent_tasks ADD COLUMN memory_key TEXT')
+            },
             72: () => this.sqlite.exec(MODEL_PRICING_SCHEMA.map(statement => statement.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ')).join(';')),
             // 子智能体展示职能：nullable 列，旧写入方无需提供，不回填历史推断结果。
             71: () => {

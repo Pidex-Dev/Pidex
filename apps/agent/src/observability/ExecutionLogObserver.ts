@@ -67,7 +67,9 @@ const affectedPaths = (value: unknown) => {
     return [
       {
         path,
-        ...(operation === 'create' || operation === 'update' ? { operation } : {}),
+        ...(operation === 'create' || operation === 'update' || operation === 'delete'
+          ? { operation }
+          : {}),
       },
     ]
   })
@@ -123,11 +125,14 @@ const toolDetails = (
       metric('createCount') ?? files.filter((file) => file.operation === 'create').length
     const updateCount =
       metric('updateCount') ?? files.filter((file) => file.operation === 'update').length
+    const deleteCount =
+      metric('deleteCount') ?? files.filter((file) => file.operation === 'delete').length
     return {
       ...(files.length ? { affectedPaths: files } : {}),
       fileCount,
       createCount,
       updateCount,
+      deleteCount,
       ...omitUndefined({ patchBytes, hunkCount, additions, deletions }),
     }
   }

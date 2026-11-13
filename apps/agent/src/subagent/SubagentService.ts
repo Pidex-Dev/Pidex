@@ -1,3 +1,4 @@
+import type { HookService } from '../hooks/HookService'
 import { ThreadGoalControlRepository } from '../storage/repositories/ThreadGoalControlRepository'
 import type { Model } from '@pidex/model-schema'
 import {
@@ -38,7 +39,8 @@ import {
   type PromptBundle,
 } from '../prompt'
 import type { SkillManagementService } from '../prompt/SkillManagementService'
-import { projectMemoryKey, type MemoryService } from '../memory/MemoryService'
+import { memoryIndexPrompts, type MemoryService, type MemoryToolScope } from '../memory/MemoryService'
+import { normalizeMemoryKey, type MemoryNamespace } from '../memory/MemoryFiles'
 import { ContextManager, type ContextFragment } from '../context/ContextManager'
 import type { McpConnectionManager, McpTurnLease } from '../mcp/McpConnectionManager'
 import { createMcpInstructionSections } from '../mcp/McpPromptSections'
@@ -143,6 +145,7 @@ export class SubagentService {
     resumeCheckpoints?: ResumeCheckpointResolver,
     recoverOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
+    private readonly hooks?: HookService,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals)
     this.resumeCheckpoints.setResolvedSubagentWait((turnID) => this.resolvedWaitCheckpoint(turnID))
@@ -384,6 +387,8 @@ export class SubagentService {
       profile: 'default' | 'explorer' | 'worker'
       task: string
       role?: SubagentRole
+      /** Optional stable named-memory identity, scoped to the parent project. */
+      memoryKey?: string
       workspaceMode?: 'shared' | 'worktree'
       model?: Model.Ref
     }>,
@@ -409,6 +414,18 @@ export class SubagentService {
     if (agents.some((agent) => !agent.task.trim()))
       throw new AgentError('SUBAGENT_TASK_REQUIRED', '子 Agent 任务不能为空', 400)
     this.collaboration.assertCapacity(root.turnID, agents.length, agents.length)
+    const projectID = this.db.threadProjectID(root.threadID) ?? null
+    // An invalid key is rejected outright; it is never normalized into a
+    // different identity that would silently share another agent's memory.
+    for (const requested of agents) {
+      if (requested.memoryKey === undefined) continue
+      if (!normalizeMemoryKey(requested.memoryKey) || !projectID)
+        throw new AgentError(
+          'MEMORY_KEY_INVALID',
+          'memoryKey 必须是 1–64 位 ASCII 字母、数字、下划线或连字符，且仅在项目任务中可用',
+          400,
+        )
+    }
     await Promise.all(agents.map((requested) => this.resolveModel(requested.model ?? root.model)))
     const parentTools = parent.subagentRunID
       ? this.collaboration.allowedTools(this.repository.run(parent.subagentRunID)!.taskId)
@@ -444,6 +461,9 @@ export class SubagentService {
         displayName,
         profile,
         ...(requested.role ? { role: requested.role } : {}),
+        ...(requested.memoryKey
+          ? { memoryKey: normalizeMemoryKey(requested.memoryKey)! }
+          : {}),
         task: requested.task.trim(),
         model,
         ...(allowedTools ? { allowedTools } : {}),
@@ -489,6 +509,28 @@ export class SubagentService {
     }
     void this.schedule()
     return { agents: created }
+  }
+
+  /**
+   * The bound identity comes from the persisted task row, never from model
+   * input at execution time, so a subagent cannot switch or widen its namespace.
+   */
+  memoryKeyForTask(task: { childThreadId: string }) {
+    return this.repository.taskForChildThread(task.childThreadId)?.memoryKey ?? null
+  }
+
+  /** Host binding used by the memory tools for a subagent thread. */
+  memoryScopeForThread(threadID: string): MemoryToolScope | null {
+    const task = this.repository.taskForChildThread(threadID)
+    if (!task) return null
+    const projectID = this.db.threadProjectID(task.parentThreadId) ?? null
+    if (!projectID) return null
+    const namespace: MemoryNamespace = task.memoryKey
+      ? { kind: 'agent', projectId: projectID, memoryKey: task.memoryKey }
+      : { kind: 'project', projectId: projectID }
+    // Writes stay profile-gated by the tool catalog; the scope only names what
+    // this subagent may see.
+    return { namespace, writable: [namespace] }
   }
 
   isWaitSatisfied(runIDs: string[], mode: 'all' | 'any') {
@@ -926,14 +968,50 @@ export class SubagentService {
         parentWorkspace?.kind === 'project'
           ? ((await this.projectSources?.catalog(parentWorkspace.projectID)) ?? null)
           : null
-      const memories =
-        this.memory?.recall({
-          query: input.content,
-          ...(parentWorkspace?.kind === 'project'
-            ? { projectKey: projectMemoryKey(parentWorkspace.projectID) }
-            : {}),
-          subagent: true,
-        }) ?? []
+      // Subagents never read global user memory: they see the project index plus
+      // their own bound named-memory index when the spawner set a memoryKey.
+      const memoryInjection = this.memory
+        ? await this.memory.inject({
+            projectId: parentWorkspace?.kind === 'project' ? parentWorkspace.projectID : null,
+            ...(this.memoryKeyForTask(task) ? { memoryKey: this.memoryKeyForTask(task)! } : {}),
+            userMessage: input.content,
+            threadId: task.childThreadId,
+            turnId: agent.turnID,
+          })
+        : { sections: [], ignored: false }
+      const subagentHookResults = this.hooks
+        ? await (async () => {
+            const projectRoot =
+              parentWorkspace?.kind === 'project'
+                ? (parentWorkspace.runtimeWorkspaceRoots[0]?.path ?? workspace.rootPath)
+                : undefined
+            await this.hooks!.loadWithPlugins({
+              ...(projectRoot ? { projectRoot, includeProjectHooks: true } : { includeProjectHooks: false }),
+            })
+            return this.hooks!.run(
+              'subagent_start',
+              {
+                threadID: task.childThreadId,
+                parentThreadID: task.parentThreadId,
+                turnID: task.parentTurnId,
+                agentID: agent.id,
+                role: task.role,
+                profile: task.profile,
+                ...(projectRoot ? { workspace: projectRoot } : {}),
+              },
+              {
+                threadID: task.parentThreadId,
+                turnID: task.parentTurnId,
+                ...(projectRoot ? { workspaceRoot: projectRoot } : {}),
+                matcherValue: task.profile ?? task.role,
+              },
+            )
+          })()
+        : []
+      const subagentHookFeedback = subagentHookResults.flatMap(({ hook, result }) => [
+        ...(result.additionalContext ? [result.additionalContext] : []),
+        ...(result.suggestions ?? []).map((suggestion) => `Hook ${hook.id} suggestion: ${suggestion}`),
+      ])
       const promptSections = createPromptSections({
         permissionInstructions: formatPermissionInstructions(
           permissionConfig,
@@ -945,9 +1023,7 @@ export class SubagentService {
         environment: `Workspace: ${workspace.rootPath}`,
         projectInstructions: instructionSources.sources,
         skills: skillCatalog.skills,
-        memories: memories.map(
-          (entry) => `Possibly outdated project reference memory: ${entry.content}`,
-        ),
+        memories: memoryIndexPrompts(memoryInjection),
         stableExternalData:
           projectSourceCatalog && projectSourceCatalog.total > 0
             ? [projectSourceCatalog.content]
@@ -957,6 +1033,7 @@ export class SubagentService {
             (reference) =>
               `<local_context kind=${JSON.stringify(reference.kind)} path=${JSON.stringify(reference.path)}>${reference.name.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</local_context>`,
           ),
+          ...subagentHookFeedback,
           ...invokedSkillData,
         ],
         userMessage: input.content,
@@ -1146,6 +1223,18 @@ export class SubagentService {
       await mcpLease?.release()
       mcpLease = undefined
       await this.completeChild(taskID, runID, agent.turnID, agent.id, result, controller.signal)
+      // Only writable subagents with a bound identity leave durable memory work;
+      // explorers stay read-only and never auto-promote into the project namespace.
+      const memoryKey = this.memoryKeyForTask(task)
+      const parentProjectID = this.db.threadProjectID(task.parentThreadId) ?? null
+      if (this.memory && memoryKey && parentProjectID && task.profile !== 'explorer') {
+        this.memory.enqueueExtract({
+          namespace: { kind: 'agent', projectId: parentProjectID, memoryKey },
+          threadId: task.childThreadId,
+          turnId: agent.turnID,
+          modelRef: JSON.stringify(run.model),
+        })
+      }
       startupGateSafe = true
     } catch (cause) {
       if (cause instanceof AgentError && cause.code === 'HOOK_TRUST_REQUIRED') return

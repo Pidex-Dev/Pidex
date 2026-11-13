@@ -63,7 +63,11 @@ for (const action of ['pause', 'stop', 'clear'] as const) {
       } as never,
       { listByBinding: async () => [] } as never,
       { dataRoot: root, userHome: root },
-      { recall: () => [], enqueue: () => null } as never,
+    {
+      inject: async () => ({ sections: [], ignored: false }),
+      defaultScopes: () => [{ kind: 'user' }],
+      enqueueExtract: () => null,
+    } as never,
       { load: () => {}, run: async () => [] } as never,
       {
         resolve: async () => ({

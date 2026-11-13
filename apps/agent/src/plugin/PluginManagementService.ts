@@ -1,20 +1,14 @@
-import {
-  lstat,
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  realpath,
-  rename,
-  rm,
-  writeFile,
-} from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import extractZip from 'extract-zip'
 import { homedir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
+import { promisify } from 'node:util'
 import type {
+  PluginComponent,
   PluginDetails,
   PluginAssetKind,
+  PluginInstallSource,
   PluginInstallationPolicy,
   PluginSource,
   PluginSummary,
@@ -27,10 +21,13 @@ import {
   PluginSettingsRepository,
 } from '../storage/repositories/PluginSettingsRepository'
 
+import { renameWithRetry } from './PluginFileSystem'
 import {
   MAX_PLUGIN_ASSET_BYTES,
+  UNSUPPORTED_MANIFEST_KEYS,
   pluginAssetResult,
   pluginPresentation,
+  unsupportedPluginComponents,
   type PluginAssets,
 } from './PluginPresentation'
 
@@ -46,12 +43,28 @@ type PluginSkillRoot = {
   skillsRoot: string
 }
 
+export type PluginHookRoot = {
+  pluginId: string
+  pluginName: string
+  pluginRoot: string
+  source: PluginSource
+  hooksPaths: string[]
+}
+
+type RemoteGitSource = {
+  url: string
+  ref?: string
+  subpath?: string
+}
+
 type DiscoveredPlugin = {
   summary: PluginSummary
   details: PluginDetails
   pluginRoot?: string
+  remoteGitSource?: RemoteGitSource
   assets?: PluginAssets
   skillRoot: PluginSkillRoot | null
+  hookRoot: PluginHookRoot | null
 }
 
 type PluginRoots = {
@@ -59,6 +72,10 @@ type PluginRoots = {
   userHome?: string
   dataRoot?: string
   fetcher?: typeof fetch
+  /** Optional diagnostics sink; never carries paths or credentials. */
+  logger?: { warn(event: string, fields?: Record<string, unknown>): void } | undefined
+  /** Cleanup of a staged uninstall directory; overridable for verification. */
+  removeDirectory?: ((path: string) => Promise<void>) | undefined
 }
 
 type JsonRecord = Record<string, unknown>
@@ -78,6 +95,12 @@ export class PluginManagementError extends Error {
     super(message)
   }
 }
+
+/**
+ * Files are consistent on disk but the lifecycle state write failed. Carries a
+ * refresh/retry instruction for the client instead of a generic failure.
+ */
+class PluginRegistrationError extends Error {}
 
 const contained = (root: string, candidate: string) => {
   const path = relative(root, candidate)
@@ -111,6 +134,8 @@ const readJson = async (path: string): Promise<unknown> => {
   return JSON.parse(decoder.decode(bytes)) as unknown
 }
 
+const removeDirectory = (path: string) => rm(path, { recursive: true, force: true })
+
 const invalidPlugin = (
   id: string,
   source: PluginSource,
@@ -140,7 +165,42 @@ const invalidPlugin = (
     skills: [],
   },
   skillRoot: null,
+  hookRoot: null,
 })
+
+const execFileAsync = promisify(execFile)
+const safeGitRefPattern = /^[A-Za-z0-9._/-]+$/
+
+const parseRemoteGitSource = (sourceDescriptor: JsonRecord | null): RemoteGitSource | null => {
+  if (sourceDescriptor?.source !== 'url') return null
+  const rawUrl = stringValue(sourceDescriptor.url)
+  if (!rawUrl || rawUrl.startsWith('-')) return null
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(rawUrl)
+  } catch {
+    return null
+  }
+  if (parsedUrl.protocol !== 'https:') return null
+  const rawRef = stringValue(sourceDescriptor.ref)
+  if (rawRef && (rawRef.startsWith('-') || rawRef.includes('..') || !safeGitRefPattern.test(rawRef))) {
+    return null
+  }
+  const rawSubpath = stringValue(sourceDescriptor.path)
+  if (
+    rawSubpath &&
+    (isAbsolute(rawSubpath) ||
+      rawSubpath.startsWith('-') ||
+      rawSubpath.split(/[\\/]+/).includes('..'))
+  ) {
+    return null
+  }
+  return {
+    url: rawUrl,
+    ...(rawRef ? { ref: rawRef } : {}),
+    ...(rawSubpath ? { subpath: rawSubpath } : {}),
+  }
+}
 
 const normalizePolicy = (
   value: unknown,
@@ -208,7 +268,8 @@ export class PluginManagementService {
     if (includeCatalog) {
       const ids = new Set(plugins.map((plugin) => plugin.summary.id))
       for (const entry of this.marketplace?.entries() ?? []) {
-        if (!ids.has(entry.summary.id)) plugins.push({ ...entry, skillRoot: null })
+        if (!ids.has(entry.summary.id))
+          plugins.push({ ...entry, skillRoot: null, hookRoot: null })
       }
     }
     this.knownPlugins.clear()
@@ -257,8 +318,7 @@ export class PluginManagementService {
       const result = this.settings.setEnabled(input)
       const summary = { ...plugin.summary, enabled: this.isEnabled(input.pluginId) }
       this.knownPlugins.set(input.pluginId, { ...plugin, summary })
-      if (result.changed)
-        for (const listener of this.listeners) listener(input.pluginId, result.state.generation)
+      if (result.changed) this.notifyListeners(input.pluginId, result.state.generation)
       return {
         result: {
           plugin: summary,
@@ -284,7 +344,7 @@ export class PluginManagementService {
       const entry = this.marketplace
         ?.entries()
         .find((candidate) => candidate.summary.id === input.pluginId)
-      if (entry) plugin = { ...entry, skillRoot: null }
+      if (entry) plugin = { ...entry, skillRoot: null, hookRoot: null }
     }
     if (!plugin) {
       throw new PluginManagementError('PLUGIN_NOT_FOUND', '插件不存在', 404)
@@ -343,6 +403,19 @@ export class PluginManagementService {
     )
   }
 
+  async enabledHookRoots(workspace?: string): Promise<PluginHookRoot[]> {
+    const plugins = await this.discover(workspace)
+    return plugins.flatMap((plugin) =>
+      plugin.summary.installed &&
+      plugin.summary.enabled &&
+      !this.settings.state().disabledPluginIds.includes(plugin.summary.id) &&
+      plugin.summary.status === 'ready' &&
+      plugin.hookRoot
+        ? [plugin.hookRoot]
+        : [],
+    )
+  }
+
   private async discover(workspace?: string) {
     const bundled = await this.scanBundled()
     const installed = await this.scanInstalled()
@@ -371,7 +444,11 @@ export class PluginManagementService {
     return result
   }
 
-  install(input: { pluginId: string; operationId: string }) {
+  install(input: {
+    pluginId: string
+    operationId: string
+    expectedCatalogRevision?: string | undefined
+  }) {
     return this.serialize(() => this.lifecycle(input, 'install'))
   }
 
@@ -421,9 +498,10 @@ export class PluginManagementService {
   }
 
   private async lifecycle(
-    input: { pluginId: string; operationId: string },
+    input: { pluginId: string; operationId: string; expectedCatalogRevision?: string | undefined },
     action: 'install' | 'uninstall',
   ) {
+    let stagedRemoval: string | null = null
     try {
       if (!pluginIdPattern.test(input.pluginId)) {
         throw new PluginManagementError('PLUGIN_INVALID', '插件标识无效', 400)
@@ -445,80 +523,277 @@ export class PluginManagementService {
         throw new PluginManagementError('PATH_DENIED', '插件目录不可操作', 403)
       }
       const local = (await this.discover()).find((plugin) => plugin.summary.id === input.pluginId)
-      if (local && local.summary.source !== 'installed') {
+      if (local && local.summary.source !== 'installed' && !local.remoteGitSource) {
         throw new PluginManagementError('PATH_DENIED', '此插件不由下载安装管理', 403)
       }
-      if (action === 'install' && !existing) {
-        if (!this.marketplace)
-          throw new PluginManagementError('PLUGIN_INVALID', '插件目录未配置', 409)
-        const stage = await mkdtemp(join(root, '.install-'))
-        try {
-          const { entry, bytes, prefix } = await this.marketplace.archive(input.pluginId)
-          const archive = join(stage, 'plugin.zip')
-          await writeFile(archive, bytes)
-          let expandedBytes = 0
-          let count = 0
-          await extractZip(archive, {
-            dir: join(stage, 'content'),
-            filter: (zipEntry) => {
-              expandedBytes += zipEntry.uncompressedSize
-              const type = (zipEntry.externalFileAttributes >>> 16) & 0xf000
-              if (
-                ++count > 10_000 ||
-                expandedBytes > MAX_PLUGIN_ARCHIVE_BYTES * 2 ||
-                type === 0xa000 ||
-                /[\\:]/.test(zipEntry.fileName) ||
-                zipEntry.fileName.split('/').some((part) => part === '..' || /[. ]$/.test(part)) ||
-                !zipEntry.fileName.startsWith(`${prefix}/`)
+      if (action === 'install') {
+        if (local?.remoteGitSource) {
+          if (existing) {
+            const reused = await this.loadPlugin({
+              expectedId: input.pluginId,
+              pluginRoot: target,
+              source: 'installed',
+              policy: undefined,
+            })
+            if (reused.summary.status !== 'ready') {
+              throw new PluginManagementError(
+                'CONFLICT',
+                '已存在插件目录但清单无效，请先移除后重试。',
+                409,
               )
-                throw new Error('不安全的插件压缩包')
-              return zipEntry.fileName.startsWith(`${prefix}/${entry.path}/`)
-            },
-          })
-          const pluginRoot = join(stage, 'content', prefix, entry.path)
-          const plugin = await this.loadPlugin({
-            expectedId: input.pluginId,
-            pluginRoot,
-            source: 'installed',
-            policy: undefined,
-          })
-          if (
-            plugin.summary.status !== 'ready' ||
-            plugin.summary.version !== entry.summary.version
-          ) {
-            throw new PluginManagementError('PLUGIN_INVALID', '下载的插件清单或版本无效', 409)
+            }
+          } else {
+            await this.cloneRemotePlugin(root, target, input.pluginId, local.remoteGitSource)
           }
-          await rename(pluginRoot, target)
-        } finally {
-          await rm(stage, { recursive: true, force: true })
+        } else {
+          if (!this.marketplace)
+            throw new PluginManagementError('PLUGIN_INVALID', '插件目录未配置', 409)
+          await this.marketplace.refresh()
+          this.assertCatalogRevision(input.expectedCatalogRevision)
+          if (existing) {
+            // A previous attempt may have activated files before saving state.
+            // Only a valid, catalog-matching directory may be reused; otherwise
+            // report a conflict instead of deleting the user's files.
+            await this.assertReusableInstallation(target, input.pluginId)
+          } else {
+            await this.downloadPlugin(root, target, input.pluginId)
+          }
         }
-      } else if (action === 'uninstall' && existing) {
+      } else if (existing) {
         if ((await realpath(target)) !== target || !contained(root, target)) {
           throw new PluginManagementError('PATH_DENIED', '插件目录不可操作', 403)
         }
         const trash = join(root, `.remove-${crypto.randomUUID()}`)
-        await rename(target, trash)
-        await rm(trash, { recursive: true, force: true })
+        await renameWithRetry(target, trash)
+        stagedRemoval = trash
       } else if (
-        action === 'uninstall' &&
         !local &&
         !this.marketplace?.entries().some((entry) => entry.summary.id === input.pluginId)
       ) {
         throw new PluginManagementError('PLUGIN_NOT_FOUND', '插件不存在', 404)
       }
-      const result = this.settings.completeLifecycle(input.operationId, input.pluginId, action)
+      let result
+      try {
+        result = this.settings.completeLifecycle(input.operationId, input.pluginId, action)
+      } catch (cause) {
+        await this.rollbackFailedRegistration({
+          action,
+          target,
+          stagedRemoval,
+          cause,
+        })
+        throw cause
+      }
+      if (stagedRemoval) {
+        // Cleanup happens after the state is durable; a leftover staging folder
+        // is invisible to discovery, so cleanup failures must not fail the
+        // uninstall the user already completed.
+        await (this.roots.removeDirectory ?? removeDirectory)(stagedRemoval).catch(() => {
+          this.roots.logger?.warn('plugins.lifecycle.cleanup.failed', {
+            operationId: input.operationId,
+            action: 'uninstall',
+          })
+        })
+        stagedRemoval = null
+      }
       await this.listLocal()
-      for (const listener of this.listeners) listener(input.pluginId, result.generation)
+      this.notifyListeners(input.pluginId, result.generation)
       return {
         pluginId: input.pluginId,
         generation: result.generation,
         updatedAt: result.updatedAt,
       }
     } catch (cause) {
+      if (cause instanceof PluginRegistrationError) {
+        throw new PluginManagementError('INTERNAL_ERROR', cause.message, 500)
+      }
       if (cause instanceof PluginManagementError) throw cause
       if (cause instanceof PluginSettingsConflictError)
         throw new PluginManagementError('CONFLICT', cause.message, 409)
       throw new PluginManagementError('INTERNAL_ERROR', '插件操作失败，请检查网络后重试。', 500)
+    }
+  }
+
+  /** Revision echoed by the installer must still match the pinned catalog. */
+  private assertCatalogRevision(expectedCatalogRevision: string | undefined) {
+    if (!expectedCatalogRevision) return
+    const revision = this.marketplace?.revision()
+    if (!revision) {
+      throw new PluginManagementError(
+        'CONFLICT',
+        '插件目录当前不可用，无法校验安装来源，请刷新后重试。',
+        409,
+      )
+    }
+    if (revision !== expectedCatalogRevision) {
+      throw new PluginManagementError('CONFLICT', '插件目录已更新，请重新查看详情后再安装。', 409)
+    }
+  }
+
+  /**
+   * Revalidates an existing install directory instead of trusting its presence.
+   * Identity, manifest validity and catalog version must all agree.
+   */
+  private async assertReusableInstallation(pluginRoot: string, pluginId: string) {
+    const plugin = await this.loadPlugin({
+      expectedId: pluginId,
+      pluginRoot,
+      source: 'installed',
+      policy: undefined,
+    })
+    if (plugin.summary.status !== 'ready') {
+      throw new PluginManagementError('CONFLICT', '已存在插件目录但清单无效，请先移除后重试。', 409)
+    }
+    const entry = this.marketplace?.entries().find((candidate) => candidate.summary.id === pluginId)
+    if (!entry) {
+      throw new PluginManagementError(
+        'CONFLICT',
+        '插件目录中没有该插件，无法校验已存在的安装目录，请刷新后重试。',
+        409,
+      )
+    }
+    if (entry.summary.version !== plugin.summary.version) {
+      throw new PluginManagementError(
+        'CONFLICT',
+        '已安装版本与插件目录不一致，请先移除后重试。',
+        409,
+      )
+    }
+  }
+
+  private async cloneRemotePlugin(
+    root: string,
+    target: string,
+    pluginId: string,
+    remote: RemoteGitSource,
+  ) {
+    const stage = await mkdtemp(join(root, '.install-'))
+    const cloneDir = join(stage, 'repo')
+    try {
+      const args = [
+        'clone',
+        '--depth',
+        '1',
+        ...(remote.ref ? ['--branch', remote.ref] : []),
+        '--',
+        remote.url,
+        cloneDir,
+      ]
+      try {
+        await execFileAsync('git', args, { timeout: 60_000 })
+      } catch (cause) {
+        const detail = cause instanceof Error && cause.message ? `：${cause.message}` : ''
+        throw new PluginManagementError('PLUGIN_INVALID', `拉取远程插件仓库失败${detail}`, 502)
+      }
+      await rm(join(cloneDir, '.git'), { recursive: true, force: true })
+      const candidate = remote.subpath ? resolve(cloneDir, remote.subpath) : cloneDir
+      if (!contained(cloneDir, candidate)) {
+        throw new PluginManagementError('PATH_DENIED', '远程插件路径无效', 403)
+      }
+      const pluginRoot = await realpath(candidate).catch(() => null)
+      if (!pluginRoot || !contained(cloneDir, pluginRoot)) {
+        throw new PluginManagementError('PLUGIN_INVALID', '远程插件目录不可用', 409)
+      }
+      const plugin = await this.loadPlugin({
+        expectedId: pluginId,
+        pluginRoot,
+        source: 'installed',
+        policy: undefined,
+      })
+      if (plugin.summary.status !== 'ready') {
+        throw new PluginManagementError(
+          'PLUGIN_INVALID',
+          plugin.summary.unavailableReason ?? '远程仓库中的插件清单无效',
+          409,
+        )
+      }
+      await renameWithRetry(pluginRoot, target)
+    } finally {
+      await rm(stage, { recursive: true, force: true })
+    }
+  }
+
+  private async downloadPlugin(root: string, target: string, pluginId: string) {
+    const marketplace = this.marketplace
+    if (!marketplace) throw new PluginManagementError('PLUGIN_INVALID', '插件目录未配置', 409)
+    const stage = await mkdtemp(join(root, '.install-'))
+    try {
+      const { entry, bytes, prefix } = await marketplace.archive(pluginId)
+      const archive = join(stage, 'plugin.zip')
+      await writeFile(archive, bytes)
+      let expandedBytes = 0
+      let count = 0
+      await extractZip(archive, {
+        dir: join(stage, 'content'),
+        filter: (zipEntry) => {
+          expandedBytes += zipEntry.uncompressedSize
+          const type = (zipEntry.externalFileAttributes >>> 16) & 0xf000
+          if (
+            ++count > 10_000 ||
+            expandedBytes > MAX_PLUGIN_ARCHIVE_BYTES * 2 ||
+            type === 0xa000 ||
+            /[\\:]/.test(zipEntry.fileName) ||
+            zipEntry.fileName.split('/').some((part) => part === '..' || /[. ]$/.test(part)) ||
+            !zipEntry.fileName.startsWith(`${prefix}/`)
+          )
+            throw new Error('不安全的插件压缩包')
+          return zipEntry.fileName.startsWith(`${prefix}/${entry.path}/`)
+        },
+      })
+      const pluginRoot = join(stage, 'content', prefix, entry.path)
+      const plugin = await this.loadPlugin({
+        expectedId: pluginId,
+        pluginRoot,
+        source: 'installed',
+        policy: undefined,
+      })
+      if (plugin.summary.status !== 'ready' || plugin.summary.version !== entry.summary.version) {
+        throw new PluginManagementError('PLUGIN_INVALID', '下载的插件清单或版本无效', 409)
+      }
+      await renameWithRetry(pluginRoot, target)
+    } finally {
+      await rm(stage, { recursive: true, force: true })
+    }
+  }
+
+  /**
+   * Restores files after the state write failed so a retry can register the
+   * same files. A failed rollback keeps the files and reports it instead of
+   * pretending the operation completed.
+   */
+  private async rollbackFailedRegistration(input: {
+    action: 'install' | 'uninstall'
+    target: string
+    stagedRemoval: string | null
+    cause: unknown
+  }) {
+    const detail =
+      input.cause instanceof Error && input.cause.message ? `（${input.cause.message}）` : ''
+    if (input.action === 'install') {
+      throw new PluginRegistrationError(
+        `插件文件已就位，但保存安装状态失败${detail}。请刷新插件列表后重试（重复操作只补登记）。`,
+      )
+    }
+    if (!input.stagedRemoval) {
+      throw new PluginRegistrationError(`保存卸载状态失败${detail}。插件文件未受影响，请重试。`)
+    }
+    try {
+      await renameWithRetry(input.stagedRemoval, input.target)
+    } catch {
+      throw new PluginRegistrationError(
+        `保存卸载状态失败${detail}，且插件文件未能恢复到原位置。请刷新后重试。`,
+      )
+    }
+    throw new PluginRegistrationError(`保存卸载状态失败${detail}，插件文件已恢复，请重试。`)
+  }
+
+  private notifyListeners(pluginId: string, generation: number) {
+    for (const listener of this.listeners) {
+      try {
+        listener(pluginId, generation)
+      } catch {
+        // A subscriber failure must never rewrite a completed operation.
+      }
     }
   }
 
@@ -567,6 +842,56 @@ export class PluginManagementService {
       const id = stringValue(entry?.name)
       if (!entry || !id || !pluginIdPattern.test(id)) continue
       const sourceDescriptor = record(entry.source)
+      if (sourceDescriptor?.source === 'url') {
+        const remoteGitSource = parseRemoteGitSource(sourceDescriptor)
+        if (!remoteGitSource) {
+          plugins.push(invalidPlugin(id, source, '插件远程仓库地址无效'))
+          continue
+        }
+        const policy = normalizePolicy(record(entry.policy)?.installation, 'AVAILABLE')
+        const category = stringValue(entry.category) ?? 'Other'
+        const interfaceObj = record(entry.interface)
+        const displayName = stringValue(interfaceObj?.displayName) ?? id
+        const description =
+          stringValue(entry.description) ??
+          stringValue(interfaceObj?.shortDescription) ??
+          remoteGitSource.url
+        const developerName = stringValue(interfaceObj?.developerName) ?? '未知开发者'
+        plugins.push({
+          remoteGitSource,
+          summary: {
+            id,
+            name: displayName,
+            version: '0.0.0',
+            description,
+            developerName,
+            category,
+            source,
+            installationPolicy: policy,
+            installed: false,
+            enabled: false,
+            status: policy === 'NOT_AVAILABLE' ? 'invalid' : 'ready',
+            capabilities: [],
+            skills: [],
+          },
+          details: {
+            pluginId: id,
+            longDescription: description,
+            displayCapabilities: [],
+            defaultPrompts: [],
+            skills: [],
+            installSource: {
+              repository: remoteGitSource.url,
+              version: remoteGitSource.ref ?? 'HEAD',
+              components: [],
+              unsupportedComponents: [],
+            },
+          },
+          skillRoot: null,
+          hookRoot: null,
+        })
+        continue
+      }
       const sourcePath = stringValue(sourceDescriptor?.path)
       if (sourceDescriptor?.source !== 'local' || !sourcePath) continue
       const candidate = resolve(canonicalSourceRoot, sourcePath)
@@ -662,6 +987,10 @@ export class PluginManagementService {
       const disabled = new Set(this.settings.state().disabledPluginIds)
       const skills = await this.resolveSkills(input.pluginRoot, stringValue(manifest.skills))
       const docs = await this.resolveDocs(input.pluginRoot, stringValue(manifest.docs))
+      const hooksPaths = await this.resolveHooks(
+        input.pluginRoot,
+        stringOrStringArray(manifest.hooks),
+      )
       const declaredHostServers = new Set([
         ...stringArray(extension?.hostMcpServers),
         ...Object.keys(record(manifest.mcpServers) ?? {}),
@@ -679,6 +1008,14 @@ export class PluginManagementService {
       // Components beyond skills: bundled documentation and host-provided MCP
       // servers. Skills keep their own `skills` field for older clients.
       const components = [...mcpComponents, ...docs]
+      const hostManagedServers = new Set(mcpComponents.map((component) => component.id))
+      const skillComponents: PluginComponent[] = skills.details.map((skill) => ({
+        kind: 'skill',
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+        managedBy: 'plugin',
+      }))
       return {
         pluginRoot: input.pluginRoot,
         assets: presentation.assets,
@@ -706,10 +1043,29 @@ export class PluginManagementService {
           displayCapabilities: stringArray(interfaceMetadata?.capabilities),
           defaultPrompts: stringOrStringArray(interfaceMetadata?.defaultPrompt),
           skills: skills.details,
+          installSource: {
+            // Local sources are disclosed by their source name, never by path.
+            repository: input.source,
+            version,
+            components: [...skillComponents, ...mcpComponents],
+            unsupportedComponents: unsupportedPluginComponents([
+              ...UNSUPPORTED_MANIFEST_KEYS.map((key) => manifest[key]),
+              [...declaredHostServers].filter((server) => !hostManagedServers.has(server)),
+            ]),
+          },
           ...(components.length ? { components } : {}),
         },
         skillRoot: skills.root
           ? { pluginId: id, pluginRoot: input.pluginRoot, skillsRoot: skills.root }
+          : null,
+        hookRoot: hooksPaths.length
+          ? {
+              pluginId: id,
+              pluginName: displayName,
+              pluginRoot: input.pluginRoot,
+              source: input.source,
+              hooksPaths,
+            }
           : null,
       }
     } catch {
@@ -767,6 +1123,19 @@ export class PluginManagementService {
         description: '',
         managedBy: 'plugin' as const,
       }))
+  }
+
+  private async resolveHooks(pluginRoot: string, configuredPaths: string[]) {
+    const candidates = configuredPaths.length ? configuredPaths : ['./hooks/hooks.json', './hooks']
+    const resolved: string[] = []
+    for (const rel of candidates) {
+      const candidate = resolve(pluginRoot, rel)
+      if (!contained(pluginRoot, candidate)) continue
+      const canonical = await realpath(candidate).catch(() => null)
+      if (!canonical || !contained(pluginRoot, canonical)) continue
+      if (!resolved.includes(canonical)) resolved.push(canonical)
+    }
+    return resolved
   }
 }
 

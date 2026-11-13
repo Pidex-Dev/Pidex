@@ -445,7 +445,11 @@ export class ToolExecutor {
     const definition = catalog.get(name)
     const rawPaths =
       name === 'apply_patch' && typeof input.patch === 'string'
-        ? parseApplyPatch(input.patch).map((operation) => operation.path)
+        ? parseApplyPatch(input.patch).flatMap((operation) =>
+            operation.type === 'update' && operation.moveTo
+              ? [operation.path, operation.moveTo]
+              : [operation.path],
+          )
         : definition.capabilities.filesystem !== 'none'
           ? [input.file_path ?? input.path].filter(
               (path): path is string => typeof path === 'string' && !path.startsWith('@'),
@@ -984,10 +988,16 @@ export class ToolExecutor {
       details.patchBytes = Buffer.byteLength(patch, 'utf8')
       try {
         const operations = parseApplyPatch(patch)
-        details.fileCount = operations.length
-        details.affectedPaths = operations.map(
-          (operation) => safePath(operation.path) ?? '[outside-workspace]',
+        details.fileCount = operations.reduce(
+          (sum, operation) => sum + (operation.type === 'update' && operation.moveTo ? 2 : 1),
+          0,
         )
+        details.affectedPaths = operations.flatMap((operation) => {
+          const primary = safePath(operation.path) ?? '[outside-workspace]'
+          return operation.type === 'update' && operation.moveTo
+            ? [primary, safePath(operation.moveTo) ?? '[outside-workspace]']
+            : [primary]
+        })
         details.hunkCount = operations.reduce(
           (sum, operation) => sum + (operation.type === 'update' ? operation.chunks.length : 0),
           0,
@@ -1002,6 +1012,7 @@ export class ToolExecutor {
                 : operation.content.split('\n').length)
             )
           }
+          if (operation.type === 'delete') return sum
           return sum + operation.chunks.reduce((chunkSum, chunk) => chunkSum + chunk.additions, 0)
         }, 0)
         details.deletions = operations.reduce(
@@ -1569,7 +1580,9 @@ export class ToolExecutor {
         !affected.path.trim() ||
         affected.path.length > 1_024 ||
         /[\0\r\n]/.test(affected.path) ||
-        (affected.operation !== 'create' && affected.operation !== 'update')
+        (affected.operation !== 'create' &&
+          affected.operation !== 'update' &&
+          affected.operation !== 'delete')
       ) {
         throw new AgentError('INVALID_TOOL_INSPECTION', '工具授权路径无效', 500)
       }

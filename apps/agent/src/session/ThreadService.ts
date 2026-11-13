@@ -33,7 +33,7 @@ import {
 } from '../prompt'
 import type { SkillManagementService } from '../prompt/SkillManagementService'
 import { secretScrubber } from '../security/SecretScrubber'
-import { projectMemoryKey, type MemoryService } from '../memory/MemoryService'
+import { memoryIndexPrompts, type MemoryService } from '../memory/MemoryService'
 import type { HookService } from '../hooks/HookService'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -665,9 +665,11 @@ export class ThreadService {
       )
       .get(threadID) as { content: string; model_ref: string } | null
     const userMessage = latest?.content ?? ''
-    const memories = this.memory.recall({
-      query: userMessage,
-      ...(projectID !== null ? { projectKey: projectMemoryKey(projectID) } : {}),
+    const memoryInjection = await this.memory.inject({
+      projectId: projectID,
+      userMessage,
+      threadId: threadID,
+      turnId: null,
     })
     const mcpPreview = await this.mcp?.previewCatalog(runtime.workspaceRoot)
     const currentGoal = this.db.repositories.threadGoals.get(threadID)
@@ -703,9 +705,7 @@ export class ThreadService {
       environment: this.workspaceEnvironment(runtime),
       projectInstructions: projectInstructions.sources,
       skills: skills.skills,
-      memories: memories.map(
-        (entry) => `Possibly outdated reference memory (${entry.scope}): ${entry.content}`,
-      ),
+      memories: memoryIndexPrompts(memoryInjection),
       stableExternalData:
         projectSourceCatalog && projectSourceCatalog.total > 0
           ? [projectSourceCatalog.content]
@@ -1597,7 +1597,7 @@ export class ThreadService {
         await this.configService?.resolveUnresolvedMcp(runtime.workspaceRoot)
         await this.configService?.read({ cwd: runtime.workspaceRoot })
       }
-      this.hooks.load({
+      await this.hooks.loadWithPlugins({
         userConfigPath: join(this.promptStorage.dataRoot, 'hooks.json'),
         projectRoot: runtime.workspaceRoot,
         includeProjectHooks: runtime.kind === 'project',
@@ -1611,10 +1611,14 @@ export class ThreadService {
         priorHistory > 0 || resumeCheckpoint || sideEffectRecovery
           ? ('session_resume' as const)
           : ('session_start' as const)
-      await this.hooks.run(
+      const sessionHookResults = await this.hooks.run(
         lifecycleEvent,
         { threadID, turnID, workspace: workspace.rootPath },
-        { threadID, turnID },
+        {
+          threadID,
+          turnID,
+          matcherValue: lifecycleEvent === 'session_resume' ? 'resume' : 'startup',
+        },
       )
       const promptHookResults = await this.hooks.run(
         'user_prompt_submit',
@@ -1634,8 +1638,13 @@ export class ThreadService {
           'user_prompt_submit Hook 要求人工确认',
           409,
         )
-      const hookFeedback = promptHookResults.flatMap(({ hook, result }) =>
-        (result.suggestions ?? []).map((suggestion) => `Hook ${hook.id} suggestion: ${suggestion}`),
+      const hookFeedback = [...sessionHookResults, ...promptHookResults].flatMap(
+        ({ hook, result }) => [
+          ...(result.additionalContext ? [result.additionalContext] : []),
+          ...(result.suggestions ?? []).map(
+            (suggestion) => `Hook ${hook.id} suggestion: ${suggestion}`,
+          ),
+        ],
       )
       const sideChat = this.sideChat(threadID)
       const desktopSettings = this.promptSettingsSnapshot(threadID).settings
@@ -1686,9 +1695,11 @@ export class ThreadService {
       workspace = workspace.withReadOnlyPaths(
         skillCatalog.skills.map((skill) => ({ path: skill.root, kind: 'directory' as const })),
       )
-      const memories = this.memory.recall({
-        query: content,
-        ...(projectID !== null ? { projectKey: projectMemoryKey(projectID) } : {}),
+      const memoryInjection = await this.memory.inject({
+        projectId: projectID,
+        userMessage: content,
+        threadId: threadID,
+        turnId: turnID,
       })
       const stringSetting = (key: string) =>
         typeof desktopSettings?.[key] === 'string' && desktopSettings[key].trim()
@@ -1726,9 +1737,7 @@ export class ThreadService {
         environment: `${this.workspaceEnvironment(runtime)}\nCurrent time: ${new Date().toISOString()}`,
         projectInstructions: projectInstructions.sources,
         skills: skillCatalog.skills,
-        memories: memories.map(
-          (entry) => `Possibly outdated reference memory (${entry.scope}): ${entry.content}`,
-        ),
+        memories: memoryIndexPrompts(memoryInjection),
         stableExternalData:
           projectSourceCatalog && projectSourceCatalog.total > 0
             ? [projectSourceCatalog.content]
@@ -2041,17 +2050,18 @@ export class ThreadService {
       }
       if (controller.signal.aborted) throw new AgentError('RUN_ABORTED', '任务已停止', 499)
       if (await this.subagents.deferCompletion(threadID, turnID, result)) return
-      const memoryJob = sideChat
-        ? null
-        : this.memory.enqueue({
-            threadID,
-            ...(projectID !== null ? { projectKey: projectMemoryKey(projectID) } : {}),
-            transcript: `User task:\n${content}\n\nAgent result:\n${result.output}`,
+      // Extraction reads durable turns from the cursor; it never receives a raw
+      // transcript, so side chats and read-only modes stay out of the queue.
+      if (!sideChat && !memoryInjection.ignored) {
+        for (const namespace of this.memory.defaultScopes(projectID)) {
+          this.memory.enqueueExtract({
+            namespace,
+            threadId: threadID,
+            turnId: turnID,
+            modelRef: activeModel ? JSON.stringify(activeModel) : null,
           })
-      if (memoryJob)
-        queueMicrotask(() => {
-          void this.memory.drain()
-        })
+        }
+      }
       if (projectID) {
         await this.review
           ?.captureTurnSnapshot({

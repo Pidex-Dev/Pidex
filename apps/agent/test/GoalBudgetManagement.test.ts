@@ -328,7 +328,11 @@ test('提高受限预算恢复 active 并解挂队列，缺核验证据不机械
     } as never,
     { listByBinding: async () => [] } as never,
     { dataRoot: root, userHome: root },
-    { recall: () => [], enqueue: () => null } as never,
+    {
+      inject: async () => ({ sections: [], ignored: false }),
+      defaultScopes: () => [{ kind: 'user' }],
+      enqueueExtract: () => null,
+    } as never,
     { load: () => {}, run: async () => [] } as never,
     {
       resolve: async () => ({

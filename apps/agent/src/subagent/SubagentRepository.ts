@@ -50,6 +50,8 @@ export type SpawnSubagentInput = {
   displayName: string
   profile: Exclude<SubagentProfile, 'main'>
   role?: SubagentRole
+  /** Stable per-project identity for the optional named-memory namespace. */
+  memoryKey?: string
   task: string
   model: Model.Ref
   permissionCeiling: PermissionConfig
@@ -109,7 +111,7 @@ export class SubagentRepository {
         )
       this.db.sqlite
         .query(
-          `INSERT INTO subagent_tasks (id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, profile, role, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)`,
+          `INSERT INTO subagent_tasks (id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, profile, role, memory_key, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)`,
         )
         .run(
           taskID,
@@ -120,6 +122,7 @@ export class SubagentRepository {
           input.displayName,
           input.profile,
           input.role ?? null,
+          input.memoryKey ?? null,
           input.task,
           stringify(input.permissionCeiling),
           input.workspaceMode,
@@ -318,10 +321,18 @@ export class SubagentRepository {
     return row.task_id
   }
 
+  /** Resolve the task behind a child thread; used for host-owned memory binding. */
+  taskForChildThread(childThreadID: string): SubagentTask | null {
+    const row = this.db.sqlite
+      .query('SELECT id FROM subagent_tasks WHERE child_thread_id = ?')
+      .get(childThreadID) as { id: string } | null
+    return row ? this.task(row.id) : null
+  }
+
   task(taskID: string): SubagentTask | null {
     const row = this.db.sqlite
       .query(
-        'SELECT id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, profile, role, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, created_at, updated_at FROM subagent_tasks WHERE id = ?',
+        'SELECT id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, profile, role, memory_key, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, created_at, updated_at FROM subagent_tasks WHERE id = ?',
       )
       .get(taskID) as Record<string, string | number | null> | null
     if (!row) return null
@@ -370,6 +381,7 @@ export class SubagentRepository {
       displayName: String(row.display_name),
       profile: String(row.profile) as SubagentTask['profile'],
       ...(isSubagentRole(row.role) ? { role: row.role } : {}),
+      ...(row.memory_key ? { memoryKey: String(row.memory_key) } : {}),
       task: String(row.task),
       permissionCeiling: parse(String(row.permission_ceiling)),
       workspace,

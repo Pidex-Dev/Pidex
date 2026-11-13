@@ -6,7 +6,7 @@ import {
 import { Schema } from 'effect'
 import { AgentError } from '../../../Domain'
 import { TaskSuggestionServiceError } from '../../../suggestion/TaskSuggestionService'
-import { resolveMemoryProjectKey, type RpcRouter } from '../RpcRouter'
+import type { RpcRouter } from '../RpcRouter'
 import type { RpcRouterContext } from '../RequestContext'
 import type { RpcHandlerGroup } from './Types'
 
@@ -36,14 +36,13 @@ export const suggestionHandlers = {
       throw new AgentError('SUGGESTION_UNAVAILABLE', '任务建议服务未配置', 503)
     }
     const params = decodeGenerate(rawParams)
+    const projectId = params.workspace.kind === 'project' ? params.workspace.projectId : undefined
+    // The host still owns project authorization: a memory namespace may only be
+    // derived from a project this Agent actually knows.
+    if (projectId && !runtime.dependencies.db.getProject(projectId))
+      throw new AgentError('PROJECT_NOT_FOUND', '项目不存在', 404)
     try {
-      const projectKey =
-        params.workspace.kind === 'project'
-          ? await resolveMemoryProjectKey(runtime.dependencies.db, {
-              projectId: params.workspace.projectId,
-            })
-          : undefined
-      return await service.generate(params, projectKey)
+      return await service.generate(params, projectId)
     } catch (cause) {
       if (cause instanceof TaskSuggestionServiceError) {
         throw new AgentError('SUGGESTION_UNAVAILABLE', cause.message, 503)

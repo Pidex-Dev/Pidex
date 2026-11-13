@@ -554,7 +554,11 @@ describe('核心工具面', () => {
         { setParentResumeHandler: () => undefined } as never,
         {} as never,
         { dataRoot: root, userHome: root },
-        { recall: () => [] } as never,
+        {
+          inject: async () => ({ sections: [], ignored: false }),
+          defaultScopes: () => [{ kind: 'user' }],
+          enqueueExtract: () => null,
+        } as never,
         {} as never,
         {
           resolve: async () => ({

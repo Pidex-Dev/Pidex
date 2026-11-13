@@ -220,7 +220,7 @@ export const piToolTimelineInput = (tool: string, input: unknown): Record<string
   const patch = typeof record.patch === 'string' ? record.patch : ''
   let affectedPaths: Array<{
     path: string
-    operation: 'create' | 'update'
+    operation: 'create' | 'update' | 'delete'
     additions: number
     deletions: number
   }> = []
@@ -229,28 +229,49 @@ export const piToolTimelineInput = (tool: string, input: unknown): Record<string
   let deletions = 0
   try {
     const operations = parseApplyPatch(patch)
-    affectedPaths = operations.map((operation) => {
-      const fileAdditions =
-        operation.type === 'add'
-          ? operation.content.endsWith('\n')
-            ? operation.content.slice(0, -1).split('\n').length
-            : operation.content.split('\n').length
-          : operation.chunks.reduce((sum, chunk) => sum + chunk.additions, 0)
-      const fileDeletions =
-        operation.type === 'add'
-          ? 0
-          : operation.chunks.reduce((sum, chunk) => sum + chunk.deletions, 0)
-      return {
-        path: safeTimelinePatchPath(operation.path),
-        operation: operation.type === 'add' ? 'create' : 'update',
-        additions: fileAdditions,
-        deletions: fileDeletions,
+    const files: typeof affectedPaths = []
+    for (const operation of operations) {
+      const path = safeTimelinePatchPath(operation.path)
+      if (operation.type === 'delete') {
+        files.push({ path, operation: 'delete', additions: 0, deletions: 0 })
+        continue
       }
-    })
+      if (operation.type === 'add') {
+        files.push({
+          path,
+          operation: 'create',
+          additions: operation.content.endsWith('\n')
+            ? operation.content.slice(0, -1).split('\n').length
+            : operation.content.split('\n').length,
+          deletions: 0,
+        })
+        continue
+      }
+      const fileAdditions = operation.chunks.reduce((sum, chunk) => sum + chunk.additions, 0)
+      const fileDeletions = operation.chunks.reduce((sum, chunk) => sum + chunk.deletions, 0)
+      if (operation.moveTo) {
+        // A move is one create target plus one delete source in the same batch.
+        files.push({
+          path: safeTimelinePatchPath(operation.moveTo),
+          operation: 'create',
+          additions: fileAdditions,
+          deletions: 0,
+        })
+        files.push({ path, operation: 'delete', additions: 0, deletions: 0 })
+      } else {
+        files.push({
+          path,
+          operation: 'update',
+          additions: fileAdditions,
+          deletions: fileDeletions,
+        })
+      }
+    }
+    affectedPaths = files
     additions = affectedPaths.reduce((sum, file) => sum + file.additions, 0)
     deletions = affectedPaths.reduce((sum, file) => sum + file.deletions, 0)
     hunkCount = operations.reduce(
-      (sum, operation) => sum + (operation.type === 'add' ? 0 : operation.chunks.length),
+      (sum, operation) => sum + (operation.type === 'update' ? operation.chunks.length : 0),
       0,
     )
   } catch {
