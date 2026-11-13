@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  DEFAULT_CODE_FONT,
   DEFAULT_DARK_THEME,
   DEFAULT_DESKTOP_THEME_SETTINGS,
+  DEFAULT_UI_FONT,
   getDesktopThemeForSelection,
   normalizeDesktopThemeSettings,
 } from '../shared/Theme.js'
@@ -15,81 +17,11 @@ import {
   themeFontFaceAlias,
 } from '../src/features/theme/ThemeFontFaces.js'
 import {
-  isMonospaceFamily,
-  type FontMeasureContext,
-} from '../src/features/theme/ThemeSystemFonts.js'
-import {
-  DEFAULT_FACE_VALUE,
   SYSTEM_DEFAULT_FAMILY_VALUE,
   buildFamilyOptions,
-  buildStyleOptions,
-  extractStyleNameFromFace,
-  faceStyleLabel,
-  fontPatchForSelection,
-  styleLabel,
+  fontPickerCurrentFamilyValue,
 } from '../src/features/settings/ThemeFontPickerModel.js'
 import { deriveThemeVariables } from '../src/features/theme/ThemeVariables.js'
-import type { DesktopSystemFontFace } from '../shared/Types.js'
-
-const SANS_FACES: readonly DesktopSystemFontFace[] = [
-  {
-    family: 'Inter',
-    fullName: 'Inter Regular',
-    postscriptName: 'Inter-Regular',
-    style: 'Regular',
-  },
-  {
-    family: 'Inter',
-    fullName: 'Inter Bold',
-    postscriptName: 'Inter-Bold',
-    style: 'Bold',
-  },
-  {
-    family: 'Inter',
-    fullName: 'Inter Italic',
-    postscriptName: 'Inter-Italic',
-    style: 'Italic',
-  },
-  {
-    family: 'PrettySans',
-    fullName: 'PrettySans Regular',
-    postscriptName: 'PrettySans-Regular',
-    style: 'Regular',
-  },
-]
-
-const MONO_FACES: readonly DesktopSystemFontFace[] = [
-  {
-    family: 'CodeMono',
-    fullName: 'CodeMono Regular',
-    postscriptName: 'CodeMono-Regular',
-    style: 'Regular',
-  },
-  {
-    family: 'CodeMono',
-    fullName: 'CodeMono Bold',
-    postscriptName: 'CodeMono-Bold',
-    style: 'Bold',
-  },
-]
-
-const ALL_FACES = [...SANS_FACES, ...MONO_FACES]
-
-function monoContext(family: string): FontMeasureContext | null {
-  return {
-    font: family,
-    measureText: (text) => ({ width: text.length * 8 }),
-  }
-}
-
-function proportionalContext(family: string): FontMeasureContext | null {
-  return {
-    font: family,
-    measureText: (text) => ({
-      width: text.startsWith('m') ? text.length * 12 : text.length * 6,
-    }),
-  }
-}
 
 describe('theme font loading tool', () => {
   test('escapes CSS string special characters in alias sources', () => {
@@ -171,10 +103,10 @@ describe('theme font loading tool', () => {
     })
 
     expect(variables['--cpx-sys-font-family-sans']).toBe(
-      '"Pidex-Selected-Sans", "Inter Bold", "Inter", Inter',
+      `"Pidex-Selected-Sans", "Inter Bold", "Inter", ${DEFAULT_UI_FONT}`,
     )
     expect(variables['--cpx-sys-font-family-mono']).toBe(
-      '"Pidex-Selected-Mono", "CodeMono Regular", "CodeMono", CodeMono',
+      `"Pidex-Selected-Mono", "CodeMono Regular", "CodeMono", ${DEFAULT_CODE_FONT}`,
     )
   })
 
@@ -228,398 +160,6 @@ describe('theme font loading tool', () => {
 
     expect(merged.fonts.uiFace).toEqual(uiFace)
     expect(merged.fonts.codeFace).toBeNull()
-  })
-})
-
-describe('system font enumeration helpers', () => {
-  test('detects monospace families through canvas glyph widths', () => {
-    expect(isMonospaceFamily('CodeMono', monoContext)).toBe(true)
-    expect(isMonospaceFamily('PrettySans', proportionalContext)).toBe(false)
-  })
-
-  test('treats missing measurement contexts as unverifiable and shows all', () => {
-    expect(isMonospaceFamily('Anything', () => null)).toBe(true)
-  })
-})
-
-describe('theme font picker model', () => {
-  test('style labels map the common face styles', () => {
-    expect(styleLabel('Regular')).toBe('Regular')
-    expect(styleLabel('normal')).toBe('Regular')
-    expect(styleLabel('Bold')).toBe('Bold')
-    expect(styleLabel('Italic')).toBe('Italic')
-    expect(styleLabel('Bold Italic')).toBe('Bold Italic')
-    expect(styleLabel('Medium')).toBe('Medium')
-    expect(styleLabel('Semi Bold')).toBe('SemiBold')
-    expect(styleLabel('Demibold')).toBe('Demibold')
-    expect(styleLabel('ExtraLight')).toBe('ExtraLight')
-    expect(styleLabel('Heavy')).toBe('Heavy')
-    expect(styleLabel('Condensed')).toBe('Condensed')
-  })
-
-  test('family options start with system default and keep the current family', () => {
-    const options = buildFamilyOptions({
-      faces: ALL_FACES,
-      kind: 'ui',
-      currentFamily: null,
-      isMonospace: (family) => family === 'CodeMono',
-    })
-    expect(options[0]).toEqual({
-      value: SYSTEM_DEFAULT_FAMILY_VALUE,
-      label: '系统默认',
-    })
-    expect(options.map((option) => option.label)).toEqual([
-      '系统默认',
-      'CodeMono',
-      'Inter',
-      'PrettySans',
-    ])
-
-    const custom = buildFamilyOptions({
-      faces: ALL_FACES,
-      kind: 'ui',
-      currentFamily: 'Custom List, sans-serif',
-      isMonospace: (family) => family === 'CodeMono',
-    })
-    expect(custom.map((option) => option.label)).toEqual([
-      '系统默认',
-      'CodeMono',
-      'Inter',
-      'PrettySans',
-      'Custom List, sans-serif',
-    ])
-  })
-
-  test('code font families are filtered to monospace ones but keep custom values', () => {
-    const options = buildFamilyOptions({
-      faces: ALL_FACES,
-      kind: 'code',
-      currentFamily: 'PrettySans',
-      isMonospace: (family) => family === 'CodeMono',
-    })
-    expect(options.map((option) => option.label)).toEqual(['系统默认', 'CodeMono', 'PrettySans'])
-  })
-
-  test('style options use the regular face as the default option', () => {
-    const options = buildStyleOptions({
-      faces: SANS_FACES.filter((face) => face.family === 'Inter'),
-      currentFace: null,
-    })
-    expect(options).toEqual([
-      {
-        value: 'Inter-Regular',
-        label: 'Regular',
-      },
-      { value: 'Inter-Italic', label: 'Italic' },
-      { value: 'Inter-Bold', label: 'Bold' },
-    ])
-  })
-
-  test('style options fall back to the default marker without a regular face', () => {
-    const options = buildStyleOptions({
-      faces: [
-        {
-          family: 'OddFace',
-          fullName: 'OddFace Bold',
-          postscriptName: 'OddFace-Bold',
-          style: 'Bold',
-        },
-      ],
-      currentFace: null,
-    })
-    expect(options[0]).toEqual({ value: DEFAULT_FACE_VALUE, label: 'Regular' })
-  })
-
-  test('extracts style name and localized label from face metadata', () => {
-    expect(
-      extractStyleNameFromFace({
-        family: 'JetBrains Mono',
-        fullName: 'JetBrains Mono Medium',
-        postscriptName: 'JetBrainsMono-Medium',
-      }),
-    ).toBe('Medium')
-    expect(
-      faceStyleLabel({
-        family: 'JetBrains Mono',
-        fullName: 'JetBrains Mono Medium',
-        postscriptName: 'JetBrainsMono-Medium',
-      }),
-    ).toBe('Medium')
-
-    expect(
-      extractStyleNameFromFace({
-        family: 'JetBrains Mono',
-        fullName: 'JetBrains Mono SemiBold',
-        postscriptName: 'JetBrainsMono-SemiBold',
-      }),
-    ).toBe('SemiBold')
-    expect(
-      faceStyleLabel({
-        family: 'JetBrains Mono',
-        fullName: 'JetBrains Mono SemiBold',
-        postscriptName: 'JetBrainsMono-SemiBold',
-      }),
-    ).toBe('SemiBold')
-
-    expect(
-      extractStyleNameFromFace({
-        family: 'MiSans VF',
-        fullName: 'MiSans VF',
-        postscriptName: 'MiSans-VF-Heavy',
-      }),
-    ).toBe('Heavy')
-    expect(
-      faceStyleLabel({
-        family: 'MiSans VF',
-        fullName: 'MiSans VF',
-        postscriptName: 'MiSans-VF-Heavy',
-      }),
-    ).toBe('Heavy')
-
-    expect(
-      faceStyleLabel({
-        family: 'Inter',
-        fullName: 'Inter Bold Italic',
-        postscriptName: 'Inter-BoldItalic',
-      }),
-    ).toBe('Bold Italic')
-  })
-
-  test('style options preserve a stored face missing from the enumeration and use localized style label', () => {
-    const options = buildStyleOptions({
-      faces: MONO_FACES,
-      currentFace: {
-        family: 'CodeMono',
-        fullName: 'CodeMono Missing',
-        postscriptName: 'CodeMono-Missing',
-      },
-    })
-    expect(options.map((option) => option.value)).toEqual([
-      'CodeMono-Regular',
-      'CodeMono-Bold',
-      'CodeMono-Missing',
-    ])
-    expect(options.find((opt) => opt.value === 'CodeMono-Missing')).toEqual({
-      value: 'CodeMono-Missing',
-      label: 'Missing',
-    })
-  })
-
-  test('style options resolve localized variant name before system fonts are loaded', () => {
-    const mediumOptions = buildStyleOptions({
-      faces: [],
-      currentFace: {
-        family: 'JetBrains Mono',
-        fullName: 'JetBrains Mono Medium',
-        postscriptName: 'JetBrainsMono-Medium',
-      },
-    })
-    expect(mediumOptions).toEqual([
-      { value: DEFAULT_FACE_VALUE, label: 'Regular' },
-      {
-        value: 'JetBrainsMono-Medium',
-        label: 'Medium',
-      },
-    ])
-
-    const semiBoldOptions = buildStyleOptions({
-      faces: [],
-      currentFace: {
-        family: 'JetBrains Mono',
-        fullName: 'JetBrains Mono SemiBold',
-        postscriptName: 'JetBrainsMono-SemiBold',
-      },
-    })
-    expect(semiBoldOptions).toEqual([
-      { value: DEFAULT_FACE_VALUE, label: 'Regular' },
-      {
-        value: 'JetBrainsMono-SemiBold',
-        label: 'SemiBold',
-      },
-    ])
-  })
-
-  test('variable fonts with identical fullName resolve unique styles and full names', () => {
-    const vfFaces: readonly DesktopSystemFontFace[] = [
-      {
-        family: 'MiSans VF',
-        fullName: 'MiSans VF',
-        postscriptName: 'MiSans-VF-Regular',
-        style: 'Regular',
-      },
-      {
-        family: 'MiSans VF',
-        fullName: 'MiSans VF',
-        postscriptName: 'MiSans-VF-Bold',
-        style: 'Bold',
-      },
-      {
-        family: 'MiSans VF',
-        fullName: 'MiSans VF',
-        postscriptName: 'MiSans-VF-Heavy',
-        style: 'Heavy',
-      },
-    ]
-
-    const options = buildStyleOptions({ faces: vfFaces, currentFace: null })
-    expect(options.map((option) => option.value)).toEqual([
-      'MiSans-VF-Regular',
-      'MiSans-VF-Bold',
-      'MiSans-VF-Heavy',
-    ])
-    expect(options.map((option) => option.label)).toEqual(['Regular', 'Bold', 'Heavy'])
-
-    const heavyCommit = fontPatchForSelection({
-      familyValue: 'MiSans VF',
-      faceValue: 'MiSans-VF-Heavy',
-      familyFaces: vfFaces,
-      currentFace: null,
-    })
-    expect(heavyCommit).toEqual({
-      family: 'MiSans VF',
-      face: {
-        family: 'MiSans VF',
-        fullName: 'MiSans VF Heavy',
-        postscriptName: 'MiSans-VF-Heavy',
-      },
-    })
-    expect(fontFamilyWithFace(heavyCommit.face, 'MiSans VF')).toBe(
-      '"Pidex-Selected-Sans", "MiSans VF Heavy", "MiSans VF", MiSans VF',
-    )
-  })
-
-  test('variable font styles are sorted by weight and displayed in canonical English names', () => {
-    const miSansFaces: readonly DesktopSystemFontFace[] = [
-      {
-        family: 'MiSans VF',
-        fullName: 'MiSans VF Demibold',
-        postscriptName: 'MiSans-VF-Demibold',
-        style: 'Demibold',
-      },
-      {
-        family: 'MiSans VF',
-        fullName: 'MiSans VF ExtraLight',
-        postscriptName: 'MiSans-VF-ExtraLight',
-        style: 'ExtraLight',
-      },
-      {
-        family: 'MiSans VF',
-        fullName: 'MiSans VF Heavy',
-        postscriptName: 'MiSans-VF-Heavy',
-        style: 'Heavy',
-      },
-      {
-        family: 'MiSans VF',
-        fullName: 'MiSans VF Light',
-        postscriptName: 'MiSans-VF-Light',
-        style: 'Light',
-      },
-      {
-        family: 'MiSans VF',
-        fullName: 'MiSans VF Medium',
-        postscriptName: 'MiSans-VF-Medium',
-        style: 'Medium',
-      },
-      {
-        family: 'MiSans VF',
-        fullName: 'MiSans VF Regular',
-        postscriptName: 'MiSans-VF-Regular',
-        style: 'Regular',
-      },
-    ]
-
-    const options = buildStyleOptions({ faces: miSansFaces, currentFace: null })
-    expect(options).toEqual([
-      { value: 'MiSans-VF-ExtraLight', label: 'ExtraLight' },
-      { value: 'MiSans-VF-Light', label: 'Light' },
-      { value: 'MiSans-VF-Regular', label: 'Regular' },
-      { value: 'MiSans-VF-Medium', label: 'Medium' },
-      { value: 'MiSans-VF-Demibold', label: 'Demibold' },
-      { value: 'MiSans-VF-Heavy', label: 'Heavy' },
-    ])
-  })
-
-  test('system default commits family null and face null', () => {
-    expect(
-      fontPatchForSelection({
-        familyValue: SYSTEM_DEFAULT_FAMILY_VALUE,
-        faceValue: DEFAULT_FACE_VALUE,
-        familyFaces: MONO_FACES,
-        currentFace: null,
-      }),
-    ).toEqual({ family: null, face: null })
-  })
-
-  test('the default face commits family-only and non-default faces save the face', () => {
-    const regular = fontPatchForSelection({
-      familyValue: 'CodeMono',
-      faceValue: DEFAULT_FACE_VALUE,
-      familyFaces: MONO_FACES,
-      currentFace: null,
-    })
-    expect(regular).toEqual({ family: 'CodeMono', face: null })
-
-    const boldByFullName = fontPatchForSelection({
-      familyValue: 'CodeMono',
-      faceValue: 'CodeMono Bold',
-      familyFaces: MONO_FACES,
-      currentFace: null,
-    })
-    expect(boldByFullName).toEqual({
-      family: 'CodeMono',
-      face: {
-        family: 'CodeMono',
-        fullName: 'CodeMono Bold',
-        postscriptName: 'CodeMono-Bold',
-      },
-    })
-
-    const boldByPostscriptName = fontPatchForSelection({
-      familyValue: 'CodeMono',
-      faceValue: 'CodeMono-Bold',
-      familyFaces: MONO_FACES,
-      currentFace: null,
-    })
-    expect(boldByPostscriptName).toEqual({
-      family: 'CodeMono',
-      face: {
-        family: 'CodeMono',
-        fullName: 'CodeMono Bold',
-        postscriptName: 'CodeMono-Bold',
-      },
-    })
-
-    const regularFaceOption = fontPatchForSelection({
-      familyValue: 'CodeMono',
-      faceValue: 'CodeMono Regular',
-      familyFaces: MONO_FACES,
-      currentFace: null,
-    })
-    expect(regularFaceOption).toEqual({ family: 'CodeMono', face: null })
-
-    const regularFaceOptionLegacy = fontPatchForSelection({
-      familyValue: 'CodeMono',
-      faceValue: 'CodeMono-Regular',
-      familyFaces: MONO_FACES,
-      currentFace: null,
-    })
-    expect(regularFaceOptionLegacy).toEqual({ family: 'CodeMono', face: null })
-  })
-
-  test('an unenumerated stored face is preserved on commit', () => {
-    const currentFace = {
-      family: 'CodeMono',
-      fullName: 'CodeMono Missing',
-      postscriptName: 'CodeMono-Missing',
-    }
-    expect(
-      fontPatchForSelection({
-        familyValue: 'CodeMono',
-        faceValue: 'CodeMono-Missing',
-        familyFaces: MONO_FACES,
-        currentFace,
-      }),
-    ).toEqual({ family: 'CodeMono', face: currentFace })
   })
 })
 
@@ -805,5 +345,92 @@ describe('renderer V7 → V8 shared fonts', () => {
     expect(getDesktopThemeForSelection(settings, 'light').theme.surface).not.toBe(
       getDesktopThemeForSelection(settings, 'dark').theme.surface,
     )
+  })
+})
+
+describe('external fonts in ThemeFontPickerModel', () => {
+  test('lists only curated external fonts by kind with download status', () => {
+    const uiOptions = buildFamilyOptions({
+      kind: 'ui',
+      externalFonts: [
+        {
+          id: 'misans',
+          family: 'MiSans',
+          displayName: 'MiSans',
+          kind: 'ui',
+          status: 'downloaded',
+        },
+        {
+          id: 'google-sans',
+          family: 'Google Sans',
+          displayName: 'Google Sans',
+          kind: 'ui',
+          status: 'not-downloaded',
+        },
+        {
+          id: 'jetbrains-mono',
+          family: 'JetBrains Mono',
+          displayName: 'JetBrains Mono',
+          kind: 'code',
+          status: 'not-downloaded',
+        },
+        {
+          id: 'google-sans-code',
+          family: 'Google Sans Code',
+          displayName: 'Google Sans Code',
+          kind: 'code',
+          status: 'downloaded',
+        },
+      ],
+    })
+
+    expect(uiOptions).toEqual([
+      { value: '__system_default_family__', label: '系统默认' },
+      {
+        value: 'MiSans',
+        label: 'MiSans',
+        disabled: false,
+        externalStatus: 'downloaded',
+      },
+      {
+        value: 'Google Sans',
+        label: 'Google Sans',
+        disabled: false,
+        externalStatus: 'not-downloaded',
+      },
+    ])
+
+    const codeOptions = buildFamilyOptions({ kind: 'code' })
+    expect(codeOptions).toEqual([
+      { value: '__system_default_family__', label: '系统默认' },
+      {
+        value: 'JetBrains Mono',
+        label: 'JetBrains Mono',
+        disabled: false,
+        externalStatus: 'not-downloaded',
+      },
+      {
+        value: 'Google Sans Code',
+        label: 'Google Sans Code',
+        disabled: false,
+        externalStatus: 'not-downloaded',
+      },
+    ])
+  })
+
+  test('falls back legacy non-catalog fonts to system default', () => {
+    expect(fontPickerCurrentFamilyValue('Arial', 'ui')).toBe(SYSTEM_DEFAULT_FAMILY_VALUE)
+    expect(fontPickerCurrentFamilyValue('Google Sans', 'ui')).toBe('Google Sans')
+    expect(fontPickerCurrentFamilyValue('Google Sans', 'code')).toBe(SYSTEM_DEFAULT_FAMILY_VALUE)
+
+    const vars = deriveThemeVariables({
+      ...DEFAULT_DARK_THEME,
+      theme: {
+        ...DEFAULT_DARK_THEME.theme,
+        fonts: { ui: 'Arial', uiFace: null, code: 'Consolas', codeFace: null },
+      },
+    })
+    expect(vars['--cpx-sys-font-family-sans']).toBe(DEFAULT_UI_FONT)
+    expect(vars['--cpx-sys-font-family-mono']).toBe(DEFAULT_CODE_FONT)
   })
 })

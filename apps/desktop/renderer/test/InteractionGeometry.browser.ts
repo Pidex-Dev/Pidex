@@ -105,13 +105,8 @@ const examples = renderToString(
   ),
 )
 
-const latinFont = (
-  await readFile(resolve(rendererRoot, 'public/fonts/misans/MiSans-Regular.latin.woff2'))
-).toString('base64')
 const buttonStyles = await renderButtonStyles()
-const css =
-  (await compileEntryStyles()) +
-  `@font-face{font-family:MiSans;font-weight:100 900;src:url(data:font/woff2;base64,${latinFont}) format('woff2')}`
+const css = await compileEntryStyles()
 const html = `<!doctype html><html lang="zh-CN" data-reduce-motion="on"><meta charset="utf-8"><title>Pidex 图标与点击热区对照</title>
 <style>${css}</style><style>${buttonStyles}</style><style>
 body{overflow:auto;padding:24px}main{display:grid;grid-template-columns:1fr 1fr;gap:32px}
