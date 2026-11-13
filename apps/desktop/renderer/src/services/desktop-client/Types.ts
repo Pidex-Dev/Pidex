@@ -494,6 +494,8 @@ export type DesktopPluginApi = {
     pluginId: string,
     enabled: boolean,
   ): Promise<RpcResult<'plugin/setEnabled'>['plugin']>
+  listApps(workspacePath?: string | null): Promise<RpcResult<'app/list'>>
+  setAppEnabled(appId: string, enabled: boolean): Promise<RpcResult<'app/setEnabled'>['app']>
   onPluginsUpdated(callback: (generation: number) => void): () => void
 }
 

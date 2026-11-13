@@ -194,6 +194,7 @@ export const RENDERER_CAPABILITIES = [
   'plugins.details.v1',
   'plugins.lifecycle.v1',
   'plugins.assets.v1',
+  'apps.manage.v1',
   'mcp.manage.v1',
   'mcp.oauth.v1',
   'config.manage.v1',
@@ -2486,6 +2487,10 @@ export function createAgentSessionDesktopClient(
       loadAgentPluginApi().then((api) => api.uninstallPlugin(pluginId)),
     setPluginEnabled: (pluginId, enabled) =>
       loadAgentPluginApi().then((api) => api.setPluginEnabled(pluginId, enabled)),
+    listApps: (workspacePath) =>
+      loadAgentPluginApi().then((api) => api.listApps(workspacePath)),
+    setAppEnabled: (appId, enabled) =>
+      loadAgentPluginApi().then((api) => api.setAppEnabled(appId, enabled)),
     onPluginsUpdated: (callback) => {
       let disposed = false
       let dispose = () => {}

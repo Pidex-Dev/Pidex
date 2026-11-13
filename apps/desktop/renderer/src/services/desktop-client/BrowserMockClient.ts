@@ -816,6 +816,14 @@ export function createBrowserMockDesktopClient(
       mockTaskPlanningPlugin = { ...mockTaskPlanningPlugin, enabled }
       return mockTaskPlanningPlugin
     },
+    listApps: async () => ({
+      apps: [],
+      generation: mockPluginGeneration,
+      updatedAt: Date.now(),
+    }),
+    setAppEnabled: async () => {
+      throw new Error('PLUGIN_NOT_FOUND')
+    },
     onPluginsUpdated: () => () => {},
     getComputerState: async () => mockComputerState,
     discoverComputerApps: async () => ({ apps: [] }),

@@ -6368,6 +6368,44 @@ const fixtures = {
       freedRssBytes: 15_000_000,
     },
   ),
+  'app/list': methodFixture(
+    'app/list',
+    { workspace: 'F:/CodeProject/CodePilotX' },
+    {
+      apps: [
+        {
+          id: 'pets',
+          name: 'Pets',
+          description: 'Manage desktop companion pets.',
+          developerName: 'Pidex',
+          source: 'builtin',
+          enabled: true,
+          canUninstall: false,
+          tools: [{ name: 'pets_list', description: 'List installed pets.', mode: 'read' }],
+        },
+      ],
+      generation: 1,
+      updatedAt: 1700000000000,
+    },
+  ),
+  'app/setEnabled': methodFixture(
+    'app/setEnabled',
+    { appId: 'pets', enabled: false, operationId: 'op-app-1' },
+    {
+      app: {
+        id: 'pets',
+        name: 'Pets',
+        description: 'Manage desktop companion pets.',
+        developerName: 'Pidex',
+        source: 'builtin',
+        enabled: false,
+        canUninstall: false,
+        tools: [{ name: 'pets_list', description: 'List installed pets.', mode: 'read' }],
+      },
+      generation: 2,
+      updatedAt: 1700000000001,
+    },
+  ),
 } satisfies MethodFixtures
 
 describe('RPC method schema contracts', () => {
@@ -6490,7 +6528,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(364)
+    expect(methods).toHaveLength(366)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -6858,7 +6896,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(343)
+    expect(Object.keys(RpcMethods)).toHaveLength(345)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })

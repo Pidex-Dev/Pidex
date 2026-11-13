@@ -5,6 +5,7 @@
   "author": { "name": "Pidex" },
   "skills": "./skills/",
   "docs": "./docs/",
+  "apps": "./.app.json",
   "mcpServers": {
     "node_repl": {
       "managed": true,

@@ -58,6 +58,7 @@ import type { PetService } from '../../pet/PetService'
 import type { ReleaseNotesService } from '../../release-notes/ReleaseNotesService'
 import type { SkillManagementService } from '../../prompt/SkillManagementService'
 import type { PluginManagementService } from '../../plugin/PluginManagementService'
+import type { AppManagementService } from '../../plugin/AppManagementService'
 import type { McpRuntimeService } from '../../mcp/McpRuntimeService'
 import type { TaskSuggestionService } from '../../suggestion/TaskSuggestionService'
 import type { ComposerPredictionService } from '../../suggestion/ComposerPredictionService'
@@ -173,6 +174,7 @@ export type RpcRouterDependencies = {
   releaseNotes: ReleaseNotesService
   skills?: SkillManagementService
   plugins?: PluginManagementService
+  apps?: AppManagementService
   mcp?: McpRuntimeService
   suggestions?: TaskSuggestionService
   composerPredictions?: ComposerPredictionService

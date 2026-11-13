@@ -9,8 +9,10 @@ import { PluginIcon } from '../../plugins/PluginIcon.js'
 import { usePluginDetails } from '../../plugins/UsePluginDetails.js'
 import type { PluginCatalogItem } from '../../plugins/PluginCatalog.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import type { PluginUsedApp } from '@pidex/agent-protocol'
 import type { DesktopInstalledSkill, DesktopMcpServerListItem } from '../../../../shared/Types.js'
 import { ComputerRuntimeStatus } from '../../plugins/ComputerRuntimeStatus.js'
+import { resolveAppIconName } from './AppDetailsDialog.js'
 import { isWorkspaceScopeError } from '../hooks/HookSettingsModel.js'
 import { errorMessageOr as errorMessageOf } from '@pidex/shared/errors'
 
@@ -29,6 +31,7 @@ export type PluginSettingsDetailsViewProps = {
   mcpAttemptBusy?: boolean
   onBack: () => void
   onViewMarketDetails: (item: PluginCatalogItem) => void
+  onSelectApp?: (app: PluginUsedApp, trigger?: HTMLElement | null) => void
   onSelectSkill?: (skill: PluginSettingsSkillItem, trigger?: HTMLElement | null) => void
   onToggleSkill?: (skill: PluginSettingsSkillItem, enabled: boolean) => void
   onManageHooks?: () => void
@@ -65,6 +68,7 @@ export function PluginSettingsDetailsView({
   mcpAttemptBusy = false,
   onBack,
   onViewMarketDetails,
+  onSelectApp,
   onSelectSkill,
   onToggleSkill,
   onManageHooks,
@@ -145,6 +149,7 @@ export function PluginSettingsDetailsView({
   const isConnected = authState?.source === 'oauth' && authState.canLogout
 
   // Skills and components
+  const usedApps = details?.apps ?? []
   const skills = details?.skills ?? (item.skills ?? []).map((id) => ({ id, name: id, description: '' }))
   const nonSkillComponents = (details?.components ?? []).filter((comp) => comp.kind !== 'skill')
 
@@ -267,6 +272,68 @@ export function PluginSettingsDetailsView({
                 </Button>
               )}
             </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* 使用的应用区 */}
+      {usedApps.length > 0 ? (
+        <section className="tw:mb-7" aria-label="使用的应用">
+          <h2 className="tw:m-0 tw:mb-2.5 tw:type-row-title tw:text-app-text">使用的应用</h2>
+          <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:divide-y tw:divide-app-border-subtle tw:overflow-hidden">
+            {usedApps.map((usedApp) => {
+              const statusText = !usedApp.installed
+                ? '尚未安装或配置'
+                : !usedApp.enabled
+                  ? '已禁用'
+                  : usedApp.authConnected === false
+                    ? '需要授权'
+                    : null
+              const content = (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="tw:flex tw:size-8 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-canvas/80 tw:text-app-text-soft tw:overflow-hidden"
+                  >
+                    <PluginIcon name={resolveAppIconName({ id: usedApp.id })} />
+                  </span>
+                  <div className="tw:flex-1 tw:min-w-0">
+                    <div className="tw:type-row-title tw:text-app-text tw:truncate">
+                      {usedApp.name}
+                    </div>
+                    {usedApp.description ? (
+                      <div className="tw:type-body-sm tw:text-app-text-soft tw:mt-0.5 tw:truncate">
+                        {usedApp.description}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="tw:flex tw:items-center tw:gap-2 tw:shrink-0">
+                    {statusText ? (
+                      <span className="tw:type-caption tw:text-app-text-meta">{statusText}</span>
+                    ) : null}
+                    <ChevronRight
+                      size={16}
+                      className="tw:text-app-text-meta tw:shrink-0"
+                      aria-hidden="true"
+                    />
+                  </div>
+                </>
+              )
+              return onSelectApp ? (
+                <button
+                  key={usedApp.id}
+                  type="button"
+                  onClick={(event) => onSelectApp(usedApp, event.currentTarget)}
+                  className="tw:w-full tw:border-0 tw:bg-transparent tw:px-3 tw:py-2.5 tw:flex tw:items-center tw:gap-3 tw:text-left tw:hover:bg-app-panel-hover tw:transition-colors tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-[-2px] tw:focus-visible:outline-app-focus"
+                >
+                  {content}
+                </button>
+              ) : (
+                <div key={usedApp.id} className="tw:px-3 tw:py-2.5 tw:flex tw:items-center tw:gap-3">
+                  {content}
+                </div>
+              )
+            })}
           </div>
         </section>
       ) : null}

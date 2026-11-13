@@ -54,6 +54,7 @@ describe('desktop plugin client', () => {
               'plugins.details.v1',
               'plugins.lifecycle.v1',
               'plugins.assets.v1',
+              'apps.manage.v1',
             ],
             limits: {
               maxFrameBytes: 1024,
@@ -102,6 +103,46 @@ describe('desktop plugin client', () => {
           id: body.id,
           result: { plugin: { ...plugin, enabled: false }, generation: 2, updatedAt: 2 },
         })
+      if (body.method === 'app/list')
+        return Response.json({
+          jsonrpc: '2.0',
+          id: body.id,
+          result: {
+            apps: [
+              {
+                id: 'browser',
+                name: 'Browser',
+                description: 'Browser control',
+                developerName: 'Pidex',
+                source: 'builtin',
+                enabled: true,
+                canUninstall: false,
+                tools: [],
+              },
+            ],
+            generation: 1,
+            updatedAt: 1,
+          },
+        })
+      if (body.method === 'app/setEnabled')
+        return Response.json({
+          jsonrpc: '2.0',
+          id: body.id,
+          result: {
+            app: {
+              id: 'browser',
+              name: 'Browser',
+              description: 'Browser control',
+              developerName: 'Pidex',
+              source: 'builtin',
+              enabled: body.params.enabled,
+              canUninstall: false,
+              tools: [],
+            },
+            generation: 2,
+            updatedAt: 2,
+          },
+        })
       throw new Error(`Unhandled RPC method: ${body.method}`)
     }
     const client = createDesktopClient({ fetch: fetcher })
@@ -120,6 +161,19 @@ describe('desktop plugin client', () => {
     const listed = await client.listPlugins('F:\\workspace', true)
     const loadedDetails = await client.getPluginDetails('task-planning', 'F:\\workspace')
     const disabled = await client.setPluginEnabled('task-planning', false)
+    const listedApps = await client.listApps('F:\\workspace')
+    const disabledApp = await client.setAppEnabled('browser', false)
+
+    expect(listedApps.apps[0]?.id).toBe('browser')
+    expect(disabledApp.enabled).toBe(false)
+    expect(requests.find((item) => item.method === 'app/list')?.params).toEqual({
+      workspace: 'F:\\workspace',
+    })
+    expect(requests.find((item) => item.method === 'app/setEnabled')?.params).toEqual({
+      appId: 'browser',
+      enabled: false,
+      operationId: expect.any(String),
+    })
 
     expect(requests.find((item) => item.method === 'plugin/install')?.params).toEqual({
       pluginId: 'pidex-demo',

@@ -97,6 +97,7 @@ import { SkillManagementService } from './prompt/SkillManagementService'
 import { SkillSettingsRepository } from './storage/repositories/SkillSettingsRepository'
 import { PluginSettingsRepository } from './storage/repositories/PluginSettingsRepository'
 import { PluginManagementService } from './plugin/PluginManagementService'
+import { AppManagementService } from './plugin/AppManagementService'
 import { McpSettingsRepository } from './storage/repositories/McpSettingsRepository'
 import { McpConfigService } from './mcp/McpConfigService'
 import { McpElicitationService } from './mcp/McpElicitationService'
@@ -446,7 +447,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           },
     )
     const pets = new PetService(config.petsDir)
-    const plugins = new PluginManagementService(new PluginSettingsRepository(db), {
+    const pluginSettings = new PluginSettingsRepository(db)
+    const plugins = new PluginManagementService(pluginSettings, {
       builtinPluginsRoot: config.builtinPluginsRoot,
       dataRoot: config.dataDir,
       userHome: homedir(),
@@ -518,6 +520,20 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       getBrokerURL: () => config.githubAuthBrokerURL,
       getCallbackURL: () =>
         config.port > 0 ? `http://127.0.0.1:${config.port}/auth/github/callback` : null,
+    })
+    const apps = new AppManagementService(
+      pluginSettings,
+      plugins,
+      async (provider) => {
+        if (provider !== 'github') return false
+        return Boolean(await github.optionalAccessToken())
+      },
+    )
+    plugins.setAppResolver((ref) => apps.resolveUsedApp(ref))
+    const unsubscribeApps = apps.subscribe((_appId, generation) => {
+      void publishAgentEvent(db, hub, null, null, 'plugins/updated', { generation }).catch(() =>
+        logger.warn('plugins.status.publish.failed', { error: 'APP_STATUS_PUBLISH_FAILED' }),
+      )
     })
     const releaseNotes = new ReleaseNotesService({
       getAccessToken: () => github.optionalAccessToken(),
@@ -620,15 +636,26 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     })
     const browser = new BrowserService(db, hub, configService)
     const tools = new ToolRegistry()
+    const registerWithAppGate = (definition: Parameters<ToolRegistry['register']>[0], appId: string) => {
+      const baseAvailable = definition.available
+      tools.register({
+        ...definition,
+        available: () => apps.isEnabled(appId) && (baseAvailable ? baseAvailable() : true),
+      })
+    }
     const computer = new ComputerUseService(configService, db, hub, plugins, undefined, logger)
     yield* Effect.promise(() => computer.initialize())
-    for (const definition of computerToolDefinitions(computer)) tools.register(definition)
+    for (const definition of computerToolDefinitions(computer)) {
+      registerWithAppGate(definition, 'computer-use')
+    }
     if (browser.available())
-      for (const definition of browserToolDefinitions(browser)) tools.register(definition)
+      for (const definition of browserToolDefinitions(browser)) {
+        registerWithAppGate(definition, 'browser')
+      }
     tools.register(createTerminalReadDefinition(terminalOutput))
     tools.register(createThreadReadDefinition(new ThreadReadViewRepository(db)))
     tools.register(createWorkgroupReadDefinition(sessionGroups))
-    tools.register(createAttachPullRequestDefinition(threadPullRequests))
+    registerWithAppGate(createAttachPullRequestDefinition(threadPullRequests), 'github')
     const mcpConfigs = new McpConfigService(new McpSettingsRepository(db), configService)
     const usage = new UsageService(new UsageRepository(db), providers, piModels, credentials, {
       subscriptionModels: anthropicUsageModels,
@@ -1513,6 +1540,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       releaseNotes,
       skills,
       plugins,
+      apps,
       mcp,
       suggestions,
       composerPredictions,
@@ -1569,6 +1597,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       computer.dispose()
       await nodeRepl.dispose()
       unsubscribePlugins()
+      unsubscribeApps()
       browser.dispose()
       await speech.dispose()
       automationScheduler?.dispose()

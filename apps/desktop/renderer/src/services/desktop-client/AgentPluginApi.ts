@@ -8,11 +8,11 @@ type Dependencies = {
   hasAgentCapability: (
     name: Extract<
       ProtocolCapability,
-      'plugins.details.v1' | 'plugins.lifecycle.v1' | 'plugins.assets.v1'
+      'plugins.details.v1' | 'plugins.lifecycle.v1' | 'plugins.assets.v1' | 'apps.manage.v1'
     >,
   ) => boolean
   requireAgentCapability: (
-    name: Extract<ProtocolCapability, 'plugins.manage.v1' | 'plugins.lifecycle.v1'>,
+    name: Extract<ProtocolCapability, 'plugins.manage.v1' | 'plugins.lifecycle.v1' | 'apps.manage.v1'>,
   ) => void
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call' | 'subscribeEnvelope'>
   withAgentOrMock: <T>(
@@ -115,6 +115,32 @@ export function createAgentPluginApi({
           ).plugin
         },
         () => mockClient.setPluginEnabled(pluginId, enabled),
+      ),
+    listApps: (workspacePath) =>
+      withAgentOrMock(
+        async () => {
+          if (!hasAgentCapability('apps.manage.v1')) {
+            return { apps: [], generation: 1, updatedAt: 0 }
+          }
+          return rpc.call('app/list', {
+            ...(workspacePath ? { workspace: workspacePath } : {}),
+          })
+        },
+        () => mockClient.listApps(workspacePath),
+      ),
+    setAppEnabled: (appId, enabled) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('apps.manage.v1')
+          return (
+            await rpc.call('app/setEnabled', {
+              appId,
+              enabled,
+              operationId: crypto.randomUUID(),
+            })
+          ).app
+        },
+        () => mockClient.setAppEnabled(appId, enabled),
       ),
     onPluginsUpdated: (callback) =>
       rpc.subscribeEnvelope({ liveEventTypes: AGENT_LIVE_EVENT_FILTERS.plugins }, (events) => {

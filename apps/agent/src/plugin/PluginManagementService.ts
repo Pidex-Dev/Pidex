@@ -12,6 +12,7 @@ import type {
   PluginInstallationPolicy,
   PluginSource,
   PluginSummary,
+  PluginUsedApp,
 } from '@pidex/agent-protocol'
 import { parseSkillDocument } from '../prompt/SkillService'
 import { hostManagedMcpDeclarations } from '../nodeRepl/Association'
@@ -57,6 +58,25 @@ type RemoteGitSource = {
   subpath?: string
 }
 
+export type DeclaredPluginApp = {
+  id: string
+  name?: string
+  description?: string
+  required?: boolean
+  pluginId: string
+  pluginName: string
+  developerName: string
+  pluginInstalled: boolean
+  pluginEnabled: boolean
+}
+
+type PluginAppDeclaration = {
+  id: string
+  name?: string
+  description?: string
+  required?: boolean
+}
+
 type DiscoveredPlugin = {
   summary: PluginSummary
   details: PluginDetails
@@ -65,6 +85,7 @@ type DiscoveredPlugin = {
   assets?: PluginAssets
   skillRoot: PluginSkillRoot | null
   hookRoot: PluginHookRoot | null
+  declaredApps?: readonly PluginAppDeclaration[]
 }
 
 type PluginRoots = {
@@ -217,6 +238,25 @@ export class PluginManagementService {
   private mutation: Promise<unknown> = Promise.resolve()
   private readonly knownPlugins = new Map<string, DiscoveredPlugin>()
   private readonly listeners = new Set<(pluginId: string, generation: number) => void>()
+  private appResolver?:
+    | ((ref: {
+        id: string
+        name?: string
+        description?: string
+        required?: boolean
+      }) => Promise<PluginUsedApp> | PluginUsedApp)
+    | undefined
+
+  setAppResolver(
+    resolver: (ref: {
+      id: string
+      name?: string
+      description?: string
+      required?: boolean
+    }) => Promise<PluginUsedApp> | PluginUsedApp,
+  ) {
+    this.appResolver = resolver
+  }
 
   constructor(
     private readonly settings: PluginSettingsRepository,
@@ -350,7 +390,26 @@ export class PluginManagementService {
       throw new PluginManagementError('PLUGIN_NOT_FOUND', '插件不存在', 404)
     }
     this.knownPlugins.set(plugin.summary.id, plugin)
+    const declaredApps = plugin.declaredApps ?? []
+    if (declaredApps.length && this.appResolver) {
+      const apps = await Promise.all(declaredApps.map((app) => this.appResolver!(app)))
+      return { details: { ...plugin.details, apps } }
+    }
     return { details: plugin.details }
+  }
+
+  async declaredApps(workspace?: string): Promise<DeclaredPluginApp[]> {
+    const plugins = await this.discover(workspace)
+    return plugins.flatMap((plugin) =>
+      (plugin.declaredApps ?? []).map((app) => ({
+        ...app,
+        pluginId: plugin.summary.id,
+        pluginName: plugin.summary.name,
+        developerName: plugin.summary.developerName,
+        pluginInstalled: plugin.summary.installed,
+        pluginEnabled: plugin.summary.enabled,
+      })),
+    )
   }
 
   async readAsset(input: {
@@ -991,6 +1050,7 @@ export class PluginManagementService {
         input.pluginRoot,
         stringOrStringArray(manifest.hooks),
       )
+      const declaredApps = await this.resolveApps(input.pluginRoot, stringValue(manifest.apps))
       const declaredHostServers = new Set([
         ...stringArray(extension?.hostMcpServers),
         ...Object.keys(record(manifest.mcpServers) ?? {}),
@@ -1067,6 +1127,7 @@ export class PluginManagementService {
               hooksPaths,
             }
           : null,
+        ...(declaredApps.length ? { declaredApps } : {}),
       }
     } catch {
       return invalidPlugin(input.expectedId, input.source)
@@ -1136,6 +1197,40 @@ export class PluginManagementService {
       if (!resolved.includes(canonical)) resolved.push(canonical)
     }
     return resolved
+  }
+
+  private async resolveApps(
+    pluginRoot: string,
+    configuredPath: string | null,
+  ): Promise<PluginAppDeclaration[]> {
+    const candidate = resolve(pluginRoot, configuredPath ?? '.app.json')
+    if (!contained(pluginRoot, candidate)) return []
+    const canonical = await realpath(candidate).catch(() => null)
+    if (!canonical || !contained(pluginRoot, canonical)) return []
+    let parsed: JsonRecord | null
+    try {
+      parsed = record(await readJson(canonical))
+    } catch {
+      return []
+    }
+    const rawApps = record(parsed?.apps)
+    if (!rawApps) return []
+    const declarations: PluginAppDeclaration[] = []
+    for (const [key, value] of Object.entries(rawApps)) {
+      const entry = record(value)
+      if (!entry) continue
+      const id = stringValue(entry.id) ?? (pluginIdPattern.test(key) ? key : null)
+      if (!id || !pluginIdPattern.test(id)) continue
+      const name = stringValue(entry.name)
+      const description = stringValue(entry.description)
+      declarations.push({
+        id,
+        ...(name ? { name } : {}),
+        ...(description ? { description } : {}),
+        ...(typeof entry.required === 'boolean' ? { required: entry.required } : {}),
+      })
+    }
+    return declarations
   }
 }
 

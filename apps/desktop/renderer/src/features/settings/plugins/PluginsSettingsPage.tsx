@@ -4,6 +4,7 @@ import type React from 'react'
 import { ChevronDown, Globe, Lightbulb, Package, Plus, RefreshCw, Server, Store } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import type { AppSummary } from '@pidex/agent-protocol'
 import type {
   DesktopInstalledSkill,
   DesktopMcpRuntimeServerStatus,
@@ -43,9 +44,8 @@ import {
   clearPluginDetailsDeepLink,
   resolvePluginDetailsDeepLink,
 } from './PluginDetailsDeepLink.js'
-import { AppDetailsDialog } from './AppDetailsDialog.js'
+import { AppDetailsDialog, resolveAppIconName } from './AppDetailsDialog.js'
 import { SkillDetailsDialog } from './SkillDetailsDialog.js'
-import { preparePluginPrompt } from '../../plugins/PluginPrompt.js'
 import { listRuntimeSkills, setRuntimeSkillEnabled } from './SkillClientAdapter.js'
 import { errorMessageOr as errorMessageOf } from '@pidex/shared/errors'
 import {
@@ -91,16 +91,6 @@ const DEFAULT_MARKETPLACES: MarketplaceSource[] = [
   },
 ]
 
-function isAppPlugin(item: PluginCatalogItem): boolean {
-  return (
-    item.id === 'computer-use' ||
-    item.capabilities.includes('ui') ||
-    item.capabilities.includes('webview') ||
-    item.capabilities.includes('browser') ||
-    item.capabilities.includes('app')
-  )
-}
-
 const VALID_TABS = new Set<Tab>(['plugins', 'apps', 'mcps', 'skills', 'marketplaces'])
 
 export function PluginsSettingsPage({
@@ -139,7 +129,10 @@ export function PluginsSettingsPage({
   const [skillDialogOpen, setSkillDialogOpen] = useState(false)
   const [skillDialogTrigger, setSkillDialogTrigger] = useState<HTMLElement | null>(null)
 
-  const [selectedApp, setSelectedApp] = useState<PluginCatalogItem | null>(null)
+  const [apps, setApps] = useState<AppSummary[] | undefined>()
+  const [appsError, setAppsError] = useState<string | null>(null)
+  const [busyAppIds, setBusyAppIds] = useState<Set<string>>(() => new Set())
+  const [selectedApp, setSelectedApp] = useState<AppSummary | null>(null)
   const [appDialogOpen, setAppDialogOpen] = useState(false)
   const [appDialogTrigger, setAppDialogTrigger] = useState<HTMLElement | null>(null)
 
@@ -187,14 +180,8 @@ export function PluginsSettingsPage({
     [plugins, optimisticPluginEnabled],
   )
 
-  const standardPlugins = useMemo(
-    () => pluginItems.filter((item) => !isAppPlugin(item)),
-    [pluginItems],
-  )
-  const appPlugins = useMemo(
-    () => pluginItems.filter(isAppPlugin),
-    [pluginItems],
-  )
+  const standardPlugins = pluginItems
+  const appItems = apps ?? []
 
   const tabOptions = useMemo(() => {
     const options: Array<{ value: Tab; label: React.ReactNode }> = [
@@ -210,7 +197,7 @@ export function PluginsSettingsPage({
         value: 'apps',
         label: (
           <>
-            应用 <span aria-hidden="true">{appPlugins.length}</span>
+            应用 <span aria-hidden="true">{apps?.length ?? '…'}</span>
           </>
         ),
       },
@@ -244,7 +231,7 @@ export function PluginsSettingsPage({
     return options
   }, [
     standardPlugins.length,
-    appPlugins.length,
+    apps?.length,
     servers?.length,
     skills,
     skillsError,
@@ -338,9 +325,19 @@ export function PluginsSettingsPage({
     setMcpOAuthAttempts({})
     void loadSkills(false)
     void loadServers()
+    void loadApps()
     // Initial data should be loaded once for the current workspace.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspacePath])
+
+  useEffect(
+    () =>
+      desktopClient.onPluginsUpdated(() => {
+        void loadApps()
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workspacePath],
+  )
 
   useEffect(() => {
     return desktopClient.subscribeAgentEventEnvelopes(
@@ -463,9 +460,51 @@ export function PluginsSettingsPage({
     }
   }
 
+  async function loadApps(): Promise<void> {
+    setAppsError(null)
+    try {
+      const result = await desktopClient.listApps(workspacePath)
+      setApps([...result.apps])
+    } catch (error) {
+      const message = errorMessageOf(error, '应用列表读取失败。')
+      setApps([])
+      setAppsError(message)
+      onError(message)
+    }
+  }
+
+  async function toggleApp(app: AppSummary, enabled: boolean): Promise<void> {
+    if (busyAppIds.has(app.id)) return
+    const previous = apps
+    setBusyAppIds((current) => new Set(current).add(app.id))
+    setApps((current) =>
+      current?.map((item) => (item.id === app.id ? { ...item, enabled } : item)),
+    )
+    setSelectedApp((current) => (current?.id === app.id ? { ...current, enabled } : current))
+    try {
+      const updated = await desktopClient.setAppEnabled(app.id, enabled)
+      setApps((current) => current?.map((item) => (item.id === updated.id ? updated : item)))
+      setSelectedApp((current) => (current?.id === updated.id ? updated : current))
+      onNotice?.(`${app.name} 已${enabled ? '启用' : '禁用'}，将在下一轮任务生效。`)
+    } catch (error) {
+      setApps(previous)
+      setSelectedApp((current) =>
+        current?.id === app.id ? (previous?.find((item) => item.id === app.id) ?? current) : current,
+      )
+      const message = errorMessageOf(error, `${app.name} 状态更新失败。`)
+      onError(message)
+    } finally {
+      setBusyAppIds((current) => without(current, app.id))
+    }
+  }
+
   async function refreshCurrentTab(): Promise<void> {
-    if (tab === 'plugins' || tab === 'apps') {
+    if (tab === 'plugins') {
       refreshPlugins()
+      return
+    }
+    if (tab === 'apps') {
+      await loadApps()
       return
     }
     if (tab === 'skills') {
@@ -673,8 +712,8 @@ export function PluginsSettingsPage({
   const visiblePlugins = standardPlugins.filter((item) =>
     matchesQuery(normalizedQuery, item.name, item.description),
   )
-  const visibleApps = appPlugins.filter((item) =>
-    matchesQuery(normalizedQuery, item.name, item.description),
+  const visibleApps = appItems.filter((app) =>
+    matchesQuery(normalizedQuery, app.name, app.description),
   )
   const visibleMarketplaces = marketplaces.filter((market) =>
     matchesQuery(normalizedQuery, market.name, market.description, market.url),
@@ -703,21 +742,25 @@ export function PluginsSettingsPage({
     ? (pluginItems.find((item) => item.id === selectedPluginId) ?? null)
     : null
   const tabError =
-    tab === 'plugins' || tab === 'apps'
+    tab === 'plugins'
       ? pluginLoadError
-      : tab === 'skills'
-        ? skillsError
-        : tab === 'mcps'
-          ? mcpError
-          : null
+      : tab === 'apps'
+        ? appsError
+        : tab === 'skills'
+          ? skillsError
+          : tab === 'mcps'
+            ? mcpError
+            : null
   const loading =
-    tab === 'plugins' || tab === 'apps'
+    tab === 'plugins'
       ? pluginsLoading
-      : tab === 'skills'
-        ? skills === undefined
-        : tab === 'mcps'
-          ? servers === undefined
-          : false
+      : tab === 'apps'
+        ? apps === undefined
+        : tab === 'skills'
+          ? skills === undefined
+          : tab === 'mcps'
+            ? servers === undefined
+            : false
 
   const skillDetailsDialog = (
     <SkillDetailsDialog
@@ -746,6 +789,34 @@ export function PluginsSettingsPage({
           }
         }
         await loadSkills(true)
+      }}
+      onError={onError}
+      onNotice={onNotice}
+    />
+  )
+
+  const appDetailsDialog = (
+    <AppDetailsDialog
+      app={selectedApp}
+      open={appDialogOpen}
+      busy={selectedApp ? busyAppIds.has(selectedApp.id) : false}
+      restoreFocusElement={appDialogTrigger}
+      onOpenChange={setAppDialogOpen}
+      onToggleEnabled={(app, enabled) => toggleApp(app, enabled)}
+      onTryApp={(app) => {
+        navigate('/chat')
+        onNotice?.(`已准备好在对话中使用 ${app.name}。`)
+      }}
+      onViewPlugin={(pluginId) => {
+        setSearchParams(
+          (current) => {
+            const next = new URLSearchParams(current)
+            next.set('tab', 'plugins')
+            next.set('plugin', pluginId)
+            return next
+          },
+          { replace: false },
+        )
       }}
       onError={onError}
       onNotice={onNotice}
@@ -783,6 +854,25 @@ export function PluginsSettingsPage({
             onViewMarketDetails={(item) =>
               navigate(`/plugins?plugin=${encodeURIComponent(item.id)}`)
             }
+            onSelectApp={(usedApp, trigger) => {
+              const matched = appItems.find((candidate) => candidate.id === usedApp.id)
+              setSelectedApp(
+                matched ?? {
+                  id: usedApp.id,
+                  name: usedApp.name,
+                  description: usedApp.description,
+                  developerName: usedApp.developerName ?? requestedPlugin.developerName ?? 'Pidex',
+                  source: usedApp.installed ? 'builtin' : 'plugin',
+                  enabled: usedApp.enabled,
+                  canUninstall: false,
+                  pluginId: requestedPlugin.id,
+                  ...(usedApp.iconName ? { iconName: usedApp.iconName } : {}),
+                  tools: usedApp.tools ? [...usedApp.tools] : [],
+                },
+              )
+              setAppDialogTrigger(trigger ?? null)
+              setAppDialogOpen(true)
+            }}
             onSelectSkill={(skill, trigger) => {
               setSelectedSkill(fallbackSkill(skill))
               setSkillDialogTrigger(trigger ?? null)
@@ -803,6 +893,7 @@ export function PluginsSettingsPage({
           />
         </div>
         {skillDetailsDialog}
+        {appDetailsDialog}
       </SettingsContentArea>
     )
   }
@@ -942,9 +1033,9 @@ export function PluginsSettingsPage({
         >
           {loading ? (
             <LoadingRows />
-          ) : tab === 'plugins' || tab === 'apps' ? (
-            (tab === 'plugins' ? visiblePlugins : visibleApps).length ? (
-              (tab === 'plugins' ? visiblePlugins : visibleApps).map((item) => (
+          ) : tab === 'plugins' ? (
+            visiblePlugins.length ? (
+              visiblePlugins.map((item) => (
                 <ExtensionManagementRow
                   key={item.id}
                   title={item.name}
@@ -971,21 +1062,15 @@ export function PluginsSettingsPage({
                   }
                   dimmed={item.status === 'disabled'}
                   showChevron
-                  onActivate={(trigger) => {
-                    if (tab === 'apps') {
-                      setSelectedApp(item)
-                      setAppDialogTrigger(trigger)
-                      setAppDialogOpen(true)
-                    } else {
-                      setSearchParams(
-                        (current) => {
-                          const next = new URLSearchParams(current)
-                          next.set('plugin', item.id)
-                          return next
-                        },
-                        { replace: false },
-                      )
-                    }
+                  onActivate={() => {
+                    setSearchParams(
+                      (current) => {
+                        const next = new URLSearchParams(current)
+                        next.set('plugin', item.id)
+                        return next
+                      },
+                      { replace: false },
+                    )
                   }}
                   actions={
                     item.status === 'enabled' || item.status === 'disabled' ? (
@@ -1004,7 +1089,40 @@ export function PluginsSettingsPage({
                 />
               ))
             ) : (
-              <EmptyState label={tab === 'apps' ? '没有匹配的应用。' : '没有匹配的插件。'} />
+              <EmptyState label="没有匹配的插件。" />
+            )
+          ) : tab === 'apps' ? (
+            visibleApps.length ? (
+              visibleApps.map((app) => {
+                const writeCount = app.tools.filter((tool) => tool.mode === 'write').length
+                const readCount = app.tools.filter((tool) => tool.mode === 'read').length
+                return (
+                  <ExtensionManagementRow
+                    key={app.id}
+                    title={app.name}
+                    description={app.description}
+                    icon={<PluginIcon name={resolveAppIconName(app)} />}
+                    metadata={`${app.tools.length} 工具 (${writeCount} write, ${readCount} read) · ${app.enabled ? '已启用' : '已禁用'}`}
+                    dimmed={!app.enabled}
+                    showChevron
+                    onActivate={(trigger) => {
+                      setSelectedApp(app)
+                      setAppDialogTrigger(trigger)
+                      setAppDialogOpen(true)
+                    }}
+                    actions={
+                      <ToggleSwitch
+                        ariaLabel={app.name}
+                        checked={app.enabled}
+                        disabled={busyAppIds.has(app.id)}
+                        onChange={(enabled) => void toggleApp(app, enabled)}
+                      />
+                    }
+                  />
+                )
+              })
+            ) : (
+              <EmptyState label="没有匹配的应用。" />
             )
           ) : tab === 'marketplaces' ? (
             visibleMarketplaces.length ? (
@@ -1139,33 +1257,7 @@ export function PluginsSettingsPage({
         }}
       />
       {skillDetailsDialog}
-      <AppDetailsDialog
-        workspacePath={workspacePath}
-        item={selectedApp}
-        open={appDialogOpen}
-        busy={selectedApp ? busyPluginIds.has(selectedApp.id) : false}
-        restoreFocusElement={appDialogTrigger}
-        onOpenChange={setAppDialogOpen}
-        onToggleEnabled={(item, enabled) => togglePlugin(item, enabled)}
-        onUninstall={async (item) => {
-          await desktopClient.uninstallPlugin(item.id)
-          await refreshPlugins()
-        }}
-        onTryApp={async (item) => {
-          try {
-            const prompt = item.skills?.[0] ? `使用 ${item.name}` : `你好，请协助我使用 ${item.name}`
-            await preparePluginPrompt(item, prompt)
-            navigate('/chat')
-          } catch (err) {
-            onError(errorMessageOf(err, '启动应用失败'))
-          }
-        }}
-        onViewMarketDetails={(item) =>
-          navigate(`/plugins?plugin=${encodeURIComponent(item.id)}`)
-        }
-        onError={onError}
-        onNotice={onNotice}
-      />
+      {appDetailsDialog}
       <McpEditorDialog
         open={mcpDialogOpen}
         server={selectedServer}

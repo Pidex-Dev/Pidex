@@ -1,6 +1,7 @@
 import type React from 'react'
 import { useContext, useState } from 'react'
 import {
+  Egg,
   Eye,
   FileSpreadsheet,
   GitBranch,
@@ -125,5 +126,7 @@ export function PluginIcon({
       return <GitBranch {...props} />
     case 'computer-use':
       return <Sparkles {...props} />
+    case 'pets':
+      return <Egg {...props} />
   }
 }

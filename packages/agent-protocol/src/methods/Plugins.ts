@@ -80,12 +80,57 @@ export const PluginInstallSourceSchema = Schema.Struct({
   unsupportedComponents: Schema.Array(NonEmptyStringSchema),
 })
 
+export const AppToolModeSchema = Schema.Literals(['read', 'write'])
+
+export const AppToolDescriptorSchema = Schema.Struct({
+  name: NonEmptyStringSchema,
+  description: Schema.String,
+  mode: AppToolModeSchema,
+})
+
+export const AppSourceSchema = Schema.Literals(['builtin', 'plugin'])
+
+export const AppAuthStatusSchema = Schema.Struct({
+  required: Schema.Boolean,
+  connected: Schema.Boolean,
+  provider: Schema.optional(NonEmptyStringSchema),
+})
+
+export const AppSummarySchema = Schema.Struct({
+  id: NonEmptyStringSchema,
+  name: NonEmptyStringSchema,
+  description: Schema.String,
+  developerName: NonEmptyStringSchema,
+  source: AppSourceSchema,
+  enabled: Schema.Boolean,
+  canUninstall: Schema.Boolean,
+  pluginId: Schema.optional(NonEmptyStringSchema),
+  iconName: Schema.optional(NonEmptyStringSchema),
+  tools: Schema.Array(AppToolDescriptorSchema),
+  auth: Schema.optional(AppAuthStatusSchema),
+})
+
+export const PluginUsedAppSchema = Schema.Struct({
+  id: NonEmptyStringSchema,
+  name: NonEmptyStringSchema,
+  description: Schema.String,
+  required: Schema.optional(Schema.Boolean),
+  installed: Schema.Boolean,
+  enabled: Schema.Boolean,
+  authConnected: Schema.optional(Schema.Boolean),
+  iconName: Schema.optional(NonEmptyStringSchema),
+  developerName: Schema.optional(NonEmptyStringSchema),
+  tools: Schema.optional(Schema.Array(AppToolDescriptorSchema)),
+})
+
 export const PluginDetailsSchema = Schema.Struct({
   pluginId: NonEmptyStringSchema,
   longDescription: Schema.String,
   displayCapabilities: Schema.Array(NonEmptyStringSchema),
   defaultPrompts: Schema.Array(NonEmptyStringSchema),
   skills: Schema.Array(PluginDetailSkillSchema),
+  /** Optional apps referenced or provided by this plugin; older clients can ignore it. */
+  apps: Schema.optional(Schema.Array(PluginUsedAppSchema)),
   /** Optional install provenance; older clients can ignore it. */
   installSource: Schema.optional(PluginInstallSourceSchema),
   /** Optional plugin component inventory; older clients can ignore it. */
@@ -149,6 +194,28 @@ export const PluginLifecycleResultSchema = Schema.Struct({
   updatedAt: TimestampSchema,
 })
 
+export const AppListParamsSchema = Schema.Struct({
+  workspace: Schema.optional(NonEmptyStringSchema),
+})
+
+export const AppListResultSchema = Schema.Struct({
+  apps: Schema.Array(AppSummarySchema),
+  generation: SequenceSchema,
+  updatedAt: TimestampSchema,
+})
+
+export const AppSetEnabledParamsSchema = Schema.Struct({
+  appId: NonEmptyStringSchema,
+  enabled: Schema.Boolean,
+  ...OperationParamsSchema.fields,
+})
+
+export const AppSetEnabledResultSchema = Schema.Struct({
+  app: AppSummarySchema,
+  generation: SequenceSchema,
+  updatedAt: TimestampSchema,
+})
+
 const PluginErrors = [
   'PLUGIN_NOT_FOUND',
   'PLUGIN_NOT_INSTALLED',
@@ -159,6 +226,24 @@ const PluginErrors = [
 ] as const
 
 export const PluginRpcMethods = {
+  'app/list': defineMethod({
+    params: AppListParamsSchema,
+    result: AppListResultSchema,
+    errors: PluginErrors,
+    capability: 'apps.manage.v1',
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'app/setEnabled': defineMethod({
+    params: AppSetEnabledParamsSchema,
+    result: AppSetEnabledResultSchema,
+    errors: PluginErrors,
+    capability: 'apps.manage.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
   'plugin/readAsset': defineMethod({
     params: Schema.Struct({
       pluginId: NonEmptyStringSchema,
@@ -232,3 +317,9 @@ export type PluginDetails = typeof PluginDetailsSchema.Type
 export type PluginInstallSource = typeof PluginInstallSourceSchema.Type
 export type PluginAssetKind = typeof PluginAssetKindSchema.Type
 export type PluginMarketplaceSection = typeof PluginMarketplaceSectionSchema.Type
+export type AppToolMode = typeof AppToolModeSchema.Type
+export type AppToolDescriptor = typeof AppToolDescriptorSchema.Type
+export type AppSource = typeof AppSourceSchema.Type
+export type AppAuthStatus = typeof AppAuthStatusSchema.Type
+export type AppSummary = typeof AppSummarySchema.Type
+export type PluginUsedApp = typeof PluginUsedAppSchema.Type

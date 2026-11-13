@@ -17,6 +17,7 @@ export type PluginIconName =
   | 'spreadsheets'
   | 'presentations'
   | 'github'
+  | 'pets'
 export type PluginTone = 'chrome' | 'pidex' | 'sheet' | 'slides' | 'github' | 'creative'
 
 export type PluginCatalogDescriptor = {

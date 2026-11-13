@@ -42,6 +42,7 @@ import type { PetService } from '../pet/PetService'
 import type { ReleaseNotesService } from '../release-notes/ReleaseNotesService'
 import type { SkillManagementService } from '../prompt/SkillManagementService'
 import type { PluginManagementService } from '../plugin/PluginManagementService'
+import type { AppManagementService } from '../plugin/AppManagementService'
 import type { McpRuntimeService } from '../mcp/McpRuntimeService'
 import type { TaskSuggestionService } from '../suggestion/TaskSuggestionService'
 import type { ComposerPredictionService } from '../suggestion/ComposerPredictionService'
@@ -107,6 +108,7 @@ export interface TransportDependencies {
   releaseNotes: ReleaseNotesService
   skills: SkillManagementService
   plugins: PluginManagementService
+  apps?: AppManagementService
   mcp: McpRuntimeService
   suggestions: TaskSuggestionService
   /** 输入预测是增强能力；未装配时 RPC 返回 PREDICTION_UNAVAILABLE。 */
@@ -542,6 +544,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     releaseNotes,
     skills,
     plugins,
+    ...(dependencies.apps ? { apps: dependencies.apps } : {}),
     suggestions,
     ...(composerPredictions ? { composerPredictions } : {}),
     usage: dependencies.usage,

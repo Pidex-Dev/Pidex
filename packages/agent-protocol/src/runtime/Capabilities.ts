@@ -85,6 +85,7 @@ export const Capabilities = [
   'plugins.details.v1',
   'plugins.lifecycle.v1',
   'plugins.assets.v1',
+  'apps.manage.v1',
   'integrations.minimax-cli.v1',
   'mcp.manage.v1',
   'mcp.oauth.v1',

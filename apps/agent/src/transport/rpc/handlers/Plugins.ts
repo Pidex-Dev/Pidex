@@ -1,4 +1,6 @@
 import {
+  AppListParamsSchema,
+  AppSetEnabledParamsSchema,
   PluginGetDetailsParamsSchema,
   PluginRpcMethods,
   PluginInstallParamsSchema,
@@ -14,6 +16,8 @@ import type { RpcRouter } from '../RpcRouter'
 import type { RpcRouterContext } from '../RequestContext'
 import type { RpcHandlerGroup } from './Types'
 
+const decodeAppList = Schema.decodeUnknownSync(AppListParamsSchema)
+const decodeAppSetEnabled = Schema.decodeUnknownSync(AppSetEnabledParamsSchema)
 const decodeList = Schema.decodeUnknownSync(PluginListParamsSchema)
 const decodeGetDetails = Schema.decodeUnknownSync(PluginGetDetailsParamsSchema)
 const decodeSetEnabled = Schema.decodeUnknownSync(PluginSetEnabledParamsSchema)
@@ -23,6 +27,8 @@ const decodeInstall = Schema.decodeUnknownSync(PluginInstallParamsSchema)
 export const pluginHandlers = {
   name: 'plugins',
   methods: [
+    'app/list',
+    'app/setEnabled',
     'plugin/readAsset',
     'plugin/list',
     'plugin/getDetails',
@@ -36,6 +42,20 @@ export const pluginHandlers = {
     rawParams: unknown,
     _context: RpcRouterContext,
   ): Promise<unknown> {
+    if (method === 'app/list' || method === 'app/setEnabled') {
+      const apps = runtime.dependencies.apps
+      if (!apps) throw new AgentError('INTERNAL_ERROR', '应用管理服务未配置', 500)
+      try {
+        return method === 'app/list'
+          ? await apps.list(decodeAppList(rawParams))
+          : await apps.setEnabled(decodeAppSetEnabled(rawParams))
+      } catch (cause) {
+        if (cause instanceof PluginManagementError) {
+          throw new AgentError(cause.code, cause.message, cause.status)
+        }
+        throw cause
+      }
+    }
     const plugins = runtime.dependencies.plugins
     if (!plugins) throw new AgentError('INTERNAL_ERROR', '插件管理服务未配置', 500)
     try {

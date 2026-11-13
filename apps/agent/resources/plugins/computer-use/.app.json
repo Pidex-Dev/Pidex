@@ -1,0 +1,10 @@
+{
+  "apps": {
+    "computer-use": {
+      "id": "computer-use",
+      "name": "Computer Use",
+      "description": "发现已运行的 Windows 应用与窗口，读取界面和截图，并执行鼠标与键盘操作。",
+      "required": true
+    }
+  }
+}
