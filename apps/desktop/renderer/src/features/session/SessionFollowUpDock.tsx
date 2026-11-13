@@ -125,7 +125,7 @@ export function SessionFollowUpDock({
               size="composerSm"
               onClick={onResume}
             >
-              <Play aria-hidden="true" size={APP_ICON_SIZE} />
+              <Play className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               继续队列
             </Button>
           </div>
@@ -141,7 +141,7 @@ export function SessionFollowUpDock({
                 role="listitem"
               >
                 <span aria-hidden="true" className={ICON_CLASS}>
-                  <MessageSquareText size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <MessageSquareText className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </span>
                 {isEditing ? (
                   <input
@@ -178,7 +178,7 @@ export function SessionFollowUpDock({
                         size="iconMd"
                         title="保存编辑"
                       >
-                        <Check size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       </Button>
                       <Button
                         isIconOnly
@@ -189,7 +189,7 @@ export function SessionFollowUpDock({
                         size="iconMd"
                         title="取消编辑"
                       >
-                        <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       </Button>
                     </>
                   ) : (
@@ -204,7 +204,7 @@ export function SessionFollowUpDock({
                         size="iconMd"
                         title={removingIds.has(item.id) ? '正在移除…' : '移除'}
                       >
-                        <Trash2 size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <Trash2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       </Button>
                       <Button
                         isIconOnly
@@ -216,7 +216,7 @@ export function SessionFollowUpDock({
                         size="iconMd"
                         title="更多：编辑消息"
                       >
-                        <MoreHorizontal
+                        <MoreHorizontal className="tw:size-icon-sm"
                           size={APP_ICON_SIZES.sm}
                           strokeWidth={APP_ICON_STROKE_WIDTH}
                         />

@@ -171,13 +171,13 @@ export function CanonicalProcessGroup({
         <span className="cpx-agent-activity__dots">
           {dots}
           {active ? (
-            <LoaderCircle className="canonical-spin" size={APP_ICON_SIZES.sm} aria-hidden="true" />
+            <LoaderCircle className="tw:size-icon-sm canonical-spin" size={APP_ICON_SIZES.sm} aria-hidden="true" />
           ) : null}
         </span>
       ) : active ? (
-        <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" aria-hidden="true" />
+        <LoaderCircle size={APP_ICON_SIZES.sm} className="tw:size-icon-sm canonical-spin" aria-hidden="true" />
       ) : failed ? (
-        <CircleAlert size={APP_ICON_SIZES.sm} aria-hidden="true" />
+        <CircleAlert className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
       ) : (
         <SummaryIcon size={APP_ICON_SIZES.sm} aria-hidden="true" />
       )}
@@ -185,7 +185,7 @@ export function CanonicalProcessGroup({
       {canExpand && !onActivate ? (
         <ChevronRight
           size={APP_ICON_SIZES.sm}
-          className="cpx-agent-activity__chevron"
+          className="tw:size-icon-sm cpx-agent-activity__chevron"
           aria-hidden="true"
         />
       ) : null}
@@ -742,7 +742,7 @@ function CanonicalThreadViewComponent({
             {loadingOlder ? (
               <LoaderCircle
                 size={APP_ICON_SIZES.sm}
-                className="canonical-spin"
+                className="tw:size-icon-sm canonical-spin"
                 aria-hidden="true"
               />
             ) : null}
@@ -1179,12 +1179,12 @@ function CanonicalBlocker({
   if (blocker.kind === 'question') return renderItem(blocker.question)
   return (
     <article
-      className="canonical-blocker-card tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-3 tw:shadow-none"
+      className="canonical-blocker-card tw:grid tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-3 tw:shadow-none"
       data-state={blocker.approval.status}
     >
       <header className="tw:flex tw:items-start tw:gap-2">
         <CircleAlert
-          className="tw:flex-none tw:text-app-accent-fg"
+          className="tw:size-icon-lg tw:flex-none tw:text-app-accent-fg"
           size={APP_ICON_SIZES.lg}
           aria-hidden="true"
         />

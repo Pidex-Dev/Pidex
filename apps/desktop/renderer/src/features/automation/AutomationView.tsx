@@ -481,19 +481,19 @@ function AutomationViewContent(): React.ReactNode {
       onOpenChange={setCreateMenuOpen}
       trigger={
         <Button ref={createButtonRef} color="primary" shape="pill" size="md">
-          <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           <span>创建</span>
-          <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+          <ChevronDown className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
         </Button>
       }
     >
       <PopoverItem
-        icon={<MessageCircle size={APP_ICON_SIZE} />}
+        icon={<MessageCircle className="tw:size-icon-md" size={APP_ICON_SIZE} />}
         onClick={() => void planThroughChat()}
       >
         使用 CPX 创建
       </PopoverItem>
-      <PopoverItem icon={<Settings size={APP_ICON_SIZE} />} onClick={() => openManualCreate()}>
+      <PopoverItem icon={<Settings className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={() => openManualCreate()}>
         手动设置
       </PopoverItem>
     </PopoverMenu>
@@ -893,7 +893,7 @@ function AutomationRunsList({
             className="automation-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*6)] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft"
             role="status"
           >
-            <CalendarClock size={APP_ICON_SIZES.lg} aria-hidden="true" />
+            <CalendarClock className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} aria-hidden="true" />
             <h2 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text">暂无执行记录</h2>
             <p className="tw:m-0 tw:type-2">
               任务在计划时间或手动触发运行后，执行记录会显示在这里。
@@ -962,7 +962,7 @@ function AutomationRunsList({
                             className="automation-runs-page-link tw:flex tw:items-center tw:text-app-text-meta tw:group-hover:text-app-accent-fg"
                             aria-label="查看对话"
                           >
-                            <ArrowUpRight size={APP_ICON_SIZES.sm} aria-hidden="true" />
+                            <ArrowUpRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
                           </span>
                         ) : null}
                       </div>
@@ -1030,13 +1030,13 @@ function AutomationRow({
           aria-hidden="true"
         >
           {activeRun ? (
-            <LoaderCircle className="tw:animate-spin" size={APP_ICON_SIZE} />
+            <LoaderCircle className="tw:size-icon-md tw:animate-spin" size={APP_ICON_SIZE} />
           ) : automation.status === 'paused' ? (
-            <Pause size={APP_ICON_SIZE} />
+            <Pause className="tw:size-icon-md" size={APP_ICON_SIZE} />
           ) : completed ? (
-            <CheckCircle2 size={APP_ICON_SIZE} />
+            <CheckCircle2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
           ) : (
-            <Play size={APP_ICON_SIZE} />
+            <Play className="tw:size-icon-md" size={APP_ICON_SIZE} />
           )}
         </span>
         <span className="automation-row-content tw:grid tw:min-w-0 tw:gap-1">
@@ -1078,26 +1078,26 @@ function AutomationRow({
             size="toolbar"
             title={`${automation.name} 操作`}
           >
-            <MoreHorizontal aria-hidden="true" size={APP_ICON_SIZE} />
+            <MoreHorizontal className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
           </Button>
         }
       >
-        <PopoverItem icon={<Play size={APP_ICON_SIZE} />} onClick={onRun}>
+        <PopoverItem icon={<Play className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={onRun}>
           立即运行
         </PopoverItem>
         <PopoverItem
           icon={
             automation.status === 'paused' ? (
-              <Play size={APP_ICON_SIZE} />
+              <Play className="tw:size-icon-md" size={APP_ICON_SIZE} />
             ) : (
-              <Pause size={APP_ICON_SIZE} />
+              <Pause className="tw:size-icon-md" size={APP_ICON_SIZE} />
             )
           }
           onClick={onPause}
         >
           {automation.status === 'paused' ? '恢复' : '暂停'}
         </PopoverItem>
-        <PopoverItem icon={<Trash2 size={APP_ICON_SIZE} />} onClick={onDelete}>
+        <PopoverItem icon={<Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={onDelete}>
           删除
         </PopoverItem>
       </PopoverMenu>
@@ -1111,7 +1111,7 @@ function AutomationEmptyState(): React.ReactNode {
       className="automation-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*6)] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft"
       role="status"
     >
-      <CalendarClock size={APP_ICON_SIZES.lg} aria-hidden="true" />
+      <CalendarClock className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} aria-hidden="true" />
       <h2 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text">暂无已安排任务</h2>
       <p className="tw:m-0 tw:type-2">创建任务后，它们会按状态显示在这里。</p>
     </div>
@@ -1153,11 +1153,11 @@ function AutomationSuggestions({
                 aria-hidden="true"
               >
                 {item.id === 'daily-brief' ? (
-                  <AlarmClock size={APP_ICON_SIZE} />
+                  <AlarmClock className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 ) : item.id === 'weekly-review' ? (
-                  <CalendarClock size={APP_ICON_SIZE} />
+                  <CalendarClock className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 ) : (
-                  <FileSearch size={APP_ICON_SIZE} />
+                  <FileSearch className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 )}
               </span>
               <span className="automation-suggestion-content tw:grid tw:min-w-0 tw:gap-1">

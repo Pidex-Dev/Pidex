@@ -699,8 +699,8 @@ export function ProviderEditorForm({
         }
       >
         <div className="settings-management-dialog-heading provider-editor-heading tw:flex tw:min-w-0 tw:items-start tw:gap-3">
-          <div className="provider-editor-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-accent-subtle tw:text-app-accent-fg tw:[&_svg]:size-icon-lg">
-            <Server aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <div className="provider-editor-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:bg-app-accent-subtle tw:text-app-accent-fg tw:[&_svg]:size-icon-lg">
+            <Server className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </div>
           <div>
             <Title id={titleId} className="tw:m-0 tw:text-app-text tw:type-6 tw:weight-bold">
@@ -739,19 +739,19 @@ export function ProviderEditorForm({
                   title="供应商操作"
                   disabled={busy}
                 >
-                  <MoreHorizontal aria-hidden size={APP_ICON_SIZE} />
+                  <MoreHorizontal className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
                 </Button>
               }
             >
               <PopoverItem
-                icon={<Pencil size={APP_ICON_SIZE} />}
+                icon={<Pencil className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                 onClick={() => requestAnimationFrame(() => nameInputRef.current?.focus())}
               >
                 重命名
               </PopoverItem>
               {editing && onDelete ? (
                 <PopoverItem
-                  icon={<Trash2 size={APP_ICON_SIZE} />}
+                  icon={<Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                   onClick={() => {
                     if (busyRef.current) return
                     busyRef.current = true
@@ -774,7 +774,7 @@ export function ProviderEditorForm({
         ) : (
           <Dialog.Close asChild>
             <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭" disabled={busy}>
-              <X size={APP_ICON_SIZE} aria-hidden />
+              <X className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
             </Button>
           </Dialog.Close>
         )}
@@ -858,7 +858,7 @@ export function ProviderEditorForm({
               ) : null}
 
               {!managed && !editing && !createdProviderId.current ? (
-                <section className="provider-editor-presets-section tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3">
+                <section className="provider-editor-presets-section tw:grid tw:gap-2 tw:rounded-4 tw:border tw:border-dashed tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3">
                   <div className="provider-editor-presets-header tw:flex tw:items-center tw:justify-between tw:gap-2">
                     <span className="tw:text-app-text-meta tw:type-1 tw:weight-medium">快速套用常用预设</span>
                     <Sparkles
@@ -992,7 +992,7 @@ export function ProviderEditorForm({
                         setModels((current) => [...current, { ...emptyModel(), api: defaultApi }])
                       }}
                     >
-                      <Plus aria-hidden size={APP_ICON_SIZE} />
+                      <Plus className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
                       新增模型
                     </Button>
                   </div>
@@ -1000,7 +1000,7 @@ export function ProviderEditorForm({
               </header>
 
               {!managed && !editing && !createdProviderId.current ? (
-                <section className="provider-editor-discover-card tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-dashed tw:border-app-border-subtle tw:bg-app-panel tw:p-4">
+                <section className="provider-editor-discover-card tw:grid tw:gap-3 tw:rounded-4 tw:border tw:border-dashed tw:border-app-border-subtle tw:bg-app-panel tw:p-4">
                   <header className="tw:grid tw:gap-1">
                     <strong className="tw:text-app-text tw:type-2 tw:weight-medium">保存前获取模型</strong>
                     <span className="tw:text-app-text-soft tw:type-1">
@@ -1024,7 +1024,7 @@ export function ProviderEditorForm({
                       loading={discovering}
                       onClick={() => void discover()}
                     >
-                      <RefreshCw aria-hidden size={APP_ICON_SIZE} />从 /models 获取
+                      <RefreshCw className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />从 /models 获取
                     </Button>
                   </div>
                   {pendingModelSync ? (
@@ -1036,7 +1036,7 @@ export function ProviderEditorForm({
               ) : null}
 
               {candidates.length > 0 ? (
-                <section className="provider-editor-candidates-card tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-app-accent-border tw:bg-app-accent-subtle tw:p-4">
+                <section className="provider-editor-candidates-card tw:grid tw:gap-3 tw:rounded-4 tw:border tw:border-app-accent-border tw:bg-app-accent-subtle tw:p-4">
                   <header className="tw:flex tw:items-center tw:justify-between tw:gap-2">
                     <strong className="tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-1)]">
                       发现 {candidates.length} 个候选模型，已选 {selectedCandidates.size} 个
@@ -1080,7 +1080,7 @@ export function ProviderEditorForm({
                     value={candidateFilter}
                     onChange={(event) => setCandidateFilter(event.target.value)}
                   />
-                  <div className="provider-editor-candidates-list tw:grid tw:max-h-[10rem] tw:gap-1 tw:overflow-y-auto tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2">
+                  <div className="provider-editor-candidates-list tw:grid tw:max-h-[10rem] tw:gap-1 tw:overflow-y-auto tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2">
                     {filteredCandidates.length === 0 ? (
                       <p role="status" className="tw:m-0 tw:text-app-text-soft tw:type-1">
                         没有匹配的候选模型。
@@ -1092,7 +1092,7 @@ export function ProviderEditorForm({
                       const hint = candidateMatchHint(match)
                       return (
                         <div
-                          className="provider-editor-candidate-row tw:flex tw:items-center tw:gap-2 tw:rounded-xs tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-1)] tw:hover:bg-app-hover"
+                          className="provider-editor-candidate-row tw:flex tw:items-center tw:gap-2 tw:rounded-2 tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-1)] tw:hover:bg-app-hover"
                           key={String(candidate.id)}
                           title={hint}
                         >
@@ -1165,7 +1165,7 @@ export function ProviderEditorForm({
               ) : (
                 <div className="provider-editor-models-list tw:grid tw:gap-3">
                   {models.length === 0 ? (
-                    <p className="tw:m-0 tw:rounded-lg tw:border tw:border-dashed tw:border-app-border-subtle tw:p-4 tw:text-app-text-soft tw:type-1">
+                    <p className="tw:m-0 tw:rounded-4 tw:border tw:border-dashed tw:border-app-border-subtle tw:p-4 tw:text-app-text-soft tw:type-1">
                       当前没有配置模型，添加并保存后可在聊天中使用。
                     </p>
                   ) : null}
@@ -1205,7 +1205,7 @@ export function ProviderEditorForm({
               aria-expanded={advancedOpen}
               onClick={() => setAdvancedOpen((value) => !value)}
             >
-              <ChevronRight aria-hidden size={APP_ICON_SIZE} />
+              <ChevronRight className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
               高级与网络
             </Button>
           ) : null}
@@ -1255,10 +1255,10 @@ export function ProviderEditorForm({
 
               {isRemoteHttp && !allowInsecureHttp ? (
                 <div
-                  className="provider-editor-alert tw:flex tw:items-start tw:gap-3 tw:rounded-md tw:px-4 tw:py-3 tw:type-1 tw:[&_svg]:size-icon tw:[&_svg]:shrink-0 tw:[&_svg]:mt-1 tw:data-[tone=warning]:border tw:data-[tone=warning]:border-app-warning-border tw:data-[tone=warning]:bg-app-warning-subtle tw:data-[tone=warning]:text-app-warning tw:data-[tone=danger]:border tw:data-[tone=danger]:border-app-danger-border tw:data-[tone=danger]:bg-app-danger-subtle tw:data-[tone=danger]:text-app-danger tw:data-[tone=info]:border tw:data-[tone=info]:border-app-info-border tw:data-[tone=info]:bg-app-info-subtle tw:data-[tone=info]:text-app-info-fg"
+                  className="provider-editor-alert tw:flex tw:items-start tw:gap-3 tw:rounded-3 tw:px-4 tw:py-3 tw:type-1 tw:[&_svg]:size-icon tw:[&_svg]:shrink-0 tw:[&_svg]:mt-1 tw:data-[tone=warning]:border tw:data-[tone=warning]:border-app-warning-border tw:data-[tone=warning]:bg-app-warning-subtle tw:data-[tone=warning]:text-app-warning tw:data-[tone=danger]:border tw:data-[tone=danger]:border-app-danger-border tw:data-[tone=danger]:bg-app-danger-subtle tw:data-[tone=danger]:text-app-danger tw:data-[tone=info]:border tw:data-[tone=info]:border-app-info-border tw:data-[tone=info]:bg-app-info-subtle tw:data-[tone=info]:text-app-info-fg"
                   data-tone="warning"
                 >
-                  <AlertTriangle size={APP_ICON_SIZE} aria-hidden />
+                  <AlertTriangle className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
                   <div>
                     <strong>检测到非本地明文 HTTP 端点</strong>
                     <p>
@@ -1280,7 +1280,7 @@ export function ProviderEditorForm({
                   <small>每行 name: value</small>
                 </span>
                 <textarea
-                  className="provider-editor-textarea tw:w-full tw:min-h-[5rem] tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
+                  className="provider-editor-textarea tw:w-full tw:min-h-[5rem] tw:resize-y tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
                   placeholder="X-Custom-Header: value&#10;Custom-Client: Pidex"
                   rows={4}
                   value={headers}
@@ -1396,7 +1396,7 @@ const ProviderModelCard = memo(function ProviderModelCard({
 
   return (
     <div
-      className="provider-editor-model-card tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:transition-[border-color] tw:duration-state tw:ease-standard tw:data-[expanded=true]:border-app-accent-border"
+      className="provider-editor-model-card tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:transition-[border-color] tw:duration-state tw:ease-standard tw:data-[expanded=true]:border-app-accent-border"
       data-expanded={expanded}
     >
       <div className="provider-editor-model-card-header tw:flex tw:items-center tw:justify-between tw:gap-0 tw:bg-app-panel">
@@ -1409,9 +1409,9 @@ const ProviderModelCard = memo(function ProviderModelCard({
         >
           <span className="provider-editor-model-card-chevron tw:inline-flex tw:items-center tw:justify-center tw:text-app-text-soft tw:transition-transform tw:duration-disclosure tw:ease-disclosure">
             {expanded ? (
-              <ChevronDown aria-hidden size={APP_ICON_SIZES.sm} />
+              <ChevronDown className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
             ) : (
-              <ChevronRight aria-hidden size={APP_ICON_SIZES.sm} />
+              <ChevronRight className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
             )}
           </span>
           <code className="tw:font-mono tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-1)] tw:weight-medium">
@@ -1450,12 +1450,12 @@ const ProviderModelCard = memo(function ProviderModelCard({
               title="测试已保存模型"
               onClick={onTest}
             >
-              <Cable aria-hidden size={APP_ICON_SIZE} />
+              <Cable className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
             </Button>
           ) : null}
           {canRemove ? (
             <Button isIconOnly color="danger" size="toolbar" title="移除模型" onClick={onRemove}>
-              <Trash2 aria-hidden size={APP_ICON_SIZE} />
+              <Trash2 className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
             </Button>
           ) : null}
         </div>
@@ -1666,7 +1666,7 @@ export function ModelEditor({
               disabled={!history.length}
               onClick={undoAdvanced}
             >
-              <Undo2 size={APP_ICON_SIZES.sm} aria-hidden="true" />
+              <Undo2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
             </Button>
             <Button
               variant="ghost"
@@ -1677,7 +1677,7 @@ export function ModelEditor({
               disabled={!advancedDirty}
               onClick={() => changeAdvanced({ ...model, ...initialAdvanced })}
             >
-              <RefreshCw size={APP_ICON_SIZES.sm} aria-hidden="true" />
+              <RefreshCw className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
             </Button>
           </div>
         </div>

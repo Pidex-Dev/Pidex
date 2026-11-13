@@ -60,7 +60,7 @@ const REVIEW_DELIVERY_OPTIONS: Array<{
 function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
   return (
     <OpenTargetIcon
-      className="settings-open-target-icon tw:size-icon tw:shrink-0 tw:rounded-md tw:object-contain"
+      className="settings-open-target-icon tw:size-icon tw:shrink-0 tw:rounded-3 tw:object-contain"
       kind={target.kind}
       targetId={target.id}
     />

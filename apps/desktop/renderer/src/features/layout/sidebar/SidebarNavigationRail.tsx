@@ -69,7 +69,7 @@ export function SidebarNavigationRail(props: Props): ReactNode {
             <div className="tw:flex tw:flex-col tw:items-center tw:gap-2" key={groupIndex}>
               {Array.from({ length: count }, (_, index) => (
                 <SkeletonBlock
-                  className="tw:size-[var(--sidebar-icon-button-size)] tw:rounded-md"
+                  className="tw:size-[var(--sidebar-icon-button-size)] tw:rounded-3"
                   key={index}
                 />
               ))}
@@ -160,9 +160,9 @@ export function SidebarNavigationRailBody({
       kind: 'item' as const,
       label: t(hiddenDestinationIds.has(id) ? '固定到侧栏' : '取消固定，收进更多'),
       icon: hiddenDestinationIds.has(id) ? (
-        <Pin size={APP_ICON_SIZES.md} />
+        <Pin className="tw:size-icon-md" size={APP_ICON_SIZES.md} />
       ) : (
-        <PinOff size={APP_ICON_SIZES.md} />
+        <PinOff className="tw:size-icon-md" size={APP_ICON_SIZES.md} />
       ),
       onSelect: () => toggleDestination(id, fromRail),
     },
@@ -258,7 +258,7 @@ export function SidebarNavigationRailBody({
           {button(
             'home',
             '首页',
-            <Home size={APP_ICON_SIZES.md} />,
+            <Home className="tw:size-icon-md" size={APP_ICON_SIZES.md} />,
             () => {
               navigate(lastChatPath.current)
             },
@@ -282,7 +282,7 @@ export function SidebarNavigationRailBody({
                   variant="ghost"
                   size="md"
                 >
-                  <Ellipsis size={APP_ICON_SIZES.md} />
+                  <Ellipsis className="tw:size-icon-md" size={APP_ICON_SIZES.md} />
                 </Button>
               </Popover.Trigger>
               <Popover.Portal>
@@ -333,7 +333,7 @@ export function SidebarNavigationRailBody({
                                     }}
                                   >
                                     <Pin
-                                      className="tw:rotate-45"
+                                      className="tw:size-icon-md tw:rotate-45"
                                       size={APP_ICON_SIZES.md}
                                       fill={pinned ? 'currentColor' : 'none'}
                                     />
@@ -343,7 +343,7 @@ export function SidebarNavigationRailBody({
                             >
                               <button
                                 type="button"
-                                className="tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2 tw:bg-transparent tw:py-1 tw:text-left tw:text-inherit tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-app-accent tw:rounded-sm"
+                                className="tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2 tw:bg-transparent tw:py-1 tw:text-left tw:text-inherit tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-app-accent tw:rounded-3"
                               >
                                 <span className="tw:min-w-0 tw:truncate">{t(item.label)}</span>
                               </button>

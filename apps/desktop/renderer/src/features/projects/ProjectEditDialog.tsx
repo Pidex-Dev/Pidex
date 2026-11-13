@@ -209,7 +209,7 @@ export function ProjectEditDialog({
                 size="toolbar"
                 title="关闭编辑项目"
               >
-                <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <X className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               </Button>
             </Dialog.Close>
           </header>
@@ -220,7 +220,7 @@ export function ProjectEditDialog({
             </p>
           ) : (
             <>
-              <div className="project-edit-name-field tw:flex tw:h-7 tw:min-h-7 tw:items-center tw:overflow-hidden tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:focus-within:border-app-border-strong tw:focus-within:shadow-[var(--cpx-sys-focus-ring-inset)]">
+              <div className="project-edit-name-field tw:flex tw:h-7 tw:min-h-7 tw:items-center tw:overflow-hidden tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:focus-within:border-app-border-strong tw:focus-within:shadow-[var(--cpx-sys-focus-ring-inset)]">
                 <ProjectAppearancePicker
                   appearance={draftAppearance}
                   disabled={busy}
@@ -262,7 +262,7 @@ export function ProjectEditDialog({
                           .filter(Boolean),
                       )
                   }}
-                  className="project-edit-folder-list tw:max-h-[15rem] tw:overflow-y-auto tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-canvas"
+                  className="project-edit-folder-list tw:max-h-[15rem] tw:overflow-y-auto tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-canvas"
                 >
                   {draftFolders.map((folder) => (
                     <div
@@ -300,7 +300,7 @@ export function ProjectEditDialog({
                           type="button"
                           onClick={() => setPrimary(folder.id)}
                         >
-                          <Star size={APP_ICON_SIZE} />
+                          <Star className="tw:size-icon-md" size={APP_ICON_SIZE} />
                         </Button>
                       ) : null}
                       {folder.availability === 'missing' ? (
@@ -314,7 +314,7 @@ export function ProjectEditDialog({
                           type="button"
                           onClick={() => void reselectFolder(folder)}
                         >
-                          <RefreshCw size={APP_ICON_SIZE} />
+                          <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
                         </Button>
                       ) : null}
                       <Button
@@ -327,7 +327,7 @@ export function ProjectEditDialog({
                         type="button"
                         onClick={() => removeFolder(folder)}
                       >
-                        <X size={APP_ICON_SIZE} />
+                        <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
                       </Button>
                     </div>
                   ))}
@@ -353,7 +353,7 @@ export function ProjectEditDialog({
               size="medium"
               onClick={onRequestRemove}
             >
-              <Trash2 size={APP_ICON_SIZE} />
+              <Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
               移除本地项目
             </Button>
             <div className="project-edit-footer-actions tw:flex tw:items-center tw:gap-3">

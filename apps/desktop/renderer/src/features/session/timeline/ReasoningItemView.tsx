@@ -170,7 +170,7 @@ export function ReasoningItemView({
         className="cpx-agent-activity__item-header reasoning-node__header"
         type="button"
       >
-        <Brain size={APP_ICON_SIZES.sm} className="tw:shrink-0" aria-hidden="true" />
+        <Brain size={APP_ICON_SIZES.sm} className="tw:size-icon-sm tw:shrink-0" aria-hidden="true" />
         <span className="reasoning-node__label" data-active={active}>
           {active ? '正在思考' : item.status === 'interrupted' ? '思考已中断' : '思考'}
           {active && !reducedMotion ? (
@@ -214,7 +214,7 @@ export function ReasoningItemView({
         ) : null}
         <ChevronRight
           size={APP_ICON_SIZES.sm}
-          className="reasoning-node__chevron"
+          className="tw:size-icon-sm reasoning-node__chevron"
           aria-hidden="true"
         />
       </CollapsibleTrigger>

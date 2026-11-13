@@ -203,7 +203,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
               aria-label={props.exitPending === 'back' ? '再按一次返回' : '返回当日议程'}
               onClick={props.onBack}
             >
-              <ArrowLeft aria-hidden="true" size={APP_ICON_SIZE} />
+              <ArrowLeft className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               {props.exitPending === 'back' ? '再按一次返回' : null}
             </Button>
           ) : null}
@@ -230,7 +230,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
             {props.exitPending === 'close' ? (
               '再按一次退出'
             ) : (
-              <X aria-hidden="true" size={APP_ICON_SIZE} />
+              <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
             )}
           </Button>
         </div>
@@ -551,7 +551,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
               role="note"
             >
               <AlertTriangle
-                className="tw:mt-1 tw:flex-none"
+                className="tw:size-icon-md tw:mt-1 tw:flex-none"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
               />
@@ -596,7 +596,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
                     .catch((cause) => setError(errorMessage(cause)))
                 }
               >
-                <Play aria-hidden="true" size={APP_ICON_SIZE} />
+                <Play className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
                 立即运行
               </Button>
             ) : null}
@@ -626,7 +626,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
                     .catch((cause) => setError(errorMessage(cause)))
                 }
               >
-                <Trash2 aria-hidden="true" size={APP_ICON_SIZE} />
+                <Trash2 className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               </Button>
             ) : null}
           </>
@@ -637,7 +637,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
             loading={saving}
             onClick={() => void save()}
           >
-            <CalendarClock aria-hidden="true" size={APP_ICON_SIZE} />
+            <CalendarClock className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
             创建任务
           </Button>
         )}

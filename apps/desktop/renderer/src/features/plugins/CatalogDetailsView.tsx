@@ -59,7 +59,7 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
             FORCED_COLORS_SURFACE_CLASS,
           )}
         >
-          <Lightbulb data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
+          <Lightbulb className="tw:size-icon-md" data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
         </span>
         <div className={cx('catalog-details-view__identity', DETAILS_IDENTITY_CLASS)}>
           <h1 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold tw:wrap-anywhere">{item.name}</h1>
@@ -76,7 +76,7 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
               loading={props.installing}
               onClick={() => props.onInstall(props.item)}
             >
-              <Plus aria-hidden="true" size={APP_ICON_SIZE} />
+              <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               添加
             </Button>
           )}
@@ -137,7 +137,7 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
           <div className={cx('catalog-details-view__secondary-action', DETAILS_ACTION_GROUP_CLASS)}>
             <Button color="secondary" onClick={() => props.onOpenSource(props.item)}>
               打开来源页面
-              <ExternalLink
+              <ExternalLink className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}

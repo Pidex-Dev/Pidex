@@ -158,7 +158,7 @@ export function DesktopBrowserPanel({
 
   return (
     <section className="right-dock-browser" aria-label="内置浏览器">
-      <div className="browser-commandbar tw:grid tw:h-8 tw:min-h-8 tw:min-w-0 tw:shrink-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:bg-app-dock tw:p-2 tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
+      <div className="browser-commandbar tw:grid tw:h-6 tw:min-h-6 tw:min-w-0 tw:shrink-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:bg-app-dock tw:p-2 tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
         <div className="browser-navigation tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-self-start tw:gap-1 tw:@max-[440px]:gap-0">
           <Button
             isIconOnly
@@ -168,7 +168,7 @@ export function DesktopBrowserPanel({
             title="后退"
             onClick={() => void runBrowserAction(client.goBackBrowser)}
           >
-            <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <ArrowLeft className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </Button>
           <Button
             isIconOnly
@@ -178,7 +178,7 @@ export function DesktopBrowserPanel({
             title="前进"
             onClick={() => void runBrowserAction(client.goForwardBrowser)}
           >
-            <ArrowRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <ArrowRight className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </Button>
           <Button
             isIconOnly
@@ -192,15 +192,15 @@ export function DesktopBrowserPanel({
           >
             <span className="tw:inline-flex">
               {state.loading ? (
-                <Square size={APP_ICON_SIZES.sm} />
+                <Square className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
               ) : (
-                <RefreshCw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               )}
             </span>
           </Button>
         </div>
         <form
-          className="browser-address-form tw:relative tw:flex tw:h-6 tw:w-full tw:max-w-[770px] tw:min-w-0 tw:items-center tw:justify-self-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0"
+          className="browser-address-form tw:relative tw:flex tw:h-6 tw:w-full tw:max-w-[770px] tw:min-w-0 tw:items-center tw:justify-self-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0"
           title={addressStatus}
           onSubmit={(event) => {
             event.preventDefault()
@@ -209,7 +209,7 @@ export function DesktopBrowserPanel({
         >
           <input
             aria-label="浏览器地址"
-            className="tw:min-w-0 tw:flex-auto tw:rounded-md tw:border-0 tw:bg-transparent tw:px-4 tw:py-1 tw:text-center tw:text-app-text tw:type-2 tw:outline-none tw:focus:bg-app-raised tw:focus:shadow-[var(--cpx-sys-focus-ring-inset)] tw:@max-[440px]:px-2 tw:@max-[440px]:text-left"
+            className="tw:min-w-0 tw:flex-auto tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-4 tw:py-1 tw:text-center tw:text-app-text tw:type-2 tw:outline-none tw:focus:bg-app-raised tw:focus:shadow-[var(--cpx-sys-focus-ring-inset)] tw:@max-[440px]:px-2 tw:@max-[440px]:text-left"
             placeholder="输入 URL"
             value={compactAddress}
             onBlur={() => setAddressFocused(false)}
@@ -271,7 +271,7 @@ export function DesktopBrowserPanel({
             aria-pressed={annotation.active}
             onClick={annotation.toggle}
           >
-            <MessageSquarePlus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <MessageSquarePlus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </Button>
           <Button
             isIconOnly
@@ -281,7 +281,7 @@ export function DesktopBrowserPanel({
             title="新标签页"
             onClick={onNewTab}
           >
-            <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </Button>
           <BrowserManagementControls
             client={client}
@@ -363,7 +363,7 @@ export function DesktopBrowserPanel({
       >
         {!state.url ? (
           <div className="browser-empty-state tw:grid tw:size-full tw:min-h-0 tw:min-w-0 tw:content-center tw:items-center tw:justify-center tw:justify-items-center tw:gap-[clamp(var(--cpx-sys-space-2),2vh,var(--cpx-sys-space-5))] tw:p-[clamp(var(--cpx-sys-space-3),4vh,var(--cpx-sys-space-6))] tw:text-center tw:text-app-text-meta">
-            <Globe2 size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Globe2 className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
             <strong className="tw:type-4 tw:weight-bold tw:text-app-text">开始浏览</strong>
             <span className="tw:type-1 tw:text-app-text-soft">输入 URL 以打开页面</span>
           </div>

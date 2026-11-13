@@ -284,7 +284,7 @@ export function ConfigSettings(): React.ReactNode {
                     }
                   }}
                 >
-                  <ExternalLink size={APP_ICON_SIZE} />
+                  <ExternalLink className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   打开 Profiles 目录
                 </Button>
                 <Button
@@ -297,7 +297,7 @@ export function ConfigSettings(): React.ReactNode {
                     }
                   }}
                 >
-                  <ExternalLink size={APP_ICON_SIZE} />
+                  <ExternalLink className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   打开配置文件
                 </Button>
               </div>
@@ -553,7 +553,7 @@ export function ConfigSettings(): React.ReactNode {
                 title={diagnostic.code}
                 description={
                   <span>
-                    <AlertTriangle size={APP_ICON_SIZE} /> {diagnostic.message}
+                    <AlertTriangle className="tw:size-icon-md" size={APP_ICON_SIZE} /> {diagnostic.message}
                   </span>
                 }
               />

@@ -224,7 +224,7 @@ export function ComposerLaunchSettingsPopover({
             size="composer"
             onClick={() => setView('settings')}
           >
-            <Settings2 size={APP_ICON_SIZE} />
+            <Settings2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
         </Popover.Trigger>
       </Tooltip>
@@ -252,7 +252,7 @@ export function ComposerLaunchSettingsPopover({
                     className="popover-item"
                     leading={
                       <span className="popover-item-icon">
-                        <GitFork size={APP_ICON_SIZE} />
+                        <GitFork className="tw:size-icon-md" size={APP_ICON_SIZE} />
                       </span>
                     }
                     trailing={
@@ -277,13 +277,13 @@ export function ComposerLaunchSettingsPopover({
                     className="popover-item"
                     leading={
                       <span className="popover-item-icon">
-                        <GitBranch size={APP_ICON_SIZE} />
+                        <GitBranch className="tw:size-icon-md" size={APP_ICON_SIZE} />
                       </span>
                     }
                     trailing={
                       <ChevronRight
                         aria-hidden="true"
-                        className="popover-item-arrow"
+                        className="tw:size-icon-sm popover-item-arrow"
                         size={APP_ICON_SIZES.sm}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
@@ -314,13 +314,13 @@ export function ComposerLaunchSettingsPopover({
                     className="popover-item"
                     leading={
                       <span className="popover-item-icon">
-                        <FolderCog size={APP_ICON_SIZE} />
+                        <FolderCog className="tw:size-icon-md" size={APP_ICON_SIZE} />
                       </span>
                     }
                     trailing={
                       <ChevronRight
                         aria-hidden="true"
-                        className="popover-item-arrow"
+                        className="tw:size-icon-sm popover-item-arrow"
                         size={APP_ICON_SIZES.sm}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
@@ -409,13 +409,13 @@ export function ComposerLaunchSettingsPopover({
                         key={environment.id}
                         leading={
                           <span className="popover-item-icon">
-                            <FolderCog size={APP_ICON_SIZE} />
+                            <FolderCog className="tw:size-icon-md" size={APP_ICON_SIZE} />
                           </span>
                         }
                         trailing={
                           selected ? (
                             <Check
-                              className="popover-item-check"
+                              className="tw:size-icon-sm popover-item-check"
                               size={APP_ICON_SIZES.sm}
                               strokeWidth={APP_ICON_STROKE_WIDTH}
                             />
@@ -451,7 +451,7 @@ export function ComposerLaunchSettingsPopover({
                 className="popover-item"
                 leading={
                   <span className="popover-item-icon">
-                    <ExternalLink size={APP_ICON_SIZE} />
+                    <ExternalLink className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   </span>
                 }
               >
@@ -479,7 +479,7 @@ function SubViewHeader({ title, onBack }: { title: string; onBack: () => void })
   return (
     <div className="tw:flex tw:items-center tw:gap-1 tw:px-1 tw:pb-1">
       <Button isIconOnly aria-label="返回" color="ghostSecondary" size="toolbar" onClick={onBack}>
-        <ChevronLeft size={APP_ICON_SIZE} />
+        <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
       </Button>
       <span className="popover-header tw:p-0">{title}</span>
     </div>

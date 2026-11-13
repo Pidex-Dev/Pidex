@@ -56,7 +56,7 @@ export const DETAILS_IDENTITY_CLASS = 'tw:grid tw:min-w-0 tw:gap-1'
 
 /** 详情页图标槽位。 */
 export const DETAILS_ICON_CLASS =
-  'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text'
+  'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text'
 
 /** 详情页动作组（右对齐、可换行，窄容器左对齐）。 */
 export const DETAILS_ACTION_GROUP_CLASS =
@@ -72,4 +72,4 @@ export const DETAILS_BREADCRUMB_CURRENT_CLASS =
 
 /** 错误提示块（详情页与详情弹窗共用）。 */
 export const DETAILS_ERROR_CLASS =
-  'tw:mt-4 tw:mb-0 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:p-3 tw:text-app-danger-fg tw:type-1'
+  'tw:mt-4 tw:mb-0 tw:rounded-4 tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:p-3 tw:text-app-danger-fg tw:type-1'

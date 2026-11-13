@@ -75,7 +75,7 @@ export function FileBreadcrumbToolbar({
   }, [absolutePath])
 
   return (
-    <header className="file-breadcrumb-toolbar tw:flex tw:h-7 tw:min-h-7 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-app-dock tw:px-2">
+    <header className="file-breadcrumb-toolbar tw:flex tw:h-6 tw:min-h-6 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-app-dock tw:px-2">
       <div
         aria-label={`文件路径：${path}`}
         className="file-breadcrumb-toolbar__path tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:type-2 tw:weight-medium"
@@ -86,7 +86,7 @@ export function FileBreadcrumbToolbar({
               {index > 0 ? (
                 <ChevronRight
                   aria-hidden="true"
-                  className="file-breadcrumb-toolbar__separator"
+                  className="tw:size-icon-sm file-breadcrumb-toolbar__separator"
                   size={APP_ICON_SIZES.sm}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
@@ -131,7 +131,7 @@ export function FileBreadcrumbToolbar({
           type="button"
           onClick={onToggleTree}
         >
-          <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <FolderOpen className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </Button>
         <div className="file-breadcrumb-toolbar__open-group">
           <Button
@@ -174,7 +174,7 @@ export function FileBreadcrumbToolbar({
                 title="选择外部打开方式"
                 type="button"
               >
-                <ChevronDown
+                <ChevronDown className="tw:size-icon-sm"
                   aria-hidden="true"
                   size={APP_ICON_SIZES.sm}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -211,7 +211,7 @@ export function FileBreadcrumbToolbar({
             <PopoverSeparator />
             <PopoverItem
               icon={
-                <FolderOpen
+                <FolderOpen className="tw:size-icon-md"
                   aria-hidden="true"
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}

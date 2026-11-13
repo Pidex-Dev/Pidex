@@ -421,14 +421,14 @@ function ImageAttachmentPreview({
           title="全屏预览"
           onClick={onFullscreen}
         >
-          <Maximize2 size={APP_ICON_SIZE} />
+          <Maximize2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
         </Button>
       ) : null}
       <Select
         ariaLabel="图片缩放"
         triggerClassName={
           fullscreen
-            ? 'tw:rounded-control tw:h-7 tw:px-3 tw:bg-app-canvas tw:text-app-text'
+            ? 'tw:rounded-control tw:h-5 tw:px-3 tw:bg-app-canvas tw:text-app-text'
             : undefined
         }
         size="sm"
@@ -458,7 +458,7 @@ function ImageAttachmentPreview({
         size={fullscreen ? 'lg' : 'toolbar'}
         title="下载"
       >
-        <Download size={APP_ICON_SIZE} />
+        <Download className="tw:size-icon-md" size={APP_ICON_SIZE} />
       </Button>
     </>
   )
@@ -604,7 +604,7 @@ function TextAttachmentPreview({ value }: { value: LoadedUserAttachment }): Reac
           size="toolbar"
           title="复制"
         >
-          <Copy size={APP_ICON_SIZE} />
+          <Copy className="tw:size-icon-md" size={APP_ICON_SIZE} />
         </Button>
         <Button
           isIconOnly
@@ -619,7 +619,7 @@ function TextAttachmentPreview({ value }: { value: LoadedUserAttachment }): Reac
           size="toolbar"
           title="下载"
         >
-          <Download size={APP_ICON_SIZE} />
+          <Download className="tw:size-icon-md" size={APP_ICON_SIZE} />
         </Button>
       </AttachmentToolbar>
       {formatted.jsonInvalid ? <div style={noticeStyle}>JSON 无法格式化，已显示原文。</div> : null}

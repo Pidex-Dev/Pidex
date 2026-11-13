@@ -460,7 +460,7 @@ export function CanonicalUserInput({
                 }
                 onClick={startEditing}
               >
-                <Pencil aria-hidden="true" size={APP_ICON_SIZE} />
+                <Pencil className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               </Button>
             </Tooltip>
           ) : null}
@@ -652,7 +652,7 @@ function AssistantActionsGroup({
             size="xs"
             title="更多操作"
           >
-            <MoreHorizontal
+            <MoreHorizontal className="tw:size-icon-md"
               aria-hidden="true"
               size={APP_ICON_SIZE}
               strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -712,7 +712,7 @@ function TextItemView({
       actionItems.push({
         id: 'fork',
         label: '在新聊天中继续',
-        icon: <Split aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+        icon: <Split className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
         onClick: () => onForkFromMessage({ itemId: item.id, turnId: item.turnId }),
         element: (
           <Tooltip content="在新聊天中继续">
@@ -727,7 +727,7 @@ function TextItemView({
                 onForkFromMessage({ itemId: item.id, turnId: item.turnId })
               }}
             >
-              <Split aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Split className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           </Tooltip>
         ),
@@ -769,7 +769,7 @@ function TextItemView({
           ) : null}
           {goalAchievedDuration ? (
             <span className="canonical-goal-achieved tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
-              <CheckCircle2
+              <CheckCircle2 className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -893,17 +893,17 @@ function ActivityItemView({
         {active ? (
           <LoaderCircle
             size={APP_ICON_SIZES.sm}
-            className="cpx-agent-activity__icon canonical-spin"
+            className="tw:size-icon-sm cpx-agent-activity__icon canonical-spin"
             aria-hidden="true"
           />
         ) : item.status === 'error' ? (
           <CircleAlert
             size={APP_ICON_SIZES.sm}
-            className="cpx-agent-activity__icon"
+            className="tw:size-icon-sm cpx-agent-activity__icon"
             aria-hidden="true"
           />
         ) : (
-          <Check size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
+          <Check size={APP_ICON_SIZES.sm} className="tw:size-icon-sm cpx-agent-activity__icon" aria-hidden="true" />
         )}
         <span className="cpx-agent-activity__label">{item.title}</span>
         <ChevronRight
@@ -989,19 +989,19 @@ export function ToolItemView({
           {view.active ? (
             <LoaderCircle
               size={APP_ICON_SIZES.sm}
-              className="canonical-spin cpx-agent-activity__icon"
+              className="tw:size-icon-sm canonical-spin cpx-agent-activity__icon"
               aria-hidden="true"
             />
           ) : item.state === 'interrupted' ? (
             <CircleStop
               size={APP_ICON_SIZES.sm}
-              className="cpx-agent-activity__icon"
+              className="tw:size-icon-sm cpx-agent-activity__icon"
               aria-hidden="true"
             />
           ) : view.failed ? (
             <CircleAlert
               size={APP_ICON_SIZES.sm}
-              className="cpx-agent-activity__icon"
+              className="tw:size-icon-sm cpx-agent-activity__icon"
               aria-hidden="true"
             />
           ) : (
@@ -1020,7 +1020,7 @@ export function ToolItemView({
           )}
           <ChevronRight
             size={APP_ICON_SIZES.sm}
-            className="cpx-agent-activity__chevron"
+            className="tw:size-icon-sm cpx-agent-activity__chevron"
             aria-hidden="true"
           />
         </ToolActivityHeader>
@@ -1216,11 +1216,11 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
       <footer className="canonical-command-shell__footer tw:flex tw:min-h-5 tw:items-center tw:justify-end tw:border-t-0 tw:bg-transparent tw:px-3 tw:pt-0 tw:pb-2">
         <span className="canonical-command-shell__status">
           {item.state === 'completed' ? (
-            <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
+            <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
           ) : item.state === 'error' || item.state === 'interrupted' ? (
-            <CircleAlert size={APP_ICON_SIZES.sm} aria-hidden="true" />
+            <CircleAlert className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
           ) : (
-            <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" aria-hidden="true" />
+            <LoaderCircle size={APP_ICON_SIZES.sm} className="tw:size-icon-sm canonical-spin" aria-hidden="true" />
           )}
           {view.statusLabel}
         </span>
@@ -1485,7 +1485,7 @@ export function PatchSummaryView({
     <article className="canonical-patch-card">
       <header className="canonical-patch-card__header">
         <span className="canonical-patch-card__icon" aria-hidden="true">
-          <FileDiff size={APP_ICON_SIZES.sm} />
+          <FileDiff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         </span>
         <span className="canonical-patch-card__summary">
           <strong>已编辑 {patch.files.length} 个文件</strong>
@@ -1506,7 +1506,7 @@ export function PatchSummaryView({
               size="sm"
               onClick={() => void applyPatch()}
             >
-              <RotateCcw aria-hidden="true" size={APP_ICON_SIZE} />
+              <RotateCcw className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               {patchAction === 'undo' ? '撤销' : '重新应用'}
             </Button>
           ) : null}
@@ -1543,9 +1543,9 @@ export function PatchSummaryView({
         >
           {filesExpanded ? '收起文件' : `再显示 ${hiddenFileCount} 个文件`}
           {filesExpanded ? (
-            <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" className="is-expanded" />
+            <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" className="tw:size-icon-sm is-expanded" />
           ) : (
-            <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" />
+            <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
           )}
         </button>
       ) : null}
@@ -1599,19 +1599,19 @@ export function FileMutationItemView({
               {active ? (
                 <LoaderCircle
                   size={APP_ICON_SIZES.sm}
-                  className="canonical-spin cpx-agent-activity__icon"
+                  className="tw:size-icon-sm canonical-spin cpx-agent-activity__icon"
                   aria-hidden="true"
                 />
               ) : failed ? (
                 <CircleAlert
                   size={APP_ICON_SIZES.sm}
-                  className="cpx-agent-activity__icon"
+                  className="tw:size-icon-sm cpx-agent-activity__icon"
                   aria-hidden="true"
                 />
               ) : (
                 <Pencil
                   size={APP_ICON_SIZES.sm}
-                  className="cpx-agent-activity__icon"
+                  className="tw:size-icon-sm cpx-agent-activity__icon"
                   aria-hidden="true"
                 />
               )}
@@ -2166,7 +2166,7 @@ export function LifecycleToolItemView({
         role={display.active ? 'status' : undefined}
       >
         {display.failed ? (
-          <CircleAlert size={APP_ICON_SIZES.sm} aria-hidden="true" />
+          <CircleAlert className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
         ) : (
           <span className="canonical-lifecycle-tool__icon">
             <LifecycleIcon size={APP_ICON_SIZES.sm} aria-hidden="true" />

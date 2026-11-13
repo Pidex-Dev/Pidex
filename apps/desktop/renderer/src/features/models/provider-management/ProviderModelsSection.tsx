@@ -512,7 +512,7 @@ export function ProviderModelsSection({
               void onTestModels(rows.filter((row) => row.enabled).map((row) => row.id))
             }
           >
-            <Activity aria-hidden size={APP_ICON_SIZE} />
+            <Activity className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
           </Button>
           <Button
             color="outline"
@@ -522,7 +522,7 @@ export function ProviderModelsSection({
             }
             onClick={() => void fetchModels()}
           >
-            <RefreshCw aria-hidden size={APP_ICON_SIZES.sm} />
+            <RefreshCw className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
             同步模型
           </Button>
           {customConfig ? (
@@ -545,7 +545,7 @@ export function ProviderModelsSection({
               disabled={busy || saving || editingBlocked}
               onClick={() => openModel()}
             >
-              <Plus aria-hidden size={APP_ICON_SIZES.sm} />
+              <Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
             </Button>
           ) : null}
         </div>
@@ -614,7 +614,7 @@ export function ProviderModelsSection({
               </div>
               <Dialog.Close asChild>
                 <Button color="ghostSecondary" isIconOnly size="toolbar" aria-label="关闭模型发现">
-                  <X aria-hidden size={APP_ICON_SIZE} />
+                  <X className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
                 </Button>
               </Dialog.Close>
             </header>
@@ -648,7 +648,7 @@ export function ProviderModelsSection({
                           }
                         }}
                       >
-                        <Activity aria-hidden size={APP_ICON_SIZES.sm} />
+                        <Activity className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
                         测试全部模型
                       </Button>
                       <Button
@@ -664,7 +664,7 @@ export function ProviderModelsSection({
                           }
                         }}
                       >
-                        <CheckCheck aria-hidden size={APP_ICON_SIZES.sm} />
+                        <CheckCheck className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
                         添加全部模型
                       </Button>
                       <Button
@@ -679,7 +679,7 @@ export function ProviderModelsSection({
                           }
                         }}
                       >
-                        <Filter aria-hidden size={APP_ICON_SIZES.sm} />
+                        <Filter className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
                         筛选模型
                       </Button>
                     </div>
@@ -780,7 +780,7 @@ function ModelRowItem({
           logoURL={logoURL}
           className="tw:size-full"
           imageClassName="tw:object-contain tw:[.dark-theme_&]:invert tw:[.dark-theme_&]:hue-rotate-180"
-          fallback={<Server aria-hidden size={APP_ICON_SIZE} />}
+          fallback={<Server className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />}
         />
       </span>
       <button
@@ -795,17 +795,17 @@ function ModelRowItem({
       <div className="tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:text-app-text-soft">
         {metadata?.reasoning ? (
           <span role="img" aria-label="推理" title="推理">
-            <Brain aria-hidden size={APP_ICON_SIZE} />
+            <Brain className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
           </span>
         ) : null}
         {metadata?.vision ? (
           <span role="img" aria-label="图片输入" title="图片输入">
-            <Eye aria-hidden size={APP_ICON_SIZE} />
+            <Eye className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
           </span>
         ) : null}
         {metadata?.toolCall ? (
           <span role="img" aria-label="工具调用" title="工具调用">
-            <Wrench aria-hidden size={APP_ICON_SIZE} />
+            <Wrench className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
           </span>
         ) : null}
         {testStatus?.state === 'reachable' ? (
@@ -832,7 +832,7 @@ function ModelRowItem({
           loading={testStatus?.state === 'testing'}
           onClick={onTest}
         >
-          <Activity aria-hidden size={APP_ICON_SIZE} />
+          <Activity className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
         </Button>
         <Button
           color="ghostSecondary"
@@ -843,7 +843,7 @@ function ModelRowItem({
           disabled={editingDisabled}
           onClick={onEdit}
         >
-          <Pencil aria-hidden size={APP_ICON_SIZE} />
+          <Pencil className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
         </Button>
         <Button
           color="ghostSecondary"
@@ -854,7 +854,7 @@ function ModelRowItem({
           disabled={editingDisabled}
           onClick={onRemove}
         >
-          <Minus aria-hidden size={APP_ICON_SIZE} />
+          <Minus className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
         </Button>
       </div>
     </article>
@@ -1088,7 +1088,7 @@ export function DiscoveredModelCard({
       disabled={isToggling}
       onClick={onToggle}
       className={cx(
-        'discovered-model-card tw:group tw:relative tw:flex tw:flex-col tw:justify-between tw:gap-2 tw:rounded-xl tw:p-3 tw:text-left tw:transition-all tw:duration-150 tw:cursor-pointer tw:outline-none tw:select-none tw:min-h-[118px] tw:w-full',
+        'discovered-model-card tw:group tw:relative tw:flex tw:flex-col tw:justify-between tw:gap-2 tw:rounded-5 tw:p-3 tw:text-left tw:transition-all tw:duration-150 tw:cursor-pointer tw:outline-none tw:select-none tw:min-h-[118px] tw:w-full',
         'tw:focus-visible:ring-2 tw:focus-visible:ring-app-focus tw:focus-visible:ring-offset-1',
         isSelected
           ? 'tw:bg-app-accent-subtle/80 tw:border tw:border-app-accent tw:ring-1 tw:ring-app-accent tw:shadow-md tw:shadow-app-accent/20 dark:tw:shadow-app-accent/35'
@@ -1105,7 +1105,7 @@ export function DiscoveredModelCard({
               providerID={modelLogoURL(model.id, model.name) ? undefined : provider.providerID}
               className="tw:size-full"
               imageClassName="tw:object-contain tw:[.dark-theme_&]:invert tw:[.dark-theme_&]:hue-rotate-180"
-              fallback={<Server aria-hidden size={14} />}
+              fallback={<Server className="tw:size-icon-sm" aria-hidden size={14} />}
             />
           </span>
           <span className="tw:truncate tw:type-2 tw:weight-medium tw:text-app-text" title={modelName}>

@@ -174,7 +174,7 @@ export function AttachmentMediaPlayer({
               onClick={togglePlayback}
               className="tw:absolute tw:bg-app-canvas"
             >
-              <Play size={APP_ICON_SIZE} />
+              <Play className="tw:size-icon-md" size={APP_ICON_SIZE} />
             </Button>
           ) : null}
         </div>
@@ -270,7 +270,7 @@ export function AttachmentMediaPlayer({
               )
             }}
           >
-            <PictureInPicture2 size={APP_ICON_SIZE} />
+            <PictureInPicture2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
         ) : null}
         {video && typeof document !== 'undefined' && document.fullscreenEnabled ? (

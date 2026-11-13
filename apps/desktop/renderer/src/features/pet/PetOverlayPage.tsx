@@ -63,7 +63,7 @@ export function PetOverlayPage(): React.ReactNode {
     return (
       <main className="pet-overlay-page tw:relative tw:size-full tw:select-none tw:pointer-events-none">
         <div
-          className="pet-overlay-empty pet-overlay-interactive tw:absolute tw:top-2 tw:right-2 tw:left-2 tw:flex tw:max-h-[13.75rem] tw:min-h-[70px] tw:flex-col tw:items-stretch tw:gap-2 tw:overflow-auto tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:px-4 tw:py-3 tw:text-app-text tw:shadow-lg tw:backdrop-blur-none tw:pointer-events-auto"
+          className="pet-overlay-empty pet-overlay-interactive tw:absolute tw:top-2 tw:right-2 tw:left-2 tw:flex tw:max-h-[13.75rem] tw:min-h-[70px] tw:flex-col tw:items-stretch tw:gap-2 tw:overflow-auto tw:rounded-5 tw:border tw:border-app-border tw:bg-app-raised tw:px-4 tw:py-3 tw:text-app-text tw:shadow-lg tw:backdrop-blur-none tw:pointer-events-auto"
           onPointerEnter={() => setInteractive(true)}
           onPointerLeave={() => setInteractive(false)}
         >
@@ -77,7 +77,7 @@ export function PetOverlayPage(): React.ReactNode {
     <main className="pet-overlay-page tw:relative tw:size-full tw:select-none tw:pointer-events-none">
       {notification || greeting ? (
         <section
-          className="pet-overlay-pill pet-overlay-interactive tw:absolute tw:top-2 tw:right-2 tw:left-2 tw:flex tw:max-h-[13.75rem] tw:min-h-[70px] tw:flex-col tw:items-stretch tw:gap-2 tw:overflow-auto tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:px-4 tw:py-3 tw:text-app-text tw:shadow-lg tw:backdrop-blur-none tw:pointer-events-auto"
+          className="pet-overlay-pill pet-overlay-interactive tw:absolute tw:top-2 tw:right-2 tw:left-2 tw:flex tw:max-h-[13.75rem] tw:min-h-[70px] tw:flex-col tw:items-stretch tw:gap-2 tw:overflow-auto tw:rounded-5 tw:border tw:border-app-border tw:bg-app-raised tw:px-4 tw:py-3 tw:text-app-text tw:shadow-lg tw:backdrop-blur-none tw:pointer-events-auto"
           onBlurCapture={(event) => {
             if (containsRelatedTarget(event.currentTarget, event.relatedTarget)) {
               return
@@ -104,19 +104,19 @@ export function PetOverlayPage(): React.ReactNode {
               <div className="pet-overlay-pill-actions tw:flex tw:items-center tw:gap-1">
                 <button
                   aria-label="打开任务"
-                  className="tw:grid tw:size-6 tw:cursor-pointer tw:place-items-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:hover:bg-app-hover"
+                  className="tw:grid tw:size-6 tw:cursor-pointer tw:place-items-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:hover:bg-app-hover"
                   onClick={() => void controller.openThread(notification.threadId)}
                   type="button"
                 >
-                  <ExternalLink size={APP_ICON_SIZE} />
+                  <ExternalLink className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 </button>
                 <button
                   aria-label="关闭提醒"
-                  className="tw:grid tw:size-6 tw:cursor-pointer tw:place-items-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:hover:bg-app-hover"
+                  className="tw:grid tw:size-6 tw:cursor-pointer tw:place-items-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:hover:bg-app-hover"
                   onClick={() => controller.dismiss(notification.id)}
                   type="button"
                 >
-                  <X size={APP_ICON_SIZES.sm} />
+                  <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </button>
               </div>
             ) : null}
@@ -156,7 +156,7 @@ export function PetOverlayPage(): React.ReactNode {
             >
               <input
                 aria-label="快捷回复"
-                className="tw:h-6 tw:min-w-0 tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:px-2 tw:text-app-text tw:type-2 tw:outline-none tw:focus:border-app-focus"
+                className="tw:h-6 tw:min-w-0 tw:rounded-3 tw:border tw:border-app-border tw:bg-app-raised tw:px-2 tw:text-app-text tw:type-2 tw:outline-none tw:focus:border-app-focus"
                 disabled={replySubmitting}
                 placeholder="回复这个任务…"
                 value={reply}
@@ -167,11 +167,11 @@ export function PetOverlayPage(): React.ReactNode {
               />
               <button
                 aria-label="发送回复"
-                className="tw:grid tw:size-6 tw:cursor-pointer tw:place-items-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:hover:bg-app-hover tw:disabled:cursor-not-allowed tw:disabled:opacity-50"
+                className="tw:grid tw:size-6 tw:cursor-pointer tw:place-items-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:hover:bg-app-hover tw:disabled:cursor-not-allowed tw:disabled:opacity-50"
                 disabled={replySubmitting || !reply.trim()}
                 type="submit"
               >
-                <Send size={APP_ICON_SIZE} />
+                <Send className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </button>
               {replyError ? (
                 <span

@@ -771,7 +771,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
         <button
           aria-controls={diffBodyId}
           aria-expanded={!isCollapsed}
-          className="review-file-summary tw:flex tw:flex-auto tw:min-w-0 tw:items-center tw:gap-0 tw:self-stretch tw:appearance-none tw:rounded-sm tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:outline-none tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)]"
+          className="review-file-summary tw:flex tw:flex-auto tw:min-w-0 tw:items-center tw:gap-0 tw:self-stretch tw:appearance-none tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:outline-none tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)]"
           type="button"
           onClick={() => onDiffExpandedChange(file.path, !isExpanded)}
         >
@@ -962,7 +962,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
           <button
             type="button"
             aria-expanded={showFullContext}
-            className="tw:mx-2 tw:mb-2 tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-app-raised tw:px-3 tw:py-2 tw:text-left tw:text-app-text-meta tw:type-1 tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+            className="tw:mx-2 tw:mb-2 tw:flex tw:items-center tw:gap-2 tw:rounded-4 tw:border-0 tw:bg-app-raised tw:px-3 tw:py-2 tw:text-left tw:text-app-text-meta tw:type-1 tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
             onClick={() => setShowFullContext((value) => !value)}
           >
             <ChevronDown size={REVIEW_FILE_ACTION_ICON_SIZE} />

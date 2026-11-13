@@ -244,14 +244,14 @@ function QuestionAnswerFormInstance({
         className="ask-user-question-approval tw:flex tw:w-full tw:flex-col tw:gap-3 tw:outline-none"
         tabIndex={-1}
       >
-        <p className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-1">
+        <p className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-4 tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-1">
           无法解析 AskUserQuestion 的选项，请拒绝后让 Pidex 重新提问。
         </p>
         <div className="inline-approval-footer inline-approval-footer-split tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:justify-between">
           <span className="inline-approval-footer-spacer tw:flex-none" aria-hidden="true" />
           <Button color="danger" disabled={disabled} onClick={() => void reject()}>
             拒绝
-            <CornerDownLeft size={APP_ICON_SIZE} />
+            <CornerDownLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
         </div>
       </div>
@@ -449,7 +449,7 @@ function QuestionAnswerFormInstance({
   const customRow = (
     <div
       className={cx(
-        'inline-approval-option custom tw:mt-1 tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:gap-2 tw:rounded-lg tw:border tw:bg-app-control tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:cursor-text',
+        'inline-approval-option custom tw:mt-1 tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:gap-2 tw:rounded-4 tw:border tw:bg-app-control tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:cursor-text',
         // 「自己回答」多一行标题，标记随之顶部对齐。
         planHasChoices ? 'tw:items-start' : 'tw:items-center',
         planHasChoices && 'tw:col-start-1',
@@ -461,7 +461,7 @@ function QuestionAnswerFormInstance({
       key={CUSTOM_OPTION_ID}
     >
       <RequestMarker>
-        <PenLine size={APP_ICON_SIZE} />
+        <PenLine className="tw:size-icon-md" size={APP_ICON_SIZE} />
       </RequestMarker>
       <span className="ask-user-question-option-copy tw:grid tw:min-w-0 tw:gap-1 tw:text-left">
         {planHasChoices ? (
@@ -539,7 +539,7 @@ function QuestionAnswerFormInstance({
                   disabled={disabled || currentQuestionIndex === 0}
                   onClick={() => goToQuestion(-1)}
                 >
-                  <ChevronLeft size={APP_ICON_SIZE} />
+                  <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 </button>
                 {questions.map((question, index) => {
                   const answered = hasQuestionAnswer(draftFor(question))
@@ -583,7 +583,7 @@ function QuestionAnswerFormInstance({
                 <button
                   aria-checked={selected}
                   className={cx(
-                    'inline-approval-option tw:col-span-full tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring)] tw:focus-visible:outline-none',
+                    'inline-approval-option tw:col-span-full tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-4 tw:border tw:border-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring)] tw:focus-visible:outline-none',
                     !selected && 'tw:hover:bg-app-hover',
                     selected ? 'selected tw:bg-app-selected' : 'tw:bg-transparent',
                     focused ? 'focused' : undefined,
@@ -599,9 +599,9 @@ function QuestionAnswerFormInstance({
                 >
                   <RequestMarker>
                     {selected ? (
-                      <CircleDot size={APP_ICON_SIZE} />
+                      <CircleDot className="tw:size-icon-md" size={APP_ICON_SIZE} />
                     ) : (
-                      <Circle size={APP_ICON_SIZE} />
+                      <Circle className="tw:size-icon-md" size={APP_ICON_SIZE} />
                     )}
                   </RequestMarker>
                   <span className="ask-user-question-option-copy tw:grid tw:min-w-0 tw:gap-1 tw:text-left">
@@ -623,14 +623,14 @@ function QuestionAnswerFormInstance({
                     <span className="inline-approval-option-trailing tw:inline-flex tw:flex-none tw:items-center tw:gap-2">
                       <span
                         className={cx(
-                          'inline-approval-option-checkbox tw:inline-flex tw:size-4 tw:items-center tw:justify-center tw:rounded-md tw:border tw:border-app-border tw:text-app-canvas',
+                          'inline-approval-option-checkbox tw:inline-flex tw:size-4 tw:items-center tw:justify-center tw:rounded-3 tw:border tw:border-app-border tw:text-app-canvas',
                           selected
                             ? 'selected tw:border-app-text tw:bg-app-text'
                             : 'tw:bg-transparent',
                         )}
                         aria-hidden="true"
                       >
-                        {selected ? <Check size={APP_ICON_SIZES.sm} /> : null}
+                        {selected ? <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} /> : null}
                       </span>
                     </span>
                   ) : selected ? (
@@ -639,7 +639,7 @@ function QuestionAnswerFormInstance({
                         className="inline-approval-option-arrows tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text-meta"
                         aria-hidden="true"
                       >
-                        <ArrowRight size={APP_ICON_SIZE} />
+                        <ArrowRight className="tw:size-icon-md" size={APP_ICON_SIZE} />
                       </span>
                     </span>
                   ) : null}
@@ -681,13 +681,13 @@ function QuestionAnswerFormInstance({
               }}
             >
               {isLastQuestion ? '提交回答' : '下一题'}
-              <CornerDownLeft size={APP_ICON_SIZE} />
+              <CornerDownLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
             </Button>
           </div>
         </div>
         {!supportsQuestionSkip ? (
           <p
-            className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-1"
+            className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-4 tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-1"
             role="status"
           >
             当前 Agent 尚未提供逐题跳过能力，请升级并重启 Agent。

@@ -201,20 +201,20 @@ function SidebarProjectGroupComponent({
       {
         kind: 'item',
         label: isPinned ? '取消置顶' : '置顶',
-        icon: isPinned ? <PinOff size={APP_ICON_SIZES.sm} /> : <Pin size={APP_ICON_SIZES.sm} />,
+        icon: isPinned ? <PinOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} /> : <Pin className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
         onSelect: togglePinned,
       },
       {
         kind: 'item',
         label: '编辑',
-        icon: <Settings2 size={APP_ICON_SIZES.sm} />,
+        icon: <Settings2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
         onSelect: () => setManagerOpen(true),
       },
       { kind: 'separator' },
       {
         kind: 'sub',
         label: '分区',
-        icon: <List size={APP_ICON_SIZES.sm} />,
+        icon: <List className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
         layout: 'grid',
         children: [
           ...customSections.map((section): ContextMenuAction => ({
@@ -230,7 +230,7 @@ function SidebarProjectGroupComponent({
           {
             kind: 'item',
             label: '新建分区…',
-            icon: <Plus size={APP_ICON_SIZES.sm} />,
+            icon: <Plus className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
             onSelect: () => onCreateSection?.([`project:${projectKey}`]),
           },
         ],
@@ -240,7 +240,7 @@ function SidebarProjectGroupComponent({
             {
               kind: 'item' as const,
               label: '在资源管理器中打开',
-              icon: <FolderOpen size={APP_ICON_SIZES.sm} />,
+              icon: <FolderOpen className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
               disabled: isUnavailable,
               onSelect: () => {
                 void desktopClient.openPathWithDefaultTarget(folders[0]!.path)
@@ -252,7 +252,7 @@ function SidebarProjectGroupComponent({
       {
         kind: 'item',
         label: '归档聊天',
-        icon: <Archive size={APP_ICON_SIZES.sm} />,
+        icon: <Archive className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
         disabled: countedProjectSessions.length === 0 || processingAction !== null,
         onSelect: () => setConfirmArchiveOpen(true),
       },
@@ -260,7 +260,7 @@ function SidebarProjectGroupComponent({
       {
         kind: 'item',
         label: '移除项目',
-        icon: <X size={APP_ICON_SIZES.sm} />,
+        icon: <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
         onSelect: () => setConfirmRemoveOpen(true),
       },
     ]
@@ -338,7 +338,7 @@ function SidebarProjectGroupComponent({
                         size="compact"
                         title="更多"
                       >
-                        <MoreHorizontal size={APP_ICON_SIZES.sm} />
+                        <MoreHorizontal className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                       </Button>
                     }
                     onOpenChange={setMenuOpen}
@@ -356,7 +356,7 @@ function SidebarProjectGroupComponent({
                       title="新建对话"
                       onClick={() => onCreateSession(managedProject)}
                     >
-                      <SquarePen size={APP_ICON_SIZES.sm} />
+                      <SquarePen className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                     </Button>
                   )}
                 </div>

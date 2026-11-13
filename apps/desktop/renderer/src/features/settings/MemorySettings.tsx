@@ -345,7 +345,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                 }}
                 type="button"
               >
-                <FolderOpen size={APP_ICON_SIZE} />
+                <FolderOpen className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 打开目录
               </Button>
             }
@@ -373,7 +373,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                 onClick={() => void refresh()}
                 type="button"
               >
-                <RefreshCw size={APP_ICON_SIZE} />
+                <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 刷新
               </Button>
               <Button
@@ -382,7 +382,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                 onClick={() => void organize()}
                 type="button"
               >
-                <Sparkles size={APP_ICON_SIZE} />
+                <Sparkles className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 立即整理
               </Button>
               <Button
@@ -441,7 +441,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                 </div>
               ) : null}
               <div className="memory-settings-grid tw:grid tw:min-h-[30rem] tw:grid-cols-[minmax(260px,1fr)_minmax(380px,1.6fr)] tw:gap-3 tw:p-3">
-                <div className="memory-settings-panel tw:flex tw:min-h-0 tw:flex-col tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border tw:bg-app-panel tw:shadow-none">
+                <div className="memory-settings-panel tw:flex tw:min-h-0 tw:flex-col tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border tw:bg-app-panel tw:shadow-none">
                   <div className="memory-settings-panel-header tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-b-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-2 tw:weight-medium tw:select-none">
                     <span>记忆列表</span>
                   </div>
@@ -484,7 +484,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                     </div>
                   </div>
                 </div>
-                <div className="memory-settings-panel tw:flex tw:min-h-0 tw:flex-col tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border tw:bg-app-panel tw:shadow-none">
+                <div className="memory-settings-panel tw:flex tw:min-h-0 tw:flex-col tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border tw:bg-app-panel tw:shadow-none">
                   <div className="memory-settings-panel-header memory-settings-panel-header-editor tw:flex tw:flex-wrap tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-b-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-2 tw:weight-medium tw:select-none">
                     <span className="memory-settings-editor-title tw:min-w-0 tw:flex-1 tw:truncate tw:text-app-text tw:type-2 tw:weight-medium">
                       {selectedMemory ? selectedMemory.relativePath : '内容编辑'}
@@ -497,7 +497,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                           onClick={() => void saveSelected()}
                           type="button"
                         >
-                          <Save size={APP_ICON_SIZE} />
+                          <Save className="tw:size-icon-md" size={APP_ICON_SIZE} />
                           保存
                         </Button>
                         <Button
@@ -506,7 +506,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                           onClick={() => void deleteSelected()}
                           type="button"
                         >
-                          <Trash2 size={APP_ICON_SIZE} />
+                          <Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
                           删除
                         </Button>
                       </div>
@@ -516,7 +516,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                     <div className="memory-settings-editor-scroll-content tw:flex tw:min-w-0 tw:h-full tw:flex-col">
                       {selectedMemory ? (
                         <textarea
-                          className="settings-textarea memory-settings-editor-textarea tw:block tw:w-full tw:min-h-[20rem] tw:flex-1 tw:resize-y tw:box-border tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-3 tw:text-app-text tw:type-code tw:m-0 tw:outline-none tw:focus:border-app-accent-border"
+                          className="settings-textarea memory-settings-editor-textarea tw:block tw:w-full tw:min-h-[20rem] tw:flex-1 tw:resize-y tw:box-border tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-3 tw:text-app-text tw:type-code tw:m-0 tw:outline-none tw:focus:border-app-accent-border"
                           value={draftContent ?? selectedMemory.content}
                           onChange={(event) => setDraftContent(event.target.value)}
                         />

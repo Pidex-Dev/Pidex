@@ -32,7 +32,7 @@ export function ProviderIcon({
 }: ProviderIconProps): React.ReactNode {
   const { source, override } = useProviderIconSource(logoURL, providerID)
   const placeholder = fallback ?? (
-    <Server aria-hidden="true" size={14} data-icon-kind="artwork" strokeWidth={2} />
+    <Server className="tw:size-icon-sm" aria-hidden="true" size={14} data-icon-kind="artwork" strokeWidth={2} />
   )
 
   const slot = cx(

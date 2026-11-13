@@ -89,7 +89,7 @@ export function GitBoardCheckoutDialog({
                 size="toolbar"
                 title={t('关闭对话框')}
               >
-                <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               </Button>
             </Dialog.Close>
           </header>
@@ -158,7 +158,7 @@ export function GitBoardCheckoutDialog({
                       type="button"
                       aria-current={branch.current ? 'true' : undefined}
                       className={cx(
-                        'tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-1',
+                        'tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-1',
                         branch.current
                           ? 'tw:text-app-text-meta'
                           : 'tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus',

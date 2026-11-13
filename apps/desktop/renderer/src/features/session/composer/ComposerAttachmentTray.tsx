@@ -32,7 +32,7 @@ const TRAY_CLASS = cx(
   'tw:[overscroll-behavior-inline:contain]',
 )
 const CHIP_CLASS =
-  'composer-attachment-chip tw:relative tw:size-[4.5rem] tw:flex-none tw:overflow-hidden tw:rounded-3xl tw:transition-[border-color,background-color,transform] tw:duration-state tw:ease-standard'
+  'composer-attachment-chip tw:relative tw:size-[4.5rem] tw:flex-none tw:overflow-hidden tw:rounded-6 tw:transition-[border-color,background-color,transform] tw:duration-state tw:ease-standard'
 const CHIP_INTERACTIVE_CLASS = 'tw:cursor-pointer'
 const IMAGE_CHIP_CLASS = cx(
   CHIP_CLASS,
@@ -67,7 +67,7 @@ const REMOVE_BUTTON_OVERLAY_CLASS = cx(
 const TILE_TOP_CLASS =
   'composer-attachment-tile-top tw:flex tw:w-full tw:items-start tw:justify-between'
 const BADGE_CLASS =
-  'composer-attachment-badge tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-sm tw:shadow-sm'
+  'composer-attachment-badge tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:shadow-sm'
 const TILE_ICON_CLASS = 'composer-attachment-tile-icon tw:block'
 const ATTACHMENT_NAME_CLASS = cx(
   'composer-attachment-name',
@@ -86,13 +86,13 @@ function resolveFileCategory(name: string, kind: string): { bg: string; icon: Re
   if (['xlsx', 'xls', 'csv', 'tsv'].includes(ext)) {
     return {
       bg: '#1a73e8',
-      icon: <FileSpreadsheet className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+      icon: <FileSpreadsheet className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
     }
   }
   if (['pptx', 'ppt', 'key'].includes(ext)) {
     return {
       bg: '#9061f9',
-      icon: <Presentation className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+      icon: <Presentation className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
     }
   }
   if (
@@ -115,24 +115,24 @@ function resolveFileCategory(name: string, kind: string): { bg: string; icon: Re
   ) {
     return {
       bg: '#00bba7',
-      icon: <Box className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+      icon: <Box className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
     }
   }
   if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext) || kind === 'audio') {
     return {
       bg: '#f59e0b',
-      icon: <Music className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+      icon: <Music className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
     }
   }
   if (['mp4', 'mov', 'webm', 'mkv', 'avi'].includes(ext) || kind === 'video') {
     return {
       bg: '#ef4444',
-      icon: <Video className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+      icon: <Video className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
     }
   }
   return {
     bg: '#6b7280',
-    icon: <FileText className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+    icon: <FileText className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
   }
 }
 
@@ -202,7 +202,7 @@ export function ComposerAttachmentTray({
                   className={ATTACHMENT_ERROR_BADGE_CLASS}
                   title={attachment.error ?? '加载失败'}
                 >
-                  <AlertCircle size={APP_ICON_SIZE} />
+                  <AlertCircle className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 </div>
               )}
               {onRemove && (
@@ -216,7 +216,7 @@ export function ComposerAttachmentTray({
                   title="移除附件"
                   type="button"
                 >
-                  <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </button>
               )}
             </div>
@@ -259,7 +259,7 @@ export function ComposerAttachmentTray({
                   title="移除附件"
                   type="button"
                 >
-                  <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </button>
               )}
             </div>

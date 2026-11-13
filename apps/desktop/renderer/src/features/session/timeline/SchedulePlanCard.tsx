@@ -147,7 +147,7 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
         {committed ? (
           <Button color="secondary" size="compact" onClick={openCalendar}>
             打开
-            <ExternalLink aria-hidden="true" size={APP_ICON_SIZES.sm} />
+            <ExternalLink className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
           </Button>
         ) : null}
       </header>
@@ -367,7 +367,7 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
             loading={busy}
             onClick={() => void commit()}
           >
-            <RefreshCw aria-hidden="true" size={APP_ICON_SIZE} />
+            <RefreshCw className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
             确认创建
           </Button>
         ) : null}

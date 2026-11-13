@@ -127,7 +127,7 @@ export function AppDetailsDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-5 tw:rounded-2xl tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl"
+          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-5 tw:rounded-5 tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl"
           onCloseAutoFocus={(event) => {
             if (!restoreFocusElement?.isConnected) return
             event.preventDefault()
@@ -158,7 +158,7 @@ export function AppDetailsDialog({
                 onOpenChange={setMoreOpen}
                 trigger={
                   <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多选项">
-                    <MoreHorizontal
+                    <MoreHorizontal className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -167,11 +167,11 @@ export function AppDetailsDialog({
                 }
               >
                 {app.pluginId && onViewPlugin ? (
-                  <PopoverItem icon={<Store size={14} />} onClick={handleViewPlugin}>
+                  <PopoverItem icon={<Store className="tw:size-icon-sm" size={14} />} onClick={handleViewPlugin}>
                     查看关联插件
                   </PopoverItem>
                 ) : null}
-                <PopoverItem icon={<Copy size={14} />} onClick={handleCopyId}>
+                <PopoverItem icon={<Copy className="tw:size-icon-sm" size={14} />} onClick={handleCopyId}>
                   复制应用 ID
                 </PopoverItem>
               </PopoverMenu>
@@ -183,7 +183,7 @@ export function AppDetailsDialog({
                   size="toolbar"
                   title="关闭弹层"
                 >
-                  <X
+                  <X className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -213,7 +213,7 @@ export function AppDetailsDialog({
           </p>
 
           {/* Write / Read 工具方法折叠列表 */}
-          <div className="tw:mt-4 tw:min-h-0 tw:w-full tw:max-w-full tw:flex-1 tw:overflow-y-auto tw:overflow-x-hidden tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:divide-y tw:divide-app-border-subtle">
+          <div className="tw:mt-4 tw:min-h-0 tw:w-full tw:max-w-full tw:flex-1 tw:overflow-y-auto tw:overflow-x-hidden tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:divide-y tw:divide-app-border-subtle">
             {app.tools.length === 0 ? (
               <div className="tw:p-5 tw:type-1 tw:text-app-text-soft tw:text-center">
                 该应用暂未声明公开工具方法。
@@ -256,7 +256,7 @@ export function AppDetailsDialog({
               disabled={!enabled || busy}
               onClick={handleTry}
             >
-              <Sparkles
+              <Sparkles className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -296,11 +296,11 @@ function ToolModeSection({
           </span>
         </span>
         {expanded ? (
-          <ChevronDown size={16} className="tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
+          <ChevronDown size={16} className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
         ) : (
           <ChevronRight
             size={16}
-            className="tw:text-app-text-meta tw:shrink-0"
+            className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0"
             aria-hidden="true"
           />
         )}

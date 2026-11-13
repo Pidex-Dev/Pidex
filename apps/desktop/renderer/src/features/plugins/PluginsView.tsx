@@ -438,7 +438,7 @@ export function PluginsView(): React.ReactNode {
         title={`刷新${tab === 'plugins' ? '插件' : '技能'}目录`}
         variant="ghost"
       >
-        <RefreshCw aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <RefreshCw className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
       </Button>
       <Button
         isIconOnly
@@ -448,7 +448,7 @@ export function PluginsView(): React.ReactNode {
         title="管理插件设置"
         variant="ghost"
       >
-        <Settings aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <Settings className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
       </Button>
       {tab === 'plugins' ? (
         <PopoverMenu
@@ -459,12 +459,12 @@ export function PluginsView(): React.ReactNode {
           trigger={
             <Button color="primary" shape="pill" size="md">
               添加
-              <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+              <ChevronDown className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
             </Button>
           }
         >
           <PopoverItem
-            icon={<Plus aria-hidden="true" size={APP_ICON_SIZE} />}
+            icon={<Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
             onClick={() => {
               setAddOpen(false)
               void desktopClient
@@ -477,7 +477,7 @@ export function PluginsView(): React.ReactNode {
             创建插件
           </PopoverItem>
           <PopoverItem
-            icon={<Server aria-hidden="true" size={APP_ICON_SIZE} />}
+            icon={<Server className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
             onClick={() => {
               setAddOpen(false)
               navigate('/settings/plugins?tab=mcps&create=mcp')
@@ -522,7 +522,7 @@ export function PluginsView(): React.ReactNode {
                   ref={backButtonRef}
                   size="toolbar"
                 >
-                  <ArrowLeft
+                  <ArrowLeft className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -727,7 +727,7 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
                       onClick={() => props.openSection(group.id)}
                     >
                       {group.label}
-                      <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+                      <ChevronRight className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
                     </button>
                   ) : (
                     group.label
@@ -798,7 +798,7 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
       ) : null}
       {props.error && total === 0 ? (
         <div className={cx('plugins-empty', PLUGINS_EMPTY_BASE)}>
-          <AlertOctagon aria-hidden="true" size={APP_ICON_SIZE} />
+          <AlertOctagon className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
           <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">技能目录暂不可用</h2>
           <p className="tw:m-0 tw:text-app-text-meta tw:type-1 tw:wrap-anywhere">
             {props.error}
@@ -923,7 +923,7 @@ function CatalogCallout({
     >
       <AlertOctagon
         aria-hidden="true"
-        className="tw:shrink-0 tw:text-app-danger"
+        className="tw:size-icon-md tw:shrink-0 tw:text-app-danger"
         size={APP_ICON_SIZE}
       />
       <div className="tw:grid tw:min-w-0 tw:flex-auto tw:gap-1">
@@ -969,7 +969,7 @@ function CatalogEmpty({
 }): React.ReactNode {
   return (
     <div className={cx('plugins-empty', PLUGINS_EMPTY_BASE)}>
-      <Clock aria-hidden="true" size={APP_ICON_SIZE} />
+      <Clock className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
       <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{title}</h2>
       <p className="tw:m-0 tw:text-app-text-meta tw:type-1 tw:wrap-anywhere">{message}</p>
       {actionLabel && onAction ? (

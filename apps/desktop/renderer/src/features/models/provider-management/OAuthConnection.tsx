@@ -156,7 +156,7 @@ export function OAuthConnection({
             className="model-center-oauth-status tw:flex tw:items-start tw:gap-3 tw:text-app-text tw:[&>.ui-spinner]:mt-1 tw:[&>.ui-spinner]:shrink-0 tw:[&>svg]:mt-1 tw:[&>svg]:shrink-0"
             role="status"
           >
-            {active || auth.busy ? <Spinner /> : <Check size={APP_ICON_SIZES.sm} aria-hidden />}
+            {active || auth.busy ? <Spinner /> : <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden />}
             <div>
               <strong className="tw:type-2 tw:weight-medium">{t(status)}</strong>
               {active && authUrlNotice && !completing ? (
@@ -184,7 +184,7 @@ export function OAuthConnection({
               if (notice.type === 'device_code') {
                 return (
                   <div
-                    className="model-center-account-oauth tw:grid tw:gap-2 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3"
+                    className="model-center-account-oauth tw:grid tw:gap-2 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3"
                     key={index}
                   >
                     <p className="tw:m-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]">
@@ -194,7 +194,7 @@ export function OAuthConnection({
                       color="secondary"
                       onClick={() => void desktopClient.openExternalURL(notice.verificationUri)}
                     >
-                      <ExternalLink size={APP_ICON_SIZE} aria-hidden />
+                      <ExternalLink className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
                       {t('打开设备授权页面')}
                     </Button>
                   </div>
@@ -227,7 +227,7 @@ export function OAuthConnection({
               disabled={completing}
               onClick={() => void desktopClient.openExternalURL(authUrlNotice.url)}
             >
-              <ExternalLink size={APP_ICON_SIZE} aria-hidden />
+              <ExternalLink className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
               {t('重新打开浏览器')}
             </Button>
           ) : null}
@@ -257,9 +257,9 @@ export function OAuthConnection({
                   onClick={toggle}
                 >
                   {expanded ? (
-                    <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden />
+                    <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden />
                   ) : (
-                    <ChevronRight size={APP_ICON_SIZES.sm} aria-hidden />
+                    <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden />
                   )}
                   {t('无法自动完成？')}
                 </Button>

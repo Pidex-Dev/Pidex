@@ -167,7 +167,7 @@ export function SkillDetailsDialog({
   const iconNode = presentation ? (
     <BuiltinSkillIcon className="" size={18} skill={skill} />
   ) : (
-    <Lightbulb size={20} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    <Lightbulb className="tw:size-icon-lg" size={20} strokeWidth={APP_ICON_STROKE_WIDTH} />
   )
 
   return (
@@ -176,7 +176,7 @@ export function SkillDetailsDialog({
         <Dialog.Portal>
           <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
           <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-5 tw:rounded-2xl tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl"
+            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-5 tw:rounded-5 tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl"
             onCloseAutoFocus={(event) => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -212,7 +212,7 @@ export function SkillDetailsDialog({
                       size="toolbar"
                       title="更多选项"
                     >
-                      <MoreHorizontal
+                      <MoreHorizontal className="tw:size-icon-md"
                         aria-hidden="true"
                         size={APP_ICON_SIZE}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -222,14 +222,14 @@ export function SkillDetailsDialog({
                 >
                   {!builtin ? (
                     <PopoverItem
-                      icon={<FolderOpen size={14} />}
+                      icon={<FolderOpen className="tw:size-icon-sm" size={14} />}
                       onClick={handleOpenPath}
                     >
                       在资源管理器中显示
                     </PopoverItem>
                   ) : null}
                   <PopoverItem
-                    icon={<Copy size={14} />}
+                    icon={<Copy className="tw:size-icon-sm" size={14} />}
                     onClick={handleCopyPath}
                   >
                     复制文件路径
@@ -243,7 +243,7 @@ export function SkillDetailsDialog({
                     size="toolbar"
                     title="关闭弹层"
                   >
-                    <X
+                    <X className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -269,7 +269,7 @@ export function SkillDetailsDialog({
             </Dialog.Description>
 
             {/* 再下方：正文（暗色背景圆角卡片，渲染 Markdown） */}
-            <div className="tw:mt-4 tw:min-h-0 tw:w-full tw:max-w-full tw:flex-1 tw:overflow-y-auto tw:overflow-x-hidden tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-4 tw:type-1">
+            <div className="tw:mt-4 tw:min-h-0 tw:w-full tw:max-w-full tw:flex-1 tw:overflow-y-auto tw:overflow-x-hidden tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-4 tw:type-1">
               {loading ? (
                 <p className="tw:type-1 tw:m-0 tw:text-app-text-soft" role="status">
                   正在读取技能内容…
@@ -296,7 +296,7 @@ export function SkillDetailsDialog({
                   disabled={uninstallBusy}
                   onClick={() => setConfirmUninstall(true)}
                 >
-                  <Trash2
+                  <Trash2 className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -313,7 +313,7 @@ export function SkillDetailsDialog({
                 disabled={!enabled}
                 onClick={handleUse}
               >
-                <Sparkles
+                <Sparkles className="tw:size-icon-md"
                   aria-hidden="true"
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}

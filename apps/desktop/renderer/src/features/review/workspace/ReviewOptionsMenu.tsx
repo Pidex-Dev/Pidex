@@ -68,27 +68,27 @@ export function ReviewOptionsMenu({
       size="sm"
       trigger={
         <Button ref={buttonRef} isIconOnly color="ghostSecondary" size="toolbar" title="更多">
-          <Ellipsis size={APP_ICON_SIZE} />
+          <Ellipsis className="tw:size-icon-md" size={APP_ICON_SIZE} />
         </Button>
       }
       onOpenChange={onOpenChange}
     >
       <div className="tw:contents tw:@min-[625px]:hidden">
-        <PopoverItem icon={<RotateCcw size={APP_ICON_SIZE} />} onClick={() => run(onRefresh)}>
+        <PopoverItem icon={<RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={() => run(onRefresh)}>
           刷新变更
         </PopoverItem>
         <PopoverCheckboxItem
           checked={preferences.wrapLines}
-          icon={<WrapText size={APP_ICON_SIZE} />}
+          icon={<WrapText className="tw:size-icon-md" size={APP_ICON_SIZE} />}
           onCheckedChange={(checked) => set('wrapLines', checked)}
         >
           自动换行
         </PopoverCheckboxItem>
-        <PopoverItem icon={<Columns2 size={APP_ICON_SIZE} />} onClick={() => run(onToggleView)}>
+        <PopoverItem icon={<Columns2 className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={() => run(onToggleView)}>
           切换差异布局
         </PopoverItem>
         <PopoverItem
-          icon={<ChevronDown size={APP_ICON_SIZE} />}
+          icon={<ChevronDown className="tw:size-icon-md" size={APP_ICON_SIZE} />}
           onClick={() => run(onToggleExpanded)}
         >
           {preferences.diffExpansion.mode === 'none' ? '展开全部差异' : '折叠全部差异'}
@@ -97,7 +97,7 @@ export function ReviewOptionsMenu({
       {supportsFullContext ? (
         <PopoverCheckboxItem
           checked={preferences.loadFullFiles}
-          icon={<File size={APP_ICON_SIZE} />}
+          icon={<File className="tw:size-icon-md" size={APP_ICON_SIZE} />}
           onCheckedChange={(checked) => set('loadFullFiles', checked)}
         >
           加载完整文件
@@ -105,52 +105,52 @@ export function ReviewOptionsMenu({
       ) : null}
       <PopoverCheckboxItem
         checked={preferences.richPreview}
-        icon={<Image size={APP_ICON_SIZE} />}
+        icon={<Image className="tw:size-icon-md" size={APP_ICON_SIZE} />}
         onCheckedChange={(checked) => set('richPreview', checked)}
       >
         渲染预览
       </PopoverCheckboxItem>
       <PopoverCheckboxItem
         checked={preferences.showWordDiff}
-        icon={<Code2 size={APP_ICON_SIZE} />}
+        icon={<Code2 className="tw:size-icon-md" size={APP_ICON_SIZE} />}
         onCheckedChange={(checked) => set('showWordDiff', checked)}
       >
         词级差异
       </PopoverCheckboxItem>
       <PopoverCheckboxItem
         checked={preferences.hideWhitespace}
-        icon={<Code2 size={APP_ICON_SIZE} />}
+        icon={<Code2 className="tw:size-icon-md" size={APP_ICON_SIZE} />}
         onCheckedChange={(checked) => set('hideWhitespace', checked)}
       >
         隐藏空白字符
       </PopoverCheckboxItem>
       <PopoverCheckboxItem
         checked={preferences.hideImports}
-        icon={<Code2 size={APP_ICON_SIZE} />}
+        icon={<Code2 className="tw:size-icon-md" size={APP_ICON_SIZE} />}
         onCheckedChange={(checked) => set('hideImports', checked)}
       >
         隐藏导入内容
       </PopoverCheckboxItem>
-      <PopoverItem icon={<Clipboard size={APP_ICON_SIZE} />} onClick={() => run(onCopyPatch)}>
+      <PopoverItem icon={<Clipboard className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={() => run(onCopyPatch)}>
         复制 git apply 命令
       </PopoverItem>
       <PopoverItem
-        icon={<GitCommitHorizontal size={APP_ICON_SIZE} />}
+        icon={<GitCommitHorizontal className="tw:size-icon-md" size={APP_ICON_SIZE} />}
         onClick={() => run(onCommit)}
       >
         提交或推送
       </PopoverItem>
       <PopoverItem
-        icon={<GitPullRequestArrow size={APP_ICON_SIZE} />}
+        icon={<GitPullRequestArrow className="tw:size-icon-md" size={APP_ICON_SIZE} />}
         onClick={() => run(onCreatePullRequest)}
       >
         创建拉取请求
       </PopoverItem>
-      <PopoverItem icon={<GitFork size={APP_ICON_SIZE} />} onClick={() => run(onCreateBranch)}>
+      <PopoverItem icon={<GitFork className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={() => run(onCreateBranch)}>
         创建分支
       </PopoverItem>
       <PopoverItem
-        icon={<GitPullRequestArrow size={APP_ICON_SIZE} />}
+        icon={<GitPullRequestArrow className="tw:size-icon-md" size={APP_ICON_SIZE} />}
         onClick={() => run(onOpenPullRequest)}
       >
         打开 GitHub Pull Request…

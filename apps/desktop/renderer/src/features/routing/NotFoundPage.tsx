@@ -14,7 +14,7 @@ export function NotFoundPage(): React.ReactNode {
         旧版路由已经停止支持，请从新的工作区入口继续。
       </p>
       <Link
-        className="tw:mt-3 tw:inline-flex tw:items-center tw:justify-center tw:border tw:border-app-control tw:rounded-md tw:bg-app-control tw:px-4 tw:py-1 tw:text-app-text tw:no-underline tw:type-2 tw:weight-medium tw:transition-[background-color,border-color,color,transform] tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:focus-visible:outline tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus tw:forced-colors:border-[color:ButtonText]"
+        className="tw:mt-3 tw:inline-flex tw:items-center tw:justify-center tw:border tw:border-app-control tw:rounded-3 tw:bg-app-control tw:px-4 tw:py-1 tw:text-app-text tw:no-underline tw:type-2 tw:weight-medium tw:transition-[background-color,border-color,color,transform] tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:focus-visible:outline tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus tw:forced-colors:border-[color:ButtonText]"
         to="/new"
       >
         返回新建会话

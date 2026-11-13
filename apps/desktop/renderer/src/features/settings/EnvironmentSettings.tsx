@@ -123,7 +123,7 @@ function EnvironmentList({
     return (
       <button
         className={cx(
-          'environment-project-row tw:grid tw:w-full tw:cursor-pointer tw:grid-cols-[auto_minmax(0,1fr)_auto_auto] tw:items-center tw:gap-3 tw:rounded-lg tw:px-4 tw:py-4 tw:text-left tw:text-app-text tw:shadow-none tw:[&>svg:last-child]:box-content tw:[&>svg:last-child]:rounded-md',
+          'environment-project-row tw:grid tw:w-full tw:cursor-pointer tw:grid-cols-[auto_minmax(0,1fr)_auto_auto] tw:items-center tw:gap-3 tw:rounded-4 tw:px-4 tw:py-4 tw:text-left tw:text-app-text tw:shadow-none tw:[&>svg:last-child]:box-content tw:[&>svg:last-child]:rounded-3',
           routeBase === '/projects'
             ? 'tw:border-0 tw:bg-transparent tw:[&>svg:last-child]:bg-transparent tw:[&>svg:last-child]:p-0'
             : 'tw:border tw:border-app-border-subtle tw:bg-app-raised tw:hover:bg-app-hover tw:[&>svg:last-child]:bg-app-hover tw:[&>svg:last-child]:p-2',
@@ -138,7 +138,7 @@ function EnvironmentList({
           navigate(projectSettingsRoute(routeBase, project.projectId))
         }}
       >
-        <span className="environment-project-icon tw:grid tw:size-6 tw:place-items-center tw:rounded-md tw:bg-app-hover tw:text-app-text-soft">
+        <span className="environment-project-icon tw:grid tw:size-6 tw:place-items-center tw:rounded-3 tw:bg-app-hover tw:text-app-text-soft">
           <ProjectAppearanceGlyph
             appearance={appearance}
             className={cx(
@@ -196,7 +196,7 @@ function EnvironmentList({
             shape="pill"
             size="md"
           >
-            <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             <span>添加项目</span>
           </Button>
         }
@@ -274,7 +274,7 @@ function EnvironmentList({
         <SettingsSection
           actions={
             <Button color="primary" loading={adding} onClick={() => void addProject()}>
-              <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               添加项目
             </Button>
           }
@@ -609,7 +609,7 @@ function EnvironmentDetail({
                 loading={busy === 'upload'}
                 onClick={() => uploadRef.current?.click()}
               >
-                <Upload size={APP_ICON_SIZE} />
+                <Upload className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 上传来源
               </Button>
             </>
@@ -652,7 +652,7 @@ function EnvironmentDetail({
               disabled={busy !== null || !sourcePath.trim()}
               onClick={() => void addReference()}
             >
-              <FilePlus2 size={APP_ICON_SIZE} />
+              <FilePlus2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
               {relinkSourceId ? '重新关联' : '添加文件'}
             </Button>
             {relinkSourceId ? (
@@ -694,7 +694,7 @@ function EnvironmentDetail({
                     type="button"
                     onClick={() => void previewSource(source)}
                   >
-                    <Eye size={APP_ICON_SIZE} />
+                    <Eye className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   </Button>
                   <Button
                     isIconOnly
@@ -715,7 +715,7 @@ function EnvironmentDetail({
                       setSourcePath(source.path)
                     }}
                   >
-                    <RefreshCw size={APP_ICON_SIZE} />
+                    <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   </Button>
                   <Button
                     isIconOnly
@@ -734,7 +734,7 @@ function EnvironmentDetail({
                       })
                     }
                   >
-                    <Trash2 size={APP_ICON_SIZE} />
+                    <Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   </Button>
                 </div>
               ))}
@@ -753,7 +753,7 @@ function EnvironmentDetail({
                   type="button"
                   onClick={() => setPreview(null)}
                 >
-                  <X size={APP_ICON_SIZE} />
+                  <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 </Button>
               </header>
               {preview.encoding === 'base64' ? (

@@ -216,7 +216,7 @@ export function ToolCommandCard({
           {commandExpanded ? '收起命令' : '展开命令'}
           <ChevronDown
             aria-hidden="true"
-            className={`canonical-command-card__chevron${commandExpanded ? ' is-expanded' : ''}`}
+            className={`tw:size-icon-sm canonical-command-card__chevron${commandExpanded ? ' is-expanded' : ''}`}
             size={APP_ICON_SIZES.sm}
           />
         </button>
@@ -272,7 +272,7 @@ export function ToolCommandCard({
             aria-pressed={wrapped}
             onClick={() => setWrapped(!wrapped)}
           >
-            <WrapText size={APP_ICON_SIZES.sm} aria-hidden="true" />
+            <WrapText className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
           </button>
           {output !== null ? <CopyButton ariaLabel="复制返回结果" text={output} /> : null}
         </div>

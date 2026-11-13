@@ -381,7 +381,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                     <span>{t('高级')}</span>
                     <ChevronRight
                       size={14}
-                      className={`tw:transition-transform tw:duration-feedback ${advancedOpen ? 'tw:rotate-90' : ''}`}
+                      className={`tw:size-icon-sm tw:transition-transform tw:duration-feedback ${advancedOpen ? 'tw:rotate-90' : ''}`}
                     />
                   </button>
                 </div>
@@ -389,7 +389,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                 <div className="settings-row-control tw:relative tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-end tw:gap-2">
                   {recordingShortcut ? (
                     <div className="tw:flex tw:items-center tw:gap-2">
-                      <span className="tw:rounded-md tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-text tw:type-1">
+                      <span className="tw:rounded-3 tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-text tw:type-1">
                         按下快捷键…
                       </span>
                       <Button
@@ -415,7 +415,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                   ) : (
                     <button
                       type="button"
-                      className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-1 tw:cursor-pointer tw:hover:bg-app-text/5 tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+                      className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-1 tw:cursor-pointer tw:hover:bg-app-text/5 tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
                       onClick={() => setRecordingShortcut(true)}
                       aria-label="编辑听写快捷键"
                     >
@@ -525,7 +525,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                             type="button"
                             aria-label="更多操作"
                           >
-                            <MoreHorizontal size={16} />
+                            <MoreHorizontal className="tw:size-icon-md" size={16} />
                           </Button>
                         }
                       >
@@ -557,7 +557,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                     type="button"
                     onClick={() => setAddingEntry(true)}
                   >
-                    <Plus size={14} />
+                    <Plus className="tw:size-icon-sm" size={14} />
                     <span>添加条目</span>
                   </Button>
                 }
@@ -619,7 +619,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                     aria-label={`删除 ${word}`}
                     onClick={() => handleRemoveDictionaryEntry(word)}
                   >
-                    <X size={14} />
+                    <X className="tw:size-icon-sm" size={14} />
                   </Button>
                 </div>
               ))}

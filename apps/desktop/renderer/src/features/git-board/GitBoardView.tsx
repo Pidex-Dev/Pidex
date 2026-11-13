@@ -68,7 +68,7 @@ function SectionSummary({
       aria-controls={contentId}
       aria-expanded={expanded}
       onClick={onToggle}
-      className="tw:group/section-summary tw:flex tw:min-h-[var(--sidebar-row-height,30px)] tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:px-2 tw:select-none tw:text-left tw:type-2 tw:text-app-text-meta tw:focus-visible:outline-app-focus"
+      className="tw:group/section-summary tw:flex tw:min-h-[var(--sidebar-row-height,30px)] tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:px-2 tw:select-none tw:text-left tw:type-2 tw:text-app-text-meta tw:focus-visible:outline-app-focus"
     >
       <span>{title}</span>
       <ChevronDown
@@ -174,15 +174,15 @@ export function RepositoryToolbar({
     {
       value: 'HEAD',
       label: `${status?.branchName ?? 'detached HEAD'} (HEAD)`,
-      icon: <GitBranch size={14} className="tw:shrink-0 tw:text-app-text-meta" />,
+      icon: <GitBranch size={14} className="tw:size-icon-sm tw:shrink-0 tw:text-app-text-meta" />,
     },
     ...(repository?.branches ?? []).map((branch) => ({
       value: branch.name,
       label: branch.name,
       icon: branch.remote ? (
-        <Cloud size={14} className="tw:shrink-0 tw:text-app-text-meta" />
+        <Cloud size={14} className="tw:size-icon-sm tw:shrink-0 tw:text-app-text-meta" />
       ) : (
-        <GitBranch size={14} className="tw:shrink-0 tw:text-app-text-meta" />
+        <GitBranch size={14} className="tw:size-icon-sm tw:shrink-0 tw:text-app-text-meta" />
       ),
     })),
   ]
@@ -190,7 +190,7 @@ export function RepositoryToolbar({
     branchOptions.push({
       value: selectedRef,
       label: selectedRef,
-      icon: <GitBranch size={14} className="tw:shrink-0 tw:text-app-text-meta" />,
+      icon: <GitBranch size={14} className="tw:size-icon-sm tw:shrink-0 tw:text-app-text-meta" />,
     })
   }
 
@@ -239,7 +239,7 @@ export function RepositoryToolbar({
                 title={t('重试')}
                 onClick={refresh}
               >
-                <RefreshCw size={14} />
+                <RefreshCw className="tw:size-icon-sm" size={14} />
               </Button>
             </Tooltip>
           )}
@@ -310,7 +310,7 @@ export function RepositoryColumn({
         {actionError && (
           <div
             role="alert"
-            className="tw:mb-3 tw:rounded-md tw:bg-app-danger/10 tw:p-2 tw:type-1 tw:text-app-danger"
+            className="tw:mb-3 tw:rounded-3 tw:bg-app-danger/10 tw:p-2 tw:type-1 tw:text-app-danger"
           >
             {actionError}
           </div>
@@ -610,7 +610,7 @@ export function GitBoardView() {
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
-                className={githubRefreshing ? 'tw:animate-spin' : undefined}
+                className={`tw:size-icon-md ${githubRefreshing ? 'tw:animate-spin' : undefined}`}
               />
             </Button>
           </Tooltip>
@@ -646,7 +646,7 @@ export function GitBoardView() {
                 <RefreshCw
                   aria-hidden="true"
                   size={APP_ICON_SIZE}
-                  className={refreshing ? 'tw:animate-spin' : undefined}
+                  className={`tw:size-icon-md ${refreshing ? 'tw:animate-spin' : undefined}`}
                 />
               </Button>
             </Tooltip>

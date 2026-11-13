@@ -73,7 +73,7 @@ const MODELS_TITLE_CLASS =
   'composer-models-title tw:shrink-0 tw:tracking-[-0.01em] tw:text-app-text'
 const HUB_BACK_CLASS = cx(
   'composer-hub-back tw:inline-flex tw:size-5 tw:cursor-pointer tw:items-center tw:justify-center',
-  'tw:rounded-sm tw:border-0 tw:bg-transparent tw:text-app-text-soft',
+  'tw:rounded-3 tw:border-0 tw:bg-transparent tw:text-app-text-soft',
   'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
   'tw:hover:bg-app-hover tw:hover:text-app-text',
 )
@@ -517,7 +517,7 @@ export function ModelPickerPopover({
                     )}
                     title="模型中心：发现并配置服务商"
                   >
-                    <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   </button>
                 </div>
               </div>
@@ -535,7 +535,7 @@ export function ModelPickerPopover({
                           className={HUB_BACK_CLASS}
                           title="返回模型列表"
                         >
-                          <ChevronLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                          <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                         </button>
                         <span className={MODELS_TITLE_CLASS}>模型中心</span>
                       </div>
@@ -544,7 +544,7 @@ export function ModelPickerPopover({
                         <Search
                           size={APP_ICON_SIZES.sm}
                           strokeWidth={APP_ICON_STROKE_WIDTH}
-                          className={SEARCH_BAR_ICON_CLASS}
+                          className={`tw:size-icon-sm ${SEARCH_BAR_ICON_CLASS}`}
                         />
                         <input
                           ref={hubSearchInputRef}
@@ -624,7 +624,7 @@ export function ModelPickerPopover({
                             <Search
                               size={APP_ICON_SIZES.sm}
                               strokeWidth={APP_ICON_STROKE_WIDTH}
-                              className={SEARCH_BAR_ICON_CLASS}
+                              className={`tw:size-icon-sm ${SEARCH_BAR_ICON_CLASS}`}
                             />
                             <input
                               ref={searchInputRef}
@@ -648,7 +648,7 @@ export function ModelPickerPopover({
                               className={SEARCH_CLEAR_CLASS}
                               title="清除并关闭"
                             >
-                              <X size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                              <X className="tw:size-icon-xs" size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
                             </button>
                           </div>
                         ) : (
@@ -737,12 +737,12 @@ export function ModelPickerPopover({
                                           title={badge.title}
                                         >
                                           {badge.kind === 'vision' ? (
-                                            <Eye
+                                            <Eye className="tw:size-icon-sm"
                                               size={APP_ICON_SIZES.sm}
                                               strokeWidth={APP_ICON_STROKE_WIDTH}
                                             />
                                           ) : (
-                                            <Brain
+                                            <Brain className="tw:size-icon-sm"
                                               size={APP_ICON_SIZES.sm}
                                               strokeWidth={APP_ICON_STROKE_WIDTH}
                                             />
@@ -763,7 +763,7 @@ export function ModelPickerPopover({
                                         : undefined,
                                     )}
                                   >
-                                    <Check
+                                    <Check className="tw:size-icon-md"
                                       size={APP_ICON_SIZE}
                                       strokeWidth={APP_ICON_STROKE_WIDTH}
                                     />

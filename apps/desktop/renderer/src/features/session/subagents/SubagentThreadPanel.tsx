@@ -207,7 +207,7 @@ export function SubagentThreadPanel({
               title="返回父对话"
               onClick={onBackToParent}
             >
-              <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <ArrowLeft className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           ) : null}
           <SubagentAvatar
@@ -236,7 +236,7 @@ export function SubagentThreadPanel({
               title="应用子智能体变更"
               onClick={() => callbacks.onApplyWorktree?.(task, run)}
             >
-              <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Check className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           ) : null}
           {capabilities.canDiscardWorktree && callbacks.onDiscardWorktree ? (
@@ -248,7 +248,7 @@ export function SubagentThreadPanel({
               title="丢弃子智能体工作树"
               onClick={() => callbacks.onDiscardWorktree?.(task, run)}
             >
-              <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <X className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           ) : null}
           {capabilities.canRestoreWorkspace && callbacks.onRestoreWorkspace ? (
@@ -260,7 +260,7 @@ export function SubagentThreadPanel({
               title="恢复共享变更"
               onClick={() => callbacks.onRestoreWorkspace?.(task, run)}
             >
-              <RotateCcw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           ) : null}
           {canRetry ? (
@@ -272,7 +272,7 @@ export function SubagentThreadPanel({
               title="重试"
               onClick={() => callbacks.onRetry?.(task, run)}
             >
-              <RotateCcw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           ) : null}
           {canStop ? (
@@ -284,7 +284,7 @@ export function SubagentThreadPanel({
               title="停止此子智能体及全部后代"
               onClick={() => callbacks.onStop?.(task, run)}
             >
-              <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Square className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           ) : null}
         </div>
@@ -304,10 +304,10 @@ export function SubagentThreadPanel({
           </div>
           {run.queueReason ? (
             <div
-              className="subagent-thread-panel__notice tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:px-3 tw:py-2 tw:bg-app-editor tw:text-app-text-meta tw:type-1 tw:[overflow-anchor:none]"
+              className="subagent-thread-panel__notice tw:flex tw:items-center tw:gap-2 tw:rounded-4 tw:px-3 tw:py-2 tw:bg-app-editor tw:text-app-text-meta tw:type-1 tw:[overflow-anchor:none]"
               role="status"
             >
-              <LoaderCircle className="tw:animate-spin" size={APP_ICON_SIZE} />
+              <LoaderCircle className="tw:size-icon-md tw:animate-spin" size={APP_ICON_SIZE} />
               {queueReasonLabel(run.queueReason)}
             </div>
           ) : null}
@@ -377,7 +377,7 @@ export function SubagentThreadPanel({
           ) : null}
           {run.error ? (
             <div
-              className="subagent-thread-panel__error tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-1 tw:[overflow-anchor:none]"
+              className="subagent-thread-panel__error tw:flex tw:items-center tw:gap-2 tw:rounded-4 tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-1 tw:[overflow-anchor:none]"
               role="alert"
             >
               <AlertCircle size="var(--inline-icon-size, 1em)" />
@@ -407,7 +407,7 @@ function BlockedNotice({
           : '此子智能体已阻塞'
   return (
     <div
-      className="subagent-thread-panel__blocked tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:px-3 tw:py-2 tw:text-app-warning-fg tw:type-1"
+      className="subagent-thread-panel__blocked tw:flex tw:items-center tw:gap-2 tw:rounded-4 tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:px-3 tw:py-2 tw:text-app-warning-fg tw:type-1"
       role="status"
     >
       <AlertCircle size="var(--inline-icon-size, 1em)" />
@@ -423,13 +423,13 @@ function StatusBadge({ status }: { status: SubagentRun['status'] }): React.React
       data-status={status}
     >
       {isActiveRunStatus(status) ? (
-        <LoaderCircle className="tw:animate-spin" size={APP_ICON_SIZES.sm} />
+        <LoaderCircle className="tw:size-icon-sm tw:animate-spin" size={APP_ICON_SIZES.sm} />
       ) : status === 'completed' ? (
-        <Check size={APP_ICON_SIZES.sm} />
+        <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
       ) : status === 'failed' ? (
-        <X size={APP_ICON_SIZES.sm} />
+        <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
       ) : (
-        <Circle size={APP_ICON_SIZES.sm} />
+        <Circle className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
       )}
       {subagentStatusLabel(status)}
     </span>

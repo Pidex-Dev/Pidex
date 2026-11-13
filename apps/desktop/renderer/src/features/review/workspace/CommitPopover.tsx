@@ -59,7 +59,7 @@ export function CommitPopover({
           <header className="review-popover-header tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:type-2 tw:weight-medium">
             <span className="review-popover-branch tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text">
               {branchName}
-              <ChevronDown size={APP_ICON_SIZES.sm} />
+              <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
             </span>
             <span className="review-popover-counts tw:ml-auto tw:inline-flex tw:items-center tw:gap-1 tw:weight-medium tw:tabular-nums">
               <strong className="tw:text-app-success tw:weight-medium">
@@ -79,7 +79,7 @@ export function CommitPopover({
               type="button"
               onClick={onClose}
             >
-              <X size={APP_ICON_SIZES.sm} />
+              <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
             </Button>
           </header>
 
@@ -87,7 +87,7 @@ export function CommitPopover({
             <span className="tw:weight-medium">提交信息</span>
             <textarea
               autoFocus
-              className="tw:w-full tw:min-h-9 tw:resize-y tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-2 tw:weight-medium"
+              className="tw:w-full tw:min-h-9 tw:resize-y tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-3 tw:bg-app-canvas tw:text-app-text tw:type-2 tw:weight-medium"
               placeholder="输入提交信息..."
               rows={3}
               value={message}

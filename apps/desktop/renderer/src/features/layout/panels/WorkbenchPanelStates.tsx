@@ -99,7 +99,7 @@ export function WorkbenchPanelUnavailable({
     <WorkbenchPanelStateSurface
       title={title}
       description={description}
-      icon={<AlertTriangle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+      icon={<AlertTriangle className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
       tone="warning"
     />
   )
@@ -122,13 +122,13 @@ export function WorkbenchPanelError({
     <WorkbenchPanelStateSurface
       title={title}
       description={code ? `${message}（${code}）` : message}
-      icon={<AlertTriangle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+      icon={<AlertTriangle className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
       role="alert"
       tone="warning"
     >
       {retryable && onRetry ? (
         <Button color="secondary" size="compact" onClick={onRetry}>
-          <RotateCcw size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <RotateCcw className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
           重试
         </Button>
       ) : null}
@@ -152,7 +152,7 @@ export function WorkbenchPanelWarning({
     <WorkbenchPanelStateSurface
       title={title}
       description={description}
-      icon={<AlertTriangle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+      icon={<AlertTriangle className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
       tone="warning"
     >
       {children}
@@ -183,7 +183,7 @@ export function WorkbenchPanelLauncher({
       <div className="right-panel-tabs-empty-state__actions tw:mx-auto tw:grid tw:w-full tw:max-w-[36rem] tw:gap-1">
         {actions.map((action) => (
           <button
-            className="right-panel-tabs-empty-state__item tw:grid tw:min-h-7 tw:w-full tw:grid-cols-[var(--cpx-sys-space-6)_minmax(0,1fr)_auto] tw:items-center tw:gap-3 tw:rounded-md tw:border-0 tw:bg-transparent tw:py-2 tw:px-3 tw:text-left tw:text-app-text tw:transition-colors tw:duration-state tw:ease-standard tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:disabled:text-app-text-disabled"
+            className="right-panel-tabs-empty-state__item tw:grid tw:min-h-7 tw:w-full tw:grid-cols-[var(--cpx-sys-space-6)_minmax(0,1fr)_auto] tw:items-center tw:gap-3 tw:rounded-3 tw:border-0 tw:bg-transparent tw:py-2 tw:px-3 tw:text-left tw:text-app-text tw:transition-colors tw:duration-state tw:ease-standard tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:disabled:text-app-text-disabled"
             disabled={action.disabled}
             key={action.id}
             title={action.reason}

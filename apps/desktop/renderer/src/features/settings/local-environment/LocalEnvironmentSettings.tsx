@@ -213,7 +213,7 @@ export function LocalEnvironmentSettings({
               onOpenChange={setOptionsOpen}
               trigger={
                 <Button isIconOnly color="ghostSecondary" size="toolbar" title="环境选项">
-                  <Ellipsis size={APP_ICON_SIZE} />
+                  <Ellipsis className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 </Button>
               }
               size="md"
@@ -246,7 +246,7 @@ export function LocalEnvironmentSettings({
             </PopoverMenu>
             {readOnly ? (
               <Button color="secondary" onClick={onEdit}>
-                <Pencil size={APP_ICON_SIZE} />
+                <Pencil className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 编辑
               </Button>
             ) : null}
@@ -312,7 +312,7 @@ export function LocalEnvironmentSettings({
                     key={index}
                     className="tw:flex tw:items-center tw:gap-3 tw:py-3 tw:[&+&]:border-t tw:[&+&]:border-app-border-subtle"
                   >
-                    <Play size={APP_ICON_SIZE} />
+                    <Play className="tw:size-icon-md" size={APP_ICON_SIZE} />
                     <div className="tw:min-w-0">
                       <strong className="tw:type-2 tw:weight-medium">{action.name}</strong>
                       <pre className="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:type-code tw:text-app-text-meta">

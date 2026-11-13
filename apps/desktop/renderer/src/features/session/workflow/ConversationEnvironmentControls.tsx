@@ -392,7 +392,7 @@ export function ConversationEnvironmentControls({
       label: action.name,
       description: '在当前任务的集成终端中运行',
       keywords: ['action', '环境', '终端', action.name],
-      icon: action.icon || <Play aria-hidden="true" size={APP_ICON_SIZE} />,
+      icon: action.icon || <Play className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />,
       order: 100 + index,
       availability: busy || action.availability !== 'available' ? 'disabled' : 'available',
       disabledReason: busy
@@ -437,7 +437,7 @@ export function ConversationEnvironmentControls({
       label: '移交当前任务…',
       description: '将任务、工作区修改和界面状态迁移到其他环境',
       keywords: ['handoff', '移交', '迁移', 'local', 'worktree'],
-      icon: <GitFork aria-hidden="true" size={APP_ICON_SIZE} />,
+      icon: <GitFork className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />,
       order: 500,
       availability: busy || !gitAvailable ? 'disabled' : 'available',
       disabledReason: busy
@@ -496,7 +496,7 @@ export function ConversationEnvironmentControls({
                   size="toolbar"
                   title="关闭移交对话框"
                 >
-                  <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </Button>
               </Dialog.Close>
             </header>
@@ -578,7 +578,7 @@ export function ConversationEnvironmentControls({
                 disabled={busy}
                 onClick={() => void refresh()}
               >
-                <RefreshCw aria-hidden="true" size={APP_ICON_SIZE} />
+                <RefreshCw className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
                 刷新
               </Button>
             </div>

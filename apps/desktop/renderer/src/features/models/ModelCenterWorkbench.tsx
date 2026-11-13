@@ -543,7 +543,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
         >
           <RefreshCw
             aria-hidden="true"
-            className={refreshingProviderData ? 'tw:animate-spin' : undefined}
+            className={`tw:size-icon-md ${refreshingProviderData ? 'tw:animate-spin' : undefined}`}
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
@@ -554,7 +554,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
           shape="pill"
           size="md"
         >
-          <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           <span>新增自定义 Provider</span>
         </Button>
       </div>

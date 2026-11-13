@@ -236,7 +236,7 @@ export function BrowserManagementControls({
           }}
         >
           <input
-            className="browser-find-input tw:min-w-0 tw:flex-auto tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+            className="browser-find-input tw:min-w-0 tw:flex-auto tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
             ref={findInput}
             aria-label="在页面中查找"
             maxLength={1000}
@@ -258,7 +258,7 @@ export function BrowserManagementControls({
             disabled={!query}
             onClick={() => void find(query, false, true)}
           >
-            <ChevronUp size={APP_ICON_SIZE} />
+            <ChevronUp className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
           <Button
             isIconOnly
@@ -268,7 +268,7 @@ export function BrowserManagementControls({
             disabled={!query}
             onClick={() => void find(query, true, true)}
           >
-            <ChevronDown size={APP_ICON_SIZE} />
+            <ChevronDown className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
           <Button
             isIconOnly
@@ -277,14 +277,14 @@ export function BrowserManagementControls({
             title="关闭查找"
             onClick={closeFind}
           >
-            <X size={APP_ICON_SIZE} />
+            <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
         </form>
       ) : null}
       {deviceOpen ? (
         <div className="browser-device-bar tw:flex tw:flex-wrap tw:items-center tw:gap-1 tw:border-b tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft">
           <select
-            className="tw:min-w-0 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+            className="tw:min-w-0 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
             aria-label="模拟设备"
             value={device.mode}
             disabled={busy}
@@ -317,7 +317,7 @@ export function BrowserManagementControls({
             }}
           >
             <input
-              className="tw:min-w-0 tw:w-9 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+              className="tw:min-w-0 tw:w-9 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
               aria-label="视口宽度"
               type="number"
               min={320}
@@ -329,7 +329,7 @@ export function BrowserManagementControls({
             />
             <span>×</span>
             <input
-              className="tw:min-w-0 tw:w-9 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+              className="tw:min-w-0 tw:w-9 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
               aria-label="视口高度"
               type="number"
               min={200}
@@ -358,7 +358,7 @@ export function BrowserManagementControls({
               })
             }
           >
-            <RotateCw size={APP_ICON_SIZE} />
+            <RotateCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
           <Button
             isIconOnly
@@ -370,7 +370,7 @@ export function BrowserManagementControls({
               void applyDevice({ mode: 'desktop', width: 1280, height: 720 })
             }}
           >
-            <X size={APP_ICON_SIZE} />
+            <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
         </div>
       ) : null}
@@ -400,7 +400,7 @@ export function BrowserManagementControls({
             size="toolbar"
             title="浏览器更多操作"
           >
-            <MoreHorizontal size={APP_ICON_SIZE} />
+            <MoreHorizontal className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
         }
       >
@@ -433,10 +433,10 @@ export function BrowserManagementControls({
             disabled={!utilities || busy}
             onClick={() => void run({ action: 'zoom', direction: 'out' })}
           >
-            <Minus size={APP_ICON_SIZE} />
+            <Minus className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
           <button
-            className="browser-zoom-reset tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-inherit tw:type-2 tw:hover:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+            className="browser-zoom-reset tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-inherit tw:type-2 tw:hover:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
             disabled={!utilities || busy}
             title="恢复 100%"
             onClick={() => void run({ action: 'zoom', direction: 'reset' })}
@@ -451,7 +451,7 @@ export function BrowserManagementControls({
             disabled={!utilities || busy}
             onClick={() => void run({ action: 'zoom', direction: 'in' })}
           >
-            <Plus size={APP_ICON_SIZE} />
+            <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
         </div>
         <PopoverItem
@@ -512,7 +512,7 @@ export function BrowserManagementControls({
                 disabled={busy}
                 onClick={() => setView(null)}
               >
-                <X size={APP_ICON_SIZE} />
+                <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </header>
             <Dialog.Description className="tw:m-0 tw:type-1 tw:text-app-text-soft">
@@ -526,7 +526,7 @@ export function BrowserManagementControls({
               <>
                 <input
                   aria-label="搜索浏览历史"
-                  className="tw:min-w-0 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+                  className="tw:min-w-0 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
                   maxLength={500}
                   placeholder="搜索标题或网址"
                   value={historyQuery}
@@ -544,7 +544,7 @@ export function BrowserManagementControls({
                       ) : null}
                       <div className="browser-history-row tw:flex tw:items-center tw:gap-2 tw:p-2">
                         <button
-                          className="browser-history-link tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:items-start tw:rounded-md tw:border-0 tw:bg-transparent tw:p-2 tw:text-left tw:type-1 tw:text-app-text tw:hover:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+                          className="browser-history-link tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:items-start tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-2 tw:text-left tw:type-1 tw:text-app-text tw:hover:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
                           onClick={() => {
                             void client
                               .createTab(null, visit.url)

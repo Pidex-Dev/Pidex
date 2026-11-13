@@ -191,7 +191,7 @@ export function ApprovalRuleEditor({
               <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">参数前缀（每行一个参数）</span>
               <textarea
                 aria-label="参数前缀"
-                className="tw:min-h-[5rem] tw:w-full tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-control tw:px-control-inline tw:py-control-block tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none tw:focus-visible:border-app-focus tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+                className="tw:min-h-[5rem] tw:w-full tw:resize-y tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-control tw:px-control-inline tw:py-control-block tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none tw:focus-visible:border-app-focus tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
                 value={values.argvText}
                 onChange={(event) => set({ argvText: event.currentTarget.value })}
               />

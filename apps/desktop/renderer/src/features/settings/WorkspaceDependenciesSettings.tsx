@@ -282,7 +282,7 @@ function WorkspaceDependenciesHeader({
           title={refreshing ? '正在扫描工作空间依赖项' : '重新扫描'}
           type="button"
         >
-          <RefreshCw size={APP_ICON_SIZE} />
+          <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
           {refreshing ? '扫描中…' : '重新扫描'}
         </Button>
       </div>
@@ -360,9 +360,9 @@ function DependencySection({
           control={
             <Button color="primary" disabled={busy || installing} onClick={onInstall} type="button">
               {status.managed.installed ? (
-                <RotateCcw size={APP_ICON_SIZE} />
+                <RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} />
               ) : (
-                <Download size={APP_ICON_SIZE} />
+                <Download className="tw:size-icon-md" size={APP_ICON_SIZE} />
               )}
               {installing ? '处理中…' : status.managed.installed ? '重新安装' : '安装内置版'}
             </Button>

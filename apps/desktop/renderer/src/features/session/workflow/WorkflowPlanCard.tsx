@@ -12,7 +12,7 @@ import { usePlanDocumentActions } from './PlanDocumentActions.js'
 export const planDisclosureStore = createKeyedDisclosureStore({ initialExpandedKeys: [] })
 
 const WORKFLOW_PLAN_DOCK_BUTTON_CLASS =
-  'workflow-plan-card__dock tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:cursor-pointer tw:transition-[background,color] tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text'
+  'workflow-plan-card__dock tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:cursor-pointer tw:transition-[background,color] tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text'
 
 export function usePlanExpanded(
   threadId: string | undefined,
@@ -100,7 +100,7 @@ export function WorkflowPlanCard({
 
   if (presentation.compact) {
     return (
-      <article className="workflow-plan-card workflow-plan-card--compact tw:flex tw:w-full tw:min-w-0 tw:max-w-none tw:flex-col tw:gap-0 tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-0 tw:text-app-text tw:type-2 tw:shadow-none">
+      <article className="workflow-plan-card workflow-plan-card--compact tw:flex tw:w-full tw:min-w-0 tw:max-w-none tw:flex-col tw:gap-0 tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-0 tw:text-app-text tw:type-2 tw:shadow-none">
         <button
           className="workflow-plan-card__compact-button tw:grid tw:w-full tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:px-4 tw:py-4 tw:text-left tw:text-app-text tw:cursor-pointer tw:hover:bg-app-hover"
           type="button"
@@ -120,7 +120,7 @@ export function WorkflowPlanCard({
 
   return (
     <article
-      className="workflow-plan-card tw:relative tw:flex tw:w-full tw:min-w-0 tw:max-w-none tw:flex-col tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-4 tw:text-app-text tw:type-2 tw:shadow-none tw:animate-[workflow-item-in_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-out)]"
+      className="workflow-plan-card tw:relative tw:flex tw:w-full tw:min-w-0 tw:max-w-none tw:flex-col tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-4 tw:text-app-text tw:type-2 tw:shadow-none tw:animate-[workflow-item-in_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-out)]"
       data-expanded={expanded ? 'true' : 'false'}
     >
       <header className="workflow-plan-card__header tw:flex tw:items-center tw:justify-between tw:gap-3">
@@ -138,9 +138,9 @@ export function WorkflowPlanCard({
                 onClick={handleCopy}
               >
                 {copied ? (
-                  <Check size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 ) : (
-                  <Copy size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Copy className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 )}
               </button>
               <button
@@ -150,7 +150,7 @@ export function WorkflowPlanCard({
                 type="button"
                 onClick={handleExport}
               >
-                <Download size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Download className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
               </button>
             </>
           ) : null}
@@ -162,7 +162,7 @@ export function WorkflowPlanCard({
               type="button"
               onClick={() => onOpenInRightDock(plan)}
             >
-              <Maximize2 size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Maximize2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </button>
           ) : null}
         </div>
@@ -186,12 +186,12 @@ export function WorkflowPlanCard({
           >
             {expanded ? (
               <>
-                <ChevronUp size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <ChevronUp className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 <span>收起计划</span>
               </>
             ) : (
               <>
-                <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 <span>展开计划</span>
               </>
             )}

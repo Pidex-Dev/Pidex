@@ -176,7 +176,7 @@ export function SideChatThreadPanel({
             className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
             role="status"
           >
-            <LoaderCircle size={APP_ICON_SIZES.lg} className="canonical-spin" aria-hidden="true" />
+            <LoaderCircle size={APP_ICON_SIZES.lg} className="tw:size-icon-lg canonical-spin" aria-hidden="true" />
             <strong>正在启动侧边聊天</strong>
           </div>
         ) : expired ? (
@@ -184,7 +184,7 @@ export function SideChatThreadPanel({
             className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
             role="status"
           >
-            <CirclePlus size={APP_ICON_SIZES.lg} aria-hidden="true" />
+            <CirclePlus className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} aria-hidden="true" />
             <strong>侧边聊天已过期</strong>
             <span>此临时侧边聊天已不可用；请新建一个侧边聊天以继续。</span>
             <Button color="primary" onClick={() => onRecreate(tab)}>
@@ -196,7 +196,7 @@ export function SideChatThreadPanel({
             className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
             role="status"
           >
-            <LoaderCircle size={APP_ICON_SIZES.lg} className="canonical-spin" aria-hidden="true" />
+            <LoaderCircle size={APP_ICON_SIZES.lg} className="tw:size-icon-lg canonical-spin" aria-hidden="true" />
             <strong>正在启动侧边聊天</strong>
           </div>
         ) : visibleTurnCount === 0 && !conversation.error ? (
@@ -205,7 +205,7 @@ export function SideChatThreadPanel({
             role="status"
           >
             <span className="right-dock-side-chat__empty-icon">
-              <CirclePlus
+              <CirclePlus className="tw:size-icon-lg"
                 aria-hidden="true"
                 size={APP_ICON_SIZES.lg}
                 strokeWidth={APP_ICON_STROKE_WIDTH}

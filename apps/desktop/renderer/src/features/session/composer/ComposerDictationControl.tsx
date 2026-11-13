@@ -88,7 +88,7 @@ export function ComposerDictationControl({
                 onClick={dictation.cancel}
                 title="取消听写 · Esc"
               >
-                <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
               </Button>
             </Tooltip>
             <Tooltip content="停止听写 · Ctrl+Shift+D" side="top">
@@ -101,7 +101,7 @@ export function ComposerDictationControl({
                 onClick={dictation.stop}
                 title="停止听写 · Ctrl+Shift+D"
               >
-                <Square size={APP_ICON_SIZES.sm} fill="currentColor" />
+                <Square className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} fill="currentColor" />
               </Button>
             </Tooltip>
           </div>
@@ -136,7 +136,7 @@ export function ComposerDictationControl({
               onClick={dictation.cancel}
               title="取消听写 · Esc"
             >
-              <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           </Tooltip>
         </div>
@@ -164,7 +164,7 @@ export function ComposerDictationControl({
               onClick={dictation.start}
               title="重新录音 · Ctrl+Shift+D"
             >
-              <Mic size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Mic className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
               <span>重新录音</span>
             </Button>
           </Tooltip>
@@ -178,7 +178,7 @@ export function ComposerDictationControl({
               onClick={dictation.cancel}
               title="关闭 · Esc"
             >
-              <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           </Tooltip>
         </div>
@@ -198,7 +198,7 @@ export function ComposerDictationControl({
             title="取消听写 · Esc"
           >
             <Loader2
-              className="tw:animate-spin tw:motion-reduce:animate-none"
+              className="tw:size-icon-md tw:animate-spin tw:motion-reduce:animate-none"
               size={APP_ICON_SIZE}
             />
           </Button>
@@ -222,7 +222,7 @@ export function ComposerDictationControl({
           onClick={dictation.toggle}
           size="composer"
         >
-          <Mic size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Mic className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </Button>
       </Tooltip>
     )
@@ -234,9 +234,9 @@ export function ComposerDictationControl({
     dictation.phase === 'error'
   return (
     <motion.div
-      className="tw:relative tw:inline-flex tw:h-6 tw:shrink-0 tw:items-center tw:justify-end tw:overflow-hidden"
+      className="tw:relative tw:inline-flex tw:h-5 tw:shrink-0 tw:items-center tw:justify-end tw:overflow-hidden"
       initial={false}
-      animate={{ width: expanded ? '10rem' : '1.75rem' }}
+      animate={{ width: expanded ? '10rem' : '1.5rem' }}
       transition={{ duration: reducedMotion ? 0 : 0.18, ease: 'easeOut' }}
     >
       <div className="tw:shrink-0">{renderControl()}</div>

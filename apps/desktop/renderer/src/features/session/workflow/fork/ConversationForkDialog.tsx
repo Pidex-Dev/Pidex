@@ -64,7 +64,7 @@ export function ConversationForkDialog({
                 size="toolbar"
                 title="关闭对话框"
               >
-                <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               </Button>
             </Dialog.Close>
           </header>
@@ -167,12 +167,12 @@ function ForkProgress({
         {operation?.status === 'running' ? (
           <LoaderCircle
             aria-hidden="true"
-            className="canonical-spin"
+            className="tw:size-icon-md canonical-spin"
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : (
-          <Split aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Split className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         )}
         <span>{forkProgressLabel(operation)}</span>
       </div>

@@ -302,9 +302,9 @@ export function ThreadSummaryPanel({
                     type="button"
                     aria-label="操作"
                     title="操作"
-                    className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+                    className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
                   >
-                    <Ellipsis aria-hidden="true" size={APP_ICON_SIZE} />
+                    <Ellipsis className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
                   </button>
                 }
               >
@@ -312,7 +312,7 @@ export function ThreadSummaryPanel({
                 {workspaceActions.map((action) => (
                   <PopoverItem
                     key={action.id}
-                    icon={<Play size={APP_ICON_SIZE} />}
+                    icon={<Play className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                     selected={action.id === selectedAction?.id}
                     withCheck
                     disabled={action.availability !== 'available'}
@@ -322,7 +322,7 @@ export function ThreadSummaryPanel({
                   </PopoverItem>
                 ))}
                 <PopoverItem
-                  icon={<Plus size={APP_ICON_SIZE} />}
+                  icon={<Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                   disabled={!onOpenEnvironmentSettings}
                   onClick={onAddEnvironmentAction ?? onOpenEnvironmentSettings}
                 >
@@ -330,7 +330,7 @@ export function ThreadSummaryPanel({
                 </PopoverItem>
                 <div className="tw:my-1 tw:border-t tw:border-app-border-subtle" />
                 <PopoverItem
-                  icon={<Plus size={APP_ICON_SIZE} />}
+                  icon={<Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                   disabled={!onOpenEnvironmentSettings}
                   onClick={() => setEnvironmentChoicesOpen((value) => !value)}
                   keepOpen
@@ -361,7 +361,7 @@ export function ThreadSummaryPanel({
                   </>
                 ) : null}
                 <PopoverItem
-                  icon={<Terminal size={APP_ICON_SIZE} />}
+                  icon={<Terminal className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                   disabled={!onOpenTerminal}
                   onClick={onOpenTerminal}
                 >
@@ -381,7 +381,7 @@ export function ThreadSummaryPanel({
                 disabled={!selectedAction || selectedAction.availability !== 'available'}
                 onClick={() => void selectedAction?.execute()}
               >
-                <Play size={APP_ICON_SIZE} />
+                <Play className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </div>
           }
@@ -434,9 +434,9 @@ export function ThreadSummaryPanel({
                       type="button"
                       aria-label="Git 操作"
                       title="Git 操作"
-                      className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+                      className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:text-app-text tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
                     >
-                      <GitBranch aria-hidden="true" size={APP_ICON_SIZE} />
+                      <GitBranch className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
                     </button>
                   }
                 >
@@ -548,11 +548,11 @@ export function ThreadSummaryPanel({
                 <Tooltip content="停止该子 Agent">
                   <button
                     aria-label={`停止 ${agent.name}`}
-                    className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:[&>svg]:size-icon-sm"
+                    className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:[&>svg]:size-icon-sm"
                     type="button"
                     onClick={() => onStopSubagent?.(agent.id)}
                   >
-                    <Square aria-hidden="true" size={APP_ICON_SIZES.sm} />
+                    <Square className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
                   </button>
                 </Tooltip>
               ) : null}
@@ -595,11 +595,11 @@ export function ThreadSummaryPanel({
             onCreateOutput ? (
               <button
                 aria-label="创建文件或站点"
-                className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+                className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
                 type="button"
                 onClick={onCreateOutput}
               >
-                <Plus aria-hidden="true" size={APP_ICON_SIZE} />
+                <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               </button>
             ) : null
           }
@@ -906,7 +906,7 @@ function ThreadSummarySourcesPanel({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop thread-summary-sources-overlay tw:fixed tw:inset-0 tw:z-modal" />
         <Dialog.Content
-          className="ui-dialog-surface ui-dialog-surface--side-right thread-summary-sources-panel tw:fixed tw:z-popover tw:top-3 tw:right-3 tw:bottom-3 tw:flex tw:w-[min(360px,calc(100vw-24px))] tw:flex-col tw:gap-3 tw:rounded-xl tw:p-4 tw:text-app-text tw:outline-none"
+          className="ui-dialog-surface ui-dialog-surface--side-right thread-summary-sources-panel tw:fixed tw:z-popover tw:top-3 tw:right-3 tw:bottom-3 tw:flex tw:w-[min(360px,calc(100vw-24px))] tw:flex-col tw:gap-3 tw:rounded-5 tw:p-4 tw:text-app-text tw:outline-none"
           onCloseAutoFocus={onCloseAutoFocus}
         >
           <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
@@ -916,7 +916,7 @@ function ThreadSummarySourcesPanel({
             </div>
             <Dialog.Close asChild>
               <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭来源面板">
-                <X aria-hidden="true" size={APP_ICON_SIZE} />
+                <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               </Button>
             </Dialog.Close>
           </header>
@@ -977,7 +977,7 @@ function ThreadSummarySection({
           <button
             aria-controls={contentId}
             aria-expanded={expanded}
-            className="thread-summary-section__toggle tw:inline-flex tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:py-1 tw:pr-1 tw:pl-0 tw:text-left tw:text-inherit tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+            className="thread-summary-section__toggle tw:inline-flex tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:py-1 tw:pr-1 tw:pl-0 tw:text-left tw:text-inherit tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
             type="button"
             onClick={() => onToggle(id)}
           >

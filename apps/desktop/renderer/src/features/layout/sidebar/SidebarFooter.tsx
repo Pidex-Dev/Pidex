@@ -216,18 +216,18 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
     >
       {!githubAuthenticated ? (
         compact ? (
-          <CircleUser data-icon-kind="artwork" size={14} />
+          <CircleUser className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />
         ) : (
-          <Settings data-icon-kind="artwork" size={14} />
+          <Settings className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />
         )
       ) : githubUser?.avatarUrl ? (
         <RemoteImage
           alt=""
-          fallback={<CircleUser data-icon-kind="artwork" size={14} />}
+          fallback={<CircleUser className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />}
           src={githubUser.avatarUrl}
         />
       ) : (
-        <CircleUser data-icon-kind="artwork" size={14} />
+        <CircleUser className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />
       )}
       {!compact && updateIndicator.visible ? (
         <span
@@ -266,7 +266,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             })
           }}
         >
-          <Download size={APP_ICON_SIZES.sm} />
+          <Download className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         </Button>
       ) : null}
       <PopoverMenu
@@ -331,11 +331,11 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 {githubUser?.avatarUrl ? (
                   <RemoteImage
                     alt=""
-                    fallback={<CircleUser data-icon-kind="artwork" size={14} />}
+                    fallback={<CircleUser className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />}
                     src={githubUser.avatarUrl}
                   />
                 ) : (
-                  <CircleUser data-icon-kind="artwork" size={14} />
+                  <CircleUser className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />
                 )}
               </span>
             }
@@ -362,10 +362,10 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 className="popover-item popover-sub-trigger"
                 leading={
                   <span className="popover-item-icon">
-                    <Gauge size={APP_ICON_SIZES.sm} />
+                    <Gauge className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                   </span>
                 }
-                trailing={<ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />}
+                trailing={<ChevronRight className="tw:size-icon-sm popover-item-arrow" size={APP_ICON_SIZES.sm} />}
               >
                 <DropdownMenu.SubTrigger tabIndex={-1}>
                   <span className="popover-item-label">{t('剩余用量')}</span>
@@ -402,7 +402,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                       >
                         {usageRows.map((row) => (
                           <div
-                            className="popover-usage-row tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-2"
+                            className="popover-usage-row tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-3 tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-2"
                             key={row.id}
                           >
                             <span className="popover-usage-label menu-column-label tw:min-w-0 tw:truncate tw:text-app-text tw:weight-medium">
@@ -426,7 +426,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                     )}
                     <div className="popover-usage-divider tw:mx-2 tw:my-1 tw:h-px tw:bg-app-border-subtle" />
                     <DropdownMenu.Item
-                      className="popover-usage-action tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-left tw:text-app-text tw:type-2 tw:cursor-pointer tw:transition-colors tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:focus-visible:bg-app-hover tw:focus-visible:outline-none tw:data-[highlighted]:bg-app-hover tw:data-[highlighted]:outline-none"
+                      className="popover-usage-action tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-left tw:text-app-text tw:type-2 tw:cursor-pointer tw:transition-colors tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:focus-visible:bg-app-hover tw:focus-visible:outline-none tw:data-[highlighted]:bg-app-hover tw:data-[highlighted]:outline-none"
                       tabIndex={-1}
                       onSelect={() => {
                         openSettings('/settings/billing')
@@ -455,7 +455,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           ) : null}
           <PopoverItem
             disabled={petToggleBusy}
-            icon={<Egg size={APP_ICON_SIZES.sm} />}
+            icon={<Egg className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
             onClick={() => {
               void togglePet()
             }}
@@ -464,7 +464,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           </PopoverItem>
           <PopoverItem
             active={settingsActive}
-            icon={<Settings size={APP_ICON_SIZES.sm} />}
+            icon={<Settings className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
             shortcut="Ctrl+,"
             onClick={() => openSettings('/settings/general')}
           >
@@ -479,10 +479,10 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               className="popover-item popover-sub-trigger"
               leading={
                 <span className="popover-item-icon">
-                  <HelpCircle size={APP_ICON_SIZES.sm} />
+                  <HelpCircle className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </span>
               }
-              trailing={<ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />}
+              trailing={<ChevronRight className="tw:size-icon-sm popover-item-arrow" size={APP_ICON_SIZES.sm} />}
             >
               <DropdownMenu.SubTrigger tabIndex={-1}>
                 <span className="popover-item-label">{t('帮助')}</span>
@@ -497,7 +497,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 collisionPadding={6}
               >
                 <PopoverItem
-                  icon={<Sparkles size={APP_ICON_SIZES.sm} />}
+                  icon={<Sparkles className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                   onClick={() => {
                     setMenuOpen(false)
                     onOpenWhatsNew(accountMenuTriggerRef.current)
@@ -506,13 +506,13 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   {t('新特性')}
                 </PopoverItem>
                 <PopoverItem
-                  icon={<Keyboard size={APP_ICON_SIZES.sm} />}
+                  icon={<Keyboard className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                   onClick={() => openSettings('/settings/shortcuts')}
                 >
                   {t('键盘快捷键')}
                 </PopoverItem>
                 <PopoverItem
-                  icon={<Download size={APP_ICON_SIZES.sm} />}
+                  icon={<Download className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                   description={updateIndicator.visible ? t(updateIndicator.ariaLabel) : undefined}
                   disabled={updateIndicator.disabled}
                   onClick={() => {
@@ -531,7 +531,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           </DropdownMenu.Sub>
           {githubAuthenticated ? (
             <PopoverItem
-              icon={<LogOut size={APP_ICON_SIZES.sm} />}
+              icon={<LogOut className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
               onClick={() => {
                 setMenuOpen(false)
                 setLogoutConfirmOpen(true)

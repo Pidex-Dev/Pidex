@@ -11,7 +11,7 @@ import { useLocale } from '../i18n/LocaleProvider.js'
 import { cx } from '../../utils/Cx.js'
 
 const SECTION_HEADER_CLASS =
-  'sidebar-section-header tw:grid tw:h-[var(--sidebar-row-height)] tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:grid-cols-[minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:select-none tw:focus-within:outline-none tw:group'
+  'sidebar-section-header tw:grid tw:h-[var(--sidebar-row-height)] tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:grid-cols-[minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-3 tw:px-2 tw:select-none tw:focus-within:outline-none tw:group'
 const SECTION_TITLE_CLASS =
   'sidebar-section-title tw:flex tw:min-w-0 tw:items-center tw:type-2 tw:normal-case tw:text-app-text-meta'
 const SECTION_TOGGLE_CLASS =
@@ -62,7 +62,7 @@ export function GitBoardSection({
                 aria-hidden="true"
                 className={cx(SECTION_CHEVRON_CLASS, collapsed && 'tw:-rotate-90')}
               >
-                <ChevronDown size={APP_ICON_SIZES.sm} />
+                <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
               </span>
             </span>
           </button>
@@ -89,7 +89,7 @@ export function GitBoardSection({
                         title={`${title}：${t('更多')}`}
                         aria-label={`${title}：${t('更多')}`}
                       >
-                        <Ellipsis size={APP_ICON_SIZE} />
+                        <Ellipsis className="tw:size-icon-md" size={APP_ICON_SIZE} />
                       </Button>
                     </Tooltip.Trigger>
                   }
@@ -114,7 +114,7 @@ export function GitBoardSection({
                   aria-label={t('在右侧面板中打开')}
                   onClick={onOpen}
                 >
-                  <SquareArrowOutUpRight size={APP_ICON_SIZE} />
+                  <SquareArrowOutUpRight className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 </Button>
               </Tooltip>
             )}

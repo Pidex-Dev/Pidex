@@ -72,7 +72,7 @@ export function SessionGroupEditorDialog({
               </div>
               <Dialog.Close asChild disabled={saving}>
                 <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭对话框">
-                  <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </Button>
               </Dialog.Close>
             </header>

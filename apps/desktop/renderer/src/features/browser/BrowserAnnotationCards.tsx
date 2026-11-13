@@ -31,11 +31,11 @@ export function BrowserAnnotationCard({
   return (
     <article
       ref={containerRef}
-      className="browser-annotation-card tw:flex tw:gap-2 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-2 tw:type-1 tw:text-app-text"
+      className="browser-annotation-card tw:flex tw:gap-2 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-2 tw:type-1 tw:text-app-text"
     >
       {source ? (
         <img
-          className="tw:size-[5rem] tw:shrink-0 tw:self-start tw:rounded-sm tw:object-contain"
+          className="tw:size-[5rem] tw:shrink-0 tw:self-start tw:rounded-3 tw:object-contain"
           src={source}
           alt="批注截图"
         />
@@ -48,7 +48,7 @@ export function BrowserAnnotationCard({
           <div>
             <textarea
               aria-label="编辑批注反馈"
-              className="tw:my-1 tw:block tw:w-full tw:field-sizing-content tw:min-h-[3.5rem] tw:max-h-[12rem] tw:resize-y tw:overflow-y-auto tw:rounded-sm tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-1 tw:text-inherit tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+              className="tw:my-1 tw:block tw:w-full tw:field-sizing-content tw:min-h-[3.5rem] tw:max-h-[12rem] tw:resize-y tw:overflow-y-auto tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-1 tw:text-inherit tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
               value={body}
               onChange={(event) => {
                 setBody(event.target.value)

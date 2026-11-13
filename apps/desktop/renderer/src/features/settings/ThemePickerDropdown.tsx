@@ -143,7 +143,7 @@ export function ThemePickerDropdown({
           }
           trailing={
             <ChevronRight
-              className="popover-item-arrow"
+              className="tw:size-icon-sm popover-item-arrow"
               size={APP_ICON_SIZES.sm}
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />

@@ -187,7 +187,7 @@ export function GithubLoginPanel({
   )
 
   const deviceCard = awaitingDeviceCode ? (
-    <div className="github-device-code-card compact tw:flex tw:items-center tw:justify-between tw:gap-4 tw:bg-app-raised tw:[&_p]:mt-2 tw:[&_p]:mb-0 tw:[&_p]:text-app-text-soft tw:[&_p]:type-body-sm tw:[&_p]:leading-[var(--cpx-sys-line-height-1)] tw:mt-3 tw:rounded-md tw:border tw:border-app-border-subtle tw:p-3">
+    <div className="github-device-code-card compact tw:flex tw:items-center tw:justify-between tw:gap-4 tw:bg-app-raised tw:[&_p]:mt-2 tw:[&_p]:mb-0 tw:[&_p]:text-app-text-soft tw:[&_p]:type-body-sm tw:[&_p]:leading-[var(--cpx-sys-line-height-1)] tw:mt-3 tw:rounded-3 tw:border tw:border-app-border-subtle tw:p-3">
       <div>
         <div className="github-device-code-label tw:mb-1 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-1)]">
           {t('GitHub 设备验证码')}
@@ -235,8 +235,8 @@ export function GithubLoginPanel({
   }
 
   return (
-    <div className="github-login-panel tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:items-center tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-control tw:p-4">
-      <GitFork aria-hidden="true" size={APP_ICON_SIZE} className="tw:text-app-text-soft" />
+    <div className="github-login-panel tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:items-center tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-control tw:p-4">
+      <GitFork aria-hidden="true" size={APP_ICON_SIZE} className="tw:size-icon-md tw:text-app-text-soft" />
       <div className="tw:min-w-0">
         <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">{t(heading)}</h3>
         <p

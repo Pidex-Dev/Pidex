@@ -933,12 +933,12 @@ export function PluginsSettingsPage({
               trigger={
                 <Button color="primary">
                   添加
-                  <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+                  <ChevronDown className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
                 </Button>
               }
             >
               <PopoverItem
-                icon={<Plus aria-hidden="true" size={APP_ICON_SIZE} />}
+                icon={<Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
                 onClick={() => {
                   setAddMenuOpen(false)
                   void desktopClient.openExternalURL('https://github.com/codepilotx-dev/Pidex-Plugins#创建插件')
@@ -947,7 +947,7 @@ export function PluginsSettingsPage({
                 创建插件
               </PopoverItem>
               <PopoverItem
-                icon={<Server aria-hidden="true" size={APP_ICON_SIZE} />}
+                icon={<Server className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
                 onClick={() => {
                   setAddMenuOpen(false)
                   setSelectedServer(null)
@@ -986,7 +986,7 @@ export function PluginsSettingsPage({
               title={`刷新${tabLabel(tab)}`}
               onClick={() => void refreshCurrentTab()}
             >
-              <RefreshCw
+              <RefreshCw className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -1001,7 +1001,7 @@ export function PluginsSettingsPage({
                   setMcpDialogOpen(true)
                 }}
               >
-                <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 新增
               </Button>
             ) : null}
@@ -1131,7 +1131,7 @@ export function PluginsSettingsPage({
                   key={market.id}
                   title={market.name}
                   description={market.description}
-                  icon={<Globe size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+                  icon={<Globe className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
                   metadata={market.official ? '官方源' : '社区源'}
                   actions={
                     <Button
@@ -1157,7 +1157,7 @@ export function PluginsSettingsPage({
                     getBuiltinSkillPresentation(skill) ? (
                       <BuiltinSkillIcon size={14} skill={skill} />
                     ) : (
-                      <Lightbulb size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <Lightbulb className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     )
                   }
                   metadata={skillScopeLabel(skill.scope)}
@@ -1187,7 +1187,7 @@ export function PluginsSettingsPage({
                   key={`host:${status.name}`}
                   title={status.name}
                   description="由插件提供的运行时入口。"
-                  icon={<Server size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+                  icon={<Server className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
                   metadata={
                     <HostManagedMcpBadge state={status.state} toolCount={status.toolCount} />
                   }
@@ -1201,7 +1201,7 @@ export function PluginsSettingsPage({
                   description={
                     server.runtime?.error?.message || server.summary || '未提供命令或 URL。'
                   }
-                  icon={<Server size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+                  icon={<Server className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
                   metadata={mcpMetadata(server)}
                   dimmed={!server.enabled || !server.effective}
                   onActivate={(trigger) => {
@@ -1320,7 +1320,7 @@ function EmptyState({ label }: { label: string }): React.ReactNode {
   return (
     <div className="settings-management-empty">
       <span className="tw:grid tw:justify-items-center tw:gap-3">
-        <Package aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <Package className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         {label}
       </span>
     </div>

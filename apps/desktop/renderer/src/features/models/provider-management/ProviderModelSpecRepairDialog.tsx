@@ -145,7 +145,7 @@ export function ProviderModelSpecRepairDialog({
               aria-label="关闭规格检查"
               onClick={onClose}
             >
-              <X aria-hidden size={APP_ICON_SIZE} />
+              <X className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
             </Button>
           </header>
           <div className="settings-management-dialog-body tw:min-h-0 tw:flex-1 tw:overflow-y-auto">
@@ -163,7 +163,7 @@ export function ProviderModelSpecRepairDialog({
                   size="sm"
                   onClick={() => setReloadToken((token) => token + 1)}
                 >
-                  <RefreshCw aria-hidden size={APP_ICON_SIZES.sm} />
+                  <RefreshCw className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
                   重新检查
                 </Button>
               </div>
@@ -178,7 +178,7 @@ export function ProviderModelSpecRepairDialog({
                   return (
                     <section
                       key={item.modelId}
-                      className="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-app-border-subtle tw:p-3"
+                      className="tw:grid tw:gap-2 tw:rounded-4 tw:border tw:border-app-border-subtle tw:p-3"
                     >
                       <header className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
                         <strong className="tw:text-app-text tw:type-2 tw:weight-medium">{item.name}</strong>

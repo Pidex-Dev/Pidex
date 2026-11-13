@@ -96,7 +96,7 @@ export function RightDockPromptPreviewPanel({
             title="重新读取提示词预览"
             onClick={() => setReloadVersion((version) => version + 1)}
           >
-            <RefreshCw size={APP_ICON_SIZE} />
+            <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
         </div>
         <pre className="tw:m-0 tw:whitespace-pre tw:break-words tw:type-code tw:text-app-text">

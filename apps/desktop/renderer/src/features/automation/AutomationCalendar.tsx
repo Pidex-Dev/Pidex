@@ -265,6 +265,7 @@ export function AutomationCalendar({
                   size={APP_ICON_SIZES.sm}
                   aria-hidden="true"
                   className={cx(
+                    'tw:size-icon-sm',
                     'automation-calendar__month-trigger-icon tw:text-app-text-meta tw:transition-transform tw:duration-state tw:ease-standard',
                     monthPickerOpen && 'tw:rotate-180',
                   )}
@@ -288,7 +289,7 @@ export function AutomationCalendar({
                     aria-label="上一年"
                     onClick={() => setPickerYear((y) => y - 1)}
                   >
-                    <ChevronLeft size={APP_ICON_SIZES.sm} />
+                    <ChevronLeft className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                   </Button>
                   <span className="automation-calendar__year-label tw:type-1 tw:weight-medium tw:text-app-text">
                     {pickerYear}年
@@ -301,7 +302,7 @@ export function AutomationCalendar({
                     aria-label="下一年"
                     onClick={() => setPickerYear((y) => y + 1)}
                   >
-                    <ChevronRight size={APP_ICON_SIZES.sm} />
+                    <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                   </Button>
                 </div>
                 <div className="automation-calendar__month-grid tw:grid tw:grid-cols-3 tw:gap-2">
@@ -427,7 +428,7 @@ export function AutomationCalendar({
             aria-label="上个月"
             onClick={() => handleMonthChange(-1)}
           >
-            <ChevronLeft size={APP_ICON_SIZES.sm} />
+            <ChevronLeft className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
           </Button>
           <Button size="compact" color="secondary" onClick={handleToday}>
             今天
@@ -440,7 +441,7 @@ export function AutomationCalendar({
             aria-label="下个月"
             onClick={() => handleMonthChange(1)}
           >
-            <ChevronRight size={APP_ICON_SIZES.sm} />
+            <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
           </Button>
         </div>
       </div>
@@ -551,7 +552,7 @@ export function AutomationCalendar({
           {sortedOccurrences.length === 0 ? (
             <div className="automation-calendar__agenda-empty tw:flex tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-5 tw:text-center">
               <Calendar
-                className="automation-calendar__agenda-empty-icon tw:text-app-text-meta tw:opacity-70"
+                className="tw:size-icon-lg automation-calendar__agenda-empty-icon tw:text-app-text-meta tw:opacity-70"
                 size={APP_ICON_SIZES.lg}
                 aria-hidden="true"
               />
@@ -607,7 +608,7 @@ export function AutomationCalendar({
                         onRunOccurrence(occurrence)
                       }}
                     >
-                      <Play size={APP_ICON_SIZES.sm} />
+                      <Play className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                     </Button>
                   ) : null}
                   {occurrence.threadId && onOpenThread ? (
@@ -622,7 +623,7 @@ export function AutomationCalendar({
                         onOpenThread(occurrence.threadId!)
                       }}
                     >
-                      <MessageSquare size={APP_ICON_SIZES.sm} />
+                      <MessageSquare className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                     </Button>
                   ) : null}
                 </div>

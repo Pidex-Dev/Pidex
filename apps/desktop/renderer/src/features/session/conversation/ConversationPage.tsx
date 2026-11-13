@@ -1039,7 +1039,7 @@ export function ConversationPage(): React.ReactNode {
             autoFocus
             ref={handleInlineInputRef}
             aria-label="重命名对话"
-            className="chat-session-title__input tw:box-border tw:h-[26px] tw:w-full tw:min-w-[7.5rem] tw:max-w-[22.5rem] tw:flex-[0_1_360px] tw:rounded-sm tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:px-2 tw:py-0 tw:text-app-text tw:shadow-none tw:outline-none tw:[font:inherit] tw:focus-visible:border-app-focus tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:disabled:cursor-not-allowed tw:disabled:opacity-60"
+            className="chat-session-title__input tw:box-border tw:h-[26px] tw:w-full tw:min-w-[7.5rem] tw:max-w-[22.5rem] tw:flex-[0_1_360px] tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:px-2 tw:py-0 tw:text-app-text tw:shadow-none tw:outline-none tw:[font:inherit] tw:focus-visible:border-app-focus tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:disabled:cursor-not-allowed tw:disabled:opacity-60"
             disabled={renamingSession}
             maxLength={160}
             type="text"
@@ -1061,7 +1061,7 @@ export function ConversationPage(): React.ReactNode {
             aria-live="polite"
             className={
               canInlineEdit
-                ? 'chat-session-title__text tw:inline-flex tw:min-w-0 tw:items-center tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:cursor-pointer tw:rounded-sm tw:hover:underline'
+                ? 'chat-session-title__text tw:inline-flex tw:min-w-0 tw:items-center tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:cursor-pointer tw:rounded-3 tw:hover:underline'
                 : 'chat-session-title__text tw:inline-flex tw:min-w-0 tw:items-center tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap'
             }
             role={canInlineEdit ? 'button' : undefined}
@@ -1074,7 +1074,7 @@ export function ConversationPage(): React.ReactNode {
               '加载对话中'
             ) : titleRegenerating ? (
               <>
-                <SkeletonBlock className="chat-session-title__skeleton tw:h-[1em] tw:w-[clamp(6rem,18vw,11.25rem)] tw:rounded-md" />
+                <SkeletonBlock className="chat-session-title__skeleton tw:h-[1em] tw:w-[clamp(6rem,18vw,11.25rem)] tw:rounded-3" />
                 <span className="tw:sr-only">正在更新会话标题</span>
               </>
             ) : (
@@ -1099,7 +1099,7 @@ export function ConversationPage(): React.ReactNode {
         >
           <PopoverCheckboxItem
             checked={isSessionPinned}
-            icon={<Pin size={APP_ICON_SIZE} />}
+            icon={<Pin className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             shortcut="Ctrl+Alt+P"
             disabled={!hasActiveSession}
             onCheckedChange={toggleSessionPinned}
@@ -1108,21 +1108,21 @@ export function ConversationPage(): React.ReactNode {
           </PopoverCheckboxItem>
           <PopoverItem
             disabled={!hasActiveSession || renamingSession}
-            icon={<Pencil size={APP_ICON_SIZE} />}
+            icon={<Pencil className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             onClick={openRenameSessionDialog}
           >
             重命名对话
           </PopoverItem>
           <PopoverItem
             disabled={!canRegenerateSessionTitle}
-            icon={<Sparkles size={APP_ICON_SIZE} />}
+            icon={<Sparkles className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             onClick={() => void regenerateCurrentSessionTitle()}
           >
             {titleRegenerating ? '正在更新会话标题…' : '更新会话标题'}
           </PopoverItem>
           <PopoverItem
             disabled={!hasActiveSession}
-            icon={<Archive size={APP_ICON_SIZE} />}
+            icon={<Archive className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             shortcut="Ctrl+Shift+A"
             onClick={archiveCurrentSession}
           >
@@ -1136,7 +1136,7 @@ export function ConversationPage(): React.ReactNode {
               effectiveSessionStatus === 'waiting' ||
               effectiveSessionStatus === 'queued'
             }
-            icon={<MessagesSquare size={APP_ICON_SIZE} />}
+            icon={<MessagesSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             onClick={() => {
               closeSessionMenu()
               if (activeSessionId) void chooseSessionGroupForThread(activeSessionId)
@@ -1151,19 +1151,19 @@ export function ConversationPage(): React.ReactNode {
           <PopoverSeparator />
           <PopoverItem
             disabled={!hasActiveSession || !sideChatAvailable}
-            icon={<MessageSquarePlus size={APP_ICON_SIZE} />}
+            icon={<MessageSquarePlus className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             onClick={onOpenSideChat}
           >
             打开侧边聊天
           </PopoverItem>
           <SessionSubmenu
             disabled={!hasActiveSession && !workspacePath}
-            icon={<Copy size={APP_ICON_SIZE} />}
+            icon={<Copy className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             label="复制"
           >
             <PopoverItem
               disabled={!workspacePath}
-              icon={<Copy size={APP_ICON_SIZE} />}
+              icon={<Copy className="tw:size-icon-md" size={APP_ICON_SIZE} />}
               shortcut="Ctrl+Shift+C"
               onClick={copyWorkspaceReference}
             >
@@ -1171,7 +1171,7 @@ export function ConversationPage(): React.ReactNode {
             </PopoverItem>
             <PopoverItem
               disabled={!hasActiveSession}
-              icon={<Copy size={APP_ICON_SIZE} />}
+              icon={<Copy className="tw:size-icon-md" size={APP_ICON_SIZE} />}
               shortcut="Ctrl+Alt+C"
               onClick={copyThreadReference}
             >
@@ -1179,7 +1179,7 @@ export function ConversationPage(): React.ReactNode {
             </PopoverItem>
             <PopoverItem
               disabled={!hasActiveSession}
-              icon={<Copy size={APP_ICON_SIZE} />}
+              icon={<Copy className="tw:size-icon-md" size={APP_ICON_SIZE} />}
               shortcut="Ctrl+Alt+L"
               onClick={copyThreadDeepLinkReference}
             >
@@ -1188,24 +1188,24 @@ export function ConversationPage(): React.ReactNode {
           </SessionSubmenu>
           <SessionSubmenu
             disabled={!conversationFork.onForkFromMessage || !latestConversationForkPoint}
-            icon={<Split size={APP_ICON_SIZE} />}
+            icon={<Split className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             label="继续到…"
           >
             <PopoverItem
               disabled={!conversationFork.onForkFromMessage || !latestConversationForkPoint}
-              icon={<Split size={APP_ICON_SIZE} />}
+              icon={<Split className="tw:size-icon-md" size={APP_ICON_SIZE} />}
               onClick={continueInNewConversation}
             >
               在新聊天中继续
             </PopoverItem>
           </SessionSubmenu>
-          <PopoverItem icon={<Workflow size={APP_ICON_SIZE} />} onClick={openAutomationView}>
+          <PopoverItem icon={<Workflow className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={openAutomationView}>
             添加自动化...
           </PopoverItem>
           <PopoverSeparator />
           <PopoverItem
             disabled={!activeSessionId}
-            icon={<AppWindow size={APP_ICON_SIZE} />}
+            icon={<AppWindow className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             onClick={openConversationInNewWindow}
           >
             在新窗口中打开
@@ -1309,7 +1309,7 @@ export function ConversationPage(): React.ReactNode {
         }
         size="toolbar"
       >
-        <LayoutList size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <LayoutList className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
       </Button>
     )
 
@@ -1711,7 +1711,7 @@ function SessionSubmenu({
         asChild
         className="popover-item popover-sub-trigger"
         leading={<span className="popover-item-icon">{icon}</span>}
-        trailing={<ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />}
+        trailing={<ChevronRight className="tw:size-icon-sm popover-item-arrow" size={APP_ICON_SIZES.sm} />}
       >
         <DropdownMenu.SubTrigger disabled={disabled} tabIndex={-1}>
           <span className="popover-item-label">{label}</span>

@@ -85,7 +85,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                 {
                   kind: 'item',
                   label: '关闭',
-                  icon: <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+                  icon: <X className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
                   onSelect: () => onCloseTab(tab.id),
                 },
                 ...getAvailableMoveTargets('sidebar', tab.kind).map((destTarget) => ({
@@ -93,9 +93,9 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                   label: `移到${destTarget === 'bottom' ? '底部面板' : '右侧栏'}`,
                   icon:
                     destTarget === 'bottom' ? (
-                      <MoveDown size={APP_ICON_SIZE} />
+                      <MoveDown className="tw:size-icon-md" size={APP_ICON_SIZE} />
                     ) : (
-                      <MoveRight size={APP_ICON_SIZE} />
+                      <MoveRight className="tw:size-icon-md" size={APP_ICON_SIZE} />
                     ),
                   onSelect: () => onMoveTab('sidebar', destTarget, tab.id),
                 })),
@@ -105,7 +105,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       {
                         kind: 'item' as const,
                         label: '弹出到独立窗口',
-                        icon: <ExternalLink size={APP_ICON_SIZE} />,
+                        icon: <ExternalLink className="tw:size-icon-md" size={APP_ICON_SIZE} />,
                         onSelect: () => onPopOutTab('sidebar', tab.id),
                       },
                     ]
@@ -128,9 +128,9 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                   <div className="tw:flex tw:items-center tw:gap-1 tw:min-w-0">
                     <span className="tw:text-app-text-meta tw:shrink-0">
                       {active ? (
-                        <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       ) : (
-                        <ChevronRight
+                        <ChevronRight className="tw:size-icon-sm"
                           size={APP_ICON_SIZES.sm}
                           strokeWidth={APP_ICON_STROKE_WIDTH}
                         />
@@ -151,7 +151,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       title="移到右侧栏"
                       onClick={() => onMoveTab('sidebar', 'right', tab.id)}
                     >
-                      <MoveRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <MoveRight className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </Button>
                     <Button
                       isIconOnly
@@ -161,7 +161,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       title="移到底部面板"
                       onClick={() => onMoveTab('sidebar', 'bottom', tab.id)}
                     >
-                      <MoveDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <MoveDown className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </Button>
                     <Button
                       isIconOnly
@@ -171,7 +171,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       title="关闭视图"
                       onClick={() => onCloseTab(tab.id)}
                     >
-                      <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <X className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </Button>
                   </div>
                 </div>

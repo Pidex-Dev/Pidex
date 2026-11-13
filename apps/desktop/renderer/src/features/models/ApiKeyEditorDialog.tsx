@@ -218,7 +218,7 @@ export function ApiKeyEditorForm({
           <label className="settings-management-dialog-row model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-2 tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full">
             <span>Provider</span>
             {editing ? (
-              <div className="model-center-key-dialog-provider tw:flex tw:min-h-7 tw:items-center tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:text-app-text-soft">
+              <div className="model-center-key-dialog-provider tw:flex tw:min-h-7 tw:items-center tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:text-app-text-soft">
                 {providerName ?? currentApiKey?.providerId}
               </div>
             ) : (
@@ -342,8 +342,8 @@ export function ApiKeyEditorDialog({
         >
           <header className="settings-management-dialog-header model-center-key-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:p-5">
             <div className="settings-management-dialog-heading model-center-key-dialog-heading tw:flex tw:min-w-0 tw:items-start tw:gap-3">
-              <span className="model-center-key-dialog-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
-                <KeyRound size={APP_ICON_SIZE} aria-hidden />
+              <span className="model-center-key-dialog-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
+                <KeyRound className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
               </span>
               <div>
                 <Dialog.Title id={titleId} className="tw:weight-medium">
@@ -361,7 +361,7 @@ export function ApiKeyEditorDialog({
             </div>
             <Dialog.Close asChild>
               <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭">
-                <X size={APP_ICON_SIZE} aria-hidden />
+                <X className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
               </Button>
             </Dialog.Close>
           </header>

@@ -175,7 +175,7 @@ export function PluginSettingsDetailsView({
         >
           插件设置
         </button>
-        <ChevronRight size={14} className="tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
+        <ChevronRight size={14} className="tw:size-icon-sm tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
         <span className="tw:text-app-text tw:type-2 tw:weight-medium">{item.name}</span>
       </nav>
 
@@ -230,7 +230,7 @@ export function PluginSettingsDetailsView({
         <section className="tw:mb-6" aria-label="账号与连接状态">
           <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-2 tw:flex tw:items-center tw:justify-between tw:gap-4">
             <div className="tw:flex tw:items-center tw:gap-3 tw:min-w-0">
-              <ShieldCheck size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} className="tw:text-app-accent tw:shrink-0" />
+              <ShieldCheck size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} className="tw:size-icon-md tw:text-app-accent tw:shrink-0" />
               <div className="tw:min-w-0">
                 <span className="tw:type-2 tw:weight-medium tw:text-app-text tw:block tw:truncate">
                   {item.name}
@@ -313,7 +313,7 @@ export function PluginSettingsDetailsView({
                     ) : null}
                     <ChevronRight
                       size={16}
-                      className="tw:text-app-text-meta tw:shrink-0"
+                      className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0"
                       aria-hidden="true"
                     />
                   </div>
@@ -359,7 +359,7 @@ export function PluginSettingsDetailsView({
                     <button
                       type="button"
                       onClick={(event) => onSelectSkill(skill, event.currentTarget)}
-                      className="tw:flex-1 tw:min-w-0 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus tw:rounded-xs"
+                      className="tw:flex-1 tw:min-w-0 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus tw:rounded-2"
                     >
                       <div className="tw:type-2 tw:weight-medium tw:text-app-text">{skill.name}</div>
                       {skill.description ? (
@@ -392,7 +392,7 @@ export function PluginSettingsDetailsView({
                         onClick={(event) => onSelectSkill(skill, event.currentTarget)}
                         className="tw:border-0 tw:bg-transparent tw:p-0 tw:inline-flex tw:items-center tw:justify-center tw:text-app-text-meta tw:hover:text-app-text tw:cursor-pointer"
                       >
-                        <ChevronRight size={16} />
+                        <ChevronRight className="tw:size-icon-md" size={16} />
                       </button>
                     ) : null}
                   </div>
@@ -415,12 +415,12 @@ export function PluginSettingsDetailsView({
                 className="tw:w-full tw:border-0 tw:bg-transparent tw:px-3 tw:py-2 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:text-left tw:hover:bg-app-panel-hover tw:transition-colors tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-[-2px] tw:focus-visible:outline-app-focus"
               >
                 <span className="tw:type-2 tw:weight-medium tw:text-app-text">在设置中管理</span>
-                <ChevronRight size={16} className="tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
+                <ChevronRight size={16} className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
               </button>
             ) : (
               <div className="tw:px-3 tw:py-2 tw:flex tw:items-center tw:justify-between tw:gap-3">
                 <span className="tw:type-2 tw:weight-medium tw:text-app-text">在设置中管理</span>
-                <ChevronRight size={16} className="tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
+                <ChevronRight size={16} className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
               </div>
             )}
           </div>
@@ -434,7 +434,7 @@ export function PluginSettingsDetailsView({
           <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:divide-y tw:divide-app-border-subtle tw:overflow-hidden">
             {nonSkillComponents.map((comp) => (
               <div key={comp.id} className="tw:px-3 tw:py-2 tw:flex tw:items-start tw:gap-3">
-                <Server size={16} className="tw:text-app-accent tw:mt-1 tw:shrink-0" aria-hidden="true" />
+                <Server size={16} className="tw:size-icon-md tw:text-app-accent tw:mt-1 tw:shrink-0" aria-hidden="true" />
                 <div className="tw:min-w-0">
                   <div className="tw:type-2 tw:weight-medium tw:text-app-text">{comp.name}</div>
                   {comp.description ? (
@@ -482,7 +482,7 @@ export function PluginSettingsDetailsView({
                   className="tw:border-0 tw:bg-transparent tw:p-0 tw:type-1 tw:text-app-accent tw:hover:underline tw:cursor-pointer tw:inline-flex tw:items-center tw:gap-1 tw:max-w-full tw:truncate"
                 >
                   <span className="tw:truncate">{websiteUrl}</span>
-                  <ExternalLink size={12} className="tw:shrink-0" aria-hidden="true" />
+                  <ExternalLink size={12} className="tw:size-icon-xs tw:shrink-0" aria-hidden="true" />
                 </button>
               </span>
             </div>
@@ -499,7 +499,7 @@ export function PluginSettingsDetailsView({
                   className="tw:border-0 tw:bg-transparent tw:p-0 tw:type-1 tw:text-app-accent tw:hover:underline tw:cursor-pointer tw:inline-flex tw:items-center tw:gap-1"
                 >
                   查看隐私政策
-                  <ExternalLink size={12} className="tw:shrink-0" aria-hidden="true" />
+                  <ExternalLink size={12} className="tw:size-icon-xs tw:shrink-0" aria-hidden="true" />
                 </button>
               </span>
             </div>
@@ -516,7 +516,7 @@ export function PluginSettingsDetailsView({
                   className="tw:border-0 tw:bg-transparent tw:p-0 tw:type-1 tw:text-app-accent tw:hover:underline tw:cursor-pointer tw:inline-flex tw:items-center tw:gap-1"
                 >
                   查看条款
-                  <ExternalLink size={12} className="tw:shrink-0" aria-hidden="true" />
+                  <ExternalLink size={12} className="tw:size-icon-xs tw:shrink-0" aria-hidden="true" />
                 </button>
               </span>
             </div>

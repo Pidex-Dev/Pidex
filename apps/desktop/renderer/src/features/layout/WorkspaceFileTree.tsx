@@ -361,7 +361,7 @@ function WorkspaceFileTreeContent({
           file.type === 'file' && activePath != null ? normalizePath(activePath) === key : undefined
         }
         className={cx(
-          'right-dock-tree-row tw:flex tw:h-5 tw:min-h-5 tw:w-full tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:py-0 tw:pr-2 tw:pl-2 tw:text-left tw:text-app-text tw:cursor-pointer tw:select-none tw:type-1 tw:transition-[background-color,border-color,box-shadow,color] tw:duration-state tw:ease-out tw:hover:bg-app-hover',
+          'right-dock-tree-row tw:flex tw:h-5 tw:min-h-5 tw:w-full tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:py-0 tw:pr-2 tw:pl-2 tw:text-left tw:text-app-text tw:cursor-pointer tw:select-none tw:type-1 tw:transition-[background-color,border-color,box-shadow,color] tw:duration-state tw:ease-out tw:hover:bg-app-hover',
           activePath != null && normalizePath(activePath) === key && 'active tw:bg-app-selected',
         )}
         role="treeitem"
@@ -519,7 +519,7 @@ function WorkspaceFileTreeContent({
                 void loadDirectory(rootPath, -1, { replaceRoot: true }).catch(() => undefined)
               }}
             >
-              <RotateCcw aria-hidden="true" size={APP_ICON_SIZE} />
+              <RotateCcw className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               目录加载失败，点击重试
             </Button>
           ) : workspace ? (

@@ -112,7 +112,7 @@ function NumberInput({
     <div className="appearance-number-input tw:flex tw:items-center tw:gap-2">
       <Input
         aria-label={ariaLabel}
-        className="tw:w-9 tw:min-w-0 tw:rounded-md tw:border tw:border-app-border tw:bg-app-control tw:px-2 tw:text-right tw:text-app-text tw:type-2 tw:shadow-none"
+        className="tw:w-9 tw:min-w-0 tw:rounded-3 tw:border tw:border-app-border tw:bg-app-control tw:px-2 tw:text-right tw:text-app-text tw:type-2 tw:shadow-none"
         max={max}
         min={min}
         size="compact"
@@ -408,7 +408,7 @@ function ThemeModeCard({
       />
       <span
         aria-hidden="true"
-        className="appearance-mode-visual tw:relative tw:box-border tw:block tw:aspect-4/3 tw:w-full tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:transition-[border-color] tw:duration-state tw:ease-standard tw:peer-focus-visible:outline-solid tw:peer-focus-visible:outline-2 tw:peer-focus-visible:outline-offset-2 tw:peer-focus-visible:outline-app-focus tw:group-data-[state=checked]:border-2 tw:group-data-[state=checked]:border-app-text tw:[&>svg]:block tw:[&>svg]:size-full"
+        className="appearance-mode-visual tw:relative tw:box-border tw:block tw:aspect-4/3 tw:w-full tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:transition-[border-color] tw:duration-state tw:ease-standard tw:peer-focus-visible:outline-solid tw:peer-focus-visible:outline-2 tw:peer-focus-visible:outline-offset-2 tw:peer-focus-visible:outline-app-focus tw:group-data-[state=checked]:border-2 tw:group-data-[state=checked]:border-app-text tw:[&>svg]:block tw:[&>svg]:size-full"
       >
         <ThemeModePreview mode={mode} />
       </span>
@@ -588,7 +588,7 @@ function ThemePreview({
   return (
     <div
       aria-label={`${labelPrefix}${variant === 'light' ? '浅色' : '深色'}主题差异预览`}
-      className="appearance-diff-preview tw:mx-0 tw:mt-0 tw:mb-4 tw:block tw:overflow-hidden tw:rounded-lg tw:bg-app-editor"
+      className="appearance-diff-preview tw:mx-0 tw:mt-0 tw:mb-4 tw:block tw:overflow-hidden tw:rounded-4 tw:bg-app-editor"
       data-variant={variant}
       style={style}
     >

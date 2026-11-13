@@ -394,7 +394,7 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
           variant="standard"
         />
         <section
-          className="keyboard-shortcuts-card tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:transition-[background,border-color,box-shadow] tw:duration-state tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover"
+          className="keyboard-shortcuts-card tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:transition-[background,border-color,box-shadow] tw:duration-state tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover"
           aria-label="键盘快捷键列表"
         >
           <div className="keyboard-shortcuts-header tw:grid tw:grid-cols-[minmax(260px,1fr)_minmax(170px,0.64fr)_var(--cpx-sys-space-7)] tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:px-4 tw:py-2 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-1)] tw:weight-medium">
@@ -450,7 +450,7 @@ function ShortcutRowView({ row }: { row: ShortcutRow }): React.ReactNode {
       </div>
       <button
         aria-label={actionLabel}
-        className="keyboard-shortcuts-action tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-md tw:text-app-text-meta tw:disabled:cursor-default tw:disabled:opacity-58"
+        className="keyboard-shortcuts-action tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-3 tw:text-app-text-meta tw:disabled:cursor-default tw:disabled:opacity-58"
         disabled
         title="快捷键编辑即将推出"
         type="button"

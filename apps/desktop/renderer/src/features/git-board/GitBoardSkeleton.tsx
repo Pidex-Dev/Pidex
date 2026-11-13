@@ -12,11 +12,11 @@ export function GitBoardRepositorySkeleton() {
     >
       {[0, 1, 2].map((section) => (
         <div key={section} className="tw:grid tw:gap-3">
-          <SkeletonBlock className="tw:h-4 tw:w-[6rem] tw:rounded-md" />
+          <SkeletonBlock className="tw:h-4 tw:w-[6rem] tw:rounded-3" />
           {[0, 1, 2].map((row) => (
             <div key={row} className="tw:flex tw:items-center tw:gap-2">
-              <SkeletonBlock className="tw:size-4 tw:shrink-0 tw:rounded-sm" />
-              <SkeletonBlock className="tw:h-4 tw:w-3/4 tw:rounded-md" />
+              <SkeletonBlock className="tw:size-4 tw:shrink-0 tw:rounded-3" />
+              <SkeletonBlock className="tw:h-4 tw:w-3/4 tw:rounded-3" />
             </div>
           ))}
         </div>
@@ -39,7 +39,7 @@ export function GitBoardPageFallback() {
           <GitBoardRepositorySkeleton />
         </div>
         <div className="tw:flex tw:h-full tw:min-w-[360px] tw:flex-1 tw:items-center tw:justify-center tw:overflow-hidden tw:bg-app-main tw:p-4">
-          <SkeletonBlock className="tw:h-4 tw:w-[16rem] tw:max-w-full tw:rounded-md" shimmer />
+          <SkeletonBlock className="tw:h-4 tw:w-[16rem] tw:max-w-full tw:rounded-3" shimmer />
         </div>
       </div>
     </PrimaryPageLayout>

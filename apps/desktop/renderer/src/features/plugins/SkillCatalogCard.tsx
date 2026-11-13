@@ -61,11 +61,11 @@ export function SkillCatalogCard({
           <span
             aria-hidden="true"
             className={cx(
-              'skill-catalog-card__icon tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text',
+              'skill-catalog-card__icon tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text',
               FORCED_COLORS_SURFACE_CLASS,
             )}
           >
-            <Lightbulb data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
+            <Lightbulb className="tw:size-icon-md" data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
           </span>
           <span className={cx('skill-catalog-card__copy', STACKED_COPY_CLASS)}>
             <span className="skill-catalog-card__title-line tw:flex tw:min-w-0 tw:items-center tw:gap-2">
@@ -108,7 +108,7 @@ export function SkillCatalogCard({
               size="toolbar"
               title="添加到 Pidex"
             >
-              <Plus aria-hidden="true" size={APP_ICON_SIZE} />
+              <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               添加
             </Button>
           )}
@@ -121,13 +121,13 @@ export function SkillCatalogCard({
 function renderAuditIcon(status: DesktopSkillAuditStatus): React.ReactNode {
   if (status === 'pass') {
     return (
-      <ShieldCheck aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      <ShieldCheck className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
     )
   }
   if (status === 'warn') {
     return (
-      <ShieldAlert aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      <ShieldAlert className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
     )
   }
-  return <ShieldX aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+  return <ShieldX className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
 }

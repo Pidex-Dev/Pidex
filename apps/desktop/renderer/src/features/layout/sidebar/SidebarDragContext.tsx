@@ -309,7 +309,7 @@ export function SidebarDropList({
         data-sidebar-receive-area={receiving ? 'active' : undefined}
         className={`${props.className ?? ''} ${
           receiving
-            ? 'sidebar-drop-receive-active tw:rounded-md tw:bg-app-accent-subtle tw:ring-2 tw:ring-inset tw:ring-app-accent'
+            ? 'sidebar-drop-receive-active tw:rounded-3 tw:bg-app-accent-subtle tw:ring-2 tw:ring-inset tw:ring-app-accent'
             : ''
         }`}
       >
@@ -340,7 +340,7 @@ export function SidebarDragOverlay({
         model ? (
           <div
             aria-hidden="true"
-            className="sidebar-drag-overlay tw:pointer-events-none tw:flex tw:w-fit tw:max-w-[20rem] tw:min-h-[var(--sidebar-row-height,30px)] tw:items-center tw:gap-2 tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:opacity-70 tw:px-2 tw:text-app-text tw:shadow-lg tw:type-2"
+            className="sidebar-drag-overlay tw:pointer-events-none tw:flex tw:w-fit tw:max-w-[20rem] tw:min-h-[var(--sidebar-row-height,30px)] tw:items-center tw:gap-2 tw:rounded-3 tw:border tw:border-app-border tw:bg-app-raised tw:opacity-70 tw:px-2 tw:text-app-text tw:shadow-lg tw:type-2"
             style={maxWidth ? { maxWidth } : undefined}
           >
             <span className="tw:flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center">

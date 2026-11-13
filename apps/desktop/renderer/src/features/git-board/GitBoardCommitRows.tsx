@@ -31,11 +31,11 @@ export const GIT_BOARD_COMMIT_VISIBLE_LIMIT = 5
 const COMMIT_LIST_CLASS =
   'sidebar-commit-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:sidebar-row-gap tw:p-0'
 const COMMIT_ACTIONS_CLASS =
-  'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-6 tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard tw:grid-cols-[var(--sidebar-row-columns)]'
+  'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-6 tw:items-center tw:gap-x-2 tw:rounded-3 tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard tw:grid-cols-[var(--sidebar-row-columns)]'
 const COMMIT_LEADING_SPACER_CLASS =
   'sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:size-5 tw:w-5 tw:min-w-5 tw:shrink-0 tw:grow-0 tw:basis-5 tw:items-center tw:justify-center'
 const COMMIT_STATUS_CLASS =
-  'sidebar-commit-status tw:m-0 tw:flex tw:min-h-6 tw:items-center tw:gap-2 tw:rounded-md tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta'
+  'sidebar-commit-status tw:m-0 tw:flex tw:min-h-6 tw:items-center tw:gap-2 tw:rounded-3 tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta'
 /**
  * 提交短 SHA 不常驻：默认隐藏且不占宽，行 hover 或行内键盘聚焦时显示；点击后保持可见，
  * 便于对照当前选中的提交。完整 SHA 与作者/时间仍由悬浮卡提供。

@@ -200,10 +200,12 @@ const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
  * hook for the permission menu and its tests.
  */
 const COMPOSER_CHIP_TRIGGER_CLASS = cx(
-  'tw:min-w-0 tw:border tw:border-transparent tw:bg-transparent',
-  'tw:transition-[background,border-color,color] tw:duration-feedback tw:ease-standard',
-  'tw:hover:bg-app-hover tw:hover:border-transparent',
-  'tw:data-[state=open]:bg-app-selected tw:data-[state=open]:border-transparent',
+  'tw:inline-flex tw:h-5 tw:min-w-0 tw:cursor-pointer tw:select-none tw:items-center tw:gap-1.5',
+  'tw:rounded-pill tw:border-0 tw:bg-transparent tw:px-2 tw:py-0 tw:type-1 tw:weight-medium',
+  'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
+  'tw:hover:bg-app-hover',
+  'tw:data-[state=open]:bg-app-selected',
+  'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-2',
   'tw:[&>svg:first-child]:block tw:[&>svg:first-child]:size-[var(--inline-icon-size,1em)] tw:[&>svg:first-child]:shrink-0',
 )
 const PERMISSION_TRIGGER_CLASS = cx('permission-select-trigger', COMPOSER_CHIP_TRIGGER_CLASS)
@@ -247,7 +249,7 @@ const UTILITY_BAR_BASE_CLASS = cx(
   'tw:z-1 tw:flex tw:min-w-0 tw:max-w-none tw:items-center tw:gap-2 tw:overflow-x-auto tw:overflow-y-hidden',
   'tw:border-0 tw:whitespace-nowrap',
   'tw:forced-colors:outline-1 tw:forced-colors:outline-solid tw:forced-colors:shadow-none',
-  'tw:[&_.meta-chip]:h-7 tw:[&_.meta-chip]:flex-none tw:[&_.meta-chip]:rounded-full tw:[&_.meta-chip]:px-2 tw:[&_.meta-chip]:transition-all',
+  'tw:[&_.meta-chip]:h-5 tw:[&_.meta-chip]:flex-none tw:[&_.meta-chip]:rounded-full tw:[&_.meta-chip]:px-2 tw:[&_.meta-chip]:transition-all',
   // 首页托盘是独立命名容器；折叠规则放在其内容包装层（容器不能查询自身）。
   'tw:@container/composer-tray',
 )
@@ -925,7 +927,7 @@ export function ComposerCard({
           key: 'skills:retry',
           section: '技能',
           label: '重新加载技能',
-          icon: <Activity size={APP_ICON_SIZE} />,
+          icon: <Activity className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: '重新加载 技能 retry skills',
           completion: 'directory',
           onSelect: onReloadSkillCatalog,
@@ -951,7 +953,7 @@ export function ComposerCard({
         key: 'code-review-uncommitted',
         label: '审阅未提交的更改',
         description: '审查当前工作树和暂存区中的变更',
-        icon: <ShieldCheck size={APP_ICON_SIZE} />,
+        icon: <ShieldCheck className="tw:size-icon-md" size={APP_ICON_SIZE} />,
         matchText: '代码审查 review uncommitted',
         onSelect: () => onStartReview?.({ type: 'uncommittedChanges' }),
       },
@@ -962,7 +964,7 @@ export function ComposerCard({
           key: `code-review-branch:${branch}`,
           label: `与 ${branch} 比较`,
           description: '从 merge-base 开始审阅当前分支的变更',
-          icon: <GitBranch size={APP_ICON_SIZE} />,
+          icon: <GitBranch className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: `代码审查 branch review ${branch}`,
           onSelect: () => onStartReview?.({ type: 'baseBranch', branch }),
         })),
@@ -1017,7 +1019,7 @@ export function ComposerCard({
               label: '文件和文件夹',
               description: workspace ? '选择项目文件和文件夹，或添加本机附件' : '从本机选择附件',
               category: workspace && onAddFilePaths ? '文件和文件夹' : undefined,
-              icon: <Paperclip size={APP_ICON_SIZE} />,
+              icon: <Paperclip className="tw:size-icon-md" size={APP_ICON_SIZE} />,
               matchText: '添加 文件 附件 add file attachment',
               onSelect: () => filePickerRef.current?.click(),
             },
@@ -1050,9 +1052,9 @@ export function ComposerCard({
             description: plugin.description,
             icon:
               plugin.id === 'computer-use' ? (
-                <MonitorSmartphone size={APP_ICON_SIZE} />
+                <MonitorSmartphone className="tw:size-icon-md" size={APP_ICON_SIZE} />
               ) : (
-                <Plug size={APP_ICON_SIZE} />
+                <Plug className="tw:size-icon-md" size={APP_ICON_SIZE} />
               ),
             matchText: `${plugin.name} ${plugin.id} ${plugin.description}`,
             onSelect: () => insertReference('plugin', plugin.name, `plugin://${plugin.id}`),
@@ -1063,7 +1065,7 @@ export function ComposerCard({
       section: '引用会话',
       label: task.title,
       description: task.workspaceName,
-      icon: <MessageSquare size={APP_ICON_SIZE} />,
+      icon: <MessageSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />,
       matchText: `${task.title} ${task.workspaceName ?? ''} task thread`,
       onSelect: () =>
         insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
@@ -1075,7 +1077,7 @@ export function ComposerCard({
         section: '浏览器',
         label: browserContext.title || browserContext.url,
         description: browserContext.url,
-        icon: <Globe2 size={APP_ICON_SIZE} />,
+        icon: <Globe2 className="tw:size-icon-md" size={APP_ICON_SIZE} />,
         matchText: `${browserContext.title} ${browserContext.url} browser 网页`,
         onSelect: () =>
           insertReference(
@@ -1092,7 +1094,7 @@ export function ComposerCard({
           key: 'attachment:local',
           section: '文件和文件夹',
           label: '从本机选择附件',
-          icon: <Paperclip size={APP_ICON_SIZE} />,
+          icon: <Paperclip className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: '添加 文件 附件',
           onSelect: () => filePickerRef.current?.click(),
         })
@@ -1102,7 +1104,7 @@ export function ComposerCard({
           section: '文件和文件夹',
           label: '返回上一级',
           description: parentWorkspacePath(contextDirectory),
-          icon: <ChevronLeft size={APP_ICON_SIZE} />,
+          icon: <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: '返回 上一级 parent',
           completion: 'directory',
           onSelect: () => {
@@ -1118,7 +1120,7 @@ export function ComposerCard({
         section: '文件和文件夹',
         label: '引用当前目录',
         description: contextDirectory === '.' ? workspace.name : contextDirectory,
-        icon: <Folder size={APP_ICON_SIZE} />,
+        icon: <Folder className="tw:size-icon-md" size={APP_ICON_SIZE} />,
         matchText: `引用 当前 目录 ${contextDirectory}`,
         onSelect: () => void addWorkspaceContextPath(contextDirectory, activeContextRequest),
       })
@@ -1133,9 +1135,9 @@ export function ComposerCard({
           meta: entry.type === 'directory' ? '进入' : undefined,
           icon:
             entry.type === 'directory' ? (
-              <Folder size={APP_ICON_SIZE} />
+              <Folder className="tw:size-icon-md" size={APP_ICON_SIZE} />
             ) : (
-              <File size={APP_ICON_SIZE} />
+              <File className="tw:size-icon-md" size={APP_ICON_SIZE} />
             ),
           matchText: `${entry.name} ${entry.path}`,
           onSelect:
@@ -1155,7 +1157,7 @@ export function ComposerCard({
           status: 'loading',
           section: '文件和文件夹',
           label: '正在加载…',
-          icon: <Activity size={APP_ICON_SIZE} />,
+          icon: <Activity className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: 'loading 加载',
           disabled: true,
           onSelect: () => {},
@@ -1175,7 +1177,7 @@ export function ComposerCard({
           section: '文件和文件夹',
           label: '重新加载',
           description: contextEntriesError,
-          icon: <Activity size={APP_ICON_SIZE} />,
+          icon: <Activity className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: 'retry 重试 重新加载',
           completion: 'directory',
           onSelect: reloadContext,
@@ -1360,12 +1362,12 @@ export function ComposerCard({
 
   function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
     if (value === 'default')
-      return <Hand size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      return <Hand className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
     if (value === 'full-access')
-      return <ShieldAlert size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      return <ShieldAlert className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
     if (value === 'custom')
-      return <Wrench size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-    return <ShieldCheck size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      return <Wrench className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    return <ShieldCheck className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
   }
 
   function getPermissionClassName(value: DesktopPermissionMode): string {
@@ -1534,7 +1536,7 @@ export function ComposerCard({
             <div className={UTILITY_BAR_DEFAULT_CONTENT_CLASS}>
               {surface === 'chat' ? null : subagentMode ? (
                 <MetaChip
-                  icon={<Folder size={APP_ICON_SIZE} />}
+                  icon={<Folder className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                   label={workspace?.name ?? '项目'}
                   title="子 Agent 工作区固定"
                 />
@@ -1562,7 +1564,7 @@ export function ComposerCard({
                   trigger={
                     <MetaChip
                       active={openDropdown === 'project'}
-                      icon={<Folder size={APP_ICON_SIZE} />}
+                      icon={<Folder className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                       label={
                         workspace?.name ?? (surface === 'working' ? '选择文件夹' : '进入项目工作')
                       }
@@ -1585,7 +1587,7 @@ export function ComposerCard({
                 trigger={
                   <MetaChip
                     active={openDropdown === 'session-group'}
-                    icon={<MessagesSquare size={APP_ICON_SIZE} />}
+                    icon={<MessagesSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                     label={selectedSessionGroup?.name ?? '工作组'}
                     title={
                       selectedSessionGroup
@@ -1863,7 +1865,7 @@ export function ComposerCard({
                   editorRef.current?.focus()
                 }}
               >
-                <Plus size={APP_ICON_SIZE} />
+                <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </Tooltip>
             <Select.Root
@@ -1892,7 +1894,6 @@ export function ComposerCard({
                 <Select.Trigger
                   aria-label="更改权限"
                   aria-description={permissionUnavailableReason}
-                  data-theme-component="dropdown-trigger"
                   className={cx(
                     'chip-button',
                     getPermissionClassName(permissionMode),
@@ -1910,7 +1911,7 @@ export function ComposerCard({
                 <Select.Content
                   size="auto"
                   align="start"
-                  className="popover-surface permission-select-content tw:max-h-[min(440px,calc(100vh_-_96px))] tw:overflow-hidden"
+                  className="popover-surface permission-select-content tw:max-h-[min(440px,calc(100vh_-_96px))] tw:overflow-hidden tw:type-1"
                   data-theme-component="dropdown-surface"
                   collisionPadding={6}
                   side="top"
@@ -1967,7 +1968,7 @@ export function ComposerCard({
                             </span>
                             {permissionMode === option.value && (
                               <span className={PERMISSION_ITEM_INDICATOR_CLASS}>
-                                <Check
+                                <Check className="tw:size-icon-sm"
                                   size={APP_ICON_SIZES.sm}
                                   strokeWidth={APP_ICON_STROKE_WIDTH}
                                 />
@@ -2429,9 +2430,9 @@ export function ComposerCard({
               {stopping || submitting ? (
                 <Spinner className="send-button-session-spinner" size="medium" />
               ) : showStopAction ? (
-                <Square size={APP_ICON_SIZES.md} fill="currentColor" />
+                <Square className="tw:size-icon-md" size={APP_ICON_SIZES.md} fill="currentColor" />
               ) : (
-                <ArrowUp size={APP_ICON_SIZES.md} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <ArrowUp className="tw:size-icon-md" size={APP_ICON_SIZES.md} strokeWidth={APP_ICON_STROKE_WIDTH} />
               )}
             </Button>
           </div>
@@ -2557,33 +2558,33 @@ function composerCommandMenuItem(
 function composerSlashCommandIcon(id: ComposerSlashCommandId): React.ReactNode {
   switch (id) {
     case 'model':
-      return <Box size={APP_ICON_SIZE} />
+      return <Box className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'reasoning':
-      return <Brain size={APP_ICON_SIZE} />
+      return <Brain className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case SHARED_SLASH_COMMANDS.plan.id:
-      return <ListChecks size={APP_ICON_SIZE} />
+      return <ListChecks className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case SHARED_SLASH_COMMANDS.grill.id:
-      return <MessagesSquare size={APP_ICON_SIZE} />
+      return <MessagesSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'goal':
-      return <Target size={APP_ICON_SIZE} />
+      return <Target className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'review':
-      return <ShieldCheck size={APP_ICON_SIZE} />
+      return <ShieldCheck className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'compact':
-      return <Zap size={APP_ICON_SIZE} />
+      return <Zap className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'mcp':
-      return <Paperclip size={APP_ICON_SIZE} />
+      return <Paperclip className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case SHARED_SLASH_COMMANDS.status.id:
-      return <Activity size={APP_ICON_SIZE} />
+      return <Activity className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'side':
-      return <MessageSquarePlus size={APP_ICON_SIZE} />
+      return <MessageSquarePlus className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'fork':
-      return <Split size={APP_ICON_SIZE} />
+      return <Split className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'archive':
-      return <Archive size={APP_ICON_SIZE} />
+      return <Archive className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'project':
-      return <Folder size={APP_ICON_SIZE} />
+      return <Folder className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'task':
-      return <MessageSquare size={APP_ICON_SIZE} />
+      return <MessageSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />
   }
 }
 

@@ -16,7 +16,7 @@ export function ReasoningWaitingIndicator({
   if (reasoning && (reasoning.text + tail).trim()) return null
   return (
     <div className="canonical-turn__thinking" role="status" aria-live="polite">
-      <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" aria-hidden="true" />
+      <LoaderCircle size={APP_ICON_SIZES.sm} className="tw:size-icon-sm canonical-spin" aria-hidden="true" />
       <span>正在思考</span>
     </div>
   )

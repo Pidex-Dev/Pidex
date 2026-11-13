@@ -143,7 +143,7 @@ export function PlanApprovalCard({
                         aria-label="更多实施方式"
                         disabled={disabled}
                       >
-                        <ChevronDown size={APP_ICON_SIZES.sm} />
+                        <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                       </Button>
                     }
                   >
@@ -179,7 +179,7 @@ export function PlanApprovalCard({
             <textarea
               id={feedbackId}
               ref={feedbackRef}
-              className="plan-approval-feedback-input tw:block tw:w-full tw:min-w-0 tw:field-sizing-content tw:min-h-[4.5em] tw:max-h-[12rem] tw:resize-none tw:overflow-y-auto tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-control tw:p-2 tw:text-app-text tw:type-2 tw:outline-none tw:placeholder:text-app-text-meta tw:focus-visible:border-app-accent"
+              className="plan-approval-feedback-input tw:block tw:w-full tw:min-w-0 tw:field-sizing-content tw:min-h-[4.5em] tw:max-h-[12rem] tw:resize-none tw:overflow-y-auto tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-control tw:p-2 tw:text-app-text tw:type-2 tw:outline-none tw:placeholder:text-app-text-meta tw:focus-visible:border-app-accent"
               disabled={disabled}
               placeholder={FEEDBACK_PLACEHOLDER}
               value={feedback}

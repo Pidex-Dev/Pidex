@@ -83,7 +83,7 @@ export function PetCatalogPage(): React.ReactNode {
       >
         <RefreshCw
           aria-hidden="true"
-          className={loading ? 'tw:animate-spin' : undefined}
+          className={`tw:size-icon-md ${loading ? 'tw:animate-spin' : undefined}`}
           size={APP_ICON_SIZE}
           strokeWidth={APP_ICON_STROKE_WIDTH}
         />
@@ -96,7 +96,7 @@ export function PetCatalogPage(): React.ReactNode {
         title={t('宠物设置')}
         variant="ghost"
       >
-        <Settings aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <Settings className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
       </Button>
     </div>
   )

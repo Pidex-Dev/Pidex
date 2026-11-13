@@ -142,7 +142,7 @@ export function BrowserSettings(): React.ReactNode {
               type="button"
               onClick={() => void clearAllowedSites()}
             >
-              <Trash2 size={APP_ICON_SIZE} />
+              <Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
               <span>清空</span>
             </Button>
           }

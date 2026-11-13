@@ -155,7 +155,7 @@ export function PetSettings({ onError, onNotice }: Props): React.ReactNode {
                   size="toolbar"
                   title="刷新宠物"
                 >
-                  <RefreshCw size={APP_ICON_SIZE} />
+                  <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 </Button>
                 <Button
                   isIconOnly
@@ -165,7 +165,7 @@ export function PetSettings({ onError, onNotice }: Props): React.ReactNode {
                   size="iconMd"
                   title="删除当前宠物"
                 >
-                  <Trash2 size={APP_ICON_SIZES.sm} />
+                  <Trash2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </Button>
               </div>
             }
@@ -264,8 +264,8 @@ export function PetSettings({ onError, onNotice }: Props): React.ReactNode {
             </Button>
           </div>
           {preview ? (
-            <div className="pet-settings-preview tw:mx-4 tw:mt-0 tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-3">
-              <Egg size={APP_ICON_SIZE} />
+            <div className="pet-settings-preview tw:mx-4 tw:mt-0 tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-3">
+              <Egg className="tw:size-icon-md" size={APP_ICON_SIZE} />
               <div className="tw:flex-1">
                 <strong>{preview.pet.displayName}</strong>
                 <p className="tw:mt-1 tw:mb-0 tw:text-app-text-meta tw:type-1">

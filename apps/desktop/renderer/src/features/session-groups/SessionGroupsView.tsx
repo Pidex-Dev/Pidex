@@ -150,7 +150,7 @@ export function SessionGroupsView(): React.ReactNode {
         value: session.id,
         label: session.title,
         detail: session.workspaceLabel,
-        icon: <MessageSquare className="session-group-select-icon tw:me-1" size={APP_ICON_SIZE} />,
+        icon: <MessageSquare className="tw:size-icon-md session-group-select-icon tw:me-1" size={APP_ICON_SIZE} />,
       }))
   }, [availableSessions, memberThreadIds])
 
@@ -235,7 +235,7 @@ export function SessionGroupsView(): React.ReactNode {
       shape="pill"
       size="md"
     >
-      <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
       <span>新建工作组</span>
     </Button>
   )
@@ -273,12 +273,12 @@ export function SessionGroupsView(): React.ReactNode {
               className="session-group-detail-message tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-app-text-soft tw:type-1"
               role="alert"
             >
-              <AlertCircle size={APP_ICON_SIZE} />
+              <AlertCircle className="tw:size-icon-md" size={APP_ICON_SIZE} />
               <h1>无法打开工作组</h1>
               <p>{error}</p>
               <div>
                 <Button color="secondary" size="compact" onClick={() => void refresh()}>
-                  <RefreshCw size={APP_ICON_SIZES.sm} />
+                  <RefreshCw className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                   <span>重试</span>
                 </Button>
                 <Button color="secondary" size="compact" onClick={() => navigate('/workflows')}>
@@ -297,7 +297,7 @@ export function SessionGroupsView(): React.ReactNode {
             <div className="session-group-detail__inner tw:mx-auto tw:flex tw:w-[min(var(--page-content-max-width),100%)] tw:flex-col tw:pb-6">
               <div className="tw:mb-3 tw:flex tw:items-center">
                 <Link
-                  className="session-groups-back tw:inline-flex tw:items-center tw:gap-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-1 tw:weight-medium tw:no-underline tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+                  className="session-groups-back tw:inline-flex tw:items-center tw:gap-2 tw:rounded-3 tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-1 tw:weight-medium tw:no-underline tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
                   to="/workflows"
                 >
                   <ArrowLeft aria-hidden="true" size="var(--inline-icon-size, 1em)" />
@@ -318,7 +318,7 @@ export function SessionGroupsView(): React.ReactNode {
                 </div>
                 <div className="session-group-actions tw:flex tw:items-center tw:gap-2 tw:@max-[760px]:flex-wrap">
                   <Button color="secondary" size="compact" onClick={openEditDialog}>
-                    <Pencil size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Pencil className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     <span>编辑</span>
                   </Button>
                   <Button
@@ -326,7 +326,7 @@ export function SessionGroupsView(): React.ReactNode {
                     size="compact"
                     onClick={() => setDeleteDialogOpen(true)}
                   >
-                    <Trash2 size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Trash2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     <span>删除组</span>
                   </Button>
                 </div>
@@ -334,10 +334,10 @@ export function SessionGroupsView(): React.ReactNode {
 
               <section className="session-group-section tw:border-b tw:border-b-app-border-subtle tw:py-5 tw:last:border-b-0">
                 <div className="session-group-section__title-row tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:[&>h3]:m-0 tw:[&>h3]:type-title-sm">
-                  <BookOpen size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <BookOpen className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   <h3>当前摘要</h3>
                 </div>
-                <div className="session-group-digest-card tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-4">
+                <div className="session-group-digest-card tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-4">
                   <p className="session-group-digest tw:m-0 tw:whitespace-pre-wrap tw:text-app-text tw:type-2">
                     {detail.digest ||
                       '完成组内第一个会话步骤后，这里会自动整理目标、决策和修复结论。'}
@@ -349,7 +349,7 @@ export function SessionGroupsView(): React.ReactNode {
                       .filter((entry) => entry.status === 'active')
                       .map((entry) => (
                         <article
-                          className="session-group-context-card tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:px-4 tw:py-3 tw:[&>p]:mt-2 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body-sm"
+                          className="session-group-context-card tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:px-4 tw:py-3 tw:[&>p]:mt-2 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body-sm"
                           key={entry.id}
                         >
                           <div className="session-group-context-card__header tw:flex tw:items-center tw:gap-2 tw:[&>strong]:text-app-text tw:[&>strong]:type-row-title">
@@ -393,18 +393,18 @@ export function SessionGroupsView(): React.ReactNode {
                     size="compact"
                     onClick={() => void addSession()}
                   >
-                    <Plus size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Plus className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     <span>加入组</span>
                   </Button>
                 </div>
                 <div className="session-group-members tw:grid tw:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] tw:gap-2">
                   {detail.members.map((member) => (
                     <article
-                      className="session-group-member-card tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:px-3 tw:py-2 tw:transition-[background-color,border-color] tw:duration-enter tw:ease-standard tw:hover:border-app-border tw:hover:bg-app-canvas"
+                      className="session-group-member-card tw:flex tw:items-center tw:gap-2 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:px-3 tw:py-2 tw:transition-[background-color,border-color] tw:duration-enter tw:ease-standard tw:hover:border-app-border tw:hover:bg-app-canvas"
                       key={member.threadId}
                     >
                       <div className="session-group-member-card__icon tw:flex tw:items-center tw:text-app-text-meta">
-                        <MessageSquare size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <MessageSquare className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       </div>
                       <Link
                         className="session-group-member-card__body"
@@ -429,7 +429,7 @@ export function SessionGroupsView(): React.ReactNode {
                           title="从该组移出"
                           onClick={() => void removeSession(member.threadId)}
                         >
-                          <UserMinus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                          <UserMinus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                         </Button>
                       </div>
                     </article>
@@ -491,13 +491,13 @@ export function SessionGroupsView(): React.ReactNode {
           >
             {error ? (
               <div
-                className="session-group-notice tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:text-app-danger-fg tw:type-1"
+                className="session-group-notice tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-4 tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:text-app-danger-fg tw:type-1"
                 role="alert"
               >
                 <AlertCircle size="var(--inline-icon-size, 1em)" />
                 <span>{error}</span>
                 <Button color="secondary" size="compact" onClick={() => void refresh()}>
-                  <RefreshCw size={APP_ICON_SIZES.sm} />
+                  <RefreshCw className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                   <span>重试</span>
                 </Button>
               </div>
@@ -521,7 +521,7 @@ export function SessionGroupsView(): React.ReactNode {
                 <div className="session-groups-table__rows tw:grid">
                   {filtered.map((group) => (
                     <Link
-                      className="session-group-row tw:min-w-0 tw:rounded-lg tw:p-3 tw:text-inherit tw:no-underline tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+                      className="session-group-row tw:min-w-0 tw:rounded-4 tw:p-3 tw:text-inherit tw:no-underline tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
                       key={group.id}
                       to={`/workflows/${encodeURIComponent(group.id)}`}
                     >
@@ -548,7 +548,7 @@ export function SessionGroupsView(): React.ReactNode {
             ) : null}
             {!loading && !error && groups.length === 0 ? (
               <div className="session-groups-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-center tw:text-app-text-meta tw:type-1 tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0">
-                <MessagesSquare
+                <MessagesSquare className="tw:size-icon-lg"
                   aria-hidden="true"
                   size={APP_ICON_SIZES.lg}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -562,7 +562,7 @@ export function SessionGroupsView(): React.ReactNode {
             ) : null}
             {!loading && !error && groups.length > 0 && filtered.length === 0 ? (
               <div className="session-groups-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-center tw:text-app-text-meta tw:type-1 tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0">
-                <MessagesSquare
+                <MessagesSquare className="tw:size-icon-lg"
                   aria-hidden="true"
                   size={APP_ICON_SIZES.lg}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -666,11 +666,11 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
           )}
         >
           {isFailed ? (
-            <AlertCircle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <AlertCircle className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           ) : isCompleted ? (
-            <CheckCircle2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <CheckCircle2 className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           ) : (
-            <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Sparkles className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           )}
         </div>
         <span className="session-group-step__seq tw:hidden">{step.sequence}</span>
@@ -752,7 +752,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
             {step.validations.map((validation) => (
               <div
                 className={cx(
-                  'session-group-step__validation-item tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:px-3 tw:py-2 tw:[&>p]:mb-0 tw:[&>p]:mt-1 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body-sm',
+                  'session-group-step__validation-item tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:px-3 tw:py-2 tw:[&>p]:mb-0 tw:[&>p]:mt-1 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body-sm',
                   validation.status === 'passed'
                     ? 'is-passed tw:border-app-border-subtle'
                     : validation.status === 'failed'
@@ -763,11 +763,11 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
               >
                 <div className="session-group-step__validation-header tw:flex tw:items-center tw:gap-1 tw:text-app-text tw:type-1 tw:weight-medium tw:[&>strong]:type-weight-label">
                   {validation.status === 'passed' ? (
-                    <Check className="tw:text-app-success" size={APP_ICON_SIZES.sm} />
+                    <Check className="tw:size-icon-sm tw:text-app-success" size={APP_ICON_SIZES.sm} />
                   ) : validation.status === 'failed' ? (
-                    <AlertCircle className="tw:text-app-danger" size={APP_ICON_SIZES.sm} />
+                    <AlertCircle className="tw:size-icon-sm tw:text-app-danger" size={APP_ICON_SIZES.sm} />
                   ) : (
-                    <History className="tw:text-app-text-meta" size={APP_ICON_SIZES.sm} />
+                    <History className="tw:size-icon-sm tw:text-app-text-meta" size={APP_ICON_SIZES.sm} />
                   )}
                   <strong>
                     {validation.status === 'passed'
@@ -786,7 +786,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
 
         {step.failure ? (
           <div
-            className="session-group-step__failure tw:mt-2 tw:flex tw:flex-col tw:gap-1 tw:rounded-md tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-1"
+            className="session-group-step__failure tw:mt-2 tw:flex tw:flex-col tw:gap-1 tw:rounded-3 tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-1"
             role="alert"
           >
             <div className="session-group-step__failure-title tw:flex tw:items-center tw:gap-1 tw:weight-medium">
@@ -802,20 +802,20 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
             <button
               aria-controls={diffId}
               aria-expanded={diffOpen}
-              className="session-group-diff-toggle tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-accent-fg tw:type-1 tw:weight-medium tw:transition-[background-color] tw:duration-enter tw:ease-standard tw:hover:bg-app-hover"
+              className="session-group-diff-toggle tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1 tw:rounded-3 tw:border-0 tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-accent-fg tw:type-1 tw:weight-medium tw:transition-[background-color] tw:duration-enter tw:ease-standard tw:hover:bg-app-hover"
               type="button"
               onClick={() => void toggleDiff()}
             >
               <FileDiff size="var(--inline-icon-size, 1em)" strokeWidth={APP_ICON_STROKE_WIDTH} />
               <span>{step.changedFiles.length} 个变更文件</span>
               {diffOpen ? (
-                <ChevronUp size={APP_ICON_SIZES.sm} />
+                <ChevronUp className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
               ) : (
-                <ChevronDown size={APP_ICON_SIZES.sm} />
+                <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
               )}
             </button>
             <DisclosureContent
-              contentClassName="session-group-step__diff tw:mt-2 tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle"
+              contentClassName="session-group-step__diff tw:mt-2 tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle"
               expanded={diffOpen}
               id={diffId}
               mountPolicy="always"

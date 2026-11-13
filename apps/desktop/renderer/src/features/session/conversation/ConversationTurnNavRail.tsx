@@ -147,7 +147,7 @@ function PreviewCard({
 
   return (
     <div
-      className="conversation-turn-preview-card tw:box-border tw:w-[20rem] tw:max-w-[calc(100vw-16px)] tw:rounded-xl tw:border-[0.5px] tw:border-app-border tw:bg-app-raised tw:p-2 tw:text-app-text tw:type-1"
+      className="conversation-turn-preview-card tw:box-border tw:w-[20rem] tw:max-w-[calc(100vw-16px)] tw:rounded-5 tw:border-[0.5px] tw:border-app-border tw:bg-app-raised tw:p-2 tw:text-app-text tw:type-1"
       data-thread-user-message-navigation-tooltip-preview
     >
       <span className="tw:sr-only">
@@ -623,7 +623,7 @@ export function ConversationTurnNavRail({
                 }`}
                 aria-posinset={index + 1}
                 aria-setsize={items.length}
-                className="conversation-turn-nav-item tw:relative tw:flex tw:h-2 tw:min-h-2 tw:w-[2.25rem] tw:min-w-[2.25rem] tw:shrink-0 tw:items-center tw:justify-start tw:border-none tw:bg-transparent tw:p-0 tw:cursor-pointer tw:outline-none tw:focus-visible:rounded-md tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+                className="conversation-turn-nav-item tw:relative tw:flex tw:h-2 tw:min-h-2 tw:w-[2.25rem] tw:min-w-[2.25rem] tw:shrink-0 tw:items-center tw:justify-start tw:border-none tw:bg-transparent tw:p-0 tw:cursor-pointer tw:outline-none tw:focus-visible:rounded-3 tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
                 data-neighbor-distance={
                   visualIndex === undefined ? undefined : Math.abs(index - visualIndex)
                 }

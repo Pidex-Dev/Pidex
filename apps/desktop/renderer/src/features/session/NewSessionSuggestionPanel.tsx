@@ -58,12 +58,12 @@ const SUGGESTION_CARD_CLASS = `new-session-suggestion-card tw:flex tw:min-h-[6.5
 export const SUGGESTION_HEADING_CLASS =
   'new-session-suggestion-list-heading tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1 tw:weight-medium'
 
-export const SUGGESTION_HEADING_ACTION_CLASS = `tw:inline-flex tw:flex-none tw:items-center tw:gap-2 tw:rounded-md tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text ${SUGGESTION_FOCUS_CLASS}`
+export const SUGGESTION_HEADING_ACTION_CLASS = `tw:inline-flex tw:flex-none tw:items-center tw:gap-2 tw:rounded-3 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text ${SUGGESTION_FOCUS_CLASS}`
 
 export const SUGGESTION_HEADING_TITLE_CLASS =
   'tw:inline-flex tw:min-w-0 tw:items-center tw:gap-2 tw:[color:var(--new-session-suggestion-tone)]'
 
-export const SUGGESTION_ROW_CLASS = `new-session-suggestion-row tw:flex tw:min-h-7 tw:items-center tw:gap-2 tw:rounded-md tw:bg-transparent tw:px-3 tw:py-2 tw:text-left tw:text-app-text tw:type-2 tw:weight-medium tw:hover:bg-app-hover ${SUGGESTION_FOCUS_CLASS}`
+export const SUGGESTION_ROW_CLASS = `new-session-suggestion-row tw:flex tw:min-h-7 tw:items-center tw:gap-2 tw:rounded-3 tw:bg-transparent tw:px-3 tw:py-2 tw:text-left tw:text-app-text tw:type-2 tw:weight-medium tw:hover:bg-app-hover ${SUGGESTION_FOCUS_CLASS}`
 
 export function NewSessionSuggestions({
   state,
@@ -163,7 +163,7 @@ export function NewSessionSuggestions({
   return (
     <section
       aria-label={`${category.label}的建议任务`}
-      className={`${SUGGESTION_PANEL_CLASS} is-follow-up is-${category.tone} ${SUGGESTION_TONE_CLASS[category.tone]} tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-2 tw:shadow-none`}
+      className={`${SUGGESTION_PANEL_CLASS} is-follow-up is-${category.tone} ${SUGGESTION_TONE_CLASS[category.tone]} tw:grid tw:gap-2 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-2 tw:shadow-none`}
     >
       <div className={SUGGESTION_HEADING_CLASS}>
         <span className={SUGGESTION_HEADING_TITLE_CLASS}>

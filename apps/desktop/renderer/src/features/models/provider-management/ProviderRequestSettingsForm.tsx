@@ -487,7 +487,7 @@ export function ProviderRequestSettingsForm({
                 loading={detecting}
                 onClick={() => void detectProtocols()}
               >
-                <Activity aria-hidden="true" size={APP_ICON_SIZES.sm} />
+                <Activity className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
                 检测协议
               </Button>
             ) : null}
@@ -502,7 +502,7 @@ export function ProviderRequestSettingsForm({
                   setAddingEndpoint(true)
                 }}
               >
-                <Plus aria-hidden="true" size={APP_ICON_SIZES.sm} />
+                <Plus className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
                 添加端点
               </Button>
             ) : null}
@@ -680,7 +680,7 @@ export function ProviderRequestSettingsForm({
               <label className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
                 自定义请求头
                 <textarea
-                  className="tw:min-h-[6rem] tw:rounded-md tw:border tw:border-app-border tw:bg-app-control tw:p-3 tw:type-code"
+                  className="tw:min-h-[6rem] tw:rounded-3 tw:border tw:border-app-border tw:bg-app-control tw:p-3 tw:type-code"
                   aria-label="自定义请求头"
                   placeholder="每行 name: value"
                   onBlur={() => void save()}

@@ -71,11 +71,11 @@ function ExecutionPlanStepView({
         aria-hidden="true"
       >
         {step.status === 'completed' ? (
-          <CircleCheck size={APP_ICON_SIZES.sm} />
+          <CircleCheck className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         ) : step.status === 'in_progress' ? (
-          <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" />
+          <LoaderCircle size={APP_ICON_SIZES.sm} className="tw:size-icon-sm canonical-spin" />
         ) : (
-          <Circle size={APP_ICON_SIZES.sm} />
+          <Circle className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         )}
       </span>
       <span

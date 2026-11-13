@@ -35,7 +35,7 @@ export const AuxiliaryTitlebar = memo(function AuxiliaryTitlebar({
           size="toolbar"
           title="停靠回主窗口"
         >
-          <ArrowDownToLine size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <ArrowDownToLine className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </Button>
         <div
           aria-hidden="true"

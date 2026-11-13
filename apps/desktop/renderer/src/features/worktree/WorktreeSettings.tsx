@@ -221,7 +221,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                 aria-label="刷新工作树列表"
                 onClick={() => void refresh().catch((cause) => onError(message(cause)))}
               >
-                <RefreshCw size={APP_ICON_SIZE} className={busy ? 'tw:animate-spin' : ''} />
+                <RefreshCw size={APP_ICON_SIZE} className={`tw:size-icon-md ${busy ? 'tw:animate-spin' : ''}`} />
               </Button>
             </Tooltip>
           </div>
@@ -251,7 +251,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                       </span>
                       <span className="tw:flex tw:items-center tw:gap-1 tw:type-1 tw:text-app-text-soft">
                         {groupEntries.length} 个工作树
-                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                        {isCollapsed ? <ChevronRight className="tw:size-icon-md" size={16} /> : <ChevronDown className="tw:size-icon-md" size={16} />}
                       </span>
                     </button>
 
@@ -277,7 +277,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                                 <div className="tw:flex tw:items-center tw:gap-2 tw:flex-wrap">
                                   {singleConversation ? (
                                     <a
-                                      className="tw:min-w-0 tw:max-w-full tw:type-2 tw:weight-medium tw:text-app-text tw:truncate tw:no-underline tw:cursor-pointer tw:rounded-sm tw:transition-colors tw:hover:text-app-accent-fg tw:hover:underline tw:focus-visible:outline-app-focus"
+                                      className="tw:min-w-0 tw:max-w-full tw:type-2 tw:weight-medium tw:text-app-text tw:truncate tw:no-underline tw:cursor-pointer tw:rounded-3 tw:transition-colors tw:hover:text-app-accent-fg tw:hover:underline tw:focus-visible:outline-app-focus"
                                       href={'/threads/' + encodeURIComponent(singleConversation.id)}
                                       onClick={(event) => {
                                         event.preventDefault()
@@ -302,7 +302,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                                       {conversations.length} 个关联聊天
                                       <ChevronDown
                                         size={14}
-                                        className={`tw:transition-transform tw:duration-150 ${
+                                        className={`tw:size-icon-sm tw:transition-transform tw:duration-150 ${
                                           isThreadsOpen ? 'tw:rotate-180' : ''
                                         }`}
                                       />
@@ -369,7 +369,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                                         })
                                     }}
                                   >
-                                    <MessageSquarePlus size={APP_ICON_SIZE} />
+                                    <MessageSquarePlus className="tw:size-icon-md" size={APP_ICON_SIZE} />
                                   </Button>
                                 </Tooltip>
                                 <Tooltip content="删除工作树" side="top">
@@ -386,7 +386,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                                     aria-label="删除工作树"
                                     onClick={() => handleDeleteRequest(entry)}
                                   >
-                                    <Trash2 size={APP_ICON_SIZE} />
+                                    <Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
                                   </Button>
                                 </Tooltip>
                               </div>

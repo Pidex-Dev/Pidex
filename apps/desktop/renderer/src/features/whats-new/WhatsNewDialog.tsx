@@ -78,7 +78,7 @@ export function WhatsNewDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop whats-new-dialog-backdrop tw:overflow-hidden" />
         <Dialog.Content
-          className="ui-dialog-surface ui-dialog-surface--centered whats-new-dialog tw:grid tw:w-[min(1040px,calc(100vw-var(--cpx-sys-space-8)))] tw:h-[min(80vh,760px)] tw:min-h-0 tw:min-w-0 tw:grid-rows-[auto_minmax(0,1fr)] tw:overflow-hidden tw:rounded-xl tw:border-0 tw:bg-app-raised tw:shadow-lg tw:text-app-text"
+          className="ui-dialog-surface ui-dialog-surface--centered whats-new-dialog tw:grid tw:w-[min(1040px,calc(100vw-var(--cpx-sys-space-8)))] tw:h-[min(80vh,760px)] tw:min-h-0 tw:min-w-0 tw:grid-rows-[auto_minmax(0,1fr)] tw:overflow-hidden tw:rounded-5 tw:border-0 tw:bg-app-raised tw:shadow-lg tw:text-app-text"
           onCloseAutoFocus={(event) => {
             if (!restoreFocusElement?.isConnected) return
             event.preventDefault()
@@ -92,9 +92,9 @@ export function WhatsNewDialog({
           <header className="whats-new-dialog-header tw:grid tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-start tw:gap-3 tw:border-b tw:border-app-border-subtle tw:px-5 tw:py-5">
             <span
               aria-hidden="true"
-              className="whats-new-heading-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-lg tw:border-0 tw:bg-app-panel tw:text-app-text tw:[&>svg]:size-icon-lg"
+              className="whats-new-heading-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-4 tw:border-0 tw:bg-app-panel tw:text-app-text tw:[&>svg]:size-icon-lg"
             >
-              <Sparkles size={APP_ICON_SIZE} />
+              <Sparkles className="tw:size-icon-md" size={APP_ICON_SIZE} />
             </span>
             <div className="whats-new-dialog-heading tw:grid tw:min-w-0 tw:gap-1">
               <Dialog.Title className="whats-new-dialog-title tw:m-0 tw:weight-medium tw:text-app-text tw:text-[length:var(--cpx-sys-font-size-4)] tw:[line-height:var(--cpx-sys-line-height-3)]">
@@ -112,7 +112,7 @@ export function WhatsNewDialog({
                 size="toolbar"
                 title="关闭新特性"
               >
-                <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               </Button>
             </Dialog.Close>
           </header>
@@ -182,7 +182,7 @@ function ReleaseNotesContent({
         contentClassName="whats-new-version-scroll-content tw:p-3"
       >
         {result.source === 'bundled-changelog' ? (
-          <div className="whats-new-notice whats-new-fallback-notice tw:m-0 tw:mb-3 tw:grid tw:gap-3 tw:rounded-lg tw:bg-app-hover tw:p-3 tw:text-[length:var(--cpx-sys-font-size-1)] tw:text-app-text-meta">
+          <div className="whats-new-notice whats-new-fallback-notice tw:m-0 tw:mb-3 tw:grid tw:gap-3 tw:rounded-4 tw:bg-app-hover tw:p-3 tw:text-[length:var(--cpx-sys-font-size-1)] tw:text-app-text-meta">
             <p className="tw:m-0 tw:[line-height:var(--cpx-sys-line-height-1)]">
               当前仅显示随应用提供的版本记录，在线历史版本暂时不可用。
             </p>
@@ -193,13 +193,13 @@ function ReleaseNotesContent({
               loading={refreshing}
               onClick={onRefresh}
             >
-              {refreshing ? null : <RefreshCw size={APP_ICON_SIZE} />}
+              {refreshing ? null : <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />}
               {refreshing ? '正在重试…' : '重试加载历史版本'}
             </Button>
           </div>
         ) : null}
         {result.truncated ? (
-          <p className="whats-new-notice tw:m-0 tw:mb-3 tw:rounded-lg tw:bg-app-hover tw:p-3 tw:text-[length:var(--cpx-sys-font-size-1)] tw:text-app-text-meta">
+          <p className="whats-new-notice tw:m-0 tw:mb-3 tw:rounded-4 tw:bg-app-hover tw:p-3 tw:text-[length:var(--cpx-sys-font-size-1)] tw:text-app-text-meta">
             更新记录较多，当前仅显示最近的一部分历史版本。
           </p>
         ) : null}
@@ -211,7 +211,7 @@ function ReleaseNotesContent({
               <li key={release.tagName}>
                 <button
                   aria-current={current ? 'true' : undefined}
-                  className="whats-new-version-item tw:grid tw:w-full tw:min-w-0 tw:cursor-pointer tw:gap-2 tw:rounded-md tw:border tw:border-transparent tw:bg-transparent tw:p-3 tw:text-left tw:text-inherit tw:type-2 tw:hover:bg-app-hover tw:data-[selected=true]:border-app-border-subtle tw:data-[selected=true]:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none tw:forced-colors:focus-visible:shadow-none tw:forced-colors:focus-visible:outline-offset-[-2px] tw:forced-colors:focus-visible:[outline:2px_solid_Highlight]"
+                  className="whats-new-version-item tw:grid tw:w-full tw:min-w-0 tw:cursor-pointer tw:gap-2 tw:rounded-3 tw:border tw:border-transparent tw:bg-transparent tw:p-3 tw:text-left tw:text-inherit tw:type-2 tw:hover:bg-app-hover tw:data-[selected=true]:border-app-border-subtle tw:data-[selected=true]:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none tw:forced-colors:focus-visible:shadow-none tw:forced-colors:focus-visible:outline-offset-[-2px] tw:forced-colors:focus-visible:[outline:2px_solid_Highlight]"
                   data-selected={selected || undefined}
                   type="button"
                   onClick={() => {
@@ -300,7 +300,7 @@ function ReleaseDetails({
                 void desktopClient.openExternalURL(release.htmlUrl)
               }}
             >
-              <ExternalLink size={APP_ICON_SIZE} />在 GitHub 查看
+              <ExternalLink className="tw:size-icon-md" size={APP_ICON_SIZE} />在 GitHub 查看
             </Button>
           </div>
         ) : null}
@@ -368,14 +368,14 @@ function ReleaseNotesError({
   return (
     <section
       aria-live="polite"
-      className="whats-new-state tw:m-5 tw:grid tw:justify-items-start tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-app-panel tw:p-6"
+      className="whats-new-state tw:m-5 tw:grid tw:justify-items-start tw:gap-2 tw:rounded-4 tw:border-0 tw:bg-app-panel tw:p-6"
     >
       <strong>{message.title}</strong>
       <p className="tw:m-0 tw:mb-2 tw:max-w-[620px] tw:text-app-text-meta tw:[line-height:var(--cpx-sys-line-height-2)]">
         {message.description}
       </p>
       <Button size="md" color="secondary" onClick={onRetry}>
-        <RefreshCw size={APP_ICON_SIZE} />
+        <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
         重试
       </Button>
     </section>
@@ -390,7 +390,7 @@ function ReleaseNotesEmpty({
   title: string
 }): React.ReactNode {
   return (
-    <section className="whats-new-state tw:m-5 tw:grid tw:justify-items-start tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-app-panel tw:p-6">
+    <section className="whats-new-state tw:m-5 tw:grid tw:justify-items-start tw:gap-2 tw:rounded-4 tw:border-0 tw:bg-app-panel tw:p-6">
       <strong>{title}</strong>
       <p className="tw:m-0 tw:mb-2 tw:max-w-[620px] tw:text-app-text-meta tw:[line-height:var(--cpx-sys-line-height-2)]">
         {description}
@@ -408,7 +408,7 @@ function ReleaseNotesSkeleton(): React.ReactNode {
     >
       {[0, 1, 2].map((index) => (
         <div
-          className="whats-new-skeleton-card tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-app-border tw:p-4"
+          className="whats-new-skeleton-card tw:grid tw:gap-3 tw:rounded-4 tw:border tw:border-app-border tw:p-4"
           key={index}
         >
           <span className="tw:block tw:h-4 tw:w-[38%] tw:rounded-full tw:bg-app-hover" />

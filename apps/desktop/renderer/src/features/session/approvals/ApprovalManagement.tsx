@@ -339,7 +339,7 @@ export function ApprovalRulesDialog({
             </div>
             <Dialog.Close asChild disabled={busy}>
               <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭对话框">
-                <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <X className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               </Button>
             </Dialog.Close>
           </header>
@@ -588,7 +588,7 @@ export function ApprovalRetryDialog({
               role="radio"
               aria-checked={selected === denial.id}
               className={cx(
-                'inline-approval-option tw:grid tw:w-full tw:gap-1 tw:rounded-lg tw:border tw:border-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring)] tw:focus-visible:outline-none',
+                'inline-approval-option tw:grid tw:w-full tw:gap-1 tw:rounded-4 tw:border tw:border-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring)] tw:focus-visible:outline-none',
                 selected === denial.id ? 'selected tw:bg-app-hover' : 'tw:bg-transparent',
               )}
               disabled={busy}

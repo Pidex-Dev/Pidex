@@ -43,13 +43,13 @@ export function ProjectAppearancePicker({
 
   return (
     <AnchoredPopover
-      className="project-appearance-popover tw:z-popover tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text tw:outline-none"
+      className="project-appearance-popover tw:z-popover tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text tw:outline-none"
       contentLabel="项目图标和颜色"
       open={open}
       trigger={
         <button
           aria-label="选择项目图标和颜色"
-          className="project-appearance-trigger tw:inline-flex tw:size-7 tw:shrink-0 tw:grow-0 tw:basis-7 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:enabled:hover:bg-app-hover tw:enabled:hover:text-app-text"
+          className="project-appearance-trigger tw:inline-flex tw:size-7 tw:shrink-0 tw:grow-0 tw:basis-7 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:enabled:hover:bg-app-hover tw:enabled:hover:text-app-text"
           disabled={disabled}
           type="button"
         >
@@ -80,7 +80,7 @@ export function ProjectAppearancePicker({
             value={color}
           >
             <RadioGroup.Indicator>
-              <Check aria-hidden="true" className="tw:text-app-canvas" size={APP_ICON_SIZES.sm} />
+              <Check aria-hidden="true" className="tw:size-icon-sm tw:text-app-canvas" size={APP_ICON_SIZES.sm} />
             </RadioGroup.Indicator>
           </RadioGroup.Item>
         ))}
@@ -95,7 +95,7 @@ export function ProjectAppearancePicker({
           <RadioGroup.Item
             aria-label={iconLabel(icon)}
             className={cx(
-              'project-appearance-icon tw:inline-flex tw:size-6 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:hover:bg-app-hover tw:hover:text-app-text',
+              'project-appearance-icon tw:inline-flex tw:size-6 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:hover:bg-app-hover tw:hover:text-app-text',
               appearance.icon === icon
                 ? 'is-selected tw:bg-app-hover tw:text-app-text'
                 : 'tw:text-app-text-soft',

@@ -816,7 +816,7 @@ export function LineCommentButton({
   return (
     <button
       aria-label="添加行内评论"
-      className="review-line-comment-button tw:absolute tw:top-0 tw:right-0 tw:z-4 tw:inline-flex tw:size-5 tw:min-w-5 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-accent tw:text-app-canvas tw:opacity-0 tw:group-hover/line-number:opacity-100 tw:group-has-[:focus-visible]/line-number:opacity-100"
+      className="review-line-comment-button tw:absolute tw:top-0 tw:right-0 tw:z-4 tw:inline-flex tw:size-5 tw:min-w-5 tw:items-center tw:justify-center tw:rounded-3 tw:bg-app-accent tw:text-app-canvas tw:opacity-0 tw:group-hover/line-number:opacity-100 tw:group-has-[:focus-visible]/line-number:opacity-100"
       disabled={disabled || !anchor}
       type="button"
       onClick={() => {
@@ -881,10 +881,10 @@ function CommentDraftEditor({
 }): React.ReactNode {
   const [body, setBody] = React.useState(initialBody)
   return (
-    <div className="review-comment draft tw:flex tw:flex-col tw:gap-1 tw:p-2 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised tw:text-app-text tw:type-2 tw:shadow-none">
+    <div className="review-comment draft tw:flex tw:flex-col tw:gap-1 tw:p-2 tw:border tw:border-app-border-subtle tw:rounded-4 tw:bg-app-raised tw:text-app-text tw:type-2 tw:shadow-none">
       <textarea
         autoFocus
-        className="tw:w-full tw:field-sizing-content tw:min-h-[5.385em] tw:max-h-[15rem] tw:resize-y tw:overflow-y-auto tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-2"
+        className="tw:w-full tw:field-sizing-content tw:min-h-[5.385em] tw:max-h-[15rem] tw:resize-y tw:overflow-y-auto tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-3 tw:bg-app-canvas tw:text-app-text tw:type-2"
         placeholder="写下这行的问题或修改建议"
         value={body}
         onChange={(event) => setBody(event.target.value)}
@@ -915,7 +915,7 @@ export function ReviewComment({
   return (
     <div
       className={cx(
-        'review-comment tw:flex tw:flex-col tw:gap-1 tw:p-2 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised tw:text-app-text tw:type-2 tw:shadow-none',
+        'review-comment tw:flex tw:flex-col tw:gap-1 tw:p-2 tw:border tw:border-app-border-subtle tw:rounded-4 tw:bg-app-raised tw:text-app-text tw:type-2 tw:shadow-none',
         comment.status === 'resolved' ? 'resolved tw:opacity-68' : 'open',
         stale && 'stale tw:border-dashed',
       )}
@@ -932,12 +932,12 @@ export function ReviewComment({
       <div className="review-comment-actions tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1">
         {comment.status === 'open' ? (
           <Button size="compact" type="button" onClick={onResolve}>
-            <CheckCircle2 size={APP_ICON_SIZES.sm} />
+            <CheckCircle2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
             解决
           </Button>
         ) : null}
         <Button size="compact" color="danger" type="button" onClick={onDelete}>
-          <Trash2 size={APP_ICON_SIZES.sm} />
+          <Trash2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
           删除
         </Button>
       </div>

@@ -98,7 +98,7 @@ export function GitBoardDetails({
             title={t('关闭详情')}
             onClick={onClose}
           >
-            <X size={16} />
+            <X className="tw:size-icon-md" size={16} />
           </Button>
         </Tooltip>
       </header>
@@ -139,7 +139,7 @@ export function GitBoardDetails({
                 key={file.path}
                 type="button"
                 aria-pressed={selectedPath === file.path}
-                className="tw:block tw:w-full tw:rounded-md tw:px-2 tw:py-2 tw:text-left tw:type-1 tw:break-all tw:hover:bg-app-hover tw:aria-pressed:bg-app-selected tw:focus-visible:outline-app-focus"
+                className="tw:block tw:w-full tw:rounded-3 tw:px-2 tw:py-2 tw:text-left tw:type-1 tw:break-all tw:hover:bg-app-hover tw:aria-pressed:bg-app-selected tw:focus-visible:outline-app-focus"
                 onClick={() => {
                   if (selectedPath === file.path) return
                   setDiff(null)

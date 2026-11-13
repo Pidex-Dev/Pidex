@@ -91,14 +91,14 @@ export function PullRequestPopover({
               type="button"
               onClick={onClose}
             >
-              <X size={APP_ICON_SIZES.sm} />
+              <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
             </Button>
           </header>
 
           <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-1">
             <span className="tw:weight-medium">标题</span>
             <input
-              className="tw:w-full tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-2 tw:weight-medium tw:resize-none"
+              className="tw:w-full tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-3 tw:bg-app-canvas tw:text-app-text tw:type-2 tw:weight-medium tw:resize-none"
               type="text"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
@@ -114,7 +114,7 @@ export function PullRequestPopover({
           <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-1">
             <span className="tw:weight-medium">描述（留空将自动生成）</span>
             <textarea
-              className="tw:min-h-9 tw:w-full tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-2 tw:weight-medium tw:resize-y"
+              className="tw:min-h-9 tw:w-full tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-3 tw:bg-app-canvas tw:text-app-text tw:type-2 tw:weight-medium tw:resize-y"
               placeholder="描述（留空将自动生成）..."
               rows={4}
               value={body}

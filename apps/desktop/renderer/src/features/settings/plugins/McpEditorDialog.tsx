@@ -327,7 +327,7 @@ export function McpEditorDialog({
               </Dialog.Description>
               <Button size="md" color="secondary" className="tw:mt-1" onClick={onOpenDocumentation}>
                 官方 MCP 文档
-                <ExternalLink aria-hidden="true" size={APP_ICON_SIZE} />
+                <ExternalLink className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               </Button>
             </span>
             <Dialog.Close asChild>
@@ -338,7 +338,7 @@ export function McpEditorDialog({
                 size="toolbar"
                 title="关闭 MCP 编辑器"
               >
-                <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               </Button>
             </Dialog.Close>
           </header>
@@ -678,7 +678,7 @@ export function McpEditorDialog({
             <span>
               {server?.removable ? (
                 <Button size="md" color="danger" disabled={busy} onClick={() => onRemove(server)}>
-                  <Trash2
+                  <Trash2 className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -746,9 +746,9 @@ const McpAdvancedDisclosure = memo(function McpAdvancedDisclosure({
         onClick={toggle}
       >
         {expanded ? (
-          <ChevronUp aria-hidden="true" size={APP_ICON_SIZES.sm} />
+          <ChevronUp className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
         ) : (
-          <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
+          <ChevronDown className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
         )}
         高级选项
       </button>
@@ -838,7 +838,7 @@ function ValueListField({
               title={`删除${label}`}
               onClick={() => onChange(removeValueRow(rows, row.id))}
             >
-              <Trash2
+              <Trash2 className="tw:size-icon-sm"
                 aria-hidden="true"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -847,7 +847,7 @@ function ValueListField({
           </div>
         ))}
         <Button color="primary" fullWidth onClick={() => onChange([...rows, createValueRow()])}>
-          <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           {addLabel}
         </Button>
       </div>
@@ -905,7 +905,7 @@ function MapListField({
               title={`删除${label}`}
               onClick={() => onChange(removeMapRow(rows, row.id))}
             >
-              <Trash2
+              <Trash2 className="tw:size-icon-sm"
                 aria-hidden="true"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -914,7 +914,7 @@ function MapListField({
           </div>
         ))}
         <Button color="primary" fullWidth onClick={() => onChange([...rows, createMapRow()])}>
-          <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           {addLabel}
         </Button>
       </div>
@@ -963,7 +963,7 @@ function ToolApprovalListField({
               title={`删除工具审批覆盖 ${index + 1}`}
               onClick={() => onChange(removeMapRow(rows, row.id))}
             >
-              <Trash2
+              <Trash2 className="tw:size-icon-sm"
                 aria-hidden="true"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -976,7 +976,7 @@ function ToolApprovalListField({
           fullWidth
           onClick={() => onChange([...rows, createMapRow('', 'auto')])}
         >
-          <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           添加工具覆盖
         </Button>
       </div>

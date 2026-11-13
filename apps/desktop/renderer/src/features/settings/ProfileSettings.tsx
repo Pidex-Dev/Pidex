@@ -126,7 +126,7 @@ export function ProfileSettings(): React.ReactNode {
                 disabled={!user?.htmlUrl}
                 onClick={() => user?.htmlUrl && void desktopClient.openExternalURL(user.htmlUrl)}
               >
-                <Edit3 size={APP_ICON_SIZE} />
+                <Edit3 className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 编辑
               </Button>
               <Button
@@ -135,7 +135,7 @@ export function ProfileSettings(): React.ReactNode {
                 onClick={() => void loadGithubAuth(true)}
                 title={loading ? '正在刷新中...' : '刷新'}
               >
-                <RefreshCw size={APP_ICON_SIZE} />
+                <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 {loading ? '刷新中...' : '刷新'}
               </Button>
             </div>
@@ -154,17 +154,17 @@ export function ProfileSettings(): React.ReactNode {
                     {user?.avatarUrl ? (
                       <RemoteImage
                         alt=""
-                        fallback={<User data-icon-kind="artwork" size={14} />}
+                        fallback={<User className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />}
                         src={user.avatarUrl}
                       />
                     ) : (
-                      <User data-icon-kind="artwork" size={14} />
+                      <User className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />
                     )}
                   </div>
                   {user ? (
                     <Popover.Trigger asChild>
                       <button
-                        className="profile-avatar-badge tw:type-2 tw:weight-medium tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-app-accent tw:focus-visible:ring-offset-2 tw:focus-visible:ring-offset-app-main tw:h-6 tw:min-h-6 tw:p-0 tw:aspect-square tw:shrink-0 tw:whitespace-nowrap tw:select-none tw:transition-[background-color,border-color,color,opacity,transform,box-shadow] tw:duration-150 tw:ease-out tw:[-webkit-app-region:no-drag] tw:absolute tw:-right-1 tw:-bottom-1 tw:w-6 tw:inline-flex tw:items-center tw:justify-center tw:rounded-sm tw:border-[3px] tw:border-transparent tw:bg-transparent tw:text-app-text-soft tw:text-[length:var(--cpx-sys-space-5)] tw:cursor-pointer tw:shadow-none tw:focus-visible:outline-solid tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+                        className="profile-avatar-badge tw:type-2 tw:weight-medium tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-app-accent tw:focus-visible:ring-offset-2 tw:focus-visible:ring-offset-app-main tw:h-6 tw:min-h-6 tw:p-0 tw:aspect-square tw:shrink-0 tw:whitespace-nowrap tw:select-none tw:transition-[background-color,border-color,color,opacity,transform,box-shadow] tw:duration-150 tw:ease-out tw:[-webkit-app-region:no-drag] tw:absolute tw:-right-1 tw:-bottom-1 tw:w-6 tw:inline-flex tw:items-center tw:justify-center tw:rounded-3 tw:border-[3px] tw:border-transparent tw:bg-transparent tw:text-app-text-soft tw:text-[length:var(--cpx-sys-space-5)] tw:cursor-pointer tw:shadow-none tw:focus-visible:outline-solid tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
                         aria-label={currentStatus?.message ?? '设置状态'}
                         onClick={openStatusEditor}
                         title={currentStatus?.message ?? '设置状态'}
@@ -186,7 +186,7 @@ export function ProfileSettings(): React.ReactNode {
                       >
                         ·
                       </span>
-                      <span className="profile-account-label tw:h-5 tw:rounded-md tw:border tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-1">
+                      <span className="profile-account-label tw:h-5 tw:rounded-3 tw:border tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-1">
                         GitHub
                       </span>
                     </>
@@ -207,23 +207,23 @@ export function ProfileSettings(): React.ReactNode {
                 {githubOverview ? (
                   <div className="profile-meta-line tw:mt-3 tw:flex tw:max-w-[640px] tw:flex-wrap tw:justify-center tw:gap-x-4 tw:gap-y-2 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-1)] tw:[&>span]:inline-flex tw:[&>span]:min-w-0 tw:[&>span]:items-center tw:[&>span]:gap-1 tw:[&>span]:[overflow-wrap:anywhere] tw:[&_svg]:size-[var(--inline-icon-size,1em)]">
                     <ProfileMeta
-                      icon={<User size={APP_ICON_SIZES.sm} />}
+                      icon={<User className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                       value={`${githubOverview.user.followers} followers`}
                     />
                     <ProfileMeta
-                      icon={<GitFork size={APP_ICON_SIZES.sm} />}
+                      icon={<GitFork className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                       value={`${githubOverview.user.following} following`}
                     />
                     <ProfileMeta
-                      icon={<MapPin size={APP_ICON_SIZES.sm} />}
+                      icon={<MapPin className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                       value={githubOverview.user.location}
                     />
                     <ProfileMeta
-                      icon={<Globe size={APP_ICON_SIZES.sm} />}
+                      icon={<Globe className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                       value={githubOverview.user.websiteUrl}
                     />
                     <ProfileMeta
-                      icon={<Mail size={APP_ICON_SIZES.sm} />}
+                      icon={<Mail className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                       value={githubOverview.user.email}
                     />
                   </div>
@@ -233,7 +233,7 @@ export function ProfileSettings(): React.ReactNode {
               {githubOverview ? (
                 <>
                   <section
-                    className="profile-stat-strip tw:mx-auto tw:mt-7 tw:flex tw:min-h-[3.75rem] tw:max-w-[732px] tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:max-[760px]:grid tw:max-[760px]:grid-cols-2"
+                    className="profile-stat-strip tw:mx-auto tw:mt-7 tw:flex tw:min-h-[3.75rem] tw:max-w-[732px] tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:max-[760px]:grid tw:max-[760px]:grid-cols-2"
                     aria-label="GitHub 统计"
                   >
                     <ProfileMetric label="公开仓库" value={githubOverview.user.repositoryCount} />
@@ -336,7 +336,7 @@ export function ProfileSettings(): React.ReactNode {
                   </section>
                 </>
               ) : (
-                <section className="profile-empty-state tw:mx-auto tw:mt-7 tw:max-w-[520px] tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-5 tw:py-7 tw:text-center tw:text-app-text-soft tw:shadow-none">
+                <section className="profile-empty-state tw:mx-auto tw:mt-7 tw:max-w-[520px] tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-5 tw:py-7 tw:text-center tw:text-app-text-soft tw:shadow-none">
                   <p>
                     {githubOverviewError ??
                       githubAuth?.error ??
@@ -350,7 +350,7 @@ export function ProfileSettings(): React.ReactNode {
                       onClick={() => void loadGithubAuth(true)}
                       type="button"
                     >
-                      <RefreshCw size={APP_ICON_SIZE} />
+                      <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
                       刷新
                     </Button>
                     <Button
@@ -392,7 +392,7 @@ export function ProfileSettings(): React.ReactNode {
               </Button>
             </Popover.Close>
           </div>
-          <div className="profile-status-field tw:block tw:p-3 tw:[&>span]:mb-2 tw:[&>span]:block tw:[&>span]:text-app-text tw:[&>span]:type-row-title tw:[&>div]:grid tw:[&>div]:grid-cols-[160px_minmax(0,1fr)] tw:[&>div]:gap-2 tw:[&_input]:rounded-md tw:[&_input]:border tw:[&_input]:border-app-border tw:[&_input]:bg-app-canvas tw:[&_input]:px-2 tw:[&_input]:py-1 tw:[&_input]:text-app-text tw:[&_input]:type-body">
+          <div className="profile-status-field tw:block tw:p-3 tw:[&>span]:mb-2 tw:[&>span]:block tw:[&>span]:text-app-text tw:[&>span]:type-row-title tw:[&>div]:grid tw:[&>div]:grid-cols-[160px_minmax(0,1fr)] tw:[&>div]:gap-2 tw:[&_input]:rounded-3 tw:[&_input]:border tw:[&_input]:border-app-border tw:[&_input]:bg-app-canvas tw:[&_input]:px-2 tw:[&_input]:py-1 tw:[&_input]:text-app-text tw:[&_input]:type-body">
             <span>What's happening</span>
             <div>
               <SettingsDropdown
@@ -453,22 +453,22 @@ function ProfileLoadingSkeleton(): React.ReactNode {
     >
       <section className="profile-loading-hero tw:flex tw:flex-col tw:items-center tw:gap-2">
         <SkeletonBlock className="profile-loading-avatar tw:mx-0 tw:mb-2 tw:size-[5rem] tw:rounded-pill" />
-        <SkeletonBlock className="profile-loading-name tw:h-6 tw:w-[9rem] tw:rounded-md" />
-        <SkeletonBlock className="profile-loading-identity tw:h-4 tw:w-[6.5rem] tw:rounded-md" />
+        <SkeletonBlock className="profile-loading-name tw:h-6 tw:w-[9rem] tw:rounded-3" />
+        <SkeletonBlock className="profile-loading-identity tw:h-4 tw:w-[6.5rem] tw:rounded-3" />
       </section>
       <section className="profile-loading-stats" aria-hidden="true">
         {Array.from({ length: 5 }, (_, index) => (
           <div key={index}>
-            <SkeletonBlock className="tw:h-[18px] tw:w-[42px] tw:rounded-md" />
-            <SkeletonBlock className="tw:h-[14px] tw:w-[62px] tw:rounded-md" />
+            <SkeletonBlock className="tw:h-[18px] tw:w-[42px] tw:rounded-3" />
+            <SkeletonBlock className="tw:h-[14px] tw:w-[62px] tw:rounded-3" />
           </div>
         ))}
       </section>
       <section className="profile-loading-activity tw:flex tw:flex-col tw:gap-3" aria-hidden="true">
-        <SkeletonBlock className="profile-loading-heading tw:h-4 tw:w-[5.75rem] tw:rounded-md" />
+        <SkeletonBlock className="profile-loading-heading tw:h-4 tw:w-[5.75rem] tw:rounded-3" />
         <div className="profile-loading-contributions tw:grid tw:grid-cols-12 tw:gap-1">
           {Array.from({ length: 84 }, (_, index) => (
-            <SkeletonBlock key={index} className="tw:aspect-square tw:w-full tw:rounded-md" />
+            <SkeletonBlock key={index} className="tw:aspect-square tw:w-full tw:rounded-3" />
           ))}
         </div>
       </section>
@@ -478,12 +478,12 @@ function ProfileLoadingSkeleton(): React.ReactNode {
       >
         <div>
           {Array.from({ length: 5 }, (_, index) => (
-            <SkeletonBlock key={index} className="tw:h-4 tw:w-full tw:rounded-md" />
+            <SkeletonBlock key={index} className="tw:h-4 tw:w-full tw:rounded-3" />
           ))}
         </div>
         <div>
           {Array.from({ length: 5 }, (_, index) => (
-            <SkeletonBlock key={index} className="tw:h-4 tw:w-full tw:rounded-md" />
+            <SkeletonBlock key={index} className="tw:h-4 tw:w-full tw:rounded-3" />
           ))}
         </div>
       </section>
@@ -532,7 +532,7 @@ function ProfileRepositoryRow({
 }): React.ReactNode {
   return (
     <button
-      className="profile-repository-row tw:mt-1 tw:flex tw:min-h-5 tw:w-full tw:cursor-pointer tw:items-center tw:justify-between tw:gap-3 tw:border-0 tw:bg-transparent tw:py-1 tw:text-left tw:text-app-text-soft tw:type-2 tw:hover:[&_.profile-repository-name]:text-app-accent-fg tw:focus-visible:rounded-md tw:focus-visible:outline-solid tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+      className="profile-repository-row tw:mt-1 tw:flex tw:min-h-5 tw:w-full tw:cursor-pointer tw:items-center tw:justify-between tw:gap-3 tw:border-0 tw:bg-transparent tw:py-1 tw:text-left tw:text-app-text-soft tw:type-2 tw:hover:[&_.profile-repository-name]:text-app-accent-fg tw:focus-visible:rounded-3 tw:focus-visible:outline-solid tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
       onClick={() => void desktopClient.openExternalURL(repository.url)}
       type="button"
     >
@@ -546,7 +546,7 @@ function ProfileRepositoryRow({
         {repository.fullName}
       </span>
       <span className="profile-repository-count tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:text-app-text-soft tw:tabular-nums tw:[&_svg]:size-[var(--inline-icon-size,1em)]">
-        <Star size={APP_ICON_SIZE} />
+        <Star className="tw:size-icon-md" size={APP_ICON_SIZE} />
         {repository.stargazerCount.toLocaleString()}
       </span>
     </button>

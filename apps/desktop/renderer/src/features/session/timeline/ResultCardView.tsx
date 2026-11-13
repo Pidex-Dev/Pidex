@@ -172,7 +172,7 @@ function ResultCardSectionView({ section }: { section: ResultCardSection }): Rea
             {expanded ? '收起' : `再显示 ${hiddenCount} 项`}
             <ChevronDown
               aria-hidden="true"
-              className={expanded ? 'is-expanded' : undefined}
+              className={`tw:size-icon-sm ${expanded ? 'is-expanded' : undefined}`}
               size={APP_ICON_SIZES.sm}
             />
           </button>

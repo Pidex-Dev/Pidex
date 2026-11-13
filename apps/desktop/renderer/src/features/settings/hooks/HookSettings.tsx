@@ -175,9 +175,9 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
           </span>
         )
       }
-      return <FishingHook size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      return <FishingHook className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
     }
-    return <Settings size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    return <Settings className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
   }
 
   return (
@@ -204,7 +204,7 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
               aria-hidden="true"
               size={APP_ICON_SIZE}
               strokeWidth={APP_ICON_STROKE_WIDTH}
-              className={loading ? 'tw:animate-spin' : undefined}
+              className={`tw:size-icon-md ${loading ? 'tw:animate-spin' : undefined}`}
             />
           </Button>
         </header>
@@ -305,7 +305,7 @@ function HookGroupCard({
       className="tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-3 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3 tw:text-left tw:transition-colors tw:hover:bg-app-surface-hover tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-app-focus"
     >
       <div className="tw:flex tw:min-w-0 tw:items-center tw:gap-3">
-        <span className="tw:flex tw:size-6 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-lg tw:text-app-text-soft">
+        <span className="tw:flex tw:size-6 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-4 tw:text-app-text-soft">
           {icon}
         </span>
         <div className="tw:grid tw:min-w-0 tw:gap-1">
@@ -321,7 +321,7 @@ function HookGroupCard({
         aria-hidden="true"
         size={APP_ICON_SIZE}
         strokeWidth={APP_ICON_STROKE_WIDTH}
-        className="tw:shrink-0 tw:text-app-text-soft"
+        className="tw:size-icon-md tw:shrink-0 tw:text-app-text-soft"
       />
     </button>
   )
@@ -355,7 +355,7 @@ function HookGroupDialog({
     <Dialog.Root open={group !== null} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
-        <Dialog.Content className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-5 tw:rounded-2xl tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl">
+        <Dialog.Content className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-5 tw:rounded-5 tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl">
           {group ? (
             <>
               <div className="tw:flex tw:items-start tw:justify-between tw:gap-3 tw:shrink-0">
@@ -380,7 +380,7 @@ function HookGroupDialog({
                     title="关闭"
                     aria-label="关闭"
                   >
-                    <X
+                    <X className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -391,7 +391,7 @@ function HookGroupDialog({
 
               {actionError ? (
                 <div
-                  className="tw:mt-3 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:type-1 tw:text-app-danger"
+                  className="tw:mt-3 tw:rounded-4 tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:type-1 tw:text-app-danger"
                   role="alert"
                 >
                   {actionError}
@@ -403,12 +403,12 @@ function HookGroupDialog({
                   {group.diagnostics.map((diagnostic) => (
                     <div
                       key={`${diagnostic.code}:${diagnostic.message}`}
-                      className="tw:flex tw:items-start tw:gap-2 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-canvas/60 tw:px-3 tw:py-2 tw:type-1 tw:text-app-text-soft"
+                      className="tw:flex tw:items-start tw:gap-2 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-canvas/60 tw:px-3 tw:py-2 tw:type-1 tw:text-app-text-soft"
                     >
                       <AlertTriangle
                         aria-hidden="true"
                         size={14}
-                        className="tw:mt-1 tw:shrink-0 tw:text-app-warning"
+                        className="tw:size-icon-sm tw:mt-1 tw:shrink-0 tw:text-app-warning"
                       />
                       <span>{diagnostic.message}</span>
                     </div>
@@ -467,7 +467,7 @@ function HookGroupDialog({
                                       void desktopClient.openPathWithDefaultTarget(hook.filePath)
                                     }
                                   >
-                                    <ExternalLink
+                                    <ExternalLink className="tw:size-icon-sm"
                                       aria-hidden="true"
                                       size={14}
                                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -484,13 +484,13 @@ function HookGroupDialog({
                                     onClick={() => onToggleExpand(hook.identity)}
                                   >
                                     {expanded ? (
-                                      <ChevronUp
+                                      <ChevronUp className="tw:size-icon-sm"
                                         aria-hidden="true"
                                         size={14}
                                         strokeWidth={APP_ICON_STROKE_WIDTH}
                                       />
                                     ) : (
-                                      <ChevronDown
+                                      <ChevronDown className="tw:size-icon-sm"
                                         aria-hidden="true"
                                         size={14}
                                         strokeWidth={APP_ICON_STROKE_WIDTH}

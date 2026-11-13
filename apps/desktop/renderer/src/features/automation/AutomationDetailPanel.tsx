@@ -113,7 +113,7 @@ export function AutomationDetailPanel({
               aria-label={exitPending === 'back' ? '再按一次返回' : '返回当日议程'}
               onClick={onBack}
             >
-              <ArrowLeft aria-hidden="true" size={APP_ICON_SIZE} />
+              <ArrowLeft className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               {exitPending === 'back' ? '再按一次返回' : null}
             </Button>
           ) : null}
@@ -146,7 +146,7 @@ export function AutomationDetailPanel({
             {exitPending === 'close' ? (
               '再按一次退出'
             ) : (
-              <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             )}
           </Button>
         </div>
@@ -447,7 +447,7 @@ export function AutomationDetailPanel({
               role="note"
             >
               <AlertTriangle
-                className="tw:mt-1 tw:flex-none"
+                className="tw:size-icon-md tw:mt-1 tw:flex-none"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
               />
@@ -662,7 +662,7 @@ function RunHistory({
                 </time>
                 {run.status === 'running' || run.status === 'queued' ? (
                   <Play
-                    className="tw:col-start-2 tw:text-app-info-fg"
+                    className="tw:size-icon-md tw:col-start-2 tw:text-app-info-fg"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                   />

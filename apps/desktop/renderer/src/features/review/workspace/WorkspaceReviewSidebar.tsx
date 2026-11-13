@@ -137,7 +137,7 @@ const REVIEW_SIDEBAR_TOOLBAR_CLASS =
   'tw:box-border tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:min-h-8 tw:items-start tw:gap-2 tw:bg-app-dock tw:px-2 tw:py-2 tw:shadow-none'
 const REVIEW_COUNTS_CLASS = 'tw:inline-flex tw:items-center tw:gap-2'
 const REVIEW_FOOTER_CLASS =
-  'tw:absolute tw:bottom-3 tw:left-1/2 tw:z-local tw:flex tw:-translate-x-1/2 tw:items-center tw:justify-center tw:gap-4 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:shadow-none'
+  'tw:absolute tw:bottom-3 tw:left-1/2 tw:z-local tw:flex tw:-translate-x-1/2 tw:items-center tw:justify-center tw:gap-4 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:shadow-none'
 
 function reviewDiffExpansionFromKeys(
   allPaths: readonly string[],
@@ -2279,7 +2279,7 @@ function WorkspaceReviewSidebarImpl({
                 size="md"
                 trigger={
                   <button
-                    className="review-branch-range__trigger tw:inline-flex tw:min-w-0 tw:max-w-[54%] tw:items-center tw:gap-1 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text"
+                    className="review-branch-range__trigger tw:inline-flex tw:min-w-0 tw:max-w-[54%] tw:items-center tw:gap-1 tw:rounded-3 tw:px-2 tw:py-1 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text"
                     type="button"
                   >
                     <span className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
@@ -2373,7 +2373,7 @@ function WorkspaceReviewSidebarImpl({
               title="搜索文件"
               onClick={() => fileSearchInputRef.current?.focus()}
             >
-              <Search size={APP_ICON_SIZES.sm} />
+              <Search className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
             </Button>
           </Tooltip>
           <div
@@ -2401,7 +2401,7 @@ function WorkspaceReviewSidebarImpl({
                   void refreshReviewDiff(true)
                 }}
               >
-                <RotateCcw size={APP_ICON_SIZE} />
+                <RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </Tooltip>
             <Tooltip content="自动换行">
@@ -2413,7 +2413,7 @@ function WorkspaceReviewSidebarImpl({
                 aria-pressed={wordWrap}
                 onClick={() => setWordWrap((value) => !value)}
               >
-                <WrapText size={APP_ICON_SIZE} />
+                <WrapText className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </Tooltip>
             <ReviewDiffExpansionToggle
@@ -2431,9 +2431,9 @@ function WorkspaceReviewSidebarImpl({
                 onClick={onToggleReviewView}
               >
                 {reviewView === 'inline' ? (
-                  <Columns2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Columns2 className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 ) : (
-                  <Rows2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Rows2 className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 )}
               </Button>
             </Tooltip>
@@ -2448,7 +2448,7 @@ function WorkspaceReviewSidebarImpl({
               title={hideFileList ? '显示文件' : '隐藏文件'}
               onClick={() => setHideFileList((value) => !value)}
             >
-              <Briefcase size={APP_ICON_SIZE} />
+              <Briefcase className="tw:size-icon-md" size={APP_ICON_SIZE} />
             </Button>
           </Tooltip>
         </div>
@@ -2456,7 +2456,7 @@ function WorkspaceReviewSidebarImpl({
 
       {largeWorkspaceMode && visibleFiles.length > 0 ? (
         <div
-          className="tw:mx-2 tw:mb-2 tw:flex tw:@max-[625px]:grid tw:@max-[625px]:grid-cols-[auto_minmax(0,1fr)] tw:min-h-8 tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-2xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-4 tw:type-2 tw:weight-medium"
+          className="tw:mx-2 tw:mb-2 tw:flex tw:@max-[625px]:grid tw:@max-[625px]:grid-cols-[auto_minmax(0,1fr)] tw:min-h-8 tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-4 tw:type-2 tw:weight-medium"
           role="status"
         >
           <Info className="tw:shrink-0 tw:text-app-accent" size="var(--inline-icon-size, 1em)" />
@@ -2470,7 +2470,7 @@ function WorkspaceReviewSidebarImpl({
                 disabled={selectedFileIndex <= 0}
                 onClick={() => handleSelectFile(visibleFiles[selectedFileIndex - 1]!.path)}
               >
-                <ChevronLeft size={APP_ICON_SIZE} />
+                <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </Tooltip>
             <Tooltip content="下一个文件">
@@ -2481,7 +2481,7 @@ function WorkspaceReviewSidebarImpl({
                 disabled={selectedFileIndex >= visibleFiles.length - 1}
                 onClick={() => handleSelectFile(visibleFiles[selectedFileIndex + 1]!.path)}
               >
-                <ChevronRight size={APP_ICON_SIZE} />
+                <ChevronRight className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </Tooltip>
           </div>
@@ -2576,7 +2576,7 @@ function WorkspaceReviewSidebarImpl({
               <SearchInput
                 ref={fileSearchInputRef}
                 aria-label="筛选文件"
-                className="review-file-search tw:w-full tw:min-h-6 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised"
+                className="review-file-search tw:w-full tw:min-h-6 tw:border tw:border-app-border-subtle tw:rounded-4 tw:bg-app-raised"
                 onChange={setSearch}
                 placeholder="筛选文件..."
                 value={search}
@@ -2644,7 +2644,7 @@ function WorkspaceReviewSidebarImpl({
                     if (!reviewMutationPending) revertAll()
                   }}
                 >
-                  <Undo2 size={APP_ICON_SIZE} />
+                  <Undo2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   还原全部
                 </Button>
               </Tooltip>
@@ -2656,7 +2656,7 @@ function WorkspaceReviewSidebarImpl({
                     if (!reviewMutationPending) stageAll()
                   }}
                 >
-                  <Plus size={APP_ICON_SIZE} />
+                  <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   暂存全部
                 </Button>
               </Tooltip>
@@ -2671,7 +2671,7 @@ function WorkspaceReviewSidebarImpl({
                     if (!reviewMutationPending) unstageAll()
                   }}
                 >
-                  <Undo2 size={APP_ICON_SIZE} />
+                  <Undo2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   取消暂存全部
                 </Button>
               </Tooltip>
@@ -2683,7 +2683,7 @@ function WorkspaceReviewSidebarImpl({
                     if (!reviewMutationPending) revertAll()
                   }}
                 >
-                  <Undo2 size={APP_ICON_SIZE} />
+                  <Undo2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   还原全部
                 </Button>
               </Tooltip>
@@ -2699,7 +2699,7 @@ function WorkspaceReviewSidebarImpl({
             disabled={pending || openComments.length === 0}
             onClick={() => void submitGithubReview('COMMENT')}
           >
-            <MessageSquarePlus size={APP_ICON_SIZE} />
+            <MessageSquarePlus className="tw:size-icon-md" size={APP_ICON_SIZE} />
             提交评论
           </Button>
           <Button
@@ -2707,7 +2707,7 @@ function WorkspaceReviewSidebarImpl({
             disabled={pending}
             onClick={() => void submitGithubReview('APPROVE')}
           >
-            <CheckCircle2 size={APP_ICON_SIZE} />
+            <CheckCircle2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
             批准
           </Button>
           <Button
@@ -2715,7 +2715,7 @@ function WorkspaceReviewSidebarImpl({
             color="danger"
             onClick={() => void submitGithubReview('REQUEST_CHANGES')}
           >
-            <RotateCcw size={APP_ICON_SIZE} />
+            <RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} />
             请求修改
           </Button>
         </footer>

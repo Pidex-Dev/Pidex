@@ -1063,12 +1063,12 @@ export const markdownRichThemeSpec = {
   },
   '&.cm-markdown-rich .cm-line:not(.cm-md-rich-code-block) + .cm-line.cm-md-rich-code-block, &.cm-markdown-rich .cm-line.cm-md-rich-code-block:first-child':
     {
-      borderTopLeftRadius: 'var(--cpx-sys-radius-lg)',
-      borderTopRightRadius: 'var(--cpx-sys-radius-lg)',
+      borderTopLeftRadius: 'var(--cpx-sys-radius-4)',
+      borderTopRightRadius: 'var(--cpx-sys-radius-4)',
     },
   '&.cm-markdown-rich .cm-line.cm-md-rich-code-block:not(:has(+ .cm-line.cm-md-rich-code-block))': {
-    borderBottomLeftRadius: 'var(--cpx-sys-radius-lg)',
-    borderBottomRightRadius: 'var(--cpx-sys-radius-lg)',
+    borderBottomLeftRadius: 'var(--cpx-sys-radius-4)',
+    borderBottomRightRadius: 'var(--cpx-sys-radius-4)',
   },
   '&.cm-markdown-rich .cm-md-rich-code-block-widget': {
     display: 'block',

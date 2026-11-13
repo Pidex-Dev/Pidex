@@ -32,7 +32,7 @@ type Props = {
  */
 const SECTION_CLASS = 'composer-status-section tw:min-w-0'
 const HEADER_CLASS =
-  'composer-status-header tw:flex tw:min-h-7 tw:items-center tw:justify-between tw:gap-3 tw:px-3 tw:pb-1 tw:pt-2'
+  'composer-status-header tw:flex tw:min-h-6 tw:items-center tw:justify-between tw:gap-3 tw:px-3 tw:pb-1 tw:pt-2'
 
 function renderQuotaRow(quota: ProviderQuotaWindow): React.ReactNode {
   const percent = quotaRemainingPercent(quota)
@@ -124,7 +124,7 @@ export function ComposerStatusOverlay({
         <span className="tw:flex tw:min-w-0 tw:items-center tw:gap-2">
           <Gauge
             aria-hidden="true"
-            className="tw:shrink-0 tw:text-app-text-meta"
+            className="tw:size-icon-md tw:shrink-0 tw:text-app-text-meta"
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />

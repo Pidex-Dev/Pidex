@@ -64,7 +64,7 @@ export function GitBoardSidebar(_props?: {
       aria-busy={ready === false}
       className="sidebar-git-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2"
     >
-      <header className="sidebar-pane-heading tw:flex tw:min-h-7 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
+      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
         <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('Git 看板')}</h2>
         <Tooltip content={t('刷新所有项目仓库')}>
           <Button
@@ -76,7 +76,7 @@ export function GitBoardSidebar(_props?: {
             disabled={refreshing}
             onClick={refresh}
           >
-            <RefreshCw size={APP_ICON_SIZE} />
+            <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
         </Tooltip>
       </header>

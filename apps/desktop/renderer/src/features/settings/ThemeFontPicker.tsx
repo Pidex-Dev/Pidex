@@ -97,14 +97,14 @@ export function ThemeFontPicker({
     if (option.externalStatus === 'not-downloaded' || option.externalStatus === 'error') {
       return {
         ...option,
-        trailing: <Download size={APP_ICON_SIZES.sm} aria-hidden="true" />,
+        trailing: <Download className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />,
         title: `${option.label}（点击下载）`,
       }
     }
     if (option.externalStatus === 'downloading') {
       return {
         ...option,
-        trailing: <Loader2 className="tw:animate-spin" size={APP_ICON_SIZES.sm} aria-hidden="true" />,
+        trailing: <Loader2 className="tw:size-icon-sm tw:animate-spin" size={APP_ICON_SIZES.sm} aria-hidden="true" />,
         title: `${option.label}（正在下载…）`,
       }
     }

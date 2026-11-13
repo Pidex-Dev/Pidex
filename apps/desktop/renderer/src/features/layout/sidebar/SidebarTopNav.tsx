@@ -308,7 +308,7 @@ export function SidebarHeader({
                       }}
                       title={timelineToggleTitle}
                     >
-                      <Bell aria-hidden="true" size={APP_ICON_SIZES.sm}>
+                      <Bell className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm}>
                         {hasUnread && (
                           <circle
                             cx="18"
@@ -343,7 +343,7 @@ export function SidebarHeader({
                         size="compact"
                         onClick={() => setSidebarActivityCoachmarkDismissed(true)}
                       >
-                        <X size={APP_ICON_SIZES.sm} />
+                        <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                       </Button>
                     </div>
                     <p className="tw:m-0 tw:type-1 tw:text-app-text">
@@ -364,7 +364,7 @@ export function SidebarHeader({
               onClick={onOpenCommandMenu}
               title={t('搜索任务')}
             >
-              <Search size={APP_ICON_SIZES.sm} />
+              <Search className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
             </Button>
           </div>
         ) : null}

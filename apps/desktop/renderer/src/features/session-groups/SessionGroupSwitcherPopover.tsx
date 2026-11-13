@@ -73,7 +73,7 @@ export function SessionGroupSwitcherPopover({
       footer={
         onCreate ? (
           <SearchablePopoverAction
-            icon={<Plus size={APP_ICON_SIZE} />}
+            icon={<Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             withArrow
             onClick={() => {
               onCreate()
@@ -94,16 +94,16 @@ export function SessionGroupSwitcherPopover({
           leading={
             <span className="popover-item-icon">
               {option.group ? (
-                <MessagesSquare size={APP_ICON_SIZE} />
+                <MessagesSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />
               ) : (
-                <Unlink size={APP_ICON_SIZE} />
+                <Unlink className="tw:size-icon-md" size={APP_ICON_SIZE} />
               )}
             </span>
           }
           trailing={
             selected ? (
               <Check
-                className="popover-item-check"
+                className="tw:size-icon-sm popover-item-check"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />

@@ -127,14 +127,14 @@ export function SettingsNav({ activeTab, workspacePath = null, onBack, onTabChan
     <ScrollArea
       aria-label={t('设置分类')}
       className="settings-nav-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
-      contentClassName="settings-nav-scroll-content tw:[--sidebar-leading-width:var(--cpx-sys-icon-size-sm)] tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2"
+      contentClassName="settings-nav-scroll-content tw:flex tw:min-w-0 tw:flex-col tw:gap-2 tw:px-2"
     >
-      <div className="settings-nav-header tw:grid tw:shrink-0 tw:gap-3">
+      <div className="settings-nav-header tw:grid tw:shrink-0 tw:gap-2">
         <SidebarRow
           asChild
-          className="settings-back-btn tw:gap-x-2 tw:mb-2 tw:px-1 tw:type-2 tw:weight-medium"
+          className="settings-back-btn tw:gap-x-2 tw:px-1 tw:type-2 tw:weight-medium"
           layout="grid"
-          leading={<ArrowLeft size={APP_ICON_SIZE} />}
+          leading={<ArrowLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />}
         >
           <button onClick={onBack} type="button">
             <span>{t('返回应用')}</span>
@@ -202,7 +202,7 @@ export function SettingsNav({ activeTab, workspacePath = null, onBack, onTabChan
                         leading={
                           <item.icon
                             size={APP_ICON_SIZE}
-                            className="settings-nav-icon tw:size-4 tw:text-current"
+                            className="settings-nav-icon tw:size-icon-md tw:text-current"
                           />
                         }
                       >

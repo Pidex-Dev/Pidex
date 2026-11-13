@@ -150,7 +150,7 @@ export function WorkbenchTabStrip({
                           {
                             kind: 'item' as const,
                             label: '固定预览',
-                            icon: <Pin size={APP_ICON_SIZE} />,
+                            icon: <Pin className="tw:size-icon-md" size={APP_ICON_SIZE} />,
                             onSelect: () => onPinTab(tab.id),
                           },
                         ]
@@ -180,11 +180,11 @@ export function WorkbenchTabStrip({
                             label: `移到${destTarget === 'sidebar' ? '侧边栏' : destTarget === 'bottom' ? '底部面板' : '右侧面板'}`,
                             icon:
                               destTarget === 'sidebar' ? (
-                                <PanelLeft size={APP_ICON_SIZE} />
+                                <PanelLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
                               ) : destTarget === 'bottom' ? (
-                                <MoveDown size={APP_ICON_SIZE} />
+                                <MoveDown className="tw:size-icon-md" size={APP_ICON_SIZE} />
                               ) : (
-                                <MoveRight size={APP_ICON_SIZE} />
+                                <MoveRight className="tw:size-icon-md" size={APP_ICON_SIZE} />
                               ),
                             onSelect: () => onMoveTab(target, destTarget, tab.id),
                           })),
@@ -196,7 +196,7 @@ export function WorkbenchTabStrip({
                           {
                             kind: 'item' as const,
                             label: '弹出到独立窗口',
-                            icon: <ExternalLink size={APP_ICON_SIZE} />,
+                            icon: <ExternalLink className="tw:size-icon-md" size={APP_ICON_SIZE} />,
                             onSelect: () => onPopOutTab(target, tab.id),
                           },
                         ]
@@ -206,7 +206,7 @@ export function WorkbenchTabStrip({
                   trigger={
                     <div
                       className={cx(
-                        'right-dock-tab-wrap tw:group tw:relative tw:flex tw:h-6 tw:min-w-[5.625rem] tw:max-w-[9.75rem] tw:flex-[1_1_156px] tw:items-center tw:overflow-hidden tw:rounded-md tw:border tw:border-transparent tw:px-2 tw:py-1 tw:shadow-none tw:transition-[background-color,border-color,color] tw:duration-state tw:ease-standard tw:[&.dragging]:opacity-50',
+                        'right-dock-tab-wrap tw:group tw:relative tw:flex tw:h-6 tw:min-w-[5.625rem] tw:max-w-[9.75rem] tw:flex-[1_1_156px] tw:items-center tw:overflow-hidden tw:rounded-3 tw:border tw:border-transparent tw:px-2 tw:py-1 tw:shadow-none tw:transition-[background-color,border-color,color] tw:duration-state tw:ease-standard tw:[&.dragging]:opacity-50',
                         active
                           ? 'active tw:bg-app-selected tw:text-app-text'
                           : 'tw:text-app-text-meta tw:hover:bg-app-hover tw:hover:text-app-text-soft tw:has-[:focus-visible]:bg-app-hover tw:has-[:focus-visible]:text-app-text-soft',
@@ -245,7 +245,7 @@ export function WorkbenchTabStrip({
                         aria-controls={`workbench-panel-${target}-${domId(tab.id)}`}
                         aria-selected={active}
                         className={cx(
-                          'right-dock-tab tw:pr-6 tw:relative tw:inline-flex tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:items-center tw:gap-2 tw:overflow-hidden tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:whitespace-nowrap tw:type-2 tw:weight-medium',
+                          'right-dock-tab tw:pr-6 tw:relative tw:inline-flex tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:items-center tw:gap-2 tw:overflow-hidden tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:whitespace-nowrap tw:type-2 tw:weight-medium',
                           active && 'active',
                           tab.kind === 'file-preview' && tab.preview && 'preview tw:italic',
                         )}
@@ -301,7 +301,7 @@ export function WorkbenchTabStrip({
                           onCloseTab(tab.id)
                         }}
                       >
-                        <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       </Button>
                     </div>
                   }
@@ -319,7 +319,7 @@ export function WorkbenchTabStrip({
               title="新建终端"
               onClick={onCreateTerminal}
             >
-              <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           ) : state.tabIds.length > 0 ? (
             <PopoverMenu
@@ -339,7 +339,7 @@ export function WorkbenchTabStrip({
                   size="toolbar"
                   title="添加标签"
                 >
-                  <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </Button>
               }
               onOpenChange={setMenuOpen}
@@ -409,7 +409,7 @@ export function WorkbenchTabStrip({
           title="关闭底部面板"
           onClick={onClosePanel}
         >
-          <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <X className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </Button>
       ) : null}
     </div>

@@ -50,7 +50,7 @@ function formatElapsed(since: number | null, now: number): string {
 }
 
 const ROW_CLASS =
-  'tw:grid tw:min-w-0 tw:grid-cols-[24px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-2 tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus'
+  'tw:grid tw:min-w-0 tw:grid-cols-[24px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-2 tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus'
 
 function DirectoryListRow({
   now,
@@ -95,11 +95,11 @@ function DirectoryListRow({
         <Tooltip content="停止该子智能体">
           <button
             aria-label={`停止 ${row.name}`}
-            className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+            className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
             type="button"
             onClick={() => onStop(row.taskId)}
           >
-            <Square aria-hidden="true" size={APP_ICON_SIZES.sm} />
+            <Square className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
           </button>
         </Tooltip>
       )}

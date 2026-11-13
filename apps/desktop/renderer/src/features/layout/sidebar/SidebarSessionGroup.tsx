@@ -416,13 +416,13 @@ function SidebarSessionGroupComponent({
         {
           kind: 'item',
           label: '重命名',
-          icon: <Pencil size={APP_ICON_SIZES.sm} />,
+          icon: <Pencil className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
           onSelect: () => requestRenameDialog(session),
         },
         {
           kind: 'item',
           label: '复制会话 ID',
-          icon: <Copy size={APP_ICON_SIZES.sm} />,
+          icon: <Copy className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
           onSelect: () => {
             void desktopClipboard.writeText(session.id)
           },
@@ -430,7 +430,7 @@ function SidebarSessionGroupComponent({
         {
           kind: 'item',
           label: '复制会话链接',
-          icon: <Link size={APP_ICON_SIZES.sm} />,
+          icon: <Link className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
           onSelect: () => {
             void desktopClipboard.writeText(buildThreadDeepLink(session.id))
           },
@@ -439,7 +439,7 @@ function SidebarSessionGroupComponent({
           ? {
               kind: 'item' as const,
               label: '复制工作目录',
-              icon: <Folder size={APP_ICON_SIZES.sm} />,
+              icon: <Folder className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
               onSelect: () => {
                 void desktopClipboard.writeText(session.workspacePath)
               },
@@ -448,7 +448,7 @@ function SidebarSessionGroupComponent({
         {
           kind: 'item',
           label: sessionReadStatusActionLabel(session),
-          icon: session.unreadAt ? <Eye size={APP_ICON_SIZES.sm} /> : <EyeOff size={APP_ICON_SIZES.sm} />,
+          icon: session.unreadAt ? <Eye className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} /> : <EyeOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
           onSelect: () => onToggleSessionUnread(session),
         },
         pullRequests.supported === false
@@ -456,7 +456,7 @@ function SidebarSessionGroupComponent({
           : {
               kind: 'item' as const,
               label: '关联 Pull Request',
-              icon: <GitPullRequest size={APP_ICON_SIZES.sm} />,
+              icon: <GitPullRequest className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
               onSelect: () => requestPullRequestLink(session.id),
             },
         { kind: 'separator' },
@@ -464,26 +464,26 @@ function SidebarSessionGroupComponent({
           ? {
               kind: 'item' as const,
               label: '取消置顶',
-              icon: <PinOff size={APP_ICON_SIZES.sm} />,
+              icon: <PinOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
               onSelect: () => onUnpinSession(session),
             }
           : {
               kind: 'item' as const,
               label: '置顶',
-              icon: <Pin size={APP_ICON_SIZES.sm} />,
+              icon: <Pin className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
               onSelect: () => onPinSession(session),
             },
         {
           kind: 'item',
           label: '归档',
-          icon: <Archive size={APP_ICON_SIZES.sm} />,
+          icon: <Archive className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
           onSelect: () => void onArchiveSessions([session]),
         },
         { kind: 'separator' },
         {
           kind: 'sub',
           label: '移动到分组',
-          icon: <FolderInput size={APP_ICON_SIZES.sm} />,
+          icon: <FolderInput className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
           layout: 'flex',
           children: moveToSectionActions,
         },
@@ -586,7 +586,7 @@ function SidebarSessionGroupComponent({
           {hasOverflow ? (
             <div
               className={cx(
-                'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-6 tw:items-center tw:gap-x-1 tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
+                'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-6 tw:items-center tw:gap-x-1 tw:rounded-3 tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
                 sessionIndent === 'gutter' && !showConversationIcon
                   ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
                   : 'tw:grid-cols-[var(--sidebar-row-columns)]',
@@ -831,7 +831,7 @@ function SidebarSessionRowComponent({
       >
         {titleRegenerating ? (
           <SkeletonBlock
-            className="sidebar-session-title sidebar-session-title--loading tw:h-[var(--cpx-sys-font-size-1)] tw:max-h-[var(--cpx-sys-font-size-1)] tw:min-h-[var(--cpx-sys-font-size-1)] tw:w-[min(7.5rem,72%)] tw:flex-none tw:rounded-sm"
+            className="sidebar-session-title sidebar-session-title--loading tw:h-[var(--cpx-sys-font-size-1)] tw:max-h-[var(--cpx-sys-font-size-1)] tw:min-h-[var(--cpx-sys-font-size-1)] tw:w-[min(7.5rem,72%)] tw:flex-none tw:rounded-3"
             label="正在更新会话标题"
           />
         ) : (
@@ -881,7 +881,7 @@ function SidebarSessionRowComponent({
       indent={showConversationIcon || sessionIndent === 'gutter' ? 'none' : 'session'}
       layout="grid"
       leading={
-        showConversationIcon ? <MessageCircle aria-hidden="true" size={APP_ICON_SIZES.sm} /> : undefined
+        showConversationIcon ? <MessageCircle className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} /> : undefined
       }
       leadingMode={showConversationIcon ? 'icon' : sessionIndent === 'gutter' ? 'none' : 'spacer'}
       onMouseOver={(event) => {
@@ -911,7 +911,7 @@ function SidebarSessionRowComponent({
               aria-label="工作树会话"
               title="工作树会话"
             >
-              <GitFork aria-hidden="true" size={APP_ICON_SIZES.sm} />
+              <GitFork className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
             </span>
           )}
           {showIndicators && session.isFork && (
@@ -921,7 +921,7 @@ function SidebarSessionRowComponent({
               aria-label="分叉会话"
               title="分叉会话"
             >
-              <Split aria-hidden="true" size={APP_ICON_SIZES.sm} />
+              <Split className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
             </span>
           )}
           {showIndicators && session.hasScheduledRun && (
@@ -931,7 +931,7 @@ function SidebarSessionRowComponent({
               aria-label="日程运行过的会话"
               title="日程运行过的会话"
             >
-              <Clock3 aria-hidden="true" size={APP_ICON_SIZES.sm} />
+              <Clock3 className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
             </span>
           )}
           {showPullRequestIcons &&
@@ -972,7 +972,7 @@ function SidebarSessionRowComponent({
                   size="compact"
                   title="取消置顶"
                 >
-                  <PinOff size={APP_ICON_SIZES.sm} />
+                  <PinOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </Button>
               ) : (
                 <Button
@@ -984,7 +984,7 @@ function SidebarSessionRowComponent({
                   size="compact"
                   title="置顶"
                 >
-                  <Pin size={APP_ICON_SIZES.sm} />
+                  <Pin className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </Button>
               )}
               <Button
@@ -996,7 +996,7 @@ function SidebarSessionRowComponent({
                 size="compact"
                 title="归档"
               >
-                <Archive size={APP_ICON_SIZES.sm} />
+                <Archive className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
               </Button>
             </div>
           ) : indicatorState === 'needs-input' ? (
@@ -1009,7 +1009,7 @@ function SidebarSessionRowComponent({
                 {indicatorState === 'error' ? (
                   <CircleAlert
                     aria-label="任务执行失败"
-                    className="sidebar-session-error tw:text-app-danger"
+                    className="tw:size-icon-sm sidebar-session-error tw:text-app-danger"
                     size={APP_ICON_SIZES.sm}
                   />
                 ) : indicatorState === 'unread' ? (

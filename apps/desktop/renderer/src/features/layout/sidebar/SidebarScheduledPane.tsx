@@ -77,7 +77,7 @@ export function SidebarScheduledPane(): ReactNode {
 
   return (
     <div className="sidebar-scheduled-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
-      <header className="sidebar-pane-heading tw:flex tw:min-h-7 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
+      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
         <SearchHeading
           title={<h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('已安排')}</h2>}
           search={
@@ -99,7 +99,7 @@ export function SidebarScheduledPane(): ReactNode {
           title={t('新建任务')}
         >
           <Link onClick={controller.cancelDraft} to="/automations?automationMode=create">
-            <Plus aria-hidden size={APP_ICON_SIZES.sm} />
+            <Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
           </Link>
         </Button>
       </header>
@@ -186,9 +186,9 @@ export function SidebarScheduledPane(): ReactNode {
                     }
                   >
                     {open ? (
-                      <ChevronDown size={APP_ICON_SIZES.sm} />
+                      <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                     ) : (
-                      <ChevronRight size={APP_ICON_SIZES.sm} />
+                      <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                     )}
                   </Button>
                   <SidebarRow

@@ -211,7 +211,7 @@ export function InlineApprovalCard({
       disabled={disabled}
       onClick={() => void act(onInterrupt)}
     >
-      <X size={APP_ICON_SIZES.sm} />
+      <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
     </button>
   ) : null
   const actions = (
@@ -260,7 +260,7 @@ export function InlineApprovalCard({
               aria-label="授权范围"
             >
               {scopeOptions.find((option) => option.scope === selectedScope)?.label}
-              <ChevronDown size={APP_ICON_SIZES.sm} />
+              <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
             </button>
           }
         >
@@ -322,7 +322,7 @@ export function InlineApprovalCard({
               disabled={disabled}
               aria-label="更多授权范围"
             >
-              <ChevronDown size={APP_ICON_SIZE} />
+              <ChevronDown className="tw:size-icon-md" size={APP_ICON_SIZE} />
             </button>
           }
         >
@@ -477,7 +477,7 @@ export function InlineApprovalCard({
                 <span className="inline-approval-permission-group-title tw:text-app-text-soft tw:type-1 tw:weight-medium">
                   {group.title}
                 </span>
-                <ul className="inline-approval-permission-group-items tw:m-0 tw:grid tw:list-none tw:gap-1 tw:rounded-lg tw:bg-app-editor tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-code tw:break-all">
+                <ul className="inline-approval-permission-group-items tw:m-0 tw:grid tw:list-none tw:gap-1 tw:rounded-4 tw:bg-app-editor tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-code tw:break-all">
                   {group.items.map((item) => (
                     <li className="tw:min-w-0 tw:truncate" key={item}>
                       {item}
@@ -558,14 +558,14 @@ export function InlineApprovalCard({
                 aria-controls={commandPreviewId}
                 type="button"
                 aria-expanded={isCommandExpanded}
-                className="tw:inline-flex tw:items-center tw:gap-1 tw:cursor-pointer tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1 tw:hover:bg-app-hover tw:hover:text-app-text"
+                className="tw:inline-flex tw:items-center tw:gap-1 tw:cursor-pointer tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1 tw:hover:bg-app-hover tw:hover:text-app-text"
                 onClick={() => setIsCommandExpanded((value) => !value)}
               >
                 {isCommandExpanded ? '折叠' : '展开'}
                 {isCommandExpanded ? (
-                  <ArrowUp size={APP_ICON_SIZE} />
+                  <ArrowUp className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 ) : (
-                  <ArrowDown size={APP_ICON_SIZE} />
+                  <ArrowDown className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 )}
               </button>
             </div>

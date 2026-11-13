@@ -159,7 +159,7 @@ function ReviewCommitSourceSubmenu({ children }: { children: React.ReactNode }):
         asChild
         className="popover-item popover-sub-trigger"
         leadingMode="none"
-        trailing={<ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />}
+        trailing={<ChevronRight className="tw:size-icon-sm popover-item-arrow" size={APP_ICON_SIZES.sm} />}
       >
         <DropdownMenu.SubTrigger tabIndex={-1}>
           <span className="popover-item-label">已提交</span>

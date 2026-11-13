@@ -57,7 +57,7 @@ export function ExtensionManagementRow({
           {showChevron ? (
             <ChevronRight
               size={16}
-              className="tw:text-app-text-meta tw:shrink-0 tw:ml-1"
+              className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0 tw:ml-1"
               aria-hidden="true"
             />
           ) : null}

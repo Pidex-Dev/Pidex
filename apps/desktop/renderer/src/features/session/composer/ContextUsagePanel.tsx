@@ -151,7 +151,7 @@ export function ContextUsagePanel({
   }
 
   return (
-    <div className="context-usage-panel tw:grid tw:w-[300px] tw:max-w-full tw:max-h-[min(392px,calc(100vh-124px))] tw:gap-3 tw:overflow-x-hidden tw:overflow-y-auto">
+    <div className="context-usage-panel tw:grid tw:w-[310px] tw:max-w-full tw:max-h-[min(392px,calc(100vh-124px))] tw:gap-3 tw:py-1 tw:px-2 tw:overflow-x-hidden tw:overflow-y-auto">
       <div className="tw:flex tw:items-center tw:justify-between tw:gap-3">
         <div className="tw:flex tw:min-w-0 tw:items-baseline tw:gap-2">
           <div
@@ -334,7 +334,7 @@ export function ContextUsagePanel({
                   style={{ opacity: active && active.id !== part.id ? 0.4 : 1 }}
                 >
                   <i
-                    className="tw:size-2 tw:rounded-2xs"
+                    className="tw:size-2 tw:rounded-1"
                     style={{ background: part.color }}
                     aria-hidden="true"
                   />

@@ -52,7 +52,7 @@ const HORIZONTAL_ROW_CONTENT_CLASS =
 const HORIZONTAL_ROW_CONTENT_REVERSE_CLASS = 'tw:min-w-full tw:justify-end tw:[direction:ltr]'
 const TILE_OPEN_CLASS = cx(
   'attachment-image-tile__open tw:flex tw:size-full tw:min-w-0 tw:min-h-0 tw:items-center tw:justify-center',
-  'tw:overflow-hidden tw:rounded-lg tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit',
+  'tw:overflow-hidden tw:rounded-4 tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit',
   'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-2',
 )
 const TILE_FALLBACK_CLASS =
@@ -295,7 +295,7 @@ export function AttachmentFileRow({
                 >
                   {isExpanded ? (
                     <>
-                      <ChevronUp
+                      <ChevronUp className="tw:size-icon-sm"
                         aria-hidden="true"
                         size={APP_ICON_SIZES.sm}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -415,7 +415,7 @@ export function AttachmentImageTile({
       <img alt={name} className="attachment-image-tile__image" src={source} />
     ) : (
       <span className={TILE_FALLBACK_CLASS}>
-        <Image aria-hidden="true" size={APP_ICON_SIZE} />
+        <Image className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
       </span>
     )
 
@@ -574,7 +574,7 @@ function AttachmentRemoveButton({
       size="iconMd"
       title={`移除 ${name}`}
     >
-      <X aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      <X className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
     </Button>
   )
 }

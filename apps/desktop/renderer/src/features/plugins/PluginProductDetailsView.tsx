@@ -88,7 +88,7 @@ export function PluginProductDetailsView({
           aria-hidden="true"
           className={cx(
             'catalog-details-view__icon',
-            'tw:inline-flex tw:size-9 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-container tw:text-app-text',
+            'tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-container tw:text-app-text',
             FORCED_COLORS_SURFACE_CLASS,
           )}
           data-plugin-tone={item.tone}
@@ -130,7 +130,7 @@ export function PluginProductDetailsView({
                 size="sm"
                 trigger={
                   <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多插件操作">
-                    <MoreHorizontal
+                    <MoreHorizontal className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -141,7 +141,7 @@ export function PluginProductDetailsView({
                 <PopoverItem
                   disabled={busy}
                   icon={
-                    <Trash2
+                    <Trash2 className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -155,7 +155,7 @@ export function PluginProductDetailsView({
             ) : null}
             {canTry ? (
               <Button color="primary" disabled={busy} onClick={() => onTryPrompt(prompts[0]!)}>
-                <MessageCircle
+                <MessageCircle className="tw:size-icon-md"
                   aria-hidden="true"
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -199,7 +199,7 @@ export function PluginProductDetailsView({
                 <span className="catalog-plugin-prompts__label tw:flex tw:min-w-0 tw:items-baseline tw:gap-1">
                   <PluginIcon
                     plugin={item}
-                    className="catalog-plugin-prompts__plugin-icon tw:shrink-0 tw:size-icon-sm tw:overflow-hidden tw:rounded-sm"
+                    className="catalog-plugin-prompts__plugin-icon tw:shrink-0 tw:size-icon-sm tw:overflow-hidden tw:rounded-3"
                     logoDarkSource={item.logoDarkSource}
                     logoSource={item.logoSource}
                     name={item.iconName}
@@ -212,7 +212,7 @@ export function PluginProductDetailsView({
                   </span>
                 </span>
                 <span className="catalog-plugin-prompts__arrow tw:inline-flex tw:size-6 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-text/10 tw:forced-colors:border">
-                  <ArrowRight
+                  <ArrowRight className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}

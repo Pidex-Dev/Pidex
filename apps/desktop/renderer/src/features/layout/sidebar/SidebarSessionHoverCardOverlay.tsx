@@ -75,7 +75,7 @@ function PullRequestRow({
             type="button"
             onClick={() => onUnlink(item)}
           >
-            <Unlink aria-hidden="true" size={APP_ICON_SIZES.sm} />
+            <Unlink className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
           </button>
         ) : null}
       </span>
@@ -115,7 +115,7 @@ export function SidebarSessionHoverCardOverlay({
             <input
               aria-label="任务名称"
               aria-busy={saving}
-              className="sidebar-session-hover-card-rename-input tw:col-span-full tw:h-5 tw:w-full tw:min-w-0 tw:rounded-md tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none"
+              className="sidebar-session-hover-card-rename-input tw:col-span-full tw:h-5 tw:w-full tw:min-w-0 tw:rounded-3 tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none"
               maxLength={160}
               readOnly={saving}
               ref={inputRef}
@@ -146,7 +146,7 @@ export function SidebarSessionHoverCardOverlay({
             >
               {regeneratingTitle ? (
                 <>
-                  <SkeletonBlock className="sidebar-session-hover-card-title__skeleton tw:h-[var(--cpx-sys-font-size-2)] tw:max-h-[var(--cpx-sys-font-size-2)] tw:min-h-[var(--cpx-sys-font-size-2)] tw:w-[8.5rem] tw:flex-none tw:rounded-sm" />
+                  <SkeletonBlock className="sidebar-session-hover-card-title__skeleton tw:h-[var(--cpx-sys-font-size-2)] tw:max-h-[var(--cpx-sys-font-size-2)] tw:min-h-[var(--cpx-sys-font-size-2)] tw:w-[8.5rem] tw:flex-none tw:rounded-3" />
                   <span className="tw:sr-only">正在更新会话标题</span>
                 </>
               ) : (
@@ -210,7 +210,7 @@ export function SidebarSessionHoverCardOverlay({
                   </span>
                   <GitBranch
                     aria-hidden="true"
-                    className="tw:flex-none tw:basis-3"
+                    className="tw:size-icon-sm tw:flex-none tw:basis-3"
                     size={APP_ICON_SIZES.sm}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />

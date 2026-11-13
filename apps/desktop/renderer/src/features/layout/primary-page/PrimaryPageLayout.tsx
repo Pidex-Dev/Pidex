@@ -60,7 +60,7 @@ export function PrimaryPageLayout({
                 search={search}
               />
             ) : (
-              <div className="primary-page-layout__title-row tw:flex tw:min-h-7 tw:min-w-0 tw:items-center">
+              <div className="primary-page-layout__title-row tw:flex tw:min-h-6 tw:min-w-0 tw:items-center">
                 <h1 className="primary-page-layout__title tw:text-app-text tw:type-7 tw:weight-bold">
                   {title}
                 </h1>
@@ -73,7 +73,7 @@ export function PrimaryPageLayout({
             ) : null}
           </div>
           {actions ? (
-            <div className="primary-page-layout__actions tw:flex tw:min-h-7 tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
+            <div className="primary-page-layout__actions tw:flex tw:min-h-6 tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
               {actions}
             </div>
           ) : null}

@@ -65,7 +65,7 @@ function DetailsDirective({
         onClick={() => setExpanded((current) => !current)}
         type="button"
       >
-        <ChevronRight size={APP_ICON_SIZES.sm} aria-hidden="true" />
+        <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
         {argument || '详情'}
       </button>
       <DisclosureContent expanded={expanded} id={contentId} mountPolicy="always">

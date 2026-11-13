@@ -161,7 +161,7 @@ export function TaskSchedulePanel({ query = '' }: { query?: string }) {
           <div
             role="status"
             aria-label="高优先级待处理"
-            className="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-app-border-subtle tw:p-3"
+            className="tw:grid tw:gap-2 tw:rounded-4 tw:border tw:border-app-border-subtle tw:p-3"
           >
             <strong>需要你处理 · {attention.length}</strong>
             {attention.map((o) => (
@@ -820,7 +820,7 @@ function TaskOccurrenceActions({
     operationId: crypto.randomUUID(),
   }
   return (
-    <article className="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-app-border-subtle tw:p-3">
+    <article className="tw:grid tw:gap-2 tw:rounded-4 tw:border tw:border-app-border-subtle tw:p-3">
       <strong>
         {new Date(occurrence.scheduledFor).toLocaleString()} · {occurrenceLabels[occurrence.status]}
       </strong>

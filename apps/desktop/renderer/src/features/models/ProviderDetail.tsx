@@ -56,12 +56,12 @@ export function ProviderDetail({
       <WorkspaceHeaderItem id="provider-detail" slot="left">
         <div className="model-center-provider-detail-header tw:flex tw:min-w-0 tw:items-center tw:gap-2">
           <div className="model-center-provider-identity tw:flex tw:min-w-0 tw:items-center tw:gap-2">
-            <span className="model-center-provider-identity-logo tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-md tw:text-app-text">
+            <span className="model-center-provider-identity-logo tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-3 tw:text-app-text">
               <ProviderIcon
                 foreground
                 className="tw:size-full"
                 imageClassName="tw:object-contain"
-                fallback={<Server aria-hidden size={14} data-icon-kind="artwork" strokeWidth={2} />}
+                fallback={<Server className="tw:size-icon-sm" aria-hidden size={14} data-icon-kind="artwork" strokeWidth={2} />}
                 logoURL={provider.logoURL}
                 providerID={provider.id}
               />
@@ -82,7 +82,7 @@ export function ProviderDetail({
 
       {feedback ? (
         <div
-          className="model-center-provider-feedback tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3 tw:text-app-text-soft tw:type-1"
+          className="model-center-provider-feedback tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3 tw:text-app-text-soft tw:type-1"
           role="status"
         >
           {feedback}

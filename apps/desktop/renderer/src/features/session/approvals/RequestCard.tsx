@@ -33,10 +33,10 @@ const WORKFLOW_CARD_CLASS: Record<RequestCardProps['variant'], string> = {
  * row that dims while disabled and keeps the pointer cursor neutral.
  */
 export const ASK_USER_QUESTION_NAV_BUTTON_CLASS =
-  'ask-user-question-nav-button tw:inline-flex tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-inherit tw:type-2 tw:disabled:cursor-default tw:disabled:opacity-45 tw:enabled:hover:cursor-default tw:enabled:hover:opacity-45'
+  'ask-user-question-nav-button tw:inline-flex tw:items-center tw:gap-1 tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-inherit tw:type-2 tw:disabled:cursor-default tw:disabled:opacity-45 tw:enabled:hover:cursor-default tw:enabled:hover:opacity-45'
 
 export const ASK_USER_QUESTION_PAGINATION_NAV_BUTTON_CLASS =
-  'ask-user-question-nav-button tw:inline-flex tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-1 tw:text-inherit tw:type-2 tw:disabled:cursor-default tw:disabled:opacity-45 tw:enabled:hover:cursor-default tw:enabled:hover:opacity-45'
+  'ask-user-question-nav-button tw:inline-flex tw:items-center tw:gap-1 tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-1 tw:text-inherit tw:type-2 tw:disabled:cursor-default tw:disabled:opacity-45 tw:enabled:hover:cursor-default tw:enabled:hover:opacity-45'
 
 export function RequestCard({
   title,
@@ -91,7 +91,7 @@ export function RequestCard({
       </fieldset>
       {error ? (
         <p
-          className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-1"
+          className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-4 tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-1"
           role="alert"
         >
           {error}

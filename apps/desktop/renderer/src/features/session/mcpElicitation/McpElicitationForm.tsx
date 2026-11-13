@@ -163,12 +163,12 @@ export function McpElicitationForm({
           拒绝
         </Button>
         <Button color="secondary" onClick={onCancel}>
-          <X size={APP_ICON_SIZE} />
+          <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
           取消
         </Button>
         <Button color="primary" onClick={handleSubmit}>
           提交
-          <CornerDownLeft size={APP_ICON_SIZE} />
+          <CornerDownLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
         </Button>
       </div>
     </RequestCard>
@@ -222,7 +222,7 @@ export function McpElicitationUnsupported({
           拒绝
         </Button>
         <Button color="secondary" onClick={onCancel}>
-          <X size={APP_ICON_SIZE} />
+          <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
           取消
         </Button>
       </div>

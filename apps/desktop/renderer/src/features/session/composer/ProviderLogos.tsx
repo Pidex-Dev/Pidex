@@ -17,7 +17,7 @@ export function ProviderLogo({
 }): React.ReactNode {
   const { source, override } = useProviderIconSource(logoURL, providerID)
   const [loadedSource, setLoadedSource] = useState<string>()
-  const fallback = <Server aria-hidden="true" size={14} data-icon-kind="artwork" strokeWidth={2} />
+  const fallback = <Server className="tw:size-icon-sm" aria-hidden="true" size={14} data-icon-kind="artwork" strokeWidth={2} />
 
   return (
     <span

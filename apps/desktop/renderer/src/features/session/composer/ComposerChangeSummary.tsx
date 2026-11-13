@@ -101,7 +101,7 @@ export function ComposerChangeSummary({
 
   return (
     <div
-      className="composer-change-summary tw:relative tw:flex tw:w-full tw:max-w-full tw:items-center tw:justify-center tw:self-center tw:gap-2 tw:box-border tw:rounded-xl tw:pointer-events-auto"
+      className="composer-change-summary tw:relative tw:flex tw:w-full tw:max-w-full tw:items-center tw:justify-center tw:self-center tw:gap-2 tw:box-border tw:rounded-5 tw:pointer-events-auto"
       ref={summaryRef}
     >
       {hasPlan || changedFileCount > 0 ? (
@@ -112,7 +112,7 @@ export function ComposerChangeSummary({
         >
           <div
             aria-label="任务变更摘要"
-            className="composer-change-summary__bar tw:relative tw:inline-flex tw:z-1 tw:h-6 tw:min-h-6 tw:w-auto tw:min-w-0 tw:max-w-full tw:flex-[1_1_auto] tw:items-center tw:justify-center tw:gap-0 tw:box-border tw:overflow-hidden tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-0 tw:text-app-text tw:type-1 tw:shadow-floating-outer tw:backdrop-blur-md"
+            className="composer-change-summary__bar tw:relative tw:inline-flex tw:z-1 tw:h-6 tw:min-h-6 tw:w-auto tw:min-w-0 tw:max-w-full tw:flex-[1_1_auto] tw:items-center tw:justify-center tw:gap-0 tw:box-border tw:overflow-hidden tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-0 tw:text-app-text tw:type-1 tw:shadow-floating-outer tw:backdrop-blur-md"
             role="group"
           >
             {hasPlan ? (
@@ -150,7 +150,7 @@ export function ComposerChangeSummary({
                   <TooltipContent
                     align="center"
                     aria-label="执行计划"
-                    className="composer-change-summary__plan-popover tw:z-tooltip tw:box-border tw:w-max tw:min-w-[min(16rem,calc(100vw-var(--cpx-sys-space-4)))] tw:max-w-[min(22rem,calc(100vw-var(--cpx-sys-space-4)))] tw:overflow-hidden tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text tw:shadow-lg tw:backdrop-blur-md"
+                    className="composer-change-summary__plan-popover tw:z-tooltip tw:box-border tw:w-max tw:min-w-[min(16rem,calc(100vw-var(--cpx-sys-space-4)))] tw:max-w-[min(22rem,calc(100vw-var(--cpx-sys-space-4)))] tw:overflow-hidden tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text tw:shadow-lg tw:backdrop-blur-md"
                     id={planPanelId}
                     ref={planPopoverRef}
                     side="top"
@@ -226,7 +226,7 @@ export function ComposerChangeSummary({
                   <TooltipContent
                     align="center"
                     aria-label="修改文件"
-                    className="composer-change-summary__files-popover tw:z-tooltip tw:box-border tw:w-max tw:min-w-[min(16rem,calc(100vw-var(--cpx-sys-space-4)))] tw:max-w-[min(22rem,calc(100vw-var(--cpx-sys-space-4)))] tw:overflow-hidden tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text tw:shadow-lg tw:backdrop-blur-md"
+                    className="composer-change-summary__files-popover tw:z-tooltip tw:box-border tw:w-max tw:min-w-[min(16rem,calc(100vw-var(--cpx-sys-space-4)))] tw:max-w-[min(22rem,calc(100vw-var(--cpx-sys-space-4)))] tw:overflow-hidden tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text tw:shadow-lg tw:backdrop-blur-md"
                     id={filesPanelId}
                     ref={filesPopoverRef}
                     side="top"
@@ -381,7 +381,7 @@ function ComposerReturnToBottomPresence({
         {running ? <EllipsisAnimationIcon /> : null}
         <ArrowDown
           aria-hidden="true"
-          className="composer-change-summary__down-arrow"
+          className="tw:size-icon-md composer-change-summary__down-arrow"
           size={APP_ICON_SIZE}
           strokeWidth={APP_ICON_STROKE_WIDTH}
         />
@@ -451,9 +451,9 @@ function ExecutionPlanStatusIcon({
       role="img"
     >
       {status === 'failed' ? (
-        <CircleX aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <CircleX className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
       ) : status === 'completed' ? (
-        <Check aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <Check className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
       ) : (
         <svg
           aria-hidden="true"

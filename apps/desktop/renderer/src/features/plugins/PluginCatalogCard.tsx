@@ -72,7 +72,7 @@ export function PluginCatalogCard({
           <span
             aria-hidden="true"
             className={cx(
-              'plugin-catalog-card__icon tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text',
+              'plugin-catalog-card__icon tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text',
               FORCED_COLORS_SURFACE_CLASS,
               statusClass,
             )}
@@ -141,14 +141,14 @@ export function PluginCatalogCard({
                   {action.kind === 'open-external' ? (
                     <>
                       {action.label}
-                      <ExternalLink
+                      <ExternalLink className="tw:size-icon-md"
                         aria-hidden="true"
                         size={APP_ICON_SIZE}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
                     </>
                   ) : (
-                    <Plus
+                    <Plus className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}

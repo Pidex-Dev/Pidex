@@ -104,11 +104,11 @@ export function ProviderConnectionDialog({
                   size="toolbar"
                   title="返回连接方式"
                 >
-                  <ChevronLeft size={APP_ICON_SIZE} aria-hidden />
+                  <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
                 </Button>
               ) : (
-                <span className="model-center-key-dialog-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
-                  <Link2 size={APP_ICON_SIZE} aria-hidden />
+                <span className="model-center-key-dialog-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
+                  <Link2 className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
                 </span>
               )}
               <div>
@@ -139,7 +139,7 @@ export function ProviderConnectionDialog({
             </div>
             <Dialog.Close asChild>
               <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭">
-                <X size={APP_ICON_SIZE} aria-hidden />
+                <X className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
               </Button>
             </Dialog.Close>
           </header>
@@ -153,11 +153,11 @@ export function ProviderConnectionDialog({
                   type="button"
                   onClick={() => setSelectedId(choice.id)}
                 >
-                  <span className="model-center-connection-choice-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft">
+                  <span className="model-center-connection-choice-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:bg-app-editor tw:text-app-text-soft">
                     {choice.kind === 'inference-key' ? (
-                      <KeyRound aria-hidden size={APP_ICON_SIZE} />
+                      <KeyRound className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
                     ) : (
-                      <ShieldCheck aria-hidden size={APP_ICON_SIZE} />
+                      <ShieldCheck className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
                     )}
                   </span>
                   <span className="model-center-connection-choice-text tw:grid tw:min-w-0 tw:gap-1">
@@ -171,7 +171,7 @@ export function ProviderConnectionDialog({
                 </button>
               ))}
               {choices.length === 0 ? (
-                <p className="model-center-account-section-empty tw:m-0 tw:rounded-lg tw:border tw:border-dashed tw:border-app-border-subtle tw:p-3 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]">
+                <p className="model-center-account-section-empty tw:m-0 tw:rounded-4 tw:border tw:border-dashed tw:border-app-border-subtle tw:p-3 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]">
                   当前供应商没有可在应用内建立的连接，请查看官方文档。
                 </p>
               ) : null}

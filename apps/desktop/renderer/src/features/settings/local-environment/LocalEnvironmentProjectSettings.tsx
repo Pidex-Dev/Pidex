@@ -109,7 +109,7 @@ export function LocalEnvironmentProjectSettings({
           >
             环境
           </Button>
-          <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+          <ChevronRight className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
           <Button
             color="ghostSecondary"
             size="toolbar"
@@ -119,7 +119,7 @@ export function LocalEnvironmentProjectSettings({
           </Button>
           {editing ? (
             <>
-              <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+              <ChevronRight className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               <span className="tw:text-app-text">编辑</span>
             </>
           ) : null}
@@ -240,7 +240,7 @@ function ProjectCard({
           disabled={busy || !catalog}
           onClick={() => void add()}
         >
-          <Plus size={APP_ICON_SIZE} />
+          <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />
         </Button>
       </div>
       {subEnvironments.map((item, index) => (

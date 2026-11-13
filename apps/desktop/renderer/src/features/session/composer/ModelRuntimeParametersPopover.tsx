@@ -67,15 +67,21 @@ export function ModelRuntimeParametersSummary({
   ModelRuntimeParametersPopoverProps,
   'maxContextTokens' | 'thinkingMode' | 'thinkingOptions' | 'showThinkingOptions'
 >): React.ReactElement {
+  const hasContextBadge = maxContextTokens != null
   return (
-    <span className="tw:inline-flex tw:h-6 tw:shrink-0 tw:items-center tw:gap-2 tw:px-2 tw:whitespace-nowrap tw:type-2 tw:weight-medium">
+    <span
+      className={cx(
+        'tw:inline-flex tw:h-5 tw:shrink-0 tw:items-center tw:justify-center tw:gap-2 tw:whitespace-nowrap tw:type-2 tw:weight-medium',
+        hasContextBadge ? 'tw:px-2' : 'tw:min-w-5 tw:px-0',
+      )}
+    >
       {showThinkingOptions ? (
         <span>{resolveThinkingLabel(thinkingOptions, thinkingMode)}</span>
       ) : null}
       {maxContextTokens != null ? (
         <Chip variant="info">{formatContextLimitLabel(maxContextTokens)}</Chip>
       ) : !showThinkingOptions ? (
-        <SlidersHorizontal size={APP_ICON_SIZES.md} aria-hidden="true" />
+        <SlidersHorizontal className="tw:size-icon-md" size={APP_ICON_SIZES.md} aria-hidden="true" />
       ) : null}
     </span>
   )
@@ -455,8 +461,8 @@ export function ModelRuntimeParametersPopover({
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       className={cx(
-        'composer-signal-trigger-btn tw:inline-flex tw:h-6 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:p-0',
-        'tw:rounded-pill tw:border-0 tw:bg-transparent tw:text-app-text-soft',
+        'composer-signal-trigger-btn tw:inline-flex tw:h-5 tw:min-w-5 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:p-0',
+        'tw:rounded-3 tw:border-0 tw:bg-transparent tw:text-app-text-soft',
         'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
         'tw:hover:bg-app-hover tw:hover:text-app-text',
         'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-2',

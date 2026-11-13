@@ -394,7 +394,7 @@ export function ModelSetupPage(): React.ReactNode {
       className="model-setup-page tw:grid tw:h-screen tw:w-full tw:min-w-0 tw:grid-rows-[36px_minmax(0,1fr)] tw:overflow-hidden tw:bg-app-canvas tw:text-app-text"
       ref={startupSurfaceReadyRef}
     >
-      <header className="model-setup-titlebar tw:flex tw:h-7 tw:[-webkit-app-region:drag] tw:min-w-0 tw:items-center tw:justify-between tw:border-b-[0.5px] tw:border-b-app-border-subtle">
+      <header className="model-setup-titlebar tw:flex tw:h-[36px] tw:[-webkit-app-region:drag] tw:min-w-0 tw:items-center tw:justify-between tw:border-b-[0.5px] tw:border-b-app-border-subtle">
         <span className="model-setup-brand tw:ps-4 tw:text-app-text-soft tw:type-2 tw:weight-medium tw:tracking-[0.01em]">
           Pidex
         </span>
@@ -498,8 +498,8 @@ export function ModelSetupPage(): React.ReactNode {
                       onMouseEnter={() => providerNav.setActive(index)}
                     >
                       <ProviderIcon
-                        className="model-setup-provider-logo tw:grid tw:size-icon-sm tw:shrink-0 tw:place-items-center tw:rounded-md tw:object-contain tw:[&_svg]:size-icon-sm tw:[&_svg]:text-app-text-meta"
-                        fallback={<Server data-icon-kind="artwork" size={14} aria-hidden />}
+                        className="model-setup-provider-logo tw:grid tw:size-icon-sm tw:shrink-0 tw:place-items-center tw:rounded-3 tw:object-contain tw:[&_svg]:size-icon-sm tw:[&_svg]:text-app-text-meta"
+                        fallback={<Server className="tw:size-icon-sm" data-icon-kind="artwork" size={14} aria-hidden />}
                         logoURL={provider.logoURL}
                         providerID={provider.providerID}
                       />
@@ -517,7 +517,7 @@ export function ModelSetupPage(): React.ReactNode {
                       >
                         {connected ? (
                           <>
-                            <Check size={APP_ICON_SIZES.sm} aria-hidden />
+                            <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden />
                             已连接
                           </>
                         ) : (
@@ -636,7 +636,7 @@ export function ModelSetupPage(): React.ReactNode {
                     setError(null)
                   }}
                 >
-                  <ChevronLeft size={APP_ICON_SIZE} aria-hidden />
+                  <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
                   更换供应商
                 </Button>
               </div>

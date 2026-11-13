@@ -23,7 +23,7 @@ export function SidebarPetsPane(): ReactNode {
   )
   return (
     <div className="sidebar-pets-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
-      <header className="sidebar-pane-heading tw:flex tw:min-h-7 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
+      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
         <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('宠物')}</h2>
         <Button
           color="ghostSecondary"
@@ -32,7 +32,7 @@ export function SidebarPetsPane(): ReactNode {
           title={t('宠物设置')}
           onClick={() => navigate('/settings/pets')}
         >
-          <Settings aria-hidden size={APP_ICON_SIZES.sm} />
+          <Settings className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
         </Button>
       </header>
       <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:shrink-0 tw:items-center tw:px-4 tw:text-app-text-meta tw:type-2">
@@ -59,7 +59,7 @@ export function SidebarPetsPane(): ReactNode {
                 labelClassName="tw:min-w-0 tw:gap-3"
                 leadingMode="none"
                 trailing={
-                  selected ? <Check aria-label={t('使用中')} size={APP_ICON_SIZES.sm} /> : undefined
+                  selected ? <Check className="tw:size-icon-sm" aria-label={t('使用中')} size={APP_ICON_SIZES.sm} /> : undefined
                 }
               >
                 <button

@@ -502,7 +502,7 @@ export function ProviderConnectionSection({
                           disabled={busy || keyEditor !== null}
                           onClick={() => setKeyEditor('new')}
                         >
-                          <Plus aria-hidden size={APP_ICON_SIZES.sm} />
+                          <Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
                           新增 API Key
                         </Button>{' '}
                       </header>
@@ -730,7 +730,7 @@ export function ProviderConnectionSection({
                         if (method.kind === 'external') {
                           return (
                             <div
-                              className="tw:grid tw:min-w-0 tw:gap-3 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-4"
+                              className="tw:grid tw:min-w-0 tw:gap-3 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-4"
                               key={source.sourceId}
                             >
                               <div className="tw:flex tw:min-w-0 tw:items-start tw:justify-between tw:gap-3">
@@ -753,7 +753,7 @@ export function ProviderConnectionSection({
                                     void desktopClient.openExternalURL(method.consoleUrl)
                                   }
                                 >
-                                  <ExternalLink aria-hidden size={APP_ICON_SIZE} />
+                                  <ExternalLink className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
                                   打开控制台
                                 </Button>
                               </div>
@@ -763,7 +763,7 @@ export function ProviderConnectionSection({
                         if (source.availability !== 'queryable') {
                           return (
                             <div
-                              className="tw:flex tw:min-w-0 tw:items-start tw:justify-between tw:gap-3 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-4"
+                              className="tw:flex tw:min-w-0 tw:items-start tw:justify-between tw:gap-3 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-4"
                               key={source.sourceId}
                             >
                               <div>
@@ -844,7 +844,7 @@ function ApiKeyRowItem({
 }: ApiKeyRowItemProps): React.ReactNode {
   return (
     <article
-      className="model-center-key-row tw:grid tw:min-w-0 tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-md tw:px-3 tw:py-2 tw:hover:bg-app-hover"
+      className="model-center-key-row tw:grid tw:min-w-0 tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-3 tw:px-3 tw:py-2 tw:hover:bg-app-hover"
       data-disabled={!keyItem.enabled || undefined}
     >
       <div
@@ -870,7 +870,7 @@ function ApiKeyRowItem({
           disabled={busy}
           onClick={onCopy}
         >
-          <Copy aria-hidden size={APP_ICON_SIZE} />
+          <Copy className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
         </Button>
         <Button
           color="ghostSecondary"
@@ -880,7 +880,7 @@ function ApiKeyRowItem({
           disabled={busy}
           onClick={onTest}
         >
-          <Activity aria-hidden size={APP_ICON_SIZE} />
+          <Activity className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
         </Button>
         <Dropdown
           size="sm"
@@ -892,7 +892,7 @@ function ApiKeyRowItem({
               aria-label={`操作 ${keyItem.label}`}
               disabled={busy}
             >
-              <MoreHorizontal aria-hidden size={APP_ICON_SIZE} />
+              <MoreHorizontal className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
             </Button>
           }
         >
