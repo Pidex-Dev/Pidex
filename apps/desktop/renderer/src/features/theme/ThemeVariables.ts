@@ -1,5 +1,6 @@
 import { DEFAULT_CODE_FONT, DEFAULT_UI_FONT } from '../../../shared/Theme.js'
 import { deriveDesktopSurfaceUnder } from '@pidex/shared/desktop-theme'
+import { findExternalFontByFamily } from '@pidex/shared/desktop-external-fonts'
 import type { DesktopThemeConfigV1 } from '../../../shared/Types.js'
 import { fontFamilyWithFace } from './ThemeFontFaces.js'
 
@@ -82,6 +83,15 @@ const DEFAULT_DARK_SURFACE = '#111111'
 const DEFAULT_DARK_INK = '#eeeeee'
 const DEFAULT_DARK_CONTRAST = 60
 const DEFAULT_DARK_ACCENT = '#0169cc'
+
+function resolveFontFamilyStack(family: string | null | undefined, defaultStack: string): string {
+  if (!family) return defaultStack
+  const external = findExternalFontByFamily(family)
+  if (external) {
+    return `"${external.family}", ${defaultStack}`
+  }
+  return defaultStack
+}
 
 function normalizeHex(value: string): string {
   const hex = value.trim().toLowerCase().replace('#', '')
@@ -317,12 +327,12 @@ export function deriveThemeVariables(config: DesktopThemeConfigV1): ThemeVariabl
     // System Layer: Fonts
     '--cpx-sys-font-family-sans': fontFamilyWithFace(
       theme.fonts.uiFace,
-      theme.fonts.ui ?? DEFAULT_UI_FONT,
+      resolveFontFamilyStack(theme.fonts.ui, DEFAULT_UI_FONT),
       'ui',
     ),
     '--cpx-sys-font-family-mono': fontFamilyWithFace(
       theme.fonts.codeFace,
-      theme.fonts.code ?? DEFAULT_CODE_FONT,
+      resolveFontFamilyStack(theme.fonts.code, DEFAULT_CODE_FONT),
       'code',
     ),
 

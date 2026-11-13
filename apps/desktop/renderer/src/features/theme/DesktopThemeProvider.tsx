@@ -14,6 +14,8 @@ import {
 } from '../../../shared/Theme.js'
 import { deriveThemeVariables } from './ThemeVariables.js'
 import { applyThemeFontFaceStyles } from './ThemeFontFaces.js'
+import { ensureExternalFontLoaded } from './ThemeExternalFonts.js'
+import { findExternalFontByFamily } from '@pidex/shared/desktop-external-fonts'
 import {
   resolveStartupThemeSettings,
   withStartupThemeSeed,
@@ -169,6 +171,45 @@ export function DesktopThemeProvider({ children }: { children: React.ReactNode }
     const codeFace = config.theme.fonts.codeFace ?? null
     applyThemeFontFaceStyles(uiFace, codeFace)
   }, [draftResolvedVariant, draftSettings])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.DesktopBridge?.getExternalFontCss) return
+    let cancelled = false
+    const uiExternal = findExternalFontByFamily(draftSettings.fonts.ui)
+    const codeExternal = findExternalFontByFamily(draftSettings.fonts.code)
+    if (!uiExternal && !codeExternal) return
+
+    void (async () => {
+      const [uiLoaded, codeLoaded] = await Promise.all([
+        uiExternal ? ensureExternalFontLoaded(uiExternal.id) : Promise.resolve(true),
+        codeExternal ? ensureExternalFontLoaded(codeExternal.id) : Promise.resolve(true),
+      ])
+      if (cancelled) return
+      const missingUi = Boolean(uiExternal && !uiLoaded)
+      const missingCode = Boolean(codeExternal && !codeLoaded)
+      if (!missingUi && !missingCode) return
+
+      const current = draftSettingsRef.current
+      const nextFonts = {
+        ...current.fonts,
+        ...(missingUi && current.fonts.ui === uiExternal?.family
+          ? { ui: null, uiFace: null }
+          : {}),
+        ...(missingCode && current.fonts.code === codeExternal?.family
+          ? { code: null, codeFace: null }
+          : {}),
+      }
+      const nextSettings = normalizeDesktopThemeSettings({ ...current, fonts: nextFonts })
+      if (!desktopThemeSettingsEqual(current, nextSettings)) {
+        draftSettingsRef.current = nextSettings
+        setDraftSettings(nextSettings)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [draftSettings.fonts.code, draftSettings.fonts.ui])
 
   const persistSettings = useCallback(
     async (nextSettings: DesktopThemeSettings): Promise<DesktopThemeSettings> => {

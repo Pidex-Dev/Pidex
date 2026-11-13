@@ -20,6 +20,7 @@ import {
 } from '@pidex/shared/desktop-settings-ipc'
 import { DESKTOP_UPDATE_IPC_CHANNELS } from '@pidex/shared/desktop-update-ipc'
 import { registerAppearanceIpc } from './ipc/RegisterAppearanceIpc.js'
+import { ExternalFontService } from './settings/ExternalFontService.js'
 import { registerDataLocationIpc } from './ipc/RegisterDataLocationIpc.js'
 import { registerDesktopIpc } from './ipc/RegisterDesktopIpc.js'
 import { registerTerminalIpc } from './ipc/RegisterTerminalIpc.js'
@@ -369,11 +370,16 @@ async function startDesktop(): Promise<void> {
     controller: browserController,
     windowForSender: (sender) => windows?.windowForSender(sender),
   })
+  const externalFonts = new ExternalFontService({
+    rootDirectory: join(app.getPath('userData'), 'fonts'),
+    logger,
+  })
   registerAppearanceIpc(
     appearanceSettings,
     appearance,
     new AppearanceSettingsStore(app.getPath('userData'), logger),
     (sender) => windows?.isApplicationSender(sender) === true,
+    externalFonts,
   )
   registerDataLocationIpc({
     store: dataLocationStore,

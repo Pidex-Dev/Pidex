@@ -45,7 +45,6 @@ import type {
   DesktopReviewSource,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
-  DesktopSystemFontsResult,
   DesktopThemeSettings,
   DesktopThreadBookmarkList,
 } from '../../../shared/Types.js'
@@ -61,7 +60,6 @@ type DesktopClientWindow = {
     canRestorePreviousAppearance?(): Promise<boolean>
     restorePreviousAppearance?(): Promise<DesktopThemeSettings>
     applyNewDesignTheme?(): Promise<DesktopThemeSettings>
-    listSystemFonts?(): Promise<DesktopSystemFontsResult>
     getDesktopSettings?(): Promise<DesktopStoredSettings>
     saveDesktopSettings?(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
     onDesktopSettingsChange?(
