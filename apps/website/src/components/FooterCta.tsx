@@ -1,6 +1,7 @@
 import React from 'react'
 import { GITHUB_REPO_URL } from '../constants/Content'
-import { Github, ArrowUpRight, Sparkles } from 'lucide-react'
+import { ArrowUpRight, Sparkles } from 'lucide-react'
+import { GithubIcon } from './GithubIcon'
 
 export const FooterCta: React.FC = () => {
   return (
@@ -34,7 +35,7 @@ export const FooterCta: React.FC = () => {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2.5 rounded-full bg-[#FCFAF5] px-8 py-4 text-base font-bold text-[#17211D] shadow-lg transition-all duration-200 hover:bg-[#F4F0E7] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9936E]"
               >
-                <Github className="h-5 w-5" />
+                <GithubIcon className="h-5 w-5" />
                 <span>View on GitHub</span>
                 <ArrowUpRight className="h-4 w-4 opacity-70" />
               </a>

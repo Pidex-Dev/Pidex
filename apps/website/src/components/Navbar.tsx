@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { NAV_LINKS, GITHUB_REPO_URL } from '../constants/Content'
-import { Github, Menu, X, ArrowUpRight } from 'lucide-react'
+import { Menu, X, ArrowUpRight } from 'lucide-react'
+import { GithubIcon } from './GithubIcon'
 
 export const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false)
@@ -108,7 +109,7 @@ export const Navbar: React.FC = () => {
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-center text-sm font-semibold text-[#17211D]"
               >
-                <Github className="h-4 w-4" />
+                <GithubIcon className="h-4 w-4" />
                 <span>View on GitHub</span>
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
