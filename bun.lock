@@ -102,7 +102,7 @@
         "cmdk": "1.1.1",
         "diff": "8.0.4",
         "katex": "0.17.0",
-        "lucide-react": "0.468.0",
+        "lucide-react": "1.72.0",
         "marked": "18.0.6",
         "mermaid": "11.16.0",
         "motion": "^12.40.0",
@@ -144,7 +144,7 @@
       "dependencies": {
         "@fontsource-variable/manrope": "^5.3.0",
         "@fontsource/ibm-plex-mono": "^5.3.0",
-        "lucide-react": "0.468.0",
+        "lucide-react": "1.72.0",
         "react": "19.2.3",
         "react-dom": "19.2.3",
       },
@@ -1696,7 +1696,7 @@
 
     "lru-cache": ["lru-cache@6.0.0", "", { "dependencies": { "yallist": "^4.0.0" } }, "sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA=="],
 
-    "lucide-react": ["lucide-react@0.468.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc" } }, "sha512-6koYRhnM2N0GGZIdXzSeiNwguv1gt/FAjZOiPl76roBi3xKEXa4WmfpxgQwTTL4KipXjefrnf3oV4IsYhi4JFA=="],
+    "lucide-react": ["lucide-react@1.72.0", "", { "peerDependencies": { "@types/react": "*", "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" }, "optionalPeers": ["@types/react"] }, "sha512-fbF5i1GU8GODETa3Q7rXqrJrcx3iPYrQtxthom103zGx+Z0BGwKYAW9s+9435ohYJ7hQm0av0PoZcqI1CRwNrg=="],
 
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
