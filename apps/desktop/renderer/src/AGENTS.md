@@ -8,7 +8,7 @@
 
 - 页面编排与分包：遵循 `Routes.tsx`、`App.tsx` 和 workbench registry 的现有页面编排与 lazy import 边界，保持 Review、Conversation 和 workbench 面板的 lazy chunk 可解析。
 - 功能目录划分：Session 按 `conversation/`、`composer/`、`timeline/`、`approvals/`、`workflow/`、`summary/`、`subagents/`、`state/` 维护；Review 按 `workspace/`、`diff/`、`comments/`、`source/`、`state/` 维护（diff 解析、inline/split 展示、虚拟列表和评论逻辑只能有一个实现来源）；Layout 按 `shell/`、`dock/`、`tabs/`、`panels/` 维护。
-- 聚合组件控制：不继续显著扩大 2000 行以上的聚合组件；仅当抽取是本次行为所需或能直接降低修改风险时，抽出涉及的独立职责。
+- 聚合组件控制：不继续显著扩大 2000 行以上的聚合组件；仅当抽取是本次行为所需或能直接降低修改风险时抽出涉及的独立职责，常规局部修改无需为此停下或触发计划外大重构。
 - 视觉复用：必须复用 `components/ui/`、design-system token 和已有 feature 组件，禁止创建局部视觉体系。
 
 ## 状态与副作用

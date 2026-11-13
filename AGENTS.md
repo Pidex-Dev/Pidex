@@ -14,18 +14,20 @@
 ## 工作方式与子代理
 
 - 所有文本文件必须按 UTF-8 读写。
-- 修改前必须检查当前实现、相关测试和 dirty worktree。现有修改及未跟踪文件默认属于用户，未经用户明确指示，禁止回退、覆盖或顺手整理。
-- 需求、边界或高影响取舍不明确时先询问用户；明确且低风险的仓库内实现步骤可直接执行。
+- 修改前检查当前实现与相关测试。工作区中与当前任务无关的未提交修改及未跟踪文件默认属于用户，未经明确指示禁止回退、丢弃或顺手格式化；若当前任务的目标文件已有未提交修改，在保留已有改动语义的前提下直接叠加完成本次修改，无需停下确认。
+- 默认端到端自主完成任务闭环：仅当（a）触及第（1）（2）层安全红线或架构/协议/数据兼容契约冲突、（b）需执行不可逆破坏性操作、或（c）核心产品意图存在互斥解释且无法通过代码库推断时，才停下向用户确认；常规实现细节与模块内设计取舍按现有代码惯例自主决策并直接执行。
 - 优先移动、复用或改造现有实现，禁止擅自创建平行实现；默认只编写保护本次行为的必要测试，未经用户明确要求，禁止添加无关测试或大面积快照。
-- 仅在用户明确要求或适用 Skill 明确规定时，才可将边界清晰、相互独立的子问题交给子代理；子代理不得独立决定架构、数据兼容策略、安全边界或验收标准。
+- 可将边界清晰、相互独立的只读调研或实现子任务自主交给子代理并行处理；子代理不得独立决定架构、数据兼容策略、安全边界或验收标准。
 
 ## 仓库与多客户端边界
 
 - Pidex 是 Windows-first TypeScript monorepo，统一使用 Bun `1.4.4`。未经明确架构决策，禁止新增、合并、删除或重新划分 workspace（当前无独立 CLI workspace）。
 - Workspace 职责划分：
   - `apps/agent/`：客户端共享的会话、存储、Provider、模型、工具、权限、审批、编排、Git、Review、Skills、Plugins、MCP、配置、事件、RPC 与 projection 核心能力。
+  - `apps/auth-broker/`：OAuth 与认证中继服务。
   - `apps/desktop/electron/`：Electron 主进程、preload、窗口、Agent sidecar、Windows 打包与真实 OS 集成。
   - `apps/desktop/renderer/`：React + Vite 桌面交互层。
+  - `apps/website/`：产品站点与对外静态页面。
   - `packages/`：共享领域契约、RPC 协议、view projection、模型 schema、Provider 适配与 runtime 基础能力。
 - 依赖与调用方向：Agent 业务模块不得依赖 Renderer 或 Electron；共享包不得依赖 Electron、DOM、React、终端渲染库或具体 CLI 参数解析器。系统能力必须沿 `renderer -> typed bridge/Agent client -> Electron/Agent service -> repository` 单向流动。
 - 多客户端共享与定位：

@@ -15,7 +15,7 @@
 - 进程隔离：必须保持 `contextIsolation: true`、Renderer 禁用 Node，并启用 sandbox。
 - 类型化 Preload 与 IPC：新增系统能力时必须先集中定义 IPC contract（channel、参数和返回类型），在主进程验证 Renderer 输入，再由 preload 暴露最小、明确、类型化的方法并同步更新 preload 与 Renderer 共享契约；禁止暴露任意 channel、Electron 对象、Node 模块、凭据或任意文件系统访问。
 - 运行时安全：必须保留 URL allowlist、导航拦截、auth cookie 验证和 API key 剪贴板 60 秒清理。
-- 外观设置迁移与恢复：`appearance-settings.json` 当前持久化版本为 7（V1～V5 按既有语义重置为当前默认值，V6 保留已知设置并迁移到 V7，高于 V7 的文件原样保留并拒绝覆盖）。只有 JSON 已损坏的 `appearance-settings.json` 可按既有恢复逻辑精确删除并重建；该例外不得扩大到父目录、数据库、可解析但不受支持的版本或未知文件。设置重置日志遵循根文件脱敏要求。
+- 外观设置迁移与恢复：`appearance-settings.json` 当前持久化版本为 7（V1～V5 按既有语义重置为当前默认值，V6 保留已知设置并迁移到 V7，高于 V7 的文件原样保留并拒绝覆盖）。只有 JSON 已损坏的 `appearance-settings.json` 可按既有恢复逻辑精确删除并重建；该例外不得扩大到父目录、数据库、可解析但不受支持的版本或未知文件。
 
 ## Sidecar 与打包
 
@@ -28,10 +28,9 @@
 
 - Windows 主窗口继续使用 `titleBarStyle: "hidden"` 和 Electron Window Controls Overlay（通过 `createWindowsTitleBarOverlay` 统一创建）；Renderer 绘制菜单栏，Windows/Electron 只绘制原生最小化、最大化和关闭按钮，禁止改回完整原生标题栏或全自绘窗口按钮。
 - Window Controls Overlay 高度固定为 `36px`，背景保持完全透明以透出 Renderer 菜单栏；Electron 只能根据当前主题的 `ink` 更新原生窗口按钮图标色，禁止重新加入 Renderer DOM 颜色或高度回写 IPC。
-- 修改标题栏高度、主题、overlay 参数或窗口装配后，必须同时验证 Electron 与 Renderer，并完整重启桌面开发进程（禁止只依赖 Vite 热更新验收）。
+- 修改标题栏高度、overlay 参数或窗口标题栏装配时，必须同步核对 Electron overlay 与 Renderer `.desktop-menubar` 的高度（`36px`）及主题色映射，并验证 Electron 与 Renderer 相关检查；若需完整桌面进程的三主题（浅色、深色、自定义）原生按钮实机视觉验收，在交付时提示用户重启桌面进程核对（仅在用户明确授权时由 Agent 启动桌面进程）。
 
 ## 验证
 
 - 类型检查：`bun run --cwd apps/desktop/electron typecheck`；Electron 行为变化时运行相关 Bun 测试。
 - 构建：`bun run build:desktop`；只有用户明确要求或安装包行为在范围内时才运行 `bun run package:win`。
-- 标题栏变化必须在 Windows 浅色、深色和自定义主题下验证无颜色断层、无高度跳变，并确认原生窗口按钮行为不变。
