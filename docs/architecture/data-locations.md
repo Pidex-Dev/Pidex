@@ -18,8 +18,33 @@ Pidex 将持久化内容分为用户数据、工作区配置、Electron 状态�
 - `pi-models.cache.json`（Pi 模型目录缓存；旧 `models.cache.json` 仅原样保留，不再读取）；
 - 全局 `hooks.json` 和 `skills`；
 - `attachments`、`pets`、`tooling`、`workspaces`；
+- `memories`（文件记忆：Markdown 正文与索引，见下节）；
 - Agent `logs`；
 - 不含绝对路径的数据迁移标记。
+
+## 文件记忆
+
+记忆以 Markdown 文件为唯一正文来源，跟随数据目录迁移，位置为 `<数据根>\memories`：
+
+```text
+memories\
+  user\
+    MEMORY.md
+    <主题>.md
+  projects\<projectId>\
+    MEMORY.md
+    <主题>.md
+    agents\<memoryKey>\
+      MEMORY.md
+      <主题>.md
+```
+
+- 用户、项目、命名 Agent 是三个独立命名空间；同名主题文件互不影响。项目记忆按 Pidex `projectId` 共享，同一项目的文件夹与托管 worktree 共用。
+- 主题文件以 YAML frontmatter 声明 `name`、`description`、`type`（`user`/`feedback`/`project`/`reference`）；`MEMORY.md` 只保存分类与短链接。索引上限 200 行 / 25,000 字符，主题正文上限 25,000 字符，超限保存直接拒绝。
+- 外部手工编辑会在下一次读取或回合装配时生效。缺少或损坏 frontmatter 的文件保留在磁盘上，但被排除自动注入并在设置页显示诊断。
+- 覆盖已存在的记忆文件必须提交读取时得到的 revision；缺少 revision 的覆盖直接拒绝，避免旧副本盖掉外部编辑。新建文件不需要 revision。
+- `history.sqlite` 只保存格式切换标记、命名空间代际、提取游标、后台任务（`memory_tasks`）、来源（`memory_sources`）与使用记录（`memory_usage`），不保存另一份正文。
+- 一次性切换会停止旧 worker 并删除本版本可识别的旧记忆条目与任务记录；聊天、项目、配置、未知表与较高 schema 保持原样，重复启动不会删除新生成的文件。
 
 换机时可以备份 `config.json` 和 `profiles`。若选择 `auth.json` 凭据仓库，还可以一并迁移 `auth.json`，但它包含明文 Provider API Key/OAuth，必须按敏感文件保护；使用 Windows 加密仓库时凭据不可通过复制文件迁移。数据库、附件和已安装宠物是否备份取决于是否需要保留历史任务与本机状态。模型目录缓存、Agent 日志、可重新安装的托管工具以及已结束的隔离工作树可重建。
 
@@ -44,7 +69,7 @@ Provider API Key 与 OAuth 值可以保存在 `auth.json`，或以密文保存�
 
 项目 `config.json` 和 Hook 只有在项目来源受信任后才会参与合并或执行；信任记录保存在本机数据库，不随仓库同步。Pidex 兼容读取工作区的 `.agents\skills`、`.codex\skills` 和 `.claude\skills`，但不管理这些目录。
 
-数据库、日志、附件、宠物、工具链、记忆、UI 状态和子 Agent worktree 不得写入工作区 `.pidex`。项目记忆保存在用户数据库中，并以规范化工作区路径的哈希隔离。
+数据库、日志、附件、宠物、工具链、记忆、UI 状态和子 Agent worktree 不得写入工作区 `.pidex`。记忆保存在用户数据根的 `memories` 目录，数据库只保存其元数据。
 
 ## Electron AppData
 

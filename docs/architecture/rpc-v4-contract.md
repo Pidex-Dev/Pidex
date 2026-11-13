@@ -43,7 +43,7 @@ rules are fixed here for review.
 | Project and workspace                | `PROJECT_NOT_FOUND`, `PATH_DENIED`, `CONFLICT`                                                                                |
 | Thread, prompt, and Turn             | `THREAD_NOT_FOUND`, `TURN_NOT_FOUND`, `CONFLICT`, `CHECKPOINT_UNAVAILABLE`, `MODEL_UNAVAILABLE`                               |
 | Sandbox and tools                    | `SANDBOX_UNAVAILABLE`, `PERMISSION_DENIED`, `CONFLICT`                                                                        |
-| Attachment and memory                | `ATTACHMENT_NOT_FOUND`, `ATTACHMENT_LIMIT`, `MEMORY_NOT_FOUND`, `MEMORY_REJECTED`, `PERMISSION_DENIED`                        |
+| Attachment and memory                | `ATTACHMENT_NOT_FOUND`, `ATTACHMENT_LIMIT`, `MEMORY_NOT_FOUND`, `MEMORY_REJECTED`, `CONFLICT`, `PERMISSION_DENIED`              |
 | Subagent and workspace operations    | `SUBAGENT_NOT_FOUND`, `WORKSPACE_CONFLICT`, `PERMISSION_DENIED`, `CONFLICT`                                                   |
 | Model, provider, and auth            | `MODEL_UNAVAILABLE`, `PROVIDER_NOT_FOUND`, `PROVIDER_UNAVAILABLE`, `CREDENTIAL_NOT_FOUND`, `AUTHORIZATION_FAILED`, `CONFLICT` |
 
@@ -130,13 +130,22 @@ performed by a desktop-only API.
 
 ## Memory methods
 
-| Method          | Params                                                      | Result                    | Notes                                                     |
-| --------------- | ----------------------------------------------------------- | ------------------------- | --------------------------------------------------------- |
-| `memory/list`   | scope, project identity when required, query cursor, limit  | `{ entries, nextCursor }` | Project identity is resolved and authorized by the Agent. |
-| `memory/read`   | memory ID, scope, project identity when required            | `{ entry }`               | Never accepts an arbitrary filesystem path.               |
-| `memory/save`   | memory ID?, scope, project identity, content, `operationId` | `{ entry }`               | Secret scrub and atomic file update remain mandatory.     |
-| `memory/delete` | memory ID, scope, project identity, `operationId`           | `{ deleted, id }`         | Idempotent.                                               |
-| `memory/reset`  | scope, project identity, `includeEventLog`, `operationId`   | `{ deleted }`             | Exact scope authorization.                                |
+Memory identity is a namespace plus a relative Markdown file name. A namespace
+is `{ kind: 'user' }`, `{ kind: 'project', projectId }` or
+`{ kind: 'agent', projectId, memoryKey }`. Absolute paths, `projectKey` and
+workspace paths are rejected by the shared schema.
+
+| Method            | Params                                                       | Result                                       | Notes                                                    |
+| ----------------- | ------------------------------------------------------------ | -------------------------------------------- | -------------------------------------------------------- |
+| `memory/list`     | namespace, query cursor?, limit?                             | `{ namespace, files, index, diagnostics }`   | Reads the filesystem; the Agent owns the data root.      |
+| `memory/read`     | namespace, path, offset?                                     | `{ namespace, file, nextOffset, truncated }` | Body reads are capped at 4,096 UTF-8 bytes per call.     |
+| `memory/save`     | namespace, path, content, `expectedRevision`?, `operationId` | `{ namespace, path, revision, created }`     | Conflicts surface as `CONFLICT`; nothing is overwritten. |
+| `memory/delete`   | namespace, path, `expectedRevision`?, `operationId`          | `{ namespace, path, deleted }`               | Idempotent.                                              |
+| `memory/reset`    | namespace, `operationId`                                     | `{ deleted }`                                | Removes only files this system owns.                     |
+| `memory/organize` | namespace, `operationId`                                     | `{ taskId, queued }`                         | Manual organize reuses the background task executor.     |
+| `memory/tasks`    | namespace?, limit?                                           | `{ tasks, autoOrganize }`                    | Real task state, no placeholder rows.                    |
+| `memory/usage`    | namespace?, query cursor?, limit?                            | `{ records, nextCursor }`                    | Distinguishes index injection from body reads.           |
+| `memory/settings` | namespace?, `autoOrganize`?, `operationId`                   | `{ autoOrganize, directory, namedAgents }`   | Also reports the absolute directory for open/reveal.     |
 
 ## Subagent methods
 
@@ -269,7 +278,7 @@ The first v3 capability registry includes:
 - `turn.steer.v1`
 - `turn.resume.v1`
 - `attachments.v1`
-- `memory.v2`
+- `memory.v3`
 - `context.compact.v1`
 - `hooks.trust.v1`
 - `subagents.v1`

@@ -14,6 +14,10 @@
 - Plan 与 Grill 共用一套调查权限：可以读取、搜索、执行只读调查命令，以及不修改受版本控制文件的测试、构建和检查；Write、Edit、补丁、权限提升和其他实施性外部副作用仍被拒绝。工具注册元数据中的 `readOnly` 只由宿主内建定义声明，模型输入、MCP 注解和插件元数据不能据此获得调查放行。
 - 完全访问不改变 Plan/Grill 的调查边界，也不关闭输入校验、取消处理、凭据保护或工具自身功能约束。
 
+### 记忆工具
+
+`memory_list`、`memory_read`、`memory_write`、`memory_delete` 走同一注册、暴露、判权与执行链。命名空间（用户、当前项目、命名 Agent）与可写范围由宿主根据线程、项目以及已持久化的子 Agent 任务推导，模型参数只提供相对文件名；越出绑定范围按 `PERMISSION_DENIED` 拒绝，绝对路径、目录分隔符与未知标识直接拒绝而不是规范化合并。`memory_write`/`memory_delete` 声明 `externalState` 且非只读，因此 Plan/Grill、只读文件访问范围、显式拒绝、Hook 与父任务权限上限继续生效；`memory_list`/`memory_read` 是只读工具。后台提取与整理使用同一组受管记忆工具和同一命名空间，不经过前台会话的工具表，也不扩大其范围。
+
 ## 执行链与授权
 
 ToolExecutor 在 Hook 改写后加载宿主规则事实，PermissionDecisionEngine 统一判定；ApprovalService 负责人工 checkpoint、恢复和 Guardian。恢复一次批准时核对操作指纹，输入和目标改变需重新批准。
