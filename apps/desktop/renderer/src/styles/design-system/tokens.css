@@ -416,11 +416,11 @@
 
     /* System Typography */
     --cpx-sys-font-family-sans:
-      MiSans, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
       Arial, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif, 'Apple Color Emoji',
       'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     --cpx-sys-font-family-mono:
-      'JetBrains Mono', 'SF Mono', 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas,
+      'SF Mono', 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas,
       monospace;
 
     --cpx-sys-font-size-ui: 14px;

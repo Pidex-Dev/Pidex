@@ -646,6 +646,7 @@ function VariantThemeEditor({
   onUpdate,
   onError,
   needsThemeSeeds = true,
+  extraRows,
 }: {
   section: 'visual' | 'advanced'
   variant: DesktopThemeVariant
@@ -653,6 +654,7 @@ function VariantThemeEditor({
   onUpdate: (updater: ThemeSettingsUpdater) => void
   onError: (message: string) => void
   needsThemeSeeds?: boolean
+  extraRows?: React.ReactNode
 }) {
   const chromeTheme = settings.chromeThemes[variant]
   const { t } = useLocale()
@@ -850,6 +852,7 @@ function VariantThemeEditor({
                 />
               }
             />
+            {extraRows}
           </>
         ) : null}
         {section === 'advanced' ? (
@@ -921,6 +924,7 @@ function SharedFontRow({
         />
       }
       title={title}
+      size="compact"
     />
   )
 }
@@ -1066,41 +1070,45 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
               variants={visibleVariants}
             />
           </div>
-          <div className="settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:[&>.settings-row]:px-4">
-            <SharedFontRow
-              ariaLabel={t('界面字体')}
-              face={settings.fonts.uiFace ?? null}
-              family={settings.fonts.ui}
-              kind="ui"
-              placeholder="ui-sans-serif, system-ui, sans-serif"
-              title="UI 字体"
-              onCommit={(ui, uiFace) =>
-                saveThemeSettings((current) =>
-                  applySharedDesktopThemeFonts(current, { ui, uiFace }),
-                )
-              }
-            />
-            <SharedFontRow
-              ariaLabel={t('代码字体')}
-              face={settings.fonts.codeFace ?? null}
-              family={settings.fonts.code}
-              kind="code"
-              placeholder="ui-monospace, SFMono-Regular, Consolas, monospace"
-              title="代码字体"
-              onCommit={(code, codeFace) =>
-                saveThemeSettings((current) =>
-                  applySharedDesktopThemeFonts(current, { code, codeFace }),
-                )
-              }
-            />
-          </div>
           <div className="appearance-theme-editors tw:grid tw:gap-5">
-            {visibleVariants.map((variant) => (
+            {visibleVariants.map((variant, index) => (
               <VariantThemeEditor
                 section="visual"
                 key={variant}
                 settings={settings}
                 variant={variant}
+                extraRows={
+                  index === visibleVariants.length - 1 ? (
+                    <>
+                      <SharedFontRow
+                        ariaLabel={t('界面字体')}
+                        face={settings.fonts.uiFace ?? null}
+                        family={settings.fonts.ui}
+                        kind="ui"
+                        placeholder="ui-sans-serif, system-ui, sans-serif"
+                        title="UI 字体"
+                        onCommit={(ui, uiFace) =>
+                          saveThemeSettings((current) =>
+                            applySharedDesktopThemeFonts(current, { ui, uiFace }),
+                          )
+                        }
+                      />
+                      <SharedFontRow
+                        ariaLabel={t('代码字体')}
+                        face={settings.fonts.codeFace ?? null}
+                        family={settings.fonts.code}
+                        kind="code"
+                        placeholder="ui-monospace, SFMono-Regular, Consolas, monospace"
+                        title="代码字体"
+                        onCommit={(code, codeFace) =>
+                          saveThemeSettings((current) =>
+                            applySharedDesktopThemeFonts(current, { code, codeFace }),
+                          )
+                        }
+                      />
+                    </>
+                  ) : undefined
+                }
                 onError={reportError}
                 onUpdate={saveThemeSettings}
               />

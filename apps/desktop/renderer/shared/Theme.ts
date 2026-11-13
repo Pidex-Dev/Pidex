@@ -26,9 +26,9 @@ import { isRecord } from '@pidex/shared/guards'
 export const DEFAULT_LIGHT_THEME_ID = 'light-codex'
 export const DEFAULT_DARK_THEME_ID = 'dark-codex'
 export const DEFAULT_UI_FONT =
-  'MiSans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
+  'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
 export const DEFAULT_CODE_FONT =
-  '"JetBrains Mono", "SF Mono", "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace'
+  '"SF Mono", "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace'
 
 export { DEFAULT_LIGHT_CHROME_THEME, DEFAULT_DARK_CHROME_THEME }
 

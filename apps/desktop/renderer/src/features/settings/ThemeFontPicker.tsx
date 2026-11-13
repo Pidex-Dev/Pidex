@@ -1,31 +1,25 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
+import { Download, Loader2 } from 'lucide-react'
 
-import { Input } from '../../components/ui/Input.js'
-import type { DesktopSystemFontFace, DesktopThemeFontFace } from '../../../shared/Types.js'
+import type { DesktopExternalFontState } from '@pidex/shared/desktop-external-fonts'
+import { APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
+import type { DesktopThemeFontFace } from '../../../shared/Types.js'
 import {
-  getCachedSystemFontsPromise,
-  isMonospaceFamily,
-  listSystemFonts,
-} from '../theme/ThemeSystemFonts.js'
+  downloadExternalFont,
+  ensureExternalFontLoaded,
+  listExternalFonts,
+} from '../theme/ThemeExternalFonts.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import {
-  DEFAULT_FACE_VALUE,
-  LOADING_OPTION_VALUE,
   SYSTEM_DEFAULT_FAMILY_VALUE,
   buildFamilyOptions,
-  buildStyleOptions,
-  facesOfFamily,
-  fontPatchForSelection,
-  fontPickerCurrentFamilyLabel,
   fontPickerCurrentFamilyValue,
-  selectedStyleValue,
   type FontPickerKind,
-  type FontPickerOption,
 } from './ThemeFontPickerModel.js'
 
 type ThemeFontPickerProps = {
   ariaLabel: string
-  placeholder: string
+  placeholder?: string
   family: string | null
   face: DesktopThemeFontFace | null
   kind: FontPickerKind
@@ -33,233 +27,124 @@ type ThemeFontPickerProps = {
   onCommit: (family: string | null, face: DesktopThemeFontFace | null) => void
 }
 
-/**
- * Free-text fallback used when the system font enumeration is unavailable or
- * denied. Committing an unchanged family keeps the stored face; editing the
- * family text clears it so a stale face never rides along.
- */
-function FontInput({
-  ariaLabel,
-  placeholder,
-  value,
-  onCommit,
-}: {
-  ariaLabel: string
-  placeholder: string
-  value: string | null
-  onCommit: (value: string | null) => void
-}) {
-  const [draft, setDraft] = useState(value ?? '')
-  const focusedRef = useRef(false)
-  const skipBlurCommitRef = useRef(false)
-  const latestValueRef = useRef(value)
-
-  useEffect(() => {
-    latestValueRef.current = value
-    if (!focusedRef.current) setDraft(value ?? '')
-  }, [value])
-
-  const commit = (): void => {
-    const next = draft.trim() || null
-    setDraft(next ?? '')
-    if (next !== latestValueRef.current) {
-      latestValueRef.current = next
-      // Editing the family text means the old face no longer matches.
-      onCommit(next)
-    }
-  }
-
-  return (
-    <Input
-      aria-label={ariaLabel}
-      className="appearance-font-input tw:h-7 tw:min-h-7 tw:w-full tw:max-w-34 tw:rounded-md tw:px-2 tw:type-body tw:@max-[760px]:w-[min(100%,240px)] tw:@max-[760px]:max-w-60"
-      placeholder={placeholder}
-      value={draft}
-      onBlur={() => {
-        focusedRef.current = false
-        if (skipBlurCommitRef.current) {
-          skipBlurCommitRef.current = false
-          return
-        }
-        commit()
-      }}
-      onChange={(event) => setDraft(event.target.value)}
-      onFocus={() => {
-        focusedRef.current = true
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur()
-        if (event.key === 'Escape') {
-          skipBlurCommitRef.current = true
-          setDraft(latestValueRef.current ?? '')
-          event.currentTarget.blur()
-        }
-      }}
-    />
-  )
-}
-
 export function ThemeFontPicker({
   ariaLabel,
-  placeholder,
   family,
-  face,
   kind,
   controls = 'both',
   onCommit,
 }: ThemeFontPickerProps): React.ReactNode {
-  const [bridgeAvailable] = useState(
-    () =>
-      typeof window !== 'undefined' && typeof window.DesktopBridge?.listSystemFonts === 'function',
-  )
-  const [fontsState, setFontsState] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
-  const [faces, setFaces] = useState<readonly DesktopSystemFontFace[]>([])
+  const [externalFonts, setExternalFonts] = useState<readonly DesktopExternalFontState[]>([])
+  const [downloadingFontName, setDownloadingFontName] = useState<string | null>(null)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!bridgeAvailable || fontsState !== 'idle') return
-    const cached = getCachedSystemFontsPromise()
-    if (cached) {
-      void cached.then((result) => {
-        if (result.ok) {
-          setFaces(result.fonts)
-          setFontsState('ready')
-        } else {
-          setFontsState('unavailable')
-        }
-      })
+    if (typeof window === 'undefined' || !window.DesktopBridge?.listExternalFonts) return
+    let active = true
+    void listExternalFonts().then((states) => {
+      if (active) setExternalFonts(states)
+    })
+    return () => {
+      active = false
     }
-  }, [bridgeAvailable, fontsState, family])
+  }, [])
 
-  const handleOpenChange = useCallback(
-    (open: boolean): void => {
-      if (!open || fontsState !== 'idle') return
-      setFontsState('loading')
-      void listSystemFonts().then((result) => {
-        if (result.ok) {
-          setFaces(result.fonts)
-          setFontsState('ready')
-        } else {
-          // Unsupported API, denied permission, or failed query: the UI
-          // degrades to the free-text input without surfacing an error.
-          setFontsState('unavailable')
-        }
-      })
-    },
-    [fontsState],
-  )
-
-  if (!bridgeAvailable || fontsState === 'unavailable') {
-    if (controls === 'style') {
-      return (
-        <SettingsDropdown
-          ariaLabel={`${ariaLabel}字体样式`}
-          disabled
-          onChange={() => undefined}
-          options={buildStyleOptions({ faces: [], currentFace: face })}
-          value={selectedStyleValue({ faces: [], currentFace: face })}
-          size="sm"
-        />
-      )
+  const handleOpenChange = useCallback((open: boolean): void => {
+    if (!open) return
+    if (typeof window !== 'undefined' && window.DesktopBridge?.listExternalFonts) {
+      void listExternalFonts(true).then((states) => setExternalFonts(states))
     }
-    return (
-      <FontInput
-        ariaLabel={ariaLabel}
-        placeholder={placeholder}
-        value={family}
-        onCommit={(next) => onCommit(next, null)}
-      />
-    )
+  }, [])
+
+  if (controls === 'style') {
+    return null
   }
 
-  const currentFamilyValue = fontPickerCurrentFamilyValue(family)
-  const currentFamilyLabel = fontPickerCurrentFamilyLabel(family, face)
-  const selectedFamilyFaces = family ? facesOfFamily(faces, family) : []
+  const currentFamilyValue = fontPickerCurrentFamilyValue(family, kind)
+  const familyOptions = buildFamilyOptions({ kind, externalFonts }).map((option) => {
+    if (option.externalStatus === 'not-downloaded' || option.externalStatus === 'error') {
+      return {
+        ...option,
+        trailing: <Download size={APP_ICON_SIZES.sm} aria-hidden="true" />,
+        title: `${option.label}（点击下载）`,
+      }
+    }
+    if (option.externalStatus === 'downloading') {
+      return {
+        ...option,
+        trailing: <Loader2 className="tw:animate-spin" size={APP_ICON_SIZES.sm} aria-hidden="true" />,
+        title: `${option.label}（正在下载…）`,
+      }
+    }
+    return option
+  })
 
-  const familyOptions: FontPickerOption[] =
-    fontsState === 'ready'
-      ? buildFamilyOptions({
-          faces,
-          kind,
-          currentFamily: family,
-          isMonospace: isMonospaceFamily,
+  const handleFamilyChange = (familyValue: string): void => {
+    setDownloadError(null)
+    if (familyValue === SYSTEM_DEFAULT_FAMILY_VALUE) {
+      onCommit(null, null)
+      return
+    }
+    const external = externalFonts.find(
+      (item) => item.kind === kind && item.family === familyValue,
+    )
+    if (!external) {
+      onCommit(null, null)
+      return
+    }
+    if (external.status === 'downloading') return
+    if (external.status !== 'downloaded') {
+      setDownloadingFontName(external.displayName)
+      setExternalFonts((prev) =>
+        prev.map((item) =>
+          item.id === external.id ? { ...item, status: 'downloading', error: null } : item,
+        ),
+      )
+      void downloadExternalFont(external.id)
+        .then((result) => {
+          setExternalFonts((prev) =>
+            prev.map((item) => (item.id === external.id ? result.state : item)),
+          )
+          if (result.ok) {
+            onCommit(external.family, null)
+          } else {
+            const message = 'error' in result ? result.error : '字体下载失败'
+            setDownloadError(`下载失败：${message}`)
+          }
         })
-      : [
-          {
-            value: currentFamilyValue,
-            label: currentFamilyLabel,
-            disabled: true,
-          },
-          ...(fontsState === 'loading'
-            ? [
-                {
-                  value: LOADING_OPTION_VALUE,
-                  label: '正在加载字体…',
-                  disabled: true,
-                },
-              ]
-            : []),
-        ]
+        .finally(() => {
+          setDownloadingFontName((current) =>
+            current === external.displayName ? null : current,
+          )
+        })
+      return
+    }
+    void ensureExternalFontLoaded(external.id)
+    onCommit(external.family, null)
+  }
 
   return (
     <div
-      aria-busy={fontsState === 'loading'}
+      aria-busy={downloadingFontName !== null}
       className="appearance-theme-font-row tw:inline-flex tw:w-max tw:max-w-full tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-2"
     >
-      {controls !== 'style' ? (
-        <SettingsDropdown
-          ariaLabel={`${ariaLabel}字体家族`}
-          options={familyOptions}
-          searchPlaceholder="搜索字体…"
-          searchable
-          triggerClassName="appearance-font-family"
-          value={currentFamilyValue}
-          size="md"
-
-          onChange={(familyValue) => {
-            if (fontsState !== 'ready') return
-            if (familyValue === family) {
-              // Re-selecting the current family keeps the stored face.
-              onCommit(family, face)
-              return
-            }
-            const patch = fontPatchForSelection({
-              familyValue,
-              faceValue: DEFAULT_FACE_VALUE,
-              familyFaces: facesOfFamily(faces, familyValue),
-              currentFace: null,
-            })
-            onCommit(patch.family, patch.face)
-          }}
-          onOpenChange={handleOpenChange}
-        />
+      {downloadingFontName ? (
+        <span className="tw:text-app-text-meta tw:type-caption">
+          正在下载 {downloadingFontName}…
+        </span>
+      ) : downloadError ? (
+        <span className="tw:text-app-danger tw:type-caption">{downloadError}</span>
       ) : null}
-      {controls !== 'family' && (family != null || controls === 'style') ? (
-        <SettingsDropdown
-          ariaLabel={`${ariaLabel}字体样式`}
-          disabled={family == null || (fontsState === 'ready' && selectedFamilyFaces.length <= 1)}
-          options={buildStyleOptions({
-            faces: selectedFamilyFaces,
-            currentFace: face,
-          })}
-          triggerClassName="appearance-font-style"
-          value={selectedStyleValue({
-            faces: selectedFamilyFaces,
-            currentFace: face,
-          })}
-          size="sm"
-          onOpenChange={handleOpenChange}
-          onChange={(faceValue) => {
-            if (fontsState !== 'ready' || family == null) return
-            const patch = fontPatchForSelection({
-              familyValue: family,
-              faceValue,
-              familyFaces: selectedFamilyFaces,
-              currentFace: face,
-            })
-            onCommit(patch.family, patch.face)
-          }}
-        />
-      ) : null}
+      <SettingsDropdown
+        ariaLabel={`${ariaLabel}字体家族`}
+        disabled={downloadingFontName !== null}
+        options={familyOptions}
+        triggerClassName="appearance-font-family"
+        value={currentFamilyValue}
+        size="md"
+        onChange={handleFamilyChange}
+        onOpenChange={handleOpenChange}
+      />
     </div>
   )
 }

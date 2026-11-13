@@ -12,6 +12,8 @@ export type SelectOption<T extends string = string> = {
   label: React.ReactNode
   detail?: React.ReactNode
   icon?: React.ReactNode
+  trailing?: React.ReactNode
+  title?: string
   disabled?: boolean
 }
 
@@ -68,6 +70,13 @@ function OptionContent({
           className="ui-select-item-indicator settings-dropdown-item-indicator menu-column-trailing tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center"
           size={APP_ICON_SIZES.sm}
         />
+      ) : option.trailing ? (
+        <span
+          aria-hidden="true"
+          className="ui-select-item-indicator settings-dropdown-item-indicator menu-column-trailing tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta"
+        >
+          {option.trailing}
+        </span>
       ) : null}
     </div>
   )
@@ -149,7 +158,7 @@ export function Select<T extends string>({
               >
                 <div
                   className="ui-select-item settings-dropdown-item"
-                  title={typeof option.label === 'string' ? option.label : undefined}
+                  title={option.title ?? (typeof option.label === 'string' ? option.label : undefined)}
                 >
                   <OptionContent
                     option={option}
