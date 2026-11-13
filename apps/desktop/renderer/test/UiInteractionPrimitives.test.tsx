@@ -172,7 +172,7 @@ describe('loading interaction primitives', () => {
       <Button
         variant="ghost"
         size="md"
-        className="tw:h-8 tw:px-0 tw:rounded-full tw:type-caption tw:text-app-text-meta tw:hover:bg-app-selected"
+        className="tw:h-8 tw:px-0 tw:rounded-full tw:type-1 tw:text-app-text-meta tw:hover:bg-app-selected"
       >
         操作
       </Button>,
@@ -184,25 +184,28 @@ describe('loading interaction primitives', () => {
       'tw:h-8',
       'tw:px-0',
       'tw:rounded-full',
-      'tw:type-caption',
+      'tw:type-1',
       'tw:text-app-text-meta',
       'tw:hover:bg-app-selected',
     ]) {
       expect(classes).toContain(value)
     }
     // 共享默认样式不再以 utility 下发，覆盖只与共享样式在级联层上竞争。
-    for (const value of ['tw:h-9', 'tw:px-3.5', 'tw:rounded-md', 'tw:type-control']) {
+    for (const value of ['tw:h-9', 'tw:px-3.5', 'tw:rounded-md', 'tw:type-2']) {
       expect(classes).not.toContain(value)
     }
     expect(classes).toHaveLength(6)
   })
 
   test('custom utilities merge without treating typography as text color', () => {
-    expect(cn('tw:type-control tw:text-app-text', 'tw:type-caption')).toBe(
-      'tw:text-app-text tw:type-caption',
+    expect(cn('tw:type-2 tw:text-app-text', 'tw:type-1')).toBe(
+      'tw:text-app-text tw:type-1',
     )
-    expect(cn('tw:type-control', 'tw:[font:inherit]')).toBe('tw:[font:inherit]')
-    expect(cn('tw:[font:inherit]', 'tw:type-control')).toBe('tw:type-control')
+    expect(cn('tw:type-2 tw:weight-regular', 'tw:weight-bold')).toBe(
+      'tw:type-2 tw:weight-bold',
+    )
+    expect(cn('tw:type-2', 'tw:[font:inherit]')).toBe('tw:[font:inherit]')
+    expect(cn('tw:[font:inherit]', 'tw:type-2')).toBe('tw:type-2')
     expect(cn('tw:[&>svg]:size-icon', 'tw:[&>svg]:size-6')).toBe('tw:[&>svg]:size-6')
     expect(cn('tw:[&>svg]:size-6', 'tw:[&>svg]:size-icon-lg')).toBe('tw:[&>svg]:size-icon-lg')
     expect(cn('tw:w-6 tw:h-6', 'tw:size-icon-md')).toBe('tw:size-icon-md')

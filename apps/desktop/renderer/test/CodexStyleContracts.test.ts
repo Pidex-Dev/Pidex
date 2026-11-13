@@ -74,7 +74,7 @@ describe('Codex CPX design system token contract', () => {
 
   test('exports component tokens for all 13 components', async () => {
     const stylesheet = await Bun.file(
-      new URL('../src/styles/design-system/codex-semantic-tokens.css', import.meta.url),
+      new URL('../src/styles/design-system/tokens.css', import.meta.url),
     ).text()
     const tokens = Array.from(
       stylesheet.matchAll(/^\s*(--cpx-comp-[\w-]+):/gm),
@@ -106,9 +106,7 @@ describe('Codex CPX design system token contract', () => {
       projectSwitcher,
       branchSwitcher,
     ] = await Promise.all([
-      Bun.file(
-        new URL('../src/styles/design-system/codex-semantic-tokens.css', import.meta.url),
-      ).text(),
+      Bun.file(new URL('../src/styles/design-system/tokens.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/popover.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/components/interactive-row.css', import.meta.url)).text(),
       Bun.file(new URL('../src/components/ui/SidebarRow.css', import.meta.url)).text(),
@@ -184,7 +182,7 @@ describe('Codex CPX design system token contract', () => {
 
   test('keeps diff backgrounds separate from raw decoration colors', async () => {
     const stylesheet = await Bun.file(
-      new URL('../src/styles/design-system/codex-semantic-tokens.css', import.meta.url),
+      new URL('../src/styles/design-system/tokens.css', import.meta.url),
     ).text()
 
     expectSourceContains(
@@ -224,9 +222,7 @@ describe('Codex CPX design system token contract', () => {
       Bun.file(new URL('../src/components/ui/Button.tsx', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/primitives/settings.css', import.meta.url)).text(),
       Bun.file(new URL('../src/features/settings/SettingsRow.tsx', import.meta.url)).text(),
-      Bun.file(
-        new URL('../src/styles/design-system/codex-semantic-tokens.css', import.meta.url),
-      ).text(),
+      Bun.file(new URL('../src/styles/design-system/tokens.css', import.meta.url)).text(),
     ])
 
     // primary：foreground 实底、反色文字；secondary：5% 弱背景、透明边框。
@@ -252,10 +248,10 @@ describe('Codex CPX design system token contract', () => {
     )
     expectSourceContains(buttons, 'background: var(--cpx-comp-button-bg);')
     expectSourceContains(buttons, 'color: var(--cpx-comp-button-fg);')
-    // 设置行不再锁死 64px：行本身不携带固定高度，高度由 12px 块级内边距
-    // 驱动（compact 档 8px）；`+` 兄弟行的 0.5px 分隔线仍是共享几何。
+    // 设置行不再锁死 64px：行本身不携带固定高度，高度由 `tw:px-3 tw:py-2` 内边距
+    // 驱动；`+` 兄弟行的 0.5px 分隔线仍是共享几何。
     expect(settings).not.toMatch(/\.settings-row\s*\{[\s\S]*?min-height: 64px;/)
-    expectSourceContains(settingsRow, "size === 'compact' ? 'tw:py-2' : 'tw:py-3'")
+    expectSourceContains(settingsRow, 'settings-row tw:min-w-0 tw:bg-transparent tw:px-3 tw:py-2')
     expect(settingsRow).not.toMatch(/tw:(?:h|min-h)-/)
     expect(settings).toMatch(/\.settings-row \+ \.settings-row[\s\S]*?height: 0\.5px;/)
   })
@@ -362,7 +358,7 @@ describe('Codex CPX design system token contract', () => {
     expectSourceContains(primaryPageCss, 'padding-bottom: var(--cpx-sys-space-8);')
     // 模型引导页的两行网格改由 TSX utility 承担（原 `_model-setup.scss` 规则）。
     expectSourceContains(setup, 'tw:grid-rows-[36px_minmax(0,1fr)]')
-    expectSourceContains(review, 'tw:px-4 tw:py-4 tw:type-control')
+    expectSourceContains(review, 'tw:px-4 tw:py-4 tw:type-2 tw:weight-medium')
     // 状态行保留语义类名与 alert 角色，迁移只在其上追加 utility。
     expect(browser).toMatch(/className="browser-status-row[^"]*"[\s\S]*?role="alert"/)
   })
@@ -370,9 +366,7 @@ describe('Codex CPX design system token contract', () => {
   test('keeps prominent elevation distinct from flat and transient surfaces', async () => {
     const [systemTokens, componentTokens, composer, rightDock] = await Promise.all([
       Bun.file(new URL('../src/styles/design-system/tokens.css', import.meta.url)).text(),
-      Bun.file(
-        new URL('../src/styles/design-system/codex-semantic-tokens.css', import.meta.url),
-      ).text(),
+      Bun.file(new URL('../src/styles/design-system/tokens.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/primitives/composer.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/features/layout-right-dock.css', import.meta.url)).text(),
     ])
@@ -427,9 +421,7 @@ describe('Codex CPX design system token contract', () => {
       rightDock,
     ] = await Promise.all([
       Bun.file(new URL('../src/styles/design-system/tokens.css', import.meta.url)).text(),
-      Bun.file(
-        new URL('../src/styles/design-system/codex-semantic-tokens.css', import.meta.url),
-      ).text(),
+      Bun.file(new URL('../src/styles/design-system/tokens.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/tailwind.css', import.meta.url)).text(),
       Bun.file(new URL('../src/components/ui/Button.tsx', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/features/composer-shell.css', import.meta.url)).text(),
@@ -559,7 +551,7 @@ describe('Codex CPX design system token contract', () => {
 
     expect(summary).not.toContain('--thread-summary-inline-width')
     expect(threadSummary).not.toContain('tw:w-[var(--thread-summary-inline-width)]')
-    expect(threadSummary).toContain('thread-summary-popover tw:w-65 tw:p-1.25')
+    expect(threadSummary).toContain('thread-summary-popover tw:w-[16.25rem] tw:p-1')
     expect(threadSummary).toContain(
       'tw:w-full tw:flex tw:min-h-0 tw:flex-col tw:gap-1',
     )
@@ -586,9 +578,7 @@ describe('Codex CPX design system token contract', () => {
       tooltip,
     ] = await Promise.all([
       Bun.file(new URL('../src/styles/design-system/tokens.css', import.meta.url)).text(),
-      Bun.file(
-        new URL('../src/styles/design-system/codex-semantic-tokens.css', import.meta.url),
-      ).text(),
+      Bun.file(new URL('../src/styles/design-system/tokens.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/features/layout-right-dock.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/primitives/sidebar.css', import.meta.url)).text(),
       Bun.file(new URL('../src/features/layout/MenuBar.tsx', import.meta.url)).text(),
@@ -633,7 +623,7 @@ describe('Codex CPX design system token contract', () => {
       '--cpx-sys-color-workbench-panel-bg: var(--cpx-sys-color-surface-recessed);',
     )
 
-    // Verify token definitions in codex-semantic-tokens.css
+    // Verify component token definitions in tokens.css
     expectSourceContains(tokens, '--cpx-comp-dock-bg: var(--cpx-sys-color-workbench-panel-bg);')
     expectSourceContains(tokens, '--cpx-comp-dock-border: var(--cpx-sys-color-border-subtle);')
     expectSourceContains(

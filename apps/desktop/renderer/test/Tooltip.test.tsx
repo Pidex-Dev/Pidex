@@ -281,7 +281,7 @@ describe('Tooltip variants and visual styling', () => {
     expect(html).toContain('tw:border-app-border-subtle')
     expect(html).toContain('tw:shadow-tooltip')
     expect(html).not.toContain('tw:shadow-lg')
-    expect(html).toContain('tw:type-caption')
+    expect(html).toContain('tw:type-1')
     expect(html).toContain('tooltip-presence')
     expect(html).toContain('tooltip-content')
     expect(html).not.toContain('tooltip-arrow')

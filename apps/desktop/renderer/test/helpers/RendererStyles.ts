@@ -14,7 +14,6 @@ export const CASCADE_LAYER_ORDER =
 export const NATIVE_STYLE_FILES = [
   'src/styles/base.css',
   'src/styles/design-system/tokens.css',
-  'src/styles/design-system/codex-semantic-tokens.css',
 ] as const
 
 export function rendererPath(...segments: string[]): string {

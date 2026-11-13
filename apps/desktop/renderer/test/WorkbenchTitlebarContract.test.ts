@@ -87,10 +87,12 @@ describe('workbench chrome contract', () => {
 
   test('keeps high-frequency edit and settings drafts out of the workbench shell', () => {
     const layout = readRendererFile('src/features/layout/shell/DesktopLayout.tsx')
+    const layoutSettings = readRendererFile('src/features/layout/shell/UseDesktopLayoutSettings.ts')
     const menuBar = readRendererFile('src/features/layout/MenuBar.tsx')
 
-    expectSourceContains(layout, 'useDesktopRuntimeSettingsField(')
+    expectSourceContains(layoutSettings, 'useDesktopRuntimeSettingsField(')
     expectSourceNotContains(layout, 'useDesktopSettings()')
+    expectSourceNotContains(layoutSettings, 'useDesktopSettings()')
     expectSourceNotContains(layout, 'useEditCommands()')
     expectSourceContains(menuBar, 'useEditCommands()')
   })

@@ -100,7 +100,7 @@ describe('PrimaryPageLayout', () => {
       'utf8',
     )
 
-    // 工作流：列表页不收缩且无 min-h-0，详情页内层具备 tw:pb-8
+    // 工作流：列表页不收缩且无 min-h-0，详情页内层具备 tw:pb-6
     expectSourceContains(
       sessionGroupsSource,
       'session-groups-index tw:flex tw:min-w-0 tw:flex-auto tw:shrink-0 tw:flex-col',
@@ -111,7 +111,7 @@ describe('PrimaryPageLayout', () => {
     )
     expectSourceContains(
       sessionGroupsSource,
-      'session-group-detail__inner tw:mx-auto tw:flex tw:w-[min(var(--page-content-max-width),100%)] tw:flex-col tw:pb-8',
+      'session-group-detail__inner tw:mx-auto tw:flex tw:w-[min(var(--page-content-max-width),100%)] tw:flex-col tw:pb-6',
     )
 
     // 自动化：容器 stage 与 content 具备 tw:shrink-0，content 移除 tw:min-h-0，TaskSchedulePanel 根部具备 tw:shrink-0
@@ -129,11 +129,11 @@ describe('PrimaryPageLayout', () => {
       'section aria-label="任务与待处理" className="tw:grid tw:shrink-0 tw:gap-2"',
     )
 
-    // 插件：目录 panel 具备 tw:shrink-0，详情页包裹层具备 tw:pb-8
-    expectSourceContains(pluginsSource, 'plugins-panel tw:grid tw:min-w-0 tw:shrink-0 tw:gap-8')
+    // 插件：目录 panel 具备 tw:shrink-0，详情页包裹层具备 tw:pb-6
+    expectSourceContains(pluginsSource, 'plugins-panel tw:grid tw:min-w-0 tw:shrink-0 tw:gap-6')
     expectSourceContains(
       pluginsSource,
-      'tw:mx-auto tw:min-w-0 tw:w-[min(var(--page-content-max-width),100%)] tw:pb-8',
+      'tw:mx-auto tw:min-w-0 tw:w-[min(var(--page-content-max-width),100%)] tw:pb-6',
     )
   })
 
@@ -154,10 +154,10 @@ describe('PrimaryPageLayout', () => {
     expect(html).toContain('primary-page-layout tw:@container')
     expect(html).toContain('primary-page-layout__header--with-search')
     expect(html).toContain(
-      'primary-page-layout__title-row tw:flex tw:min-h-9 tw:min-w-0 tw:items-center',
+      'primary-page-layout__title-row tw:flex tw:min-h-7 tw:min-w-0 tw:items-center',
     )
     expect(html).toContain(
-      'primary-page-layout__actions tw:flex tw:min-h-9 tw:shrink-0 tw:flex-wrap tw:items-center',
+      'primary-page-layout__actions tw:flex tw:min-h-7 tw:shrink-0 tw:flex-wrap tw:items-center',
     )
     expect(html).not.toContain(
       'primary-page-layout__actions tw:flex tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:pt-1',
@@ -174,7 +174,7 @@ describe('PrimaryPageLayout', () => {
 
     expect(html).not.toContain('primary-page-layout__header--with-search')
     expect(html).toContain(
-      'primary-page-layout__title-row tw:flex tw:min-h-9 tw:min-w-0 tw:items-center',
+      'primary-page-layout__title-row tw:flex tw:min-h-7 tw:min-w-0 tw:items-center',
     )
   })
 

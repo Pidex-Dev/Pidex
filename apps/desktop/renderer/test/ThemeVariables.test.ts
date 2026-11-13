@@ -13,7 +13,9 @@ import {
   DEFAULT_UI_FONT,
   getCodeThemeSelectionForVariant,
   normalizeDesktopThemeSettings,
+  resetAdvancedDesktopThemeSettings,
 } from '../shared/Theme.js'
+import { applyDesktopUiDensity } from '../src/features/theme/DesktopThemeProvider.js'
 import {
   deriveThemeVariables,
   ensureThemePreviewContrast,
@@ -74,7 +76,7 @@ describe('fixed Codex UI themes', () => {
 
   test('uses the Codex system font stack with canonical semantic weights', async () => {
     const variables = deriveThemeVariables(DEFAULT_DARK_THEME)
-    const customFont = 'Inter, sans-serif'
+    const customFont = 'Google Sans'
     const customVariables = deriveThemeVariables({
       ...DEFAULT_DARK_THEME,
       theme: {
@@ -85,9 +87,20 @@ describe('fixed Codex UI themes', () => {
         },
       },
     })
+    const unknownVariables = deriveThemeVariables({
+      ...DEFAULT_DARK_THEME,
+      theme: {
+        ...DEFAULT_DARK_THEME.theme,
+        fonts: {
+          ...DEFAULT_DARK_THEME.theme.fonts,
+          ui: 'Inter, sans-serif',
+        },
+      },
+    })
 
     expect(variables['--cpx-sys-font-family-sans']).toBe(DEFAULT_UI_FONT)
-    expect(customVariables['--cpx-sys-font-family-sans']).toBe(customFont)
+    expect(customVariables['--cpx-sys-font-family-sans']).toBe(`"${customFont}", ${DEFAULT_UI_FONT}`)
+    expect(unknownVariables['--cpx-sys-font-family-sans']).toBe(DEFAULT_UI_FONT)
 
     const stylesheet = await Bun.file(
       new URL('../src/styles/design-system/tokens.css', import.meta.url),
@@ -95,22 +108,22 @@ describe('fixed Codex UI themes', () => {
     const normalizedStylesheet = stylesheet.replace(/\s+/g, ' ')
 
     expectSourceContains(stylesheet, `--cpx-sys-font-family-sans: ${DEFAULT_UI_FONT};`)
+    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-light: 300;')
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-regular: 400;')
-    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-body: 400;')
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-medium: 500;')
-    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-bold: 600;')
-    expect(normalizedStylesheet).toContain('--cpx-sys-line-height-body: 1.5;')
-    expect(normalizedStylesheet).toContain('--cpx-sys-line-height-caption: 1.4;')
-    expect(normalizedStylesheet).toContain('--cpx-sys-line-height-body-lg: 1.5;')
+    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-bold: 700;')
+    expect(normalizedStylesheet).toContain('--cpx-sys-line-height-1: 1.3333;')
+    expect(normalizedStylesheet).toContain('--cpx-sys-line-height-2: 1.4286;')
+    expect(normalizedStylesheet).toContain('--cpx-sys-line-height-3: 1.5;')
     expect(normalizedStylesheet).toContain('--cpx-sys-line-height-code: 1.5;')
 
     const tailwind = await Bun.file(new URL('../src/styles/tailwind.css', import.meta.url)).text()
     const normalizedTailwind = tailwind.replace(/\s+/g, ' ')
     expect(normalizedTailwind).toContain(
-      '--text-base--line-height: var(--cpx-sys-line-height-body);',
+      '--text-base--line-height: var(--cpx-sys-line-height-2);',
     )
     expect(normalizedTailwind).toContain(
-      '--text-sm--line-height: var(--cpx-sys-line-height-body-sm);',
+      '--text-sm--line-height: var(--cpx-sys-line-height-1);',
     )
     expect(normalizedTailwind).toContain('--text-code: var(--cpx-sys-font-size-code);')
     expect(normalizedTailwind).toContain(
@@ -651,6 +664,66 @@ describe('fixed Codex UI themes', () => {
     // Accent roles diverge to custom derived values
     expect(customAccent['--cpx-sys-color-accent']).toBe('#e02e2a')
     expect(customAccent['--cpx-sys-color-accent-subtle-bg']).not.toBe('var(--cpx-ref-blue-a3)')
+  })
+
+  test('defaults uiDensity to default, preserves V6/V7 settings, and applies --cpx-sys-scaling', () => {
+    expect(DEFAULT_DESKTOP_THEME_SETTINGS.uiDensity).toBe('default')
+
+    const v6WithoutDensity = normalizeDesktopThemeSettings({
+      version: 6,
+      mode: 'dark',
+      fontSizes: { ui: 15, code: 13 },
+      pointerCursorEnabled: true,
+    })
+    expect(v6WithoutDensity.uiDensity).toBe('default')
+    expect(v6WithoutDensity.mode).toBe('dark')
+    expect(v6WithoutDensity.fontSizes).toEqual({ ui: 15, code: 13 })
+    expect(v6WithoutDensity.pointerCursorEnabled).toBe(true)
+
+    const v7WithInvalidDensity = normalizeDesktopThemeSettings({
+      version: 7,
+      mode: 'light',
+      uiDensity: 'ultra-dense',
+      fontSizes: { ui: 13, code: 11 },
+    })
+    expect(v7WithInvalidDensity.uiDensity).toBe('default')
+    expect(v7WithInvalidDensity.mode).toBe('light')
+    expect(v7WithInvalidDensity.fontSizes).toEqual({ ui: 13, code: 11 })
+
+    const compact = normalizeDesktopThemeSettings({
+      ...DEFAULT_DESKTOP_THEME_SETTINGS,
+      uiDensity: 'compact',
+    })
+    expect(compact.uiDensity).toBe('compact')
+    expect(resetAdvancedDesktopThemeSettings(compact).uiDensity).toBe('default')
+
+    const spacious = normalizeDesktopThemeSettings({
+      ...DEFAULT_DESKTOP_THEME_SETTINGS,
+      uiDensity: 'spacious',
+    })
+    expect(spacious.uiDensity).toBe('spacious')
+
+    const properties = new Map<string, string>()
+    const root = {
+      dataset: {} as DOMStringMap,
+      style: {
+        setProperty: (name: string, value: string) => {
+          properties.set(name, value)
+        },
+      },
+    } as unknown as HTMLElement
+
+    applyDesktopUiDensity(root, 'compact')
+    expect(root.dataset.uiDensity).toBe('compact')
+    expect(properties.get('--cpx-sys-scaling')).toBe('0.9')
+
+    applyDesktopUiDensity(root, 'spacious')
+    expect(root.dataset.uiDensity).toBe('spacious')
+    expect(properties.get('--cpx-sys-scaling')).toBe('1.1')
+
+    applyDesktopUiDensity(root, undefined)
+    expect(root.dataset.uiDensity).toBe('default')
+    expect(properties.get('--cpx-sys-scaling')).toBe('1')
   })
 })
 
