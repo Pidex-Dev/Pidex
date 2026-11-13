@@ -190,8 +190,8 @@ function WorkbenchPanelResizeController({
       aria-valuenow={size}
       className={
         isBottom
-          ? 'bottom-panel-resize-handle tw:absolute tw:z-local tw:top-0 tw:right-0 tw:left-0 tw:h-1.5 tw:cursor-row-resize tw:touch-none tw:select-none'
-          : 'right-dock-resize-handle tw:absolute tw:z-local tw:top-0 tw:bottom-0 tw:left-0 tw:w-1.5 tw:cursor-col-resize tw:touch-none tw:select-none tw:focus-visible:outline-app-accent/72'
+          ? 'bottom-panel-resize-handle tw:absolute tw:z-local tw:top-0 tw:right-0 tw:left-0 tw:h-1 tw:cursor-row-resize tw:touch-none tw:select-none'
+          : 'right-dock-resize-handle tw:absolute tw:z-local tw:top-0 tw:bottom-0 tw:left-0 tw:w-1 tw:cursor-col-resize tw:touch-none tw:select-none tw:focus-visible:outline-app-accent/72'
       }
       role="separator"
       tabIndex={0}
@@ -441,7 +441,7 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
           )
         })
       ) : target === 'bottom' ? (
-        <div className="bottom-panel-empty tw:flex tw:h-full tw:w-full tw:items-center tw:justify-center tw:p-4 tw:type-caption tw:text-app-text-meta">
+        <div className="bottom-panel-empty tw:flex tw:h-full tw:w-full tw:items-center tw:justify-center tw:p-4 tw:type-1 tw:text-app-text-meta">
           <span>暂无打开的终端</span>
         </div>
       ) : (

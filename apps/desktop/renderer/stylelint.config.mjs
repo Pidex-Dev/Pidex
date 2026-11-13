@@ -55,7 +55,6 @@ export default {
     {
       files: [
         '**/design-system/tokens.css',
-        '**/design-system/codex-semantic-tokens.css',
         '**/primitives/settings.css',
       ],
       rules: {

@@ -379,9 +379,9 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner keyboard-shortcuts-settings tw:max-w-wide tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">
+      <div className="settings-content-inner keyboard-shortcuts-settings tw:max-w-wide tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
             键盘快捷键
           </h2>
         </div>
@@ -397,7 +397,7 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
           className="keyboard-shortcuts-card tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:transition-[background,border-color,box-shadow] tw:duration-state tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover"
           aria-label="键盘快捷键列表"
         >
-          <div className="keyboard-shortcuts-header tw:grid tw:grid-cols-[minmax(260px,1fr)_minmax(170px,0.64fr)_var(--cpx-sys-space-7)] tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:px-4 tw:py-2 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-xs)] tw:type-weight-label">
+          <div className="keyboard-shortcuts-header tw:grid tw:grid-cols-[minmax(260px,1fr)_minmax(170px,0.64fr)_var(--cpx-sys-space-7)] tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:px-4 tw:py-2 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-1)] tw:weight-medium">
             <span>命令</span>
             <span>快捷键</span>
           </div>
@@ -406,7 +406,7 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
               <ShortcutRowView key={`${row.title}-${row.description}-${index}`} row={row} />
             ))}
             {rows.length === 0 && (
-              <p className="keyboard-shortcuts-empty tw:px-4 tw:py-5 tw:text-app-text-soft tw:type-body-sm">
+              <p className="keyboard-shortcuts-empty tw:px-4 tw:py-5 tw:text-app-text-soft tw:type-1">
                 未找到匹配的快捷键。
               </p>
             )}
@@ -425,10 +425,10 @@ function ShortcutRowView({ row }: { row: ShortcutRow }): React.ReactNode {
   return (
     <div className="keyboard-shortcuts-row tw:grid tw:grid-cols-[minmax(260px,1fr)_minmax(170px,0.64fr)_var(--cpx-sys-space-7)] tw:items-center tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:py-2 tw:pr-3 tw:pl-4 tw:last:border-b-0 tw:hover:bg-app-hover">
       <div className="keyboard-shortcuts-command tw:grid tw:min-w-0 tw:gap-1">
-        <span className="keyboard-shortcuts-title tw:truncate tw:text-app-text tw:type-row-title">
+        <span className="keyboard-shortcuts-title tw:truncate tw:text-app-text tw:type-2 tw:weight-medium">
           {row.title}
         </span>
-        <span className="keyboard-shortcuts-desc tw:truncate tw:text-app-text-soft tw:type-body-sm">
+        <span className="keyboard-shortcuts-desc tw:truncate tw:text-app-text-soft tw:type-1">
           {row.description}
         </span>
       </div>
@@ -436,21 +436,21 @@ function ShortcutRowView({ row }: { row: ShortcutRow }): React.ReactNode {
         {row.keys.length > 0 ? (
           row.keys.map((key) => (
             <span
-              className="keyboard-shortcut-key tw:inline-flex tw:max-w-full tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-hover tw:px-3 tw:py-1 tw:font-mono tw:text-[length:var(--cpx-sys-font-size-xs)] tw:type-weight-label tw:[line-height:var(--cpx-sys-line-height-none)] tw:whitespace-nowrap"
+              className="keyboard-shortcut-key tw:inline-flex tw:max-w-full tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-hover tw:px-3 tw:py-1 tw:font-mono tw:text-[length:var(--cpx-sys-font-size-1)] tw:weight-medium tw:[line-height:var(--cpx-sys-line-height-none)] tw:whitespace-nowrap"
               key={key}
             >
               {key}
             </span>
           ))
         ) : (
-          <span className="keyboard-shortcut-unbound tw:bg-transparent tw:font-sans tw:text-app-text-soft tw:type-weight-label">
+          <span className="keyboard-shortcut-unbound tw:bg-transparent tw:font-sans tw:text-app-text-soft tw:weight-medium">
             未绑定
           </span>
         )}
       </div>
       <button
         aria-label={actionLabel}
-        className="keyboard-shortcuts-action tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:text-app-text-meta tw:disabled:cursor-default tw:disabled:opacity-58"
+        className="keyboard-shortcuts-action tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-md tw:text-app-text-meta tw:disabled:cursor-default tw:disabled:opacity-58"
         disabled
         title="快捷键编辑即将推出"
         type="button"

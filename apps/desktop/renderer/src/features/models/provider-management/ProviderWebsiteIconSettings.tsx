@@ -63,11 +63,11 @@ export function ProviderWebsiteIconSettings({
   return (
     <div className="tw:grid tw:gap-3">
       <div className="tw:flex tw:min-w-0 tw:items-center tw:gap-3">
-        <span className="provider-icon-settings-preview tw:flex tw:size-10 tw:shrink-0 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-control">
+        <span className="provider-icon-settings-preview tw:flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-control">
           <ProviderIcon
             providerID={providerID}
             logoURL={logoURL}
-            className="tw:size-6"
+            className="tw:size-5"
             imageClassName="tw:object-contain"
           />
         </span>

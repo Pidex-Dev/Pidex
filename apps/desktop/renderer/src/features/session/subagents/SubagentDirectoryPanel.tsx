@@ -50,7 +50,7 @@ function formatElapsed(since: number | null, now: number): string {
 }
 
 const ROW_CLASS =
-  'tw:grid tw:min-w-0 tw:grid-cols-[24px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-body tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus'
+  'tw:grid tw:min-w-0 tw:grid-cols-[24px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-2 tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus'
 
 function DirectoryListRow({
   now,
@@ -76,18 +76,18 @@ function DirectoryListRow({
         <SubagentAvatar role={row.role} size="md" />
         <span className="tw:grid tw:min-w-0">
           <span className="tw:flex tw:min-w-0 tw:items-baseline tw:gap-2">
-            <strong className="tw:min-w-0 tw:truncate tw:type-weight-body">{row.name}</strong>
+            <strong className="tw:min-w-0 tw:truncate tw:weight-regular">{row.name}</strong>
             {attention ? (
-              <em className="tw:flex-none tw:not-italic tw:text-app-warning-fg tw:type-caption">
+              <em className="tw:flex-none tw:not-italic tw:text-app-warning-fg tw:type-1">
                 {attention}
               </em>
             ) : null}
           </span>
-          <small className="tw:min-w-0 tw:truncate tw:text-app-text-meta tw:type-caption">
+          <small className="tw:min-w-0 tw:truncate tw:text-app-text-meta tw:type-1">
             {row.summary}
           </small>
         </span>
-        <small className="tw:flex-none tw:whitespace-nowrap tw:text-app-text-meta tw:tabular-nums tw:type-caption">
+        <small className="tw:flex-none tw:whitespace-nowrap tw:text-app-text-meta tw:tabular-nums tw:type-1">
           {trailing}
         </small>
       </button>
@@ -95,7 +95,7 @@ function DirectoryListRow({
         <Tooltip content="停止该子智能体">
           <button
             aria-label={`停止 ${row.name}`}
-            className="tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+            className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
             type="button"
             onClick={() => onStop(row.taskId)}
           >
@@ -124,9 +124,9 @@ function DirectorySection({
 }): React.ReactNode {
   return (
     <section className="tw:grid tw:min-w-0 tw:gap-1 tw:pb-3">
-      <h3 className="tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-caption">{title}</h3>
+      <h3 className="tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1">{title}</h3>
       {rows.length === 0 ? (
-        <p className="tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-caption">{emptyText}</p>
+        <p className="tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1">{emptyText}</p>
       ) : (
         rows.map((row) => (
           <DirectoryListRow key={row.taskId} now={now} onOpen={onOpen} onStop={onStop} row={row} />

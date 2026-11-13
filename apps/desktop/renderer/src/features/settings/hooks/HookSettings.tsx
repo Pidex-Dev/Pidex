@@ -138,10 +138,10 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
   if (!supported) {
     return (
       <SettingsContentArea>
-        <div className="settings-content-inner tw:grid tw:gap-6 tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+        <div className="settings-content-inner tw:grid tw:gap-5 tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
           <header className="tw:grid tw:gap-2">
-            <h1 className="tw:m-0 tw:type-page-title tw:text-app-text">钩子</h1>
-            <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">
+            <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">钩子</h1>
+            <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
               当前 Agent 运行时未声明 hooks.management.v1，无法在桌面端管理 Hook。
             </p>
           </header>
@@ -182,11 +182,11 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:grid tw:gap-6 tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+      <div className="settings-content-inner tw:grid tw:gap-5 tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
         <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
-          <div className="tw:grid tw:gap-1.5">
-            <h1 className="tw:m-0 tw:type-page-title tw:text-app-text">钩子</h1>
-            <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">
+          <div className="tw:grid tw:gap-1">
+            <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">钩子</h1>
+            <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
               通过配置和已启用的插件管理生命周期钩子。
             </p>
           </div>
@@ -211,7 +211,7 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
 
         {loadError ? (
           <div
-            className="tw:rounded-container tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:type-body-sm tw:text-app-danger"
+            className="tw:rounded-container tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:type-1 tw:text-app-danger"
             role="alert"
           >
             {loadError}
@@ -219,26 +219,26 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
         ) : null}
 
         {scopedNotice ? (
-          <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3 tw:type-body-sm tw:text-app-text-soft">
+          <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3 tw:type-1 tw:text-app-text-soft">
             {scopedNotice}
           </div>
         ) : null}
 
         {!groups && !loadError ? (
-          <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-4 tw:type-body-sm tw:text-app-text-soft">
+          <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-4 tw:type-1 tw:text-app-text-soft">
             正在扫描配置目录与已启用插件中的钩子…
           </div>
         ) : null}
 
         {groups && groups.length === 0 && !loadError ? (
-          <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-6 tw:text-center tw:type-body-sm tw:text-app-text-soft">
+          <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-5 tw:text-center tw:type-1 tw:text-app-text-soft">
             暂未在配置目录（.pidex / .claude / .codex / .agents）或已启用插件中发现钩子。
           </div>
         ) : null}
 
         {configGroups.length > 0 ? (
-          <section className="tw:grid tw:gap-2.5" aria-label="来自配置">
-            <h2 className="tw:m-0 tw:type-caption tw:text-app-text-soft">来自配置</h2>
+          <section className="tw:grid tw:gap-2" aria-label="来自配置">
+            <h2 className="tw:m-0 tw:type-1 tw:text-app-text-soft">来自配置</h2>
             <div className="tw:grid tw:gap-2">
               {configGroups.map((group) => (
                 <HookGroupCard
@@ -256,8 +256,8 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
         ) : null}
 
         {pluginGroups.length > 0 ? (
-          <section className="tw:grid tw:gap-2.5" aria-label="来自插件">
-            <h2 className="tw:m-0 tw:type-caption tw:text-app-text-soft">来自插件</h2>
+          <section className="tw:grid tw:gap-2" aria-label="来自插件">
+            <h2 className="tw:m-0 tw:type-1 tw:text-app-text-soft">来自插件</h2>
             <div className="tw:grid tw:gap-2">
               {pluginGroups.map((group) => (
                 <HookGroupCard
@@ -305,14 +305,14 @@ function HookGroupCard({
       className="tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-3 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3 tw:text-left tw:transition-colors tw:hover:bg-app-surface-hover tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-app-focus"
     >
       <div className="tw:flex tw:min-w-0 tw:items-center tw:gap-3">
-        <span className="tw:flex tw:size-8 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-lg tw:text-app-text-soft">
+        <span className="tw:flex tw:size-6 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-lg tw:text-app-text-soft">
           {icon}
         </span>
-        <div className="tw:grid tw:min-w-0 tw:gap-0.5">
-          <span className="tw:truncate tw:type-row-title tw:text-app-text">
+        <div className="tw:grid tw:min-w-0 tw:gap-1">
+          <span className="tw:truncate tw:type-2 tw:weight-medium tw:text-app-text">
             {group.displayName}
           </span>
-          <span className="tw:type-caption tw:text-app-text-soft">
+          <span className="tw:type-1 tw:text-app-text-soft">
             {hookCountLabel(group.hooks.length)}
           </span>
         </div>
@@ -355,7 +355,7 @@ function HookGroupDialog({
     <Dialog.Root open={group !== null} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
-        <Dialog.Content className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-6 tw:rounded-2xl tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl">
+        <Dialog.Content className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-5 tw:rounded-2xl tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl">
           {group ? (
             <>
               <div className="tw:flex tw:items-start tw:justify-between tw:gap-3 tw:shrink-0">
@@ -364,11 +364,11 @@ function HookGroupDialog({
                     <span className="tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text">
                       {icon}
                     </span>
-                    <Dialog.Title className="tw:m-0 tw:truncate tw:type-row-title tw:text-app-text">
+                    <Dialog.Title className="tw:m-0 tw:truncate tw:type-2 tw:weight-medium tw:text-app-text">
                       {group.displayName}
                     </Dialog.Title>
                   </div>
-                  <Dialog.Description className="tw:m-0 tw:type-caption tw:text-app-text-soft">
+                  <Dialog.Description className="tw:m-0 tw:type-1 tw:text-app-text-soft">
                     {group.scopeLabel}
                   </Dialog.Description>
                 </div>
@@ -391,7 +391,7 @@ function HookGroupDialog({
 
               {actionError ? (
                 <div
-                  className="tw:mt-3 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:type-caption tw:text-app-danger"
+                  className="tw:mt-3 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:type-1 tw:text-app-danger"
                   role="alert"
                 >
                   {actionError}
@@ -399,16 +399,16 @@ function HookGroupDialog({
               ) : null}
 
               {group.diagnostics.length > 0 ? (
-                <div className="tw:mt-3 tw:grid tw:gap-1.5">
+                <div className="tw:mt-3 tw:grid tw:gap-1">
                   {group.diagnostics.map((diagnostic) => (
                     <div
                       key={`${diagnostic.code}:${diagnostic.message}`}
-                      className="tw:flex tw:items-start tw:gap-2 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-canvas/60 tw:px-3 tw:py-2 tw:type-caption tw:text-app-text-soft"
+                      className="tw:flex tw:items-start tw:gap-2 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-canvas/60 tw:px-3 tw:py-2 tw:type-1 tw:text-app-text-soft"
                     >
                       <AlertTriangle
                         aria-hidden="true"
                         size={14}
-                        className="tw:mt-0.5 tw:shrink-0 tw:text-app-warning"
+                        className="tw:mt-1 tw:shrink-0 tw:text-app-warning"
                       />
                       <span>{diagnostic.message}</span>
                     </div>
@@ -418,37 +418,37 @@ function HookGroupDialog({
 
               <div className="tw:mt-4 tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-y-auto tw:overflow-x-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-canvas/60 tw:divide-y tw:divide-app-border-subtle">
                 {sections.length === 0 ? (
-                  <div className="tw:px-4 tw:py-6 tw:text-center tw:type-caption tw:text-app-text-soft">
+                  <div className="tw:px-4 tw:py-5 tw:text-center tw:type-1 tw:text-app-text-soft">
                     该来源暂无有效钩子。
                   </div>
                 ) : (
                   sections.map((section) => (
                     <div key={section.event} className="tw:grid tw:min-w-0">
-                      <div className="tw:flex tw:min-w-0 tw:items-start tw:gap-2.5 tw:px-4 tw:py-3.5">
+                      <div className="tw:flex tw:min-w-0 tw:items-start tw:gap-2 tw:px-4 tw:py-3">
                         <FishingHook
                           aria-hidden="true"
                           size={15}
                           strokeWidth={APP_ICON_STROKE_WIDTH}
-                          className="tw:mt-0.5 tw:shrink-0 tw:text-app-text-soft"
+                          className="tw:mt-1 tw:shrink-0 tw:text-app-text-soft"
                         />
-                        <div className="tw:grid tw:min-w-0 tw:gap-0.5">
-                          <span className="tw:type-row-title tw:text-app-text">
+                        <div className="tw:grid tw:min-w-0 tw:gap-1">
+                          <span className="tw:type-2 tw:weight-medium tw:text-app-text">
                             {section.title}
                           </span>
-                          <span className="tw:type-caption tw:text-app-text-soft">
+                          <span className="tw:type-1 tw:text-app-text-soft">
                             {section.subtitle}
                           </span>
                         </div>
                       </div>
-                      <div className="tw:grid tw:min-w-0 tw:gap-2.5 tw:border-t tw:border-app-border-subtle tw:px-4 tw:py-3 tw:pl-10">
+                      <div className="tw:grid tw:min-w-0 tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-4 tw:py-3 tw:pl-7">
                         {section.items.map(({ hook, displayLabel }) => {
                           const expanded = expandedHooks.has(hook.identity)
                           const busy = busyIdentities.has(hook.identity)
                           return (
-                            <div key={hook.identity} className="tw:grid tw:min-w-0 tw:gap-2.5">
+                            <div key={hook.identity} className="tw:grid tw:min-w-0 tw:gap-2">
                               <div className="tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
                                 <span
-                                  className={`tw:min-w-0 tw:truncate tw:type-body-sm ${
+                                  className={`tw:min-w-0 tw:truncate tw:type-1 ${
                                     hook.enabled ? 'tw:text-app-text' : 'tw:text-app-text-soft'
                                   }`}
                                   title={displayLabel}
@@ -506,7 +506,7 @@ function HookGroupDialog({
                                 </div>
                               </div>
                               {expanded ? (
-                                <dl className="tw:m-0 tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:items-baseline tw:gap-x-6 tw:gap-y-2.5 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel/60 tw:p-3.5 tw:type-caption">
+                                <dl className="tw:m-0 tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:items-baseline tw:gap-x-5 tw:gap-y-2 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel/60 tw:p-3 tw:type-1">
                                   <dt className="tw:text-app-text-soft">Hook 类型</dt>
                                   <dd className="tw:m-0 tw:text-app-text">{section.title}</dd>
                                   <dt className="tw:text-app-text-soft">命令</dt>

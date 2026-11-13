@@ -181,12 +181,12 @@ function CodingQuickChatView({ surface }: { surface: NewSessionSurface }): React
       className="quick-chat-workspace tw:flex tw:h-full tw:w-full tw:min-h-0 tw:overflow-hidden"
     >
       <main className="quick-chat-view coding-chat-view tw:flex tw:h-full tw:w-full tw:min-h-full tw:flex-col tw:items-stretch tw:justify-end tw:overflow-x-hidden tw:overflow-y-auto tw:pb-4 tw:text-app-text">
-        <section className="quick-chat-hero-region tw:m-auto tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-center tw:justify-center tw:gap-5">
-          <div className="quick-chat-hero tw:flex tw:w-[var(--quick-chat-surface-width)] tw:max-w-full tw:flex-col tw:items-center tw:gap-6 tw:text-center tw:text-app-text tw:type-display">
+        <section className="quick-chat-hero-region tw:m-auto tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-center tw:justify-center tw:gap-4">
+          <div className="quick-chat-hero tw:flex tw:w-[var(--quick-chat-surface-width)] tw:max-w-full tw:flex-col tw:items-center tw:gap-5 tw:text-center tw:text-app-text tw:type-7 tw:weight-bold">
             <button
               ref={whaleMarkRef}
               aria-hidden="true"
-              className="quick-chat-mark tw:block tw:size-14 tw:origin-center tw:cursor-pointer tw:select-none tw:border-0 tw:bg-app-text tw:p-0 tw:opacity-30 tw:[mask:url('/pidex-mark-green.svg')_center/contain_no-repeat] tw:[transition:opacity_var(--cpx-sys-motion-micro)_var(--cpx-sys-ease-standard),transform_var(--cpx-sys-motion-state)_var(--cpx-sys-ease-standard)] tw:hover:opacity-40 tw:focus-visible:outline-offset-4"
+              className="quick-chat-mark tw:block tw:size-[3.5rem] tw:origin-center tw:cursor-pointer tw:select-none tw:border-0 tw:bg-app-text tw:p-0 tw:opacity-30 tw:[mask:url('/pidex-mark-green.svg')_center/contain_no-repeat] tw:[transition:opacity_var(--cpx-sys-motion-micro)_var(--cpx-sys-ease-standard),transform_var(--cpx-sys-motion-state)_var(--cpx-sys-ease-standard)] tw:hover:opacity-40 tw:focus-visible:outline-offset-4"
               tabIndex={-1}
               type="button"
               onClick={handleWhaleMarkClick}

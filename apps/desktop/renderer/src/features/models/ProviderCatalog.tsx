@@ -41,21 +41,21 @@ export function ProviderCatalog({
   return (
     <section className="model-center-catalog tw:grid tw:min-w-0 tw:gap-4" aria-label="供应商市场">
       {providers.length === 0 ? (
-        <div className="tw:grid tw:min-h-[220px] tw:place-content-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:type-body-sm">
+        <div className="tw:grid tw:min-h-[220px] tw:place-content-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:type-1">
           <strong>暂无可用供应商</strong>
           <span>请刷新供应商目录后重试。</span>
         </div>
       ) : (
-        <div className="model-center-catalog-groups tw:grid tw:gap-6">
+        <div className="model-center-catalog-groups tw:grid tw:gap-5">
           {groups.map((group) => (
             <section
               className="model-center-catalog-group tw:grid tw:min-w-0 tw:gap-3"
               key={group.id}
             >
               <header className="model-center-catalog-group-header tw:flex tw:items-center tw:gap-3">
-                <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{group.label}</h2>
+                <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{group.label}</h2>
               </header>
-              <div className="model-center-catalog-list tw:grid tw:grid-cols-2 tw:min-w-0 tw:gap-x-7 tw:gap-y-4 tw:@max-[580px]:grid-cols-1">
+              <div className="model-center-catalog-list tw:grid tw:grid-cols-2 tw:min-w-0 tw:gap-x-6 tw:gap-y-4 tw:@max-[580px]:grid-cols-1">
                 {group.items.map((provider) => {
                   const actionLabel = provider.connectionDisabled
                     ? '不可用'
@@ -94,12 +94,12 @@ export function ProviderCatalog({
                         </span>
                         <span className="tw:grid tw:min-w-0 tw:gap-1">
                           <strong
-                            className="tw:overflow-hidden tw:text-app-text tw:type-row-title tw:text-ellipsis tw:whitespace-nowrap"
+                            className="tw:overflow-hidden tw:text-app-text tw:type-2 tw:weight-medium tw:text-ellipsis tw:whitespace-nowrap"
                             title={provider.name}
                           >
                             {provider.name}
                           </strong>
-                          <span className="tw:min-w-0 tw:overflow-hidden tw:text-app-text-meta tw:type-body-sm tw:text-ellipsis tw:whitespace-nowrap">
+                          <span className="tw:min-w-0 tw:overflow-hidden tw:text-app-text-meta tw:type-1 tw:text-ellipsis tw:whitespace-nowrap">
                             {provider.modelCount} 个模型
                           </span>
                         </span>

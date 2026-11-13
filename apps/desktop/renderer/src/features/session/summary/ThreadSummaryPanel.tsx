@@ -52,7 +52,7 @@ import type { CommandMenuActionRegistration } from '../../search/CommandMenuActi
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 
 const SUMMARY_ROW_CLASS =
-  'interactive-row interactive-row--nav thread-summary-row tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:text-left tw:no-underline tw:type-body'
+  'interactive-row interactive-row--nav thread-summary-row tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:text-left tw:no-underline tw:type-2'
 
 const SUMMARY_ROW_LABEL_CLASS =
   'tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap'
@@ -130,7 +130,7 @@ export function ThreadSummaryPopover({
           side="bottom"
           sideOffset={8}
         >
-          <div className="thread-summary-popover tw:w-65 tw:p-1.25 tw:max-h-[min(680px,calc(100vh-80px))]">
+          <div className="thread-summary-popover tw:w-[16.25rem] tw:p-1 tw:max-h-[min(680px,calc(100vh-80px))]">
             {panel}
           </div>
         </Popover.Content>
@@ -168,7 +168,7 @@ export class ThreadSummaryErrorBoundary extends React.Component<
           role="alert"
         >
           <strong>摘要暂时无法显示</strong>
-          <span className="tw:text-app-text-meta tw:type-body-sm">会话本身不受影响。</span>
+          <span className="tw:text-app-text-meta tw:type-1">会话本身不受影响。</span>
           <button
             type="button"
             onClick={this.retry}
@@ -252,7 +252,7 @@ export function ThreadSummaryPanel({
     >
       {model.gitDetection === 'error' ? (
         <div
-          className="tw:flex tw:items-center tw:gap-2 tw:px-3 tw:py-0 tw:text-app-text-meta tw:type-body-sm"
+          className="tw:flex tw:items-center tw:gap-2 tw:px-3 tw:py-0 tw:text-app-text-meta tw:type-1"
           role="status"
         >
           <>
@@ -275,8 +275,8 @@ export function ThreadSummaryPanel({
         <ThreadSummarySection
           collapsedSummary={
             changes.fileCount > 0 ? (
-              <span className="thread-summary-diff tw:inline-flex tw:gap-1 tw:type-caption tw:tabular-nums">
-                <strong className="tw:text-app-success tw:type-weight-body">
+              <span className="thread-summary-diff tw:inline-flex tw:gap-1 tw:type-1 tw:tabular-nums">
+                <strong className="tw:text-app-success tw:weight-regular">
                   +{formatReviewCount(changes.additions)}
                 </strong>
                 <em className="tw:text-app-danger tw:not-italic">
@@ -302,13 +302,13 @@ export function ThreadSummaryPanel({
                     type="button"
                     aria-label="操作"
                     title="操作"
-                    className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+                    className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
                   >
                     <Ellipsis aria-hidden="true" size={APP_ICON_SIZE} />
                   </button>
                 }
               >
-                <div className="tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta">操作</div>
+                <div className="tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta">操作</div>
                 {workspaceActions.map((action) => (
                   <PopoverItem
                     key={action.id}
@@ -353,7 +353,7 @@ export function ThreadSummaryPanel({
                       </PopoverItem>
                     ))}
                     {!environmentChoices.length ? (
-                      <div className="tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta">
+                      <div className="tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta">
                         暂无环境
                       </div>
                     ) : null}
@@ -407,9 +407,9 @@ export function ThreadSummaryPanel({
                   {changesLoading && !model.changes ? (
                     <Spinner label="正在加载变更统计" className="tw:text-app-text-meta" />
                   ) : model.changes && (changes.additions > 0 || changes.deletions > 0) ? (
-                    <small className="thread-summary-change-summary tw:inline-flex tw:items-center tw:justify-end tw:gap-2 tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
-                      <span className="thread-summary-diff tw:inline-flex tw:gap-1 tw:type-caption tw:tabular-nums">
-                        <strong className="tw:text-app-success tw:type-weight-body">
+                    <small className="thread-summary-change-summary tw:inline-flex tw:items-center tw:justify-end tw:gap-2 tw:whitespace-nowrap tw:text-app-text-meta tw:type-1">
+                      <span className="thread-summary-diff tw:inline-flex tw:gap-1 tw:type-1 tw:tabular-nums">
+                        <strong className="tw:text-app-success tw:weight-regular">
                           +{formatReviewCount(changes.additions)}
                         </strong>
                         <em className="tw:text-app-danger tw:not-italic">
@@ -434,7 +434,7 @@ export function ThreadSummaryPanel({
                       type="button"
                       aria-label="Git 操作"
                       title="Git 操作"
-                      className="tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+                      className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
                     >
                       <GitBranch aria-hidden="true" size={APP_ICON_SIZE} />
                     </button>
@@ -475,7 +475,7 @@ export function ThreadSummaryPanel({
                     onOpenChange={setBranchPopoverOpen}
                     trigger={
                       <button
-                        className="tw:absolute tw:right-0 tw:top-0 tw:size-7 tw:pointer-events-none tw:opacity-0"
+                        className="tw:absolute tw:right-0 tw:top-0 tw:size-6 tw:pointer-events-none tw:opacity-0"
                         tabIndex={-1}
                         data-state={branchPopoverOpen ? 'open' : 'closed'}
                         title={environment.branchName ?? '未检测到 Git 分支'}
@@ -515,7 +515,7 @@ export function ThreadSummaryPanel({
               key={agent.id}
             >
               <button
-                className="interactive-row interactive-row--nav thread-summary-row-group__main tw:grid tw:min-w-0 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:items-center tw:bg-transparent tw:text-left tw:type-body"
+                className="interactive-row interactive-row--nav thread-summary-row-group__main tw:grid tw:min-w-0 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:items-center tw:bg-transparent tw:text-left tw:type-2"
                 type="button"
                 onClick={() => onOpenSubagent?.(agent.id)}
               >
@@ -527,14 +527,14 @@ export function ThreadSummaryPanel({
                 <span className="tw:grid tw:min-w-0">
                   <span className={SUMMARY_ROW_LABEL_CLASS}>{agent.name}</span>
                   {agent.summary ? (
-                    <small className="tw:min-w-0 tw:truncate tw:text-app-text-meta tw:type-caption">
+                    <small className="tw:min-w-0 tw:truncate tw:text-app-text-meta tw:type-1">
                       {agent.summary}
                     </small>
                   ) : null}
                 </span>
                 <small
                   className={cx(
-                    'tw:whitespace-nowrap tw:type-caption',
+                    'tw:whitespace-nowrap tw:type-1',
                     agent.state === 'finished' ? 'tw:text-app-text-meta' : 'tw:text-app-accent-fg',
                   )}
                 >
@@ -548,7 +548,7 @@ export function ThreadSummaryPanel({
                 <Tooltip content="停止该子 Agent">
                   <button
                     aria-label={`停止 ${agent.name}`}
-                    className="tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:[&>svg]:size-icon-sm"
+                    className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:[&>svg]:size-icon-sm"
                     type="button"
                     onClick={() => onStopSubagent?.(agent.id)}
                   >
@@ -595,7 +595,7 @@ export function ThreadSummaryPanel({
             onCreateOutput ? (
               <button
                 aria-label="创建文件或站点"
-                className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+                className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
                 type="button"
                 onClick={onCreateOutput}
               >
@@ -690,7 +690,7 @@ function AgentSectionMeta({
           .filter(Boolean)
           .join(' · ')
       : `${finished} 已结束`
-  return <span className="tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">{label}</span>
+  return <span className="tw:whitespace-nowrap tw:text-app-text-meta tw:type-1">{label}</span>
 }
 
 function AgentSectionSummary({
@@ -700,7 +700,7 @@ function AgentSectionSummary({
 }): React.ReactNode {
   const active = agents.filter((agent) => agent.state !== 'finished').length
   return (
-    <span className="tw:type-caption tw:tabular-nums">
+    <span className="tw:type-1 tw:tabular-nums">
       {active > 0 ? `${active} 活跃` : `${agents.length} 已结束`}
     </span>
   )
@@ -727,7 +727,7 @@ function BrowserTabRow({
         size="var(--inline-icon-size, 1em)"
       />
       <span className={SUMMARY_ROW_LABEL_CLASS}>{tab.title}</span>
-      <small className="tw:flex tw:items-center tw:gap-1.5 tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
+      <small className="tw:flex tw:items-center tw:gap-1 tw:whitespace-nowrap tw:text-app-text-meta tw:type-1">
         {tab.domain ? <span>{tab.domain}</span> : null}
         {stateLabel ? (
           <span
@@ -810,7 +810,7 @@ function ThreadSummarySourceRow({
   const Icon = source.toolKind === 'web-search' ? Search : Plug
   return (
     <div
-      className="thread-summary-row thread-summary-source-static tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-body"
+      className="thread-summary-row thread-summary-source-static tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-2"
       title={source.source ?? source.label}
     >
       <Icon
@@ -856,7 +856,7 @@ function ArtifactRow({
       <span className={SUMMARY_ROW_LABEL_CLASS}>{artifact.name}</span>
       <small
         className={cx(
-          'tw:whitespace-nowrap tw:type-caption',
+          'tw:whitespace-nowrap tw:type-1',
           previewable ? 'tw:text-app-text-meta' : 'tw:text-app-text-disabled',
         )}
       >
@@ -867,7 +867,7 @@ function ArtifactRow({
   if (!previewable || !onOpen) {
     return (
       <div
-        className="thread-summary-row tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-body"
+        className="thread-summary-row tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-2"
         title={`${artifact.name}：${meta}`}
       >
         {row}
@@ -911,8 +911,8 @@ function ThreadSummarySourcesPanel({
         >
           <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
             <div className="tw:flex tw:min-w-0 tw:items-baseline tw:gap-2">
-              <Dialog.Title className="tw:m-0 tw:type-row-title">来源</Dialog.Title>
-              <span className="tw:text-app-text-meta tw:type-caption">{sources.length}</span>
+              <Dialog.Title className="tw:m-0 tw:type-2 tw:weight-medium">来源</Dialog.Title>
+              <span className="tw:text-app-text-meta tw:type-1">{sources.length}</span>
             </div>
             <Dialog.Close asChild>
               <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭来源面板">
@@ -920,7 +920,7 @@ function ThreadSummarySourcesPanel({
               </Button>
             </Dialog.Close>
           </header>
-          <Dialog.Description className="tw:m-0 tw:text-app-text-meta tw:type-body-sm">
+          <Dialog.Description className="tw:m-0 tw:text-app-text-meta tw:type-1">
             当前会话中已识别的附件、文件与网页来源。
           </Dialog.Description>
           <div
@@ -968,11 +968,11 @@ function ThreadSummarySection({
       aria-labelledby={headingId}
       className={
         first
-          ? 'thread-summary-section thread-summary-section--first tw:relative tw:z-0 tw:flex tw:flex-col tw:gap-1.25 tw:pb-2 tw:last:pb-0'
+          ? 'thread-summary-section thread-summary-section--first tw:relative tw:z-0 tw:flex tw:flex-col tw:gap-1 tw:pb-2 tw:last:pb-0'
           : 'thread-summary-section tw:relative tw:z-0 tw:flex tw:flex-col tw:pb-2 tw:last:pb-0'
       }
     >
-      <header className="tw:sticky tw:top-0 tw:z-local tw:flex tw:h-7 tw:w-full tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-transparent tw:px-2 tw:py-0 tw:text-app-text-soft tw:type-row-title">
+      <header className="tw:sticky tw:top-0 tw:z-local tw:flex tw:h-6 tw:w-full tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-transparent tw:px-2 tw:py-0 tw:text-app-text-soft tw:type-2 tw:weight-medium">
         <h2 className="tw:m-0 tw:text-inherit tw:[font:inherit]">
           <button
             aria-controls={contentId}

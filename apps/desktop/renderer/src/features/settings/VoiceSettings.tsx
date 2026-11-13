@@ -280,9 +280,9 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">
+      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
             {t('语音')}
           </h2>
         </div>
@@ -327,7 +327,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
               description={speechStatusDescription(speech.status, speech.error)}
               control={
                 <>
-                  <span className="settings-row-status tw:text-app-text-soft tw:type-body-sm">
+                  <span className="settings-row-status tw:text-app-text-soft tw:type-1">
                     {speechStatusLabel(speech.status, speech.loading)}
                   </span>
                   {speech.status?.state === 'error' || speech.status?.state === 'not-installed' ? (
@@ -366,15 +366,15 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
             <SettingsSection.Content surface="card">
               <div className="settings-row tw:min-w-0 tw:bg-transparent tw:px-3 tw:py-2 tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4">
                 <div className="settings-row-info tw:min-w-0">
-                  <h4 className="settings-row-title tw:m-0 tw:text-app-text tw:type-row-title">
+                  <h4 className="settings-row-title tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">
                     {t('听写快捷键')}
                   </h4>
-                  <p className="settings-row-desc tw:mt-1 tw:mr-0 tw:mb-0 tw:ml-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
+                  <p className="settings-row-desc tw:mt-1 tw:mr-0 tw:mb-0 tw:ml-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
                     {t('按住即可进行听写，或连按两次启用免提模式')}
                   </p>
                   <button
                     type="button"
-                    className="tw:mt-1.5 tw:inline-flex tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-body-sm tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+                    className="tw:mt-2 tw:inline-flex tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-1 tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
                     aria-expanded={advancedOpen}
                     onClick={() => setAdvancedOpen((prev) => !prev)}
                   >
@@ -389,7 +389,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                 <div className="settings-row-control tw:relative tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-end tw:gap-2">
                   {recordingShortcut ? (
                     <div className="tw:flex tw:items-center tw:gap-2">
-                      <span className="tw:rounded-md tw:border tw:border-app-focus tw:bg-app-control tw:px-2.5 tw:py-1 tw:text-app-text tw:type-body-sm">
+                      <span className="tw:rounded-md tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-text tw:type-1">
                         按下快捷键…
                       </span>
                       <Button
@@ -415,7 +415,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                   ) : (
                     <button
                       type="button"
-                      className="tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-body-sm tw:cursor-pointer tw:hover:bg-app-text/5 tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+                      className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-1 tw:cursor-pointer tw:hover:bg-app-text/5 tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
                       onClick={() => setRecordingShortcut(true)}
                       aria-label="编辑听写快捷键"
                     >
@@ -451,7 +451,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                       title="本地语音模型"
                       description={speechStatusDescription(speech.status, speech.error)}
                       control={
-                        <span className="settings-row-status tw:text-app-text-soft tw:type-body-sm">
+                        <span className="settings-row-status tw:text-app-text-soft tw:type-1">
                           {speechStatusLabel(speech.status, speech.loading)}
                         </span>
                       }
@@ -485,7 +485,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                 description="你最近的 20 段录音会保存在此设备上"
               />
               {recentRecordings.length === 0 ? (
-                <div className="settings-row tw:min-w-0 tw:bg-transparent tw:px-3 tw:py-3 tw:text-app-text-soft tw:type-body-sm">
+                <div className="settings-row tw:min-w-0 tw:bg-transparent tw:px-3 tw:py-3 tw:text-app-text-soft tw:type-1">
                   {t('暂无最近录音')}
                 </div>
               ) : (
@@ -495,10 +495,10 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                     className="settings-row tw:min-w-0 tw:bg-transparent tw:px-3 tw:py-2 tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4"
                   >
                     <div className="settings-row-info tw:min-w-0">
-                      <h4 className="settings-row-title tw:m-0 tw:text-app-text tw:type-row-title">
+                      <h4 className="settings-row-title tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">
                         {t(recordingStatusLabel(entry.status))}
                       </h4>
-                      <p className="settings-row-desc tw:mt-1 tw:mr-0 tw:mb-0 tw:ml-0 tw:truncate tw:text-app-text-soft tw:type-body-sm">
+                      <p className="settings-row-desc tw:mt-1 tw:mr-0 tw:mb-0 tw:ml-0 tw:truncate tw:text-app-text-soft tw:type-1">
                         {formatRecordingTimestamp(entry.createdAt)}
                         {entry.transcript ? ` · ${entry.transcript}` : ''}
                       </p>
@@ -572,6 +572,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                     value={newEntryText}
                     onChange={(event) => setNewEntryText(event.target.value)}
                     onKeyDown={(event) => {
+                      if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
                       if (event.key === 'Enter') {
                         event.preventDefault()
                         handleAddDictionaryEntry()
@@ -609,7 +610,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                   key={word}
                   className="settings-row tw:min-w-0 tw:bg-transparent tw:px-3 tw:py-2 tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4"
                 >
-                  <span className="tw:truncate tw:text-app-text tw:type-body-sm">{word}</span>
+                  <span className="tw:truncate tw:text-app-text tw:type-1">{word}</span>
                   <Button
                     size="sm"
                     variant="ghost"

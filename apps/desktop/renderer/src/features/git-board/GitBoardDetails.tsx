@@ -85,8 +85,8 @@ export function GitBoardDetails({
     >
       <header className="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-3">
         <div className="tw:min-w-0">
-          <h2 className="tw:truncate tw:type-row-title">{project.name}</h2>
-          <p className="tw:type-caption tw:text-app-text-meta">
+          <h2 className="tw:truncate tw:type-2 tw:weight-medium">{project.name}</h2>
+          <p className="tw:type-1 tw:text-app-text-meta">
             {source.kind === 'commit' ? source.commitSha.slice(0, 8) : t('未提交改动')}
           </p>
         </div>
@@ -103,7 +103,7 @@ export function GitBoardDetails({
         </Tooltip>
       </header>
       {hasConflicts && (
-        <p role="status" className="tw:p-3 tw:type-body-sm tw:text-app-text-meta">
+        <p role="status" className="tw:p-3 tw:type-1 tw:text-app-text-meta">
           {t(
             '存在未解决的合并冲突，暂不加载差异。冲突解除后将自动恢复，仓库状态和提交历史仍会刷新。',
           )}
@@ -132,14 +132,14 @@ export function GitBoardDetails({
       )}
       {!hasConflicts && summary && (
         <>
-          <div className="tw:max-h-48 tw:shrink-0 tw:overflow-y-auto tw:border-b tw:border-app-border-subtle tw:p-2">
-            {summary.files.length === 0 && <p className="tw:type-body-sm">{t('没有文件变更')}</p>}
+          <div className="tw:max-h-[12rem] tw:shrink-0 tw:overflow-y-auto tw:border-b tw:border-app-border-subtle tw:p-2">
+            {summary.files.length === 0 && <p className="tw:type-1">{t('没有文件变更')}</p>}
             {summary.files.map((file) => (
               <button
                 key={file.path}
                 type="button"
                 aria-pressed={selectedPath === file.path}
-                className="tw:block tw:w-full tw:rounded-md tw:px-2 tw:py-2 tw:text-left tw:type-body-sm tw:break-all tw:hover:bg-app-hover tw:aria-pressed:bg-app-selected tw:focus-visible:outline-app-focus"
+                className="tw:block tw:w-full tw:rounded-md tw:px-2 tw:py-2 tw:text-left tw:type-1 tw:break-all tw:hover:bg-app-hover tw:aria-pressed:bg-app-selected tw:focus-visible:outline-app-focus"
                 onClick={() => {
                   if (selectedPath === file.path) return
                   setDiff(null)

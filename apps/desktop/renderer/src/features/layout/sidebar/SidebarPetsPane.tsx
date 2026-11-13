@@ -23,8 +23,8 @@ export function SidebarPetsPane(): ReactNode {
   )
   return (
     <div className="sidebar-pets-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
-      <header className="sidebar-pane-heading tw:flex tw:min-h-9 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
-        <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{t('宠物')}</h2>
+      <header className="sidebar-pane-heading tw:flex tw:min-h-7 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
+        <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('宠物')}</h2>
         <Button
           color="ghostSecondary"
           isIconOnly
@@ -35,7 +35,7 @@ export function SidebarPetsPane(): ReactNode {
           <Settings aria-hidden size={APP_ICON_SIZES.sm} />
         </Button>
       </header>
-      <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:shrink-0 tw:items-center tw:px-4 tw:text-app-text-meta tw:type-body">
+      <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:shrink-0 tw:items-center tw:px-4 tw:text-app-text-meta tw:type-2">
         {t('已安装')}
       </h3>
       <ScrollArea
@@ -55,7 +55,7 @@ export function SidebarPetsPane(): ReactNode {
                 asChild
                 key={pet.id}
                 layout="flex"
-                className="tw:min-h-18 tw:py-2"
+                className="tw:min-h-[4.5rem] tw:py-2"
                 labelClassName="tw:min-w-0 tw:gap-3"
                 leadingMode="none"
                 trailing={
@@ -72,7 +72,7 @@ export function SidebarPetsPane(): ReactNode {
                 >
                   <span
                     aria-hidden="true"
-                    className="tw:flex tw:w-12 tw:shrink-0 tw:items-center tw:justify-center"
+                    className="tw:flex tw:w-8 tw:shrink-0 tw:items-center tw:justify-center"
                   >
                     <PetSprite
                       animation="idle"
@@ -82,9 +82,9 @@ export function SidebarPetsPane(): ReactNode {
                     />
                   </span>
                   <span className="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1">
-                    <span className="tw:truncate tw:type-row-title">{pet.displayName}</span>
+                    <span className="tw:truncate tw:type-2 tw:weight-medium">{pet.displayName}</span>
                     {pet.description ? (
-                      <span className="tw:line-clamp-2 tw:text-app-text-meta tw:type-body-sm">
+                      <span className="tw:line-clamp-2 tw:text-app-text-meta tw:type-1">
                         {pet.description}
                       </span>
                     ) : null}

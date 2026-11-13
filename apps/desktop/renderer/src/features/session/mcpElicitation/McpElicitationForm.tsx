@@ -127,7 +127,7 @@ export function McpElicitationForm({
       error={error}
     >
       {message ? (
-        <p className="mcp-form-message tw:m-0 tw:px-3 tw:text-app-text-soft tw:type-body tw:break-words">
+        <p className="mcp-form-message tw:m-0 tw:px-3 tw:text-app-text-soft tw:type-2 tw:break-words">
           {message}
         </p>
       ) : null}
@@ -153,7 +153,7 @@ export function McpElicitationForm({
       </div>
 
       {hasErrors && submitted ? (
-        <p className="mcp-form-error-summary tw:m-0 tw:px-3 tw:text-app-danger tw:type-body-sm">
+        <p className="mcp-form-error-summary tw:m-0 tw:px-3 tw:text-app-danger tw:type-1">
           请修正标红的字段后再提交
         </p>
       ) : null}
@@ -202,12 +202,12 @@ export function McpElicitationUnsupported({
       error={error}
     >
       {message ? (
-        <p className="mcp-form-message tw:m-0 tw:px-3 tw:text-app-text-soft tw:type-body tw:break-words">
+        <p className="mcp-form-message tw:m-0 tw:px-3 tw:text-app-text-soft tw:type-2 tw:break-words">
           {message}
         </p>
       ) : null}
 
-      <div className="mcp-form-unsupported tw:flex tw:items-start tw:gap-2 tw:px-3 tw:text-app-text-soft tw:type-body-sm">
+      <div className="mcp-form-unsupported tw:flex tw:items-start tw:gap-2 tw:px-3 tw:text-app-text-soft tw:type-1">
         <span
           className="mcp-form-unsupported-icon tw:mt-1 tw:shrink-0 tw:text-[var(--cpx-sys-space-4)]"
           aria-hidden="true"
@@ -259,13 +259,13 @@ function McpFormField({
       }
     >
       <label
-        className="mcp-form-field-label tw:flex tw:items-center tw:gap-1 tw:text-app-text tw:type-row-title"
+        className="mcp-form-field-label tw:flex tw:items-center tw:gap-1 tw:text-app-text tw:type-2 tw:weight-medium"
         htmlFor={`mcp-field-${name}`}
       >
         {label}
         {isRequired ? (
           <span
-            className="mcp-form-required-mark tw:ms-1 tw:text-app-danger tw:type-weight-heading"
+            className="mcp-form-required-mark tw:ms-1 tw:text-app-danger tw:weight-bold"
             aria-hidden="true"
           >
             *
@@ -274,7 +274,7 @@ function McpFormField({
       </label>
 
       {description ? (
-        <p className="mcp-form-field-desc tw:m-0 tw:text-app-text-meta tw:type-body-sm">
+        <p className="mcp-form-field-desc tw:m-0 tw:text-app-text-meta tw:type-1">
           {description}
         </p>
       ) : null}
@@ -282,7 +282,7 @@ function McpFormField({
       <FieldInput name={name} schema={schema} value={value} onChange={onChange} />
 
       {error ? (
-        <p className="mcp-form-field-error tw:m-0 tw:text-app-danger tw:type-body-sm" role="alert">
+        <p className="mcp-form-field-error tw:m-0 tw:text-app-danger tw:type-1" role="alert">
           {error}
         </p>
       ) : null}
@@ -355,7 +355,7 @@ function isSingleSelectEnum(
 // ── Text field ───────────────────────────────────────────────
 
 const TEXT_INPUT_CLASS =
-  'mcp-form-field-input tw:w-full tw:box-border tw:rounded-control tw:border tw:border-app-border-subtle tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-text tw:type-body tw:outline-none tw:transition-[border-color,box-shadow] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:shadow-[var(--cpx-sys-focus-ring-soft)]'
+  'mcp-form-field-input tw:w-full tw:box-border tw:rounded-control tw:border tw:border-app-border-subtle tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:outline-none tw:transition-[border-color,box-shadow] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:shadow-[var(--cpx-sys-focus-ring-soft)]'
 
 function TextField({
   name,
@@ -431,7 +431,7 @@ function BooleanField({
   return (
     <div className="mcp-form-boolean tw:inline-flex tw:items-center tw:gap-2">
       <ToggleSwitch ariaLabel={schema.title ?? name} checked={value} onChange={onChange} />
-      <span className="mcp-form-boolean-label tw:type-body">{value ? '是' : '否'}</span>
+      <span className="mcp-form-boolean-label tw:type-2">{value ? '是' : '否'}</span>
     </div>
   )
 }

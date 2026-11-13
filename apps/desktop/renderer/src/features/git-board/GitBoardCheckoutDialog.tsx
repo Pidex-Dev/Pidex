@@ -77,7 +77,7 @@ export function GitBoardCheckoutDialog({
         >
           <header className="tw:flex tw:items-start tw:justify-between tw:gap-3">
             <Dialog.Title asChild>
-              <h2 className="tw:m-0 tw:min-w-0 tw:flex-1 tw:text-app-text tw:type-title-sm tw:break-words">
+              <h2 className="tw:m-0 tw:min-w-0 tw:flex-1 tw:text-app-text tw:type-4 tw:weight-bold tw:break-words">
                 {t('签出分支')}
               </h2>
             </Dialog.Title>
@@ -96,7 +96,7 @@ export function GitBoardCheckoutDialog({
           <Dialog.Description asChild>
             <div
               id="git-board-checkout-description"
-              className="tw:m-0 tw:min-w-0 tw:text-app-text-soft tw:type-body-sm"
+              className="tw:m-0 tw:min-w-0 tw:text-app-text-soft tw:type-1"
             >
               <p className="tw:m-0 tw:truncate tw:text-app-text">
                 {project ? project.name : t('未选择项目')}
@@ -107,17 +107,17 @@ export function GitBoardCheckoutDialog({
             </div>
           </Dialog.Description>
           {error && (
-            <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-body-sm">
+            <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-1">
               {error}
             </p>
           )}
           {!canCheckout ? (
-            <p role="status" className="tw:m-0 tw:text-app-text-meta tw:type-body-sm">
+            <p role="status" className="tw:m-0 tw:text-app-text-meta tw:type-1">
               {t('当前服务不支持签出分支（需要 git.workspace.v1）。')}
             </p>
           ) : branchListUnavailable ? (
             <div role="alert" className="tw:grid tw:gap-2">
-              <p className="tw:m-0 tw:text-app-text-meta tw:type-body-sm">
+              <p className="tw:m-0 tw:text-app-text-meta tw:type-1">
                 {t('仓库状态不可用，无法读取本地分支。')}
               </p>
               <Button variant="ghost" onClick={onRetryBranches}>
@@ -126,7 +126,7 @@ export function GitBoardCheckoutDialog({
             </div>
           ) : !branches ? (
             <div role="status" className="tw:grid tw:gap-2">
-              <p className="tw:m-0 tw:text-app-text-meta tw:type-body-sm">
+              <p className="tw:m-0 tw:text-app-text-meta tw:type-1">
                 {branchError ? t(branchError) : t('正在加载本地分支…')}
               </p>
               <Button variant="ghost" onClick={onRetryBranches}>
@@ -142,13 +142,13 @@ export function GitBoardCheckoutDialog({
                 onChange={setQuery}
               />
               {busy && (
-                <p role="status" className="tw:m-0 tw:text-app-text-meta tw:type-body-sm">
+                <p role="status" className="tw:m-0 tw:text-app-text-meta tw:type-1">
                   {t('正在签出分支…')}
                 </p>
               )}
               <div className="tw:grid tw:max-h-[min(24rem,50vh)] tw:gap-1 tw:overflow-y-auto">
                 {filteredBranches.length === 0 ? (
-                  <p role="status" className="tw:m-0 tw:py-2 tw:text-app-text-meta tw:type-body-sm">
+                  <p role="status" className="tw:m-0 tw:py-2 tw:text-app-text-meta tw:type-1">
                     {branches.length === 0 ? t('没有可签出的本地分支') : t('没有匹配的本地分支')}
                   </p>
                 ) : (
@@ -158,7 +158,7 @@ export function GitBoardCheckoutDialog({
                       type="button"
                       aria-current={branch.current ? 'true' : undefined}
                       className={cx(
-                        'tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-body-sm',
+                        'tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-1',
                         branch.current
                           ? 'tw:text-app-text-meta'
                           : 'tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus',
@@ -179,7 +179,7 @@ export function GitBoardCheckoutDialog({
                       <span className="tw:min-w-0 tw:flex-1 tw:truncate">{branch.name}</span>
                       {branch.current && (
                         <Tooltip content={t('当前分支')}>
-                          <span className="tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:type-caption">
+                          <span className="tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:type-1">
                             <Check aria-hidden="true" size="var(--inline-icon-size, 1em)" />
                             {t('当前分支')}
                           </span>
@@ -193,7 +193,7 @@ export function GitBoardCheckoutDialog({
           )}
           <div className="permission-modal-actions tw:flex tw:items-center tw:justify-end">
             <Dialog.Close asChild>
-              <Button className="tw:min-w-19" color="secondary" size="md">
+              <Button className="tw:min-w-[4.75rem]" color="secondary" size="md">
                 {t('关闭')}
               </Button>
             </Dialog.Close>

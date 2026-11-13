@@ -61,23 +61,23 @@ export function ComposerDictationControl({
     if (dictation.phase === 'recording') {
       return (
         <div
-          className="composer-dictation-recording tw:box-border tw:h-7 tw:w-40 tw:px-2 tw:inline-flex tw:items-center tw:justify-between tw:rounded-pill tw:border tw:border-app-border-subtle tw:bg-app-bg-surface tw:shrink-0 tw:overflow-hidden"
+          className="composer-dictation-recording tw:box-border tw:h-6 tw:w-[10rem] tw:px-2 tw:inline-flex tw:items-center tw:justify-between tw:rounded-pill tw:border tw:border-app-border-subtle tw:bg-app-bg-surface tw:shrink-0 tw:overflow-hidden"
           role="region"
           aria-label="正在语音听写"
         >
-          <div className="tw:flex tw:items-center tw:gap-1.5 tw:min-w-0 tw:shrink-0">
+          <div className="tw:flex tw:items-center tw:gap-1 tw:min-w-0 tw:shrink-0">
             <canvas
               ref={dictation.bindWaveformCanvas}
               width={48}
               height={14}
-              className="composer-dictation-waveform tw:w-12 tw:h-3.5 tw:text-app-text tw:shrink-0"
+              className="composer-dictation-waveform tw:w-8 tw:h-3 tw:text-app-text tw:shrink-0"
               aria-hidden="true"
             />
-            <span className="composer-dictation-timer tw:type-caption tw:font-mono tw:text-app-text-soft tw:tabular-nums tw:select-none tw:shrink-0">
+            <span className="composer-dictation-timer tw:type-1 tw:font-mono tw:text-app-text-soft tw:tabular-nums tw:select-none tw:shrink-0">
               {formatElapsed(dictation.elapsedMs)}
             </span>
           </div>
-          <div className="tw:flex tw:items-center tw:gap-0.5 tw:shrink-0">
+          <div className="tw:flex tw:items-center tw:gap-1 tw:shrink-0">
             <Tooltip content="取消听写 · Esc" side="top">
               <Button
                 isIconOnly
@@ -112,17 +112,17 @@ export function ComposerDictationControl({
     if (dictation.phase === 'processing') {
       return (
         <div
-          className="composer-dictation-processing tw:box-border tw:h-7 tw:w-40 tw:px-2 tw:inline-flex tw:items-center tw:justify-between tw:rounded-pill tw:border tw:border-app-border-subtle tw:bg-app-bg-surface tw:shrink-0 tw:overflow-hidden"
+          className="composer-dictation-processing tw:box-border tw:h-6 tw:w-[10rem] tw:px-2 tw:inline-flex tw:items-center tw:justify-between tw:rounded-pill tw:border tw:border-app-border-subtle tw:bg-app-bg-surface tw:shrink-0 tw:overflow-hidden"
           role="status"
           aria-live="polite"
         >
-          <div className="tw:flex tw:items-center tw:gap-1.5 tw:min-w-0 tw:overflow-hidden">
+          <div className="tw:flex tw:items-center tw:gap-1 tw:min-w-0 tw:overflow-hidden">
             <Loader2
               aria-hidden="true"
-              className="tw:size-3.5 tw:animate-spin tw:motion-reduce:animate-none tw:text-app-text-soft tw:shrink-0"
+              className="tw:size-icon-sm tw:animate-spin tw:motion-reduce:animate-none tw:text-app-text-soft tw:shrink-0"
               size={APP_ICON_SIZES.sm}
             />
-            <span className="composer-dictation-processing-text tw:type-caption tw:text-app-text-soft tw:select-none tw:whitespace-nowrap tw:truncate">
+            <span className="composer-dictation-processing-text tw:type-1 tw:text-app-text-soft tw:select-none tw:whitespace-nowrap tw:truncate">
               正在本地转写…
             </span>
           </div>
@@ -146,11 +146,11 @@ export function ComposerDictationControl({
     if (dictation.phase === 'error') {
       return (
         <div
-          className="composer-dictation-error tw:box-border tw:h-7 tw:w-40 tw:inline-flex tw:items-center tw:gap-1.5 tw:bg-app-bg-surface tw:px-2 tw:rounded-pill tw:border tw:border-app-border-subtle tw:shrink-0 tw:overflow-hidden"
+          className="composer-dictation-error tw:box-border tw:h-6 tw:w-[10rem] tw:inline-flex tw:items-center tw:gap-1 tw:bg-app-bg-surface tw:px-2 tw:rounded-pill tw:border tw:border-app-border-subtle tw:shrink-0 tw:overflow-hidden"
           role="alert"
         >
           <span
-            className="composer-dictation-error-text tw:type-caption tw:text-app-danger tw:truncate tw:max-w-36 tw:select-none"
+            className="composer-dictation-error-text tw:type-1 tw:text-app-danger tw:truncate tw:max-w-[9rem] tw:select-none"
             title={dictation.error ?? '听写失败'}
           >
             {dictation.error ?? '听写失败'}
@@ -158,7 +158,7 @@ export function ComposerDictationControl({
           <Tooltip content="重新录音 · Ctrl+Shift+D" side="top">
             <Button
               aria-label="重新录音"
-              className="tw:h-5 tw:px-1.5"
+              className="tw:h-5 tw:px-1"
               color="ghostSecondary"
               size="compact"
               onClick={dictation.start}
@@ -234,7 +234,7 @@ export function ComposerDictationControl({
     dictation.phase === 'error'
   return (
     <motion.div
-      className="tw:relative tw:inline-flex tw:h-7 tw:shrink-0 tw:items-center tw:justify-end tw:overflow-hidden"
+      className="tw:relative tw:inline-flex tw:h-6 tw:shrink-0 tw:items-center tw:justify-end tw:overflow-hidden"
       initial={false}
       animate={{ width: expanded ? '10rem' : '1.75rem' }}
       transition={{ duration: reducedMotion ? 0 : 0.18, ease: 'easeOut' }}

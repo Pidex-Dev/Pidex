@@ -64,7 +64,7 @@ export function Checkbox({
       data-disabled={disabled || undefined}
     >
       {control}
-      <span className="ui-checkbox-label tw:type-row-title">{children}</span>
+      <span className="ui-checkbox-label tw:type-2 tw:weight-medium">{children}</span>
     </label>
   ) : (
     control

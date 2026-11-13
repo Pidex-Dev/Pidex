@@ -101,12 +101,13 @@ export function WorktreePreferences({
           control={
             <Input
               aria-label="工作树根目录"
-              className="tw:w-80 tw:max-w-full"
+              className="tw:w-[20rem] tw:max-w-full"
               value={worktreeRoot}
               placeholder="留空以使用默认位置"
               onChange={(event) => draft.setValue('worktreeRoot', event.target.value)}
               onBlur={() => void save(['worktreeRoot'])}
               onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
                 if (event.key === 'Enter') void save(['worktreeRoot'])
               }}
             />
@@ -157,7 +158,7 @@ export function WorktreePreferences({
             <Input
               aria-label="保留的工作树数量"
               type="number"
-              className="tw:w-20 tw:text-center"
+              className="tw:w-[5rem] tw:text-center"
               min={1}
               max={100}
               step={1}
@@ -166,6 +167,7 @@ export function WorktreePreferences({
               onChange={(event) => setLimit(event.target.value)}
               onBlur={saveLimit}
               onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
                 if (event.key === 'Enter') saveLimit()
               }}
             />

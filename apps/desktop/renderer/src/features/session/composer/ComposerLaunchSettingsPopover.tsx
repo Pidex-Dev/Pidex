@@ -58,7 +58,7 @@ type View = 'settings' | 'branch' | 'environment'
 
 const CONTENT_CLASS =
   'popover-surface popover popover-menu-spacing tw:z-popover tw:grid tw:max-h-none tw:overflow-hidden tw:text-app-text'
-const NOTE_CLASS = 'tw:m-0 tw:px-2 tw:pb-1 tw:text-app-text-meta tw:type-caption'
+const NOTE_CLASS = 'tw:m-0 tw:px-2 tw:pb-1 tw:text-app-text-meta tw:type-1'
 
 
 /**
@@ -431,7 +431,7 @@ export function ComposerLaunchSettingsPopover({
                             <span className="tw:min-w-0 tw:max-w-full tw:truncate">
                               {environment.name}
                             </span>
-                            <small className="tw:min-w-0 tw:max-w-full tw:truncate tw:type-caption tw:text-app-text-meta">
+                            <small className="tw:min-w-0 tw:max-w-full tw:truncate tw:type-1 tw:text-app-text-meta">
                               {environment.inherited ? '继承 · ' : ''}
                               {environment.path.split(/[\\/]/).pop()}
                             </small>

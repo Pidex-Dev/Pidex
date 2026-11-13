@@ -25,9 +25,9 @@ export function ProviderBalanceCards({
             key={balance.currency}
           >
             {accountName ? (
-              <h4 className="tw:m-0 tw:shrink-0 tw:type-row-title">{accountName}</h4>
+              <h4 className="tw:m-0 tw:shrink-0 tw:type-2 tw:weight-medium">{accountName}</h4>
             ) : null}
-            <div className="tw:flex tw:flex-wrap tw:items-baseline tw:justify-end tw:gap-x-2 tw:gap-y-1 tw:type-body">
+            <div className="tw:flex tw:flex-wrap tw:items-baseline tw:justify-end tw:gap-x-2 tw:gap-y-1 tw:type-2">
               <span>账户余额</span>
               <strong className="tw:tabular-nums">
                 {formatAmount(balance.currency, balance.total)}

@@ -98,7 +98,7 @@ const CUSTOM_SECTION_INITIAL_LIMIT = 10
 const SECTION_HEADER_CLASS =
   'sidebar-section-header tw:sticky tw:top-0 tw:z-local tw:grid tw:h-[var(--sidebar-row-height)] tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:grid-cols-[minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:select-none tw:focus-within:outline-none tw:group'
 const SECTION_TITLE_CLASS =
-  'sidebar-section-title tw:flex tw:min-w-0 tw:items-center tw:type-body tw:normal-case tw:text-app-text-meta'
+  'sidebar-section-title tw:flex tw:min-w-0 tw:items-center tw:type-2 tw:normal-case tw:text-app-text-meta'
 const SECTION_TOGGLE_CLASS =
   'sidebar-section-toggle tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)] tw:items-center tw:gap-x-2 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit'
 const SECTION_ACTIONS_CLASS =
@@ -115,7 +115,7 @@ const SECTION_CONTENT_CLASS =
   'sidebar-section-content tw:grid tw:min-w-0 tw:sidebar-row-gap tw:overflow-hidden tw:pt-0'
 /* 更多/收起操作行：与分组行同一 gutter，1px 行间距。 */
 const SHOW_MORE_ACTIONS_CLASS =
-  'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-0.5 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard'
+  'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-0.5 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard'
 const SHOW_MORE_ROW_CLASS = 'sidebar-row-main tw:min-w-0 tw:flex tw:items-center tw:gap-4'
 const SHOW_MORE_BUTTON_CLASS =
   'tw:w-auto sidebar-show-more-button tw:first:-ml-2 tw:min-w-0 tw:border-0 tw:[font:inherit]'
@@ -1825,13 +1825,14 @@ function SidebarCustomSection({
             <input
               aria-label="分组名称"
               autoFocus
-              className="sidebar-section-rename-input tw:h-[var(--sidebar-row-height)] tw:w-full tw:min-w-0 tw:rounded-md tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:text-app-text tw:type-body tw:outline-none"
+              className="sidebar-section-rename-input tw:h-[var(--sidebar-row-height)] tw:w-full tw:min-w-0 tw:rounded-md tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:text-app-text tw:type-2 tw:outline-none"
               onBlur={() => {
                 onRename(section.id, renameValue)
                 setRenaming(false)
               }}
               onChange={(event) => setRenameValue(event.target.value)}
               onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
                 if (event.key === 'Enter') {
                   onRename(section.id, renameValue)
                   setRenaming(false)

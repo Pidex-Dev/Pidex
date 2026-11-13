@@ -274,12 +274,12 @@ export function RightDockGoalPanel({
       aria-label="编辑目标"
       className="right-dock-goal-panel tw:flex tw:h-full tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col tw:bg-app-dock"
     >
-      <div className="tw:flex tw:shrink-0 tw:flex-col tw:gap-1.5 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2">
+      <div className="tw:flex tw:shrink-0 tw:flex-col tw:gap-1 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2">
         <div className="tw:flex tw:items-center tw:justify-between tw:gap-2">
-          <span className="tw:text-app-text-meta tw:type-caption tw:select-none">
+          <span className="tw:text-app-text-meta tw:type-1 tw:select-none">
             {goal ? formatRelativeUpdatedLabel(goal.updatedAt) : '尚未设置目标'}
           </span>
-          <div className="tw:flex tw:items-center tw:gap-1.5">
+          <div className="tw:flex tw:items-center tw:gap-1">
             <Button
               color="ghostSecondary"
               size="sm"
@@ -295,8 +295,8 @@ export function RightDockGoalPanel({
           </div>
         </div>
         {goal ? (
-          <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-1.5">
-            <span className="tw:text-app-text-meta tw:type-caption tw:tabular-nums">
+          <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-1">
+            <span className="tw:text-app-text-meta tw:type-1 tw:tabular-nums">
               {savedBudget === null
                 ? '预算：不限额'
                 : `预算：${compactTokenCount(goal.tokensUsed)} / ${compactTokenCount(savedBudget)}`}
@@ -316,12 +316,13 @@ export function RightDockGoalPanel({
                     setBudgetError(null)
                   }}
                   onKeyDown={(event) => {
+                    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
                     if (event.key === 'Enter' && !event.shiftKey) {
                       event.preventDefault()
                       void handleAppend()
                     }
                   }}
-                  className="tw:h-7 tw:w-28 tw:rounded tw:border tw:border-app-border-subtle tw:bg-transparent tw:px-2 tw:py-0.5 tw:text-app-text tw:type-caption tw:tabular-nums tw:outline-none tw:placeholder:text-app-text-meta tw:focus:border-app-focus"
+                  className="tw:h-6 tw:w-[7rem] tw:rounded tw:border tw:border-app-border-subtle tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-1 tw:tabular-nums tw:outline-none tw:placeholder:text-app-text-meta tw:focus:border-app-focus"
                 />
                 <Button
                   color="ghostSecondary"
@@ -339,13 +340,13 @@ export function RightDockGoalPanel({
                 >
                   取消预算上限
                 </Button>
-                <span className="tw:text-app-text-soft tw:type-caption tw:tabular-nums">
+                <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
                   {appendHint}
                 </span>
               </>
             ) : null}
             {budgetError ? (
-              <span role="alert" className="tw:text-app-danger tw:type-caption">
+              <span role="alert" className="tw:text-app-danger tw:type-1">
                 {budgetError}
               </span>
             ) : null}
@@ -366,7 +367,7 @@ export function RightDockGoalPanel({
               void handleSave()
             }
           }}
-          className="tw:min-h-0 tw:w-full tw:flex-1 tw:resize-none tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:type-body tw:outline-none tw:placeholder:text-app-text-meta"
+          className="tw:min-h-0 tw:w-full tw:flex-1 tw:resize-none tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:type-2 tw:outline-none tw:placeholder:text-app-text-meta"
         />
       </div>
     </div>
@@ -410,7 +411,7 @@ export function RightDockPlanPanel({
         className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1"
         contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
       >
-        <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-6 tw:text-center tw:text-app-text-soft">
+        <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
           <ListChecks size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
           <strong className="tw:text-app-text">暂无计划</strong>
           <span className="tw:max-w-full tw:text-app-text-soft">
@@ -429,7 +430,7 @@ export function RightDockPlanPanel({
     >
       <article className="right-dock-plan-document tw:mx-auto tw:w-full tw:max-w-[48rem] tw:text-app-text">
         <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:pb-3">
-          <span className="tw:text-app-text-meta tw:type-label">
+          <span className="tw:text-app-text-meta tw:type-1 tw:weight-medium">
             {hasNewer ? '历史计划' : pendingReview ? '计划 · 待审阅' : '计划'}
           </span>
           <div className="tw:flex tw:items-center tw:gap-2">
@@ -447,7 +448,7 @@ export function RightDockPlanPanel({
         </div>
         {actions.error ? <p role="alert">{actions.error}</p> : null}
         {title ? (
-          <h2 className="right-dock-plan-title tw:m-0 tw:pb-2 tw:text-app-text tw:type-body-lg">
+          <h2 className="right-dock-plan-title tw:m-0 tw:pb-2 tw:text-app-text tw:type-3">
             {title}
           </h2>
         ) : null}

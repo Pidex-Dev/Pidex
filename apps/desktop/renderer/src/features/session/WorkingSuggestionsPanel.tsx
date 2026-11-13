@@ -65,7 +65,7 @@ export function WorkingSuggestionsPanel({
         className="working-suggestions tw:max-w-full"
         style={{ width: 'var(--quick-chat-surface-width)' }}
       >
-        <div className="working-suggestion-list tw:grid tw:gap-0.5">
+        <div className="working-suggestion-list tw:grid tw:gap-1">
           {suggestions.slice(0, 3).map((suggestion, index) => (
             <button
               key={suggestion.id}
@@ -117,7 +117,7 @@ export function WorkingSuggestionsPanel({
         className="working-suggestions tw:max-w-full"
         style={{ width: 'var(--quick-chat-surface-width)' }}
       >
-        <div className="working-suggestion-list tw:grid tw:gap-0.5">
+        <div className="working-suggestion-list tw:grid tw:gap-1">
           <div className={`${SUGGESTION_HEADING_CLASS} working-suggestion-list-heading`}>
             <span className="tw:inline-flex tw:min-w-0 tw:items-center tw:gap-2 tw:text-app-text-soft">
               <LayoutTemplate aria-hidden size="var(--inline-icon-size, 1em)" />
@@ -170,7 +170,7 @@ export function WorkingSuggestionsPanel({
       className="working-suggestions tw:max-w-full"
       style={{ width: 'var(--quick-chat-surface-width)' }}
     >
-      <div className="working-suggestion-list tw:grid tw:gap-0.5">
+      <div className="working-suggestion-list tw:grid tw:gap-1">
         <div className={`${SUGGESTION_HEADING_CLASS} working-suggestion-list-heading`}>
           <span className="tw:inline-flex tw:min-w-0 tw:items-center tw:gap-2 tw:text-app-text-soft">
             <Icon aria-hidden className="tw:shrink-0 tw:text-app-text-soft" size={APP_ICON_SIZE} />

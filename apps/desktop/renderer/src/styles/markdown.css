@@ -7,7 +7,7 @@
   .md-body {
     width: 100%;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-reading);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2);
     overflow-wrap: anywhere;
   }
   .md-body > :first-child {
@@ -36,22 +36,22 @@
     margin: 28px 0 12px;
     padding: 0;
     border: 0;
-    font: var(--cpx-sys-type-heading-xl);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-7); line-height: var(--cpx-sys-line-height-7); letter-spacing: var(--cpx-sys-letter-spacing-7); font-weight: var(--cpx-sys-font-weight-bold);
   }
   .md-body h2 {
     margin: 24px 0 8px;
     padding: 0;
-    font: var(--cpx-sys-type-heading-lg);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-6); line-height: var(--cpx-sys-line-height-6); letter-spacing: var(--cpx-sys-letter-spacing-6); font-weight: var(--cpx-sys-font-weight-bold);
   }
   .md-body h3 {
     margin: 20px 0 8px;
-    font: var(--cpx-sys-type-heading-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-4); line-height: var(--cpx-sys-line-height-4); letter-spacing: var(--cpx-sys-letter-spacing-4); font-weight: var(--cpx-sys-font-weight-bold);
   }
   .md-body h4,
   .md-body h5,
   .md-body h6 {
     margin: 16px 0 4px;
-    font: var(--cpx-sys-type-row-title);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
   }
   .md-body ul,
   .md-body ol {
@@ -112,7 +112,7 @@
     align-items: center;
     gap: 8px;
     margin-bottom: 6px;
-    font: var(--cpx-sys-type-label);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1); font-weight: var(--cpx-sys-font-weight-medium);
     color: var(--md-alert-color);
   }
   .md-body .md-alert__icon {
@@ -470,7 +470,7 @@
     min-width: 100%;
     table-layout: auto;
     border-collapse: collapse;
-    font: var(--cpx-sys-type-body);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2);
     font-variant-numeric: lining-nums tabular-nums;
   }
 
@@ -590,7 +590,7 @@
     overflow-x: auto;
     border-left-color: var(--cpx-sys-color-border-default);
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-code);
+    font-family: var(--cpx-sys-font-family-mono); font-size: var(--cpx-sys-font-size-code); line-height: var(--cpx-sys-line-height-code); letter-spacing: var(--cpx-sys-letter-spacing-code);
     white-space: pre-wrap;
   }
 
@@ -678,20 +678,20 @@
   .md-body--conversation :is(h1, h2, h3) {
     font-family: inherit;
     font-weight: var(--cpx-sys-font-weight-bold);
-    line-height: var(--cpx-sys-line-height-heading-sm);
+    line-height: var(--cpx-sys-line-height-4);
     letter-spacing: inherit;
   }
   .md-body--conversation h1 {
-    font-size: calc(var(--cpx-sys-font-size-md) * 1.5);
-    margin-block: var(--cpx-sys-font-size-md) calc(var(--cpx-sys-font-size-md) / 2);
+    font-size: calc(var(--cpx-sys-font-size-2) * 1.5);
+    margin-block: var(--cpx-sys-font-size-2) calc(var(--cpx-sys-font-size-2) / 2);
   }
   .md-body--conversation h2 {
-    font-size: calc(var(--cpx-sys-font-size-md) * 1.25);
-    margin-block: var(--cpx-sys-font-size-md) calc(var(--cpx-sys-font-size-md) / 4);
+    font-size: calc(var(--cpx-sys-font-size-2) * 1.25);
+    margin-block: var(--cpx-sys-font-size-2) calc(var(--cpx-sys-font-size-2) / 4);
   }
   .md-body--conversation h3 {
-    font-size: calc(var(--cpx-sys-font-size-md) * 1.125);
-    margin-block: var(--cpx-sys-font-size-md) calc(var(--cpx-sys-font-size-md) / 4);
+    font-size: calc(var(--cpx-sys-font-size-2) * 1.125);
+    margin-block: var(--cpx-sys-font-size-2) calc(var(--cpx-sys-font-size-2) / 4);
   }
   .md-body--conversation li + li {
     margin-top: calc(var(--cpx-sys-space-1) * 1.5);
@@ -774,7 +774,7 @@
   .md-body--conversation .md-table-status {
     margin: 0;
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
   .md-code-block[data-wrapped='true'] .md-code-content {
     min-width: 0;

@@ -89,18 +89,18 @@ export function WhatsNewDialog({
             closeButtonRef.current?.focus()
           }}
         >
-          <header className="whats-new-dialog-header tw:grid tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-start tw:gap-3 tw:border-b tw:border-app-border-subtle tw:px-6 tw:py-5">
+          <header className="whats-new-dialog-header tw:grid tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-start tw:gap-3 tw:border-b tw:border-app-border-subtle tw:px-5 tw:py-5">
             <span
               aria-hidden="true"
-              className="whats-new-heading-icon tw:inline-flex tw:size-9.5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-lg tw:border-0 tw:bg-app-panel tw:text-app-text tw:[&>svg]:size-icon-lg"
+              className="whats-new-heading-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-lg tw:border-0 tw:bg-app-panel tw:text-app-text tw:[&>svg]:size-icon-lg"
             >
               <Sparkles size={APP_ICON_SIZE} />
             </span>
             <div className="whats-new-dialog-heading tw:grid tw:min-w-0 tw:gap-1">
-              <Dialog.Title className="whats-new-dialog-title tw:m-0 tw:type-weight-label tw:text-app-text tw:text-[length:var(--cpx-sys-font-size-xl)] tw:[line-height:var(--cpx-sys-line-height-relaxed)]">
+              <Dialog.Title className="whats-new-dialog-title tw:m-0 tw:weight-medium tw:text-app-text tw:text-[length:var(--cpx-sys-font-size-4)] tw:[line-height:var(--cpx-sys-line-height-3)]">
                 新特性
               </Dialog.Title>
-              <Dialog.Description className="whats-new-dialog-description tw:m-0 tw:text-app-text-meta tw:text-[length:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
+              <Dialog.Description className="whats-new-dialog-description tw:m-0 tw:text-app-text-meta tw:text-[length:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]">
                 查看 Pidex 当前版本及历史版本的 GitHub 更新记录。
               </Dialog.Description>
             </div>
@@ -182,8 +182,8 @@ function ReleaseNotesContent({
         contentClassName="whats-new-version-scroll-content tw:p-3"
       >
         {result.source === 'bundled-changelog' ? (
-          <div className="whats-new-notice whats-new-fallback-notice tw:m-0 tw:mb-3 tw:grid tw:gap-3 tw:rounded-lg tw:bg-app-hover tw:p-3 tw:text-[length:var(--cpx-sys-font-size-xs)] tw:text-app-text-meta">
-            <p className="tw:m-0 tw:[line-height:var(--cpx-sys-line-height-tight)]">
+          <div className="whats-new-notice whats-new-fallback-notice tw:m-0 tw:mb-3 tw:grid tw:gap-3 tw:rounded-lg tw:bg-app-hover tw:p-3 tw:text-[length:var(--cpx-sys-font-size-1)] tw:text-app-text-meta">
+            <p className="tw:m-0 tw:[line-height:var(--cpx-sys-line-height-1)]">
               当前仅显示随应用提供的版本记录，在线历史版本暂时不可用。
             </p>
             <Button
@@ -199,7 +199,7 @@ function ReleaseNotesContent({
           </div>
         ) : null}
         {result.truncated ? (
-          <p className="whats-new-notice tw:m-0 tw:mb-3 tw:rounded-lg tw:bg-app-hover tw:p-3 tw:text-[length:var(--cpx-sys-font-size-xs)] tw:text-app-text-meta">
+          <p className="whats-new-notice tw:m-0 tw:mb-3 tw:rounded-lg tw:bg-app-hover tw:p-3 tw:text-[length:var(--cpx-sys-font-size-1)] tw:text-app-text-meta">
             更新记录较多，当前仅显示最近的一部分历史版本。
           </p>
         ) : null}
@@ -211,7 +211,7 @@ function ReleaseNotesContent({
               <li key={release.tagName}>
                 <button
                   aria-current={current ? 'true' : undefined}
-                  className="whats-new-version-item tw:grid tw:w-full tw:min-w-0 tw:cursor-pointer tw:gap-2 tw:rounded-md tw:border tw:border-transparent tw:bg-transparent tw:p-3 tw:text-left tw:text-inherit tw:type-body tw:hover:bg-app-hover tw:data-[selected=true]:border-app-border-subtle tw:data-[selected=true]:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none tw:forced-colors:focus-visible:shadow-none tw:forced-colors:focus-visible:outline-offset-[-2px] tw:forced-colors:focus-visible:[outline:2px_solid_Highlight]"
+                  className="whats-new-version-item tw:grid tw:w-full tw:min-w-0 tw:cursor-pointer tw:gap-2 tw:rounded-md tw:border tw:border-transparent tw:bg-transparent tw:p-3 tw:text-left tw:text-inherit tw:type-2 tw:hover:bg-app-hover tw:data-[selected=true]:border-app-border-subtle tw:data-[selected=true]:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none tw:forced-colors:focus-visible:shadow-none tw:forced-colors:focus-visible:outline-offset-[-2px] tw:forced-colors:focus-visible:[outline:2px_solid_Highlight]"
                   data-selected={selected || undefined}
                   type="button"
                   onClick={() => {
@@ -220,7 +220,7 @@ function ReleaseNotesContent({
                   }}
                 >
                   <span className="whats-new-release-heading tw:flex tw:items-start tw:justify-between tw:gap-4">
-                    <strong className="tw:min-w-0 tw:wrap-anywhere tw:text-[length:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
+                    <strong className="tw:min-w-0 tw:wrap-anywhere tw:text-[length:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]">
                       {release.name.trim() || release.tagName}
                     </strong>
                     <ReleaseBadges current={current} prerelease={release.prerelease} />
@@ -236,7 +236,7 @@ function ReleaseNotesContent({
       <ScrollArea
         aria-label="版本更新内容"
         className="whats-new-detail-scroll tw:min-h-0 tw:overscroll-contain"
-        contentClassName="whats-new-detail-scroll-content tw:p-6"
+        contentClassName="whats-new-detail-scroll-content tw:p-5"
         viewportRef={detailScrollRef}
       >
         <ReleaseDetails
@@ -267,7 +267,7 @@ function ReleaseDetails({
     <article className="whats-new-release-details tw:min-w-0">
       <header className="whats-new-release-details-header tw:mb-5 tw:grid tw:gap-2 tw:border-b tw:border-app-border-subtle tw:pb-4">
         <span className="whats-new-release-heading tw:flex tw:items-center tw:justify-between tw:gap-4">
-          <strong className="tw:min-w-0 tw:text-[length:var(--cpx-sys-font-size-md)]">
+          <strong className="tw:min-w-0 tw:text-[length:var(--cpx-sys-font-size-2)]">
             {release.name.trim() || release.tagName}
           </strong>
           <ReleaseBadges current={current} prerelease={release.prerelease} />
@@ -287,7 +287,7 @@ function ReleaseDetails({
             text={release.body}
           />
         ) : (
-          <p className="whats-new-empty-body tw:m-0 tw:text-[length:var(--cpx-sys-font-size-sm)] tw:text-app-text-meta">
+          <p className="whats-new-empty-body tw:m-0 tw:text-[length:var(--cpx-sys-font-size-1)] tw:text-app-text-meta">
             此版本没有填写更新说明。
           </p>
         )}
@@ -305,7 +305,7 @@ function ReleaseDetails({
           </div>
         ) : null}
       </div>
-      <p className="whats-new-source tw:mt-6 tw:mb-0 tw:text-left tw:text-[length:var(--cpx-sys-font-size-sm)] tw:text-app-text-meta">
+      <p className="whats-new-source tw:mt-5 tw:mb-0 tw:text-left tw:text-[length:var(--cpx-sys-font-size-1)] tw:text-app-text-meta">
         {source === 'bundled-changelog'
           ? '随 Pidex 安装包提供'
           : `数据来自 GitHub Releases · 最近获取于 ${formatDateTime(fetchedAt)}`}
@@ -327,14 +327,14 @@ function ReleaseBadges({
     <span className="whats-new-release-badges tw:flex tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
       {current ? (
         <span
-          className="tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-meta tw:data-[kind=current]:text-app-accent-fg tw:text-[length:var(--cpx-sys-font-size-xs)]"
+          className="tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-meta tw:data-[kind=current]:text-app-accent-fg tw:text-[length:var(--cpx-sys-font-size-1)]"
           data-kind="current"
         >
           当前版本
         </span>
       ) : null}
       {prerelease ? (
-        <span className="tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-meta tw:text-[length:var(--cpx-sys-font-size-xs)]">
+        <span className="tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-meta tw:text-[length:var(--cpx-sys-font-size-1)]">
           预发布
         </span>
       ) : null}
@@ -348,7 +348,7 @@ function ReleaseMeta({
   release: RpcResult<'release-notes/list'>['releases'][number]
 }): React.ReactNode {
   return (
-    <span className="whats-new-release-meta tw:flex tw:items-center tw:gap-3 tw:text-app-text-meta tw:text-[length:var(--cpx-sys-font-size-xs)]">
+    <span className="whats-new-release-meta tw:flex tw:items-center tw:gap-3 tw:text-app-text-meta tw:text-[length:var(--cpx-sys-font-size-1)]">
       <code className="tw:font-mono">{release.tagName}</code>
       {release.publishedAt ? (
         <time dateTime={release.publishedAt}>{formatDate(release.publishedAt)}</time>
@@ -368,10 +368,10 @@ function ReleaseNotesError({
   return (
     <section
       aria-live="polite"
-      className="whats-new-state tw:m-6 tw:grid tw:justify-items-start tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-app-panel tw:p-7"
+      className="whats-new-state tw:m-5 tw:grid tw:justify-items-start tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-app-panel tw:p-6"
     >
       <strong>{message.title}</strong>
-      <p className="tw:m-0 tw:mb-2 tw:max-w-[620px] tw:text-app-text-meta tw:[line-height:var(--cpx-sys-line-height-normal)]">
+      <p className="tw:m-0 tw:mb-2 tw:max-w-[620px] tw:text-app-text-meta tw:[line-height:var(--cpx-sys-line-height-2)]">
         {message.description}
       </p>
       <Button size="md" color="secondary" onClick={onRetry}>
@@ -390,9 +390,9 @@ function ReleaseNotesEmpty({
   title: string
 }): React.ReactNode {
   return (
-    <section className="whats-new-state tw:m-6 tw:grid tw:justify-items-start tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-app-panel tw:p-7">
+    <section className="whats-new-state tw:m-5 tw:grid tw:justify-items-start tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-app-panel tw:p-6">
       <strong>{title}</strong>
-      <p className="tw:m-0 tw:mb-2 tw:max-w-[620px] tw:text-app-text-meta tw:[line-height:var(--cpx-sys-line-height-normal)]">
+      <p className="tw:m-0 tw:mb-2 tw:max-w-[620px] tw:text-app-text-meta tw:[line-height:var(--cpx-sys-line-height-2)]">
         {description}
       </p>
     </section>
@@ -404,16 +404,16 @@ function ReleaseNotesSkeleton(): React.ReactNode {
     <section
       aria-label="正在获取更新日志"
       aria-live="polite"
-      className="whats-new-skeleton tw:m-6 tw:grid tw:gap-3"
+      className="whats-new-skeleton tw:m-5 tw:grid tw:gap-3"
     >
       {[0, 1, 2].map((index) => (
         <div
           className="whats-new-skeleton-card tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-app-border tw:p-4"
           key={index}
         >
-          <span className="tw:block tw:h-4.5 tw:w-[38%] tw:rounded-full tw:bg-app-hover" />
-          <span className="tw:block tw:h-3.25 tw:w-full tw:rounded-full tw:bg-app-hover" />
-          <span className="tw:block tw:h-3.25 tw:w-[72%] tw:rounded-full tw:bg-app-hover" />
+          <span className="tw:block tw:h-4 tw:w-[38%] tw:rounded-full tw:bg-app-hover" />
+          <span className="tw:block tw:h-3 tw:w-full tw:rounded-full tw:bg-app-hover" />
+          <span className="tw:block tw:h-3 tw:w-[72%] tw:rounded-full tw:bg-app-hover" />
         </div>
       ))}
     </section>

@@ -244,7 +244,7 @@ function QuestionAnswerFormInstance({
         className="ask-user-question-approval tw:flex tw:w-full tw:flex-col tw:gap-3 tw:outline-none"
         tabIndex={-1}
       >
-        <p className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-body-sm">
+        <p className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-1">
           无法解析 AskUserQuestion 的选项，请拒绝后让 Pidex 重新提问。
         </p>
         <div className="inline-approval-footer inline-approval-footer-split tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:justify-between">
@@ -449,7 +449,7 @@ function QuestionAnswerFormInstance({
   const customRow = (
     <div
       className={cx(
-        'inline-approval-option custom tw:mt-1 tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:gap-2 tw:rounded-lg tw:border tw:bg-app-control tw:p-2 tw:text-left tw:text-app-text tw:type-body tw:cursor-text',
+        'inline-approval-option custom tw:mt-1 tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:gap-2 tw:rounded-lg tw:border tw:bg-app-control tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:cursor-text',
         // 「自己回答」多一行标题，标记随之顶部对齐。
         planHasChoices ? 'tw:items-start' : 'tw:items-center',
         planHasChoices && 'tw:col-start-1',
@@ -465,13 +465,13 @@ function QuestionAnswerFormInstance({
       </RequestMarker>
       <span className="ask-user-question-option-copy tw:grid tw:min-w-0 tw:gap-1 tw:text-left">
         {planHasChoices ? (
-          <span className="inline-approval-option-label tw:block tw:min-w-0 tw:type-row-title">
+          <span className="inline-approval-option-label tw:block tw:min-w-0 tw:type-2 tw:weight-medium">
             自己回答
           </span>
         ) : null}
         <textarea
           ref={customInputRef}
-          className="ask-user-question-custom-input tw:block tw:w-full tw:min-w-0 tw:field-sizing-content tw:min-h-[1.5em] tw:max-h-[120px] tw:resize-none tw:overflow-y-auto tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:type-body tw:wrap-anywhere tw:outline-none tw:placeholder:text-app-text-meta"
+          className="ask-user-question-custom-input tw:block tw:w-full tw:min-w-0 tw:field-sizing-content tw:min-h-[1.5em] tw:max-h-[120px] tw:resize-none tw:overflow-y-auto tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:type-2 tw:wrap-anywhere tw:outline-none tw:placeholder:text-app-text-meta"
           aria-label="自定义回答"
           placeholder="输入你的回答"
           rows={1}
@@ -525,7 +525,7 @@ function QuestionAnswerFormInstance({
         disabledReason={disabledReason}
         error={error}
         navigation={
-          <div className="ask-user-question-navigation tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption">
+          <div className="ask-user-question-navigation tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1">
             {questionCount > 1 ? (
               <div
                 className="ask-user-question-pagination tw:inline-flex tw:items-center tw:gap-1 tw:whitespace-nowrap"
@@ -583,7 +583,7 @@ function QuestionAnswerFormInstance({
                 <button
                   aria-checked={selected}
                   className={cx(
-                    'inline-approval-option tw:col-span-full tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring)] tw:focus-visible:outline-none',
+                    'inline-approval-option tw:col-span-full tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring)] tw:focus-visible:outline-none',
                     !selected && 'tw:hover:bg-app-hover',
                     selected ? 'selected tw:bg-app-selected' : 'tw:bg-transparent',
                     focused ? 'focused' : undefined,
@@ -605,16 +605,16 @@ function QuestionAnswerFormInstance({
                     )}
                   </RequestMarker>
                   <span className="ask-user-question-option-copy tw:grid tw:min-w-0 tw:gap-1 tw:text-left">
-                    <span className="inline-approval-option-label tw:block tw:min-w-0 tw:type-row-title tw:wrap-anywhere">
+                    <span className="inline-approval-option-label tw:block tw:min-w-0 tw:type-2 tw:weight-medium tw:wrap-anywhere">
                       {option.label}
                       {option.recommended ? (
-                        <span className="inline-approval-option-hint ask-user-question-recommendation tw:type-caption tw:text-app-text-soft">
+                        <span className="inline-approval-option-hint ask-user-question-recommendation tw:type-1 tw:text-app-text-soft">
                           推荐
                         </span>
                       ) : null}
                     </span>
                     {option.description ? (
-                      <span className="ask-user-question-option-description tw:block tw:text-app-text-soft tw:type-body-sm tw:whitespace-normal tw:wrap-anywhere">
+                      <span className="ask-user-question-option-description tw:block tw:text-app-text-soft tw:type-1 tw:whitespace-normal tw:wrap-anywhere">
                         {option.description}
                       </span>
                     ) : null}
@@ -623,7 +623,7 @@ function QuestionAnswerFormInstance({
                     <span className="inline-approval-option-trailing tw:inline-flex tw:flex-none tw:items-center tw:gap-2">
                       <span
                         className={cx(
-                          'inline-approval-option-checkbox tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-md tw:border tw:border-app-border tw:text-app-canvas',
+                          'inline-approval-option-checkbox tw:inline-flex tw:size-4 tw:items-center tw:justify-center tw:rounded-md tw:border tw:border-app-border tw:text-app-canvas',
                           selected
                             ? 'selected tw:border-app-text tw:bg-app-text'
                             : 'tw:bg-transparent',
@@ -687,7 +687,7 @@ function QuestionAnswerFormInstance({
         </div>
         {!supportsQuestionSkip ? (
           <p
-            className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-body-sm"
+            className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-1"
             role="status"
           >
             当前 Agent 尚未提供逐题跳过能力，请升级并重启 Agent。

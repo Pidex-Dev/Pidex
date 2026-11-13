@@ -64,20 +64,20 @@ export function PullRequestPopover({
           className="review-popover pr-popover tw:flex tw:flex-col tw:font-sans"
           role="dialog"
         >
-          <header className="review-popover-header tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:type-row-title">
+          <header className="review-popover-header tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:type-2 tw:weight-medium">
             <span className="review-popover-branch tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text">
-              <span className="review-popover-branch-name tw:max-w-40 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
+              <span className="review-popover-branch-name tw:max-w-[10rem] tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
                 {branchLabel}
               </span>
               <ArrowUpRight size="var(--inline-icon-size, 1em)" />
               <span>{targetLabel}</span>
               <ChevronDown size="var(--inline-icon-size, 1em)" />
             </span>
-            <span className="review-popover-counts tw:ml-auto tw:inline-flex tw:items-center tw:gap-1 tw:type-weight-label tw:tabular-nums">
-              <strong className="tw:text-app-success tw:type-weight-label">
+            <span className="review-popover-counts tw:ml-auto tw:inline-flex tw:items-center tw:gap-1 tw:weight-medium tw:tabular-nums">
+              <strong className="tw:text-app-success tw:weight-medium">
                 +{formatPanelNumber(additions)}
               </strong>
-              <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
+              <em className="tw:text-app-danger tw:not-italic tw:weight-medium">
                 -{formatPanelNumber(deletions)}
               </em>
             </span>
@@ -95,10 +95,10 @@ export function PullRequestPopover({
             </Button>
           </header>
 
-          <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-body-sm">
-            <span className="tw:type-weight-label">标题</span>
+          <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-1">
+            <span className="tw:weight-medium">标题</span>
             <input
-              className="tw:w-full tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-control tw:resize-none"
+              className="tw:w-full tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-2 tw:weight-medium tw:resize-none"
               type="text"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
@@ -111,10 +111,10 @@ export function PullRequestPopover({
             />
           </label>
 
-          <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-body-sm">
-            <span className="tw:type-weight-label">描述（留空将自动生成）</span>
+          <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-1">
+            <span className="tw:weight-medium">描述（留空将自动生成）</span>
             <textarea
-              className="tw:min-h-16 tw:w-full tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-control tw:resize-y"
+              className="tw:min-h-9 tw:w-full tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-2 tw:weight-medium tw:resize-y"
               placeholder="描述（留空将自动生成）..."
               rows={4}
               value={body}
@@ -128,7 +128,7 @@ export function PullRequestPopover({
             />
           </label>
 
-          <label className="review-popover-check tw:flex tw:items-center tw:gap-2 tw:text-app-text-soft tw:type-control">
+          <label className="review-popover-check tw:flex tw:items-center tw:gap-2 tw:text-app-text-soft tw:type-2 tw:weight-medium">
             <input
               checked={pushFirst}
               type="checkbox"

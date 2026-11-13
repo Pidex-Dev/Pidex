@@ -169,7 +169,7 @@
     margin: 0;
     overflow: hidden;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-row-title);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -182,14 +182,14 @@
 
   .settings-management-row-description {
     overflow: hidden;
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .settings-management-row-meta {
     max-width: 20rem;
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-align: right;
   }
 
@@ -220,7 +220,7 @@
     place-items: center;
     padding: var(--cpx-sys-space-6);
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-align: center;
   }
 
@@ -254,12 +254,12 @@
 
   .settings-management-dialog-heading h2 {
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-heading-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-4); line-height: var(--cpx-sys-line-height-4); letter-spacing: var(--cpx-sys-letter-spacing-4); font-weight: var(--cpx-sys-font-weight-bold);
   }
 
   .settings-management-dialog-heading p {
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .settings-management-dialog-body {
@@ -311,7 +311,7 @@
 
   .settings-management-dialog-row-label {
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   .settings-management-dialog-row-control {
@@ -508,7 +508,7 @@
   .appearance-contrast-control output {
     width: 36px;
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
     font-variant-numeric: tabular-nums;
     text-align: right;
   }
@@ -581,7 +581,7 @@
 
   .environment-field > span {
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   .environment-field input,
@@ -610,7 +610,7 @@
   .environment-field textarea {
     resize: vertical;
     padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-    line-height: var(--cpx-sys-line-height-tight);
+    line-height: var(--cpx-sys-line-height-1);
   }
 
   .environment-field-textarea {
@@ -620,7 +620,7 @@
   .environment-field-textarea > small {
     grid-column: 1;
     color: var(--cpx-sys-color-fg-secondary);
-    line-height: var(--cpx-sys-line-height-tight);
+    line-height: var(--cpx-sys-line-height-1);
   }
 
   .environment-field-textarea > textarea {
@@ -693,7 +693,7 @@
 
   .environment-source-row > div strong {
     overflow: hidden;
-    font: var(--cpx-sys-type-row-title);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -701,7 +701,7 @@
   .environment-source-row > div span {
     overflow: hidden;
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -930,7 +930,7 @@
   .usage-visual-card header p {
     margin: var(--cpx-sys-space-1) 0 0;
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .usage-panel {
@@ -947,7 +947,7 @@
   .usage-unavailable-sources h3 {
     margin: 0;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-heading-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-4); line-height: var(--cpx-sys-line-height-4); letter-spacing: var(--cpx-sys-letter-spacing-4); font-weight: var(--cpx-sys-font-weight-bold);
   }
 
   .usage-toolbar-actions {
@@ -984,12 +984,12 @@
   .usage-metric-card span,
   .usage-metric-card small {
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .usage-metric-card strong {
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-metric);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-5); line-height: var(--cpx-sys-line-height-5); letter-spacing: var(--cpx-sys-letter-spacing-5); font-weight: var(--cpx-sys-font-weight-bold);
     font-variant-numeric: tabular-nums;
   }
 
@@ -1078,7 +1078,7 @@
     min-height: 24px;
     gap: var(--cpx-sys-space-3);
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
     flex-wrap: wrap;
   }
 
@@ -1130,13 +1130,13 @@
 
   .usage-donut strong {
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-xl);
+    font-size: var(--cpx-sys-font-size-4);
     font-variant-numeric: tabular-nums;
   }
 
   .usage-donut small {
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
   }
 
   .usage-model-ranking,
@@ -1168,7 +1168,7 @@
   .usage-model-ranking li > span:last-child,
   .provider-breakdown li > span:last-child {
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
     font-variant-numeric: tabular-nums;
     text-align: right;
   }
@@ -1177,7 +1177,7 @@
   .provider-breakdown strong {
     overflow: hidden;
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-1);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1186,7 +1186,7 @@
   .provider-breakdown small {
     display: block;
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
   }
 
   .usage-empty-state,
@@ -1200,13 +1200,13 @@
     background: var(--cpx-sys-color-surface-raised);
     box-shadow: none;
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-1);
   }
 
   .usage-empty-state h3 {
     margin: 0 0 var(--cpx-sys-space-1);
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
+    font-size: var(--cpx-sys-font-size-2);
   }
 
   .usage-empty-state p {
@@ -1218,7 +1218,7 @@
   .usage-unavailable-actions a {
     width: fit-content;
     color: var(--cpx-sys-color-accent-fg);
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-1);
     text-decoration: none;
   }
 
@@ -1264,7 +1264,7 @@
     border-radius: var(--cpx-sys-radius-lg);
     background: var(--cpx-sys-color-surface-raised);
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-1);
   }
 
   .usage-account-summary {
@@ -1286,13 +1286,13 @@
 
   .usage-account-summary dt {
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
   }
 
   .usage-account-summary dd {
     margin: 0;
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-xl);
+    font-size: var(--cpx-sys-font-size-4);
     font-variant-numeric: tabular-nums;
   }
 
@@ -1328,7 +1328,7 @@
   .provider-usage-title h3 {
     margin: 0;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-heading-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-4); line-height: var(--cpx-sys-line-height-4); letter-spacing: var(--cpx-sys-letter-spacing-4); font-weight: var(--cpx-sys-font-weight-bold);
   }
 
   .provider-usage-title h3 a {
@@ -1344,7 +1344,7 @@
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-full);
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
     line-height: var(--cpx-sys-line-height-none);
   }
 
@@ -1377,7 +1377,7 @@
   .provider-usage-group > h4 {
     margin: 0;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-row-title);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   .provider-balances {
@@ -1407,18 +1407,18 @@
     min-width: 0;
     overflow: hidden;
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-lg);
+    font-size: var(--cpx-sys-font-size-3);
     font-weight: var(--cpx-sys-font-weight-medium);
-    line-height: var(--cpx-sys-line-height-body);
+    line-height: var(--cpx-sys-line-height-2);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .provider-balance-total {
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-lg);
+    font-size: var(--cpx-sys-font-size-3);
     font-weight: var(--cpx-sys-font-weight-bold);
-    line-height: var(--cpx-sys-line-height-body);
+    line-height: var(--cpx-sys-line-height-2);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -1438,7 +1438,7 @@
     align-items: center;
     gap: var(--cpx-sys-space-1);
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
     font-variant-numeric: tabular-nums;
   }
 
@@ -1486,7 +1486,7 @@
     min-width: 0;
     overflow: hidden;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1494,7 +1494,7 @@
   .provider-quota-reset {
     flex-shrink: 0;
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -1532,7 +1532,7 @@
 
   .provider-quota-value {
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
     font-variant-numeric: tabular-nums;
   }
 
@@ -1555,13 +1555,13 @@
 
   .provider-totals dt {
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
   }
 
   .provider-totals dd {
     margin: 0;
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
+    font-size: var(--cpx-sys-font-size-2);
     font-variant-numeric: tabular-nums;
   }
 
@@ -1590,7 +1590,7 @@
     margin: 0;
     padding: var(--cpx-sys-space-4) 0;
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-1);
     text-align: center;
   }
 
@@ -1675,8 +1675,8 @@
     border-radius: var(--cpx-sys-radius-md);
     background: var(--cpx-sys-color-surface-raised);
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--cpx-sys-line-height-tight);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-1);
   }
 
   .keyboard-shortcuts-search input::placeholder {
@@ -1728,7 +1728,7 @@
     flex: 1 1 auto;
     gap: var(--cpx-comp-input-gap);
     min-width: 0;
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1749,7 +1749,7 @@
     background: var(--cpx-sys-color-surface-recessed);
     color: var(--cpx-sys-color-fg-primary);
     padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
     outline: none;
     transition:
       background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
@@ -1780,7 +1780,7 @@
     background: transparent;
     text-align: right;
     padding: 0;
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
     color: inherit;
   }
   .settings-input-number:focus {
@@ -1800,7 +1800,7 @@
     background: var(--cpx-sys-color-surface-recessed);
     color: var(--cpx-sys-color-fg-primary);
     padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
     outline: none;
     transition:
       background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
@@ -1810,12 +1810,12 @@
   }
 
   .settings-code-textarea {
-    font: var(--cpx-sys-type-code);
+    font-family: var(--cpx-sys-font-family-mono); font-size: var(--cpx-sys-font-size-code); line-height: var(--cpx-sys-line-height-code); letter-spacing: var(--cpx-sys-letter-spacing-code);
   }
 
   .settings-input-unit {
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   /* --- Input Interaction States --- */

@@ -221,7 +221,7 @@ export function WorkspaceDependenciesSettings({ onError, onNotice }: Props): Rea
   if (loading && statuses.length === 0) {
     return (
       <SettingsContentArea>
-        <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+        <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
           <WorkspaceDependenciesHeader
             disabled
             refreshing={refreshing}
@@ -237,7 +237,7 @@ export function WorkspaceDependenciesSettings({ onError, onNotice }: Props): Rea
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
         <WorkspaceDependenciesHeader
           disabled={refreshing || busyTools.size > 0}
           refreshing={refreshing}
@@ -270,9 +270,9 @@ function WorkspaceDependenciesHeader({
   refreshing: boolean
 }): React.ReactNode {
   return (
-    <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
+    <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
       <div className="settings-section-header">
-        <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">
+        <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
           工作空间依赖项
         </h2>
         <Button
@@ -286,7 +286,7 @@ function WorkspaceDependenciesHeader({
           {refreshing ? '扫描中…' : '重新扫描'}
         </Button>
       </div>
-      <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
+      <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
         四项运行环境彼此独立；内置版只在首次使用或手动安装时下载，不会打包进应用。
       </p>
     </div>

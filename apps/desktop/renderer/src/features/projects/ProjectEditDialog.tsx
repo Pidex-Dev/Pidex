@@ -196,7 +196,7 @@ export function ProjectEditDialog({
           }}
         >
           <header className="project-edit-header tw:flex tw:items-center tw:justify-between tw:gap-4">
-            <Dialog.Title className="tw:m-0 tw:type-title-lg tw:text-app-text">
+            <Dialog.Title className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
               编辑项目
             </Dialog.Title>
             <Dialog.Close asChild>
@@ -215,12 +215,12 @@ export function ProjectEditDialog({
           </header>
 
           {!projectId ? (
-            <p className="project-edit-empty tw:m-0 tw:type-body tw:text-app-text-meta">
+            <p className="project-edit-empty tw:m-0 tw:type-2 tw:text-app-text-meta">
               当前任务尚未关联稳定项目。
             </p>
           ) : (
             <>
-              <div className="project-edit-name-field tw:flex tw:h-10 tw:min-h-10 tw:items-center tw:overflow-hidden tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:focus-within:border-app-border-strong tw:focus-within:shadow-[var(--cpx-sys-focus-ring-inset)]">
+              <div className="project-edit-name-field tw:flex tw:h-7 tw:min-h-7 tw:items-center tw:overflow-hidden tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:focus-within:border-app-border-strong tw:focus-within:shadow-[var(--cpx-sys-focus-ring-inset)]">
                 <ProjectAppearancePicker
                   appearance={draftAppearance}
                   disabled={busy}
@@ -232,19 +232,20 @@ export function ProjectEditDialog({
                 />
                 <input
                   aria-label="项目名称"
-                  className="project-edit-name-input tw:min-w-0 tw:flex-1 tw:h-full tw:border-0 tw:bg-transparent tw:px-1 tw:py-0 tw:text-app-text tw:type-body tw:outline-none"
+                  className="project-edit-name-input tw:min-w-0 tw:flex-1 tw:h-full tw:border-0 tw:bg-transparent tw:px-1 tw:py-0 tw:text-app-text tw:type-2 tw:outline-none"
                   maxLength={120}
                   ref={nameInputRef}
                   value={draftName}
                   onChange={(event) => setDraftName(event.target.value)}
                   onKeyDown={(event) => {
+                    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
                     if (event.key === 'Enter') void save()
                   }}
                 />
               </div>
 
               <section className="project-edit-folders tw:flex tw:flex-col tw:gap-2">
-                <h3 className="tw:m-0 tw:type-row-title tw:text-app-text">源文件夹</h3>
+                <h3 className="tw:m-0 tw:type-2 tw:weight-medium tw:text-app-text">源文件夹</h3>
                 <div
                   onDragOver={(event) => {
                     if (!busy) {
@@ -266,7 +267,7 @@ export function ProjectEditDialog({
                   {draftFolders.map((folder) => (
                     <div
                       className={cx(
-                        'project-edit-folder-row tw:box-border tw:flex tw:h-12 tw:min-h-12 tw:w-full tw:items-center tw:gap-3 tw:border-0 tw:border-b tw:border-app-border-subtle tw:bg-transparent tw:px-3 tw:text-start',
+                        'project-edit-folder-row tw:box-border tw:flex tw:h-8 tw:min-h-8 tw:w-full tw:items-center tw:gap-3 tw:border-0 tw:border-b tw:border-app-border-subtle tw:bg-transparent tw:px-3 tw:text-start',
                         folder.availability === 'missing'
                           ? 'is-missing tw:text-app-text-meta'
                           : 'tw:text-app-text',
@@ -275,7 +276,7 @@ export function ProjectEditDialog({
                     >
                       <Folder size="var(--inline-icon-size, 1em)" />
                       <span
-                        className="project-edit-folder-name tw:min-w-0 tw:flex-1 tw:truncate tw:px-1 tw:type-body"
+                        className="project-edit-folder-name tw:min-w-0 tw:flex-1 tw:truncate tw:px-1 tw:type-2"
                         title={folder.path}
                       >
                         {folder.name}
@@ -283,7 +284,7 @@ export function ProjectEditDialog({
                       {draftFolders.length > 1 && folder.role === 'primary' ? (
                         <span
                           title="新聊天使用主目录作为工作目录，并在这里查找 AGENTS.md、config.toml 和技能文件"
-                          className="project-edit-primary-badge tw:shrink-0 tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-soft"
+                          className="project-edit-primary-badge tw:shrink-0 tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft"
                         >
                           主目录
                         </span>
@@ -331,7 +332,7 @@ export function ProjectEditDialog({
                     </div>
                   ))}
                   <button
-                    className="project-edit-add-folder tw:box-border tw:flex tw:h-12 tw:min-h-12 tw:w-full tw:cursor-pointer tw:items-center tw:gap-3 tw:border-0 tw:bg-transparent tw:px-3 tw:text-start tw:text-app-text-soft tw:type-body tw:enabled:hover:bg-app-hover tw:enabled:hover:text-app-text"
+                    className="project-edit-add-folder tw:box-border tw:flex tw:h-8 tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-3 tw:border-0 tw:bg-transparent tw:px-3 tw:text-start tw:text-app-text-soft tw:type-2 tw:enabled:hover:bg-app-hover tw:enabled:hover:text-app-text"
                     disabled={busy}
                     type="button"
                     onClick={() => void addFolder()}

@@ -340,7 +340,7 @@ export function SidebarDragOverlay({
         model ? (
           <div
             aria-hidden="true"
-            className="sidebar-drag-overlay tw:pointer-events-none tw:flex tw:w-fit tw:max-w-80 tw:min-h-[var(--sidebar-row-height,30px)] tw:items-center tw:gap-2 tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:opacity-70 tw:px-2 tw:text-app-text tw:shadow-lg tw:type-body"
+            className="sidebar-drag-overlay tw:pointer-events-none tw:flex tw:w-fit tw:max-w-[20rem] tw:min-h-[var(--sidebar-row-height,30px)] tw:items-center tw:gap-2 tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:opacity-70 tw:px-2 tw:text-app-text tw:shadow-lg tw:type-2"
             style={maxWidth ? { maxWidth } : undefined}
           >
             <span className="tw:flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center">
@@ -350,7 +350,7 @@ export function SidebarDragOverlay({
               {model.title}
             </span>
             {model.count > 1 ? (
-              <span className="tw:shrink-0 tw:rounded-full tw:bg-app-selected tw:px-1.5 tw:type-caption tw:text-app-text-meta">
+              <span className="tw:shrink-0 tw:rounded-full tw:bg-app-selected tw:px-2 tw:type-1 tw:text-app-text-meta">
                 {model.count}
               </span>
             ) : null}
@@ -550,7 +550,7 @@ export function SidebarDropIndicator({
   return createPortal(
     <div
       aria-hidden="true"
-      className="sidebar-drop-indicator tw:pointer-events-none tw:fixed tw:z-tooltip tw:h-0.5 tw:rounded-full tw:bg-app-accent tw:before:absolute tw:before:-left-1 tw:before:top-1/2 tw:before:-translate-y-1/2 tw:before:size-2 tw:before:rounded-full tw:before:border-2 tw:before:border-app-accent tw:before:bg-app-main tw:before:content-['']"
+      className="sidebar-drop-indicator tw:pointer-events-none tw:fixed tw:z-tooltip tw:h-[2px] tw:rounded-full tw:bg-app-accent tw:before:absolute tw:before:-left-1 tw:before:top-1/2 tw:before:-translate-y-1/2 tw:before:size-2 tw:before:rounded-full tw:before:border-2 tw:before:border-app-accent tw:before:bg-app-main tw:before:content-['']"
       style={{ top: rect.top, left: rect.left, width: rect.width }}
     />,
     document.body,

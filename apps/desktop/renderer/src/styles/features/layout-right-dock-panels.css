@@ -59,13 +59,13 @@
   }
   .right-dock-empty-state strong {
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-heading-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-4); line-height: var(--cpx-sys-line-height-4); letter-spacing: var(--cpx-sys-letter-spacing-4); font-weight: var(--cpx-sys-font-weight-bold);
   }
   .right-dock-empty-state span {
     color: var(--cpx-sys-color-fg-secondary);
     max-width: 100%;
     overflow-wrap: anywhere;
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
   .right-dock-empty-state svg {
     width: var(--cpx-sys-icon-size-lg);
@@ -92,7 +92,7 @@
     flex: 1 1 auto;
     align-items: center;
     overflow: hidden;
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     white-space: nowrap;
   }
 
@@ -103,7 +103,7 @@
   .file-breadcrumb-toolbar__root {
     padding-inline: var(--cpx-sys-space-1);
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-label);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1); font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   .file-breadcrumb-toolbar__segment {
@@ -139,7 +139,7 @@
     overflow: hidden;
     color: inherit;
     cursor: default;
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -155,7 +155,7 @@
   .file-breadcrumb-toolbar__filename strong {
     min-width: 0;
     overflow: hidden;
-    font: var(--cpx-sys-type-label);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1); font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -168,7 +168,7 @@
   }
   .file-breadcrumb-toolbar__actions small {
     color: var(--cpx-sys-color-fg-tertiary);
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .file-breadcrumb-toolbar__action {
@@ -288,11 +288,11 @@
   .right-dock-side-chat__empty > strong {
     margin-top: var(--cpx-sys-space-4);
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-heading-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-4); line-height: var(--cpx-sys-line-height-4); letter-spacing: var(--cpx-sys-letter-spacing-4); font-weight: var(--cpx-sys-font-weight-bold);
   }
   .right-dock-side-chat__empty > span:not(.right-dock-side-chat__empty-icon) {
     margin-top: var(--cpx-sys-space-2);
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
   .right-dock-side-chat__empty > button {
     margin-top: var(--cpx-sys-space-4);

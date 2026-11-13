@@ -130,7 +130,7 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
     >
       <header className="tw:flex tw:items-center tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-3">
         <span
-          className="schedule-plan-card__icon tw:grid tw:size-6 tw:place-items-center tw:rounded-container tw:border tw:border-app-info-border tw:bg-app-info-subtle tw:text-app-info-fg"
+          className="schedule-plan-card__icon tw:grid tw:size-5 tw:place-items-center tw:rounded-container tw:border tw:border-app-info-border tw:bg-app-info-subtle tw:text-app-info-fg"
           aria-hidden="true"
         >
           <CalendarCheck2
@@ -140,7 +140,7 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
         </span>
         <div className="tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
           <strong>{committed ? '日程已创建' : '确认任务规划'}</strong>
-          <span className="tw:type-caption tw:text-app-text-meta">
+          <span className="tw:type-1 tw:text-app-text-meta">
             {horizonLabel(proposal.horizon)} · {enabledCount}/{items.length} 项已启用
           </span>
         </div>
@@ -151,7 +151,7 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
           </Button>
         ) : null}
       </header>
-      <ol className="schedule-plan-card__items tw:m-0 tw:grid tw:max-h-104 tw:list-none tw:overflow-auto tw:p-0">
+      <ol className="schedule-plan-card__items tw:m-0 tw:grid tw:max-h-[26rem] tw:list-none tw:overflow-auto tw:p-0">
         {items.map((candidate) => (
           <li
             className="tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:items-start tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-3 tw:opacity-62 tw:data-[enabled]:opacity-100"
@@ -175,7 +175,7 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
                 value={candidate.name}
                 onChange={(event) => patchItem(candidate.key, { name: event.currentTarget.value })}
               />
-              <span className="tw:type-caption tw:text-app-text-meta">{candidate.prompt}</span>
+              <span className="tw:type-1 tw:text-app-text-meta">{candidate.prompt}</span>
               <div className="schedule-plan-card__item-controls tw:grid tw:grid-cols-4 tw:gap-2 tw:max-[48rem]:grid-cols-1">
                 <Select
                   ariaLabel="任务类型"
@@ -272,7 +272,7 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
           className="schedule-plan-card__defaults tw:grid tw:grid-cols-4 tw:items-center tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-3 tw:max-[48rem]:grid-cols-1"
           aria-label="整批运行设置"
         >
-          <strong className="tw:col-span-full tw:type-label">整批运行设置</strong>
+          <strong className="tw:col-span-full tw:type-1 tw:weight-medium">整批运行设置</strong>
           {defaults.kind === 'standalone' ? (
             <Select
               ariaLabel="项目"
@@ -290,7 +290,7 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
               }
             />
           ) : (
-            <span className="tw:type-caption tw:text-app-text-meta">续接当前聊天</span>
+            <span className="tw:type-1 tw:text-app-text-meta">续接当前聊天</span>
           )}
           {defaults.kind === 'standalone' ? (
             <Select
@@ -354,11 +354,11 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
       ) : null}
       <footer className="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:p-3">
         {message ? (
-          <span className="tw:type-caption tw:text-app-text-meta" role="status">
+          <span className="tw:type-1 tw:text-app-text-meta" role="status">
             {message}
           </span>
         ) : (
-          <span className="tw:type-caption tw:text-app-text-meta">确认前不会创建或执行任务。</span>
+          <span className="tw:type-1 tw:text-app-text-meta">确认前不会创建或执行任务。</span>
         )}
         {!committed ? (
           <Button

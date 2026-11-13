@@ -99,9 +99,9 @@ export function RadioItem({
         </span>
       ) : null}
       <span className="ui-radio-copy tw:grid tw:min-w-0 tw:gap-1">
-        <span className="ui-radio-label tw:type-row-title">{label ?? children}</span>
+        <span className="ui-radio-label tw:type-2 tw:weight-medium">{label ?? children}</span>
         {detail ? (
-          <span className="ui-radio-detail tw:text-app-text-soft tw:type-body-sm">{detail}</span>
+          <span className="ui-radio-detail tw:text-app-text-soft tw:type-1">{detail}</span>
         ) : null}
       </span>
     </label>

@@ -118,7 +118,7 @@ export function AutomationDetailPanel({
             </Button>
           ) : null}
           <h2
-            className="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:type-title-md tw:text-app-text"
+            className="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:type-5 tw:weight-bold tw:text-app-text"
             title={creating ? '创建自动化' : controller.selected?.name}
           >
             {creating ? '创建自动化' : controller.selected?.name}
@@ -126,7 +126,7 @@ export function AutomationDetailPanel({
         </div>
         <div className="automation-detail-header-actions tw:flex tw:shrink-0 tw:items-center tw:gap-2">
           {!creating && controller.selected ? (
-            <span className="automation-status-pill tw:whitespace-nowrap tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-soft">
+            <span className="automation-status-pill tw:whitespace-nowrap tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft">
               {
                 {
                   active: '已开启',
@@ -162,12 +162,12 @@ export function AutomationDetailPanel({
           </FormField>
           {watch && (
             <div className="tw:grid tw:gap-2 tw:rounded-control tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-3">
-              <span className="tw:type-row-title">PR 监控</span>
-              <span className="tw:type-caption tw:break-all tw:text-app-text-soft">
+              <span className="tw:type-2 tw:weight-medium">PR 监控</span>
+              <span className="tw:type-1 tw:break-all tw:text-app-text-soft">
                 {watch.url}
               </span>
               {watch.reason && (
-                <p className="tw:m-0 tw:type-caption tw:text-app-text-soft">{watch.reason}</p>
+                <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">{watch.reason}</p>
               )}
               <Button color="secondary" onClick={() => onOpenThread(watch.threadId)}>
                 打开关联修复聊天
@@ -443,7 +443,7 @@ export function AutomationDetailPanel({
 
           {draft.permissionConfig.sandboxMode === 'danger-full-access' ? (
             <div
-              className="automation-risk tw:flex tw:items-start tw:gap-2 tw:rounded-container tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:p-3 tw:type-body-sm tw:text-app-warning-fg"
+              className="automation-risk tw:flex tw:items-start tw:gap-2 tw:rounded-container tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:p-3 tw:type-1 tw:text-app-warning-fg"
               role="note"
             >
               <AlertTriangle
@@ -468,14 +468,14 @@ export function AutomationDetailPanel({
             className="automation-more-settings tw:px-3 tw:py-2"
             key={controller.selected.id}
           >
-            <summary className="tw:cursor-pointer tw:type-control">
+            <summary className="tw:cursor-pointer tw:type-2 tw:weight-medium">
               执行记录（{runs.length}）
             </summary>
             <RunHistory runs={runs} controller={controller} onOpenThread={onOpenThread} />
           </details>
         ) : null}
       </div>
-      <footer className="automation-form-actions automation-detail-footer tw:flex tw:min-h-8 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-3 tw:py-2">
+      <footer className="automation-form-actions automation-detail-footer tw:flex tw:min-h-6 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-3 tw:py-2">
         {creating ? (
           <Button
             color="primary"
@@ -508,10 +508,10 @@ function FormField({
 }): React.ReactNode {
   return (
     <label className="automation-field tw:[&_.ui-select-trigger]:w-full tw:grid tw:min-w-0 tw:content-start tw:gap-1">
-      <span className="automation-field-label tw:type-control tw:text-app-text">{label}</span>
+      <span className="automation-field-label tw:type-2 tw:weight-medium tw:text-app-text">{label}</span>
       {children}
       {hint ? (
-        <span className="automation-field-hint tw:type-caption tw:text-app-text-meta">{hint}</span>
+        <span className="automation-field-hint tw:type-1 tw:text-app-text-meta">{hint}</span>
       ) : null}
     </label>
   )
@@ -552,7 +552,7 @@ function SaveIndicator({
     )
   if (controller.saveState === 'failed' || controller.saveState === 'conflict') {
     return (
-      <div className="automation-save-retry tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:type-caption tw:text-app-danger-fg">
+      <div className="automation-save-retry tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:type-1 tw:text-app-danger-fg">
         <span>
           {controller.saveState === 'conflict'
             ? '已有更新，草稿尚未覆盖。'
@@ -615,10 +615,10 @@ function RunHistory({
     >
       <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
         <div className="tw:grid tw:gap-1">
-          <span className="automation-eyebrow tw:uppercase tw:tracking-[0.08em] tw:type-caption tw:text-app-text-meta">
+          <span className="automation-eyebrow tw:uppercase tw:tracking-[0.08em] tw:type-1 tw:text-app-text-meta">
             收件箱
           </span>
-          <h3 className="tw:m-0 tw:type-title-sm tw:text-app-text" id="automation-runs-title">
+          <h3 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text" id="automation-runs-title">
             运行记录
           </h3>
         </div>
@@ -650,14 +650,14 @@ function RunHistory({
                   if (!run.readAt) void controller.markRunRead(run.id)
                 }}
               >
-                <span className="automation-run-status tw:inline-flex tw:items-center tw:gap-2 tw:type-label">
+                <span className="automation-run-status tw:inline-flex tw:items-center tw:gap-2 tw:type-1 tw:weight-medium">
                   <span className="automation-status-dot tw:size-2 tw:rounded-full tw:bg-app-info tw:group-data-[status=completed]:bg-app-success tw:group-data-[status=failed]:bg-app-danger tw:group-data-[status=interrupted]:bg-app-danger" />
                   {runStatusLabel(run.status)}
                 </span>
-                <span className="automation-run-trigger tw:type-caption tw:text-app-text-meta">
+                <span className="automation-run-trigger tw:type-1 tw:text-app-text-meta">
                   {runTriggerLabel(run.trigger)}
                 </span>
-                <time className="tw:col-start-2 tw:row-start-1 tw:type-caption tw:text-app-text-meta">
+                <time className="tw:col-start-2 tw:row-start-1 tw:type-1 tw:text-app-text-meta">
                   {formatAutomationTime(run.completedAt ?? run.startedAt ?? run.createdAt)}
                 </time>
                 {run.status === 'running' || run.status === 'queued' ? (
@@ -672,7 +672,7 @@ function RunHistory({
           ))}
         </ol>
       ) : (
-        <p className="automation-runs-empty tw:m-0 tw:type-caption tw:text-app-text-meta">
+        <p className="automation-runs-empty tw:m-0 tw:type-1 tw:text-app-text-meta">
           首次运行后，结果会显示在这里。
         </p>
       )}

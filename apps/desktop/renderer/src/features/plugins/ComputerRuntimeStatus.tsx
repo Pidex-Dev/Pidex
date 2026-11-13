@@ -17,7 +17,7 @@ export function ComputerRuntimeStatus() {
           ? `正在下载电脑控制组件… ${runtime.progress ?? 0}%`
           : '正在准备下载电脑控制组件…'
   return (
-    <span className="tw:mt-2 tw:grid tw:gap-1 tw:text-app-text-soft tw:type-body-sm" role="status">
+    <span className="tw:mt-2 tw:grid tw:gap-1 tw:text-app-text-soft tw:type-1" role="status">
       <span>{message}</span>
       {runtime?.status === 'downloading' ? (
         <progress

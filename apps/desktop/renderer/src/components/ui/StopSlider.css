@@ -135,7 +135,10 @@
     display: flex;
     justify-content: space-between;
     gap: var(--cpx-sys-space-1);
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     color: var(--cpx-sys-color-fg-tertiary);
   }
 

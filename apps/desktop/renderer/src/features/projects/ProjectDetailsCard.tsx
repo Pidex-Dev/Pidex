@@ -16,7 +16,7 @@ import {
 
 /* 悬浮卡内的行内动作（文件夹、编辑项目）：26px 行、12px 前置图标、无边框。 */
 const PROJECT_HOVER_CARD_ACTION_CLASS =
-  'tw:grid tw:h-auto tw:min-h-[26px] tw:w-full tw:cursor-pointer tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:items-center tw:justify-start tw:gap-x-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-0 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-caption tw:shadow-none tw:hover:bg-app-hover tw:hover:text-app-text tw:hover:shadow-none tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:[&_svg]:size-[var(--inline-icon-size,1em)] tw:[&_svg]:text-app-text-soft'
+  'tw:grid tw:h-auto tw:min-h-[26px] tw:w-full tw:cursor-pointer tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:items-center tw:justify-start tw:gap-x-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-0 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-1 tw:shadow-none tw:hover:bg-app-hover tw:hover:text-app-text tw:hover:shadow-none tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:[&_svg]:size-[var(--inline-icon-size,1em)] tw:[&_svg]:text-app-text-soft'
 
 type Props = {
   appearance: ProjectAppearance
@@ -82,7 +82,7 @@ export function ProjectDetailsCard({
           className="tw:inline-flex tw:size-[var(--sidebar-hover-leading-width)] tw:items-center tw:justify-center tw:[&>svg]:block"
         />
         <strong
-          className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-row-title"
+          className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-2 tw:weight-medium"
           title={project.name}
         >
           {project.name}
@@ -106,7 +106,7 @@ export function ProjectDetailsCard({
           </Button>
         </Tooltip>
       </SidebarHoverCardHeader>
-      <SidebarHoverCardRow className="sidebar-project-hover-card-stats tw:text-app-text-meta tw:type-caption">
+      <SidebarHoverCardRow className="sidebar-project-hover-card-stats tw:text-app-text-meta tw:type-1">
         <MessageSquare
           aria-hidden="true"
           className="tw:size-[var(--inline-icon-size,1em)] tw:text-app-text-meta"
@@ -158,7 +158,7 @@ export function ProjectDetailsCard({
       <button
         type="button"
         className={cx(
-          'sidebar-project-hover-card-edit tw:mt-1 tw:inline-flex tw:type-control tw:rounded-xs tw:text-app-text-soft tw:gap-1 tw:select-none tw:transition-[background-color,border-color,color,opacity,transform,box-shadow] tw:duration-150 tw:ease-out tw:[-webkit-app-region:no-drag] tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-app-accent tw:focus-visible:ring-offset-2 tw:focus-visible:ring-offset-app-main',
+          'sidebar-project-hover-card-edit tw:mt-1 tw:inline-flex tw:type-2 tw:weight-medium tw:rounded-xs tw:text-app-text-soft tw:gap-1 tw:select-none tw:transition-[background-color,border-color,color,opacity,transform,box-shadow] tw:duration-150 tw:ease-out tw:[-webkit-app-region:no-drag] tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-app-accent tw:focus-visible:ring-offset-2 tw:focus-visible:ring-offset-app-main',
           PROJECT_HOVER_CARD_ACTION_CLASS,
         )}
         onClick={() => {

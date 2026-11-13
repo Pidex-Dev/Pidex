@@ -211,7 +211,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
 
   const accountAvatar = (
     <span
-      className="sidebar-account-avatar tw:relative tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
+      className="sidebar-account-avatar tw:relative tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
       aria-hidden="true"
     >
       {!githubAuthenticated ? (
@@ -298,7 +298,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               ref={accountMenuTriggerRef}
               asChild
               className={cx(
-                'sidebar-settings-link tw:text-app-text tw:type-body tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus',
+                'sidebar-settings-link tw:text-app-text tw:type-2 tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus',
                 'tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:min-w-0 tw:grow tw:shrink tw:basis-auto',
               )}
               labelClassName={cx('sidebar-settings-label', 'tw:min-w-0')}
@@ -382,14 +382,14 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   <div className="popover-usage-content popover-menu-list tw:min-w-0">
                     {usage.loading ? (
                       <div
-                        className="popover-usage-empty tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-meta tw:type-body-sm tw:whitespace-nowrap"
+                        className="popover-usage-empty tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-meta tw:type-1 tw:whitespace-nowrap"
                         role="status"
                       >
                         {t('正在查询用量…')}
                       </div>
                     ) : usage.error ? (
                       <div
-                        className="popover-usage-empty popover-usage-empty-error tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-soft tw:type-body-sm tw:whitespace-nowrap"
+                        className="popover-usage-empty popover-usage-empty-error tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-soft tw:type-1 tw:whitespace-nowrap"
                         role="status"
                       >
                         {usage.error}
@@ -402,14 +402,14 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                       >
                         {usageRows.map((row) => (
                           <div
-                            className="popover-usage-row tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-body"
+                            className="popover-usage-row tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-2"
                             key={row.id}
                           >
-                            <span className="popover-usage-label menu-column-label tw:min-w-0 tw:truncate tw:text-app-text tw:type-weight-label">
+                            <span className="popover-usage-label menu-column-label tw:min-w-0 tw:truncate tw:text-app-text tw:weight-medium">
                               {row.label}
                             </span>
                             <span className="popover-usage-value menu-column-trailing tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-end tw:gap-2 tw:text-right">
-                              <span className="popover-usage-amount tw:text-app-text tw:type-label tw:tabular-nums tw:whitespace-nowrap">
+                              <span className="popover-usage-amount tw:text-app-text tw:type-1 tw:weight-medium tw:tabular-nums tw:whitespace-nowrap">
                                 {row.usage}
                               </span>
                             </span>
@@ -418,7 +418,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                       </div>
                     ) : (
                       <div
-                        className="popover-usage-empty tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-meta tw:type-body-sm tw:whitespace-nowrap"
+                        className="popover-usage-empty tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-meta tw:type-1 tw:whitespace-nowrap"
                         role="status"
                       >
                         {t('当前提供商未返回用量数据')}
@@ -426,7 +426,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                     )}
                     <div className="popover-usage-divider tw:mx-2 tw:my-1 tw:h-px tw:bg-app-border-subtle" />
                     <DropdownMenu.Item
-                      className="popover-usage-action tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-left tw:text-app-text tw:type-body tw:cursor-pointer tw:transition-colors tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:focus-visible:bg-app-hover tw:focus-visible:outline-none tw:data-[highlighted]:bg-app-hover tw:data-[highlighted]:outline-none"
+                      className="popover-usage-action tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-left tw:text-app-text tw:type-2 tw:cursor-pointer tw:transition-colors tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:focus-visible:bg-app-hover tw:focus-visible:outline-none tw:data-[highlighted]:bg-app-hover tw:data-[highlighted]:outline-none"
                       tabIndex={-1}
                       onSelect={() => {
                         openSettings('/settings/billing')

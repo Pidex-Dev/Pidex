@@ -179,7 +179,7 @@ export function PetCatalogSection({
                 <span>返回全部分类</span>
               </Button>
               {activeCategoryGroup ? (
-                <h2 className="tw:m-0 tw:pl-2 tw:text-app-text tw:type-title-md">
+                <h2 className="tw:m-0 tw:pl-2 tw:text-app-text tw:type-5 tw:weight-bold">
                   {activeCategoryGroup.label}
                 </h2>
               ) : null}
@@ -213,24 +213,24 @@ export function PetCatalogSection({
         >
           {catalogLoading && !catalog.pets.length ? (
             <SkeletonRegion
-              className="pet-catalog-skeleton-region tw:grid tw:min-w-0 tw:gap-6"
+              className="pet-catalog-skeleton-region tw:grid tw:min-w-0 tw:gap-5"
               label="正在载入社区宠物"
             >
               {Array.from({ length: 2 }).map((_, groupIndex) => (
                 <div className="tw:grid tw:gap-3" key={groupIndex}>
-                  <SkeletonBlock className="tw:h-5 tw:w-28 tw:rounded-md" />
+                  <SkeletonBlock className="tw:h-5 tw:w-[7rem] tw:rounded-md" />
                   <div className="tw:grid tw:grid-cols-2 tw:gap-3 tw:@max-[720px]/pet-catalog-page:grid-cols-1">
                     {Array.from({ length: 4 }).map((_, cardIndex) => (
                       <div
                         className="tw:flex tw:items-center tw:gap-3 tw:rounded-item tw:border-0 tw:bg-transparent tw:p-3"
                         key={cardIndex}
                       >
-                        <SkeletonBlock className="tw:size-12 tw:shrink-0 tw:rounded-lg" />
+                        <SkeletonBlock className="tw:size-8 tw:shrink-0 tw:rounded-lg" />
                         <div className="tw:flex tw:flex-1 tw:flex-col tw:gap-2">
                           <SkeletonBlock className="tw:h-4 tw:w-1/3 tw:rounded-md" />
                           <SkeletonBlock className="tw:h-3 tw:w-3/4 tw:rounded-md" />
                         </div>
-                        <SkeletonBlock className="tw:size-8 tw:shrink-0 tw:rounded-md" />
+                        <SkeletonBlock className="tw:size-6 tw:shrink-0 tw:rounded-md" />
                       </div>
                     ))}
                   </div>
@@ -240,7 +240,7 @@ export function PetCatalogSection({
           ) : null}
 
           {!catalogLoading && catalog.cacheState === 'unavailable' ? (
-            <div className="pet-catalog-empty tw:grid tw:justify-items-center tw:gap-2 tw:px-4 tw:py-12 tw:text-center tw:text-app-text-meta">
+            <div className="pet-catalog-empty tw:grid tw:justify-items-center tw:gap-2 tw:px-4 tw:py-8 tw:text-center tw:text-app-text-meta">
               <Egg size={APP_ICON_SIZE} />
               <strong className="tw:text-app-text">暂时无法获取社区目录</strong>
               <span>请检查网络连接；已安装的宠物仍可正常使用。</span>
@@ -251,7 +251,7 @@ export function PetCatalogSection({
           ) : null}
 
           {!catalogLoading && catalog.cacheState !== 'unavailable' && filteredCards.length === 0 ? (
-            <div className="pet-catalog-empty tw:grid tw:justify-items-center tw:gap-2 tw:px-4 tw:py-12 tw:text-center tw:text-app-text-meta">
+            <div className="pet-catalog-empty tw:grid tw:justify-items-center tw:gap-2 tw:px-4 tw:py-8 tw:text-center tw:text-app-text-meta">
               <SearchX size={APP_ICON_SIZE} />
               <strong className="tw:text-app-text">没有匹配的宠物</strong>
               <span>尝试更换关键词或筛选条件。</span>
@@ -283,7 +283,7 @@ export function PetCatalogSection({
                   </div>
                 </div>
               ) : (
-                <div className="pet-catalog-empty tw:grid tw:justify-items-center tw:gap-2 tw:px-4 tw:py-12 tw:text-center tw:text-app-text-meta">
+                <div className="pet-catalog-empty tw:grid tw:justify-items-center tw:gap-2 tw:px-4 tw:py-8 tw:text-center tw:text-app-text-meta">
                   <SearchX size={APP_ICON_SIZE} />
                   <strong className="tw:text-app-text">该分类下没有找到宠物</strong>
                   <Button color="secondary" onClick={navigateBack} type="button">
@@ -292,7 +292,7 @@ export function PetCatalogSection({
                 </div>
               )
             ) : (
-              <div className="pet-catalog-groups tw:grid tw:gap-6">
+              <div className="pet-catalog-groups tw:grid tw:gap-5">
                 {categoryGroups.map((group) => {
                   const displayItems = isSearchMode
                     ? group.items
@@ -309,16 +309,16 @@ export function PetCatalogSection({
                             onClick={() => navigateToCategory(group.id)}
                             type="button"
                           >
-                            <h2 className="tw:m-0 tw:type-title-sm">{group.label}</h2>
+                            <h2 className="tw:m-0 tw:type-4 tw:weight-bold">{group.label}</h2>
                             <ChevronRight
                               aria-hidden="true"
-                              className="tw:text-app-text-meta tw:transition-transform tw:group-hover:translate-x-0.5"
+                              className="tw:text-app-text-meta tw:transition-transform tw:group-hover:translate-x-1"
                               size={16}
                               strokeWidth={2.2}
                             />
                           </button>
                         ) : (
-                          <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">
+                          <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
                             {group.label}
                           </h2>
                         )}
@@ -355,7 +355,7 @@ export function PetCatalogSection({
               <span>
                 “{licensePet.displayName}”由 {licensePet.author} 提供。
               </span>
-              <span className="pet-license-confirmation-text tw:max-h-28 tw:overflow-auto tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:whitespace-pre-wrap">
+              <span className="pet-license-confirmation-text tw:max-h-[7rem] tw:overflow-auto tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:whitespace-pre-wrap">
                 {licensePet.license}
               </span>
               <span>请仅在上述许可允许的范围内使用和分发。</span>

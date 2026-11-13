@@ -216,7 +216,7 @@ export function GithubRepositoryModal({
                 {t('刷新')}
               </Button>
             ) : (
-              <span className="tw:inline-flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption">
+              <span className="tw:inline-flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1">
                 <GitFork aria-hidden="true" size="var(--inline-icon-size, 1em)" />
                 {t('也可以在看板的 GitHub 仓库页浏览和克隆')}
               </span>

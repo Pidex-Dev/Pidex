@@ -13,14 +13,14 @@ export function SettingsPanelFallback({ label }: Props = {}): React.ReactNode {
   const { t } = useLocale()
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
         <SkeletonRegion
           label={t('设置加载中')}
-          className="settings-panel-fallback tw:grid tw:gap-8"
+          className="settings-panel-fallback tw:grid tw:gap-6"
         >
           {label == null ? null : (
             <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-0 tw:grid tw:gap-2">
-              <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">
+              <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
                 {t(label)}
               </h2>
             </div>
@@ -33,10 +33,10 @@ export function SettingsPanelFallback({ label }: Props = {}): React.ReactNode {
                   key={index}
                 >
                   <div className="tw:grid tw:gap-2">
-                    <SkeletonBlock className="tw:h-4 tw:w-36" />
-                    <SkeletonBlock className="tw:h-3 tw:w-64" />
+                    <SkeletonBlock className="tw:h-4 tw:w-[9rem]" />
+                    <SkeletonBlock className="tw:h-3 tw:w-[16rem]" />
                   </div>
-                  <SkeletonBlock className="tw:h-6 tw:w-10 tw:rounded-full" />
+                  <SkeletonBlock className="tw:h-5 tw:w-7 tw:rounded-full" />
                 </div>
               ))}
             </div>

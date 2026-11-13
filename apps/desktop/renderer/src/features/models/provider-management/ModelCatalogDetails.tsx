@@ -28,7 +28,7 @@ export function ModelCatalogDetails({ model, current }: {
     ['输入价格', current.cost?.input, price?.input],
     ['输出价格', current.cost?.output, price?.output],
   ].filter(([, saved, recommended]) => saved !== undefined && recommended !== undefined && saved !== recommended) : []
-  return <div className="tw:grid tw:gap-3 tw:type-body-sm tw:text-app-text-soft tw:select-text">
+  return <div className="tw:grid tw:gap-3 tw:type-1 tw:text-app-text-soft tw:select-text">
     <section aria-label="能力与限制">
       <strong className="tw:text-app-text">能力与限制</strong>
       <p>目录输入：{(info?.input ?? model.input)?.join(' · ') || '未知'}</p>

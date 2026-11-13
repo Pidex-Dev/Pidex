@@ -22,7 +22,7 @@ export function ProviderLogo({
   return (
     <span
       aria-hidden="true"
-      className="composer-provider-logo tw:relative tw:inline-flex tw:size-4.5 tw:shrink-0 tw:items-center tw:justify-center tw:text-inherit tw:[&>svg]:block tw:[&>svg]:size-full"
+      className="composer-provider-logo tw:relative tw:inline-flex tw:size-[1.125rem] tw:shrink-0 tw:items-center tw:justify-center tw:text-inherit tw:[&>svg]:block tw:[&>svg]:size-full"
     >
       {source ? (
         <RemoteImage

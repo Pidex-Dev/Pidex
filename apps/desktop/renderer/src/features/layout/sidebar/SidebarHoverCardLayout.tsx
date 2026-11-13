@@ -17,7 +17,7 @@ export function SidebarHoverCardHeader({ className, ...props }: ContainerProps):
     <div
       {...props}
       className={cx(
-        'sidebar-hover-card-header tw:grid tw:min-w-0 tw:items-center tw:gap-x-2 tw:type-body',
+        'sidebar-hover-card-header tw:grid tw:min-w-0 tw:items-center tw:gap-x-2 tw:type-2',
         className,
       )}
     />
@@ -29,7 +29,7 @@ export function SidebarHoverCardRow({ className, ...props }: ContainerProps): Re
     <div
       {...props}
       className={cx(
-        'sidebar-hover-card-row tw:grid tw:min-w-0 tw:items-center tw:gap-x-2 tw:type-body tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)]',
+        'sidebar-hover-card-row tw:grid tw:min-w-0 tw:items-center tw:gap-x-2 tw:type-2 tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)]',
         className,
       )}
     />

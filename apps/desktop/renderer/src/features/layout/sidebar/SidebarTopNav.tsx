@@ -151,7 +151,7 @@ function SidebarNavItems({
             active={active && !plainActive}
             asChild
             className={cx(
-              'sidebar-nav-link tw:type-row-title',
+              'sidebar-nav-link tw:type-2 tw:weight-medium',
               'tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus',
               active && !plainActive ? 'active' : undefined,
               plainActive ? 'sidebar-row--ghost' : undefined,
@@ -258,7 +258,7 @@ export function SidebarHeader({
 
   return (
     <>
-      <header className="sidebar-header tw:mx-2 tw:my-0 tw:flex tw:h-9 tw:min-h-9 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
+      <header className="sidebar-header tw:mx-2 tw:my-0 tw:flex tw:h-7 tw:min-h-7 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
         <div className="sidebar-header-left tw:flex tw:min-w-0 tw:flex-1 tw:items-center">
           <Select<SidebarProductMode>
             ariaLabel={t('产品模式')}
@@ -268,7 +268,7 @@ export function SidebarHeader({
               label: SIDEBAR_PRODUCT_MODE_META[value].label,
               detail: t(SIDEBAR_PRODUCT_MODE_META[value].description),
             }))}
-            triggerClassName="sidebar-product-mode-select tw:h-7 tw:max-w-full tw:border-transparent tw:bg-transparent tw:shadow-none tw:hover:bg-app-hover tw:data-[state=open]:bg-app-selected"
+            triggerClassName="sidebar-product-mode-select tw:h-6 tw:max-w-full tw:border-transparent tw:bg-transparent tw:shadow-none tw:hover:bg-app-hover tw:data-[state=open]:bg-app-selected"
             onValueChange={(value) => {
               setSidebarProductMode(value)
               navigate(newSessionPath(value))
@@ -333,7 +333,7 @@ export function SidebarHeader({
                 >
                   <div className="tw:flex tw:flex-col tw:gap-2">
                     <div className="tw:flex tw:items-start tw:justify-between tw:gap-3">
-                      <span className="tw:type-row-title tw:text-app-text">{t('查看活动')}</span>
+                      <span className="tw:type-2 tw:weight-medium tw:text-app-text">{t('查看活动')}</span>
                       <Button
                         isIconOnly
                         iconSize="sm"
@@ -346,7 +346,7 @@ export function SidebarHeader({
                         <X size={APP_ICON_SIZES.sm} />
                       </Button>
                     </div>
-                    <p className="tw:m-0 tw:type-body-sm tw:text-app-text">
+                    <p className="tw:m-0 tw:type-1 tw:text-app-text">
                       {t('查看未读、进行中或待回复的聊天')}
                     </p>
                   </div>
@@ -395,7 +395,7 @@ export function SidebarTopNav({
   return (
     <nav
       aria-label={t('主要导航')}
-      className="sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-2"
+      className="sidebar-top-nav tw:flex tw:flex-col tw:gap-1 tw:px-2"
     >
       <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} />
     </nav>
@@ -427,7 +427,7 @@ export function SidebarNewTaskNav({
   return (
     <nav
       aria-label={t('新建对话')}
-      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col tw:flex-none tw:gap-0.5 tw:p-2"
+      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col tw:flex-none tw:gap-1 tw:p-2"
     >
       <SidebarNavItems
         items={label ? fixedItems.map((item) => ({ ...item, label })) : fixedItems}

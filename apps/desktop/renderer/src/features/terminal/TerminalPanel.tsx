@@ -371,7 +371,7 @@ export function TerminalPanel({
     >
       {truncated ? (
         <div
-          className="integrated-terminal__notice tw:flex tw:min-h-7 tw:items-center tw:gap-1 tw:border-b tw:border-app-border tw:bg-app-panel tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta"
+          className="integrated-terminal__notice tw:flex tw:min-h-6 tw:items-center tw:gap-1 tw:border-b tw:border-app-border tw:bg-app-panel tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta"
           role="status"
         >
           输出已截断，更早内容不可用。
@@ -379,7 +379,7 @@ export function TerminalPanel({
       ) : null}
       {status === 'exited' || status === 'failed' ? (
         <div
-          className="integrated-terminal__lifecycle tw:flex tw:min-h-10 tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border tw:bg-app-panel tw:px-2 tw:py-1 tw:type-caption tw:text-app-danger tw:shadow-none"
+          className="integrated-terminal__lifecycle tw:flex tw:min-h-7 tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border tw:bg-app-panel tw:px-2 tw:py-1 tw:type-1 tw:text-app-danger tw:shadow-none"
           role="status"
         >
           <span>{error || terminalStatusLabel(status, exitCode)}</span>

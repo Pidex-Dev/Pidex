@@ -34,7 +34,7 @@ const datetime = (at: number | null) =>
   at === null
     ? ''
     : new Date(at - new Date(at).getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
-const fieldClass = 'tw:grid tw:gap-2 tw:type-body-sm'
+const fieldClass = 'tw:grid tw:gap-2 tw:type-1'
 const sectionClass = 'tw:grid tw:gap-3 tw:border-b tw:border-app-border-subtle tw:p-4'
 
 export function TaskSchedulePanel({ query = '' }: { query?: string }) {
@@ -759,7 +759,7 @@ function TaskScheduleEditor({
           readOnly={!!itemId}
           onChange={(e) => setContent(e.target.value)}
         />
-        <p className="tw:type-body-sm tw:text-app-text-meta">
+        <p className="tw:type-1 tw:text-app-text-meta">
           方案会保存固定快照。时间前补全默认到点执行；时间后补全默认仅保存。执行沿用所选会话的模型与权限，需要新增授权时仍会阻止。
         </p>
         <Button
@@ -824,7 +824,7 @@ function TaskOccurrenceActions({
       <strong>
         {new Date(occurrence.scheduledFor).toLocaleString()} · {occurrenceLabels[occurrence.status]}
       </strong>
-      <p className="tw:type-body-sm tw:whitespace-pre-wrap">
+      <p className="tw:type-1 tw:whitespace-pre-wrap">
         {occurrence.result || occurrence.feedback}
       </p>
       {(occurrence.threadId ?? occurrence.snapshot.plan?.threadId) ? (

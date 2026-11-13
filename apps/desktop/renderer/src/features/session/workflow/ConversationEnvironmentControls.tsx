@@ -476,15 +476,15 @@ export function ConversationEnvironmentControls({
         <Dialog.Portal>
           <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
           <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:grid tw:w-[min(38rem,100%)] tw:gap-4 tw:p-6"
+            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:grid tw:w-[min(38rem,100%)] tw:gap-4 tw:p-5"
             onCloseAutoFocus={onCloseAutoFocus}
           >
             <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
               <div className="tw:grid tw:gap-1">
                 <Dialog.Title asChild>
-                  <h2 className="tw:m-0 tw:type-title-md tw:text-app-text">移交当前任务</h2>
+                  <h2 className="tw:m-0 tw:type-5 tw:weight-bold tw:text-app-text">移交当前任务</h2>
                 </Dialog.Title>
-                <Dialog.Description className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">
+                <Dialog.Description className="tw:m-0 tw:type-1 tw:text-app-text-soft">
                   移交会停止并归档当前任务，再把修改和界面状态迁移到目标环境。
                 </Dialog.Description>
               </div>
@@ -503,21 +503,21 @@ export function ConversationEnvironmentControls({
 
             {handoff && busy ? (
               <div
-                className="tw:grid tw:min-h-24 tw:place-content-center tw:gap-2 tw:text-center"
+                className="tw:grid tw:min-h-[6rem] tw:place-content-center tw:gap-2 tw:text-center"
                 role="status"
               >
                 <Spinner className="tw:mx-auto" size="medium" />
-                <strong className="tw:type-control tw:text-app-text">
+                <strong className="tw:type-2 tw:weight-medium tw:text-app-text">
                   {stepLabel[handoff.step]}
                 </strong>
-                <span className="tw:type-caption tw:text-app-text-soft">
+                <span className="tw:type-1 tw:text-app-text-soft">
                   {completedHandoffStepCount(handoff)}/{HANDOFF_PROGRESS_STEPS.length}
                 </span>
               </div>
             ) : (
               <div className="tw:grid tw:gap-2">
                 {!gitAvailable ? (
-                  <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">仅 Git 项目可用。</p>
+                  <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">仅 Git 项目可用。</p>
                 ) : null}
                 <Button
                   size="md"

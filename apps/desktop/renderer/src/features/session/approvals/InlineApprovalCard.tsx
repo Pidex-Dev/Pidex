@@ -183,7 +183,7 @@ export function InlineApprovalCard({
         : {})}
     />
   ) : request.autoReviewFallbackReason ? (
-    <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
+    <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
       自动审查无法完成，已转为人工审批：{request.autoReviewFallbackReason}
     </p>
   ) : null
@@ -255,7 +255,7 @@ export function InlineApprovalCard({
           trigger={
             <button
               type="button"
-              className="inline-approval-scope-trigger tw:inline-flex tw:items-center tw:gap-1 tw:rounded-control tw:border-0 tw:bg-transparent tw:p-2 tw:text-app-text-soft tw:type-control tw:hover:bg-app-hover"
+              className="inline-approval-scope-trigger tw:inline-flex tw:items-center tw:gap-1 tw:rounded-control tw:border-0 tw:bg-transparent tw:p-2 tw:text-app-text-soft tw:type-2 tw:weight-medium tw:hover:bg-app-hover"
               disabled={disabled}
               aria-label="授权范围"
             >
@@ -279,7 +279,7 @@ export function InlineApprovalCard({
           </DropdownMenu.RadioGroup>
         </Dropdown>
       ) : isPermissionGrant && selectedScope ? (
-        <span className="inline-approval-scope-label tw:text-app-text-soft tw:type-body-sm">
+        <span className="inline-approval-scope-label tw:text-app-text-soft tw:type-1">
           {PERMISSION_GRANT_SCOPE_LABELS[selectedScope]}
         </span>
       ) : null}
@@ -318,7 +318,7 @@ export function InlineApprovalCard({
           trigger={
             <button
               type="button"
-              className="inline-approval-scope-trigger tw:inline-flex tw:items-center tw:gap-1 tw:rounded-control tw:border-0 tw:bg-transparent tw:p-2 tw:text-app-text-soft tw:type-control tw:hover:bg-app-hover"
+              className="inline-approval-scope-trigger tw:inline-flex tw:items-center tw:gap-1 tw:rounded-control tw:border-0 tw:bg-transparent tw:p-2 tw:text-app-text-soft tw:type-2 tw:weight-medium tw:hover:bg-app-hover"
               disabled={disabled}
               aria-label="更多授权范围"
             >
@@ -373,7 +373,7 @@ export function InlineApprovalCard({
         navigation={navigation}
         error={error}
       >
-        <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
+        <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
           截图会进入聊天，必要时可能切到前台。你可以随时停止操作。
         </p>
         {actions}
@@ -460,13 +460,13 @@ export function InlineApprovalCard({
         navigation={navigation}
       >
         {request.description ? (
-          <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
+          <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
             {request.description}
           </p>
         ) : null}
         {guardianSummary}
         {reviewSummary ? (
-          <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
+          <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
             {reviewSummary}
           </p>
         ) : null}
@@ -474,7 +474,7 @@ export function InlineApprovalCard({
           <div className="inline-approval-permission-grant tw:grid tw:gap-2 tw:px-3">
             {permissionGroups.map((group) => (
               <div className="inline-approval-permission-group tw:grid tw:gap-1" key={group.title}>
-                <span className="inline-approval-permission-group-title tw:text-app-text-soft tw:type-label">
+                <span className="inline-approval-permission-group-title tw:text-app-text-soft tw:type-1 tw:weight-medium">
                   {group.title}
                 </span>
                 <ul className="inline-approval-permission-group-items tw:m-0 tw:grid tw:list-none tw:gap-1 tw:rounded-lg tw:bg-app-editor tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-code tw:break-all">
@@ -503,13 +503,13 @@ export function InlineApprovalCard({
       navigation={navigation}
     >
       {request.description && request.description !== approvalTitle ? (
-        <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
+        <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
           {request.description}
         </p>
       ) : null}
       {guardianSummary}
       {reviewSummary ? (
-        <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
+        <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
           {reviewSummary}
         </p>
       ) : null}
@@ -523,7 +523,7 @@ export function InlineApprovalCard({
 
       {request.toolIdentity ? (
         <div className="request-card-content">
-          <p className="request-card-identity tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+          <p className="request-card-identity tw:m-0 tw:text-app-text-soft tw:type-1">
             {request.toolIdentity.server} / {request.toolIdentity.tool}
           </p>
           {Object.entries(request.toolInput ?? {})
@@ -552,13 +552,13 @@ export function InlineApprovalCard({
             }
             style={commandPreviewTransition.style}
           >
-            <div className="inline-approval-command-preview-header tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:text-app-text-soft tw:type-label">
+            <div className="inline-approval-command-preview-header tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:text-app-text-soft tw:type-1 tw:weight-medium">
               <span>{previewLabel}</span>
               <button
                 aria-controls={commandPreviewId}
                 type="button"
                 aria-expanded={isCommandExpanded}
-                className="tw:inline-flex tw:items-center tw:gap-1 tw:cursor-pointer tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-body-sm tw:hover:bg-app-hover tw:hover:text-app-text"
+                className="tw:inline-flex tw:items-center tw:gap-1 tw:cursor-pointer tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1 tw:hover:bg-app-hover tw:hover:text-app-text"
                 onClick={() => setIsCommandExpanded((value) => !value)}
               >
                 {isCommandExpanded ? '折叠' : '展开'}
@@ -572,7 +572,7 @@ export function InlineApprovalCard({
             <code
               className={cx(
                 'inline-approval-command tw:block tw:w-full tw:min-w-0 tw:overflow-auto tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-code tw:whitespace-pre-wrap tw:break-all',
-                isCommandExpanded ? 'tw:max-h-80' : 'tw:max-h-[3lh]',
+                isCommandExpanded ? 'tw:max-h-[20rem]' : 'tw:max-h-[3lh]',
               )}
             >
               {command.full}

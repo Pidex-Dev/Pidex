@@ -127,7 +127,7 @@ export function AppDetailsDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-6 tw:rounded-2xl tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl"
+          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-5 tw:rounded-2xl tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl"
           onCloseAutoFocus={(event) => {
             if (!restoreFocusElement?.isConnected) return
             event.preventDefault()
@@ -142,7 +142,7 @@ export function AppDetailsDialog({
           <div className="tw:flex tw:items-center tw:justify-between tw:shrink-0">
             <span
               aria-hidden="true"
-              className="tw:flex tw:size-10 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-canvas/80 tw:text-app-text-soft tw:overflow-hidden"
+              className="tw:flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-canvas/80 tw:text-app-text-soft tw:overflow-hidden"
             >
               <PluginIcon name={resolveAppIconName(app)} />
             </span>
@@ -194,8 +194,8 @@ export function AppDetailsDialog({
           </div>
 
           {/* 标题和类型 */}
-          <div className="tw:mt-4 tw:flex tw:items-baseline tw:gap-2.5 tw:min-w-0 tw:shrink-0">
-            <Dialog.Title className="tw:m-0 tw:type-page-title tw:text-app-text tw:truncate">
+          <div className="tw:mt-4 tw:flex tw:items-baseline tw:gap-2 tw:min-w-0 tw:shrink-0">
+            <Dialog.Title className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text tw:truncate">
               {app.name}
             </Dialog.Title>
             <span className="tw:type-section-title tw:text-app-text-soft tw:shrink-0">
@@ -204,10 +204,10 @@ export function AppDetailsDialog({
           </div>
 
           {/* 描述与工具计数 */}
-          <Dialog.Description className="tw:mt-1.5 tw:mb-0 tw:type-body-sm tw:text-app-text-soft tw:shrink-0">
+          <Dialog.Description className="tw:mt-2 tw:mb-0 tw:type-1 tw:text-app-text-soft tw:shrink-0">
             {app.description || '未提供应用说明。'}
           </Dialog.Description>
-          <p className="tw:mt-2 tw:mb-0 tw:type-body-sm tw:text-app-text-meta tw:shrink-0">
+          <p className="tw:mt-2 tw:mb-0 tw:type-1 tw:text-app-text-meta tw:shrink-0">
             {app.name} 应用包含 {app.tools.length} 个工具 ({writeTools.length} write,{' '}
             {readTools.length} read)
           </p>
@@ -215,7 +215,7 @@ export function AppDetailsDialog({
           {/* Write / Read 工具方法折叠列表 */}
           <div className="tw:mt-4 tw:min-h-0 tw:w-full tw:max-w-full tw:flex-1 tw:overflow-y-auto tw:overflow-x-hidden tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:divide-y tw:divide-app-border-subtle">
             {app.tools.length === 0 ? (
-              <div className="tw:p-5 tw:type-body-sm tw:text-app-text-soft tw:text-center">
+              <div className="tw:p-5 tw:type-1 tw:text-app-text-soft tw:text-center">
                 该应用暂未声明公开工具方法。
               </div>
             ) : (
@@ -242,7 +242,7 @@ export function AppDetailsDialog({
 
           {/* 底部栏 */}
           <footer className="tw:mt-4 tw:flex tw:items-center tw:justify-between tw:shrink-0 tw:pt-1">
-            <div className="tw:type-caption tw:text-app-text-meta">
+            <div className="tw:type-1 tw:text-app-text-meta">
               {app.auth?.required
                 ? app.auth.connected
                   ? '账号已授权连接'
@@ -289,9 +289,9 @@ function ToolModeSection({
         onClick={onToggle}
         className="tw:w-full tw:border-0 tw:bg-transparent tw:px-4 tw:py-3 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:text-left tw:cursor-pointer tw:hover:bg-app-panel-hover tw:transition-colors tw:focus-visible:outline-2 tw:focus-visible:outline-offset-[-2px] tw:focus-visible:outline-app-focus"
       >
-        <span className="tw:flex tw:items-center tw:gap-2 tw:type-row-title tw:text-app-text">
+        <span className="tw:flex tw:items-center tw:gap-2 tw:type-2 tw:weight-medium tw:text-app-text">
           <span>{title}</span>
-          <span className="tw:type-body-sm tw:text-app-text-meta">
+          <span className="tw:type-1 tw:text-app-text-meta">
             {tools.length}
           </span>
         </span>
@@ -312,10 +312,10 @@ function ToolModeSection({
               key={tool.name}
               className="tw:grid tw:grid-cols-[minmax(140px,180px)_1fr] tw:items-start tw:gap-4 tw:max-[520px]:grid-cols-1 tw:max-[520px]:gap-1"
             >
-              <code className="tw:font-mono tw:type-caption tw:text-app-text tw:pt-0.5 tw:break-all">
+              <code className="tw:font-mono tw:type-1 tw:text-app-text tw:pt-1 tw:break-all">
                 {tool.name}
               </code>
-              <span className="tw:type-body-sm tw:text-app-text-soft">
+              <span className="tw:type-1 tw:text-app-text-soft">
                 {tool.description}
               </span>
             </div>

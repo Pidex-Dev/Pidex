@@ -200,16 +200,16 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-        <h2 className="tw:m-0 tw:mb-6 tw:type-title-xl tw:text-app-text">Worktrees</h2>
+      <div className="settings-content-inner tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+        <h2 className="tw:m-0 tw:mb-5 tw:type-7 tw:weight-bold tw:text-app-text">Worktrees</h2>
 
         {/* 顶部偏好设置卡片 */}
         <WorktreePreferences onError={onError} />
 
         {/* 托管的工作树区域 */}
-        <div className="tw:mt-8">
+        <div className="tw:mt-6">
           <div className="tw:flex tw:items-center tw:justify-between tw:mb-3">
-            <h3 className="settings-section-title tw:m-0 tw:text-app-text tw:type-row-title">
+            <h3 className="settings-section-title tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
               托管的工作树
             </h3>
             <Tooltip content="刷新工作树列表" side="top">
@@ -246,10 +246,10 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                       className="tw:flex tw:w-full tw:items-center tw:justify-between tw:px-3 tw:py-2 tw:text-left tw:bg-transparent tw:border-none tw:cursor-pointer tw:hover:bg-app-hover/40 tw:transition-colors"
                       onClick={() => toggleGroup(groupKey)}
                     >
-                      <span className="tw:type-row-title tw:text-app-text">
+                      <span className="tw:type-2 tw:weight-medium tw:text-app-text">
                         {groupName}
                       </span>
-                      <span className="tw:flex tw:items-center tw:gap-1.5 tw:type-caption tw:text-app-text-soft">
+                      <span className="tw:flex tw:items-center tw:gap-1 tw:type-1 tw:text-app-text-soft">
                         {groupEntries.length} 个工作树
                         {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
                       </span>
@@ -277,7 +277,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                                 <div className="tw:flex tw:items-center tw:gap-2 tw:flex-wrap">
                                   {singleConversation ? (
                                     <a
-                                      className="tw:min-w-0 tw:max-w-full tw:type-row-title tw:text-app-text tw:truncate tw:no-underline tw:cursor-pointer tw:rounded-sm tw:transition-colors tw:hover:text-app-accent-fg tw:hover:underline tw:focus-visible:outline-app-focus"
+                                      className="tw:min-w-0 tw:max-w-full tw:type-2 tw:weight-medium tw:text-app-text tw:truncate tw:no-underline tw:cursor-pointer tw:rounded-sm tw:transition-colors tw:hover:text-app-accent-fg tw:hover:underline tw:focus-visible:outline-app-focus"
                                       href={'/threads/' + encodeURIComponent(singleConversation.id)}
                                       onClick={(event) => {
                                         event.preventDefault()
@@ -289,14 +289,14 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                                       {title}
                                     </a>
                                   ) : (
-                                    <strong className="tw:type-row-title tw:text-app-text tw:truncate">
+                                    <strong className="tw:type-2 tw:weight-medium tw:text-app-text tw:truncate">
                                       {title}
                                     </strong>
                                   )}
                                   {!hasSingleChat && conversations.length > 0 ? (
                                     <button
                                       type="button"
-                                      className="tw:inline-flex tw:items-center tw:gap-1 tw:type-caption tw:text-app-text-soft tw:bg-transparent tw:hover:text-app-text tw:p-0 tw:border-none tw:cursor-pointer tw:transition-colors"
+                                      className="tw:inline-flex tw:items-center tw:gap-1 tw:type-1 tw:text-app-text-soft tw:bg-transparent tw:hover:text-app-text tw:p-0 tw:border-none tw:cursor-pointer tw:transition-colors"
                                       onClick={() => toggleThreads(worktree.id)}
                                     >
                                       {conversations.length} 个关联聊天
@@ -310,23 +310,23 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                                   ) : null}
                                 </div>
 
-                                <p className="tw:m-0 tw:type-caption tw:text-app-text-meta tw:font-mono tw:truncate">
+                                <p className="tw:m-0 tw:type-1 tw:text-app-text-meta tw:font-mono tw:truncate">
                                   {path}
                                 </p>
 
                                 {worktree.status === 'restore-conflict' ? (
-                                  <p className="tw:m-0 tw:type-caption tw:text-app-danger">
+                                  <p className="tw:m-0 tw:type-1 tw:text-app-danger">
                                     恢复冲突，已保留工作树和快照，请手动处理
                                   </p>
                                 ) : null}
 
                                 {/* 展开的关联聊天列表 */}
                                 {isThreadsOpen && conversations.length > 0 ? (
-                                  <div className="tw:grid tw:gap-1 tw:mt-1.5 tw:pt-2 tw:border-t tw:border-app-border-subtle/50">
+                                  <div className="tw:grid tw:gap-1 tw:mt-2 tw:pt-2 tw:border-t tw:border-app-border-subtle/50">
                                     {conversations.map((thread) => (
                                       <a
                                         key={thread.id}
-                                        className="tw:type-caption tw:text-app-text-soft tw:truncate tw:rounded-item tw:px-2 tw:py-1 tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-app-focus"
+                                        className="tw:type-1 tw:text-app-text-soft tw:truncate tw:rounded-item tw:px-2 tw:py-1 tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-app-focus"
                                         href={'/threads/' + thread.id}
                                         onClick={(event) => {
                                           event.preventDefault()
@@ -342,7 +342,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                                 ) : null}
                               </div>
 
-                              <div className="tw:flex tw:items-center tw:gap-1.5 tw:shrink-0">
+                              <div className="tw:flex tw:items-center tw:gap-1 tw:shrink-0">
                                 <Tooltip content="在此工作树中新建聊天" side="top">
                                   <Button
                                     isIconOnly
@@ -408,14 +408,14 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
 
         {/* 操作输出 */}
         {operation ? (
-          <div className="tw:mt-8">
+          <div className="tw:mt-6">
             <SettingsSection
               title="操作进度"
               description={`${operation.kind} · ${operation.step} · ${operation.status}`}
             >
               {operation.warnings.length ? (
                 <ul
-                  className="tw:type-caption tw:grid tw:gap-1 tw:px-3 tw:pt-3 tw:text-app-text-soft"
+                  className="tw:type-1 tw:grid tw:gap-1 tw:px-3 tw:pt-3 tw:text-app-text-soft"
                   role="status"
                 >
                   {operation.warnings.map((warning) => (
@@ -423,7 +423,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                   ))}
                 </ul>
               ) : null}
-              <pre className="tw:type-code tw:max-h-64 tw:overflow-auto tw:whitespace-pre-wrap tw:p-3">
+              <pre className="tw:type-code tw:max-h-[16rem] tw:overflow-auto tw:whitespace-pre-wrap tw:p-3">
                 {output || '等待输出…'}
               </pre>
             </SettingsSection>
@@ -436,10 +436,10 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
           title="要删除此工作树吗？"
           description={
             <div className="tw:grid tw:gap-3">
-              <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+              <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
                 此工作树中有尚未提交的更改，删除后可能会丢失。删除工作树会移除其中的文件，并归档以其作为工作空间的聊天。
               </p>
-              <pre className="tw:m-0 tw:rounded-control tw:bg-app-control tw:p-2.5 tw:font-mono tw:type-caption tw:text-app-text tw:break-all tw:whitespace-pre-wrap">
+              <pre className="tw:m-0 tw:rounded-control tw:bg-app-control tw:p-3 tw:font-mono tw:type-1 tw:text-app-text tw:break-all tw:whitespace-pre-wrap">
                 {deletingTarget?.path}
               </pre>
             </div>

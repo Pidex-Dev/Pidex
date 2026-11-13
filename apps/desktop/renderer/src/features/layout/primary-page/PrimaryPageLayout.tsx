@@ -53,27 +53,27 @@ export function PrimaryPageLayout({
             {expandableSearch && isValidElement<SearchInputProps>(search) ? (
               <SearchHeading
                 title={
-                  <h1 className="primary-page-layout__title tw:text-app-text tw:type-title-xl">
+                  <h1 className="primary-page-layout__title tw:text-app-text tw:type-7 tw:weight-bold">
                     {title}
                   </h1>
                 }
                 search={search}
               />
             ) : (
-              <div className="primary-page-layout__title-row tw:flex tw:min-h-9 tw:min-w-0 tw:items-center">
-                <h1 className="primary-page-layout__title tw:text-app-text tw:type-title-xl">
+              <div className="primary-page-layout__title-row tw:flex tw:min-h-7 tw:min-w-0 tw:items-center">
+                <h1 className="primary-page-layout__title tw:text-app-text tw:type-7 tw:weight-bold">
                   {title}
                 </h1>
               </div>
             )}
             {description ? (
-              <p className="primary-page-layout__description tw:mt-2 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body tw:[&_a]:ml-1 tw:[&_a]:text-app-text tw:[&_a]:underline tw:[&_a]:underline-offset-2">
+              <p className="primary-page-layout__description tw:mt-2 tw:max-w-[68ch] tw:text-app-text-soft tw:type-2 tw:[&_a]:ml-1 tw:[&_a]:text-app-text tw:[&_a]:underline tw:[&_a]:underline-offset-2">
                 {description}
               </p>
             ) : null}
           </div>
           {actions ? (
-            <div className="primary-page-layout__actions tw:flex tw:min-h-9 tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
+            <div className="primary-page-layout__actions tw:flex tw:min-h-7 tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
               {actions}
             </div>
           ) : null}

@@ -163,7 +163,7 @@ function PluginInstallComponentList({
   emptyLabel: string
 }): React.ReactNode {
   return (
-    <div className="plugin-install-disclosure__group tw:grid tw:gap-0.5">
+    <div className="plugin-install-disclosure__group tw:grid tw:gap-1">
       <strong className="tw:text-app-text">{title}</strong>
       {items.length ? (
         <span className="tw:text-app-text-soft tw:wrap-anywhere">{items.join('、')}</span>

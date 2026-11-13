@@ -80,7 +80,7 @@ export function PluginProductDetailsView({
   return (
     <section
       className={cx(
-        'catalog-details-view catalog-plugin-details tw:grid tw:mx-auto tw:w-[min(var(--page-content-max-width),100%)] tw:gap-8',
+        'catalog-details-view catalog-plugin-details tw:grid tw:mx-auto tw:w-[min(var(--page-content-max-width),100%)] tw:gap-6',
       )}
     >
       <header className="catalog-details-view__header tw:flex tw:flex-col tw:items-start tw:gap-5">
@@ -88,7 +88,7 @@ export function PluginProductDetailsView({
           aria-hidden="true"
           className={cx(
             'catalog-details-view__icon',
-            'tw:inline-flex tw:size-16 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-container tw:text-app-text',
+            'tw:inline-flex tw:size-9 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-container tw:text-app-text',
             FORCED_COLORS_SURFACE_CLASS,
           )}
           data-plugin-tone={item.tone}
@@ -104,10 +104,10 @@ export function PluginProductDetailsView({
           <div
             className={cx('catalog-details-view__identity', DETAILS_IDENTITY_CLASS, 'tw:flex-1')}
           >
-            <h1 className="tw:m-0 tw:text-app-text tw:type-title-xl tw:wrap-anywhere">
+            <h1 className="tw:m-0 tw:text-app-text tw:type-7 tw:weight-bold tw:wrap-anywhere">
               {item.name}
             </h1>
-            <p className="tw:m-0 tw:text-app-text-soft tw:type-body">{item.description}</p>
+            <p className="tw:m-0 tw:text-app-text-soft tw:type-2">{item.description}</p>
             {item.id === 'computer-use' ? <ComputerRuntimeStatus /> : null}
           </div>
           <div className={cx('catalog-details-view__primary-action', DETAILS_ACTION_GROUP_CLASS)}>
@@ -178,7 +178,7 @@ export function PluginProductDetailsView({
       {prompts.length ? (
         <div
           aria-label="示例提示词"
-          className="catalog-plugin-prompts tw:relative tw:isolate tw:flex tw:justify-center tw:overflow-hidden tw:rounded-container tw:bg-app-underlay tw:px-8 tw:py-8 tw:after:pointer-events-none tw:after:absolute tw:after:inset-0 tw:after:z-1 tw:after:bg-app-panel/70 tw:after:content-[''] tw:forced-colors:after:hidden"
+          className="catalog-plugin-prompts tw:relative tw:isolate tw:flex tw:justify-center tw:overflow-hidden tw:rounded-container tw:bg-app-underlay tw:px-6 tw:py-6 tw:after:pointer-events-none tw:after:absolute tw:after:inset-0 tw:after:z-1 tw:after:bg-app-panel/70 tw:after:content-[''] tw:forced-colors:after:hidden"
         >
           <img
             alt=""
@@ -190,7 +190,7 @@ export function PluginProductDetailsView({
           <div className="tw:relative tw:z-2 tw:flex tw:w-full tw:max-w-[40rem] tw:flex-col tw:items-center tw:gap-4">
             {prompts.map((prompt, index) => (
               <button
-                className="catalog-plugin-prompts__item tw:grid tw:w-fit tw:max-w-[77%] tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-container tw:border-0 tw:bg-app-panel/75 tw:p-2 tw:text-left tw:text-app-text tw:type-body tw:enabled:cursor-pointer tw:enabled:hover:bg-app-panel tw:disabled:cursor-not-allowed tw:disabled:opacity-50 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus tw:forced-colors:border tw:forced-colors:border-[color:CanvasText] tw:forced-colors:bg-[color:Canvas] tw:forced-colors:[color:CanvasText]"
+                className="catalog-plugin-prompts__item tw:grid tw:w-fit tw:max-w-[77%] tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-container tw:border-0 tw:bg-app-panel/75 tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:enabled:cursor-pointer tw:enabled:hover:bg-app-panel tw:disabled:cursor-not-allowed tw:disabled:opacity-50 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus tw:forced-colors:border tw:forced-colors:border-[color:CanvasText] tw:forced-colors:bg-[color:Canvas] tw:forced-colors:[color:CanvasText]"
                 disabled={!canTry || busy}
                 key={`${index}:${prompt}`}
                 onClick={() => onTryPrompt(prompt)}
@@ -199,19 +199,19 @@ export function PluginProductDetailsView({
                 <span className="catalog-plugin-prompts__label tw:flex tw:min-w-0 tw:items-baseline tw:gap-1">
                   <PluginIcon
                     plugin={item}
-                    className="catalog-plugin-prompts__plugin-icon tw:shrink-0 tw:basis-3.5 tw:max-w-3.5 tw:max-h-3.5 tw:overflow-hidden tw:rounded-sm"
+                    className="catalog-plugin-prompts__plugin-icon tw:shrink-0 tw:size-icon-sm tw:overflow-hidden tw:rounded-sm"
                     logoDarkSource={item.logoDarkSource}
                     logoSource={item.logoSource}
                     name={item.iconName}
                   />
                   <span>
-                    <strong className="tw:text-app-accent-fg tw:type-weight-label">
+                    <strong className="tw:text-app-accent-fg tw:weight-medium">
                       {item.name}
                     </strong>{' '}
                     {prompt}
                   </span>
                 </span>
-                <span className="catalog-plugin-prompts__arrow tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-text/10 tw:forced-colors:border">
+                <span className="catalog-plugin-prompts__arrow tw:inline-flex tw:size-6 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-text/10 tw:forced-colors:border">
                   <ArrowRight
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
@@ -233,7 +233,7 @@ export function PluginProductDetailsView({
         </div>
       ) : null}
       {details?.longDescription && details.longDescription.trim() !== item.description.trim() ? (
-        <p className="catalog-plugin-details__description tw:m-0 tw:whitespace-pre-line tw:text-app-text tw:type-body">
+        <p className="catalog-plugin-details__description tw:m-0 tw:whitespace-pre-line tw:text-app-text tw:type-2">
           {details.longDescription}
         </p>
       ) : null}
@@ -261,7 +261,7 @@ export function PluginProductDetailsView({
                   <span
                     aria-hidden="true"
                     className={cx(
-                      'catalog-plugin-skill__icon tw:inline-flex tw:size-8 tw:items-center tw:justify-center tw:text-app-text-soft',
+                      'catalog-plugin-skill__icon tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:text-app-text-soft',
                       FORCED_COLORS_SURFACE_CLASS,
                     )}
                     data-plugin-tone={item.tone}
@@ -269,11 +269,11 @@ export function PluginProductDetailsView({
                     <Lightbulb aria-hidden="true" size={24} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   </span>
                   <div className="catalog-plugin-skill__copy tw:grid tw:min-w-0 tw:gap-1">
-                    <h3 className="tw:m-0 tw:text-app-text tw:type-row-title">
+                    <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">
                       {skills.length === 1 && skill.id === item.id ? item.name : skill.name}
                     </h3>
                     {skill.description ? (
-                      <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+                      <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
                         {skill.description}
                       </p>
                     ) : null}
@@ -320,8 +320,8 @@ export function PluginProductDetailsView({
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
                   <div className="tw:grid tw:min-w-0 tw:gap-1">
-                    <h3 className="tw:m-0 tw:text-app-text tw:type-row-title">{component.name}</h3>
-                    <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+                    <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">{component.name}</h3>
+                    <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
                       {component.description ||
                         (component.managedBy === 'host' ? '由 Pidex 宿主管理' : '插件提供')}
                     </p>

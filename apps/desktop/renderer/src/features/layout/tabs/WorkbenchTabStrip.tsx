@@ -206,7 +206,7 @@ export function WorkbenchTabStrip({
                   trigger={
                     <div
                       className={cx(
-                        'right-dock-tab-wrap tw:group tw:relative tw:flex tw:h-8 tw:min-w-22.5 tw:max-w-39 tw:flex-[1_1_156px] tw:items-center tw:overflow-hidden tw:rounded-md tw:border tw:border-transparent tw:px-2 tw:py-1 tw:shadow-none tw:transition-[background-color,border-color,color] tw:duration-state tw:ease-standard tw:[&.dragging]:opacity-50',
+                        'right-dock-tab-wrap tw:group tw:relative tw:flex tw:h-6 tw:min-w-[5.625rem] tw:max-w-[9.75rem] tw:flex-[1_1_156px] tw:items-center tw:overflow-hidden tw:rounded-md tw:border tw:border-transparent tw:px-2 tw:py-1 tw:shadow-none tw:transition-[background-color,border-color,color] tw:duration-state tw:ease-standard tw:[&.dragging]:opacity-50',
                         active
                           ? 'active tw:bg-app-selected tw:text-app-text'
                           : 'tw:text-app-text-meta tw:hover:bg-app-hover tw:hover:text-app-text-soft tw:has-[:focus-visible]:bg-app-hover tw:has-[:focus-visible]:text-app-text-soft',
@@ -245,7 +245,7 @@ export function WorkbenchTabStrip({
                         aria-controls={`workbench-panel-${target}-${domId(tab.id)}`}
                         aria-selected={active}
                         className={cx(
-                          'right-dock-tab tw:pr-7 tw:relative tw:inline-flex tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:items-center tw:gap-2 tw:overflow-hidden tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:whitespace-nowrap tw:type-control',
+                          'right-dock-tab tw:pr-6 tw:relative tw:inline-flex tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:items-center tw:gap-2 tw:overflow-hidden tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:whitespace-nowrap tw:type-2 tw:weight-medium',
                           active && 'active',
                           tab.kind === 'file-preview' && tab.preview && 'preview tw:italic',
                         )}

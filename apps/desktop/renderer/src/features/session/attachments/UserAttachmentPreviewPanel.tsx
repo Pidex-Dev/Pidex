@@ -428,7 +428,7 @@ function ImageAttachmentPreview({
         ariaLabel="图片缩放"
         triggerClassName={
           fullscreen
-            ? 'tw:rounded-control tw:h-10 tw:px-3 tw:bg-app-canvas tw:text-app-text'
+            ? 'tw:rounded-control tw:h-7 tw:px-3 tw:bg-app-canvas tw:text-app-text'
             : undefined
         }
         size="sm"
@@ -751,13 +751,13 @@ const noticeStyle: CSSProperties = {
   padding: '6px var(--cpx-sys-space-3)',
   borderBottom: '1px solid var(--cpx-sys-color-border-subtle)',
   color: 'var(--cpx-sys-color-fg-tertiary)',
-  fontSize: 'var(--cpx-sys-font-size-xs)',
+  fontSize: 'var(--cpx-sys-font-size-1)',
 }
 const messageStyle: CSSProperties = {
   position: 'absolute',
   right: 'var(--cpx-sys-space-3)',
   bottom: 'var(--cpx-sys-space-3)',
   color: 'var(--cpx-sys-color-fg-tertiary)',
-  fontSize: 'var(--cpx-sys-font-size-xs)',
+  fontSize: 'var(--cpx-sys-font-size-1)',
   pointerEvents: 'none',
 }

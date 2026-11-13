@@ -46,7 +46,7 @@
    * Menu / selector sizing contract.
    *
    * The widest row, including its shortcut and indicators, sets the surface
-   * width. The surface adds 5px of padding on each side.
+   * width. The surface adds 4px of padding on each side.
    *
    * The composer command dropdown (`.chat-input__dropdown`) is excluded: it is an
    * absolutely positioned surface that follows the composer width and measures
@@ -56,7 +56,7 @@
    * stay after it: same-specificity widths resolve by source order.
    */
   :is([data-theme-component='dropdown-surface'], .popover-menu-spacing, .popover-panel-spacing, .sidebar-hover-card-surface):not(.chat-input__dropdown) {
-    --popover-surface-inset: 5px;
+    --popover-surface-inset: var(--cpx-sys-space-1);
     padding: var(--popover-surface-inset);
     row-gap: var(--cpx-comp-row-gap-y);
   }
@@ -272,7 +272,7 @@
     border-radius: var(--cpx-comp-dropdown-menu-radius);
     corner-shape: var(--cpx-sys-corner-shape);
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
     outline: none;
     user-select: none;
     -webkit-user-select: none;
@@ -336,7 +336,7 @@
     backdrop-filter: none;
     box-shadow: none;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
     outline: none;
     user-select: none;
     -webkit-user-select: none;
@@ -390,7 +390,7 @@
 
   .sidebar-context-menu-shortcut {
     color: var(--cpx-sys-color-fg-tertiary);
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     white-space: nowrap;
   }
 
@@ -415,7 +415,7 @@
   .popover-header {
     padding: var(--cpx-comp-menu-surface-padding) var(--cpx-comp-row-padding-inline);
     color: var(--cpx-sys-color-fg-tertiary);
-    font: var(--cpx-sys-type-label);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); font-weight: var(--cpx-sys-font-weight-medium);
     letter-spacing: normal;
   }
 
@@ -431,7 +431,7 @@
   .popover-empty {
     padding: 8px;
     color: var(--cpx-comp-input-placeholder-fg);
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-align: center;
   }
 
@@ -480,7 +480,7 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
     white-space: nowrap;
   }
 
@@ -494,7 +494,7 @@
 
   .popover-item-title {
     color: currentColor;
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -502,7 +502,7 @@
 
   .popover-item-description {
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     white-space: normal;
     overflow-wrap: anywhere;
   }
@@ -519,7 +519,7 @@
 
   .popover-item-shortcut {
     color: var(--cpx-sys-color-fg-tertiary);
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     letter-spacing: normal;
     white-space: nowrap;
   }

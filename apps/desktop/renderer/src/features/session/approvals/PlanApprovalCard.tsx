@@ -109,7 +109,7 @@ export function PlanApprovalCard({
           ) : undefined
         }
       >
-        <p className="plan-approval-title tw:m-0 tw:px-1 tw:type-row-title tw:wrap-anywhere">
+        <p className="plan-approval-title tw:m-0 tw:px-1 tw:type-2 tw:weight-medium tw:wrap-anywhere">
           {approval.title}
         </p>
         {editingFeedback ? null : (
@@ -173,13 +173,13 @@ export function PlanApprovalCard({
         )}
         {editingFeedback ? (
           <div className="plan-approval-feedback tw:grid tw:gap-2 tw:px-1 tw:pt-2">
-            <label className="tw:text-app-text-soft tw:type-label" htmlFor={feedbackId}>
+            <label className="tw:text-app-text-soft tw:type-1 tw:weight-medium" htmlFor={feedbackId}>
               你希望怎样调整？
             </label>
             <textarea
               id={feedbackId}
               ref={feedbackRef}
-              className="plan-approval-feedback-input tw:block tw:w-full tw:min-w-0 tw:field-sizing-content tw:min-h-[4.5em] tw:max-h-48 tw:resize-none tw:overflow-y-auto tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-control tw:p-2 tw:text-app-text tw:type-body tw:outline-none tw:placeholder:text-app-text-meta tw:focus-visible:border-app-accent"
+              className="plan-approval-feedback-input tw:block tw:w-full tw:min-w-0 tw:field-sizing-content tw:min-h-[4.5em] tw:max-h-[12rem] tw:resize-none tw:overflow-y-auto tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-control tw:p-2 tw:text-app-text tw:type-2 tw:outline-none tw:placeholder:text-app-text-meta tw:focus-visible:border-app-accent"
               disabled={disabled}
               placeholder={FEEDBACK_PLACEHOLDER}
               value={feedback}

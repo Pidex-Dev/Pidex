@@ -33,7 +33,7 @@ export function GitBoardFilterBar({
         value={filter}
         onChange={onChange}
       />
-      <span role="status" className="tw:type-caption tw:text-app-text-meta">
+      <span role="status" className="tw:type-1 tw:text-app-text-meta">
         {`${t('匹配')} ${matched} / ${total} ${t('个仓库')}`}
       </span>
     </div>
@@ -49,8 +49,8 @@ export function GitBoardFilterEmpty({
 }) {
   const { t } = useLocale()
   return (
-    <div className="tw:m-auto tw:grid tw:max-w-[24rem] tw:justify-items-center tw:gap-2 tw:px-4 tw:py-8 tw:text-center">
-      <p role="status" className="tw:m-0 tw:text-app-text tw:type-body">
+    <div className="tw:m-auto tw:grid tw:max-w-[24rem] tw:justify-items-center tw:gap-2 tw:px-4 tw:py-6 tw:text-center">
+      <p role="status" className="tw:m-0 tw:text-app-text tw:type-2">
         {t(gitBoardFilterEmptyMessage(filter))}
       </p>
       <Button variant="ghost" onClick={onReset}>

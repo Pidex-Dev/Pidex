@@ -187,12 +187,12 @@ export function GithubLoginPanel({
   )
 
   const deviceCard = awaitingDeviceCode ? (
-    <div className="github-device-code-card compact tw:flex tw:items-center tw:justify-between tw:gap-4 tw:bg-app-raised tw:[&_p]:mt-2 tw:[&_p]:mb-0 tw:[&_p]:text-app-text-soft tw:[&_p]:type-body-sm tw:[&_p]:leading-[var(--cpx-sys-line-height-tight)] tw:mt-3 tw:rounded-md tw:border tw:border-app-border-subtle tw:p-3">
+    <div className="github-device-code-card compact tw:flex tw:items-center tw:justify-between tw:gap-4 tw:bg-app-raised tw:[&_p]:mt-2 tw:[&_p]:mb-0 tw:[&_p]:text-app-text-soft tw:[&_p]:type-body-sm tw:[&_p]:leading-[var(--cpx-sys-line-height-1)] tw:mt-3 tw:rounded-md tw:border tw:border-app-border-subtle tw:p-3">
       <div>
-        <div className="github-device-code-label tw:mb-1 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-xs)]">
+        <div className="github-device-code-label tw:mb-1 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-1)]">
           {t('GitHub 设备验证码')}
         </div>
-        <div className="github-device-code-value tw:font-mono tw:text-[length:var(--cpx-sys-font-size-3xl)] tw:type-weight-heading tw:tracking-[0.08em] tw:text-app-text">
+        <div className="github-device-code-value tw:font-mono tw:text-[length:var(--cpx-sys-font-size-6)] tw:weight-bold tw:tracking-[0.08em] tw:text-app-text">
           {login?.userCode}
         </div>
         <p>{t('在 GitHub 设备登录页面输入这个验证码，不是 OAuth Client ID。')}</p>
@@ -222,7 +222,7 @@ export function GithubLoginPanel({
     return (
       <div className="tw:flex tw:min-w-0 tw:flex-col tw:items-end tw:gap-2 tw:@max-[900px]:items-start">
         {message && controller.error ? (
-          <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-body-sm">
+          <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-1">
             {message}
           </p>
         ) : null}
@@ -238,10 +238,10 @@ export function GithubLoginPanel({
     <div className="github-login-panel tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:items-center tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-control tw:p-4">
       <GitFork aria-hidden="true" size={APP_ICON_SIZE} className="tw:text-app-text-soft" />
       <div className="tw:min-w-0">
-        <h3 className="tw:m-0 tw:text-app-text tw:type-row-title">{t(heading)}</h3>
+        <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">{t(heading)}</h3>
         <p
           className={cx(
-            'tw:m-0 tw:mt-1 tw:type-body-sm',
+            'tw:m-0 tw:mt-1 tw:type-1',
             controller.error ? 'tw:text-app-danger' : 'tw:text-app-text-soft',
           )}
           role={controller.error ? 'alert' : undefined}

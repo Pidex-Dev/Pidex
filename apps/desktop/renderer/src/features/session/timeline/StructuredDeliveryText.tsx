@@ -146,7 +146,7 @@ export function historicalDeliveryText(
 export function StructuredDeliveryText({ text }: { text: string }): React.ReactNode {
   const context = React.useContext(ConversationItemContext)
   return (
-    <article className="canonical-text-item canonical-text-item--result tw:min-w-0 tw:w-full tw:bg-transparent tw:text-app-text tw:shadow-none tw:type-reading">
+    <article className="canonical-text-item canonical-text-item--result tw:min-w-0 tw:w-full tw:bg-transparent tw:text-app-text tw:shadow-none tw:type-2">
       <ConversationMarkdownErrorBoundary contentKey={text}>
         <MarkdownMessage
           presentation="conversation"

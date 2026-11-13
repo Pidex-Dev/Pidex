@@ -918,7 +918,9 @@ export const markdownRichThemeSpec = {
     backgroundColor: 'var(--cpx-sys-color-surface-canvas)',
   },
   '&.cm-markdown-rich .cm-content': {
-    font: 'var(--cpx-sys-type-reading)',
+    fontFamily: 'var(--cpx-sys-font-family-sans)',
+    fontSize: 'var(--cpx-sys-font-size-2)',
+    lineHeight: 'var(--cpx-sys-line-height-2)',
     padding: '24px',
   },
   '&.cm-markdown-rich .cm-md-rich-heading': {
@@ -926,17 +928,29 @@ export const markdownRichThemeSpec = {
     letterSpacing: '-0.015em',
   },
   '&.cm-markdown-rich .cm-md-rich-h1': {
-    font: 'var(--cpx-sys-type-heading-xl)',
+    fontFamily: 'var(--cpx-sys-font-family-sans)',
+    fontSize: 'var(--cpx-sys-font-size-7)',
+    lineHeight: 'var(--cpx-sys-line-height-7)',
+    fontWeight: 'var(--cpx-sys-font-weight-bold)',
   },
   '&.cm-markdown-rich .cm-md-rich-h2': {
-    font: 'var(--cpx-sys-type-heading-lg)',
+    fontFamily: 'var(--cpx-sys-font-family-sans)',
+    fontSize: 'var(--cpx-sys-font-size-6)',
+    lineHeight: 'var(--cpx-sys-line-height-6)',
+    fontWeight: 'var(--cpx-sys-font-weight-bold)',
   },
   '&.cm-markdown-rich .cm-md-rich-h3': {
-    font: 'var(--cpx-sys-type-heading-sm)',
+    fontFamily: 'var(--cpx-sys-font-family-sans)',
+    fontSize: 'var(--cpx-sys-font-size-4)',
+    lineHeight: 'var(--cpx-sys-line-height-4)',
+    fontWeight: 'var(--cpx-sys-font-weight-bold)',
   },
   '&.cm-markdown-rich .cm-md-rich-h4, &.cm-markdown-rich .cm-md-rich-h5, &.cm-markdown-rich .cm-md-rich-h6':
     {
-      font: 'var(--cpx-sys-type-row-title)',
+      fontFamily: 'var(--cpx-sys-font-family-sans)',
+      fontSize: 'var(--cpx-sys-font-size-2)',
+      lineHeight: 'var(--cpx-sys-line-height-2)',
+      fontWeight: 'var(--cpx-sys-font-weight-medium)',
     },
   '&.cm-markdown-rich .cm-md-rich-emphasis': {
     fontStyle: 'italic',
@@ -953,7 +967,9 @@ export const markdownRichThemeSpec = {
     color: 'var(--cm-editor-foreground, var(--cpx-sys-color-fg-primary))',
     backgroundColor:
       'color-mix(in srgb, var(--cm-editor-background, var(--cpx-comp-modal-preformat-bg)) 88%, var(--cpx-sys-color-fg-primary) 12%)',
-    font: 'var(--cpx-sys-type-code)',
+    fontFamily: 'var(--cpx-sys-font-family-mono)',
+    fontSize: 'var(--cpx-sys-font-size-code)',
+    lineHeight: 'var(--cpx-sys-line-height-code)',
   },
   '&.cm-markdown-rich .cm-md-rich-link': {
     color: 'var(--cpx-sys-color-accent)',
@@ -998,7 +1014,7 @@ export const markdownRichThemeSpec = {
     alignItems: 'center',
     gap: '6px',
     fontWeight: '600',
-    fontSize: 'var(--cpx-sys-font-size-sm)',
+    fontSize: 'var(--cpx-sys-font-size-1)',
     userSelect: 'none',
   },
   '&.cm-markdown-rich .cm-md-rich-alert-header--note': {
@@ -1041,7 +1057,9 @@ export const markdownRichThemeSpec = {
     paddingInline: '12px',
     color: 'var(--cm-editor-foreground, var(--cpx-sys-color-fg-primary))',
     backgroundColor: 'var(--cpx-sys-color-surface-editor)',
-    font: 'var(--cpx-sys-type-code)',
+    fontFamily: 'var(--cpx-sys-font-family-mono)',
+    fontSize: 'var(--cpx-sys-font-size-code)',
+    lineHeight: 'var(--cpx-sys-line-height-code)',
   },
   '&.cm-markdown-rich .cm-line:not(.cm-md-rich-code-block) + .cm-line.cm-md-rich-code-block, &.cm-markdown-rich .cm-line.cm-md-rich-code-block:first-child':
     {
@@ -1097,7 +1115,9 @@ export const markdownRichThemeSpec = {
     borderCollapse: 'collapse',
     backgroundColor: 'var(--cpx-sys-color-surface-editor)',
     color: 'var(--cpx-sys-color-fg-primary)',
-    font: 'var(--cpx-sys-type-body)',
+    fontFamily: 'var(--cpx-sys-font-family-sans)',
+    fontSize: 'var(--cpx-sys-font-size-2)',
+    lineHeight: 'var(--cpx-sys-line-height-2)',
   },
   '&.cm-markdown-rich .cm-md-rich-table-widget th, &.cm-markdown-rich .cm-md-rich-table-widget td':
     {

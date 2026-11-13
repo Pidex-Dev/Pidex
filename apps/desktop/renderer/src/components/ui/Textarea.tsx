@@ -10,9 +10,9 @@ export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & 
 }
 
 const SIZE_CLASSES: Record<InputSize, string> = {
-  sm: 'tw:type-secondary',
-  md: 'tw:type-control',
-  compact: 'tw:type-control',
+  sm: 'tw:type-1',
+  md: 'tw:type-2 tw:weight-medium',
+  compact: 'tw:type-2 tw:weight-medium',
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(

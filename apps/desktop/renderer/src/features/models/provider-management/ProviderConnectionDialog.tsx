@@ -107,17 +107,17 @@ export function ProviderConnectionDialog({
                   <ChevronLeft size={APP_ICON_SIZE} aria-hidden />
                 </Button>
               ) : (
-                <span className="model-center-key-dialog-icon tw:inline-flex tw:size-9 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
+                <span className="model-center-key-dialog-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
                   <Link2 size={APP_ICON_SIZE} aria-hidden />
                 </span>
               )}
               <div>
-                <Dialog.Title id={titleId} className="tw:type-weight-label">
+                <Dialog.Title id={titleId} className="tw:weight-medium">
                   {selected ? t(choiceLabel(selected, provider)) : `连接 ${provider.displayName}`}
                 </Dialog.Title>
                 <Dialog.Description
                   id={descriptionId}
-                  className="tw:mt-1 tw:[line-height:var(--cpx-sys-line-height-tight)]"
+                  className="tw:mt-1 tw:[line-height:var(--cpx-sys-line-height-1)]"
                 >
                   {selected?.kind === 'inference-oauth'
                     ? t(
@@ -148,12 +148,12 @@ export function ProviderConnectionDialog({
             <div className="settings-management-dialog-card model-center-connection-choices tw:m-5 tw:gap-0">
               {choices.map((choice) => (
                 <button
-                  className="settings-management-dialog-row model-center-connection-choice tw:flex tw:min-h-14 tw:w-full tw:cursor-pointer tw:items-center tw:gap-3 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3 tw:text-left tw:text-app-text tw:transition-[background-color,border-color] tw:duration-state tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover"
+                  className="settings-management-dialog-row model-center-connection-choice tw:flex tw:min-h-[3.5rem] tw:w-full tw:cursor-pointer tw:items-center tw:gap-3 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3 tw:text-left tw:text-app-text tw:transition-[background-color,border-color] tw:duration-state tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover"
                   key={choice.id}
                   type="button"
                   onClick={() => setSelectedId(choice.id)}
                 >
-                  <span className="model-center-connection-choice-icon tw:inline-flex tw:size-9 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft">
+                  <span className="model-center-connection-choice-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft">
                     {choice.kind === 'inference-key' ? (
                       <KeyRound aria-hidden size={APP_ICON_SIZE} />
                     ) : (
@@ -161,17 +161,17 @@ export function ProviderConnectionDialog({
                     )}
                   </span>
                   <span className="model-center-connection-choice-text tw:grid tw:min-w-0 tw:gap-1">
-                    <strong className="tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-md)] tw:type-weight-label">
+                    <strong className="tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-2)] tw:weight-medium">
                       {t(choiceLabel(choice, provider))}
                     </strong>
-                    <small className="tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
+                    <small className="tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]">
                       {choiceDescription(choice)}
                     </small>
                   </span>
                 </button>
               ))}
               {choices.length === 0 ? (
-                <p className="model-center-account-section-empty tw:m-0 tw:rounded-lg tw:border tw:border-dashed tw:border-app-border-subtle tw:p-3 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
+                <p className="model-center-account-section-empty tw:m-0 tw:rounded-lg tw:border tw:border-dashed tw:border-app-border-subtle tw:p-3 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]">
                   当前供应商没有可在应用内建立的连接，请查看官方文档。
                 </p>
               ) : null}

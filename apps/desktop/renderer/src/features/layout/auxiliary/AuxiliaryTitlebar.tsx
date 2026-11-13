@@ -22,7 +22,7 @@ export const AuxiliaryTitlebar = memo(function AuxiliaryTitlebar({
         {icon && (
           <span className="tw:text-app-text-meta tw:flex tw:items-center tw:shrink-0">{icon}</span>
         )}
-        <span className="tw:type-control tw:text-app-text tw:truncate">{title}</span>
+        <span className="tw:type-2 tw:weight-medium tw:text-app-text tw:truncate">{title}</span>
       </div>
 
       {/* 操作按钮区域：右侧预留 Windows 原生控制按钮间隙 */}

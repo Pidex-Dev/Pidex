@@ -61,35 +61,35 @@ const TILE_LOADING_CLASS =
   'attachment-image-tile__loading tw:flex tw:size-full tw:items-center tw:justify-center tw:bg-app-editor'
 const TILE_ERROR_CLASS = cx(
   'attachment-image-tile__error tw:flex tw:size-full tw:flex-col tw:items-center tw:justify-center tw:gap-1',
-  'tw:text-app-warning tw:type-caption',
+  'tw:text-app-warning tw:type-1',
 )
 const FILE_PILL_CLASS = cx(
-  'attachment-file-pill tw:relative tw:max-w-80 tw:flex-none tw:overflow-visible tw:rounded-full tw:border tw:border-app-border-subtle',
+  'attachment-file-pill tw:relative tw:max-w-[20rem] tw:flex-none tw:overflow-visible tw:rounded-full tw:border tw:border-app-border-subtle',
   'tw:bg-app-panel tw:text-app-text-soft tw:transition-colors tw:duration-state',
   'tw:hover:border-app-border tw:hover:bg-app-hover tw:hover:text-app-text',
 )
 const FILE_PILL_ERROR_CLASS =
   'tw:border-[color-mix(in_srgb,var(--cpx-sys-color-warning)_50%,transparent)] tw:text-app-warning'
 const FILE_PILL_OPEN_CLASS = cx(
-  'attachment-file-pill__open tw:inline-flex tw:h-7 tw:w-full tw:max-w-80 tw:min-w-0 tw:items-center tw:justify-start tw:gap-1.5',
-  'tw:rounded-full tw:border-0 tw:bg-transparent tw:ps-2.5 tw:text-inherit tw:text-start',
+  'attachment-file-pill__open tw:inline-flex tw:h-6 tw:w-full tw:max-w-[20rem] tw:min-w-0 tw:items-center tw:justify-start tw:gap-1',
+  'tw:rounded-full tw:border-0 tw:bg-transparent tw:ps-2 tw:text-inherit tw:text-start',
   'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-2',
 )
-const FILE_PILL_OPEN_REMOVABLE_CLASS = 'tw:pe-7'
-const FILE_PILL_OPEN_STATIC_CLASS = 'tw:pe-2.5'
+const FILE_PILL_OPEN_REMOVABLE_CLASS = 'tw:pe-6'
+const FILE_PILL_OPEN_STATIC_CLASS = 'tw:pe-2'
 const FILE_PILL_ICON_CLASS = 'attachment-file-pill__icon tw:shrink-0 tw:text-app-text-meta'
 const FILE_PILL_TEXT_CLASS =
-  'attachment-file-pill__text tw:flex tw:min-w-0 tw:items-baseline tw:gap-1 tw:type-caption'
+  'attachment-file-pill__text tw:flex tw:min-w-0 tw:items-baseline tw:gap-1 tw:type-1'
 const FILE_PILL_NAME_CLASS = 'attachment-file-pill__name tw:truncate tw:[font:inherit]'
 const STACK_TRIGGER_CLASS = cx(
-  'attachment-file-row__more tw:group tw:inline-flex tw:h-7 tw:flex-none tw:items-center',
+  'attachment-file-row__more tw:group tw:inline-flex tw:h-6 tw:flex-none tw:items-center',
   'tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text',
   'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-2',
 )
 const COLLAPSE_PILL_CLASS = cx(
-  'attachment-file-row__collapse tw:inline-flex tw:h-7 tw:flex-none tw:items-center tw:justify-center tw:gap-1',
-  'tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-2.5',
-  'tw:type-caption tw:text-app-text-soft tw:transition-colors tw:duration-state',
+  'attachment-file-row__collapse tw:inline-flex tw:h-6 tw:flex-none tw:items-center tw:justify-center tw:gap-1',
+  'tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-2',
+  'tw:type-1 tw:text-app-text-soft tw:transition-colors tw:duration-state',
   'tw:hover:border-app-border tw:hover:bg-app-hover tw:hover:text-app-text',
   'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-2',
 )
@@ -98,7 +98,7 @@ const COLLAPSE_PILL_CLASS = cx(
  * shadow come from the shared button contract; only corner placement is local.
  */
 const ATTACHMENT_REMOVE_CLASS =
-  'attachment-item-remove tw:absolute tw:z-1 tw:-top-1.25 tw:-right-1.25'
+  'attachment-item-remove tw:absolute tw:z-1 tw:-top-1 tw:-right-1'
 
 type AttachmentHorizontalRowProps = {
   ariaLabel: string
@@ -316,12 +316,12 @@ export function AttachmentFileRow({
                             layoutId={reducedMotion ? undefined : fileId(child, index)}
                             transition={transition}
                             className={cx(
-                              'attachment-file-row__stack-card tw:flex tw:h-7 tw:w-7 tw:shrink-0 tw:items-center tw:justify-center',
+                              'attachment-file-row__stack-card tw:flex tw:h-6 tw:w-6 tw:shrink-0 tw:items-center tw:justify-center',
                               'tw:rounded-full tw:border tw:border-app-border-subtle tw:shadow-sm',
                               'tw:group-hover:border-app-border',
                               'tw:relative',
                               stackIndex === 1 &&
-                                'tw:-ms-4.5 tw:transition-[margin-inline-start] tw:duration-state tw:ease-standard tw:group-hover:-ms-2.5',
+                                'tw:-ms-4 tw:transition-[margin-inline-start] tw:duration-state tw:ease-standard tw:group-hover:-ms-2',
                             )}
                             style={{
                               zIndex: stackIndex,
@@ -346,9 +346,9 @@ export function AttachmentFileRow({
                       })}
                       <span
                         aria-hidden="true"
-                        className="attachment-file-row__stack-card tw:relative tw:z-2 tw:-ms-4.5 tw:flex tw:h-7 tw:shrink-0 tw:items-center tw:justify-center tw:gap-0.5 tw:rounded-full tw:border tw:border-app-border-subtle tw:px-1.5 tw:shadow-sm tw:transition-[margin-inline-start] tw:duration-state tw:ease-standard tw:group-hover:-ms-2.5 tw:group-hover:border-app-border"
+                        className="attachment-file-row__stack-card tw:relative tw:z-2 tw:-ms-4 tw:flex tw:h-6 tw:shrink-0 tw:items-center tw:justify-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border-subtle tw:px-1 tw:shadow-sm tw:transition-[margin-inline-start] tw:duration-state tw:ease-standard tw:group-hover:-ms-2 tw:group-hover:border-app-border"
                       >
-                        <span className="tw:type-caption tw:tabular-nums tw:text-app-text-meta">
+                        <span className="tw:type-1 tw:tabular-nums tw:text-app-text-meta">
                           +{remainingCount}
                         </span>
                       </span>
@@ -472,7 +472,7 @@ export function AttachmentFilePill({
       />
       <span className={FILE_PILL_TEXT_CLASS}>
         <span className={FILE_PILL_NAME_CLASS}>{name}</span>
-        {detail ? <span className="tw:type-caption tw:text-app-text-meta">{detail}</span> : null}
+        {detail ? <span className="tw:type-1 tw:text-app-text-meta">{detail}</span> : null}
       </span>
     </>
   )
@@ -547,7 +547,7 @@ export function AttachmentFilePill({
         },
       ]}
       trigger={
-        <div className="tw:min-w-0 tw:max-w-80 tw:flex-none">
+        <div className="tw:min-w-0 tw:max-w-[20rem] tw:flex-none">
           <AttachmentTooltip content={path}>{pill}</AttachmentTooltip>
         </div>
       }

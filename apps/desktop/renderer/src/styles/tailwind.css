@@ -12,7 +12,6 @@
 @import 'tailwindcss/utilities.css' layer(utilities) source('../') prefix(tw);
 @import './base.css';
 @import './design-system/tokens.css';
-@import './design-system/codex-semantic-tokens.css';
 @import './primitives/chrome.css';
 @import './primitives/right-dock.css';
 @import './primitives/interaction.css';
@@ -37,7 +36,6 @@
 @import './features/composer-status.css';
 @import './features/conversation-reasoning.css';
 @import './features/primary-page.css';
-@import './role-weight.css';
 @import './markdown.css';
 
 /*
@@ -46,7 +44,6 @@
  */
 @theme {
   --*: initial;
-  --spacing: 0.25rem;
 
   /*
    * The design system has no letter-spacing scale, but `tracking-normal` is the
@@ -81,22 +78,40 @@
   --font-sans: var(--cpx-sys-font-family-sans);
   --font-mono: var(--cpx-sys-font-family-mono);
 
-  --text-xs: var(--cpx-sys-font-size-xs);
-  --text-xs--line-height: var(--cpx-sys-line-height-caption);
-  --text-sm: var(--cpx-sys-font-size-sm);
-  --text-sm--line-height: var(--cpx-sys-line-height-body-sm);
-  --text-base: var(--cpx-sys-font-size-md);
-  --text-base--line-height: var(--cpx-sys-line-height-body);
-  --text-lg: var(--cpx-sys-font-size-lg);
-  --text-lg--line-height: var(--cpx-sys-line-height-body-lg);
-  --text-xl: var(--cpx-sys-font-size-xl);
-  --text-xl--line-height: var(--cpx-sys-line-height-heading-sm);
-  --text-2xl: var(--cpx-sys-font-size-2xl);
-  --text-2xl--line-height: var(--cpx-sys-line-height-heading-md);
-  --text-3xl: var(--cpx-sys-font-size-3xl);
-  --text-3xl--line-height: var(--cpx-sys-line-height-heading-lg);
-  --text-4xl: var(--cpx-sys-font-size-4xl);
-  --text-4xl--line-height: var(--cpx-sys-line-height-heading-xl);
+  --text-1: var(--cpx-sys-font-size-1);
+  --text-1--line-height: var(--cpx-sys-line-height-1);
+  --text-2: var(--cpx-sys-font-size-2);
+  --text-2--line-height: var(--cpx-sys-line-height-2);
+  --text-3: var(--cpx-sys-font-size-3);
+  --text-3--line-height: var(--cpx-sys-line-height-3);
+  --text-4: var(--cpx-sys-font-size-4);
+  --text-4--line-height: var(--cpx-sys-line-height-4);
+  --text-5: var(--cpx-sys-font-size-5);
+  --text-5--line-height: var(--cpx-sys-line-height-5);
+  --text-6: var(--cpx-sys-font-size-6);
+  --text-6--line-height: var(--cpx-sys-line-height-6);
+  --text-7: var(--cpx-sys-font-size-7);
+  --text-7--line-height: var(--cpx-sys-line-height-7);
+  --text-8: var(--cpx-sys-font-size-8);
+  --text-8--line-height: var(--cpx-sys-line-height-8);
+  --text-9: var(--cpx-sys-font-size-9);
+  --text-9--line-height: var(--cpx-sys-line-height-9);
+  --text-xs: var(--cpx-sys-font-size-1);
+  --text-xs--line-height: var(--cpx-sys-line-height-1);
+  --text-sm: var(--cpx-sys-font-size-1);
+  --text-sm--line-height: var(--cpx-sys-line-height-1);
+  --text-base: var(--cpx-sys-font-size-2);
+  --text-base--line-height: var(--cpx-sys-line-height-2);
+  --text-lg: var(--cpx-sys-font-size-3);
+  --text-lg--line-height: var(--cpx-sys-line-height-3);
+  --text-xl: var(--cpx-sys-font-size-4);
+  --text-xl--line-height: var(--cpx-sys-line-height-4);
+  --text-2xl: var(--cpx-sys-font-size-5);
+  --text-2xl--line-height: var(--cpx-sys-line-height-5);
+  --text-3xl: var(--cpx-sys-font-size-6);
+  --text-3xl--line-height: var(--cpx-sys-line-height-6);
+  --text-4xl: var(--cpx-sys-font-size-7);
+  --text-4xl--line-height: var(--cpx-sys-line-height-7);
   --text-code: var(--cpx-sys-font-size-code);
   --text-code--line-height: var(--cpx-sys-line-height-code);
 
@@ -185,9 +200,21 @@
   --size-icon-lg: var(--cpx-sys-icon-size-lg);
   --size-icon: var(--cpx-sys-icon-size);
 
+  /* Radix 9-step nonlinear spacing scale (mapped to --cpx-sys-space-1..9). */
+  --spacing-0: 0px;
+  --spacing-1: var(--cpx-sys-space-1);
+  --spacing-2: var(--cpx-sys-space-2);
+  --spacing-3: var(--cpx-sys-space-3);
+  --spacing-4: var(--cpx-sys-space-4);
+  --spacing-5: var(--cpx-sys-space-5);
+  --spacing-6: var(--cpx-sys-space-6);
+  --spacing-7: var(--cpx-sys-space-7);
+  --spacing-8: var(--cpx-sys-space-8);
+  --spacing-9: var(--cpx-sys-space-9);
+
   /*
-   * Control geometry is off the 4px grid (input padding is 5px/8px), so it gets
-   * named spacing entries instead of arbitrary pixel values.
+   * Control & row geometry slots aligned to the 4px grid (--cpx-comp-*),
+   * retained for semantic clarity across form controls and composer rows.
    */
   --spacing-control-block: var(--cpx-comp-input-padding-block);
   --spacing-control-inline: var(--cpx-comp-input-padding-inline);
@@ -301,116 +328,94 @@
 }
 
 /*
- * Typography roles. Each utility consumes one complete system font shorthand so
- * components never rebuild size/weight/line-height per element.
+ * Radix-style 9-step typography scale and independent font-weight utilities.
+ * Longhand properties keep font-weight orthogonal so `tw:type-*` and `tw:weight-*`
+ * compose freely in any order.
  */
 
-/*
- * Standalone weight roles. Tailwind emits these before the `type-*` roles, and a
- * role's `font:` shorthand resets font-weight, so NEVER combine them with a
- * role in one class list — the weight is dropped silently. Use a role that
- * already carries the weight, or see `role-weight.css`.
- */
-@utility type-weight-body {
-  font-weight: var(--cpx-sys-font-weight-body);
+@utility weight-light {
+  font-weight: var(--cpx-sys-font-weight-light);
 }
 
-@utility type-weight-label {
+@utility weight-regular {
+  font-weight: var(--cpx-sys-font-weight-regular);
+}
+
+@utility weight-medium {
   font-weight: var(--cpx-sys-font-weight-medium);
 }
 
-@utility type-weight-heading {
+@utility weight-bold {
   font-weight: var(--cpx-sys-font-weight-bold);
 }
 
-@utility type-display {
-  font: var(--cpx-sys-type-display);
-  letter-spacing: var(--cpx-sys-letter-spacing-display);
+@utility type-1 {
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-1);
+  line-height: var(--cpx-sys-line-height-1);
+  letter-spacing: var(--cpx-sys-letter-spacing-1);
 }
 
-@utility type-body {
-  font: var(--cpx-sys-type-body);
-  letter-spacing: var(--cpx-sys-letter-spacing-body);
+@utility type-2 {
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-2);
+  line-height: var(--cpx-sys-line-height-2);
+  letter-spacing: var(--cpx-sys-letter-spacing-2);
 }
 
-@utility type-control {
-  font: var(--cpx-sys-type-control);
-  letter-spacing: var(--cpx-sys-letter-spacing-control);
+@utility type-3 {
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-3);
+  line-height: var(--cpx-sys-line-height-3);
+  letter-spacing: var(--cpx-sys-letter-spacing-3);
 }
 
-@utility type-secondary {
-  font: var(--cpx-sys-type-body-sm);
-  letter-spacing: var(--cpx-sys-letter-spacing-body-sm);
+@utility type-4 {
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-4);
+  line-height: var(--cpx-sys-line-height-4);
+  letter-spacing: var(--cpx-sys-letter-spacing-4);
 }
 
-@utility type-meta {
-  font: var(--cpx-sys-type-caption);
-  letter-spacing: var(--cpx-sys-letter-spacing-caption);
+@utility type-5 {
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-5);
+  line-height: var(--cpx-sys-line-height-5);
+  letter-spacing: var(--cpx-sys-letter-spacing-5);
 }
 
-@utility type-caption {
-  font: var(--cpx-sys-type-caption);
-  letter-spacing: var(--cpx-sys-letter-spacing-caption);
+@utility type-6 {
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-6);
+  line-height: var(--cpx-sys-line-height-6);
+  letter-spacing: var(--cpx-sys-letter-spacing-6);
 }
 
-@utility type-label {
-  font: var(--cpx-sys-type-label);
-  letter-spacing: var(--cpx-sys-letter-spacing-label);
+@utility type-7 {
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-7);
+  line-height: var(--cpx-sys-line-height-7);
+  letter-spacing: var(--cpx-sys-letter-spacing-7);
 }
 
-@utility type-body-sm {
-  font: var(--cpx-sys-type-body-sm);
-  letter-spacing: var(--cpx-sys-letter-spacing-body-sm);
+@utility type-8 {
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-8);
+  line-height: var(--cpx-sys-line-height-8);
+  letter-spacing: var(--cpx-sys-letter-spacing-8);
 }
 
-@utility type-body-lg {
-  font: var(--cpx-sys-type-body-lg);
-  letter-spacing: var(--cpx-sys-letter-spacing-body-lg);
-}
-
-@utility type-reading {
-  font: var(--cpx-sys-type-reading);
-  letter-spacing: var(--cpx-sys-letter-spacing-body);
-}
-
-@utility type-row-title {
-  font: var(--cpx-sys-type-row-title);
-  letter-spacing: var(--cpx-sys-letter-spacing-row-title);
-}
-
-@utility type-page-title {
-  font: var(--cpx-sys-type-page-title);
-  letter-spacing: var(--cpx-sys-letter-spacing-heading-lg);
-}
-
-@utility type-title-sm {
-  font: var(--cpx-sys-type-heading-sm);
-  letter-spacing: var(--cpx-sys-letter-spacing-heading-sm);
-}
-
-@utility type-title-md {
-  font: var(--cpx-sys-type-heading-md);
-  letter-spacing: var(--cpx-sys-letter-spacing-heading-md);
-}
-
-@utility type-title-lg {
-  font: var(--cpx-sys-type-heading-lg);
-  letter-spacing: var(--cpx-sys-letter-spacing-heading-lg);
-}
-
-@utility type-title-xl {
-  font: var(--cpx-sys-type-heading-xl);
-  letter-spacing: var(--cpx-sys-letter-spacing-heading-xl);
-}
-
-@utility type-metric {
-  font: var(--cpx-sys-type-metric);
-  letter-spacing: var(--cpx-sys-letter-spacing-metric);
-  font-variant-numeric: tabular-nums;
+@utility type-9 {
+  font-family: var(--cpx-sys-font-family-sans);
+  font-size: var(--cpx-sys-font-size-9);
+  line-height: var(--cpx-sys-line-height-9);
+  letter-spacing: var(--cpx-sys-letter-spacing-9);
 }
 
 @utility type-code {
-  font: var(--cpx-sys-type-code);
+  font-family: var(--cpx-sys-font-family-mono);
+  font-size: var(--cpx-sys-font-size-code);
+  line-height: var(--cpx-sys-line-height-code);
   letter-spacing: var(--cpx-sys-letter-spacing-code);
 }
 

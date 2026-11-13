@@ -62,9 +62,9 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
       className="sidebar-docked-panes tw:grid tw:gap-1 tw:px-2 tw:py-1"
       data-sidebar-docked-open="true"
     >
-      <div className="tw:flex tw:items-center tw:justify-between tw:px-1.5 tw:py-1 tw:type-caption tw:text-app-text-meta">
+      <div className="tw:flex tw:items-center tw:justify-between tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta">
         <span>工作区停靠视图</span>
-        <span className="tw:type-caption tw:opacity-75">{state.tabIds.length}</span>
+        <span className="tw:type-1 tw:opacity-75">{state.tabIds.length}</span>
       </div>
       {state.tabIds.map((tabId) => {
         const tab = tabsById[tabId]
@@ -114,7 +114,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
               layout="grid"
               trigger={
                 <div
-                  className="sidebar-docked-pane-header tw:flex tw:items-center tw:justify-between tw:px-2 tw:py-1.5 tw:cursor-pointer tw:hover:bg-app-hover"
+                  className="sidebar-docked-pane-header tw:flex tw:items-center tw:justify-between tw:px-2 tw:py-1 tw:cursor-pointer tw:hover:bg-app-hover"
                   aria-expanded={active}
                   onClick={() => onSelectTab(tab.id)}
                   onKeyDown={(event) => {
@@ -125,7 +125,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                   }}
                   tabIndex={0}
                 >
-                  <div className="tw:flex tw:items-center tw:gap-1.5 tw:min-w-0">
+                  <div className="tw:flex tw:items-center tw:gap-1 tw:min-w-0">
                     <span className="tw:text-app-text-meta tw:shrink-0">
                       {active ? (
                         <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -137,10 +137,10 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       )}
                     </span>
                     <span className="tw:shrink-0">{tabIcon}</span>
-                    <span className="tw:truncate tw:type-control tw:text-app-text">{tabTitle}</span>
+                    <span className="tw:truncate tw:type-2 tw:weight-medium tw:text-app-text">{tabTitle}</span>
                   </div>
                   <div
-                    className="tw:flex tw:items-center tw:gap-0.5"
+                    className="tw:flex tw:items-center tw:gap-1"
                     onClick={(event) => event.stopPropagation()}
                   >
                     <Button
@@ -187,7 +187,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                     onOpenFile={onOpenFile}
                   />
                 ) : (
-                  <div className="tw:p-2 tw:type-body-sm tw:text-app-text-meta">
+                  <div className="tw:p-2 tw:type-1 tw:text-app-text-meta">
                     {tabTitle}（已停靠在侧边栏）
                   </div>
                 )}

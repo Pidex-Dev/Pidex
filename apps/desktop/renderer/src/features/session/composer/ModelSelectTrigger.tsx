@@ -17,7 +17,7 @@ import { splitComposerModelName } from './ComposerModelName.js'
  * re-exposes the reasoning control in its panel so the level stays editable.
  */
 const CAPSULE_CLASS = cx(
-  'composer-model-trigger-capsule tw:group tw:inline-flex tw:h-7 tw:min-w-0 tw:max-w-64 tw:cursor-pointer tw:select-none tw:items-center tw:gap-1.5',
+  'composer-model-trigger-capsule tw:group tw:inline-flex tw:h-6 tw:min-w-0 tw:max-w-[16rem] tw:cursor-pointer tw:select-none tw:items-center tw:gap-1',
   'tw:rounded-pill tw:pl-3 tw:pr-2 tw:text-app-text-soft',
   'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
   'tw:hover:bg-app-hover tw:hover:text-app-text',
@@ -26,7 +26,7 @@ const CAPSULE_IDLE_CLASS = 'tw:bg-transparent'
 const CAPSULE_ACTIVE_CLASS = 'tw:bg-app-hover tw:text-app-text'
 const NAME_BUTTON_CLASS = cx(
   'composer-model-trigger-name-btn tw:inline-flex tw:min-w-0 tw:cursor-pointer tw:items-center tw:border-0 tw:bg-transparent tw:p-0 tw:m-0',
-  'tw:text-inherit tw:type-control tw:outline-none',
+  'tw:text-inherit tw:type-2 tw:weight-medium tw:outline-none',
   'tw:focus-visible:rounded-xs tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-2',
 )
 const NAME_CLASS =
@@ -40,7 +40,7 @@ const EFFORT_WRAP_CLASS =
   'composer-model-trigger-effort-wrap tw:inline-flex tw:shrink-0 tw:items-center'
 const EFFORT_BUTTON_CLASS = cx(
   'composer-model-trigger-effort-btn tw:inline-flex tw:cursor-pointer tw:items-center tw:rounded-indicator tw:border-0',
-  'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_5%,transparent)] tw:px-1.5 tw:py-px tw:text-app-text-soft tw:type-label',
+  'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_5%,transparent)] tw:px-1 tw:py-px tw:text-app-text-soft tw:type-1 tw:weight-medium',
   'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
   'tw:hover:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_12%,transparent)] tw:hover:text-app-text',
   'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1',

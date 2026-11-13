@@ -63,10 +63,10 @@ export function SessionGroupEditorDialog({
           >
             <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
               <div className="tw:min-w-0 tw:flex-1">
-                <Dialog.Title className="tw:type-title-sm tw:text-app-text">
+                <Dialog.Title className="tw:type-4 tw:weight-bold tw:text-app-text">
                   {creating ? '新建工作组' : '编辑工作组'}
                 </Dialog.Title>
-                <Dialog.Description className="tw:type-body-sm tw:mt-1 tw:text-app-text-soft">
+                <Dialog.Description className="tw:type-1 tw:mt-1 tw:text-app-text-soft">
                   {creating ? '为相关任务建立一个共享上下文。' : '修改工作组的名称和说明。'}
                 </Dialog.Description>
               </div>
@@ -77,10 +77,10 @@ export function SessionGroupEditorDialog({
               </Dialog.Close>
             </header>
 
-            <label className="tw:type-control tw:grid tw:gap-1.5 tw:text-app-text">
+            <label className="tw:type-2 tw:weight-medium tw:grid tw:gap-1 tw:text-app-text">
               名称
               <input
-                className="tw:type-control tw:w-full tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
+                className="tw:type-2 tw:weight-medium tw:w-full tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
                 maxLength={120}
                 onChange={(event) => onNameChange(event.currentTarget.value)}
                 placeholder="例如：登录流程修复"
@@ -88,10 +88,10 @@ export function SessionGroupEditorDialog({
                 value={name}
               />
             </label>
-            <label className="tw:type-control tw:grid tw:gap-1.5 tw:text-app-text">
+            <label className="tw:type-2 tw:weight-medium tw:grid tw:gap-1 tw:text-app-text">
               说明
               <textarea
-                className="tw:type-control tw:min-h-24 tw:w-full tw:resize-y tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
+                className="tw:type-2 tw:weight-medium tw:min-h-[6rem] tw:w-full tw:resize-y tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
                 maxLength={4000}
                 onChange={(event) => onDescriptionChange(event.currentTarget.value)}
                 placeholder="说明这个工作组要共同解决的问题（可选）"
@@ -100,20 +100,20 @@ export function SessionGroupEditorDialog({
             </label>
 
             {error ? (
-              <p className="tw:type-body-sm tw:m-0 tw:text-app-danger" role="alert">
+              <p className="tw:type-1 tw:m-0 tw:text-app-danger" role="alert">
                 {error}
               </p>
             ) : null}
 
             <div className="permission-modal-actions confirmation-dialog-actions tw:mt-1 tw:flex tw:items-center tw:justify-between tw:gap-3">
               <Dialog.Close asChild disabled={saving}>
-                <Button size="md" className="tw:min-w-19" color="secondary">
+                <Button size="md" className="tw:min-w-[4.75rem]" color="secondary">
                   取消
                 </Button>
               </Dialog.Close>
               <Button
                 size="md"
-                className="tw:min-w-19"
+                className="tw:min-w-[4.75rem]"
                 color="primary"
                 disabled={submitDisabled}
                 type="submit"

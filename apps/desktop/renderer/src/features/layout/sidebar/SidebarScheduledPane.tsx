@@ -77,9 +77,9 @@ export function SidebarScheduledPane(): ReactNode {
 
   return (
     <div className="sidebar-scheduled-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
-      <header className="sidebar-pane-heading tw:flex tw:min-h-9 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
+      <header className="sidebar-pane-heading tw:flex tw:min-h-7 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
         <SearchHeading
-          title={<h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{t('已安排')}</h2>}
+          title={<h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('已安排')}</h2>}
           search={
             <SearchInput
               variant="outlined"
@@ -148,7 +148,7 @@ export function SidebarScheduledPane(): ReactNode {
           <SidebarEmptyRow role="status">{t('正在加载任务…')}</SidebarEmptyRow>
         ) : controller.error ? (
           <div
-            className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-body-sm"
+            className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-1"
             role="alert"
           >
             <p>{controller.error}</p>
@@ -207,7 +207,7 @@ export function SidebarScheduledPane(): ReactNode {
                   </SidebarRow>
                 </div>
                 {open ? (
-                  <div className="sidebar-scheduled-runs tw:flex tw:flex-col tw:sidebar-row-gap tw:pl-6">
+                  <div className="sidebar-scheduled-runs tw:flex tw:flex-col tw:sidebar-row-gap tw:pl-5">
                     {runs.length === 0 ? (
                       <SidebarEmptyRow>{t('暂无执行记录')}</SidebarEmptyRow>
                     ) : (

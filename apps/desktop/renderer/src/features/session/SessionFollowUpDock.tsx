@@ -29,22 +29,22 @@ const DOCK_CLASS = cx(
   'tw:overflow-hidden',
 )
 const PAUSED_CLASS =
-  'session-follow-up-paused tw:mx-2 tw:mb-1 tw:flex tw:min-h-9 tw:items-center tw:justify-between tw:gap-3 tw:rounded-control tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-secondary'
+  'session-follow-up-paused tw:mx-2 tw:mb-1 tw:flex tw:min-h-6 tw:items-center tw:justify-between tw:gap-3 tw:rounded-control tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-1'
 const LIST_CLASS =
   'session-follow-up-list tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-px tw:overflow-y-auto tw:px-2 tw:py-1'
 const ITEM_CLASS = cx(
-  'session-follow-up-item tw:grid tw:min-h-8 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2',
+  'session-follow-up-item tw:grid tw:min-h-6 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2',
   'tw:rounded-control tw:px-2 tw:py-1',
   'tw:transition-colors tw:duration-state tw:ease-standard tw:hover:bg-app-hover',
 )
 const PREVIEW_CLASS =
-  'session-follow-up-preview tw:block tw:min-w-0 tw:truncate tw:type-secondary tw:text-app-text'
+  'session-follow-up-preview tw:block tw:min-w-0 tw:truncate tw:type-1 tw:text-app-text'
 const ICON_CLASS = 'session-follow-up-icon tw:inline-flex tw:shrink-0 tw:text-app-text-meta'
 const ACTIONS_CLASS =
   'session-follow-up-actions tw:flex tw:min-w-max tw:shrink-0 tw:items-center tw:gap-1'
 const EDIT_INPUT_CLASS = cx(
   'session-follow-up-edit-input tw:min-w-0 tw:flex-1 tw:rounded-control tw:border tw:border-app-border',
-  'tw:bg-app-raised tw:px-2 tw:py-0.5 tw:text-app-text tw:[font:inherit]',
+  'tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:[font:inherit]',
   'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1',
 )
 
@@ -150,6 +150,7 @@ export function SessionFollowUpDock({
                     className={EDIT_INPUT_CLASS}
                     onChange={(event) => setEditingText(event.target.value)}
                     onKeyDown={(event) => {
+                      if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
                       if (event.key === 'Enter') {
                         event.preventDefault()
                         finishEdit(item)

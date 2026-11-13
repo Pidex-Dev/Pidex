@@ -266,7 +266,7 @@ export function DatePicker({
             </button>
             <div
               aria-live="polite"
-              className="ui-date-picker-month tw:text-app-text tw:type-title-sm"
+              className="ui-date-picker-month tw:text-app-text tw:type-4 tw:weight-bold"
             >
               {monthLabel(visibleMonth, locale)}
             </div>
@@ -301,7 +301,7 @@ export function DatePicker({
                         ][WEEKDAYS.indexOf(weekday)]
                       : `星期${weekday}`
                   }
-                  className="ui-date-picker-weekday tw:grid tw:h-6 tw:place-items-center tw:text-app-text-meta tw:type-label"
+                  className="ui-date-picker-weekday tw:grid tw:h-6 tw:place-items-center tw:text-app-text-meta tw:type-1 tw:weight-medium"
                   key={weekday}
                   role="columnheader"
                 >
@@ -326,7 +326,7 @@ export function DatePicker({
                         aria-label={dayLabel(date, todayValue, value, locale)}
                         aria-selected={selected}
                         className={cx(
-                          'ui-date-picker-day tw:relative tw:grid tw:cursor-pointer tw:aspect-square tw:place-items-center tw:rounded-control tw:border-0 tw:bg-transparent tw:p-0 tw:type-control tw:outline-none tw:aria-selected:bg-app-accent tw:enabled:hover:bg-app-hover tw:disabled:cursor-default tw:disabled:line-through tw:disabled:opacity-55 tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1',
+                          'ui-date-picker-day tw:relative tw:grid tw:cursor-pointer tw:aspect-square tw:place-items-center tw:rounded-control tw:border-0 tw:bg-transparent tw:p-0 tw:type-2 tw:weight-medium tw:outline-none tw:aria-selected:bg-app-accent tw:enabled:hover:bg-app-hover tw:disabled:cursor-default tw:disabled:line-through tw:disabled:opacity-55 tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1',
                           // The SCSS gave disabled > selected > outside > base precedence for the
                           // day text colour. Tailwind emits variant utilities in a fixed order that
                           // cannot reproduce it, so the winning tone is picked here instead.
@@ -351,7 +351,7 @@ export function DatePicker({
                       >
                         <span>{date.getDate()}</span>
                         {dateValue === todayValue ? (
-                          <span className="ui-date-picker-state tw:absolute tw:right-1 tw:bottom-0 tw:type-caption">
+                          <span className="ui-date-picker-state tw:absolute tw:right-1 tw:bottom-0 tw:type-1">
                             {locale === 'en-US' ? 'Today' : '今'}
                           </span>
                         ) : null}
@@ -364,7 +364,7 @@ export function DatePicker({
           </div>
           <div className="ui-date-picker-footer tw:mt-2 tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-app-border-subtle tw:pt-2">
             <button
-              className="ui-date-picker-footer-action tw:min-h-7 tw:cursor-pointer tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-control tw:outline-none tw:enabled:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled"
+              className="ui-date-picker-footer-action tw:min-h-7 tw:cursor-pointer tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none tw:enabled:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled"
               disabled={isUnavailable(today)}
               type="button"
               onClick={() => chooseDate(today)}
@@ -372,7 +372,7 @@ export function DatePicker({
               {t('今天')}
             </button>
             <button
-              className="ui-date-picker-footer-action tw:min-h-7 tw:cursor-pointer tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-control tw:outline-none tw:enabled:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled"
+              className="ui-date-picker-footer-action tw:min-h-7 tw:cursor-pointer tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none tw:enabled:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled"
               disabled={!value}
               type="button"
               onClick={() => {

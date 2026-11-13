@@ -191,8 +191,8 @@ export function ConflictMergeEditor({
     >
       <header className="conflict-merge-editor-header tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-x-4 tw:gap-y-2 tw:border-b tw:border-app-border tw:bg-app-panel tw:p-3 tw:shadow-none">
         <div className="tw:grid tw:min-w-0 tw:gap-1">
-          <strong className="tw:type-label">文件已在外部更改</strong>
-          <span className="tw:type-caption tw:text-app-text-meta">
+          <strong className="tw:type-1 tw:weight-medium">文件已在外部更改</strong>
+          <span className="tw:type-1 tw:text-app-text-meta">
             左侧为磁盘版本，右侧为本地草稿。
           </span>
         </div>
@@ -206,7 +206,7 @@ export function ConflictMergeEditor({
         </div>
       </header>
       <div
-        className="conflict-merge-editor-labels tw:grid tw:grid-cols-2 tw:border-b tw:border-app-border tw:bg-app-panel tw:type-caption tw:text-app-text-meta tw:max-[720px]:hidden"
+        className="conflict-merge-editor-labels tw:grid tw:grid-cols-2 tw:border-b tw:border-app-border tw:bg-app-panel tw:type-1 tw:text-app-text-meta tw:max-[720px]:hidden"
         aria-hidden="true"
       >
         <span className="tw:px-3 tw:py-1">磁盘版本</span>
@@ -220,7 +220,7 @@ export function ConflictMergeEditor({
       />
       {error ? (
         <div
-          className="file-editor-status tw:absolute tw:right-4 tw:bottom-4 tw:z-2 tw:flex tw:max-w-[calc(100%-32px)] tw:items-center tw:gap-1 tw:overflow-hidden tw:truncate tw:rounded-lg tw:border tw:border-app-border tw:bg-app-raised tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-soft tw:shadow-none tw:data-[error]:border-[color-mix(in_srgb,var(--cpx-sys-color-danger)_35%,transparent)] tw:data-[error]:text-app-danger"
+          className="file-editor-status tw:absolute tw:right-4 tw:bottom-4 tw:z-2 tw:flex tw:max-w-[calc(100%-32px)] tw:items-center tw:gap-1 tw:overflow-hidden tw:truncate tw:rounded-lg tw:border tw:border-app-border tw:bg-app-raised tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft tw:shadow-none tw:data-[error]:border-[color-mix(in_srgb,var(--cpx-sys-color-danger)_35%,transparent)] tw:data-[error]:text-app-danger"
           data-error
           role="alert"
         >

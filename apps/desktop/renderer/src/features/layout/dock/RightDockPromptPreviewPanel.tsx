@@ -85,7 +85,7 @@ export function RightDockPromptPreviewPanel({
     >
       <div className="tw:mx-auto tw:flex tw:w-full tw:max-w-[48rem] tw:flex-col tw:gap-3">
         <div className="tw:flex tw:items-center tw:justify-between tw:gap-2">
-          <span className="tw:type-secondary tw:text-app-text-soft">
+          <span className="tw:type-1 tw:text-app-text-soft">
             {previewKind}
             {preview.turnId ? ` · turn ${preview.turnId}` : ''}
           </span>

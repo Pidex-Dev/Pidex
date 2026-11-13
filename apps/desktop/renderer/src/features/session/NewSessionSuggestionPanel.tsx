@@ -53,17 +53,17 @@ const SUGGESTION_ICON_CLASS =
 const SUGGESTION_FOCUS_CLASS =
   'tw:border-0 tw:cursor-pointer tw:[font:inherit] tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus'
 
-const SUGGESTION_CARD_CLASS = `new-session-suggestion-card tw:flex tw:min-h-26 tw:min-w-0 tw:flex-col tw:items-start tw:justify-between tw:gap-3 tw:rounded-container tw:border tw:border-app-border tw:bg-transparent tw:px-4 tw:py-3 tw:text-left tw:text-app-text tw:shadow-none tw:[transition:background_var(--cpx-sys-motion-instant)_var(--cpx-sys-ease-standard),color_var(--cpx-sys-motion-feedback)_var(--cpx-sys-ease-standard)] tw:hover:bg-app-hover ${SUGGESTION_FOCUS_CLASS}`
+const SUGGESTION_CARD_CLASS = `new-session-suggestion-card tw:flex tw:min-h-[6.5rem] tw:min-w-0 tw:flex-col tw:items-start tw:justify-between tw:gap-3 tw:rounded-container tw:border tw:border-app-border tw:bg-transparent tw:px-4 tw:py-3 tw:text-left tw:text-app-text tw:shadow-none tw:[transition:background_var(--cpx-sys-motion-instant)_var(--cpx-sys-ease-standard),color_var(--cpx-sys-motion-feedback)_var(--cpx-sys-ease-standard)] tw:hover:bg-app-hover ${SUGGESTION_FOCUS_CLASS}`
 
 export const SUGGESTION_HEADING_CLASS =
-  'new-session-suggestion-list-heading tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label'
+  'new-session-suggestion-list-heading tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1 tw:weight-medium'
 
 export const SUGGESTION_HEADING_ACTION_CLASS = `tw:inline-flex tw:flex-none tw:items-center tw:gap-2 tw:rounded-md tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text ${SUGGESTION_FOCUS_CLASS}`
 
 export const SUGGESTION_HEADING_TITLE_CLASS =
   'tw:inline-flex tw:min-w-0 tw:items-center tw:gap-2 tw:[color:var(--new-session-suggestion-tone)]'
 
-export const SUGGESTION_ROW_CLASS = `new-session-suggestion-row tw:flex tw:min-h-10 tw:items-center tw:gap-2 tw:rounded-md tw:bg-transparent tw:px-3 tw:py-2 tw:text-left tw:text-app-text tw:type-control tw:hover:bg-app-hover ${SUGGESTION_FOCUS_CLASS}`
+export const SUGGESTION_ROW_CLASS = `new-session-suggestion-row tw:flex tw:min-h-7 tw:items-center tw:gap-2 tw:rounded-md tw:bg-transparent tw:px-3 tw:py-2 tw:text-left tw:text-app-text tw:type-2 tw:weight-medium tw:hover:bg-app-hover ${SUGGESTION_FOCUS_CLASS}`
 
 export function NewSessionSuggestions({
   state,
@@ -99,7 +99,7 @@ export function NewSessionSuggestions({
                 <span className={SUGGESTION_ICON_CLASS}>
                   <Icon aria-hidden size={APP_ICON_SIZE} />
                 </span>
-                <span className="new-session-suggestion-label tw:type-row-title">
+                <span className="new-session-suggestion-label tw:type-2 tw:weight-medium">
                   {suggestion.label}
                 </span>
               </button>
@@ -146,7 +146,7 @@ export function NewSessionSuggestions({
                 <span className={SUGGESTION_ICON_CLASS}>
                   <Icon aria-hidden size={APP_ICON_SIZE} />
                 </span>
-                <span className="new-session-suggestion-label tw:type-row-title">
+                <span className="new-session-suggestion-label tw:type-2 tw:weight-medium">
                   {category.label}
                 </span>
               </button>

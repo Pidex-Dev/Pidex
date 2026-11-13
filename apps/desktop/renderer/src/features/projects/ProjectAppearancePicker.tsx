@@ -49,7 +49,7 @@ export function ProjectAppearancePicker({
       trigger={
         <button
           aria-label="选择项目图标和颜色"
-          className="project-appearance-trigger tw:inline-flex tw:size-10 tw:shrink-0 tw:grow-0 tw:basis-10 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:enabled:hover:bg-app-hover tw:enabled:hover:text-app-text"
+          className="project-appearance-trigger tw:inline-flex tw:size-7 tw:shrink-0 tw:grow-0 tw:basis-7 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:enabled:hover:bg-app-hover tw:enabled:hover:text-app-text"
           disabled={disabled}
           type="button"
         >
@@ -69,7 +69,7 @@ export function ProjectAppearancePicker({
           <RadioGroup.Item
             aria-label={colorLabel(color)}
             className={cx(
-              'project-appearance-color tw:inline-flex tw:size-8 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:bg-current tw:shadow-[var(--cpx-sys-focus-ring-inset)]',
+              'project-appearance-color tw:inline-flex tw:size-6 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:bg-current tw:shadow-[var(--cpx-sys-focus-ring-inset)]',
               PROJECT_APPEARANCE_COLOR_CLASS[color] ?? 'tw:text-app-text-soft',
               appearance.color === color
                 ? 'is-selected tw:border-3 tw:border-app-canvas tw:outline-2 tw:outline-current'
@@ -95,7 +95,7 @@ export function ProjectAppearancePicker({
           <RadioGroup.Item
             aria-label={iconLabel(icon)}
             className={cx(
-              'project-appearance-icon tw:inline-flex tw:size-8 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:hover:bg-app-hover tw:hover:text-app-text',
+              'project-appearance-icon tw:inline-flex tw:size-6 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:hover:bg-app-hover tw:hover:text-app-text',
               appearance.icon === icon
                 ? 'is-selected tw:bg-app-hover tw:text-app-text'
                 : 'tw:text-app-text-soft',

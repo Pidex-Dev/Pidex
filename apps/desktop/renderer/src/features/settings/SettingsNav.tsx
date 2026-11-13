@@ -132,7 +132,7 @@ export function SettingsNav({ activeTab, workspacePath = null, onBack, onTabChan
       <div className="settings-nav-header tw:grid tw:shrink-0 tw:gap-3">
         <SidebarRow
           asChild
-          className="settings-back-btn tw:gap-x-2.5 tw:mb-2 tw:px-1 tw:type-row-title"
+          className="settings-back-btn tw:gap-x-2 tw:mb-2 tw:px-1 tw:type-2 tw:weight-medium"
           layout="grid"
           leading={<ArrowLeft size={APP_ICON_SIZE} />}
         >
@@ -181,7 +181,7 @@ export function SettingsNav({ activeTab, workspacePath = null, onBack, onTabChan
             return (
               <section className="settings-nav-group tw:grid" key={group.title}>
                 <div className="settings-nav-group-title-row tw:min-w-0 tw:px-2 tw:py-1">
-                  <h2 className="settings-nav-group-title tw:m-0 tw:text-app-text-meta tw:type-body tw:normal-case">
+                  <h2 className="settings-nav-group-title tw:m-0 tw:text-app-text-meta tw:type-2 tw:normal-case">
                     {t(group.title)}
                   </h2>
                 </div>
@@ -194,8 +194,8 @@ export function SettingsNav({ activeTab, workspacePath = null, onBack, onTabChan
                         asChild
                         className={
                           pending
-                            ? 'settings-nav-item tw:gap-x-2.5 tw:px-1 tw:type-row-title tw:whitespace-nowrap tw:opacity-50'
-                            : 'settings-nav-item tw:gap-x-2.5 tw:px-1 tw:type-row-title tw:whitespace-nowrap'
+                            ? 'settings-nav-item tw:gap-x-2 tw:px-1 tw:type-2 tw:weight-medium tw:whitespace-nowrap tw:opacity-50'
+                            : 'settings-nav-item tw:gap-x-2 tw:px-1 tw:type-2 tw:weight-medium tw:whitespace-nowrap'
                         }
                         key={item.id}
                         layout="grid"
@@ -244,7 +244,7 @@ function SearchResults({
   if (results.length === 0) {
     return (
       <div className="settings-search-results" id="settings-search-results" role="listbox">
-        <p className="settings-search-empty tw:m-0 tw:px-2 tw:py-4 tw:text-app-text-soft tw:type-body-sm">
+        <p className="settings-search-empty tw:m-0 tw:px-2 tw:py-4 tw:text-app-text-soft tw:type-1">
           {t('未找到匹配的设置')}
         </p>
       </div>
@@ -262,7 +262,7 @@ function SearchResults({
         return (
           <button
             aria-selected={selected}
-            className="settings-search-result tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[minmax(0,1fr)] tw:gap-0.5 tw:rounded-container tw:p-2 tw:text-left tw:text-app-text tw:outline-none tw:hover:bg-app-hover tw:aria-selected:bg-app-selected tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus"
+            className="settings-search-result tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[minmax(0,1fr)] tw:gap-1 tw:rounded-container tw:p-2 tw:text-left tw:text-app-text tw:outline-none tw:hover:bg-app-hover tw:aria-selected:bg-app-selected tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus"
             id={`settings-search-result-${index}`}
             key={result.key}
             onClick={() => onActivate(result)}
@@ -272,16 +272,16 @@ function SearchResults({
             type="button"
           >
             <span className="settings-search-result-heading tw:flex tw:min-w-0 tw:items-baseline tw:gap-2">
-              <span className="settings-search-result-title tw:min-w-0 tw:truncate tw:type-row-title">
+              <span className="settings-search-result-title tw:min-w-0 tw:truncate tw:type-2 tw:weight-medium">
                 {t(result.rowTitle ?? result.pageLabel)}
               </span>
               {result.rowTitle ? (
-                <span className="settings-search-result-page tw:shrink-0 tw:text-app-text-meta tw:type-caption">
+                <span className="settings-search-result-page tw:shrink-0 tw:text-app-text-meta tw:type-1">
                   {t(result.pageLabel)}
                 </span>
               ) : null}
             </span>
-            <span className="settings-search-result-description tw:line-clamp-2 tw:text-app-text-soft tw:type-caption">
+            <span className="settings-search-result-description tw:line-clamp-2 tw:text-app-text-soft tw:type-1">
               {t(result.description)}
             </span>
           </button>

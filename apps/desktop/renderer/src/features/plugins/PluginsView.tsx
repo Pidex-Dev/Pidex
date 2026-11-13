@@ -63,7 +63,7 @@ const SKILLS_SH_API_DOCS_URL = 'https://www.skills.sh/docs/api#authentication'
 
 /* 空态卡片：面板表面 + 居中内容。 */
 const PLUGINS_EMPTY_BASE =
-  'tw:grid tw:min-h-0 tw:min-w-0 tw:place-items-center tw:gap-3 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4 tw:py-7 tw:text-center tw:text-app-text-meta tw:shadow-none'
+  'tw:grid tw:min-h-0 tw:min-w-0 tw:place-items-center tw:gap-3 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4 tw:py-6 tw:text-center tw:text-app-text-meta tw:shadow-none'
 
 /* 读取失败提示条：危险色表面 + 图标/正文/动作三栏。 */
 const PLUGINS_CALLOUT_BASE =
@@ -494,7 +494,7 @@ export function PluginsView(): React.ReactNode {
     <>
       {target ? (
         <main className="plugins-details-page tw:h-full tw:w-full tw:min-w-0 tw:overflow-auto tw:bg-app-canvas tw:p-5 tw:@container/plugins-page">
-          <div className="tw:mx-auto tw:min-w-0 tw:w-[min(var(--page-content-max-width),100%)] tw:pb-8">
+          <div className="tw:mx-auto tw:min-w-0 tw:w-[min(var(--page-content-max-width),100%)] tw:pb-6">
             <div className="tw:mb-4 tw:flex tw:min-w-0 tw:items-center">
               {target.kind === 'plugin' ? (
                 <div className={cx('plugins-detail-breadcrumb', DETAILS_BREADCRUMB_CLASS)}>
@@ -559,7 +559,7 @@ export function PluginsView(): React.ReactNode {
                 onOpenSource={(item) => item.url && void desktopClient.openExternalURL(item.url)}
               />
             ) : (
-              <div className="catalog-details-view tw:grid tw:mx-auto tw:w-[min(var(--page-content-max-width),100%)] tw:gap-7">
+              <div className="catalog-details-view tw:grid tw:mx-auto tw:w-[min(var(--page-content-max-width),100%)] tw:gap-6">
                 <CatalogSkeleton label={`正在加载${tab === 'plugins' ? '插件' : '技能'}详情`} />
               </div>
             )}
@@ -679,7 +679,7 @@ type PluginDirectoryProps = {
 
 function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
   return (
-    <div className="plugins-panel tw:grid tw:min-w-0 tw:shrink-0 tw:gap-8" id="plugins-panel">
+    <div className="plugins-panel tw:grid tw:min-w-0 tw:shrink-0 tw:gap-6" id="plugins-panel">
       <div className="plugins-directory-navigation tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:@max-[479px]/plugins-page:items-stretch">
         <SegmentedControl
           ariaLabel="插件来源"
@@ -715,11 +715,11 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
           title={props.query ? '没有匹配的插件' : '当前筛选没有结果'}
         />
       ) : (
-        <div className="plugins-source-groups tw:grid tw:min-w-0 tw:gap-8">
+        <div className="plugins-source-groups tw:grid tw:min-w-0 tw:gap-6">
           {props.groups.map((group) => (
             <section className="plugins-source-group tw:grid tw:min-w-0 tw:gap-3" key={group.id}>
               <header className="plugins-section-heading tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-3">
-                <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">
+                <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
                   {props.directory === 'public' && !props.query && !props.section ? (
                     <button
                       className="tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1 tw:rounded-control tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
@@ -735,7 +735,7 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
                 </h2>
                 <span className="plugins-sr-status tw:sr-only">共 {group.items.length} 项</span>
               </header>
-              <ul className="plugins-catalog-grid tw:m-0 tw:grid tw:grid-cols-2 tw:min-w-0 tw:list-none tw:gap-x-7 tw:gap-y-4 tw:p-0 tw:@max-[580px]/plugins-page:grid-cols-1">
+              <ul className="plugins-catalog-grid tw:m-0 tw:grid tw:grid-cols-2 tw:min-w-0 tw:list-none tw:gap-x-6 tw:gap-y-4 tw:p-0 tw:@max-[580px]/plugins-page:grid-cols-1">
                 {(props.directory === 'public' && !props.section && !props.query
                   ? group.items.slice(0, 8)
                   : group.items
@@ -779,7 +779,7 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
   return (
     <div
       aria-busy={props.loading || undefined}
-      className="plugins-panel tw:grid tw:min-w-0 tw:shrink-0 tw:gap-8"
+      className="plugins-panel tw:grid tw:min-w-0 tw:shrink-0 tw:gap-6"
       id="skills-panel"
     >
       <div className="plugins-directory-navigation tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:@max-[479px]/plugins-page:items-stretch">
@@ -799,11 +799,11 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
       {props.error && total === 0 ? (
         <div className={cx('plugins-empty', PLUGINS_EMPTY_BASE)}>
           <AlertOctagon aria-hidden="true" size={APP_ICON_SIZE} />
-          <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">技能目录暂不可用</h2>
-          <p className="tw:m-0 tw:text-app-text-meta tw:type-body-sm tw:wrap-anywhere">
+          <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">技能目录暂不可用</h2>
+          <p className="tw:m-0 tw:text-app-text-meta tw:type-1 tw:wrap-anywhere">
             {props.error}
           </p>
-          <ol className="plugins-empty-steps tw:m-0 tw:grid tw:list-decimal tw:gap-1 tw:pl-5 tw:text-left tw:type-body-sm">
+          <ol className="plugins-empty-steps tw:m-0 tw:grid tw:list-decimal tw:gap-1 tw:pl-5 tw:text-left tw:type-1">
             <li>在 Vercel 项目中启用 OIDC Federation。</li>
             <li>用该项目提供的 VERCEL_OIDC_TOKEN 启动 Pidex。</li>
             <li>重启应用后重新加载 skills.sh 技能目录。</li>
@@ -836,7 +836,7 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
           title={props.query ? '没有匹配的技能' : '目录为空'}
         />
       ) : (
-        <div className="plugins-source-groups tw:grid tw:min-w-0 tw:gap-8">
+        <div className="plugins-source-groups tw:grid tw:min-w-0 tw:gap-6">
           {props.groups.installed.length > 0 ? (
             <SkillSection
               id="installed-skills-title"
@@ -881,12 +881,12 @@ function SkillSection({
   return (
     <section aria-labelledby={id} className="plugins-source-group tw:grid tw:min-w-0 tw:gap-3">
       <header className="plugins-section-heading tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-3">
-        <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm" id={id}>
+        <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold" id={id}>
           {title}
         </h2>
         <span className="plugins-sr-status tw:sr-only">共 {items.length} 项</span>
       </header>
-      <ul className="plugins-catalog-grid tw:m-0 tw:grid tw:grid-cols-2 tw:min-w-0 tw:list-none tw:gap-x-7 tw:gap-y-4 tw:p-0 tw:@max-[580px]/plugins-page:grid-cols-1">
+      <ul className="plugins-catalog-grid tw:m-0 tw:grid tw:grid-cols-2 tw:min-w-0 tw:list-none tw:gap-x-6 tw:gap-y-4 tw:p-0 tw:@max-[580px]/plugins-page:grid-cols-1">
         {items.map((item) => (
           <SkillCatalogCard
             installing={installingSkillIds.has(item.id)}
@@ -928,7 +928,7 @@ function CatalogCallout({
       />
       <div className="tw:grid tw:min-w-0 tw:flex-auto tw:gap-1">
         <strong>{title}</strong>
-        <p className="tw:m-0 tw:text-app-text-meta tw:type-body-sm tw:wrap-anywhere">{message}</p>
+        <p className="tw:m-0 tw:text-app-text-meta tw:type-1 tw:wrap-anywhere">{message}</p>
       </div>
       <Button color="secondary" onClick={onRetry}>
         重试
@@ -940,7 +940,7 @@ function CatalogCallout({
 function CatalogSkeleton({ label }: { label: string }): React.ReactNode {
   return (
     <SkeletonRegion
-      className="plugins-catalog-grid plugins-skeleton-grid tw:m-0 tw:grid tw:grid-cols-2 tw:min-w-0 tw:list-none tw:gap-x-7 tw:gap-y-4 tw:p-0 tw:@max-[580px]/plugins-page:grid-cols-1"
+      className="plugins-catalog-grid plugins-skeleton-grid tw:m-0 tw:grid tw:grid-cols-2 tw:min-w-0 tw:list-none tw:gap-x-6 tw:gap-y-4 tw:p-0 tw:@max-[580px]/plugins-page:grid-cols-1"
       label={label}
     >
       {Array.from({ length: 6 }).map((_, index) => (
@@ -970,8 +970,8 @@ function CatalogEmpty({
   return (
     <div className={cx('plugins-empty', PLUGINS_EMPTY_BASE)}>
       <Clock aria-hidden="true" size={APP_ICON_SIZE} />
-      <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{title}</h2>
-      <p className="tw:m-0 tw:text-app-text-meta tw:type-body-sm tw:wrap-anywhere">{message}</p>
+      <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{title}</h2>
+      <p className="tw:m-0 tw:text-app-text-meta tw:type-1 tw:wrap-anywhere">{message}</p>
       {actionLabel && onAction ? (
         <Button color="secondary" onClick={onAction}>
           {actionLabel}

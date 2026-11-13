@@ -82,7 +82,8 @@ import { useSidebarCapabilities } from '../sidebar/SidebarTopNav.js'
 import { AutomationControllerProvider } from '../../automation/AutomationControllerProvider.js'
 import { MenuBar } from '../MenuBar.js'
 import { useAppMenuActions } from './UseAppMenuActions.js'
-import { canRunAppCommand, type AppCommandId } from './AppCommandAvailability.js'
+import { useDesktopGlobalShortcuts } from './UseDesktopGlobalShortcuts.js'
+import { useDesktopLayoutSettings } from './UseDesktopLayoutSettings.js'
 import { QuickChatContext } from '../../session/QuickChatContext.js'
 import {
   sessionDisplayTitle,
@@ -91,7 +92,6 @@ import {
   type SessionListItem,
 } from '../../../UiTypes.js'
 import { resolveModelPresetId } from '../../../ModelPresets.js'
-import { useDesktopRuntimeSettingsField } from '../../settings/UseDesktopSettings.js'
 import { useSystemNotifications } from '../../notifications/UseSystemNotifications.js'
 import { Button } from '../../../components/ui/Button.js'
 import { TaskConversationLinks } from '../../automation/TaskConversationLinks.js'
@@ -136,10 +136,7 @@ import {
   scopedProviderManagementTab,
 } from '../../models/provider-management/ProviderManagementPanelState.js'
 import { useWorkbenchShellController } from './UseWorkbenchShellController.js'
-import {
-  isTerminalKeyboardTarget,
-  useIntegratedTerminalController,
-} from './UseIntegratedTerminalController.js'
+import { useIntegratedTerminalController } from './UseIntegratedTerminalController.js'
 import { useWorkbenchWorkspaceController } from './UseWorkbenchWorkspaceController.js'
 import {
   isDeepSeekThinkingModel,
@@ -151,7 +148,6 @@ import { useSideChatController } from '../dock/UseSideChatController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
 import { WorkbenchPanelPresence } from '../panels/WorkbenchPanelPresence.js'
 import type { ResizePhase } from '../UseSidebarResizeCollapseConfirm.js'
-import { resolveSidebarEscapeAction } from '../SidebarShellState.js'
 import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../../markdown/index.js'
 import { MARKDOWN_THREAD_NAVIGATION_EVENT } from '../../markdown/MarkdownMessage.js'
 import {
@@ -213,15 +209,6 @@ const EXTERNAL_FILE_EXTENSIONS = new Set([
   'xlsm',
   'xlsx',
 ])
-
-function isTextEntryTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false
-  return target.closest('input, textarea, select, [contenteditable="true"]') !== null
-}
-
-function hasOpenDialog(): boolean {
-  return document.querySelector('[role="dialog"], [role="alertdialog"], dialog[open]') !== null
-}
 
 function resolveWorkspaceFileReference(
   workspacePath: string,
@@ -348,194 +335,7 @@ export function DesktopLayout(): React.ReactNode {
   }
   const currentPage = resolveAppPage(location.pathname)
   const routeLabel = pageTitle(currentPage)
-  const subscribedSidebarTimelineEnabled = useDesktopRuntimeSettingsField(
-    (s) => s.values.sidebarTimelineEnabled,
-  )
-  const subscribedNotifications = useDesktopRuntimeSettingsField((s) => s.values.notifications)
-  const subscribedLastActiveWorkspacePath = useDesktopRuntimeSettingsField(
-    (s) => s.values.lastActiveWorkspacePath,
-  )
-  const subscribedRemovedWorkspaces = useDesktopRuntimeSettingsField(
-    (s) => s.values.removedWorkspaces,
-  )
-  const subscribedPermissionConfig = useDesktopRuntimeSettingsField(
-    (s) => s.values.permissionConfig,
-  )
-  const subscribedPet = useDesktopRuntimeSettingsField((s) => s.values.pet)
-  const subscribedSidebarCustomization = useDesktopRuntimeSettingsField(
-    (s) => s.values.sidebarCustomization,
-  )
-  const subscribedModel = useDesktopRuntimeSettingsField((s) => s.values.model)
-  const subscribedCodingModel = useDesktopRuntimeSettingsField((s) => s.values.codingModel)
-  const subscribedSessionName = useDesktopRuntimeSettingsField((s) => s.values.sessionName)
-  const subscribedThinkingMode = useDesktopRuntimeSettingsField((s) => s.values.thinkingMode)
-  const subscribedSystemPrompt = useDesktopRuntimeSettingsField((s) => s.values.systemPrompt)
-  const subscribedAppendSystemPrompt = useDesktopRuntimeSettingsField(
-    (s) => s.values.appendSystemPrompt,
-  )
-  const subscribedAdditionalDirectories = useDesktopRuntimeSettingsField(
-    (s) => s.values.additionalDirectories,
-  )
-  const subscribedInstallPidexDependencies = useDesktopRuntimeSettingsField(
-    (s) => s.values.installPidexDependencies,
-  )
-  const subscribedEnableMemory = useDesktopRuntimeSettingsField((s) => s.values.enableMemory)
-  const subscribedRustSearchAndDiffKernels = useDesktopRuntimeSettingsField(
-    (s) => s.values.rustSearchAndDiffKernels,
-  )
-  const subscribedComposerPredictions = useDesktopRuntimeSettingsField(
-    (s) => s.values['desktop.composer_predictions'],
-  )
-  const subscribedEnableAutoReviewPermissionMode = useDesktopRuntimeSettingsField(
-    (s) => s.values.enableAutoReviewPermissionMode,
-  )
-  const subscribedEnableFullAccessPermissionMode = useDesktopRuntimeSettingsField(
-    (s) => s.values.enableFullAccessPermissionMode,
-  )
-  const subscribedRecentWorkspaces = useDesktopRuntimeSettingsField(
-    (s) => s.values.recentWorkspaces,
-  )
-  const subscribedProviderID = useDesktopRuntimeSettingsField((s) => s.values.providerID)
-  const subscribedProviderBaseURL = useDesktopRuntimeSettingsField((s) => s.values.providerBaseURL)
-  const subscribedShowContextUsage = useDesktopRuntimeSettingsField(
-    (s) => s.values.showContextUsage,
-  )
-  const subscribedContextUsageView = useDesktopRuntimeSettingsField(
-    (s) => s.values.contextUsageView,
-  )
-  const subscribedDiffMarkerStyle = useDesktopRuntimeSettingsField((s) => s.values.diffMarkerStyle)
-  const subscribedReviewView = useDesktopRuntimeSettingsField((s) => s.values.reviewView)
-  const subscribedGitBranchPrefix = useDesktopRuntimeSettingsField((s) => s.values.gitBranchPrefix)
-  const subscribedAllowForcePush = useDesktopRuntimeSettingsField((s) => s.values.allowForcePush)
-  const subscribedCommitMessagePrompt = useDesktopRuntimeSettingsField(
-    (s) => s.values.commitMessagePrompt,
-  )
-  const subscribedPullRequestPrompt = useDesktopRuntimeSettingsField(
-    (s) => s.values.pullRequestPrompt,
-  )
-  const subscribedSidebarSessionPins = useDesktopRuntimeSettingsField(
-    (s) => s.values.sidebarSessionPins,
-  )
-  const subscribedTitlebarSessionTabIds = useDesktopRuntimeSettingsField(
-    (s) => s.values.titlebarSessionTabIds,
-  )
-  const subscribedSyncExternalSettingsPatch = useDesktopRuntimeSettingsField(
-    (s) => s.syncExternalSettingsPatch,
-  )
-  const subscribedSetSidebarCustomization = useDesktopRuntimeSettingsField(
-    (s) => s.setSidebarCustomization,
-  )
-  const subscribedPermissionMode = useDesktopRuntimeSettingsField((s) => s.permissionMode)
-  const subscribedSettingsLoaded = useDesktopRuntimeSettingsField((s) => s.settingsLoaded)
-  const subscribedSetPermissionMode = useDesktopRuntimeSettingsField((s) => s.setPermissionMode)
-  const subscribedSetRecentWorkspaces = useDesktopRuntimeSettingsField((s) => s.setRecentWorkspaces)
-  const subscribedSetDrawerTab = useDesktopRuntimeSettingsField((s) => s.setDrawerTab)
-  const subscribedSetReviewView = useDesktopRuntimeSettingsField((s) => s.setReviewView)
-  const subscribedSetSidebarSessionPins = useDesktopRuntimeSettingsField(
-    (s) => s.setSidebarSessionPins,
-  )
-  const subscribedSetTitlebarSessionTabIds = useDesktopRuntimeSettingsField(
-    (s) => s.setTitlebarSessionTabIds,
-  )
-  const subscribedSetSidebarTimelineEnabled = useDesktopRuntimeSettingsField(
-    (s) => s.setSidebarTimelineEnabled,
-  )
-  const settings = useMemo(
-    () => ({
-      values: {
-        sidebarTimelineEnabled: subscribedSidebarTimelineEnabled,
-        notifications: subscribedNotifications,
-        lastActiveWorkspacePath: subscribedLastActiveWorkspacePath,
-        removedWorkspaces: subscribedRemovedWorkspaces,
-        permissionConfig: subscribedPermissionConfig,
-        pet: subscribedPet,
-        sidebarCustomization: subscribedSidebarCustomization,
-        model: subscribedModel,
-        codingModel: subscribedCodingModel,
-        sessionName: subscribedSessionName,
-        thinkingMode: subscribedThinkingMode,
-        systemPrompt: subscribedSystemPrompt,
-        appendSystemPrompt: subscribedAppendSystemPrompt,
-        additionalDirectories: subscribedAdditionalDirectories,
-        installPidexDependencies: subscribedInstallPidexDependencies,
-        enableMemory: subscribedEnableMemory,
-        rustSearchAndDiffKernels: subscribedRustSearchAndDiffKernels,
-        'desktop.composer_predictions': subscribedComposerPredictions,
-        enableAutoReviewPermissionMode: subscribedEnableAutoReviewPermissionMode,
-        enableFullAccessPermissionMode: subscribedEnableFullAccessPermissionMode,
-        recentWorkspaces: subscribedRecentWorkspaces,
-        providerID: subscribedProviderID,
-        providerBaseURL: subscribedProviderBaseURL,
-        showContextUsage: subscribedShowContextUsage,
-        contextUsageView: subscribedContextUsageView,
-        diffMarkerStyle: subscribedDiffMarkerStyle,
-        reviewView: subscribedReviewView,
-        gitBranchPrefix: subscribedGitBranchPrefix,
-        allowForcePush: subscribedAllowForcePush,
-        commitMessagePrompt: subscribedCommitMessagePrompt,
-        pullRequestPrompt: subscribedPullRequestPrompt,
-        sidebarSessionPins: subscribedSidebarSessionPins,
-        titlebarSessionTabIds: subscribedTitlebarSessionTabIds,
-      },
-      syncExternalSettingsPatch: subscribedSyncExternalSettingsPatch,
-      setSidebarCustomization: subscribedSetSidebarCustomization,
-      permissionMode: subscribedPermissionMode,
-      settingsLoaded: subscribedSettingsLoaded,
-      setPermissionMode: subscribedSetPermissionMode,
-      setRecentWorkspaces: subscribedSetRecentWorkspaces,
-      setDrawerTab: subscribedSetDrawerTab,
-      setReviewView: subscribedSetReviewView,
-      setSidebarSessionPins: subscribedSetSidebarSessionPins,
-      setTitlebarSessionTabIds: subscribedSetTitlebarSessionTabIds,
-      setSidebarTimelineEnabled: subscribedSetSidebarTimelineEnabled,
-    }),
-    [
-      subscribedSidebarTimelineEnabled,
-      subscribedNotifications,
-      subscribedLastActiveWorkspacePath,
-      subscribedRemovedWorkspaces,
-      subscribedPermissionConfig,
-      subscribedPet,
-      subscribedSidebarCustomization,
-      subscribedModel,
-      subscribedCodingModel,
-      subscribedSessionName,
-      subscribedThinkingMode,
-      subscribedSystemPrompt,
-      subscribedAppendSystemPrompt,
-      subscribedAdditionalDirectories,
-      subscribedInstallPidexDependencies,
-      subscribedEnableMemory,
-      subscribedRustSearchAndDiffKernels,
-      subscribedComposerPredictions,
-      subscribedEnableAutoReviewPermissionMode,
-      subscribedEnableFullAccessPermissionMode,
-      subscribedRecentWorkspaces,
-      subscribedProviderID,
-      subscribedProviderBaseURL,
-      subscribedShowContextUsage,
-      subscribedContextUsageView,
-      subscribedDiffMarkerStyle,
-      subscribedReviewView,
-      subscribedGitBranchPrefix,
-      subscribedAllowForcePush,
-      subscribedCommitMessagePrompt,
-      subscribedPullRequestPrompt,
-      subscribedSidebarSessionPins,
-      subscribedTitlebarSessionTabIds,
-      subscribedSyncExternalSettingsPatch,
-      subscribedSetSidebarCustomization,
-      subscribedPermissionMode,
-      subscribedSettingsLoaded,
-      subscribedSetPermissionMode,
-      subscribedSetRecentWorkspaces,
-      subscribedSetDrawerTab,
-      subscribedSetReviewView,
-      subscribedSetSidebarSessionPins,
-      subscribedSetTitlebarSessionTabIds,
-      subscribedSetSidebarTimelineEnabled,
-    ],
-  )
+  const settings = useDesktopLayoutSettings()
   const activeSidebarPane = sidebarPaneForRoute(
     location.pathname,
     settings.values.sidebarTimelineEnabled,
@@ -2086,140 +1886,26 @@ export function DesktopLayout(): React.ReactNode {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [sessionId])
 
-  const appCommandContext = useMemo(
-    () => ({
-      page: currentPage,
-      hasWorkspace: currentWorkspace !== null,
-      browserAvailable,
-      browserOpen: Boolean(browserState?.open),
-      sideChatSupported,
-    }),
-    [browserAvailable, browserState?.open, currentPage, currentWorkspace, sideChatSupported],
-  )
-  const canRunCommand = useCallback(
-    (command: AppCommandId) => canRunAppCommand(command, appCommandContext),
-    [appCommandContext],
-  )
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (!event.ctrlKey || event.metaKey || event.repeat) return
-      const key = event.key.toLowerCase()
-      const commandShortcutAllowed =
-        !event.defaultPrevented &&
-        !event.isComposing &&
-        event.keyCode !== 229 &&
-        !event.altKey &&
-        (commandMenuOpen || !hasOpenDialog())
-      if (commandShortcutAllowed && !event.shiftKey && event.code === 'Backquote') {
-        if (!canRunCommand('toggleTerminal')) return
-        event.preventDefault()
-        toggleIntegratedTerminal()
-        return
-      }
-      if (
-        isTerminalKeyboardTarget(event.target) &&
-        !(
-          commandShortcutAllowed &&
-          ((!event.shiftKey && key === 'k') || (event.shiftKey && key === 'p'))
-        )
-      )
-        return
-      if (
-        commandShortcutAllowed &&
-        ((!event.shiftKey && key === 'k') || (event.shiftKey && key === 'p'))
-      ) {
-        event.preventDefault()
-        if (commandMenuOpen) {
-          commandMenuInputRef.current?.focus()
-          commandMenuInputRef.current?.select()
-        } else {
-          setCommandMenuOpen(true)
-        }
-      } else if (
-        commandShortcutAllowed &&
-        !event.shiftKey &&
-        key === 'p' &&
-        canRunCommand('openFiles')
-      ) {
-        event.preventDefault()
-        setCommandMenuOpen(false)
-        handleOpenFilesDock()
-      } else if (
-        event.shiftKey &&
-        !event.altKey &&
-        key === 'g' &&
-        canRunCommand('openReview')
-      ) {
-        event.preventDefault()
-        handleOpenReview()
-      } else if (
-        !event.shiftKey &&
-        event.altKey &&
-        key === 's' &&
-        canRunCommand('openSideChat')
-      ) {
-        event.preventDefault()
-        handleOpenSideChat()
-      } else if (
-        !event.defaultPrevented &&
-        !event.isComposing &&
-        event.keyCode !== 229 &&
-        !hasOpenDialog() &&
-        !event.shiftKey &&
-        event.altKey &&
-        key === 'u'
-      ) {
-        event.preventDefault()
-        setSidebarTimelineEnabled((current) => !current)
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [canRunCommand, commandMenuOpen, handleOpenFilesDock, handleOpenReview, handleOpenSideChat, toggleIntegratedTerminal])
-
-  useEffect(() => {
-    const preventMouseNavigationDefault = (event: MouseEvent): void => {
-      if (event.button !== 3 && event.button !== 4) return
-      event.preventDefault()
-      event.stopPropagation()
-    }
-    const handleMouseNavigation = (event: MouseEvent): void => {
-      preventMouseNavigationDefault(event)
-      if (event.button === 3) {
-        navigateBack()
-      } else if (event.button === 4) {
-        navigateForward()
-      }
-    }
-
-    window.addEventListener('mousedown', preventMouseNavigationDefault, true)
-    window.addEventListener('mouseup', handleMouseNavigation, true)
-    window.addEventListener('auxclick', preventMouseNavigationDefault, true)
-    return () => {
-      window.removeEventListener('mousedown', preventMouseNavigationDefault, true)
-      window.removeEventListener('mouseup', handleMouseNavigation, true)
-      window.removeEventListener('auxclick', preventMouseNavigationDefault, true)
-    }
-  }, [navigateBack, navigateForward])
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') return
-      const action = resolveSidebarEscapeAction({
-        defaultPrevented: event.defaultPrevented,
-        isDialogOpen: hasOpenDialog(),
-        isSettingsRoute,
-        isTextEntry: isTextEntryTarget(event.target),
-        mode: sidebarShell.mode,
-      })
-      if (action === 'none') return
-      event.preventDefault()
-      handleSettingsBack()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [handleSettingsBack, isSettingsRoute, sidebarShell.mode])
+  useDesktopGlobalShortcuts({
+    currentPage,
+    hasWorkspace: currentWorkspace !== null,
+    browserAvailable,
+    browserOpen: Boolean(browserState?.open),
+    sideChatSupported,
+    commandMenuOpen,
+    setCommandMenuOpen,
+    commandMenuInputRef,
+    toggleIntegratedTerminal,
+    handleOpenFilesDock,
+    handleOpenReview,
+    handleOpenSideChat,
+    setSidebarTimelineEnabled,
+    navigateBack,
+    navigateForward,
+    isSettingsRoute,
+    sidebarShellMode: sidebarShell.mode,
+    handleSettingsBack,
+  })
 
   const openWhatsNewDialog = useCallback((restoreFocusElement: HTMLElement | null): void => {
     setWhatsNewRestoreFocusElement(restoreFocusElement)

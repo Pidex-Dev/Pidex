@@ -112,7 +112,7 @@ function NumberInput({
     <div className="appearance-number-input tw:flex tw:items-center tw:gap-2">
       <Input
         aria-label={ariaLabel}
-        className="tw:w-16 tw:min-w-0 tw:rounded-md tw:border tw:border-app-border tw:bg-app-control tw:px-2 tw:text-right tw:text-app-text tw:type-body tw:shadow-none"
+        className="tw:w-9 tw:min-w-0 tw:rounded-md tw:border tw:border-app-border tw:bg-app-control tw:px-2 tw:text-right tw:text-app-text tw:type-2 tw:shadow-none"
         max={max}
         min={min}
         size="compact"
@@ -121,6 +121,7 @@ function NumberInput({
         onBlur={commit}
         onChange={(event) => setInputValue(event.target.value)}
         onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
             setInputValue(String(value))
@@ -128,7 +129,7 @@ function NumberInput({
           }
         }}
       />
-      <span aria-hidden="true" className="tw:text-app-text-soft tw:type-body-sm">
+      <span aria-hidden="true" className="tw:text-app-text-soft tw:type-1">
         px
       </span>
     </div>
@@ -159,7 +160,7 @@ function ColorControl({
   }
 
   return (
-    <div className="appearance-color-control tw:flex tw:h-7 tw:w-28 tw:shrink-0 tw:items-center tw:gap-2 tw:rounded-pill tw:border tw:border-app-border tw:bg-app-control tw:px-1.5 tw:text-app-text tw:transition-[background-color,border-color,color] tw:hover:border-app-border-strong tw:has-[:focus-visible]:outline-solid tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus">
+    <div className="appearance-color-control tw:flex tw:h-[28px] tw:w-[7rem] tw:shrink-0 tw:items-center tw:gap-2 tw:rounded-pill tw:border tw:border-app-border tw:bg-app-control tw:px-2 tw:text-app-text tw:transition-[background-color,border-color,color] tw:hover:border-app-border-strong tw:has-[:focus-visible]:outline-solid tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus">
       <AnchoredPopover
         data-popover-size="md"
         align="end"
@@ -191,7 +192,7 @@ function ColorControl({
       <input
         aria-label={ariaLabel}
         aria-invalid={!HEX_COLOR.test(draft) || undefined}
-        className="appearance-color-input tw:min-w-0 tw:flex-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:font-mono tw:text-[length:var(--cpx-sys-font-size-xs)] tw:tabular-nums tw:uppercase tw:outline-none"
+        className="appearance-color-input tw:min-w-0 tw:flex-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:font-mono tw:text-[length:var(--cpx-sys-font-size-1)] tw:tabular-nums tw:uppercase tw:outline-none"
         maxLength={7}
         spellCheck={false}
         type="text"
@@ -207,6 +208,7 @@ function ColorControl({
           }
         }}
         onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
             setDraft(normalizedValue)
@@ -410,7 +412,7 @@ function ThemeModeCard({
       >
         <ThemeModePreview mode={mode} />
       </span>
-      <span className="appearance-mode-label tw:block tw:max-w-full tw:truncate tw:text-center tw:type-body tw:group-data-[state=checked]:text-app-text">
+      <span className="appearance-mode-label tw:block tw:max-w-full tw:truncate tw:text-center tw:type-2 tw:group-data-[state=checked]:text-app-text">
         {label}
       </span>
     </label>
@@ -1001,7 +1003,7 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
     <SettingsContentArea>
       <div className="settings-content-inner appearance-settings tw:[&>.settings-section>.appearance-shared-fonts]:mt-4 tw:[&>.settings-section>.appearance-theme-editors]:mt-4 tw:[&>.settings-section]:grid tw:[&>.settings-section]:gap-4 tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">
+          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
             {t('外观')}
           </h2>
         </div>
@@ -1013,7 +1015,7 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
               control={
                 <div
                   aria-label="外观模式"
-                  className="appearance-mode-gallery tw:grid tw:w-68 tw:max-w-full tw:grid-cols-3 tw:gap-3"
+                  className="appearance-mode-gallery tw:grid tw:w-[17rem] tw:max-w-full tw:grid-cols-3 tw:gap-3"
                   role="radiogroup"
                   onKeyDown={(event) => {
                     const keyOffsets: Partial<Record<string, number>> = {
@@ -1172,6 +1174,23 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
                         fontSizes: { ...current.fontSizes, ui },
                       }))
                     }
+                  />
+                }
+              />
+              <SettingsRow
+                autoSave
+                title="界面密度"
+                description="按 90%、100% 或 110% 整体缩放界面间距、圆角与字号。"
+                control={
+                  <SegmentedControl
+                    ariaLabel="界面密度选项"
+                    options={[
+                      { value: 'compact', label: '紧凑 90%' },
+                      { value: 'default', label: '默认 100%' },
+                      { value: 'spacious', label: '宽松 110%' },
+                    ]}
+                    value={settings.uiDensity ?? 'default'}
+                    onChange={(uiDensity) => updateThemeSettings({ uiDensity })}
                   />
                 }
               />

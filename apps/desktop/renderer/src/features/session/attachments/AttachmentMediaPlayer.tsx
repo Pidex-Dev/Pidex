@@ -37,7 +37,7 @@ function MediaSlider({
 }) {
   return (
     <Slider.Root
-      className="tw:relative tw:flex tw:h-6 tw:min-w-0 tw:flex-1 tw:touch-none tw:items-center"
+      className="tw:relative tw:flex tw:h-5 tw:min-w-0 tw:flex-1 tw:touch-none tw:items-center"
       min={0}
       max={max || 1}
       step={step}
@@ -47,7 +47,7 @@ function MediaSlider({
         if (next !== undefined) onChange(next)
       }}
     >
-      <Slider.Track className="tw:relative tw:h-0.5 tw:grow tw:rounded-full tw:bg-app-border">
+      <Slider.Track className="tw:relative tw:h-[2px] tw:grow tw:rounded-full tw:bg-app-border">
         <Slider.Range className="tw:absolute tw:h-full tw:rounded-full tw:bg-app-text" />
       </Slider.Track>
       <Slider.Thumb
@@ -195,7 +195,7 @@ export function AttachmentMediaPlayer({
         >
           <PlayIcon size={APP_ICON_SIZE} />
         </Button>
-        <div className="tw:flex tw:min-w-16 tw:flex-1">
+        <div className="tw:flex tw:min-w-9 tw:flex-1">
           <MediaSlider
             label="播放进度"
             value={Math.min(time, duration)}
@@ -204,7 +204,7 @@ export function AttachmentMediaPlayer({
             onChange={seek}
           />
         </div>
-        <span className="tw:shrink-0 tw:tabular-nums tw:type-caption tw:text-app-text-meta">
+        <span className="tw:shrink-0 tw:tabular-nums tw:type-1 tw:text-app-text-meta">
           {mediaTime(time)} / {mediaTime(duration)}
         </span>
         <Popover.Root open={volumeOpen} onOpenChange={setVolumeOpen}>
@@ -215,7 +215,7 @@ export function AttachmentMediaPlayer({
           </Popover.Trigger>
           <Popover.Portal container={fullscreen ? root.current : undefined}>
             <Popover.Content side="top" align="end" size="sm" aria-label="音量设置">
-              <div className="tw:flex tw:w-40 tw:shrink-0 tw:items-center tw:gap-2 tw:p-2">
+              <div className="tw:flex tw:w-[10rem] tw:shrink-0 tw:items-center tw:gap-2 tw:p-2">
                 <Button
                   isIconOnly
                   size="toolbar"
@@ -295,7 +295,7 @@ export function AttachmentMediaPlayer({
         ) : null}
       </div>
       {actionFailed ? (
-        <p role="status" className="tw:px-2 tw:type-caption">
+        <p role="status" className="tw:px-2 tw:type-1">
           播放操作未完成，请重试。
         </p>
       ) : null}

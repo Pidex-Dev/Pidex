@@ -360,7 +360,7 @@ export function SidebarNavigationRailBody({
         </div>
         {otherItems.length > 0 ? (
           <>
-            <div role="separator" className="tw:my-1 tw:w-6 tw:border-t tw:border-app-border" />
+            <div role="separator" className="tw:my-1 tw:w-5 tw:border-t tw:border-app-border" />
             <div
               role="group"
               aria-label={t('其他入口')}

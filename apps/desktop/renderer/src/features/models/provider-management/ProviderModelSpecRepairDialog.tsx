@@ -150,12 +150,12 @@ export function ProviderModelSpecRepairDialog({
           </header>
           <div className="settings-management-dialog-body tw:min-h-0 tw:flex-1 tw:overflow-y-auto">
             {loading ? (
-              <p className="tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body-sm">
+              <p className="tw:py-6 tw:text-center tw:text-app-text-soft tw:type-1">
                 正在检查模型规格…
               </p>
             ) : error ? (
-              <div className="tw:grid tw:gap-3 tw:py-6">
-                <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-body-sm">
+              <div className="tw:grid tw:gap-3 tw:py-5">
+                <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-1">
                   {error}
                 </p>
                 <Button
@@ -168,7 +168,7 @@ export function ProviderModelSpecRepairDialog({
                 </Button>
               </div>
             ) : !preview ? null : preview.items.length === 0 ? (
-              <p className="tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body-sm">
+              <p className="tw:py-6 tw:text-center tw:text-app-text-soft tw:type-1">
                 没有发现上下文为 32,768 的已保存模型。
               </p>
             ) : (
@@ -181,26 +181,26 @@ export function ProviderModelSpecRepairDialog({
                       className="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-app-border-subtle tw:p-3"
                     >
                       <header className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-                        <strong className="tw:text-app-text tw:type-row-title">{item.name}</strong>
-                        <span className="tw:font-mono tw:text-app-text-meta tw:type-caption">
+                        <strong className="tw:text-app-text tw:type-2 tw:weight-medium">{item.name}</strong>
+                        <span className="tw:font-mono tw:text-app-text-meta tw:type-1">
                           {item.modelId}
                         </span>
-                        <span className="tw:rounded tw:bg-app-hover tw:px-1.5 tw:py-0.5 tw:type-caption tw:text-app-text-soft">
+                        <span className="tw:rounded tw:bg-app-hover tw:px-1 tw:py-1 tw:type-1 tw:text-app-text-soft">
                           {candidateMatchLabel(item.match.status)}
                         </span>
                         {item.match.identity ? (
-                          <span className="tw:text-app-text-meta tw:type-caption">
+                          <span className="tw:text-app-text-meta tw:type-1">
                             {item.match.identity}
                           </span>
                         ) : null}
                         {item.match.updatedAt ? (
-                          <span className="tw:text-app-text-meta tw:type-caption">
+                          <span className="tw:text-app-text-meta tw:type-1">
                             目录更新 {new Date(item.match.updatedAt).toLocaleString()}
                           </span>
                         ) : null}
                       </header>
                       {item.fields.length === 0 ? (
-                        <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+                        <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
                           没有可应用的确定推荐值，请保留原值或手动编辑。
                         </p>
                       ) : (
@@ -208,7 +208,7 @@ export function ProviderModelSpecRepairDialog({
                           {item.fields.map((field) => (
                             <label
                               key={field.field}
-                              className="tw:flex tw:items-center tw:gap-2 tw:type-body-sm"
+                              className="tw:flex tw:items-center tw:gap-2 tw:type-1"
                             >
                               <input
                                 type="checkbox"
@@ -219,7 +219,7 @@ export function ProviderModelSpecRepairDialog({
                                 disabled={field.noRepair}
                                 onChange={() => toggle(item, field.field)}
                               />
-                              <span className="tw:w-20 tw:shrink-0 tw:text-app-text">
+                              <span className="tw:w-[5rem] tw:shrink-0 tw:text-app-text">
                                 {FIELD_LABELS[field.field]}
                               </span>
                               <span className="tw:text-app-text-soft">
@@ -228,7 +228,7 @@ export function ProviderModelSpecRepairDialog({
                               </span>
 
                               {field.noRepair ? (
-                                <span className="tw:type-caption tw:text-app-text-meta">
+                                <span className="tw:type-1 tw:text-app-text-meta">
                                   无须修复
                                 </span>
                               ) : null}
@@ -237,7 +237,7 @@ export function ProviderModelSpecRepairDialog({
                         </div>
                       )}
                       {hint ? (
-                        <p className="tw:m-0 tw:text-app-text-meta tw:type-caption">{hint}</p>
+                        <p className="tw:m-0 tw:text-app-text-meta tw:type-1">{hint}</p>
                       ) : null}
                     </section>
                   )
@@ -246,7 +246,7 @@ export function ProviderModelSpecRepairDialog({
             )}
           </div>
           {error && preview ? (
-            <p role="alert" className="tw:shrink-0 tw:px-6 tw:pb-2 tw:text-app-danger tw:type-body-sm">
+            <p role="alert" className="tw:shrink-0 tw:px-5 tw:pb-2 tw:text-app-danger tw:type-1">
               {error}
             </p>
           ) : null}

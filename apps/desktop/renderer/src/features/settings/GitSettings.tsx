@@ -188,7 +188,7 @@ export function GitSettings(): React.ReactNode {
   return (
     <SettingsContentArea className="">
       <div
-        className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]"
+        className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]"
         onKeyDown={(event) => {
           if (isSettingsSaveShortcut(event)) {
             event.preventDefault()
@@ -196,8 +196,8 @@ export function GitSettings(): React.ReactNode {
           }
         }}
       >
-        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">Git</h2>
+        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">Git</h2>
         </div>
 
         <SettingsSection>
@@ -276,7 +276,7 @@ export function GitSettings(): React.ReactNode {
           />
         </SettingsSection>
         {saveError ? (
-          <p role="alert" className="tw:type-body-sm tw:text-app-danger">
+          <p role="alert" className="tw:type-1 tw:text-app-danger">
             {saveError}
           </p>
         ) : null}
@@ -320,12 +320,12 @@ export function GitSettings(): React.ReactNode {
           description="登录后可在项目选择器中列出并克隆你有权限访问的 GitHub 仓库。"
         >
           {activeDeviceLogin ? (
-            <div className="github-device-code-card tw:flex tw:items-center tw:justify-between tw:gap-4 tw:bg-app-raised tw:[&_p]:mt-2 tw:[&_p]:mb-0 tw:[&_p]:text-app-text-soft tw:[&_p]:type-body-sm tw:[&_p]:leading-[var(--cpx-sys-line-height-tight)] tw:border-b tw:border-b-app-border-subtle tw:p-4">
+            <div className="github-device-code-card tw:flex tw:items-center tw:justify-between tw:gap-4 tw:bg-app-raised tw:[&_p]:mt-2 tw:[&_p]:mb-0 tw:[&_p]:text-app-text-soft tw:[&_p]:type-body-sm tw:[&_p]:leading-[var(--cpx-sys-line-height-1)] tw:border-b tw:border-b-app-border-subtle tw:p-4">
               <div>
-                <div className="github-device-code-label tw:mb-1 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-xs)]">
+                <div className="github-device-code-label tw:mb-1 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-1)]">
                   GitHub 设备验证码
                 </div>
-                <div className="github-device-code-value tw:font-mono tw:text-[length:var(--cpx-sys-font-size-3xl)] tw:type-weight-heading tw:tracking-[0.08em] tw:text-app-text">
+                <div className="github-device-code-value tw:font-mono tw:text-[length:var(--cpx-sys-font-size-6)] tw:weight-bold tw:tracking-[0.08em] tw:text-app-text">
                   {githubLogin.userCode}
                 </div>
                 <p>在 GitHub 打开的设备登录页面输入这个验证码，不是 OAuth Client ID。</p>

@@ -740,7 +740,7 @@ function TextItemView({
   return (
     <article
       className={cx(
-        'canonical-text-item tw:min-w-0 tw:text-app-text tw:type-reading',
+        'canonical-text-item tw:min-w-0 tw:text-app-text tw:type-2',
         item.placement === 'process'
           ? 'canonical-text-item--process tw:text-app-text-soft'
           : 'canonical-text-item--result tw:w-full tw:bg-transparent tw:shadow-none',
@@ -759,16 +759,16 @@ function TextItemView({
         />
       </ConversationMarkdownErrorBoundary>
       {hasBottomBar ? (
-        <div className="canonical-message-actions canonical-message-actions--assistant tw:flex tw:items-center tw:gap-1.5 tw:mt-1 tw:min-h-[26px]">
+        <div className="canonical-message-actions canonical-message-actions--assistant tw:flex tw:items-center tw:gap-1 tw:mt-1 tw:min-h-[26px]">
           {actionItems.length > 0 ? <AssistantActionsGroup actions={actionItems} /> : null}
           {actionItems.length > 0 && goalAchievedDuration ? (
             <span
-              className="toolbar-divider tw:inline-block tw:h-3.5 tw:w-px tw:shrink-0 tw:bg-app-border-strong tw:mx-1"
+              className="toolbar-divider tw:inline-block tw:h-3 tw:w-px tw:shrink-0 tw:bg-app-border-strong tw:mx-1"
               aria-hidden="true"
             />
           ) : null}
           {goalAchievedDuration ? (
-            <span className="canonical-goal-achieved tw:inline-flex tw:items-center tw:gap-1.5 tw:text-app-text-meta tw:type-caption">
+            <span className="canonical-goal-achieved tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
               <CheckCircle2
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
@@ -1213,7 +1213,7 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
           />
         ) : null}
       </div>
-      <footer className="canonical-command-shell__footer tw:flex tw:min-h-6 tw:items-center tw:justify-end tw:border-t-0 tw:bg-transparent tw:px-3 tw:pt-0 tw:pb-2">
+      <footer className="canonical-command-shell__footer tw:flex tw:min-h-5 tw:items-center tw:justify-end tw:border-t-0 tw:bg-transparent tw:px-3 tw:pt-0 tw:pb-2">
         <span className="canonical-command-shell__status">
           {item.state === 'completed' ? (
             <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
@@ -1307,7 +1307,7 @@ function ToolResultBlockView({
           <Globe2 aria-hidden="true" size="var(--inline-icon-size, 1em)" />
           {url ? (
             <a
-              className="tw:inline-flex tw:min-h-6 tw:min-w-6 tw:items-center"
+              className="tw:inline-flex tw:min-h-5 tw:min-w-5 tw:items-center"
               href={url}
               rel="noopener noreferrer"
               target="_blank"

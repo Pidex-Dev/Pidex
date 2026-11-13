@@ -173,7 +173,7 @@ export function SideChatThreadPanel({
       >
         {creating ? (
           <div
-            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body"
+            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
             role="status"
           >
             <LoaderCircle size={APP_ICON_SIZES.lg} className="canonical-spin" aria-hidden="true" />
@@ -181,7 +181,7 @@ export function SideChatThreadPanel({
           </div>
         ) : expired ? (
           <div
-            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body"
+            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
             role="status"
           >
             <CirclePlus size={APP_ICON_SIZES.lg} aria-hidden="true" />
@@ -193,7 +193,7 @@ export function SideChatThreadPanel({
           </div>
         ) : conversation.loading && visibleTurnCount === 0 ? (
           <div
-            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body"
+            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
             role="status"
           >
             <LoaderCircle size={APP_ICON_SIZES.lg} className="canonical-spin" aria-hidden="true" />
@@ -201,7 +201,7 @@ export function SideChatThreadPanel({
           </div>
         ) : visibleTurnCount === 0 && !conversation.error ? (
           <div
-            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body"
+            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
             role="status"
           >
             <span className="right-dock-side-chat__empty-icon">

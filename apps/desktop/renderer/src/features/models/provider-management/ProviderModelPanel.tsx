@@ -98,8 +98,8 @@ export function ProviderModelPanel({
         </fieldset>
       </div>
       {error ? (
-        <div className="tw:shrink-0 tw:px-6 tw:pb-2">
-          <p role="alert" className="tw:m-0 tw:w-full tw:text-app-danger tw:type-body-sm">
+        <div className="tw:shrink-0 tw:px-5 tw:pb-2">
+          <p role="alert" className="tw:m-0 tw:w-full tw:text-app-danger tw:type-1">
             {error}
           </p>
         </div>

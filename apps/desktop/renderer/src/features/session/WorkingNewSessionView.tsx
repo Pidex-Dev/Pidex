@@ -178,8 +178,8 @@ export function WorkingNewSessionView(): React.ReactNode {
         className="quick-chat-view working-chat-view tw:flex tw:h-full tw:w-full tw:min-h-full tw:flex-col tw:items-stretch tw:justify-center tw:overflow-x-hidden tw:overflow-y-auto tw:pb-4 tw:text-app-text"
         onInputCapture={handleComposerInputCapture}
       >
-        <section className="quick-chat-composer-region tw:flex tw:m-auto tw:w-full tw:min-w-0 tw:flex-[0_1_auto] tw:flex-col tw:items-center tw:justify-start tw:gap-8">
-          <div className="quick-chat-hero working-chat-hero tw:flex tw:w-[var(--quick-chat-surface-width)] tw:max-w-full tw:flex-col tw:items-center tw:gap-0 tw:text-center tw:text-app-text tw:type-display">
+        <section className="quick-chat-composer-region tw:flex tw:m-auto tw:w-full tw:min-w-0 tw:flex-[0_1_auto] tw:flex-col tw:items-center tw:justify-start tw:gap-6">
+          <div className="quick-chat-hero working-chat-hero tw:flex tw:w-[var(--quick-chat-surface-width)] tw:max-w-full tw:flex-col tw:items-center tw:gap-0 tw:text-center tw:text-app-text tw:type-7 tw:weight-bold">
             <h1 className="tw:m-0 tw:max-w-full tw:px-2 tw:py-1 tw:text-balance tw:text-app-text tw:[font:inherit] tw:tracking-normal tw:select-none">
               我们该处理什么工作？
             </h1>

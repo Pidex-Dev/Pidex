@@ -37,12 +37,12 @@ const MENU_CLASS = cx(
 )
 const SECTION_TITLE_CLASS = cx(
   'chat-input__dropdown-section-title tw:sticky tw:top-0 tw:z-sticky tw:bg-app-raised',
-  'tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label',
+  'tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1 tw:weight-medium',
 )
-const STATUS_ROW_CLASS = 'chat-input__dropdown-status tw:p-2 tw:text-app-text-meta tw:type-caption'
+const STATUS_ROW_CLASS = 'chat-input__dropdown-status tw:p-2 tw:text-app-text-meta tw:type-1'
 const MENU_ITEM_CLASS = cx(
   'chat-input__dropdown-item tw:grid tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:gap-x-2',
-  'tw:border-0 tw:type-control',
+  'tw:border-0 tw:type-2 tw:weight-medium',
 )
 const MENU_ITEM_IDLE_CLASS = 'tw:bg-transparent'
 const MENU_ITEM_KEYBOARD_CLASS = 'is-keyboard-active tw:bg-app-hover'
@@ -56,11 +56,11 @@ const ITEM_COPY_CLASS =
   'chat-input__dropdown-copy tw:flex tw:min-w-0 tw:items-baseline tw:gap-2 tw:overflow-hidden'
 const ITEM_LABEL_CLASS = 'chat-input__dropdown-label tw:flex-none'
 const ITEM_HINT_CLASS =
-  'chat-input__dropdown-hint tw:min-w-0 tw:truncate tw:text-app-text-meta tw:type-caption'
+  'chat-input__dropdown-hint tw:min-w-0 tw:truncate tw:text-app-text-meta tw:type-1'
 const ITEM_META_CLASS =
-  'chat-input__dropdown-meta tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption'
+  'chat-input__dropdown-meta tw:whitespace-nowrap tw:text-app-text-meta tw:type-1'
 const EMPTY_CLASS =
-  'chat-input__dropdown-empty tw:p-2 tw:text-center tw:text-app-text-meta tw:type-secondary'
+  'chat-input__dropdown-empty tw:p-2 tw:text-center tw:text-app-text-meta tw:type-1'
 const VLIST_CLASS = 'chat-input__suggestion-vlist'
 
 type Props = {

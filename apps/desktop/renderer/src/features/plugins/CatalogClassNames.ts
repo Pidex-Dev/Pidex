@@ -24,7 +24,7 @@ export const STACKED_COPY_CLASS = 'tw:grid tw:min-w-0 tw:gap-1'
 
 /** 单行溢出省略的次要文本。 */
 export const TRUNCATED_LINE_CLASS =
-  'tw:min-w-0 tw:overflow-hidden tw:text-app-text-meta tw:type-body-sm tw:text-ellipsis tw:whitespace-nowrap'
+  'tw:min-w-0 tw:overflow-hidden tw:text-app-text-meta tw:type-1 tw:text-ellipsis tw:whitespace-nowrap'
 
 /** 详情页/详情弹窗里的元数据行（dt 标签 + dd 值）。 */
 export const DETAILS_METADATA_CLASS = 'tw:grid tw:m-0 tw:gap-0'
@@ -35,11 +35,11 @@ export const DETAILS_METADATA_ROW_CLASS =
 
 /** 元数据标签列。 */
 export const DETAILS_METADATA_LABEL_CLASS =
-  'tw:m-0 tw:min-w-0 tw:text-app-text-meta tw:type-caption tw:wrap-anywhere'
+  'tw:m-0 tw:min-w-0 tw:text-app-text-meta tw:type-1 tw:wrap-anywhere'
 
 /** 元数据取值列。 */
 export const DETAILS_METADATA_VALUE_CLASS =
-  'tw:m-0 tw:min-w-0 tw:text-app-text tw:type-body-sm tw:wrap-anywhere'
+  'tw:m-0 tw:min-w-0 tw:text-app-text tw:type-1 tw:wrap-anywhere'
 
 /** 详情页小节：标题 + 内容的网格。 */
 export const DETAILS_SECTION_CLASS = 'tw:grid tw:min-w-0 tw:gap-4'
@@ -49,14 +49,14 @@ export const DETAILS_SECTION_HEADING_CLASS =
   'tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-t tw:border-t-app-border-subtle tw:pt-5'
 
 /** 详情页小节标题文字。 */
-export const DETAILS_SECTION_TITLE_CLASS = 'tw:m-0 tw:text-app-text tw:type-title-sm'
+export const DETAILS_SECTION_TITLE_CLASS = 'tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold'
 
 /** 详情页身份块（图标 + 标题 + 描述）。 */
 export const DETAILS_IDENTITY_CLASS = 'tw:grid tw:min-w-0 tw:gap-1'
 
 /** 详情页图标槽位。 */
 export const DETAILS_ICON_CLASS =
-  'tw:inline-flex tw:size-11 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text'
+  'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text'
 
 /** 详情页动作组（右对齐、可换行，窄容器左对齐）。 */
 export const DETAILS_ACTION_GROUP_CLASS =
@@ -64,7 +64,7 @@ export const DETAILS_ACTION_GROUP_CLASS =
 
 /** 详情页面包屑（工作区头部插槽）。 */
 export const DETAILS_BREADCRUMB_CLASS =
-  'tw:inline-flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption'
+  'tw:inline-flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1'
 
 /** 面包屑里的当前项：单行截断。 */
 export const DETAILS_BREADCRUMB_CURRENT_CLASS =
@@ -72,4 +72,4 @@ export const DETAILS_BREADCRUMB_CURRENT_CLASS =
 
 /** 错误提示块（详情页与详情弹窗共用）。 */
 export const DETAILS_ERROR_CLASS =
-  'tw:mt-4 tw:mb-0 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:p-3 tw:text-app-danger-fg tw:type-body-sm'
+  'tw:mt-4 tw:mb-0 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:p-3 tw:text-app-danger-fg tw:type-1'

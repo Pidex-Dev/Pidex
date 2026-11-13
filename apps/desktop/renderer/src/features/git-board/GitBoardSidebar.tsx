@@ -64,8 +64,8 @@ export function GitBoardSidebar(_props?: {
       aria-busy={ready === false}
       className="sidebar-git-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2"
     >
-      <header className="sidebar-pane-heading tw:flex tw:min-h-9 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
-        <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{t('Git 看板')}</h2>
+      <header className="sidebar-pane-heading tw:flex tw:min-h-7 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
+        <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('Git 看板')}</h2>
         <Tooltip content={t('刷新所有项目仓库')}>
           <Button
             nativeTitle={false}
@@ -81,7 +81,7 @@ export function GitBoardSidebar(_props?: {
         </Tooltip>
       </header>
       {storageError && (
-        <p role="alert" className="tw:m-0 tw:px-3 tw:type-caption">
+        <p role="alert" className="tw:m-0 tw:px-3 tw:type-1">
           {t('看板保存失败，本次修改仅在当前窗口有效')}
         </p>
       )}
@@ -94,7 +94,7 @@ export function GitBoardSidebar(_props?: {
           <button
             type="button"
             aria-current={githubViewActive ? 'page' : undefined}
-            className="tw:w-full tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:type-body"
+            className="tw:w-full tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:type-2"
             onClick={openRemoteView}
           >
             <span>{t('GitHub 仓库')}</span>

@@ -282,7 +282,7 @@ function SidebarProjectGroupComponent({
       type="button"
       onClick={() => disclosureStore.setExpanded(disclosureKey, !isExpanded)}
     >
-      <span className="sidebar-project-title-text tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:whitespace-nowrap tw:text-inherit tw:type-row-title">
+      <span className="sidebar-project-title-text tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:whitespace-nowrap tw:text-inherit tw:type-2 tw:weight-medium">
         {managedProject.name}
       </span>
     </button>
@@ -317,7 +317,7 @@ function SidebarProjectGroupComponent({
               <>
                 <div
                   className={cx(
-                    'sidebar-project-actions tw:relative tw:min-h-6 tw:items-center tw:justify-end tw:transition-opacity tw:duration-feedback tw:ease-out tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-has-[:focus-visible]:opacity-100 tw:group-has-[:focus-visible]:pointer-events-auto tw:has-[[data-state=open]]:opacity-100 tw:has-[[data-state=open]]:pointer-events-auto',
+                    'sidebar-project-actions tw:relative tw:min-h-5 tw:items-center tw:justify-end tw:transition-opacity tw:duration-feedback tw:ease-out tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-has-[:focus-visible]:opacity-100 tw:group-has-[:focus-visible]:pointer-events-auto tw:has-[[data-state=open]]:opacity-100 tw:has-[[data-state=open]]:pointer-events-auto',
                     menuOpen
                       ? 'is-visible tw:flex tw:opacity-100 tw:pointer-events-auto'
                       : 'tw:hidden tw:group-hover:flex tw:group-has-[:focus-visible]:flex tw:opacity-100 tw:pointer-events-auto',
@@ -362,12 +362,12 @@ function SidebarProjectGroupComponent({
                 </div>
                 {hasCollapsedUnread && !menuOpen ? (
                   <span
-                    className="sidebar-project-unread sidebar-indicator tw:pointer-events-none tw:absolute tw:inset-y-0 tw:end-0 tw:my-auto tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:group-hover:hidden tw:group-has-[:focus-visible]:hidden tw:group-has-[[data-state=open]]:hidden"
+                    className="sidebar-project-unread sidebar-indicator tw:pointer-events-none tw:absolute tw:inset-y-0 tw:end-0 tw:my-auto tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:group-hover:hidden tw:group-has-[:focus-visible]:hidden tw:group-has-[[data-state=open]]:hidden"
                     role="img"
                     aria-label="项目内有未读会话"
                   >
                     <span className="sidebar-status-icon tw:inline-flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center">
-                      <span className="sidebar-unread-dot tw:size-1.5 tw:flex-none tw:rounded-full tw:bg-app-accent" />
+                      <span className="sidebar-unread-dot tw:size-2 tw:flex-none tw:rounded-full tw:bg-app-accent" />
                     </span>
                   </span>
                 ) : null}

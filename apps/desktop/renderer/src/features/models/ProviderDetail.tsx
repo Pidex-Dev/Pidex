@@ -56,7 +56,7 @@ export function ProviderDetail({
       <WorkspaceHeaderItem id="provider-detail" slot="left">
         <div className="model-center-provider-detail-header tw:flex tw:min-w-0 tw:items-center tw:gap-2">
           <div className="model-center-provider-identity tw:flex tw:min-w-0 tw:items-center tw:gap-2">
-            <span className="model-center-provider-identity-logo tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-md tw:text-app-text">
+            <span className="model-center-provider-identity-logo tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-md tw:text-app-text">
               <ProviderIcon
                 foreground
                 className="tw:size-full"
@@ -67,7 +67,7 @@ export function ProviderDetail({
               />
             </span>
             <div className="model-center-provider-identity-copy tw:grid tw:min-w-0 tw:gap-1">
-              <h2 className="tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:type-row-title tw:text-ellipsis tw:whitespace-nowrap">
+              <h2 className="tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:type-2 tw:weight-medium tw:text-ellipsis tw:whitespace-nowrap">
                 {provider.name}
               </h2>
             </div>
@@ -82,14 +82,14 @@ export function ProviderDetail({
 
       {feedback ? (
         <div
-          className="model-center-provider-feedback tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3 tw:text-app-text-soft tw:type-body-sm"
+          className="model-center-provider-feedback tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3 tw:text-app-text-soft tw:type-1"
           role="status"
         >
           {feedback}
         </div>
       ) : null}
 
-      <div className="model-center-provider-panel tw:grid tw:min-w-0 tw:gap-6">{children}</div>
+      <div className="model-center-provider-panel tw:grid tw:min-w-0 tw:gap-5">{children}</div>
     </section>
   )
 }

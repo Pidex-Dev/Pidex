@@ -214,12 +214,12 @@ export function CodeBlock({
       )}
     >
       {headerLabel !== null ? (
-        <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:type-caption tw:text-app-text-soft">
+        <figcaption className="md-code-header tw:flex tw:h-6 tw:items-center tw:justify-between tw:type-1 tw:text-app-text-soft">
           {isEditingLang ? (
             <input
               autoFocus
               aria-label="输入代码语言"
-              className="md-code-lang-input tw:h-6 tw:w-28 tw:border tw:border-app-accent tw:bg-app-raised tw:px-1.5 tw:font-mono tw:text-app-text tw:outline-none"
+              className="md-code-lang-input tw:h-5 tw:w-[7rem] tw:border tw:border-app-accent tw:bg-app-raised tw:px-1 tw:font-mono tw:text-app-text tw:outline-none"
               placeholder="语言 (如 ts, json)"
               value={editLangValue}
               onBlur={commitLanguageChange}
@@ -227,6 +227,7 @@ export function CodeBlock({
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
                 e.stopPropagation()
+                if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return
                 if (e.key === 'Enter') {
                   e.preventDefault()
                   commitLanguageChange()
@@ -241,7 +242,7 @@ export function CodeBlock({
           ) : onChangeLanguage ? (
             <button
               aria-label={`修改代码语言：当前为 ${languageLabel}`}
-              className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-6 tw:items-center tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+              className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-5 tw:items-center tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
               title="点击直接修改代码语言"
               type="button"
               onClick={(e) => {
@@ -261,7 +262,7 @@ export function CodeBlock({
       <span className="md-code-actions tw:flex tw:items-center">
         {showWrapControl ? (
           <button
-            className="md-code-wrap tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:text-app-text-soft tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+            className="md-code-wrap tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:text-app-text-soft tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
             type="button"
             aria-label="代码自动换行"
             title="代码自动换行"

@@ -30,17 +30,17 @@ import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.
  * file owns the model name's overflow fade and scroll rules, because the name is
  * measured at runtime by `OverflowTitle`.
  */
-const PANEL_CONTENT_CLASS = 'composer-model-panel-content tw:overflow-hidden'
+const PANEL_CONTENT_CLASS = 'composer-model-panel-content tw:w-[21rem] tw:overflow-hidden'
 const PANEL_CLASS =
-  'composer-model-panel tw:flex tw:h-97.5 tw:w-full tw:select-none tw:overflow-hidden'
+  'composer-model-panel tw:flex tw:h-[21rem] tw:w-full tw:select-none tw:overflow-hidden'
 const PROVIDER_RAIL_CLASS = cx(
-  'composer-provider-rail tw:flex tw:h-full tw:w-14 tw:shrink-0 tw:flex-col tw:items-center tw:justify-between',
-  'tw:border-r tw:border-app-border-subtle tw:bg-transparent tw:px-1.5 tw:py-2.5',
+  'composer-provider-rail tw:flex tw:h-full tw:w-8 tw:shrink-0 tw:flex-col tw:items-center tw:justify-between',
+  'tw:border-r tw:border-app-border-subtle tw:bg-transparent tw:px-1 tw:py-2',
 )
 const PROVIDER_LIST_CLASS =
-  'composer-provider-list tw:flex tw:w-full tw:flex-1 tw:flex-col tw:items-center tw:gap-2 tw:overflow-y-auto tw:py-0.5'
+  'composer-provider-list tw:flex tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:items-center tw:gap-1 tw:overflow-y-auto'
 const PROVIDER_BUTTON_CLASS = cx(
-  'composer-provider-btn tw:flex tw:size-9 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center',
+  'composer-provider-btn tw:flex tw:size-6 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center',
   'tw:rounded-control tw:border-0 tw:text-app-text-soft',
   'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
   'tw:hover:bg-app-hover tw:hover:text-app-text',
@@ -49,7 +49,7 @@ const PROVIDER_BUTTON_IDLE_CLASS = 'tw:bg-transparent'
 const PROVIDER_BUTTON_ACTIVE_CLASS =
   'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_8%,transparent)] tw:text-app-text'
 const HUB_TRIGGER_BUTTON_CLASS = cx(
-  'composer-hub-trigger-btn tw:flex tw:size-9 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center',
+  'composer-hub-trigger-btn tw:flex tw:size-6 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center',
   'tw:rounded-control tw:border-0 tw:text-app-text-soft',
   'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
   'tw:hover:bg-app-hover tw:hover:text-app-text',
@@ -60,112 +60,113 @@ const HUB_TRIGGER_WRAP_CLASS = cx(
 )
 const MODEL_RIGHT_CLASS = cx(
   'composer-model-right tw:relative tw:flex tw:h-full tw:min-w-0 tw:flex-1 tw:flex-col tw:justify-between',
-  'tw:overflow-hidden tw:rounded-r-container tw:bg-app-raised tw:p-2.5',
+  'tw:overflow-hidden tw:rounded-r-container tw:bg-app-raised tw:p-2',
 )
 const MODELS_HEADER_CLASS = cx(
-  'composer-models-header tw:relative tw:mb-2 tw:flex tw:h-9 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-1',
+  'composer-models-header tw:relative tw:mb-2 tw:flex tw:h-[1.75rem] tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-2',
 )
 const MODELS_HEADER_LEAD_CLASS =
-  'composer-models-header-lead tw:flex tw:shrink-0 tw:items-center tw:gap-1.5'
+  'composer-models-header-lead tw:flex tw:shrink-0 tw:items-center tw:gap-1'
 const MODELS_HEADER_ACTIONS_CLASS =
   'composer-models-header-actions tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:justify-end'
 const MODELS_TITLE_CLASS =
   'composer-models-title tw:shrink-0 tw:tracking-[-0.01em] tw:text-app-text'
 const HUB_BACK_CLASS = cx(
-  'composer-hub-back tw:inline-flex tw:size-6 tw:cursor-pointer tw:items-center tw:justify-center',
+  'composer-hub-back tw:inline-flex tw:size-5 tw:cursor-pointer tw:items-center tw:justify-center',
   'tw:rounded-sm tw:border-0 tw:bg-transparent tw:text-app-text-soft',
   'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
   'tw:hover:bg-app-hover tw:hover:text-app-text',
 )
 const SEARCH_TRIGGER_CLASS = cx(
-  'composer-search-trigger tw:flex tw:cursor-pointer tw:items-center tw:gap-1.5 tw:border-0 tw:bg-transparent',
-  'tw:text-app-text-meta tw:type-control',
+  'composer-search-trigger tw:flex tw:cursor-pointer tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent',
+  'tw:text-app-text-meta tw:type-1 tw:weight-medium',
   'tw:transition-colors tw:duration-feedback tw:ease-standard tw:hover:text-app-text',
 )
 const SEARCH_BAR_CLASS =
-  'composer-search-bar tw:relative tw:flex tw:w-full tw:max-w-52.5 tw:items-center'
+  'composer-search-bar tw:relative tw:flex tw:w-full tw:max-w-[11rem] tw:items-center'
 const HUB_SEARCH_BAR_CLASS =
-  'composer-hub-search-bar tw:relative tw:flex tw:w-full tw:max-w-50 tw:items-center'
+  'composer-hub-search-bar tw:relative tw:flex tw:w-full tw:max-w-[11rem] tw:items-center'
 const SEARCH_BAR_ICON_CLASS =
-  'composer-search-bar-icon tw:pointer-events-none tw:absolute tw:left-2.5 tw:text-app-text-meta'
+  'composer-search-bar-icon tw:pointer-events-none tw:absolute tw:left-2 tw:z-1 tw:text-app-text-meta'
 const SEARCH_INPUT_CLASS = cx(
-  'composer-search-input tw:h-7 tw:w-full tw:rounded-control tw:border tw:border-app-border-subtle',
-  'tw:bg-app-control tw:py-1 tw:ps-8 tw:pe-7 tw:text-app-text tw:type-secondary',
+  'composer-search-input tw:h-5 tw:w-full tw:rounded-control tw:border tw:border-app-border-subtle',
+  'tw:bg-app-control tw:py-1 tw:ps-6 tw:pe-5 tw:text-app-text tw:type-1',
   'tw:outline-none tw:transition-colors tw:duration-feedback tw:ease-standard tw:focus:border-app-focus',
   'tw:placeholder:text-app-text-meta',
 )
 const HUB_SEARCH_INPUT_CLASS = cx(
-  'composer-hub-search-input tw:h-7 tw:w-full tw:rounded-control tw:border tw:border-app-border-subtle',
-  'tw:bg-app-control tw:py-1 tw:ps-8 tw:pe-2.5 tw:text-app-text tw:type-caption',
+  'composer-hub-search-input tw:h-5 tw:w-full tw:rounded-control tw:border tw:border-app-border-subtle',
+  'tw:bg-app-control tw:py-1 tw:ps-6 tw:pe-2 tw:text-app-text tw:type-1',
   'tw:outline-none tw:transition-colors tw:duration-feedback tw:ease-standard tw:focus:border-app-focus',
   'tw:placeholder:text-app-text-meta',
 )
 const SEARCH_CLEAR_CLASS = cx(
-  'composer-search-clear tw:absolute tw:right-1.5 tw:inline-flex tw:size-4 tw:cursor-pointer tw:items-center tw:justify-center',
+  'composer-search-clear tw:absolute tw:right-1 tw:z-1 tw:inline-flex tw:size-4 tw:cursor-pointer tw:items-center tw:justify-center',
   'tw:rounded-full tw:border-0 tw:bg-transparent tw:text-app-text-meta',
   'tw:hover:bg-app-hover tw:hover:text-app-text',
 )
 const PICKER_VIEW_CLASS =
   'composer-picker-view tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-hidden'
 const MODELS_EMPTY_CLASS =
-  'composer-models-empty tw:px-3 tw:py-8 tw:text-center tw:text-app-text-meta tw:type-caption'
+  'composer-models-empty tw:px-3 tw:py-6 tw:text-center tw:text-app-text-meta tw:type-1'
 const MODELS_LIST_CLASS =
-  'composer-models-list tw:flex tw:flex-1 tw:flex-col tw:gap-1 tw:overflow-y-auto tw:pr-0.5'
+  'composer-models-list tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-1 tw:overflow-y-auto tw:pr-1'
 const HUB_LIST_CLASS =
-  'composer-models-list composer-hub-list tw:flex tw:flex-1 tw:flex-col tw:gap-1.5 tw:overflow-y-auto tw:px-0.5'
+  'composer-models-list composer-hub-list tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-1 tw:overflow-y-auto tw:px-1'
 const MODEL_ROW_CLASS = cx(
-  'composer-model-row tw:group tw:flex tw:min-h-8.5 tw:cursor-pointer tw:items-center tw:justify-between',
-  'tw:rounded-control tw:px-3 tw:py-2',
+  'composer-model-row tw:group tw:flex tw:min-h-[1.75rem] tw:cursor-pointer tw:items-center tw:justify-between',
+  'tw:rounded-control tw:px-2 tw:py-1',
   'tw:transition-colors tw:duration-feedback tw:ease-standard tw:hover:bg-app-hover',
 )
 const MODEL_ROW_SELECTED_CLASS =
   'is-selected tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_6%,transparent)]'
 const MODEL_ROW_MAIN_CLASS =
-  'composer-model-row-main tw:flex tw:min-w-0 tw:items-center tw:gap-2.5 tw:pr-0.5'
-const MODEL_ROW_ICON_CLASS = 'composer-model-row-icon tw:size-icon-md tw:shrink-0 tw:text-app-text'
+  'composer-model-row-main tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:pr-1'
+const MODEL_ROW_ICON_CLASS =
+  'composer-model-row-icon tw:inline-flex tw:size-[1.125rem] tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text'
 const MODEL_ROW_TRAILING_CLASS =
-  'composer-model-row-trailing tw:flex tw:shrink-0 tw:items-center tw:gap-2'
+  'composer-model-row-trailing tw:flex tw:shrink-0 tw:items-center tw:gap-1'
 const MODEL_MARK_CLASS = cx(
-  'composer-model-row-mark tw:flex tw:size-4.5 tw:shrink-0 tw:items-center tw:justify-center',
+  'composer-model-row-mark tw:flex tw:size-[1.125rem] tw:shrink-0 tw:items-center tw:justify-center',
   'tw:text-app-text',
 )
 const CAPABILITIES_CLASS =
   'composer-model-capabilities tw:hidden tw:shrink-0 tw:items-center tw:gap-1 tw:group-hover:flex'
 const CAPABILITY_CHIP_CLASS = cx(
-  'composer-model-capability tw:inline-flex tw:h-4.5 tw:shrink-0 tw:items-center tw:justify-center tw:gap-1',
+  'composer-model-capability tw:inline-flex tw:h-4 tw:shrink-0 tw:items-center tw:justify-center tw:gap-1',
   'tw:rounded-indicator tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_9%,transparent)]',
-  'tw:px-1.5 tw:text-app-text-soft tw:type-label tw:tabular-nums',
+  'tw:px-1 tw:text-app-text-soft tw:type-1 tw:weight-medium tw:tabular-nums',
 )
 const HUB_ROW_CLASS = cx(
-  'composer-hub-row tw:flex tw:cursor-pointer tw:items-center tw:justify-between tw:gap-2.5',
+  'composer-hub-row tw:flex tw:cursor-pointer tw:items-center tw:justify-between tw:gap-2',
   'tw:rounded-control tw:border tw:border-app-border-subtle tw:bg-app-control tw:p-2',
   'tw:transition-colors tw:duration-feedback tw:ease-standard tw:hover:bg-app-hover',
 )
 const HUB_ROW_MAIN_CLASS =
-  'composer-hub-row-main tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2.5'
+  'composer-hub-row-main tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2'
 const HUB_ROW_LOGO_CLASS = cx(
-  'composer-hub-row-logo tw:flex tw:size-8 tw:shrink-0 tw:items-center tw:justify-center',
+  'composer-hub-row-logo tw:flex tw:size-6 tw:shrink-0 tw:items-center tw:justify-center',
   'tw:rounded-item tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text-soft',
 )
 const HUB_ROW_TEXT_CLASS = 'composer-hub-row-text tw:min-w-0 tw:flex-1'
-const HUB_ROW_TITLE_CLASS = 'composer-hub-row-title tw:flex tw:min-w-0 tw:items-center tw:gap-1.5'
+const HUB_ROW_TITLE_CLASS = 'composer-hub-row-title tw:flex tw:min-w-0 tw:items-center tw:gap-1'
 const HUB_ROW_NAME_CLASS =
   'composer-hub-row-name tw:truncate tw:tracking-[-0.01em] tw:text-app-text'
 const HUB_ROW_DESC_CLASS =
-  'composer-hub-row-desc tw:mt-0.5 tw:truncate tw:text-app-text-soft tw:type-caption'
+  'composer-hub-row-desc tw:mt-1 tw:truncate tw:text-app-text-soft tw:type-1'
 const HUB_BADGE_CLASS = cx(
-  'composer-hub-badge tw:shrink-0 tw:rounded-indicator tw:px-1.5 tw:py-px tw:type-label',
+  'composer-hub-badge tw:shrink-0 tw:rounded-indicator tw:px-1 tw:py-px tw:type-1 tw:weight-medium',
   'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_10%,transparent)] tw:text-app-text-soft',
 )
 const HUB_ROW_ACTIONS_CLASS =
-  'composer-hub-row-actions tw:flex tw:shrink-0 tw:items-center tw:gap-1.5'
+  'composer-hub-row-actions tw:flex tw:shrink-0 tw:items-center tw:gap-1'
 const HUB_BADGE_CONNECTED_CLASS = cx(
   'composer-hub-badge-connected tw:shrink-0 tw:rounded-compact tw:border tw:border-app-success-border',
-  'tw:bg-app-success-subtle tw:px-2 tw:py-0.5 tw:type-label tw:text-app-success',
+  'tw:bg-app-success-subtle tw:px-2 tw:py-1 tw:type-1 tw:weight-medium tw:text-app-success',
 )
 const HUB_ACTION_BUTTON_CLASS = cx(
   'composer-hub-action-btn tw:shrink-0 tw:cursor-pointer tw:rounded-compact tw:border tw:border-app-border-subtle',
-  'tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text',
+  'tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-text',
   'tw:transition-colors tw:duration-feedback tw:ease-standard tw:hover:bg-app-hover',
 )
 
@@ -541,7 +542,7 @@ export function ModelPickerPopover({
 
                       <div className={HUB_SEARCH_BAR_CLASS}>
                         <Search
-                          size={APP_ICON_SIZE}
+                          size={APP_ICON_SIZES.sm}
                           strokeWidth={APP_ICON_STROKE_WIDTH}
                           className={SEARCH_BAR_ICON_CLASS}
                         />
@@ -621,7 +622,7 @@ export function ModelPickerPopover({
                         {searchExpanded ? (
                           <div className={SEARCH_BAR_CLASS}>
                             <Search
-                              size={APP_ICON_SIZE}
+                              size={APP_ICON_SIZES.sm}
                               strokeWidth={APP_ICON_STROKE_WIDTH}
                               className={SEARCH_BAR_ICON_CLASS}
                             />
@@ -647,7 +648,7 @@ export function ModelPickerPopover({
                               className={SEARCH_CLEAR_CLASS}
                               title="清除并关闭"
                             >
-                              <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                              <X size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
                             </button>
                           </div>
                         ) : (
@@ -796,7 +797,7 @@ export function ModelPickerPopover({
                     </div>
 
                     {reasoningControl ? (
-                      <div className="composer-model-reasoning-slot tw:mt-2 tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-1 tw:pt-2 tw:type-caption tw:text-app-text-meta">
+                      <div className="composer-model-reasoning-slot tw:mt-1.5 tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-1 tw:pt-1.5 tw:type-1 tw:text-app-text-meta">
                         <span>推理思考</span>
                         {reasoningControl}
                       </div>

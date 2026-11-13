@@ -1032,14 +1032,14 @@ export function ConversationPage(): React.ReactNode {
 
   const workspaceHeaderTitle = React.useMemo(() => {
     return (
-      <div className="chat-session-title tw:flex tw:min-w-0 tw:flex-[1_1_auto] tw:items-center tw:gap-2 tw:text-app-text tw:type-control">
+      <div className="chat-session-title tw:flex tw:min-w-0 tw:flex-[1_1_auto] tw:items-center tw:gap-2 tw:text-app-text tw:type-2 tw:weight-medium">
         {projectDetailsTrigger}
         {isInlineEditing ? (
           <input
             autoFocus
             ref={handleInlineInputRef}
             aria-label="重命名对话"
-            className="chat-session-title__input tw:box-border tw:h-[26px] tw:w-full tw:min-w-30 tw:max-w-90 tw:flex-[0_1_360px] tw:rounded-sm tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:px-2 tw:py-0 tw:text-app-text tw:shadow-none tw:outline-none tw:[font:inherit] tw:focus-visible:border-app-focus tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:disabled:cursor-not-allowed tw:disabled:opacity-60"
+            className="chat-session-title__input tw:box-border tw:h-[26px] tw:w-full tw:min-w-[7.5rem] tw:max-w-[22.5rem] tw:flex-[0_1_360px] tw:rounded-sm tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:px-2 tw:py-0 tw:text-app-text tw:shadow-none tw:outline-none tw:[font:inherit] tw:focus-visible:border-app-focus tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:disabled:cursor-not-allowed tw:disabled:opacity-60"
             disabled={renamingSession}
             maxLength={160}
             type="text"
@@ -1381,7 +1381,7 @@ export function ConversationPage(): React.ReactNode {
 
   const composerFooter =
     !isThreadLoading && composerPropsForPage ? (
-      <div className="tw:relative tw:flex tw:w-full tw:flex-col tw:gap-2.5">
+      <div className="tw:relative tw:flex tw:w-full tw:flex-col tw:gap-2">
         <AnimatePresence initial={false}>
           {showComposerStatusSummary ? (
             <ComposerFooterPresence key="composer-change-summary" reducedMotion={reduceMotion}>
@@ -1596,7 +1596,7 @@ export function ConversationPage(): React.ReactNode {
               onToggleBookmark={toggleThreadBookmark}
             />
             <ThreadScrollLayout
-              className={`workflow-main-scroll-area tw:flex tw:min-h-0 tw:flex-1 tw:flex-col${inlineSummaryPanel ? ' tw:pe-69' : ''}`}
+              className={`workflow-main-scroll-area tw:flex tw:min-h-0 tw:flex-1 tw:flex-col${inlineSummaryPanel ? ' workflow-main-scroll-area--with-summary' : ''}`}
               footer={composerFooter}
               footerClassName="workflow-main-scroll-footer tw:px-0 tw:pb-4"
               footerRef={threadFooterRef}
@@ -1652,7 +1652,7 @@ export function ConversationPage(): React.ReactNode {
         </main>
         {inlineSummaryPanel ? (
           <div
-            className="thread-summary-inline tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-65 tw:min-h-0 tw:flex-col tw:max-h-[calc(100%-32px)] tw:rounded-floating tw:bg-app-raised tw:p-1.25"
+            className="thread-summary-inline tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:max-h-[calc(100%-32px)] tw:rounded-floating tw:bg-app-raised tw:p-1"
             data-testid="thread-summary-inline"
           >
             {inlineSummaryPanel}

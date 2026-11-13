@@ -241,7 +241,7 @@
 
   .mcp-form-field-input::placeholder {
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-1);
   }
 
   /* --- Workflow plan card scroll fade ------------------------------- */
@@ -411,7 +411,7 @@
     border-radius: var(--cpx-sys-radius-compact);
     background: transparent;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-align: start;
   }
 
@@ -564,11 +564,9 @@
    * The global hide rule must not win over ConversationPage's visible thin
    * scrollbar; only non-conversation hosts keep the hidden scrollbar.
    */
-  .quick-chat-view::-webkit-scrollbar,
-  .conversation-turn-nav-list::-webkit-scrollbar {
-    display: none;
-    width: 0;
-    height: 0;
+  .quick-chat-view,
+  .conversation-turn-nav-list {
+    scrollbar-width: none;
   }
 
   .thread-scroll-layout__footer::before {

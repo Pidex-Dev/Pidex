@@ -881,15 +881,15 @@ function CommentDraftEditor({
 }): React.ReactNode {
   const [body, setBody] = React.useState(initialBody)
   return (
-    <div className="review-comment draft tw:flex tw:flex-col tw:gap-1 tw:p-2 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised tw:text-app-text tw:type-reading tw:shadow-none">
+    <div className="review-comment draft tw:flex tw:flex-col tw:gap-1 tw:p-2 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised tw:text-app-text tw:type-2 tw:shadow-none">
       <textarea
         autoFocus
-        className="tw:w-full tw:field-sizing-content tw:min-h-[5.385em] tw:max-h-60 tw:resize-y tw:overflow-y-auto tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-reading"
+        className="tw:w-full tw:field-sizing-content tw:min-h-[5.385em] tw:max-h-[15rem] tw:resize-y tw:overflow-y-auto tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-2"
         placeholder="写下这行的问题或修改建议"
         value={body}
         onChange={(event) => setBody(event.target.value)}
       />
-      <div className="review-comment-actions tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption">
+      <div className="review-comment-actions tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1">
         <Button size="compact" type="button" onClick={onCancel}>
           取消
         </Button>
@@ -915,21 +915,21 @@ export function ReviewComment({
   return (
     <div
       className={cx(
-        'review-comment tw:flex tw:flex-col tw:gap-1 tw:p-2 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised tw:text-app-text tw:type-reading tw:shadow-none',
+        'review-comment tw:flex tw:flex-col tw:gap-1 tw:p-2 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised tw:text-app-text tw:type-2 tw:shadow-none',
         comment.status === 'resolved' ? 'resolved tw:opacity-68' : 'open',
         stale && 'stale tw:border-dashed',
       )}
     >
-      <div className="review-comment-meta tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption">
+      <div className="review-comment-meta tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1">
         <span>
           {comment.filePath}:{comment.lineNumber}
         </span>
         <span>{comment.side === 'left' ? '旧行' : '新行'}</span>
       </div>
-      <div className="review-comment-body tw:text-app-text tw:type-reading tw:whitespace-pre-wrap">
+      <div className="review-comment-body tw:text-app-text tw:type-2 tw:whitespace-pre-wrap">
         {comment.body}
       </div>
-      <div className="review-comment-actions tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption">
+      <div className="review-comment-actions tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1">
         {comment.status === 'open' ? (
           <Button size="compact" type="button" onClick={onResolve}>
             <CheckCircle2 size={APP_ICON_SIZES.sm} />

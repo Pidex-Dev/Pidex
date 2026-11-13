@@ -84,7 +84,10 @@
   /* ProseMirror mounts the editor content; all placements share its resting height. */
   .composer-stack .composer-editor-content {
     min-height: 44px;
-    font: var(--cpx-sys-type-reading);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
   }
 
   /* `corner-shape` has no utility in the design set and needs the modern-syntax

@@ -62,7 +62,7 @@ function GitBoardCommitHoverCardOverlay({
 }): React.ReactNode {
   const { t } = useLocale()
   const metaRowClassName =
-    'sidebar-commit-hover-card-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:text-app-text-meta tw:type-caption'
+    'sidebar-commit-hover-card-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:text-app-text-meta tw:type-1'
   return (
     <SidebarHoverCardSurface
       {...interactionProps}
@@ -72,7 +72,7 @@ function GitBoardCommitHoverCardOverlay({
     >
       <SidebarHoverCardFrame className="sidebar-commit-hover-card-content tw:flex tw:min-w-0 tw:flex-col tw:gap-2">
         <SidebarHoverCardHeader className="sidebar-commit-hover-card-header tw:grid-cols-[minmax(0,1fr)] tw:items-start">
-          <span className="sidebar-commit-hover-card-title tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:type-row-title tw:line-clamp-2 tw:wrap-anywhere tw:[word-break:break-word]">
+          <span className="sidebar-commit-hover-card-title tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:type-2 tw:weight-medium tw:line-clamp-2 tw:wrap-anywhere tw:[word-break:break-word]">
             {model.subject}
           </span>
         </SidebarHoverCardHeader>

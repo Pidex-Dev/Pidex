@@ -156,7 +156,7 @@ export function GitBoardGithubView({
   }, [])
 
   const loginState = (
-    <div className="tw:mx-auto tw:w-full tw:max-w-[32rem] tw:pt-6">
+    <div className="tw:mx-auto tw:w-full tw:max-w-[32rem] tw:pt-5">
       <GithubLoginPanel
         controller={githubLogin}
         description={t('登录后可列出并克隆你有权限访问的 GitHub 仓库。')}
@@ -168,7 +168,7 @@ export function GitBoardGithubView({
   return (
     <div className="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-3">
       {/* 搜索框位于页头（与宠物页一致），这里只报告匹配数量。 */}
-      <span role="status" className="tw:shrink-0 tw:self-end tw:type-caption tw:text-app-text-meta">
+      <span role="status" className="tw:shrink-0 tw:self-end tw:type-1 tw:text-app-text-meta">
         {list.status === 'ready'
           ? searching
             ? `${t('匹配')} ${visible.length} / ${repositories.length} ${t('个仓库')}`
@@ -178,7 +178,7 @@ export function GitBoardGithubView({
       {notice && (
         <p
           role="status"
-          className="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:rounded-md tw:border tw:border-app-success-border tw:bg-app-success-subtle tw:px-3 tw:py-2 tw:text-app-success-fg tw:type-body-sm"
+          className="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:rounded-md tw:border tw:border-app-success-border tw:bg-app-success-subtle tw:px-3 tw:py-2 tw:text-app-success-fg tw:type-1"
         >
           <CheckCircle2
             aria-hidden="true"
@@ -193,7 +193,7 @@ export function GitBoardGithubView({
       {error && (
         <p
           role="alert"
-          className="tw:m-0 tw:rounded-md tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-body-sm"
+          className="tw:m-0 tw:rounded-md tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-1"
         >
           {error}
         </p>
@@ -204,17 +204,17 @@ export function GitBoardGithubView({
         ) : list.status === 'loading' || list.status === 'idle' ? (
           <div
             role="status"
-            className="tw:flex tw:items-center tw:justify-center tw:gap-2 tw:py-16 tw:text-app-text-soft tw:type-body-sm"
+            className="tw:flex tw:items-center tw:justify-center tw:gap-2 tw:py-9 tw:text-app-text-soft tw:type-1"
           >
             <Spinner size="small" />
             {t('正在加载仓库…')}
           </div>
         ) : list.status === 'error' ? (
-          <div className="tw:mx-auto tw:grid tw:max-w-[28rem] tw:justify-items-center tw:gap-3 tw:py-16 tw:text-center">
-            <p role="alert" className="tw:m-0 tw:text-app-text tw:type-body">
+          <div className="tw:mx-auto tw:grid tw:max-w-[28rem] tw:justify-items-center tw:gap-3 tw:py-9 tw:text-center">
+            <p role="alert" className="tw:m-0 tw:text-app-text tw:type-2">
               {t('仓库列表加载失败')}
             </p>
-            <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">{list.error}</p>
+            <p className="tw:m-0 tw:text-app-text-soft tw:type-1">{list.error}</p>
             <Button variant="secondary" onClick={() => void loadRepositories()}>
               {t('重试')}
             </Button>
@@ -222,13 +222,13 @@ export function GitBoardGithubView({
         ) : !repositories.length ? (
           <p
             role="status"
-            className="tw:m-0 tw:py-16 tw:text-center tw:text-app-text-soft tw:type-body-sm"
+            className="tw:m-0 tw:py-9 tw:text-center tw:text-app-text-soft tw:type-1"
           >
             {t('没有可访问的 GitHub 仓库')}
           </p>
         ) : !visible.length ? (
-          <div className="tw:mx-auto tw:grid tw:max-w-[28rem] tw:justify-items-center tw:gap-2 tw:py-16 tw:text-center">
-            <p role="status" className="tw:m-0 tw:text-app-text tw:type-body">
+          <div className="tw:mx-auto tw:grid tw:max-w-[28rem] tw:justify-items-center tw:gap-2 tw:py-9 tw:text-center">
+            <p role="status" className="tw:m-0 tw:text-app-text tw:type-2">
               {`${t('没有匹配')} “${search.trim()}” ${t('的仓库')}`}
             </p>
             <Button variant="ghost" onClick={() => onSearchChange('')}>
@@ -282,7 +282,7 @@ function RepositoryRow({
               )}
             </span>
           </Tooltip>
-          <span className="tw:min-w-0 tw:truncate tw:text-app-text tw:type-row-title">
+          <span className="tw:min-w-0 tw:truncate tw:text-app-text tw:type-2 tw:weight-medium">
             {repository.fullName}
           </span>
           <MetaChip>{t(repository.private ? '私有' : '公开')}</MetaChip>
@@ -299,10 +299,10 @@ function RepositoryRow({
           )}
           {repository.archived && <MetaChip>{t('已归档')}</MetaChip>}
         </div>
-        <p className="tw:m-0 tw:min-w-0 tw:truncate tw:text-app-text-soft tw:type-body-sm">
+        <p className="tw:m-0 tw:min-w-0 tw:truncate tw:text-app-text-soft tw:type-1">
           {repository.description ?? t('无描述')}
         </p>
-        <div className="tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-x-3 tw:gap-y-1 tw:text-app-text-meta tw:type-caption">
+        <div className="tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-x-3 tw:gap-y-1 tw:text-app-text-meta tw:type-1">
           <span className="tw:inline-flex tw:items-center tw:gap-1">
             <GitBranch
               aria-hidden="true"
@@ -334,7 +334,7 @@ function RepositoryRow({
 
 function MetaChip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border-subtle tw:px-2 tw:text-app-text-soft tw:type-caption">
+    <span className="tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border-subtle tw:px-2 tw:text-app-text-soft tw:type-1">
       {children}
     </span>
   )

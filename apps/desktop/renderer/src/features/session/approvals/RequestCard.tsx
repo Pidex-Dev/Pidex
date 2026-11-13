@@ -33,10 +33,10 @@ const WORKFLOW_CARD_CLASS: Record<RequestCardProps['variant'], string> = {
  * row that dims while disabled and keeps the pointer cursor neutral.
  */
 export const ASK_USER_QUESTION_NAV_BUTTON_CLASS =
-  'ask-user-question-nav-button tw:inline-flex tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-inherit tw:type-body tw:disabled:cursor-default tw:disabled:opacity-45 tw:enabled:hover:cursor-default tw:enabled:hover:opacity-45'
+  'ask-user-question-nav-button tw:inline-flex tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-inherit tw:type-2 tw:disabled:cursor-default tw:disabled:opacity-45 tw:enabled:hover:cursor-default tw:enabled:hover:opacity-45'
 
 export const ASK_USER_QUESTION_PAGINATION_NAV_BUTTON_CLASS =
-  'ask-user-question-nav-button tw:inline-flex tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-1 tw:text-inherit tw:type-body tw:disabled:cursor-default tw:disabled:opacity-45 tw:enabled:hover:cursor-default tw:enabled:hover:opacity-45'
+  'ask-user-question-nav-button tw:inline-flex tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-1 tw:text-inherit tw:type-2 tw:disabled:cursor-default tw:disabled:opacity-45 tw:enabled:hover:cursor-default tw:enabled:hover:opacity-45'
 
 export function RequestCard({
   title,
@@ -59,7 +59,7 @@ export function RequestCard({
         WORKFLOW_CARD_CLASS[variant],
         // Card shell: composer-width card, 16px radius, subtle edge, panel fill
         // and the shared enter animation anchored at the bottom edge.
-        'tw:mb-3 tw:w-full tw:max-w-composer tw:type-weight-label tw:origin-bottom tw:animate-[workflow-card-in_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-standard)] tw:rounded-prominent tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-none',
+        'tw:mb-3 tw:w-full tw:max-w-composer tw:weight-medium tw:origin-bottom tw:animate-[workflow-card-in_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-standard)] tw:rounded-prominent tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-none',
         vertical ? 'tw:flex tw:flex-col' : 'tw:grid',
       )}
       data-variant={variant}
@@ -67,17 +67,17 @@ export function RequestCard({
       <header className="request-card-header tw:flex tw:items-center tw:justify-between tw:gap-3 tw:px-4 tw:pt-4 tw:pb-2">
         <div className="request-card-heading tw:grid tw:min-w-0 tw:gap-1">
           {identity ? (
-            <p className="request-card-identity tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+            <p className="request-card-identity tw:m-0 tw:text-app-text-soft tw:type-1">
               {identity}
             </p>
           ) : null}
-          <h3 className="tw:m-0 tw:type-row-title tw:wrap-anywhere">{title}</h3>
+          <h3 className="tw:m-0 tw:type-2 tw:weight-medium tw:wrap-anywhere">{title}</h3>
         </div>
         {navigation}
       </header>
       {disabledReason ? (
         <p
-          className="request-card-disabled-reason tw:m-0 tw:px-4 tw:py-2 tw:text-app-text-soft tw:type-body-sm"
+          className="request-card-disabled-reason tw:m-0 tw:px-4 tw:py-2 tw:text-app-text-soft tw:type-1"
           role="status"
         >
           {disabledReason}
@@ -91,7 +91,7 @@ export function RequestCard({
       </fieldset>
       {error ? (
         <p
-          className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-body-sm"
+          className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-1"
           role="alert"
         >
           {error}
@@ -104,7 +104,7 @@ export function RequestCard({
 export function RequestMarker({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
     <span
-      className="request-card-marker tw:inline-flex tw:size-7 tw:shrink-0 tw:self-center tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-editor tw:text-app-text-soft tw:type-body-sm"
+      className="request-card-marker tw:inline-flex tw:size-6 tw:shrink-0 tw:self-center tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-editor tw:text-app-text-soft tw:type-1"
       aria-hidden="true"
     >
       {children}

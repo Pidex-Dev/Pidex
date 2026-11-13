@@ -50,9 +50,9 @@ export type ModelRuntimeParametersPopoverProps = {
   trigger?: React.ReactElement
 }
 
-const SECTION_TITLE_CLASS = 'tw:type-label tw:text-app-text'
+const SECTION_TITLE_CLASS = 'tw:type-1 tw:weight-medium tw:text-app-text'
 const HEADING_ROW_CLASS = 'tw:flex tw:items-center tw:justify-between tw:gap-2'
-const HEADING_VALUE_CLASS = 'tw:type-caption tw:text-app-text-soft'
+const HEADING_VALUE_CLASS = 'tw:type-1 tw:text-app-text-soft'
 
 export function formatContextLimitLabel(tokens: number | null | undefined): string {
   return tokens == null ? '模型默认' : `${tokens / 1000}K`
@@ -68,7 +68,7 @@ export function ModelRuntimeParametersSummary({
   'maxContextTokens' | 'thinkingMode' | 'thinkingOptions' | 'showThinkingOptions'
 >): React.ReactElement {
   return (
-    <span className="tw:inline-flex tw:h-7 tw:shrink-0 tw:items-center tw:gap-2 tw:px-2 tw:whitespace-nowrap tw:type-control">
+    <span className="tw:inline-flex tw:h-6 tw:shrink-0 tw:items-center tw:gap-2 tw:px-2 tw:whitespace-nowrap tw:type-2 tw:weight-medium">
       {showThinkingOptions ? (
         <span>{resolveThinkingLabel(thinkingOptions, thinkingMode)}</span>
       ) : null}
@@ -313,19 +313,19 @@ export function ModelRuntimeParametersContent({
             }}
           />
         ) : (
-          <span className="tw:type-caption tw:text-app-text-meta">
+          <span className="tw:type-1 tw:text-app-text-meta">
             当前模型不支持配置推理思考强度
           </span>
         )}
       </div>
 
       {/* Divider */}
-      <div className="tw:my-3.5 tw:h-px tw:bg-app-border-subtle" />
+      <div className="tw:my-3 tw:h-px tw:bg-app-border-subtle" />
 
       {/* Lower Section: Max Context Tokens */}
       <div className="tw:flex tw:flex-col tw:gap-2">
         <div className={HEADING_ROW_CLASS}>
-          <div className="tw:flex tw:items-center tw:gap-1.5">
+          <div className="tw:flex tw:items-center tw:gap-1">
             <span className={SECTION_TITLE_CLASS}>上下文预算</span>
             <InfoTooltip
               content="控制单次请求上下文规模，超限时触发压缩或暂停。发送前自动检查预算是否充足；修改从下一轮生效，当前轮次沿用已有预算。"
@@ -348,6 +348,7 @@ export function ModelRuntimeParametersContent({
               onChange={(e) => setCustomKInput(e.target.value)}
               onBlur={handleCommitCustomK}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return
                 if (e.key === 'Escape') {
                   e.preventDefault()
                   e.stopPropagation()
@@ -362,14 +363,14 @@ export function ModelRuntimeParametersContent({
                 }
               }}
               className={cx(
-                'tw:h-6 tw:w-20 tw:rounded-indicator tw:border tw:border-app-border-subtle tw:bg-transparent',
-                'tw:px-2 tw:type-caption tw:text-app-text tw:outline-none tw:text-right',
+                'tw:h-5 tw:w-[5rem] tw:rounded-indicator tw:border tw:border-app-border-subtle tw:bg-transparent',
+                'tw:px-2 tw:type-1 tw:text-app-text tw:outline-none tw:text-right',
                 'tw:transition-colors tw:duration-feedback tw:ease-standard',
                 'tw:focus:border-app-focus tw:focus:outline-none',
                 'tw:disabled:cursor-default tw:disabled:opacity-60',
               )}
             />
-            {showKUnit ? <span className="tw:type-caption tw:text-app-text-soft">k</span> : null}
+            {showKUnit ? <span className="tw:type-1 tw:text-app-text-soft">k</span> : null}
           </div>
         </div>
 
@@ -385,7 +386,7 @@ export function ModelRuntimeParametersContent({
         </div>
 
         {inputBudgetTokens !== undefined && outputReserveTokens !== undefined ? (
-          <span className="tw:type-caption tw:text-app-text-meta">
+          <span className="tw:type-1 tw:text-app-text-meta">
             {`实际输入预算 ${formatCompactNumber(inputBudgetTokens)} · 输出预留 ${formatCompactNumber(outputReserveTokens)}`}
           </span>
         ) : null}
@@ -394,12 +395,12 @@ export function ModelRuntimeParametersContent({
           <span
             id={`${customInputId}-error`}
             role="alert"
-            className="tw:type-caption tw:text-app-warning"
+            className="tw:type-1 tw:text-app-warning"
           >
             {inputError}
           </span>
         ) : maxContextTokens !== null && maxContextTokens < minimumTokens ? (
-          <span role="alert" className="tw:type-caption tw:text-app-warning">
+          <span role="alert" className="tw:type-1 tw:text-app-warning">
             {`系统必要开销约 ${minimumTokens / 1000}K，预算不能低于此值。`}
           </span>
         ) : null}
@@ -454,7 +455,7 @@ export function ModelRuntimeParametersPopover({
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       className={cx(
-        'composer-signal-trigger-btn tw:inline-flex tw:h-7 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:p-0',
+        'composer-signal-trigger-btn tw:inline-flex tw:h-6 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:p-0',
         'tw:rounded-pill tw:border-0 tw:bg-transparent tw:text-app-text-soft',
         'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
         'tw:hover:bg-app-hover tw:hover:text-app-text',
@@ -481,7 +482,7 @@ export function ModelRuntimeParametersPopover({
           align={align}
           sideOffset={sideOffset}
         >
-          <div className="composer-runtime-params-popover-content tw:w-65 tw:p-2.5">
+          <div className="composer-runtime-params-popover-content tw:w-[16.25rem] tw:p-2">
             <ModelRuntimeParametersContent
               physicalWindow={physicalWindow}
               physicalInputLimit={physicalInputLimit}

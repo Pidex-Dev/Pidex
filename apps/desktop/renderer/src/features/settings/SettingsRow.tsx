@@ -52,12 +52,12 @@ export function SettingsRow({
       id={id}
     >
       <div className="settings-row-info tw:min-w-0">
-        <h4 className="settings-row-title tw:m-0 tw:text-app-text tw:type-row-title" id={titleId}>
+        <h4 className="settings-row-title tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium" id={titleId}>
           {t(title)}
         </h4>
         {description ? (
           <p
-            className="settings-row-desc tw:mt-1 tw:mr-0 tw:mb-0 tw:ml-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm"
+            className="settings-row-desc tw:mt-1 tw:mr-0 tw:mb-0 tw:ml-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1"
             id={descriptionId}
           >
             {typeof description === 'string' ? t(description) : description}

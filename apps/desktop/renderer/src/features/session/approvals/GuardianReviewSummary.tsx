@@ -75,25 +75,25 @@ export function GuardianReviewSummary({
   return (
     <div className="inline-approval-guardian tw:grid tw:gap-2 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-editor tw:p-3">
       <div className="tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-2">
-        <span className="tw:text-app-text tw:type-label">Guardian 自动审查</span>
-        <span className="tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-0.5 tw:text-app-text-soft tw:type-caption">
+        <span className="tw:text-app-text tw:type-1 tw:weight-medium">Guardian 自动审查</span>
+        <span className="tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-1">
           {STATUS_LABEL[review.status]}
         </span>
-        <span className={cx('tw:text-app-text-soft tw:type-caption', tone(review.risk))}>
+        <span className={cx('tw:text-app-text-soft tw:type-1', tone(review.risk))}>
           {RISK_LABEL[review.risk]}
         </span>
-        <span className="tw:text-app-text-meta tw:type-caption">
+        <span className="tw:text-app-text-meta tw:type-1">
           {AUTH_LABEL[review.userAuthorization]}
         </span>
-        <span className="tw:text-app-text-meta tw:type-caption">
+        <span className="tw:text-app-text-meta tw:type-1">
           {CONFIDENCE_LABEL[review.confidence]}
         </span>
-        <span className="tw:text-app-text-meta tw:type-caption">{SOURCE_LABEL[review.source]}</span>
+        <span className="tw:text-app-text-meta tw:type-1">{SOURCE_LABEL[review.source]}</span>
         {review.scoreLag !== undefined ? (
-          <span className="tw:text-app-text-meta tw:type-caption">评分滞后 {review.scoreLag}</span>
+          <span className="tw:text-app-text-meta tw:type-1">评分滞后 {review.scoreLag}</span>
         ) : null}
       </div>
-      <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
+      <p className="tw:m-0 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
         {review.rationale}
       </p>
       {categories.length > 0 ? (
@@ -101,7 +101,7 @@ export function GuardianReviewSummary({
           {categories.map((category) => (
             <span
               key={category}
-              className="tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-0.5 tw:text-app-text-meta tw:type-caption"
+              className="tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1"
             >
               {category}
             </span>
@@ -109,7 +109,7 @@ export function GuardianReviewSummary({
         </div>
       ) : null}
       {review.fallbackReason || fallbackReason ? (
-        <p className="tw:m-0 tw:text-app-text-meta tw:type-caption tw:wrap-anywhere">
+        <p className="tw:m-0 tw:text-app-text-meta tw:type-1 tw:wrap-anywhere">
           已回退人工审批：{review.fallbackReason ?? fallbackReason}
         </p>
       ) : null}

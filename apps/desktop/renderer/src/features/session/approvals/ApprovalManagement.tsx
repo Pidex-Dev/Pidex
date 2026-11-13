@@ -101,7 +101,7 @@ export function AutoReviewNudge({
       variant="permission"
       description={
         <>
-          <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
+          <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
             你已成功允许三次操作。可以由 Guardian 审查后续操作；关闭此提示会保留人工审批。
           </p>
           {error ? <p role="alert">{error}</p> : null}
@@ -329,10 +329,10 @@ export function ApprovalRulesDialog({
         >
           <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
             <div className="tw:min-w-0 tw:flex-1">
-              <Dialog.Title className="tw:m-0 tw:text-app-text tw:type-title-sm">
+              <Dialog.Title className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
                 审批规则
               </Dialog.Title>
-              <Dialog.Description className="tw:m-0 tw:mt-1 tw:text-app-text-soft tw:type-body-sm">
+              <Dialog.Description className="tw:m-0 tw:mt-1 tw:text-app-text-soft tw:type-1">
                 规则叠加在权限预设之上：拒绝优先于询问，询问优先于允许。聊天规则只影响当前聊天；
                 用户和项目规则写入持久配置，需要你主动选择。
               </Dialog.Description>
@@ -345,7 +345,7 @@ export function ApprovalRulesDialog({
           </header>
 
           {!supported ? (
-            <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm" role="status">
+            <p className="tw:m-0 tw:text-app-text-soft tw:type-1" role="status">
               正在确认审批规则能力…当前 Agent 需要协商 permission.rules.v1 才能管理规则。
             </p>
           ) : (
@@ -384,7 +384,7 @@ export function ApprovalRulesDialog({
                     className="tw:shrink-0 tw:text-app-warning"
                     size="var(--inline-icon-size, 1em)"
                   />
-                  <span className="tw:min-w-0 tw:flex-1 tw:text-app-text-soft tw:type-body-sm">
+                  <span className="tw:min-w-0 tw:flex-1 tw:text-app-text-soft tw:type-1">
                     规则已在其他位置更新，请刷新后重试。
                   </span>
                   <Button
@@ -398,7 +398,7 @@ export function ApprovalRulesDialog({
                 </div>
               ) : null}
               {error ? (
-                <p className="tw:m-0 tw:text-app-danger tw:type-body-sm" role="alert">
+                <p className="tw:m-0 tw:text-app-danger tw:type-1" role="alert">
                   {error}
                 </p>
               ) : null}
@@ -429,7 +429,7 @@ export function ApprovalRulesDialog({
                 data-approval-rule-list={tab}
               >
                 {loading ? (
-                  <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm" role="status">
+                  <p className="tw:m-0 tw:text-app-text-soft tw:type-1" role="status">
                     正在加载审批规则…
                   </p>
                 ) : visibleRules.length ? (
@@ -443,11 +443,11 @@ export function ApprovalRulesDialog({
                       key={rule.id}
                     >
                       <div className="tw:flex tw:min-w-0 tw:items-start tw:justify-between tw:gap-3">
-                        <div className="tw:grid tw:min-w-0 tw:gap-0.5">
-                          <span className="tw:text-app-text tw:type-body-sm tw:wrap-anywhere">
+                        <div className="tw:grid tw:min-w-0 tw:gap-1">
+                          <span className="tw:text-app-text tw:type-1 tw:wrap-anywhere">
                             {approvalRuleMatchSummary(rule.match)}
                           </span>
-                          <span className="tw:text-app-text-meta tw:type-caption">
+                          <span className="tw:text-app-text-meta tw:type-1">
                             {approvalRuleScopeDescription(rule)}
                           </span>
                         </div>
@@ -475,7 +475,7 @@ export function ApprovalRulesDialog({
                     </div>
                   ))
                 ) : (
-                  <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+                  <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
                     {query.trim()
                       ? '没有匹配的规则。'
                       : `暂无${tab === 'ask' ? '询问' : tab === 'deny' ? '拒绝' : '允许'}规则。`}
@@ -575,7 +575,7 @@ export function ApprovalRetryDialog({
       description={
         <div className="request-card-content">
           <p>选择最近被自动审查拒绝的操作；授权仅匹配原工具、参数和范围，重试仍经过 Guardian。</p>
-          <p className="tw:text-app-text-soft tw:type-body-sm">
+          <p className="tw:text-app-text-soft tw:type-1">
             最近 {state.reviews.length} 次自动审查 · 人工允许累计 {state.manualAllows} 次 ·
             可重试拒绝 {state.denials.length} 次
           </p>
@@ -588,7 +588,7 @@ export function ApprovalRetryDialog({
               role="radio"
               aria-checked={selected === denial.id}
               className={cx(
-                'inline-approval-option tw:grid tw:w-full tw:gap-1 tw:rounded-lg tw:border tw:border-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring)] tw:focus-visible:outline-none',
+                'inline-approval-option tw:grid tw:w-full tw:gap-1 tw:rounded-lg tw:border tw:border-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring)] tw:focus-visible:outline-none',
                 selected === denial.id ? 'selected tw:bg-app-hover' : 'tw:bg-transparent',
               )}
               disabled={busy}
@@ -597,7 +597,7 @@ export function ApprovalRetryDialog({
               <span>
                 {denial.tool}：{denial.reason}
               </span>
-              <span className="tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption">
+              <span className="tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1">
                 <span>{STATUS_LABELS[denial.guardian.status] ?? denial.guardian.status}</span>
                 <span>{RISK_LABELS[denial.guardian.risk] ?? denial.guardian.risk}</span>
                 <span>

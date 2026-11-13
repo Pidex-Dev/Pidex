@@ -584,7 +584,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
           {showInitialSkeleton ? (
             <ModelCenterInitialSkeleton view="catalog" />
           ) : providerQuery.trim() && marketProviders.length === 0 ? (
-            <p className="tw:py-8 tw:text-center tw:text-app-text-meta tw:type-body-sm">
+            <p className="tw:py-6 tw:text-center tw:text-app-text-meta tw:type-1">
               没有匹配的供应商
             </p>
           ) : (
@@ -596,9 +596,9 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
             />
           )}
           {orphanCredentials.length > 0 ? (
-            <section aria-label="遗留供应商凭据" className="tw:mt-6 tw:grid tw:gap-3">
-              <h2 className="tw:type-title-sm tw:text-app-text">遗留供应商凭据</h2>
-              <p className="tw:type-body-sm tw:text-app-text-meta">
+            <section aria-label="遗留供应商凭据" className="tw:mt-5 tw:grid tw:gap-3">
+              <h2 className="tw:type-4 tw:weight-bold tw:text-app-text">遗留供应商凭据</h2>
+              <p className="tw:type-1 tw:text-app-text-meta">
                 这些凭据所属的供应商已不存在，可单独删除，历史聊天仍保留。
               </p>
               {orphanCredentials.map((credential) => (
@@ -620,10 +620,10 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
         </PrimaryPageLayout>
       ) : (
         <div className="model-center-shell tw:@container tw:h-full tw:w-full tw:min-w-0 tw:overflow-x-hidden tw:overflow-y-auto tw:p-5">
-          <div className="tw:mx-auto tw:min-w-0 tw:w-full tw:max-w-[var(--page-content-max-width)] tw:pb-8">
+          <div className="tw:mx-auto tw:min-w-0 tw:w-full tw:max-w-[var(--page-content-max-width)] tw:pb-6">
             {showingCustomEditor ? (
               <>
-                <div className="plugins-detail-breadcrumb model-center-detail-breadcrumb tw:mb-4 tw:inline-flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
+                <div className="plugins-detail-breadcrumb model-center-detail-breadcrumb tw:mb-4 tw:inline-flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
                   <Button
                     color="ghostSecondary"
                     onClick={

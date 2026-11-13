@@ -49,7 +49,7 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
   const { item } = props
 
   return (
-    <section className="catalog-details-view tw:grid tw:mx-auto tw:w-[min(var(--page-content-max-width),100%)] tw:gap-7">
+    <section className="catalog-details-view tw:grid tw:mx-auto tw:w-[min(var(--page-content-max-width),100%)] tw:gap-6">
       <header className="catalog-details-view__header tw:grid tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:@max-[479px]/plugins-page:grid-cols-1">
         <span
           aria-hidden="true"
@@ -62,12 +62,12 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
           <Lightbulb data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
         </span>
         <div className={cx('catalog-details-view__identity', DETAILS_IDENTITY_CLASS)}>
-          <h1 className="tw:m-0 tw:text-app-text tw:type-title-sm tw:wrap-anywhere">{item.name}</h1>
-          <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">{props.item.source}</p>
+          <h1 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold tw:wrap-anywhere">{item.name}</h1>
+          <p className="tw:m-0 tw:text-app-text-soft tw:type-1">{props.item.source}</p>
         </div>
         <div className={cx('catalog-details-view__primary-action', DETAILS_ACTION_GROUP_CLASS)}>
           {props.item.installed ? (
-            <span className="catalog-details-view__installed tw:text-app-success-fg tw:type-caption">
+            <span className="catalog-details-view__installed tw:text-app-success-fg tw:type-1">
               已添加
             </span>
           ) : (
@@ -83,12 +83,12 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
         </div>
       </header>
 
-      <div className="catalog-details-view__body tw:grid tw:min-w-0 tw:gap-6">
+      <div className="catalog-details-view__body tw:grid tw:min-w-0 tw:gap-5">
         <section
           aria-labelledby="catalog-details-overview"
           className={cx('catalog-details-section', DETAILS_SECTION_CLASS)}
         >
-          <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm" id="catalog-details-overview">
+          <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold" id="catalog-details-overview">
             概览
           </h2>
           <SkillDetailsMetadata item={props.item} />
@@ -98,7 +98,7 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
           aria-labelledby="catalog-details-audit"
           className={cx('catalog-details-section', DETAILS_SECTION_CLASS)}
         >
-          <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm" id="catalog-details-audit">
+          <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold" id="catalog-details-audit">
             安全审计
           </h2>
           {props.item.audit ? (
@@ -127,7 +127,7 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
               ) : null}
             </dl>
           ) : (
-            <p className="catalog-details-section__empty tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+            <p className="catalog-details-section__empty tw:m-0 tw:text-app-text-soft tw:type-1">
               该目录条目未提供审计信息。
             </p>
           )}

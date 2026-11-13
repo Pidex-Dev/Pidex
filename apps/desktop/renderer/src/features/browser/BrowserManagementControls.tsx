@@ -219,12 +219,13 @@ export function BrowserManagementControls({
     <>
       {findOpen ? (
         <form
-          className="browser-find-bar tw:flex tw:items-center tw:gap-1 tw:border-b tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-body-sm tw:text-app-text-soft"
+          className="browser-find-bar tw:flex tw:items-center tw:gap-1 tw:border-b tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft"
           onSubmit={(event) => {
             event.preventDefault()
             void find(query, true, true)
           }}
           onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
             if (event.key === 'Escape') {
               event.preventDefault()
               closeFind()
@@ -235,7 +236,7 @@ export function BrowserManagementControls({
           }}
         >
           <input
-            className="browser-find-input tw:min-w-0 tw:flex-auto tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+            className="browser-find-input tw:min-w-0 tw:flex-auto tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
             ref={findInput}
             aria-label="在页面中查找"
             maxLength={1000}
@@ -281,9 +282,9 @@ export function BrowserManagementControls({
         </form>
       ) : null}
       {deviceOpen ? (
-        <div className="browser-device-bar tw:flex tw:flex-wrap tw:items-center tw:gap-1 tw:border-b tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-body-sm tw:text-app-text-soft">
+        <div className="browser-device-bar tw:flex tw:flex-wrap tw:items-center tw:gap-1 tw:border-b tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft">
           <select
-            className="tw:min-w-0 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+            className="tw:min-w-0 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
             aria-label="模拟设备"
             value={device.mode}
             disabled={busy}
@@ -316,7 +317,7 @@ export function BrowserManagementControls({
             }}
           >
             <input
-              className="tw:min-w-0 tw:w-16 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+              className="tw:min-w-0 tw:w-9 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
               aria-label="视口宽度"
               type="number"
               min={320}
@@ -328,7 +329,7 @@ export function BrowserManagementControls({
             />
             <span>×</span>
             <input
-              className="tw:min-w-0 tw:w-16 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+              className="tw:min-w-0 tw:w-9 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
               aria-label="视口高度"
               type="number"
               min={200}
@@ -375,7 +376,7 @@ export function BrowserManagementControls({
       ) : null}
       {message && view === null ? (
         <div
-          className="browser-management-message tw:p-2 tw:type-body-sm tw:text-app-text-soft"
+          className="browser-management-message tw:p-2 tw:type-1 tw:text-app-text-soft"
           role="status"
         >
           {message}
@@ -419,7 +420,7 @@ export function BrowserManagementControls({
           另存为 PDF
         </PopoverItem>
         <div
-          className="browser-menu-zoom tw:flex tw:items-center tw:gap-1 tw:px-2 tw:py-1 tw:type-body-sm tw:text-app-text-soft"
+          className="browser-menu-zoom tw:flex tw:items-center tw:gap-1 tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft"
           role="group"
           aria-label="网页缩放"
         >
@@ -435,7 +436,7 @@ export function BrowserManagementControls({
             <Minus size={APP_ICON_SIZE} />
           </Button>
           <button
-            className="browser-zoom-reset tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-inherit tw:type-body tw:hover:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+            className="browser-zoom-reset tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-inherit tw:type-2 tw:hover:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
             disabled={!utilities || busy}
             title="恢复 100%"
             onClick={() => void run({ action: 'zoom', direction: 'reset' })}
@@ -500,7 +501,7 @@ export function BrowserManagementControls({
             onCloseAutoFocus={onCloseAutoFocus}
           >
             <header>
-              <Dialog.Title className="tw:m-0 tw:type-title-sm">
+              <Dialog.Title className="tw:m-0 tw:type-4 tw:weight-bold">
                 {view === 'history' ? '浏览历史' : view === 'downloads' ? '下载' : '清除浏览数据'}
               </Dialog.Title>
               <Button
@@ -514,7 +515,7 @@ export function BrowserManagementControls({
                 <X size={APP_ICON_SIZE} />
               </Button>
             </header>
-            <Dialog.Description className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">
+            <Dialog.Description className="tw:m-0 tw:type-1 tw:text-app-text-soft">
               {view === 'history'
                 ? '所有项目、聊天和窗口的浏览历史。'
                 : view === 'downloads'
@@ -525,7 +526,7 @@ export function BrowserManagementControls({
               <>
                 <input
                   aria-label="搜索浏览历史"
-                  className="tw:min-w-0 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+                  className="tw:min-w-0 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
                   maxLength={500}
                   placeholder="搜索标题或网址"
                   value={historyQuery}
@@ -537,13 +538,13 @@ export function BrowserManagementControls({
                       {index === 0 ||
                       new Date(visits[index - 1]!.visitedAt).toDateString() !==
                         new Date(visit.visitedAt).toDateString() ? (
-                        <h4 className="tw:m-0 tw:p-2 tw:type-body-sm">
+                        <h4 className="tw:m-0 tw:p-2 tw:type-1">
                           {new Date(visit.visitedAt).toLocaleDateString()}
                         </h4>
                       ) : null}
                       <div className="browser-history-row tw:flex tw:items-center tw:gap-2 tw:p-2">
                         <button
-                          className="browser-history-link tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:items-start tw:rounded-md tw:border-0 tw:bg-transparent tw:p-2 tw:text-left tw:type-body-sm tw:text-app-text tw:hover:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
+                          className="browser-history-link tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:items-start tw:rounded-md tw:border-0 tw:bg-transparent tw:p-2 tw:text-left tw:type-1 tw:text-app-text tw:hover:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
                           onClick={() => {
                             void client
                               .createTab(null, visit.url)
@@ -573,7 +574,7 @@ export function BrowserManagementControls({
                     </div>
                   ))}
                   {!loading && visits.length === 0 ? (
-                    <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">暂无浏览历史</p>
+                    <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">暂无浏览历史</p>
                   ) : null}
                 </div>
                 {cursor ? (
@@ -601,7 +602,7 @@ export function BrowserManagementControls({
               <div className="browser-management-list tw:min-h-0 tw:overflow-auto">
                 {downloads.map((download) => (
                   <div
-                    className="browser-download-row tw:flex tw:flex-col tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-3 tw:type-body-sm tw:wrap-anywhere"
+                    className="browser-download-row tw:flex tw:flex-col tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-3 tw:type-1 tw:wrap-anywhere"
                     key={download.id}
                   >
                     <strong>{download.fileName}</strong>
@@ -719,7 +720,7 @@ export function BrowserManagementControls({
                   </div>
                 ))}
                 {!loading && downloads.length === 0 ? (
-                  <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">暂无下载记录</p>
+                  <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">暂无下载记录</p>
                 ) : null}
                 <Button
                   size="md"
@@ -754,13 +755,13 @@ export function BrowserManagementControls({
                   ))}
                 </div>
                 {selected.includes('siteData') ? (
-                  <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">
+                  <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
                     网页可能退出登录，正在进行的 Agent 网页操作将停止；站点授权保持不变。
                   </p>
                 ) : null}
                 {clearResult?.map((result) => (
                   <p
-                    className="tw:m-0 tw:type-body-sm tw:text-app-text-soft"
+                    className="tw:m-0 tw:type-1 tw:text-app-text-soft"
                     role="status"
                     key={result.category}
                   >
@@ -797,12 +798,12 @@ export function BrowserManagementControls({
               </>
             ) : null}
             {loading ? (
-              <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft" role="status">
+              <p className="tw:m-0 tw:type-1 tw:text-app-text-soft" role="status">
                 正在读取…
               </p>
             ) : null}
             {message ? (
-              <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft" role="status">
+              <p className="tw:m-0 tw:type-1 tw:text-app-text-soft" role="status">
                 {message}
               </p>
             ) : null}

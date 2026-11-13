@@ -476,7 +476,7 @@ export function ProviderRequestSettingsForm({
         className="tw:m-0 tw:grid tw:min-h-0 tw:min-w-0 tw:content-start tw:gap-4 tw:border-0 tw:p-0"
       >
         <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-          <h3 className="tw:m-0 tw:type-title-sm">请求配置</h3>
+          <h3 className="tw:m-0 tw:type-4 tw:weight-bold">请求配置</h3>
           <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
             {!oauthOnly ? (
               <Button
@@ -512,7 +512,7 @@ export function ProviderRequestSettingsForm({
           endpointOptions
             .filter((option) => option.value in draft.endpoints)
             .map((option) => (
-              <div key={option.value} className="tw:grid tw:gap-2 tw:type-label">
+              <div key={option.value} className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
                 <span className="tw:flex tw:items-center tw:gap-2">
                   {option.label}
                   {!['openai-embeddings', 'jina-rerank'].includes(option.value) ? (
@@ -548,7 +548,7 @@ export function ProviderRequestSettingsForm({
               </div>
             ))
         ) : (
-          <label className="tw:grid tw:gap-2 tw:type-label">
+          <label className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
             API 地址
             <Input
               aria-label="API 地址"
@@ -606,7 +606,7 @@ export function ProviderRequestSettingsForm({
         <div className="tw:grid tw:gap-3">
           <button
             type="button"
-            className="tw:flex tw:items-center tw:justify-start tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-app-text-soft tw:type-body-sm tw:hover:text-app-text tw:focus-visible:outline-app-focus"
+            className="tw:flex tw:items-center tw:justify-start tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-app-text-soft tw:type-1 tw:hover:text-app-text tw:focus-visible:outline-app-focus"
             aria-expanded={advanced}
             aria-controls={advancedId}
             onClick={() => setAdvanced(!advanced)}
@@ -624,7 +624,7 @@ export function ProviderRequestSettingsForm({
             expanded={advanced}
             contentClassName="tw:grid tw:gap-4"
           >
-            <div className="tw:flex tw:items-center tw:justify-between tw:type-body-sm">
+            <div className="tw:flex tw:items-center tw:justify-between tw:type-1">
               <span>允许非本地明文 HTTP</span>
               <ToggleSwitch
                 ariaLabel="允许远程 HTTP"
@@ -634,7 +634,7 @@ export function ProviderRequestSettingsForm({
             </div>
             {provider.config?.kind === 'builtin' ? (
               <>
-                <label className="tw:grid tw:gap-2 tw:type-body-sm">
+                <label className="tw:grid tw:gap-2 tw:type-1">
                   允许模型（逗号分隔，留空表示全部）
                   <Input
                     onBlur={() => void save()}
@@ -642,7 +642,7 @@ export function ProviderRequestSettingsForm({
                     onChange={(event) => setDraft({ ...draft, allowModels: event.target.value })}
                   />
                 </label>
-                <label className="tw:grid tw:gap-2 tw:type-body-sm">
+                <label className="tw:grid tw:gap-2 tw:type-1">
                   排除模型（逗号分隔）
                   <Input
                     onBlur={() => void save()}
@@ -654,7 +654,7 @@ export function ProviderRequestSettingsForm({
             ) : null}
             {provider.config?.kind === 'custom' ? (
               <>
-                <label className="tw:grid tw:gap-2 tw:type-label">
+                <label className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
                   认证方式
                   <SettingsDropdown
                     ariaLabel="认证方式"
@@ -666,7 +666,7 @@ export function ProviderRequestSettingsForm({
                     onChange={(auth) => commit({ ...draft, auth: auth as 'api-key' | 'none' })}
                   />
                 </label>
-                <label className="tw:grid tw:gap-2 tw:type-label">
+                <label className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
                   环境变量（逗号分隔）
                   <Input
                     onBlur={() => void save()}
@@ -677,10 +677,10 @@ export function ProviderRequestSettingsForm({
               </>
             ) : null}
             {provider.config?.kind === 'custom' ? (
-              <label className="tw:grid tw:gap-2 tw:type-label">
+              <label className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
                 自定义请求头
                 <textarea
-                  className="tw:min-h-24 tw:rounded-md tw:border tw:border-app-border tw:bg-app-control tw:p-3 tw:type-code"
+                  className="tw:min-h-[6rem] tw:rounded-md tw:border tw:border-app-border tw:bg-app-control tw:p-3 tw:type-code"
                   aria-label="自定义请求头"
                   placeholder="每行 name: value"
                   onBlur={() => void save()}
@@ -692,14 +692,14 @@ export function ProviderRequestSettingsForm({
           </DisclosureContent>
         </div>
         {error ? (
-          <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-body-sm">
+          <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-1">
             {error}
           </p>
         ) : null}
       </fieldset>
       {nameHost && provider.config?.kind === 'custom'
         ? createPortal(
-            <label className="tw:grid tw:gap-2 tw:type-label">
+            <label className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
               供应商名称
               <Input
                 disabled={detecting}

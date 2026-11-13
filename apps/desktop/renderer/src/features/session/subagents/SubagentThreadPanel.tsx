@@ -220,7 +220,7 @@ export function SubagentThreadPanel({
             size="lg"
           />
           <div className="subagent-thread-panel__title-block tw:min-w-0">
-            <h2 className="tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-row-title tw:tracking-normal">
+            <h2 className="tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-2 tw:weight-medium tw:tracking-normal">
               {task.displayName}
             </h2>
           </div>
@@ -294,9 +294,9 @@ export function SubagentThreadPanel({
         ref={scrollRef}
         className="subagent-thread-panel__scroll-region thread-scroll-layout tw:min-h-0 tw:overflow-auto tw:[scrollbar-gutter:stable]"
       >
-        <div className="subagent-thread-panel__transcript tw:mx-auto tw:grid tw:w-[min(760px,calc(100%-28px))] tw:min-w-0 tw:gap-4 tw:px-0 tw:pt-5 tw:pb-7">
+        <div className="subagent-thread-panel__transcript tw:mx-auto tw:grid tw:w-[min(760px,calc(100%-28px))] tw:min-w-0 tw:gap-4 tw:px-0 tw:pt-5 tw:pb-6">
           <div
-            className="tw:text-app-text-meta tw:type-caption tw:[overflow-anchor:none]"
+            className="tw:text-app-text-meta tw:type-1 tw:[overflow-anchor:none]"
             role="status"
           >
             第 {task.depth ?? 1} 层{task.waitingForDescendants ? ' · 等待后代结算' : ''}
@@ -304,7 +304,7 @@ export function SubagentThreadPanel({
           </div>
           {run.queueReason ? (
             <div
-              className="subagent-thread-panel__notice tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:px-3 tw:py-2 tw:bg-app-editor tw:text-app-text-meta tw:type-body-sm tw:[overflow-anchor:none]"
+              className="subagent-thread-panel__notice tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:px-3 tw:py-2 tw:bg-app-editor tw:text-app-text-meta tw:type-1 tw:[overflow-anchor:none]"
               role="status"
             >
               <LoaderCircle className="tw:animate-spin" size={APP_ICON_SIZE} />
@@ -334,7 +334,7 @@ export function SubagentThreadPanel({
             </ConversationItemContext.Provider>
           ) : (
             <div
-              className="subagent-thread-panel__empty tw:py-7 tw:text-center tw:text-app-text-meta tw:type-body tw:[overflow-anchor:none]"
+              className="subagent-thread-panel__empty tw:py-6 tw:text-center tw:text-app-text-meta tw:type-2 tw:[overflow-anchor:none]"
               role="status"
             >
               {run.status === 'queued' || run.status === 'preparing'
@@ -377,7 +377,7 @@ export function SubagentThreadPanel({
           ) : null}
           {run.error ? (
             <div
-              className="subagent-thread-panel__error tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-body-sm tw:[overflow-anchor:none]"
+              className="subagent-thread-panel__error tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-1 tw:[overflow-anchor:none]"
               role="alert"
             >
               <AlertCircle size="var(--inline-icon-size, 1em)" />
@@ -407,7 +407,7 @@ function BlockedNotice({
           : '此子智能体已阻塞'
   return (
     <div
-      className="subagent-thread-panel__blocked tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:px-3 tw:py-2 tw:text-app-warning-fg tw:type-body-sm"
+      className="subagent-thread-panel__blocked tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:px-3 tw:py-2 tw:text-app-warning-fg tw:type-1"
       role="status"
     >
       <AlertCircle size="var(--inline-icon-size, 1em)" />
@@ -419,7 +419,7 @@ function BlockedNotice({
 function StatusBadge({ status }: { status: SubagentRun['status'] }): React.ReactNode {
   return (
     <span
-      className="subagent-thread-panel__status-badge tw:flex tw:flex-none tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-caption tw:data-[status=completed]:border-app-success-border tw:data-[status=completed]:bg-app-success-subtle tw:data-[status=completed]:text-app-success-fg tw:data-[status=failed]:border-app-danger-border tw:data-[status=failed]:bg-app-danger-subtle tw:data-[status=failed]:text-app-danger-fg tw:data-[status=interrupted]:border-app-danger-border tw:data-[status=interrupted]:bg-app-danger-subtle tw:data-[status=interrupted]:text-app-danger-fg"
+      className="subagent-thread-panel__status-badge tw:flex tw:flex-none tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1 tw:data-[status=completed]:border-app-success-border tw:data-[status=completed]:bg-app-success-subtle tw:data-[status=completed]:text-app-success-fg tw:data-[status=failed]:border-app-danger-border tw:data-[status=failed]:bg-app-danger-subtle tw:data-[status=failed]:text-app-danger-fg tw:data-[status=interrupted]:border-app-danger-border tw:data-[status=interrupted]:bg-app-danger-subtle tw:data-[status=interrupted]:text-app-danger-fg"
       data-status={status}
     >
       {isActiveRunStatus(status) ? (

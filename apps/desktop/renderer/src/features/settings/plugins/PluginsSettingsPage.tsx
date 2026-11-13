@@ -842,7 +842,7 @@ export function PluginsSettingsPage({
 
     return (
       <SettingsContentArea className="plugins-settings-page">
-        <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+        <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
           <PluginSettingsDetailsView
             item={requestedPlugin}
             workspacePath={workspacePath}
@@ -901,7 +901,7 @@ export function PluginsSettingsPage({
   if (requestedPluginId && pluginsLoading) {
     return (
       <SettingsContentArea className="plugins-settings-page">
-        <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+        <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
           <LoadingRows />
         </div>
       </SettingsContentArea>
@@ -910,11 +910,11 @@ export function PluginsSettingsPage({
 
   return (
     <SettingsContentArea className="plugins-settings-page">
-      <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-        <header className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:flex tw:items-start tw:justify-between tw:gap-4">
+      <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+        <header className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-4">
           <div className="tw:grid tw:gap-2">
-            <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">插件</h2>
-            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
+            <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">插件</h2>
+            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
               管理插件、技能和 MCP
             </p>
           </div>
@@ -974,7 +974,7 @@ export function PluginsSettingsPage({
             <SearchInput
               ref={searchRef}
               aria-label={searchPlaceholder(tab)}
-              className="tw:w-72 tw:max-w-full tw:max-[1023px]:w-full"
+              className="tw:w-[18rem] tw:max-w-full tw:max-[1023px]:w-full"
               placeholder={searchPlaceholder(tab)}
               value={query}
               onChange={setQuery}
@@ -1010,7 +1010,7 @@ export function PluginsSettingsPage({
 
         {tabError ? (
           <div
-            className="tw:type-body-sm tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-danger"
+            className="tw:type-1 tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-danger"
             role="alert"
           >
             <span>{tabError}</span>
@@ -1020,7 +1020,7 @@ export function PluginsSettingsPage({
           </div>
         ) : null}
         {tab === 'mcps' && mcpStatus ? (
-          <p className="tw:type-body-sm tw:mt-0 tw:mb-4 tw:text-app-text-soft" role="status">
+          <p className="tw:type-1 tw:mt-0 tw:mb-4 tw:text-app-text-soft" role="status">
             {mcpStatus}
           </p>
         ) : null}
@@ -1379,7 +1379,7 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
   const source = server.scope === 'local' ? '工作区' : '用户'
   if (!server.effective) {
     return (
-      <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
+      <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1 tw:max-[640px]:justify-start">
         <span>
           {source} · {server.type}
         </span>
@@ -1391,7 +1391,7 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
   const runtime = server.runtime
   if (!runtime) {
     return (
-      <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
+      <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1 tw:max-[640px]:justify-start">
         <span>
           {source} · {server.type}
         </span>
@@ -1412,7 +1412,7 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
       ? `${runtime.toolCount} 工具 · ${runtime.resourceCount} 资源 · ${runtime.promptCount} Prompt`
       : null
   return (
-    <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
+    <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1 tw:max-[640px]:justify-start">
       <span>
         {source} · {server.type}
       </span>
@@ -1426,7 +1426,7 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
 
 function AuthSourceBadge({ source }: { source: 'environment' | 'oauth' }): React.ReactNode {
   return (
-    <span className="tw:type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
+    <span className="tw:type-1 tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-text-soft">
       {source === 'oauth' ? 'OAuth' : '环境凭据'}
     </span>
   )
@@ -1485,8 +1485,8 @@ function HostManagedMcpBadge({
     shadowed: '被覆盖',
   }
   return (
-    <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
-      <span className="tw:type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
+    <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1 tw:max-[640px]:justify-start">
+      <span className="tw:type-1 tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-text-soft">
         宿主提供
       </span>
       <StatusBadge state={state} label={label[state]} />
@@ -1497,7 +1497,7 @@ function HostManagedMcpBadge({
 
 function DiagnosticContextBadge(): React.ReactNode {
   return (
-    <span className="tw:type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
+    <span className="tw:type-1 tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-text-soft">
       会话诊断
     </span>
   )
@@ -1516,7 +1516,7 @@ function StatusBadge({
       : state === 'failed' || state === 'needs_auth'
         ? 'tw:bg-app-danger/15 tw:text-app-danger'
         : 'tw:bg-app-panel tw:text-app-text-soft'
-  return <span className={`tw:type-caption tw:inline-flex tw:px-2 tw:py-0.5 ${tone}`}>{label}</span>
+  return <span className={`tw:type-1 tw:inline-flex tw:px-2 tw:py-1 ${tone}`}>{label}</span>
 }
 
 function looksLikeMissingResource(error: unknown): boolean {

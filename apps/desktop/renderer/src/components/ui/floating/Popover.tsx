@@ -285,7 +285,7 @@ export const PopoverHeader = forwardRef<HTMLDivElement, PopoverHeaderProps>(
     return (
       <div
         ref={ref}
-        className={`tw:flex tw:items-start tw:justify-between tw:gap-2 tw:mb-2 tw:pb-1.5 tw:border-b tw:border-[var(--cpx-sys-color-border-subtle)] ${className}`}
+        className={`tw:flex tw:items-start tw:justify-between tw:gap-2 tw:mb-2 tw:pb-2 tw:border-b tw:border-[var(--cpx-sys-color-border-subtle)] ${className}`}
         {...rest}
       >
         {children}
@@ -307,7 +307,7 @@ export const PopoverTitle = forwardRef<HTMLHeadingElement, PopoverTitleProps>(
     return (
       <h4
         ref={ref}
-        className={`tw:type-label tw:text-[var(--cpx-sys-color-fg-primary)] tw:tracking-[-0.1px] ${className}`}
+        className={`tw:type-1 tw:weight-medium tw:text-[var(--cpx-sys-color-fg-primary)] tw:tracking-[-0.1px] ${className}`}
         {...rest}
       >
         {children}
@@ -329,7 +329,7 @@ export const PopoverDescription = forwardRef<HTMLParagraphElement, PopoverDescri
     return (
       <p
         ref={ref}
-        className={`tw:type-caption tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:mt-0.5 ${className}`}
+        className={`tw:type-1 tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:mt-1 ${className}`}
         {...rest}
       >
         {children}
@@ -356,7 +356,7 @@ const PopoverClose = forwardRef<HTMLElement, PopoverCloseProps>(
         type="button"
         ref={ref as React.Ref<HTMLButtonElement>}
         aria-label={props['aria-label'] ?? t('Close popover')}
-        className={`tw:flex tw:items-center tw:justify-center ${children ? '' : 'tw:w-6 tw:h-6 -mr-1 -mt-0.5 tw:rounded-control'} tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:hover:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)] tw:transition-colors tw:duration-150 tw:cursor-pointer ${className}`}
+        className={`tw:flex tw:items-center tw:justify-center ${children ? '' : 'tw:w-[24px] tw:h-[24px] tw:-mr-1 tw:-mt-1 tw:rounded-control'} tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:hover:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)] tw:transition-colors tw:duration-150 tw:cursor-pointer ${className}`}
         onClick={(event) => {
           onClick?.(event as React.MouseEvent<HTMLButtonElement>)
           if (!event.defaultPrevented) context.setOpen(false)
@@ -378,7 +378,7 @@ export const PopoverFooter = forwardRef<HTMLDivElement, PopoverFooterProps>(
     return (
       <div
         ref={ref}
-        className={`tw:mt-3 tw:pt-2.5 tw:border-t tw:border-[var(--cpx-sys-color-border-subtle)] tw:flex tw:items-center tw:justify-end tw:gap-2 ${className}`}
+        className={`tw:mt-3 tw:pt-3 tw:border-t tw:border-[var(--cpx-sys-color-border-subtle)] tw:flex tw:items-center tw:justify-end tw:gap-2 ${className}`}
         {...rest}
       >
         {children}

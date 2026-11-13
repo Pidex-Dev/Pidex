@@ -83,12 +83,12 @@ export function OAuthConnection({
       }}
     >
       {manualCallback ? (
-        <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
+        <p className="tw:m-0 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
           {t('粘贴浏览器最终跳转的完整链接，手动完成登录。')}
         </p>
       ) : null}
       <label
-        className="tw:text-app-text-soft tw:type-label"
+        className="tw:text-app-text-soft tw:type-1 tw:weight-medium"
         htmlFor={prompt.type === 'select' ? undefined : inputId}
       >
         {promptLabel}
@@ -132,16 +132,16 @@ export function OAuthConnection({
       {!hideHeader ? (
         <header className="tw:flex tw:min-w-0 tw:items-start tw:justify-between tw:gap-3">
           <div>
-            <h4 className="tw:m-0 tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-md)] tw:type-weight-label">
+            <h4 className="tw:m-0 tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-2)] tw:weight-medium">
               {t(title)}
             </h4>
-            <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
+            <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]">
               {t(description)}
             </p>
           </div>
           {connected ? (
             <span
-              className="tw:whitespace-nowrap tw:rounded-full tw:border tw:border-app-border-subtle tw:px-2 tw:py-1 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)] tw:data-[tone=success]:text-app-success"
+              className="tw:whitespace-nowrap tw:rounded-full tw:border tw:border-app-border-subtle tw:px-2 tw:py-1 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:data-[tone=success]:text-app-success"
               data-tone="success"
             >
               {t('已授权')}
@@ -158,9 +158,9 @@ export function OAuthConnection({
           >
             {active || auth.busy ? <Spinner /> : <Check size={APP_ICON_SIZES.sm} aria-hidden />}
             <div>
-              <strong className="tw:type-row-title">{t(status)}</strong>
+              <strong className="tw:type-2 tw:weight-medium">{t(status)}</strong>
               {active && authUrlNotice && !completing ? (
-                <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
                   {t('完成登录后，这里会自动更新。')}
                 </p>
               ) : null}
@@ -174,7 +174,7 @@ export function OAuthConnection({
               if (notice.type === 'auth_url') {
                 return (
                   <p
-                    className="tw:m-0 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere"
+                    className="tw:m-0 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere"
                     key={index}
                   >
                     {notice.instructions}
@@ -187,7 +187,7 @@ export function OAuthConnection({
                     className="model-center-account-oauth tw:grid tw:gap-2 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3"
                     key={index}
                   >
-                    <p className="tw:m-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
+                    <p className="tw:m-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]">
                       {t('设备码')}：<code>{notice.userCode}</code>
                     </p>
                     <Button
@@ -206,7 +206,7 @@ export function OAuthConnection({
                   : notice.message
               return (
                 <p
-                  className="tw:m-0 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere"
+                  className="tw:m-0 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere"
                   key={index}
                 >
                   {message}
@@ -273,7 +273,7 @@ export function OAuthConnection({
         )}
         {error ? (
           <p
-            className="model-center-account-error tw:m-0 tw:text-app-danger tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]"
+            className="model-center-account-error tw:m-0 tw:text-app-danger tw:[font-size:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]"
             role="alert"
           >
             {error}

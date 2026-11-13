@@ -32,7 +32,7 @@ const TRAY_CLASS = cx(
   'tw:[overscroll-behavior-inline:contain]',
 )
 const CHIP_CLASS =
-  'composer-attachment-chip tw:relative tw:size-18 tw:flex-none tw:overflow-hidden tw:rounded-3xl tw:transition-[border-color,background-color,transform] tw:duration-state tw:ease-standard'
+  'composer-attachment-chip tw:relative tw:size-[4.5rem] tw:flex-none tw:overflow-hidden tw:rounded-3xl tw:transition-[border-color,background-color,transform] tw:duration-state tw:ease-standard'
 const CHIP_INTERACTIVE_CLASS = 'tw:cursor-pointer'
 const IMAGE_CHIP_CLASS = cx(
   CHIP_CLASS,
@@ -52,14 +52,14 @@ const ATTACHMENT_ERROR_BADGE_CLASS =
   'composer-attachment-error-badge tw:absolute tw:bottom-2 tw:left-2 tw:flex tw:size-5 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-panel tw:text-app-text'
 const REMOVE_BUTTON_CLASS = cx(
   'composer-attachment-remove-btn',
-  'tw:flex tw:size-4.5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full',
+  'tw:flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full',
   'tw:bg-app-control tw:text-app-text-soft tw:shadow-sm',
   'tw:transition-[background-color,color] tw:duration-state tw:ease-standard',
   'tw:hover:bg-app-active tw:hover:text-app-text',
 )
 const REMOVE_BUTTON_OVERLAY_CLASS = cx(
   'composer-attachment-remove-btn composer-attachment-remove-btn--overlay',
-  'tw:absolute tw:top-2 tw:right-2 tw:flex tw:size-4.5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full',
+  'tw:absolute tw:top-2 tw:right-2 tw:flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full',
   'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_45%,transparent)] tw:text-app-canvas',
   'tw:transition-[background-color,color] tw:duration-state tw:ease-standard',
   'tw:hover:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_75%,transparent)] tw:hover:text-app-canvas',
@@ -67,11 +67,11 @@ const REMOVE_BUTTON_OVERLAY_CLASS = cx(
 const TILE_TOP_CLASS =
   'composer-attachment-tile-top tw:flex tw:w-full tw:items-start tw:justify-between'
 const BADGE_CLASS =
-  'composer-attachment-badge tw:flex tw:size-6 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-sm tw:shadow-sm'
+  'composer-attachment-badge tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-sm tw:shadow-sm'
 const TILE_ICON_CLASS = 'composer-attachment-tile-icon tw:block'
 const ATTACHMENT_NAME_CLASS = cx(
   'composer-attachment-name',
-  'tw:w-full tw:type-label tw:text-left tw:text-app-text-soft tw:select-none',
+  'tw:w-full tw:type-1 tw:weight-medium tw:text-left tw:text-app-text-soft tw:select-none',
   'tw:truncate',
 )
 

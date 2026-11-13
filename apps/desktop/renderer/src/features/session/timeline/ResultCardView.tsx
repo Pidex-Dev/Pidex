@@ -213,7 +213,7 @@ function ResultCardReferenceItem({
         <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
         {url ? (
           <a
-            className="tw:inline-flex tw:min-h-6 tw:min-w-6 tw:items-center"
+            className="tw:inline-flex tw:min-h-5 tw:min-w-5 tw:items-center"
             href={url}
             rel="noopener noreferrer"
             target="_blank"

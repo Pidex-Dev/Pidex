@@ -133,7 +133,7 @@ function MenuItem({ children, disabled, shortcut, onSelect }: MenuItemProps): Re
             className={cx(
               'menubar-shortcut',
               disabled ? 'tw:text-app-text-disabled' : 'tw:text-app-text-meta',
-              'tw:type-caption',
+              'tw:type-1',
               'tw:whitespace-nowrap',
             )}
             data-menu-shortcut
@@ -792,11 +792,11 @@ export function MenuBar({
         {sessionTabs.length > 0 ? (
           <div
             aria-label="会话标签页"
-            className="menubar-session-tabs tw:flex tw:h-chrome tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:mr-10"
+            className="menubar-session-tabs tw:flex tw:h-chrome tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:mr-7"
             role="tablist"
           >
             <div
-              className="menubar-session-tabs-track tw:flex tw:h-full tw:w-full tw:items-center tw:gap-1.5 tw:overflow-x-auto tw:px-1"
+              className="menubar-session-tabs-track tw:flex tw:h-full tw:w-full tw:items-center tw:gap-1 tw:overflow-x-auto tw:px-1"
               onWheel={handleTabsWheel}
               ref={tabsTrackRef}
             >
@@ -808,10 +808,10 @@ export function MenuBar({
                 return (
                   <div
                     className={cx(
-                      'menubar-session-tab tw:group tw:relative tw:flex tw:h-7 tw:items-center tw:gap-1 tw:overflow-hidden tw:rounded-md tw:border tw:transition-colors',
+                      'menubar-session-tab tw:group tw:relative tw:flex tw:h-6 tw:items-center tw:gap-1 tw:overflow-hidden tw:rounded-md tw:border tw:transition-colors',
                       active
-                        ? 'tw:flex-[1.5_1_0%] tw:min-w-12 tw:max-w-64 tw:border-transparent tw:bg-app-selected tw:px-2 tw:text-app-text'
-                        : 'tw:flex-1 tw:min-w-8 tw:max-w-56 tw:border-app-border-subtle tw:bg-transparent tw:px-1.5 tw:text-app-text-meta tw:hover:border-app-border tw:hover:bg-app-hover tw:hover:text-app-text',
+                        ? 'tw:flex-[1.5_1_0%] tw:min-w-8 tw:max-w-[16rem] tw:border-transparent tw:bg-app-selected tw:px-2 tw:text-app-text'
+                        : 'tw:flex-1 tw:min-w-6 tw:max-w-[14rem] tw:border-app-border-subtle tw:bg-transparent tw:px-2 tw:text-app-text-meta tw:hover:border-app-border tw:hover:bg-app-hover tw:hover:text-app-text',
                     )}
                     key={tab.id}
                     onMouseEnter={() => setActiveScrollTabId(tab.id)}
@@ -821,7 +821,7 @@ export function MenuBar({
                   >
                     <button
                       aria-selected={active}
-                      className="tw:flex tw:h-full tw:min-w-0 tw:flex-1 tw:items-center tw:gap-1.5 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:outline-none tw:type-control"
+                      className="tw:flex tw:h-full tw:min-w-0 tw:flex-1 tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:outline-none tw:type-2 tw:weight-medium"
                       onBlur={() =>
                         setActiveScrollTabId((current) => (current === tab.id ? null : current))
                       }
@@ -878,7 +878,7 @@ export function MenuBar({
                       {showSubtitle ? (
                         <span
                           className={cx(
-                            'tw:min-w-0 tw:max-w-24 tw:shrink tw:truncate tw:type-caption',
+                            'tw:min-w-0 tw:max-w-[6rem] tw:shrink tw:truncate tw:type-1',
                             active ? 'tw:text-app-text-meta' : 'tw:text-app-text-disabled',
                           )}
                         >

@@ -38,7 +38,7 @@ const GitBoardDetails = lazy(() =>
 
 function CountChip({ count }: { count: number }) {
   return (
-    <span className="tw:inline-flex tw:min-w-5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-selected tw:px-1.5 tw:type-caption tw:tabular-nums">
+    <span className="tw:inline-flex tw:min-w-4 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-selected tw:px-1 tw:type-1 tw:tabular-nums">
       {count}
     </span>
   )
@@ -68,7 +68,7 @@ function SectionSummary({
       aria-controls={contentId}
       aria-expanded={expanded}
       onClick={onToggle}
-      className="tw:group/section-summary tw:flex tw:min-h-[var(--sidebar-row-height,30px)] tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:px-2 tw:select-none tw:text-left tw:type-body tw:text-app-text-meta tw:focus-visible:outline-app-focus"
+      className="tw:group/section-summary tw:flex tw:min-h-[var(--sidebar-row-height,30px)] tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:px-2 tw:select-none tw:text-left tw:type-2 tw:text-app-text-meta tw:focus-visible:outline-app-focus"
     >
       <span>{title}</span>
       <ChevronDown
@@ -83,7 +83,7 @@ function SectionSummary({
         {showDiff &&
           (diffStats ? (
             <Tooltip content={t('新增和删除行数')}>
-              <span className="tw:inline-flex tw:gap-1 tw:type-caption tw:tabular-nums">
+              <span className="tw:inline-flex tw:gap-1 tw:type-1 tw:tabular-nums">
                 <span className="tw:text-app-success">+{diffStats.additions}</span>
                 <span className="tw:text-app-danger">-{diffStats.deletions}</span>
               </span>
@@ -200,7 +200,7 @@ export function RepositoryToolbar({
         <Tooltip
           content={`${status.branchName ?? 'detached HEAD'} · ${status.upstream ?? t('未设置上游')}`}
         >
-          <span className="tw:shrink-0 tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta">
+          <span className="tw:shrink-0 tw:whitespace-nowrap tw:type-1 tw:text-app-text-meta">
             {`↑ ${status.ahead} ↓ ${status.behind}`}
           </span>
         </Tooltip>
@@ -310,13 +310,13 @@ export function RepositoryColumn({
         {actionError && (
           <div
             role="alert"
-            className="tw:mb-3 tw:rounded-md tw:bg-app-danger/10 tw:p-2 tw:type-caption tw:text-app-danger"
+            className="tw:mb-3 tw:rounded-md tw:bg-app-danger/10 tw:p-2 tw:type-1 tw:text-app-danger"
           >
             {actionError}
           </div>
         )}
         {actionCaption && (
-          <p className="tw:m-0 tw:mb-3 tw:px-1 tw:type-caption tw:text-app-text-meta">
+          <p className="tw:m-0 tw:mb-3 tw:px-1 tw:type-1 tw:text-app-text-meta">
             {actionCaption}
           </p>
         )}
@@ -324,7 +324,7 @@ export function RepositoryColumn({
           // 刷新失败时保留上一份仓库数据，只在这里提供重试入口。
           <div
             role="alert"
-            className="tw:mb-3 tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:px-2 tw:type-caption tw:text-app-danger"
+            className="tw:mb-3 tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:px-2 tw:type-1 tw:text-app-danger"
           >
             <span className="tw:min-w-0 tw:flex-1">{t(repository.refreshError)}</span>
             <Button variant="text" size="compact" onClick={refresh}>
@@ -336,7 +336,7 @@ export function RepositoryColumn({
           <GitBoardRepositorySkeleton />
         ) : !result.ok ? (
           <div role="alert" className="tw:p-2">
-            <p className="tw:type-body-sm tw:text-app-danger">
+            <p className="tw:type-1 tw:text-app-danger">
               {result.ok === false ? result.error : ''}
             </p>
             <Button variant="text" onClick={refresh}>
@@ -353,12 +353,12 @@ export function RepositoryColumn({
               diffStats={repository?.diffStats}
             >
               {hasGitBoardConflicts(result.status.files) && (
-                <p role="status" className="tw:px-2 tw:py-3 tw:type-body-sm tw:text-app-text-meta">
+                <p role="status" className="tw:px-2 tw:py-3 tw:type-1 tw:text-app-text-meta">
                   {t('存在未解决的冲突，差异统计暂不可用。')}
                 </p>
               )}
               {result.status.clean && (
-                <p className="tw:py-3 tw:type-body-sm tw:text-app-text-meta">{t('工作区干净')}</p>
+                <p className="tw:py-3 tw:type-1 tw:text-app-text-meta">{t('工作区干净')}</p>
               )}
               {result.status.files.map((file) => (
                 <SidebarRow
@@ -387,11 +387,11 @@ export function RepositoryColumn({
                       size={APP_ICON_SIZE}
                     />
                     <Tooltip content={file.path}>
-                      <span className="tw:min-w-0 tw:flex-1 tw:truncate tw:type-row-title">
+                      <span className="tw:min-w-0 tw:flex-1 tw:truncate tw:type-2 tw:weight-medium">
                         {file.path.split(/[\\/]/).pop()}
                       </span>
                     </Tooltip>
-                    <span className="tw:flex tw:shrink-0 tw:gap-1 tw:type-caption tw:text-app-text-meta">
+                    <span className="tw:flex tw:shrink-0 tw:gap-1 tw:type-1 tw:text-app-text-meta">
                       {gitBoardFileStatuses(file).map(({ code, label }, index) => (
                         <Tooltip key={index} content={t(label)}>
                           <span aria-label={t(label)}>{code}</span>
@@ -452,7 +452,7 @@ function ProjectBoard({ actionBusy, actionError }: { actionBusy?: boolean; actio
         inert={ready === false}
         className="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:items-center tw:justify-center tw:overflow-hidden"
       >
-        <p className="tw:m-auto tw:type-body-sm tw:text-app-text-meta">
+        <p className="tw:m-auto tw:type-1 tw:text-app-text-meta">
           {t('从左侧选择一个项目查看 Git 状态')}
         </p>
       </div>
@@ -465,7 +465,7 @@ function ProjectBoard({ actionBusy, actionError }: { actionBusy?: boolean; actio
         inert={ready === false}
         className="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:items-center tw:justify-center tw:overflow-hidden"
       >
-        <p className="tw:m-auto tw:type-body-sm tw:text-app-text-meta">
+        <p className="tw:m-auto tw:type-1 tw:text-app-text-meta">
           {t('项目已移除或暂不可用')}
         </p>
       </div>
@@ -492,7 +492,7 @@ function ProjectBoard({ actionBusy, actionError }: { actionBusy?: boolean; actio
               aria-label={t('变更详情')}
               className="tw:flex tw:h-full tw:min-w-[360px] tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:overflow-hidden tw:bg-app-main tw:p-4"
             >
-              <p role="status" className="tw:m-0 tw:type-body-sm tw:text-app-text-meta">
+              <p role="status" className="tw:m-0 tw:type-1 tw:text-app-text-meta">
                 {t('加载中')}
               </p>
             </aside>
@@ -512,7 +512,7 @@ function ProjectBoard({ actionBusy, actionError }: { actionBusy?: boolean; actio
           aria-label={t('变更详情')}
           className="tw:flex tw:h-full tw:min-w-[360px] tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:overflow-hidden tw:bg-app-main tw:p-4"
         >
-          <p className="tw:m-0 tw:type-body-sm tw:text-app-text-meta">
+          <p className="tw:m-0 tw:type-1 tw:text-app-text-meta">
             {t('选择未提交文件或提交记录查看变更详情')}
           </p>
         </aside>

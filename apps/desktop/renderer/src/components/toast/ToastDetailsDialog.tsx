@@ -26,10 +26,10 @@ export function ToastDetailsDialog({
           aria-describedby={undefined}
           onCloseAutoFocus={onCloseAutoFocus}
         >
-          <Dialog.Title className="tw:m-0 tw:type-title-sm tw:text-app-text">
+          <Dialog.Title className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text">
             {notice?.message}
           </Dialog.Title>
-          <div className="tw:min-h-0 tw:overflow-y-auto tw:whitespace-pre-wrap tw:wrap-anywhere tw:type-body tw:text-app-text-soft">
+          <div className="tw:min-h-0 tw:overflow-y-auto tw:whitespace-pre-wrap tw:wrap-anywhere tw:type-2 tw:text-app-text-soft">
             {notice?.details}
           </div>
           <footer className="tw:flex tw:justify-end">

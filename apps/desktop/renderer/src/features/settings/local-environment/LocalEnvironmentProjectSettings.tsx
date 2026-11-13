@@ -97,10 +97,10 @@ export function LocalEnvironmentProjectSettings({
     return <p role="status">正在加载项目…</p>
   if (projectId && environmentId && project)
     return (
-      <div className="tw:grid tw:gap-8">
+      <div className="tw:grid tw:gap-6">
         <nav
           aria-label="环境面包屑"
-          className="tw:flex tw:items-center tw:gap-2 tw:type-caption tw:text-app-text-meta"
+          className="tw:flex tw:items-center tw:gap-2 tw:type-1 tw:text-app-text-meta"
         >
           <Button
             color="ghostSecondary"
@@ -142,7 +142,7 @@ export function LocalEnvironmentProjectSettings({
   return (
     <div className="tw:grid tw:gap-3">
       <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-        <h3 className="tw:m-0 tw:type-row-title tw:text-app-text">选择项目</h3>
+        <h3 className="tw:m-0 tw:type-2 tw:weight-medium tw:text-app-text">选择项目</h3>
         <Button
           color="secondary"
           onClick={() =>
@@ -225,9 +225,9 @@ function ProjectCard({
           }
         >
           <Folder aria-hidden="true" size="var(--inline-icon-size, 1em)" />
-          <span className="tw:min-w-0 tw:type-row-title">
+          <span className="tw:min-w-0 tw:type-2 tw:weight-medium">
             {project.name}
-            <span className="tw:block tw:truncate tw:type-caption tw:text-app-text-meta">
+            <span className="tw:block tw:truncate tw:type-1 tw:text-app-text-meta">
               {project.path}
             </span>
           </span>
@@ -252,9 +252,9 @@ function ProjectCard({
           }`}
           onClick={() => onOpen(projectId, item.id, false)}
         >
-          <span className="tw:min-w-0 tw:type-row-title">
+          <span className="tw:min-w-0 tw:type-2 tw:weight-medium">
             {item.name}
-            <span className="tw:block tw:truncate tw:type-caption tw:text-app-text-meta">
+            <span className="tw:block tw:truncate tw:type-1 tw:text-app-text-meta">
               {item.inherited ? '继承 · ' : ''}
               {item.path.split(/[\\/]/).pop()}
             </span>
@@ -263,7 +263,7 @@ function ProjectCard({
         </button>
       ))}
       {error ? (
-        <div role="alert" className="tw:mt-3 tw:type-caption tw:text-app-danger">
+        <div role="alert" className="tw:mt-3 tw:type-1 tw:text-app-danger">
           {error}
           <Button color="ghostSecondary" size="toolbar" onClick={() => void refresh()}>
             重试

@@ -158,7 +158,7 @@ export function DesktopBrowserPanel({
 
   return (
     <section className="right-dock-browser" aria-label="内置浏览器">
-      <div className="browser-commandbar tw:grid tw:h-12 tw:min-h-12 tw:min-w-0 tw:shrink-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:bg-app-dock tw:p-2 tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
+      <div className="browser-commandbar tw:grid tw:h-8 tw:min-h-8 tw:min-w-0 tw:shrink-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:bg-app-dock tw:p-2 tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
         <div className="browser-navigation tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-self-start tw:gap-1 tw:@max-[440px]:gap-0">
           <Button
             isIconOnly
@@ -200,7 +200,7 @@ export function DesktopBrowserPanel({
           </Button>
         </div>
         <form
-          className="browser-address-form tw:relative tw:flex tw:h-7 tw:w-full tw:max-w-[770px] tw:min-w-0 tw:items-center tw:justify-self-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0"
+          className="browser-address-form tw:relative tw:flex tw:h-6 tw:w-full tw:max-w-[770px] tw:min-w-0 tw:items-center tw:justify-self-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0"
           title={addressStatus}
           onSubmit={(event) => {
             event.preventDefault()
@@ -209,7 +209,7 @@ export function DesktopBrowserPanel({
         >
           <input
             aria-label="浏览器地址"
-            className="tw:min-w-0 tw:flex-auto tw:rounded-md tw:border-0 tw:bg-transparent tw:px-4 tw:py-1 tw:text-center tw:text-app-text tw:type-body tw:outline-none tw:focus:bg-app-raised tw:focus:shadow-[var(--cpx-sys-focus-ring-inset)] tw:@max-[440px]:px-2 tw:@max-[440px]:text-left"
+            className="tw:min-w-0 tw:flex-auto tw:rounded-md tw:border-0 tw:bg-transparent tw:px-4 tw:py-1 tw:text-center tw:text-app-text tw:type-2 tw:outline-none tw:focus:bg-app-raised tw:focus:shadow-[var(--cpx-sys-focus-ring-inset)] tw:@max-[440px]:px-2 tw:@max-[440px]:text-left"
             placeholder="输入 URL"
             value={compactAddress}
             onBlur={() => setAddressFocused(false)}
@@ -231,12 +231,12 @@ export function DesktopBrowserPanel({
             }}
           />
           {state.loading ? (
-            <span className="browser-address-state tw:absolute tw:top-1/2 tw:right-0.5 tw:-translate-y-1/2 tw:translate-x-full tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta tw:@max-[440px]:hidden">
+            <span className="browser-address-state tw:absolute tw:top-1/2 tw:right-1 tw:-translate-y-1/2 tw:translate-x-full tw:whitespace-nowrap tw:type-1 tw:text-app-text-meta tw:@max-[440px]:hidden">
               加载中
             </span>
           ) : null}
           {state.error ? (
-            <span className="browser-address-error tw:absolute tw:top-1/2 tw:right-0.5 tw:inline-grid tw:size-4.5 tw:-translate-y-1/2 tw:translate-x-full tw:place-items-center tw:rounded-full tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-danger)_12%,transparent)] tw:whitespace-nowrap tw:type-caption tw:text-app-danger tw:@max-[440px]:hidden">
+            <span className="browser-address-error tw:absolute tw:top-1/2 tw:right-1 tw:inline-grid tw:size-icon-md tw:-translate-y-1/2 tw:translate-x-full tw:place-items-center tw:rounded-full tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-danger)_12%,transparent)] tw:whitespace-nowrap tw:type-1 tw:text-app-danger tw:@max-[440px]:hidden">
               !
             </span>
           ) : null}
@@ -254,7 +254,7 @@ export function DesktopBrowserPanel({
           {state.busy ? (
             <span
               className={cx(
-                'browser-address-state tw:absolute tw:top-1/2 tw:right-0.5 tw:-translate-y-1/2 tw:translate-x-full tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta',
+                'browser-address-state tw:absolute tw:top-1/2 tw:right-1 tw:-translate-y-1/2 tw:translate-x-full tw:whitespace-nowrap tw:type-1 tw:text-app-text-meta',
                 state.controlThreadId && 'tw:@max-[440px]:hidden',
               )}
             >
@@ -295,7 +295,7 @@ export function DesktopBrowserPanel({
       <div ref={setBarsHost} className="browser-utility-bars" />
       {annotation.active ? (
         <div
-          className="browser-annotation-tools tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-2 tw:type-body-sm tw:text-app-text-soft"
+          className="browser-annotation-tools tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-2 tw:type-1 tw:text-app-text-soft"
           role="toolbar"
           aria-label="批注选择模式"
         >
@@ -321,7 +321,7 @@ export function DesktopBrowserPanel({
       ) : null}
       {annotation.error ? (
         <div
-          className="browser-status-row tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2 tw:type-caption tw:text-app-text-meta tw:@max-[440px]:items-start tw:@max-[440px]:px-2"
+          className="browser-status-row tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2 tw:type-1 tw:text-app-text-meta tw:@max-[440px]:items-start tw:@max-[440px]:px-2"
           role="alert"
         >
           {annotation.error}
@@ -330,7 +330,7 @@ export function DesktopBrowserPanel({
 
       {state.error ? (
         <div
-          className="browser-status-row tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2 tw:type-caption tw:text-app-text-meta tw:@max-[440px]:items-start tw:@max-[440px]:px-2"
+          className="browser-status-row tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2 tw:type-1 tw:text-app-text-meta tw:@max-[440px]:items-start tw:@max-[440px]:px-2"
           role="alert"
         >
           <span className="tw:min-w-0 tw:truncate tw:@max-[440px]:whitespace-normal tw:@max-[440px]:wrap-anywhere">
@@ -364,8 +364,8 @@ export function DesktopBrowserPanel({
         {!state.url ? (
           <div className="browser-empty-state tw:grid tw:size-full tw:min-h-0 tw:min-w-0 tw:content-center tw:items-center tw:justify-center tw:justify-items-center tw:gap-[clamp(var(--cpx-sys-space-2),2vh,var(--cpx-sys-space-5))] tw:p-[clamp(var(--cpx-sys-space-3),4vh,var(--cpx-sys-space-6))] tw:text-center tw:text-app-text-meta">
             <Globe2 size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            <strong className="tw:type-title-sm tw:text-app-text">开始浏览</strong>
-            <span className="tw:type-body-sm tw:text-app-text-soft">输入 URL 以打开页面</span>
+            <strong className="tw:type-4 tw:weight-bold tw:text-app-text">开始浏览</strong>
+            <span className="tw:type-1 tw:text-app-text-soft">输入 URL 以打开页面</span>
           </div>
         ) : null}
       </div>

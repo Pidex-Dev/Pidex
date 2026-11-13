@@ -23,8 +23,8 @@ const MATCH_KIND_OPTIONS: ReadonlyArray<{
   { value: 'mcp', label: 'MCP', detail: '按 MCP server 与可选工具名匹配' },
 ]
 
-const FIELD_CLASS = 'tw:grid tw:min-w-0 tw:gap-1.5 tw:text-app-text tw:type-control'
-const FIELD_HINT_CLASS = 'tw:m-0 tw:text-app-text-meta tw:type-caption'
+const FIELD_CLASS = 'tw:grid tw:min-w-0 tw:gap-1 tw:text-app-text tw:type-2 tw:weight-medium'
+const FIELD_HINT_CLASS = 'tw:m-0 tw:text-app-text-meta tw:type-1'
 const EDITOR_BOX_CLASS =
   'tw:grid tw:min-w-0 tw:gap-3 tw:rounded-control tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-3'
 
@@ -62,7 +62,7 @@ export function ApprovalRuleEditor({
     <div className={EDITOR_BOX_CLASS} data-approval-rule-editor={mode}>
       <div className="tw:grid tw:min-w-0 tw:grid-cols-2 tw:gap-3">
         <div className={FIELD_CLASS}>
-          <span className="tw:text-app-text-soft tw:type-label">效果</span>
+          <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">效果</span>
           <Select
             ariaLabel="规则效果"
             options={APPROVAL_RULE_EFFECT_TABS.map((tab) => ({
@@ -74,7 +74,7 @@ export function ApprovalRuleEditor({
           />
         </div>
         <div className={FIELD_CLASS}>
-          <span className="tw:text-app-text-soft tw:type-label">范围</span>
+          <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">范围</span>
           <Select
             ariaLabel="规则范围"
             options={scopeOptions.map((option) => ({
@@ -88,7 +88,7 @@ export function ApprovalRuleEditor({
         </div>
       </div>
       <div className={FIELD_CLASS}>
-        <span className="tw:text-app-text-soft tw:type-label">匹配类型</span>
+        <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">匹配类型</span>
         <Select
           ariaLabel="匹配类型"
           options={MATCH_KIND_OPTIONS.map((option) => ({
@@ -103,7 +103,7 @@ export function ApprovalRuleEditor({
 
       {values.matchKind === 'tool' ? (
         <label className={FIELD_CLASS}>
-          <span className="tw:text-app-text-soft tw:type-label">工具名称</span>
+          <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">工具名称</span>
           <Input
             aria-label="工具名称"
             placeholder="例如 Bash"
@@ -115,8 +115,8 @@ export function ApprovalRuleEditor({
       ) : null}
 
       {values.matchKind === 'file' ? (
-        <div className="tw:grid tw:min-w-0 tw:gap-1.5">
-          <span className="tw:text-app-text-soft tw:type-label">文件访问</span>
+        <div className="tw:grid tw:min-w-0 tw:gap-1">
+          <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">文件访问</span>
           <Select
             ariaLabel="文件访问方式"
             options={[
@@ -128,7 +128,7 @@ export function ApprovalRuleEditor({
               set({ fileAccess: value as ApprovalRuleEditorValues['fileAccess'] })
             }
           />
-          <span className="tw:text-app-text-soft tw:type-label">目录</span>
+          <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">目录</span>
           {filePathOptions.length ? (
             <Select
               ariaLabel="规则目录"
@@ -151,9 +151,9 @@ export function ApprovalRuleEditor({
       ) : null}
 
       {values.matchKind === 'command' ? (
-        <div className="tw:grid tw:min-w-0 tw:gap-1.5">
+        <div className="tw:grid tw:min-w-0 tw:gap-1">
           <label className={FIELD_CLASS}>
-            <span className="tw:text-app-text-soft tw:type-label">命令</span>
+            <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">命令</span>
             <Input
               aria-label="命令"
               placeholder="例如 git status"
@@ -162,7 +162,7 @@ export function ApprovalRuleEditor({
             />
           </label>
           <label className={FIELD_CLASS}>
-            <span className="tw:text-app-text-soft tw:type-label">执行目录</span>
+            <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">执行目录</span>
             <Input
               aria-label="执行目录"
               value={values.commandCwd ?? ''}
@@ -170,7 +170,7 @@ export function ApprovalRuleEditor({
               onChange={(event) => set({ commandCwd: event.currentTarget.value })}
             />
           </label>
-          <label className="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:type-control tw:text-app-text">
+          <label className="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:type-2 tw:weight-medium tw:text-app-text">
             <span>同时接收相同参数前缀</span>
             <ToggleSwitch
               ariaLabel="同时接收相同参数前缀"
@@ -188,10 +188,10 @@ export function ApprovalRuleEditor({
           </label>
           {values.commandMode === 'prefix' ? (
             <label className={FIELD_CLASS}>
-              <span className="tw:text-app-text-soft tw:type-label">参数前缀（每行一个参数）</span>
+              <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">参数前缀（每行一个参数）</span>
               <textarea
                 aria-label="参数前缀"
-                className="tw:min-h-20 tw:w-full tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-control tw:px-control-inline tw:py-control-block tw:text-app-text tw:type-control tw:outline-none tw:focus-visible:border-app-focus tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+                className="tw:min-h-[5rem] tw:w-full tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-control tw:px-control-inline tw:py-control-block tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none tw:focus-visible:border-app-focus tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
                 value={values.argvText}
                 onChange={(event) => set({ argvText: event.currentTarget.value })}
               />
@@ -207,7 +207,7 @@ export function ApprovalRuleEditor({
 
       {values.matchKind === 'network' ? (
         <label className={FIELD_CLASS}>
-          <span className="tw:text-app-text-soft tw:type-label">精确域名</span>
+          <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">精确域名</span>
           <Input
             aria-label="精确域名"
             placeholder="例如 example.com"
@@ -221,7 +221,7 @@ export function ApprovalRuleEditor({
       {values.matchKind === 'mcp' ? (
         <div className="tw:grid tw:min-w-0 tw:grid-cols-2 tw:gap-3">
           <label className={FIELD_CLASS}>
-            <span className="tw:text-app-text-soft tw:type-label">MCP 服务器</span>
+            <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">MCP 服务器</span>
             <Input
               aria-label="MCP 服务器"
               placeholder="例如 filesystem"
@@ -230,7 +230,7 @@ export function ApprovalRuleEditor({
             />
           </label>
           <label className={FIELD_CLASS}>
-            <span className="tw:text-app-text-soft tw:type-label">MCP 工具（可选）</span>
+            <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">MCP 工具（可选）</span>
             <Input
               aria-label="MCP 工具"
               placeholder="留空表示该服务器的全部工具"
@@ -242,7 +242,7 @@ export function ApprovalRuleEditor({
       ) : null}
 
       {error ? (
-        <p className="tw:m-0 tw:text-app-danger tw:type-body-sm" role="alert">
+        <p className="tw:m-0 tw:text-app-danger tw:type-1" role="alert">
           {error}
         </p>
       ) : null}

@@ -1,11 +1,6 @@
+import { omitUndefined } from '@pidex/shared/guards'
 import type { ModelRecommendation } from '@pidex/agent-protocol'
 import type { EditableModel } from './ProviderEditorForm.js'
-
-function omitUndefined<T extends object>(obj: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, value]) => value !== undefined),
-  ) as Partial<T>
-}
 
 /** 推荐只填普通草稿字段，保存继续走现有模型配置。 */
 export function fillModelDraft(

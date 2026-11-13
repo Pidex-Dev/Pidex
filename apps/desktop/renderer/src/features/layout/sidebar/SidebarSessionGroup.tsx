@@ -586,7 +586,7 @@ function SidebarSessionGroupComponent({
           {hasOverflow ? (
             <div
               className={cx(
-                'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-0.5 tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
+                'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-6 tw:items-center tw:gap-x-1 tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
                 sessionIndent === 'gutter' && !showConversationIcon
                   ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
                   : 'tw:grid-cols-[var(--sidebar-row-columns)]',
@@ -595,7 +595,7 @@ function SidebarSessionGroupComponent({
               {sessionIndent !== 'gutter' || showConversationIcon ? (
                 <span
                   aria-hidden="true"
-                  className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:h-6 tw:w-full tw:items-center tw:justify-center"
+                  className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:h-5 tw:w-full tw:items-center tw:justify-center"
                 />
               ) : null}
               <div
@@ -831,7 +831,7 @@ function SidebarSessionRowComponent({
       >
         {titleRegenerating ? (
           <SkeletonBlock
-            className="sidebar-session-title sidebar-session-title--loading tw:h-[var(--cpx-sys-font-size-sm)] tw:max-h-[var(--cpx-sys-font-size-sm)] tw:min-h-[var(--cpx-sys-font-size-sm)] tw:w-[min(7.5rem,72%)] tw:flex-none tw:rounded-sm"
+            className="sidebar-session-title sidebar-session-title--loading tw:h-[var(--cpx-sys-font-size-1)] tw:max-h-[var(--cpx-sys-font-size-1)] tw:min-h-[var(--cpx-sys-font-size-1)] tw:w-[min(7.5rem,72%)] tw:flex-none tw:rounded-sm"
             label="正在更新会话标题"
           />
         ) : (
@@ -906,7 +906,7 @@ function SidebarSessionRowComponent({
         <div className={metaClassName}>
           {showIndicators && session.executionEnvironment?.kind === 'worktree' && (
             <span
-              className="sidebar-indicator tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm"
+              className="sidebar-indicator tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm"
               role="img"
               aria-label="工作树会话"
               title="工作树会话"
@@ -916,7 +916,7 @@ function SidebarSessionRowComponent({
           )}
           {showIndicators && session.isFork && (
             <span
-              className="sidebar-indicator tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm"
+              className="sidebar-indicator tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm"
               role="img"
               aria-label="分叉会话"
               title="分叉会话"
@@ -926,7 +926,7 @@ function SidebarSessionRowComponent({
           )}
           {showIndicators && session.hasScheduledRun && (
             <span
-              className="sidebar-indicator tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm"
+              className="sidebar-indicator tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm"
               role="img"
               aria-label="日程运行过的会话"
               title="日程运行过的会话"
@@ -942,7 +942,7 @@ function SidebarSessionRowComponent({
                 aria-label={pullRequestItems
                   .map((item) => `Pull Request #${item.number}`)
                   .join(', ')}
-                className="sidebar-indicator sidebar-pull-request tw:inline-flex tw:size-6 tw:flex-none tw:cursor-pointer tw:items-center tw:justify-center tw:border-0 tw:bg-transparent tw:p-0 tw:[&>svg]:size-icon-sm"
+                className="sidebar-indicator sidebar-pull-request tw:inline-flex tw:size-5 tw:flex-none tw:cursor-pointer tw:items-center tw:justify-center tw:border-0 tw:bg-transparent tw:p-0 tw:[&>svg]:size-icon-sm"
                 title={pullRequestItems
                   .map((item) => threadPullRequestTitle(item.number, item.title, item.status))
                   .join('\n')}
@@ -1004,7 +1004,7 @@ function SidebarSessionRowComponent({
           ) : indicatorState === 'unread' ||
             indicatorState === 'running' ||
             indicatorState === 'error' ? (
-            <span className="sidebar-indicator tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm">
+            <span className="sidebar-indicator tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm">
               <span className="sidebar-status-icon tw:inline-flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center">
                 {indicatorState === 'error' ? (
                   <CircleAlert
@@ -1015,7 +1015,7 @@ function SidebarSessionRowComponent({
                 ) : indicatorState === 'unread' ? (
                   <span
                     aria-label="未读"
-                    className="sidebar-unread-dot tw:size-1.5 tw:flex-none tw:rounded-full tw:bg-app-accent"
+                    className="sidebar-unread-dot tw:size-2 tw:flex-none tw:rounded-full tw:bg-app-accent"
                   />
                 ) : indicatorState === 'running' ? (
                   <Spinner
@@ -1110,7 +1110,7 @@ function SidebarSessionSubtitle({ session }: { session: SessionListItem }): Reac
 function SidebarActivitySubtitle({ session }: { session: SessionListItem }): React.ReactNode {
   const preview = useSidebarActivityPreview(session)
   return preview ? (
-    <span className="tw:block tw:min-w-0 tw:truncate tw:type-caption tw:text-app-text-meta">
+    <span className="tw:block tw:min-w-0 tw:truncate tw:type-1 tw:text-app-text-meta">
       {preview}
     </span>
   ) : (
@@ -1121,7 +1121,7 @@ function SidebarActivitySubtitle({ session }: { session: SessionListItem }): Rea
 function SidebarSessionWorkspaceMeta({ session }: { session: SessionListItem }): React.ReactNode {
   if (session.standalone) {
     return (
-      <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
+      <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
         <MessageSquare
           className="sidebar-session-workspace-meta__icon tw:flex-none"
           size="var(--inline-icon-size, 1em)"
@@ -1134,7 +1134,7 @@ function SidebarSessionWorkspaceMeta({ session }: { session: SessionListItem }):
   }
   if (session.projectId) {
     return (
-      <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
+      <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
         <ProjectAppearanceGlyph
           className="sidebar-session-workspace-meta__glyph tw:flex-none"
           size={APP_ICON_SIZES.sm}
@@ -1146,7 +1146,7 @@ function SidebarSessionWorkspaceMeta({ session }: { session: SessionListItem }):
     )
   }
   return (
-    <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
+    <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
       <Folder
         className="sidebar-session-workspace-meta__icon tw:flex-none"
         size="var(--inline-icon-size, 1em)"

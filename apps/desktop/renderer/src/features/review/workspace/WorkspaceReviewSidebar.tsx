@@ -9,21 +9,13 @@ import {
   Info,
   Columns2,
   Ellipsis,
-  Eye,
-  ExternalLink,
-  FileDiff,
-  GitCommitHorizontal,
-  GitFork,
-  GitPullRequestArrow,
   MessageSquarePlus,
-  Minus,
   Plus,
   RotateCcw,
   Rows2,
   Search,
   Undo2,
   WrapText,
-  createLucideIcon,
 } from 'lucide-react'
 import type {
   DesktopDiffMarkerStyle,
@@ -51,7 +43,6 @@ import {
 import { Button } from '../../../components/ui/Button.js'
 
 import {
-  PopoverCheckboxItem,
   PopoverItem,
   PopoverRadioGroup,
   PopoverRadioItem,
@@ -72,18 +63,11 @@ import { PullRequestPopover } from './PullRequestPopover.js'
 import { ReviewFileTreeResizeController } from './ReviewFileTreeResizeController.js'
 import { ReviewFileTreeController } from './ReviewFileTreeController.js'
 import { ReviewFileTreePanelPresence } from './ReviewFileTreePanelPresence.js'
-import { formatReviewCount } from '../diff/ReviewFormat.js'
 import {
   isReviewDiffExpanded,
   type ReviewDiffExpansion,
   type ReviewTabUiState,
 } from '../../layout/tabs/ConversationUiState.js'
-import { syntaxTokenStyle } from '../../syntax/CodeBlock.js'
-import { resolveLanguageFromPath } from '../../syntax/Language.js'
-import { resolveThemeId } from '../../syntax/Theme.js'
-import type { SyntaxToken } from '../../syntax/Types.js'
-import { useHighlightedCode } from '../../syntax/UseHighlightedCode.js'
-import { useDesktopTheme } from '../../theme/ThemeContext.js'
 import {
   ReviewFileRequestCoordinator,
   reviewAgentClient,
@@ -150,10 +134,10 @@ const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH = REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 
 const REVIEW_SIDEBAR_CLASS =
   'review-sidebar tw:@container tw:flex tw:h-full tw:min-h-0 tw:flex-col tw:overflow-hidden tw:border-l tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-none tw:flex-auto tw:w-full tw:min-w-0 tw:max-w-none tw:in-[.workbench-panel]:border-l-0'
 const REVIEW_SIDEBAR_TOOLBAR_CLASS =
-  'tw:box-border tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:min-h-12 tw:items-start tw:gap-2 tw:bg-app-dock tw:px-2 tw:py-2 tw:shadow-none'
+  'tw:box-border tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:min-h-8 tw:items-start tw:gap-2 tw:bg-app-dock tw:px-2 tw:py-2 tw:shadow-none'
 const REVIEW_COUNTS_CLASS = 'tw:inline-flex tw:items-center tw:gap-2'
 const REVIEW_FOOTER_CLASS =
-  'tw:absolute tw:bottom-2.5 tw:left-1/2 tw:z-local tw:flex tw:-translate-x-1/2 tw:items-center tw:justify-center tw:gap-4 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:shadow-none'
+  'tw:absolute tw:bottom-3 tw:left-1/2 tw:z-local tw:flex tw:-translate-x-1/2 tw:items-center tw:justify-center tw:gap-4 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:shadow-none'
 
 function reviewDiffExpansionFromKeys(
   allPaths: readonly string[],
@@ -2260,10 +2244,10 @@ function WorkspaceReviewSidebarImpl({
               totals.additions > 0 || totals.deletions > 0 ? (
                 <span className={cx('review-sidebar-counts', REVIEW_COUNTS_CLASS)}>
                   <>
-                    <strong className="tw:text-app-success tw:type-weight-label">
+                    <strong className="tw:text-app-success tw:weight-medium">
                       +{formatPanelNumber(totals.additions)}
                     </strong>
-                    <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
+                    <em className="tw:text-app-danger tw:not-italic tw:weight-medium">
                       -{formatPanelNumber(totals.deletions)}
                     </em>
                   </>
@@ -2279,7 +2263,7 @@ function WorkspaceReviewSidebarImpl({
             )}
           </div>
           {source.kind === 'branch' ? (
-            <div className="review-branch-range tw:flex tw:min-w-0 tw:flex-[0_1_auto] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:py-1 tw:gap-1 tw:text-app-text-soft tw:type-caption">
+            <div className="review-branch-range tw:flex tw:min-w-0 tw:flex-[0_1_auto] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:py-1 tw:gap-1 tw:text-app-text-soft tw:type-1">
               <span
                 className="tw:min-w-0 tw:max-w-[38%] tw:overflow-hidden tw:px-2 tw:text-ellipsis tw:whitespace-nowrap"
                 title={gitStatus?.branchName ?? 'HEAD'}
@@ -2312,14 +2296,14 @@ function WorkspaceReviewSidebarImpl({
                   placeholder="搜索分支"
                   aria-label="搜索基准分支"
                 />
-                <div className="tw:max-h-80 tw:overflow-y-auto">
+                <div className="tw:max-h-[20rem] tw:overflow-y-auto">
                   {sourceOptionsState === 'loading' ? (
-                    <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
+                    <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-1">
                       正在加载分支…
                     </div>
                   ) : sourceOptionsState === 'error' ? (
                     <>
-                      <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
+                      <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-1">
                         无法加载分支
                       </div>
                       <PopoverItem onClick={() => setSourceOptionsRetry((current) => current + 1)}>
@@ -2472,7 +2456,7 @@ function WorkspaceReviewSidebarImpl({
 
       {largeWorkspaceMode && visibleFiles.length > 0 ? (
         <div
-          className="tw:mx-2 tw:mb-2 tw:flex tw:@max-[625px]:grid tw:@max-[625px]:grid-cols-[auto_minmax(0,1fr)] tw:min-h-12 tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-2xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-4 tw:type-control"
+          className="tw:mx-2 tw:mb-2 tw:flex tw:@max-[625px]:grid tw:@max-[625px]:grid-cols-[auto_minmax(0,1fr)] tw:min-h-8 tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-2xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-4 tw:type-2 tw:weight-medium"
           role="status"
         >
           <Info className="tw:shrink-0 tw:text-app-accent" size="var(--inline-icon-size, 1em)" />
@@ -2506,7 +2490,7 @@ function WorkspaceReviewSidebarImpl({
 
       {error ? (
         <div
-          className="review-error-state tw:flex tw:flex-none tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2 tw:text-app-danger tw:type-body-sm"
+          className="review-error-state tw:flex tw:flex-none tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2 tw:text-app-danger tw:type-1"
           role="alert"
         >
           <span>{error}</span>
@@ -2592,7 +2576,7 @@ function WorkspaceReviewSidebarImpl({
               <SearchInput
                 ref={fileSearchInputRef}
                 aria-label="筛选文件"
-                className="review-file-search tw:w-full tw:min-h-7 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised"
+                className="review-file-search tw:w-full tw:min-h-6 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised"
                 onChange={setSearch}
                 placeholder="筛选文件..."
                 value={search}
@@ -2628,7 +2612,7 @@ function WorkspaceReviewSidebarImpl({
                 contentClassName="review-stale-comments tw:border-t tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-3"
                 aria-label="过期评论"
               >
-                <div className="review-stale-title tw:mb-2 tw:text-app-text-soft tw:type-title-sm">
+                <div className="review-stale-title tw:mb-2 tw:text-app-text-soft tw:type-4 tw:weight-bold">
                   过期评论
                 </div>
                 {staleComments.map((comment) => (

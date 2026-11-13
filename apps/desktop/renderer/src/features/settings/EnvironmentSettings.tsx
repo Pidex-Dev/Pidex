@@ -138,7 +138,7 @@ function EnvironmentList({
           navigate(projectSettingsRoute(routeBase, project.projectId))
         }}
       >
-        <span className="environment-project-icon tw:grid tw:size-8 tw:place-items-center tw:rounded-md tw:bg-app-hover tw:text-app-text-soft">
+        <span className="environment-project-icon tw:grid tw:size-6 tw:place-items-center tw:rounded-md tw:bg-app-hover tw:text-app-text-soft">
           <ProjectAppearanceGlyph
             appearance={appearance}
             className={cx(
@@ -152,7 +152,7 @@ function EnvironmentList({
           <strong>{project.name}</strong>
           <span title={project.path}>{project.path}</span>
         </span>
-        <span className="environment-project-meta tw:text-app-text-soft tw:type-body-sm tw:whitespace-nowrap tw:@max-[720px]:hidden">
+        <span className="environment-project-meta tw:text-app-text-soft tw:type-1 tw:whitespace-nowrap tw:@max-[720px]:hidden">
           {project.folders?.length ?? 1} 个目录
         </span>
         <ChevronRight
@@ -217,11 +217,11 @@ function EnvironmentList({
       >
         <div className="environment-settings environment-primary-content tw:min-h-0 tw:min-w-0">
           {loading ? (
-            <div className="environment-primary-empty tw:flex tw:min-h-64 tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">
+            <div className="environment-primary-empty tw:flex tw:min-h-[16rem] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">
               正在载入项目…
             </div>
           ) : projects.length === 0 ? (
-            <div className="environment-primary-empty tw:flex tw:min-h-64 tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">
+            <div className="environment-primary-empty tw:flex tw:min-h-[16rem] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">
               <h2>暂无项目</h2>
               <p>添加一个本地目录，开始管理项目环境与默认设置。</p>
               <Button color="secondary" onClick={() => void addProject()}>
@@ -229,7 +229,7 @@ function EnvironmentList({
               </Button>
             </div>
           ) : visibleProjects.length === 0 ? (
-            <div className="environment-primary-empty tw:flex tw:min-h-64 tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">
+            <div className="environment-primary-empty tw:flex tw:min-h-[16rem] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">
               <h2>未找到项目</h2>
               <p>没有与“{query}”匹配的项目。</p>
               <Button color="secondary" size="compact" onClick={() => setQuery('')}>
@@ -239,7 +239,7 @@ function EnvironmentList({
           ) : (
             <div className="environment-primary-projects tw:@container">
               <div
-                className="environment-primary-projects__header tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:px-3 tw:py-2 tw:text-app-text-meta tw:type-caption"
+                className="environment-primary-projects__header tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:px-3 tw:py-2 tw:text-app-text-meta tw:type-1"
                 aria-hidden="true"
               >
                 <span>项目</span>
@@ -256,15 +256,15 @@ function EnvironmentList({
   return (
     <EnvironmentFrame embedded={embedded}>
       <div
-        className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
+        className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
       >
         {!embedded ? (
-          <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-8 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
+          <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
             <div>
-              <h1 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">
+              <h1 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
                 环境
               </h1>
-              <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
+              <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
                 管理项目的项目指令和共享来源。
               </p>
             </div>
@@ -470,7 +470,7 @@ function EnvironmentDetail({
     return (
       <EnvironmentFrame embedded={embedded}>
         <div
-          className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
+          className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
         >
           <EnvironmentEmpty>正在载入项目环境…</EnvironmentEmpty>
         </div>
@@ -482,7 +482,7 @@ function EnvironmentDetail({
     return (
       <EnvironmentFrame embedded={embedded}>
         <div
-          className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
+          className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
         >
           <button
             className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
@@ -521,7 +521,7 @@ function EnvironmentDetail({
   return (
     <EnvironmentFrame embedded={embedded}>
       <div
-        className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
+        className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
       >
         <button
           className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
@@ -536,13 +536,13 @@ function EnvironmentDetail({
           <span>编辑</span>
         </button>
 
-        <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-8 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
+        <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
           <div>
-            <h1 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">
+            <h1 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
               项目环境
             </h1>
             <p
-              className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm"
+              className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1"
               title={project.path}
             >
               {project.path}
@@ -680,7 +680,7 @@ function EnvironmentDetail({
                     <span>{source.storage === 'managed' ? '托管文件' : source.path}</span>
                   </div>
                   <span
-                    className="environment-source-status tw:whitespace-nowrap tw:text-app-text-soft tw:type-caption tw:[&:not([data-status=available])]:text-app-danger"
+                    className="environment-source-status tw:whitespace-nowrap tw:text-app-text-soft tw:type-1 tw:[&:not([data-status=available])]:text-app-danger"
                     data-status={source.status}
                   >
                     {sourceStatusLabel(source.status)}
@@ -779,7 +779,7 @@ function EnvironmentDetail({
 
 function EnvironmentEmpty({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
-    <p className="environment-empty tw:m-0 tw:px-4 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-body-sm">
+    <p className="environment-empty tw:m-0 tw:px-4 tw:py-5 tw:text-center tw:text-app-text-soft tw:type-1">
       {children}
     </p>
   )

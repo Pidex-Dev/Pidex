@@ -169,8 +169,8 @@ export function LocalEnvironmentSettings({
   if (!threadId && (!projectId || !environmentId))
     return (
       <SettingsContentArea>
-        <div className="settings-content-inner tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-          <h2 className="tw:type-page-title">本地环境</h2>
+        <div className="settings-content-inner tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+          <h2 className="tw:type-6 tw:weight-bold">本地环境</h2>
           <React.Suspense fallback={<p>正在加载项目…</p>}>
             <ProjectEnvironments onError={onError} onNotice={onNotice} />
           </React.Suspense>
@@ -202,9 +202,9 @@ export function LocalEnvironmentSettings({
 
   return (
     <Frame>
-      <div className="tw:grid tw:gap-6">
+      <div className="tw:grid tw:gap-5">
         <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-          <h1 className="tw:m-0 tw:type-page-title tw:text-app-text">
+          <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
             {readOnly ? projectName || name : '编辑本地环境'}
           </h1>
           <div className="tw:flex tw:items-center tw:gap-2">
@@ -314,7 +314,7 @@ export function LocalEnvironmentSettings({
                   >
                     <Play size={APP_ICON_SIZE} />
                     <div className="tw:min-w-0">
-                      <strong className="tw:type-row-title">{action.name}</strong>
+                      <strong className="tw:type-2 tw:weight-medium">{action.name}</strong>
                       <pre className="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:type-code tw:text-app-text-meta">
                         {resolvedCommand({
                           script: action.command,
@@ -327,7 +327,7 @@ export function LocalEnvironmentSettings({
                   </div>
                 ))
               ) : (
-                <p className="tw:m-0 tw:py-4 tw:text-center tw:type-caption tw:text-app-text-meta">
+                <p className="tw:m-0 tw:py-4 tw:text-center tw:type-1 tw:text-app-text-meta">
                   添加操作，以便从本地工具栏运行命令
                 </p>
               )}
@@ -341,7 +341,7 @@ export function LocalEnvironmentSettings({
                 >
                   <div className="tw:flex tw:items-end tw:gap-3">
                     <label className="tw:grid tw:gap-1 tw:min-w-0 tw:flex-1">
-                      <span className="tw:type-caption tw:text-app-text-soft">名称</span>
+                      <span className="tw:type-1 tw:text-app-text-soft">名称</span>
                       <Input
                         aria-label="操作名称"
                         value={action.name}
@@ -495,8 +495,8 @@ function SetupVariablesPopover(): React.ReactNode {
       size="lg"
     >
       <div>
-        <strong className="tw:type-control">设置脚本环境变量</strong>
-        <p className="tw:type-caption tw:m-0 tw:mt-1 tw:text-app-text-soft">
+        <strong className="tw:type-2 tw:weight-medium">设置脚本环境变量</strong>
+        <p className="tw:type-1 tw:m-0 tw:mt-1 tw:text-app-text-soft">
           创建托管工作树时由 Agent 注入；这里只显示变量名，不显示路径值。
         </p>
       </div>
@@ -516,7 +516,7 @@ function EnvironmentVariable({
 }): React.ReactNode {
   return (
     <div className="tw:grid tw:gap-1">
-      <span className="tw:type-caption tw:text-app-text-soft">{description}</span>
+      <span className="tw:type-1 tw:text-app-text-soft">{description}</span>
       <code className="local-environment-code tw:bg-app-canvas tw:px-2 tw:py-1 tw:type-code">
         {name}
       </code>
@@ -549,7 +549,7 @@ function CommandRows({
       />
       <Textarea
         aria-label={`${label} ${platform}`}
-        className="local-environment-code tw:w-full tw:min-w-0 tw:min-h-32 tw:type-code"
+        className="local-environment-code tw:w-full tw:min-w-0 tw:min-h-[8rem] tw:type-code"
         value={value[platform] ?? ''}
         placeholder={platform === 'script' ? '输入命令…' : '留空时使用默认脚本'}
         onChange={(event) => onChange({ ...value, [platform]: event.target.value })}

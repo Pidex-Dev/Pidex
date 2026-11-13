@@ -671,7 +671,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   } else if (fileLoadState.status === 'loading') {
     diffBody = (
       <div
-        className="review-empty-state review-file-load-state tw:flex tw:min-h-16 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm"
+        className="review-empty-state review-file-load-state tw:flex tw:min-h-9 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-5 tw:text-app-text-meta tw:type-1"
         role="status"
       >
         {reviewFileLoadMessage(fileLoadState, summaryLoadState)}
@@ -680,7 +680,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   } else if (fileLoadState.status === 'idle') {
     diffBody = (
       <div
-        className="review-empty-state review-file-load-state tw:flex tw:min-h-16 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm"
+        className="review-empty-state review-file-load-state tw:flex tw:min-h-9 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-5 tw:text-app-text-meta tw:type-1"
         role="status"
       >
         {reviewFileLoadMessage(fileLoadState, summaryLoadState)}
@@ -689,7 +689,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   } else if (fileLoadState.status === 'error') {
     diffBody = (
       <div
-        className="review-empty-state review-file-load-state tw:flex tw:min-h-16 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm"
+        className="review-empty-state review-file-load-state tw:flex tw:min-h-9 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-5 tw:text-app-text-meta tw:type-1"
         role="alert"
       >
         <span>{fileLoadState.message}</span>
@@ -700,7 +700,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
     )
   } else if (!hasContent) {
     diffBody = (
-      <div className="review-empty-state tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm">
+      <div className="review-empty-state tw:px-4 tw:py-5 tw:text-app-text-meta tw:type-1">
         {file.isUntracked
           ? '未跟踪文件暂不展示 hunk 预览，可直接暂存或删除。'
           : '此文件没有可用的 hunk 预览。'}
@@ -764,7 +764,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
     >
       <div
         className={cx(
-          'review-file-row preview-header tw:group/file-header tw:sticky tw:top-0 tw:z-local tw:m-0 tw:flex tw:h-10 tw:min-h-10 tw:flex-none tw:items-center tw:gap-0 tw:rounded-none tw:border-0 tw:border-b tw:border-b-app-border-subtle tw:px-4 tw:py-1 tw:text-left tw:text-app-text-soft tw:type-body-sm tw:transition-[color,background-color] tw:duration-feedback tw:ease-standard tw:hover:text-app-text',
+          'review-file-row preview-header tw:group/file-header tw:sticky tw:top-0 tw:z-local tw:m-0 tw:flex tw:h-7 tw:min-h-7 tw:flex-none tw:items-center tw:gap-0 tw:rounded-none tw:border-0 tw:border-b tw:border-b-app-border-subtle tw:px-4 tw:py-1 tw:text-left tw:text-app-text-soft tw:type-1 tw:transition-[color,background-color] tw:duration-feedback tw:ease-standard tw:hover:text-app-text',
           active && 'active tw:text-app-text',
         )}
       >
@@ -783,7 +783,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
             size={APP_ICON_SIZE}
           />
           <span
-            className="review-file-path tw:min-w-0 tw:flex-[0_1_auto] tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-meta tw:type-body-sm tw:[direction:rtl] tw:text-start"
+            className="review-file-path tw:min-w-0 tw:flex-[0_1_auto] tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-meta tw:type-1 tw:[direction:rtl] tw:text-start"
             title={file.path}
           >
             <span className="review-file-path__content tw:[direction:ltr] tw:[unicode-bidi:plaintext]">
@@ -796,10 +796,10 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
             </span>
           </span>
           <span className="review-file-counts tw:inline-flex tw:flex-none tw:items-center tw:gap-2 tw:ml-1">
-            <strong className="tw:text-app-success tw:type-weight-label">
+            <strong className="tw:text-app-success tw:weight-medium">
               +{formatPanelNumber(file.additions)}
             </strong>
-            <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
+            <em className="tw:text-app-danger tw:not-italic tw:weight-medium">
               -{formatPanelNumber(file.deletions)}
             </em>
           </span>
@@ -962,7 +962,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
           <button
             type="button"
             aria-expanded={showFullContext}
-            className="tw:mx-2 tw:mb-2 tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-app-raised tw:px-3 tw:py-2 tw:text-left tw:text-app-text-meta tw:type-body-sm tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+            className="tw:mx-2 tw:mb-2 tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-app-raised tw:px-3 tw:py-2 tw:text-left tw:text-app-text-meta tw:type-1 tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
             onClick={() => setShowFullContext((value) => !value)}
           >
             <ChevronDown size={REVIEW_FILE_ACTION_ICON_SIZE} />
@@ -1336,26 +1336,26 @@ export function ReviewProjectEmptyState({
 }): React.ReactNode {
   if (source.kind === 'unstaged') {
     return (
-      <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-6 tw:text-center">
+      <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-5 tw:text-center">
         <div className="review-project-empty-state__copy tw:flex tw:flex-col tw:items-center tw:gap-2">
-          <strong className="tw:text-app-text tw:type-title-sm">无未暂存更改</strong>
-          <span className="tw:text-app-text-soft tw:type-body-sm">代码更改将在此处显示</span>
+          <strong className="tw:text-app-text tw:type-4 tw:weight-bold">无未暂存更改</strong>
+          <span className="tw:text-app-text-soft tw:type-1">代码更改将在此处显示</span>
         </div>
       </div>
     )
   }
   if (source.kind === 'staged') {
     return (
-      <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-6 tw:text-center">
+      <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-5 tw:text-center">
         <div className="review-project-empty-state__copy tw:flex tw:flex-col tw:items-center tw:gap-2">
-          <strong className="tw:text-app-text tw:type-title-sm">无暂存更改</strong>
-          <span className="tw:text-app-text-soft tw:type-body-sm">接受编辑内容并暂存</span>
+          <strong className="tw:text-app-text tw:type-4 tw:weight-bold">无暂存更改</strong>
+          <span className="tw:text-app-text-soft tw:type-1">接受编辑内容并暂存</span>
         </div>
       </div>
     )
   }
   return (
-    <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-6 tw:text-center">
+    <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-5 tw:text-center">
       <div className="review-project-empty-state__content tw:flex tw:w-full tw:max-w-[576px] tw:flex-col tw:items-center tw:gap-3">
         <FileDiff
           className="tw:size-icon-lg tw:text-app-text-meta tw:[stroke-width:var(--cpx-sys-icon-stroke-width)]"
@@ -1363,8 +1363,8 @@ export function ReviewProjectEmptyState({
           aria-hidden="true"
         />
         <div className="review-project-empty-state__copy tw:flex tw:flex-col tw:items-center tw:gap-2">
-          <strong className="tw:text-app-text tw:type-title-sm">尚无文件更改</strong>
-          <span className="tw:text-app-text-soft tw:type-body-sm">
+          <strong className="tw:text-app-text tw:type-4 tw:weight-bold">尚无文件更改</strong>
+          <span className="tw:text-app-text-soft tw:type-1">
             此项目中的更改将显示在此处。
           </span>
         </div>

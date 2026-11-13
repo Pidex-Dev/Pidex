@@ -158,7 +158,7 @@ export function ReasoningItemView({
   const line = active && !expanded ? reasoningLatestLine(fullText) : null
   return (
     <Collapsible
-      className="reasoning-node tw:type-body-sm"
+      className="reasoning-node tw:type-1"
       open={expanded}
       onOpenChange={(next) => {
         if (disclosure) disclosure.onExpandedChange(disclosure.id, next)

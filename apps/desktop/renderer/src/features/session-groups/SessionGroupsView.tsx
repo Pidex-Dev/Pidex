@@ -270,7 +270,7 @@ export function SessionGroupsView(): React.ReactNode {
         >
           {error ? (
             <div
-              className="session-group-detail-message tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-app-text-soft tw:type-body-sm"
+              className="session-group-detail-message tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-app-text-soft tw:type-1"
               role="alert"
             >
               <AlertCircle size={APP_ICON_SIZE} />
@@ -288,23 +288,23 @@ export function SessionGroupsView(): React.ReactNode {
             </div>
           ) : null}
           {loading && !detail ? (
-            <div className="session-group-loading tw:flex tw:min-h-[40vh] tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:text-app-text-soft tw:type-body-sm">
+            <div className="session-group-loading tw:flex tw:min-h-[40vh] tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:text-app-text-soft tw:type-1">
               <Spinner size="medium" />
               <span>正在加载工作组…</span>
             </div>
           ) : null}
           {detail ? (
-            <div className="session-group-detail__inner tw:mx-auto tw:flex tw:w-[min(var(--page-content-max-width),100%)] tw:flex-col tw:pb-8">
+            <div className="session-group-detail__inner tw:mx-auto tw:flex tw:w-[min(var(--page-content-max-width),100%)] tw:flex-col tw:pb-6">
               <div className="tw:mb-3 tw:flex tw:items-center">
                 <Link
-                  className="session-groups-back tw:inline-flex tw:items-center tw:gap-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-label tw:no-underline tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+                  className="session-groups-back tw:inline-flex tw:items-center tw:gap-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-1 tw:weight-medium tw:no-underline tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
                   to="/workflows"
                 >
                   <ArrowLeft aria-hidden="true" size="var(--inline-icon-size, 1em)" />
                   <span>返回工作组</span>
                 </Link>
               </div>
-              <header className="session-group-detail__header tw:flex tw:items-start tw:justify-between tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:pb-6 tw:@max-[760px]:flex-col tw:@max-[760px]:items-stretch">
+              <header className="session-group-detail__header tw:flex tw:items-start tw:justify-between tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:pb-5 tw:@max-[760px]:flex-col tw:@max-[760px]:items-stretch">
                 <div className="session-group-detail__info tw:flex tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:flex-col tw:gap-1 tw:[&>h1]:mt-1 tw:[&>h1]:text-app-text tw:[&>h1]:type-title-xl tw:[&>p]:m-0 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body">
                   <Chip variant="accent" className="session-group-eyebrow tw:self-start">
                     <Sparkles
@@ -332,13 +332,13 @@ export function SessionGroupsView(): React.ReactNode {
                 </div>
               </header>
 
-              <section className="session-group-section tw:border-b tw:border-b-app-border-subtle tw:py-6 tw:last:border-b-0">
+              <section className="session-group-section tw:border-b tw:border-b-app-border-subtle tw:py-5 tw:last:border-b-0">
                 <div className="session-group-section__title-row tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:[&>h3]:m-0 tw:[&>h3]:type-title-sm">
                   <BookOpen size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   <h3>当前摘要</h3>
                 </div>
                 <div className="session-group-digest-card tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-4">
-                  <p className="session-group-digest tw:m-0 tw:whitespace-pre-wrap tw:text-app-text tw:type-body">
+                  <p className="session-group-digest tw:m-0 tw:whitespace-pre-wrap tw:text-app-text tw:type-2">
                     {detail.digest ||
                       '完成组内第一个会话步骤后，这里会自动整理目标、决策和修复结论。'}
                   </p>
@@ -363,15 +363,15 @@ export function SessionGroupsView(): React.ReactNode {
                 ) : null}
               </section>
 
-              <section className="session-group-section tw:border-b tw:border-b-app-border-subtle tw:py-6 tw:last:border-b-0">
+              <section className="session-group-section tw:border-b tw:border-b-app-border-subtle tw:py-5 tw:last:border-b-0">
                 <div className="session-group-section__title-row tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:[&>h3]:m-0 tw:[&>h3]:type-title-sm">
                   <Users size="var(--inline-icon-size, 1em)" strokeWidth={APP_ICON_STROKE_WIDTH} />
                   <h3>成员会话</h3>
-                  <span className="session-group-section-count tw:inline-flex tw:h-4.5 tw:min-w-4.5 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-control tw:px-1 tw:text-app-text-soft tw:type-label">
+                  <span className="session-group-section-count tw:inline-flex tw:h-4 tw:min-w-4 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-control tw:px-1 tw:text-app-text-soft tw:type-1 tw:weight-medium">
                     {detail.members.length}
                   </span>
                 </div>
-                <p className="session-group-member-hint tw:m-0 tw:mb-4 tw:text-app-text-soft tw:type-body-sm">
+                <p className="session-group-member-hint tw:m-0 tw:mb-4 tw:text-app-text-soft tw:type-1">
                   成员可以来自不同项目；组内会共享各自的设计、计划和成果，打开成员会话可查看完整历史。
                 </p>
                 <div className="session-group-member-add tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:@max-[760px]:flex-col tw:@max-[760px]:items-stretch">
@@ -410,12 +410,12 @@ export function SessionGroupsView(): React.ReactNode {
                         className="session-group-member-card__body"
                         to={`/threads/${encodeURIComponent(member.threadId)}`}
                       >
-                        <span className="session-group-member-card__title tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-row-title">
+                        <span className="session-group-member-card__title tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-2 tw:weight-medium">
                           {member.title || member.threadId}
                         </span>
                         <Chip
                           variant="info"
-                          className="session-group-member-card__chip tw:self-start tw:type-caption"
+                          className="session-group-member-card__chip tw:self-start tw:type-1"
                         >
                           {member.workspaceLabel || '无项目'}
                         </Chip>
@@ -435,21 +435,21 @@ export function SessionGroupsView(): React.ReactNode {
                     </article>
                   ))}
                   {detail.members.length === 0 ? (
-                    <p className="session-group-empty-subtle tw:m-0 tw:py-4 tw:text-app-text-meta tw:type-body-sm">
+                    <p className="session-group-empty-subtle tw:m-0 tw:py-4 tw:text-app-text-meta tw:type-1">
                       当前工作组暂无成员会话，请在上方选择已有会话加入。
                     </p>
                   ) : null}
                 </div>
               </section>
 
-              <section className="session-group-section tw:border-b tw:border-b-app-border-subtle tw:py-6 tw:last:border-b-0">
+              <section className="session-group-section tw:border-b tw:border-b-app-border-subtle tw:py-5 tw:last:border-b-0">
                 <div className="session-group-section__title-row tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:[&>h3]:m-0 tw:[&>h3]:type-title-sm">
                   <History
                     size="var(--inline-icon-size, 1em)"
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
                   <h3>步骤时间线</h3>
-                  <span className="session-group-section-count tw:inline-flex tw:h-4.5 tw:min-w-4.5 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-control tw:px-1 tw:text-app-text-soft tw:type-label">
+                  <span className="session-group-section-count tw:inline-flex tw:h-4 tw:min-w-4 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-control tw:px-1 tw:text-app-text-soft tw:type-1 tw:weight-medium">
                     {steps.length}
                   </span>
                 </div>
@@ -458,7 +458,7 @@ export function SessionGroupsView(): React.ReactNode {
                     <SessionGroupStepCard groupId={detail.group.id} key={step.id} step={step} />
                   ))}
                   {steps.length === 0 ? (
-                    <p className="session-group-empty-subtle tw:m-0 tw:py-4 tw:text-app-text-meta tw:type-body-sm">
+                    <p className="session-group-empty-subtle tw:m-0 tw:py-4 tw:text-app-text-meta tw:type-1">
                       组内的新会话完成一步后，会自动在此记录决策、修改和验证结果。
                     </p>
                   ) : null}
@@ -491,7 +491,7 @@ export function SessionGroupsView(): React.ReactNode {
           >
             {error ? (
               <div
-                className="session-group-notice tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:text-app-danger-fg tw:type-body-sm"
+                className="session-group-notice tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:text-app-danger-fg tw:type-1"
                 role="alert"
               >
                 <AlertCircle size="var(--inline-icon-size, 1em)" />
@@ -503,7 +503,7 @@ export function SessionGroupsView(): React.ReactNode {
               </div>
             ) : null}
             {loading ? (
-              <div className="session-group-loading tw:flex tw:min-h-[40vh] tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:text-app-text-soft tw:type-body-sm">
+              <div className="session-group-loading tw:flex tw:min-h-[40vh] tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:text-app-text-soft tw:type-1">
                 <Spinner size="medium" />
                 <span>正在加载工作组…</span>
               </div>
@@ -512,7 +512,7 @@ export function SessionGroupsView(): React.ReactNode {
               <div className="session-groups-table tw:@container">
                 <div
                   aria-hidden="true"
-                  className="session-groups-table__header tw:grid tw:grid-cols-[minmax(0,1fr)_minmax(120px,160px)_minmax(112px,auto)] tw:items-center tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:px-3 tw:py-2 tw:text-app-text-meta tw:type-caption tw:@max-[760px]:grid-cols-[minmax(0,1fr)_auto]"
+                  className="session-groups-table__header tw:grid tw:grid-cols-[minmax(0,1fr)_minmax(120px,160px)_minmax(112px,auto)] tw:items-center tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:px-3 tw:py-2 tw:text-app-text-meta tw:type-1 tw:@max-[760px]:grid-cols-[minmax(0,1fr)_auto]"
                 >
                   <span>工作组</span>
                   <span>项目</span>
@@ -532,12 +532,12 @@ export function SessionGroupsView(): React.ReactNode {
                           {group.description ? ` · ${group.description}` : ''}
                         </small>
                       </span>
-                      <span className="session-group-row__projects tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption tw:@max-[760px]:hidden">
+                      <span className="session-group-row__projects tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-meta tw:type-1 tw:@max-[760px]:hidden">
                         {group.projectLabels.length > 0
                           ? group.projectLabels.slice(0, 2).join('、')
                           : '无项目'}
                       </span>
-                      <span className="session-group-row__updated tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
+                      <span className="session-group-row__updated tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:whitespace-nowrap tw:text-app-text-meta tw:type-1">
                         <span>{formatGroupTime(group.latestStepAt) || '暂无记录'}</span>
                         <ChevronRight aria-hidden="true" size="var(--inline-icon-size, 1em)" />
                       </span>
@@ -547,7 +547,7 @@ export function SessionGroupsView(): React.ReactNode {
               </div>
             ) : null}
             {!loading && !error && groups.length === 0 ? (
-              <div className="session-groups-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-8 tw:text-center tw:text-app-text-meta tw:type-body-sm tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0">
+              <div className="session-groups-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-center tw:text-app-text-meta tw:type-1 tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0">
                 <MessagesSquare
                   aria-hidden="true"
                   size={APP_ICON_SIZES.lg}
@@ -561,7 +561,7 @@ export function SessionGroupsView(): React.ReactNode {
               </div>
             ) : null}
             {!loading && !error && groups.length > 0 && filtered.length === 0 ? (
-              <div className="session-groups-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-8 tw:text-center tw:text-app-text-meta tw:type-body-sm tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0">
+              <div className="session-groups-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-center tw:text-app-text-meta tw:type-1 tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0">
                 <MessagesSquare
                   aria-hidden="true"
                   size={APP_ICON_SIZES.lg}
@@ -657,7 +657,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
       <div className="session-group-step__rail tw:relative tw:flex tw:flex-col tw:items-center">
         <div
           className={cx(
-            'session-group-step__node tw:z-local tw:flex tw:size-6.5 tw:items-center tw:justify-center tw:rounded-full',
+            'session-group-step__node tw:z-local tw:flex tw:size-5 tw:items-center tw:justify-center tw:rounded-full',
             isFailed
               ? 'is-danger tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:text-app-danger-fg'
               : isCompleted
@@ -675,18 +675,18 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
         </div>
         <span className="session-group-step__seq tw:hidden">{step.sequence}</span>
       </div>
-      <div className="session-group-step__body tw:min-w-0 tw:pb-6 tw:pl-3">
+      <div className="session-group-step__body tw:min-w-0 tw:pb-5 tw:pl-3">
         <header className="session-group-step__header tw:mb-2 tw:flex tw:items-start tw:justify-between tw:gap-3 tw:@max-[760px]:flex-col">
           <div className="session-group-step__meta tw:flex tw:flex-col tw:gap-1">
             <div className="session-group-step__title-row tw:flex tw:items-center tw:gap-2">
-              <strong className="session-group-step__title tw:text-app-text tw:type-row-title">
+              <strong className="session-group-step__title tw:text-app-text tw:type-2 tw:weight-medium">
                 {step.sourceThreadTitle || '未命名步骤'}
               </strong>
               <Chip variant={isFailed ? 'danger' : isCompleted ? 'success' : 'accent'}>
                 {statusLabel}
               </Chip>
             </div>
-            <div className="session-group-step__submeta tw:flex tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
+            <div className="session-group-step__submeta tw:flex tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
               <span>{step.workspaceLabel || '默认工作区'}</span>
               <span>·</span>
               <span>Turn {step.sourceTurnId}</span>
@@ -694,7 +694,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
           </div>
           {step.sourceThreadId ? (
             <Link
-              className="session-group-step__link tw:inline-flex tw:items-center tw:gap-1 tw:text-app-accent-fg tw:type-caption tw:no-underline tw:hover:underline"
+              className="session-group-step__link tw:inline-flex tw:items-center tw:gap-1 tw:text-app-accent-fg tw:type-1 tw:no-underline tw:hover:underline"
               to={`/threads/${encodeURIComponent(step.sourceThreadId)}`}
             >
               <span>打开来源</span>
@@ -711,7 +711,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
         </header>
 
         {step.summary ? (
-          <p className="session-group-step__summary tw:mb-2 tw:mt-0 tw:whitespace-pre-wrap tw:text-app-text-soft tw:type-body-sm">
+          <p className="session-group-step__summary tw:mb-2 tw:mt-0 tw:whitespace-pre-wrap tw:text-app-text-soft tw:type-1">
             {step.summary}
           </p>
         ) : null}
@@ -761,7 +761,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
                 )}
                 key={`${validation.name}:${validation.summary}`}
               >
-                <div className="session-group-step__validation-header tw:flex tw:items-center tw:gap-1 tw:text-app-text tw:type-label tw:[&>strong]:type-weight-label">
+                <div className="session-group-step__validation-header tw:flex tw:items-center tw:gap-1 tw:text-app-text tw:type-1 tw:weight-medium tw:[&>strong]:type-weight-label">
                   {validation.status === 'passed' ? (
                     <Check className="tw:text-app-success" size={APP_ICON_SIZES.sm} />
                   ) : validation.status === 'failed' ? (
@@ -786,10 +786,10 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
 
         {step.failure ? (
           <div
-            className="session-group-step__failure tw:mt-2 tw:flex tw:flex-col tw:gap-1 tw:rounded-md tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-caption"
+            className="session-group-step__failure tw:mt-2 tw:flex tw:flex-col tw:gap-1 tw:rounded-md tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-1"
             role="alert"
           >
-            <div className="session-group-step__failure-title tw:flex tw:items-center tw:gap-1 tw:type-weight-label">
+            <div className="session-group-step__failure-title tw:flex tw:items-center tw:gap-1 tw:weight-medium">
               <AlertCircle size="var(--inline-icon-size, 1em)" />
               <strong>失败阶段：{step.failure.stage}</strong>
             </div>
@@ -802,7 +802,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
             <button
               aria-controls={diffId}
               aria-expanded={diffOpen}
-              className="session-group-diff-toggle tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-accent-fg tw:type-label tw:transition-[background-color] tw:duration-enter tw:ease-standard tw:hover:bg-app-hover"
+              className="session-group-diff-toggle tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-accent-fg tw:type-1 tw:weight-medium tw:transition-[background-color] tw:duration-enter tw:ease-standard tw:hover:bg-app-hover"
               type="button"
               onClick={() => void toggleDiff()}
             >
@@ -826,7 +826,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
                 style={diffResize.style}
               >
                 {diffLoading ? (
-                  <div className="session-group-diff-loading tw:p-4 tw:text-center tw:text-app-text-meta tw:type-caption">
+                  <div className="session-group-diff-loading tw:p-4 tw:text-center tw:text-app-text-meta tw:type-1">
                     正在加载 Diff…
                   </div>
                 ) : diff ? (

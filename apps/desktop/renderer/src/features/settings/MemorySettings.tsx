@@ -274,10 +274,10 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
 
   return (
     <SettingsContentArea className="memory-settings-page">
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">记忆</h2>
-          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
+      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">记忆</h2>
+          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
             Markdown 文件是唯一正文来源。模型维护索引、按需读取正文，后台负责增量提取与低频整理。
           </p>
         </div>
@@ -397,7 +397,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
           }
         >
           {!namespace ? (
-            <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">
+            <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-1">
               {hasWorkspace
                 ? '正在解析当前项目，或为命名 Agent 填写名称。'
                 : '无项目时仍可管理用户记忆；请切换到「用户记忆」范围。'}
@@ -407,7 +407,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
               <div className="memory-settings-toolbar tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:px-3 tw:pt-3">
                 <SearchInput
                   aria-label="搜索记忆文件"
-                  className="memory-settings-search tw:max-w-80 tw:min-w-40 tw:flex-1"
+                  className="memory-settings-search tw:max-w-[20rem] tw:min-w-[10rem] tw:flex-1"
                   value={query}
                   onChange={setQuery}
                   placeholder="搜索文件名或描述"
@@ -421,18 +421,18 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                   size="sm"
                   onChange={(value) => setTypeFilter(value as MemoryTypeFilter)}
                 />
-                <span className="memory-settings-count tw:ml-auto tw:text-app-text-soft tw:type-caption tw:whitespace-nowrap">
+                <span className="memory-settings-count tw:ml-auto tw:text-app-text-soft tw:type-1 tw:whitespace-nowrap">
                   {filteredMemories.length} 个文件
                 </span>
               </div>
               {error ? <p className="settings-row-error">{error}</p> : null}
               {notice ? (
-                <p className="settings-row-description tw:m-0 tw:px-3 tw:text-app-text-soft tw:type-body-sm">
+                <p className="settings-row-description tw:m-0 tw:px-3 tw:text-app-text-soft tw:type-1">
                   {notice}
                 </p>
               ) : null}
               {diagnostics.length > 0 ? (
-                <div className="settings-row-description tw:grid tw:gap-1 tw:px-3 tw:text-app-text-soft tw:type-body-sm">
+                <div className="settings-row-description tw:grid tw:gap-1 tw:px-3 tw:text-app-text-soft tw:type-1">
                   {diagnostics.map((item) => (
                     <span key={`${item.path}-${item.code}`}>
                       {item.path}：{item.message}
@@ -440,9 +440,9 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                   ))}
                 </div>
               ) : null}
-              <div className="memory-settings-grid tw:grid tw:min-h-120 tw:grid-cols-[minmax(260px,1fr)_minmax(380px,1.6fr)] tw:gap-3 tw:p-3">
+              <div className="memory-settings-grid tw:grid tw:min-h-[30rem] tw:grid-cols-[minmax(260px,1fr)_minmax(380px,1.6fr)] tw:gap-3 tw:p-3">
                 <div className="memory-settings-panel tw:flex tw:min-h-0 tw:flex-col tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border tw:bg-app-panel tw:shadow-none">
-                  <div className="memory-settings-panel-header tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-b-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-row-title tw:select-none">
+                  <div className="memory-settings-panel-header tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-b-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-2 tw:weight-medium tw:select-none">
                     <span>记忆列表</span>
                   </div>
                   <div className="memory-settings-list-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden tw:overflow-y-auto">
@@ -458,18 +458,18 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                           onClick={() => void openMemory(memory.relativePath)}
                           type="button"
                         >
-                          <span className="memory-settings-item-name tw:truncate tw:text-app-text tw:type-row-title">
+                          <span className="memory-settings-item-name tw:truncate tw:text-app-text tw:type-2 tw:weight-medium">
                             {memory.relativePath}
                           </span>
                           <span className="memory-settings-item-meta tw:flex tw:min-w-0 tw:items-center tw:gap-2">
-                            <span className="memory-settings-item-type tw:inline-flex tw:shrink-0 tw:items-center tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-caption">
+                            <span className="memory-settings-item-type tw:inline-flex tw:shrink-0 tw:items-center tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1">
                               {memory.type ?? 'unknown'}
                             </span>
-                            <span className="memory-settings-item-desc tw:min-w-0 tw:truncate tw:text-app-text-soft tw:type-body-sm">
+                            <span className="memory-settings-item-desc tw:min-w-0 tw:truncate tw:text-app-text-soft tw:type-1">
                               {memory.description ?? '无描述'}
                             </span>
                             {memory.indexed === false ? (
-                              <span className="tw:shrink-0 tw:text-app-text-meta tw:type-caption">
+                              <span className="tw:shrink-0 tw:text-app-text-meta tw:type-1">
                                 未索引
                               </span>
                             ) : null}
@@ -477,7 +477,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                         </button>
                       ))}
                       {filteredMemories.length === 0 ? (
-                        <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">
+                        <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-1">
                           暂无记忆文件
                         </div>
                       ) : null}
@@ -485,8 +485,8 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                   </div>
                 </div>
                 <div className="memory-settings-panel tw:flex tw:min-h-0 tw:flex-col tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border tw:bg-app-panel tw:shadow-none">
-                  <div className="memory-settings-panel-header memory-settings-panel-header-editor tw:flex tw:flex-wrap tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-b-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-row-title tw:select-none">
-                    <span className="memory-settings-editor-title tw:min-w-0 tw:flex-1 tw:truncate tw:text-app-text tw:type-row-title">
+                  <div className="memory-settings-panel-header memory-settings-panel-header-editor tw:flex tw:flex-wrap tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-b-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-2 tw:weight-medium tw:select-none">
+                    <span className="memory-settings-editor-title tw:min-w-0 tw:flex-1 tw:truncate tw:text-app-text tw:type-2 tw:weight-medium">
                       {selectedMemory ? selectedMemory.relativePath : '内容编辑'}
                     </span>
                     {selectedMemory ? (
@@ -516,12 +516,12 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                     <div className="memory-settings-editor-scroll-content tw:flex tw:min-w-0 tw:h-full tw:flex-col">
                       {selectedMemory ? (
                         <textarea
-                          className="settings-textarea memory-settings-editor-textarea tw:block tw:w-full tw:min-h-80 tw:flex-1 tw:resize-y tw:box-border tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-3 tw:text-app-text tw:type-code tw:m-0 tw:outline-none tw:focus:border-app-accent-border"
+                          className="settings-textarea memory-settings-editor-textarea tw:block tw:w-full tw:min-h-[20rem] tw:flex-1 tw:resize-y tw:box-border tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-3 tw:text-app-text tw:type-code tw:m-0 tw:outline-none tw:focus:border-app-accent-border"
                           value={draftContent ?? selectedMemory.content}
                           onChange={(event) => setDraftContent(event.target.value)}
                         />
                       ) : (
-                        <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">
+                        <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-1">
                           选择一个记忆文件查看内容
                         </div>
                       )}
@@ -535,7 +535,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
 
         <SettingsSection title="后台任务">
           {tasks.length === 0 ? (
-            <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">
+            <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-1">
               暂无任务记录
             </div>
           ) : (
@@ -545,10 +545,10 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                   className="memory-recall-item tw:grid tw:gap-1 tw:border-b tw:border-b-app-border tw:px-4 tw:py-3 tw:last:border-b-0"
                   key={task.id}
                 >
-                  <span className="memory-recall-time tw:text-app-text tw:type-label">
+                  <span className="memory-recall-time tw:text-app-text tw:type-1 tw:weight-medium">
                     {task.kind === 'organize' ? '整理' : '提取'} · {task.status} · {task.trigger}
                   </span>
-                  <span className="memory-recall-files tw:truncate tw:text-app-text-soft tw:type-caption">
+                  <span className="memory-recall-files tw:truncate tw:text-app-text-soft tw:type-1">
                     {formatTime(task.finishedAt ?? task.startedAt ?? task.createdAt)}
                     {task.error ? ` · ${task.error}` : ''}
                   </span>
@@ -559,10 +559,10 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
         </SettingsSection>
 
         <SettingsSection title="使用时间线">
-          <div className="memory-recall-list-scroll-area tw:max-h-90 tw:min-h-0 tw:overflow-x-hidden tw:overflow-y-auto">
+          <div className="memory-recall-list-scroll-area tw:max-h-[22.5rem] tw:min-h-0 tw:overflow-x-hidden tw:overflow-y-auto">
             <div className="memory-recall-list-scroll-content tw:min-w-0">
               {usage.length === 0 ? (
-                <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">
+                <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-1">
                   暂无使用记录
                 </div>
               ) : (
@@ -571,11 +571,11 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                     className="memory-recall-item tw:grid tw:gap-1 tw:border-b tw:border-b-app-border tw:px-4 tw:py-3 tw:last:border-b-0"
                     key={record.id}
                   >
-                    <span className="memory-recall-time tw:text-app-text tw:type-label">
+                    <span className="memory-recall-time tw:text-app-text tw:type-1 tw:weight-medium">
                       {formatTime(record.createdAt)} ·{' '}
                       {record.kind === 'index' ? '索引注入' : '正文读取'}
                     </span>
-                    <span className="memory-recall-files tw:truncate tw:text-app-text-soft tw:type-caption">
+                    <span className="memory-recall-files tw:truncate tw:text-app-text-soft tw:type-1">
                       {record.relativePath ?? '—'} · {record.bytes} 字节
                       {record.truncated ? ' (截断)' : ''}
                       {record.threadId ? ` · 会话 ${record.threadId}` : ''}

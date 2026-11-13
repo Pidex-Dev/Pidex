@@ -868,7 +868,7 @@ export const TooltipContent = forwardRef<HTMLDivElement, TooltipContentProps>(
     const isUnstyled = variant === 'unstyled'
     const baseClasses = isUnstyled
       ? 'tooltip-presence'
-      : 'tooltip-presence tooltip-content tw:inline-flex tw:items-center tw:px-2 tw:py-1 tw:rounded-sm tw:type-caption tw:max-w-[min(280px,calc(100vw-16px))] tw:break-words tw:select-none tw:box-border tw:z-tooltip'
+      : 'tooltip-presence tooltip-content tw:inline-flex tw:items-center tw:px-2 tw:py-1 tw:rounded-sm tw:type-1 tw:max-w-[min(280px,calc(100vw-16px))] tw:break-words tw:select-none tw:box-border tw:z-tooltip'
     const variantClasses = isUnstyled ? '' : VARIANT_STYLES[variant] || VARIANT_STYLES.default
 
     const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -931,9 +931,9 @@ export const TooltipContent = forwardRef<HTMLDivElement, TooltipContentProps>(
           >
             <TooltipPositionContext.Provider value={positionContextValue}>
               {shortcut ? (
-                <span className="tooltip-with-shortcut tw:inline-flex tw:items-center tw:gap-1.5">
+                <span className="tooltip-with-shortcut tw:inline-flex tw:items-center tw:gap-2">
                   <span>{children}</span>
-                  <kbd className="tooltip-shortcut-badge tw:inline-flex tw:items-center tw:justify-center tw:rounded-xs tw:bg-[color-mix(in_srgb,currentColor_16%,transparent)] tw:px-1.5 tw:py-0.5 tw:font-sans tw:type-caption tw:text-inherit">
+                  <kbd className="tooltip-shortcut-badge tw:inline-flex tw:items-center tw:justify-center tw:rounded-xs tw:bg-[color-mix(in_srgb,currentColor_16%,transparent)] tw:px-1 tw:py-0 tw:font-sans tw:type-1 tw:text-inherit">
                     {shortcut}
                   </kbd>
                 </span>

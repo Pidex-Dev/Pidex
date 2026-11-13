@@ -196,11 +196,11 @@ export function ModelDocumentEditor({
                 options={pending.map((item, i) => ({ value: String(i), label: item.modelId }))}
                 onChange={(value) => setSelected(Number(value))}
               />
-              <p className="tw:m-0 tw:type-body-sm">
+              <p className="tw:m-0 tw:type-1">
                 以下差异始终以当前草稿为准，采用前请核对模型与原文。
               </p>
               {differences.map((key) => (
-                <div key={key} className="tw:type-body-sm tw:break-words">
+                <div key={key} className="tw:type-1 tw:break-words">
                   <strong>
                     {{
                       name: '显示名称',
@@ -227,7 +227,7 @@ export function ModelDocumentEditor({
               ))}
               {!differences.length ? <p className="tw:m-0">资料与当前草稿一致。</p> : null}
               {candidate.snapshot.evidence.map((quote, index) => (
-                <blockquote key={index} className="tw:m-0 tw:type-body-sm">
+                <blockquote key={index} className="tw:m-0 tw:type-1">
                   {quote}
                 </blockquote>
               ))}

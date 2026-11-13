@@ -342,6 +342,6 @@
   }
 
   .sidebar-product-mode-select {
-    font-size: var(--cpx-sys-font-size-lg);
+    font-size: var(--cpx-sys-font-size-3);
   }
 }

@@ -38,7 +38,7 @@ export type SelectProps<T extends string = string> = {
 }
 
 const SELECT_TRIGGER_CLASSNAME =
-  'ui-select-trigger settings-dropdown settings-dropdown-trigger tw:min-h-7 tw:min-w-0 tw:appearance-none tw:inline-flex tw:items-center tw:justify-between tw:gap-control-gap tw:border tw:rounded-control tw:px-row-inline tw:py-0 tw:text-left tw:type-control tw:cursor-pointer tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-out tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1'
+  'ui-select-trigger settings-dropdown settings-dropdown-trigger tw:min-h-7 tw:min-w-0 tw:appearance-none tw:inline-flex tw:items-center tw:justify-between tw:gap-control-gap tw:border tw:rounded-control tw:px-row-inline tw:py-0 tw:text-left tw:type-2 tw:weight-medium tw:cursor-pointer tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-out tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1'
 function OptionContent({
   option,
   selected,
@@ -49,17 +49,17 @@ function OptionContent({
   showSelectedIndicator: boolean
 }): React.ReactNode {
   return (
-    <div className="ui-select-item-inner settings-dropdown-item-inner tw:type-row-title tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2">
+    <div className="ui-select-item-inner settings-dropdown-item-inner tw:type-2 tw:weight-medium tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2">
       {option.icon ? <span className="menu-column-leading">{option.icon}</span> : null}
       <div className="ui-select-item-copy settings-dropdown-item-copy menu-column-label tw:grid tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:gap-1">
         <OverflowTitle
-          className="ui-select-item-label settings-dropdown-item-label tw:min-w-0 tw:type-row-title"
+          className="ui-select-item-label settings-dropdown-item-label tw:min-w-0 tw:type-2 tw:weight-medium"
           variant="menu"
         >
           {option.label}
         </OverflowTitle>
         {option.detail ? (
-          <span className="ui-select-item-detail settings-dropdown-item-detail menu-column-detail tw:whitespace-normal tw:wrap-anywhere tw:text-app-text-meta tw:type-caption">
+          <span className="ui-select-item-detail settings-dropdown-item-detail menu-column-detail tw:whitespace-normal tw:wrap-anywhere tw:text-app-text-meta tw:type-1">
             {option.detail}
           </span>
         ) : null}

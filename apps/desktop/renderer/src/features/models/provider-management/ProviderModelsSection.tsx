@@ -483,9 +483,9 @@ export function ProviderModelsSection({
         <SearchHeading
           title={
             <div className="tw:flex tw:items-center tw:gap-2">
-              <h3 className="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:type-title-sm">
+              <h3 className="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:type-4 tw:weight-bold">
                 模型{' '}
-                <span className="tw:inline-flex tw:h-6 tw:min-w-6 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-hover tw:px-2 tw:type-body-sm tw:tabular-nums">
+                <span className="tw:inline-flex tw:h-5 tw:min-w-5 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-hover tw:px-2 tw:type-1 tw:tabular-nums">
                   {rows.length}
                 </span>
               </h3>
@@ -570,7 +570,7 @@ export function ProviderModelsSection({
           />
         ))}
         {filtered.length === 0 ? (
-          <p className="tw:px-3 tw:py-4 tw:text-app-text-soft tw:type-body-sm">
+          <p className="tw:px-3 tw:py-4 tw:text-app-text-soft tw:type-1">
             {rows.length === 0 ? '尚无模型，请同步目录或添加模型。' : '未找到匹配的模型。'}
           </p>
         ) : null}
@@ -622,12 +622,12 @@ export function ProviderModelsSection({
               {saving ? (
                 <p role="status">正在获取模型目录…</p>
               ) : discoveredModels?.length === 0 ? (
-                <p className="tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body-sm">
+                <p className="tw:py-6 tw:text-center tw:text-app-text-soft tw:type-1">
                   远端目录没有模型。
                 </p>
               ) : (
                 <>
-                  <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2.5 tw:mb-1">
+                  <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:mb-1">
                     <SearchInput
                       aria-label="搜索候选模型"
                       placeholder="搜索模型名称、ID、厂商或能力"
@@ -635,7 +635,7 @@ export function ProviderModelsSection({
                       onChange={setModalSearchQuery}
                       className="tw:flex-1 tw:min-w-[200px]"
                     />
-                    <div className="tw:flex tw:shrink-0 tw:items-center tw:gap-1.5">
+                    <div className="tw:flex tw:shrink-0 tw:items-center tw:gap-1">
                       <Button
                         color="outline"
                         size="sm"
@@ -685,11 +685,11 @@ export function ProviderModelsSection({
                     </div>
                   </div>
                   {filteredDiscoveredModels.length === 0 ? (
-                    <p className="tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body-sm">
+                    <p className="tw:py-6 tw:text-center tw:text-app-text-soft tw:type-1">
                       未找到匹配的模型。
                     </p>
                   ) : (
-                    <div className="tw:grid tw:grid-cols-2 tw:gap-3.5 tw:max-[560px]:grid-cols-1">
+                    <div className="tw:grid tw:grid-cols-2 tw:gap-3 tw:max-[560px]:grid-cols-1">
                       {filteredDiscoveredModels.map((model) => (
                         <DiscoveredModelCard
                           key={model.id}
@@ -785,7 +785,7 @@ function ModelRowItem({
       </span>
       <button
         type="button"
-        className="tw:min-w-0 tw:flex-1 tw:truncate tw:text-left tw:type-row-title"
+        className="tw:min-w-0 tw:flex-1 tw:truncate tw:text-left tw:type-2 tw:weight-medium"
         aria-label={`编辑模型 ${modelId}`}
         disabled={editingDisabled}
         onClick={onEdit}
@@ -809,14 +809,14 @@ function ModelRowItem({
           </span>
         ) : null}
         {testStatus?.state === 'reachable' ? (
-          <span role="status" className="tw:text-app-success tw:type-caption">
+          <span role="status" className="tw:text-app-success tw:type-1">
             {testStatus.api ? `${testStatus.api} · ` : ''}
             {testStatus.latencyMs} ms
           </span>
         ) : testStatus?.state === 'failed' ? (
           <span
             role="status"
-            className="tw:text-app-danger tw:type-caption"
+            className="tw:text-app-danger tw:type-1"
             title={`${testStatus.message}${testStatus.category ? ` · ${testStatus.category}` : ''}`}
           >
             失败
@@ -1088,7 +1088,7 @@ export function DiscoveredModelCard({
       disabled={isToggling}
       onClick={onToggle}
       className={cx(
-        'discovered-model-card tw:group tw:relative tw:flex tw:flex-col tw:justify-between tw:gap-2.5 tw:rounded-xl tw:p-3.5 tw:text-left tw:transition-all tw:duration-150 tw:cursor-pointer tw:outline-none tw:select-none tw:min-h-[118px] tw:w-full',
+        'discovered-model-card tw:group tw:relative tw:flex tw:flex-col tw:justify-between tw:gap-2 tw:rounded-xl tw:p-3 tw:text-left tw:transition-all tw:duration-150 tw:cursor-pointer tw:outline-none tw:select-none tw:min-h-[118px] tw:w-full',
         'tw:focus-visible:ring-2 tw:focus-visible:ring-app-focus tw:focus-visible:ring-offset-1',
         isSelected
           ? 'tw:bg-app-accent-subtle/80 tw:border tw:border-app-accent tw:ring-1 tw:ring-app-accent tw:shadow-md tw:shadow-app-accent/20 dark:tw:shadow-app-accent/35'
@@ -1108,15 +1108,15 @@ export function DiscoveredModelCard({
               fallback={<Server aria-hidden size={14} />}
             />
           </span>
-          <span className="tw:truncate tw:type-row-title tw:text-app-text" title={modelName}>
+          <span className="tw:truncate tw:type-2 tw:weight-medium tw:text-app-text" title={modelName}>
             {modelName}
           </span>
-          <span className="tw:shrink-0 tw:rounded tw:bg-app-hover tw:px-1.5 tw:py-0.5 tw:type-caption tw:text-app-text-soft">
+          <span className="tw:shrink-0 tw:rounded tw:bg-app-hover tw:px-1 tw:py-1 tw:type-1 tw:text-app-text-soft">
             {vendor}
           </span>
           <span
             className={cx(
-              'tw:shrink-0 tw:rounded tw:px-1.5 tw:py-0.5 tw:type-caption',
+              'tw:shrink-0 tw:rounded tw:px-1 tw:py-1 tw:type-1',
               importable
                 ? 'tw:bg-app-accent-subtle tw:text-app-accent-fg'
                 : 'tw:bg-app-hover tw:text-app-text-meta',
@@ -1128,17 +1128,17 @@ export function DiscoveredModelCard({
 
         <div className="tw:shrink-0">
           {isToggling ? (
-            <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-0.5 tw:type-caption tw:text-app-text-soft">
+            <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft">
               <RefreshCw size="var(--inline-icon-size, 1em)" className="tw:animate-spin" />
               <span>保存中</span>
             </span>
           ) : isSelected ? (
-            <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:bg-app-hover tw:text-app-text tw:px-2 tw:py-0.5 tw:type-caption tw:shadow-sm">
+            <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:bg-app-hover tw:text-app-text tw:px-2 tw:py-1 tw:type-1 tw:shadow-sm">
               <Check size="var(--inline-icon-size, 1em)" strokeWidth={2.5} />
               <span>已添加</span>
             </span>
           ) : (
-            <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-dashed tw:border-app-border-subtle tw:px-2 tw:py-0.5 tw:type-caption tw:text-app-text-meta tw:group-hover:border-app-border tw:group-hover:text-app-text-soft">
+            <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-dashed tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta tw:group-hover:border-app-border tw:group-hover:text-app-text-soft">
               <Plus size="var(--inline-icon-size, 1em)" />
               <span>未添加</span>
             </span>
@@ -1146,17 +1146,17 @@ export function DiscoveredModelCard({
         </div>
       </div>
 
-      <span className="tw:truncate tw:font-mono tw:type-caption tw:text-app-text-meta tw:w-full" title={model.id}>{model.id}</span>
+      <span className="tw:truncate tw:font-mono tw:type-1 tw:text-app-text-meta tw:w-full" title={model.id}>{model.id}</span>
       {model.catalog?.status && <span>{model.catalog.status}</span>}
       {/* 第二行：模型的信息，例如视觉，推理等 */}
-      <div className="tw:flex tw:items-center tw:gap-1.5 tw:flex-wrap tw:min-h-5">
+      <div className="tw:flex tw:items-center tw:gap-1 tw:flex-wrap tw:min-h-5">
         {capabilities.slice(0, 4).map((cap) => {
           const Icon = cap.icon
           return (
             <span
               key={cap.key}
               className={cx(
-                'tw:inline-flex tw:items-center tw:gap-1 tw:rounded tw:px-1.5 tw:py-0.5 tw:type-caption',
+                'tw:inline-flex tw:items-center tw:gap-1 tw:rounded tw:px-1 tw:py-1 tw:type-1',
                 cap.badgeClass,
               )}
             >
@@ -1169,8 +1169,8 @@ export function DiscoveredModelCard({
 
       {capabilities.length > 4 && <span>+{capabilities.length - 4}</span>}
       {/* 第三行：模型的上下文长度 */}
-      <div className="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:type-caption tw:text-app-text-soft tw:pt-1 tw:border-t tw:border-app-border-subtle/40">
-        <div className="tw:flex tw:items-center tw:gap-1.5 tw:min-w-0">
+      <div className="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:type-1 tw:text-app-text-soft tw:pt-1 tw:border-t tw:border-app-border-subtle/40">
+        <div className="tw:flex tw:items-center tw:gap-1 tw:min-w-0">
           <Cpu size="var(--inline-icon-size, 1em)" className="tw:shrink-0 tw:text-app-text-meta" />
           <span>
             上下文长度:{' '}
@@ -1182,9 +1182,9 @@ export function DiscoveredModelCard({
           </span>
         </div>
       </div>
-      <span className="tw:type-caption tw:text-app-text-soft">输入 {modelPrice(model.cost?.input)} / 输出 {modelPrice(model.cost?.output)} · USD / 百万 tokens{model.catalog?.priceSource?.kind === 'reference' ? ' · 原厂参考价' : model.catalog?.priceSource ? ' · 供应商价格' : ''}</span>
+      <span className="tw:type-1 tw:text-app-text-soft">输入 {modelPrice(model.cost?.input)} / 输出 {modelPrice(model.cost?.output)} · USD / 百万 tokens{model.catalog?.priceSource?.kind === 'reference' ? ' · 原厂参考价' : model.catalog?.priceSource ? ' · 供应商价格' : ''}</span>
     </button>
-    {onExpand && <button type="button" aria-expanded={expanded === true} onClick={onExpand} className="tw:py-2 tw:text-app-accent-fg tw:type-caption">{expanded ? '收起详情' : '查看详情'}</button>}
+    {onExpand && <button type="button" aria-expanded={expanded === true} onClick={onExpand} className="tw:py-2 tw:text-app-accent-fg tw:type-1">{expanded ? '收起详情' : '查看详情'}</button>}
     {expanded && <ModelCatalogDetails model={model} current={current} />}
     </div>
   )

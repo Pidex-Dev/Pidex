@@ -208,7 +208,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
             </Button>
           ) : null}
           <h2
-            className="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:type-title-md tw:text-app-text"
+            className="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:type-5 tw:weight-bold tw:text-app-text"
             title={props.creating ? '创建任务' : props.task?.name}
           >
             {props.creating ? '创建任务' : props.task?.name}
@@ -216,7 +216,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
         </div>
         <div className="automation-detail-header-actions tw:flex tw:shrink-0 tw:items-center tw:gap-2">
           {!props.creating && props.task ? (
-            <span className="automation-status-pill tw:whitespace-nowrap tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-soft">
+            <span className="automation-status-pill tw:whitespace-nowrap tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft">
               {calendarStatusLabel(props.task.status)}
             </span>
           ) : null}
@@ -268,7 +268,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
               role="group"
               aria-label="执行时间"
             >
-              <span className="automation-field-label tw:type-control tw:text-app-text">
+              <span className="automation-field-label tw:type-2 tw:weight-medium tw:text-app-text">
                 执行时间
               </span>
               <div className="automation-execution-inputs tw:grid tw:grid-cols-[minmax(0,1fr)_minmax(0,7.5rem)] tw:gap-2">
@@ -295,7 +295,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
               role="group"
               aria-label="执行时间"
             >
-              <span className="automation-field-label tw:type-control tw:text-app-text">
+              <span className="automation-field-label tw:type-2 tw:weight-medium tw:text-app-text">
                 执行时间
               </span>
               <div className="automation-execution-inputs tw:grid tw:grid-cols-[minmax(0,1fr)_minmax(0,7.5rem)] tw:gap-2">
@@ -324,7 +324,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
                 role="group"
                 aria-label="执行时间"
               >
-                <span className="automation-field-label tw:type-control tw:text-app-text">
+                <span className="automation-field-label tw:type-2 tw:weight-medium tw:text-app-text">
                   执行时间
                 </span>
                 <div className="automation-execution-inputs tw:grid tw:grid-cols-[minmax(0,1fr)_minmax(0,7.5rem)] tw:gap-2">
@@ -547,7 +547,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
           </div>
           {draft.permissionConfig.sandboxMode === 'danger-full-access' ? (
             <div
-              className="automation-risk tw:flex tw:items-start tw:gap-2 tw:rounded-container tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:p-3 tw:type-body-sm tw:text-app-warning-fg"
+              className="automation-risk tw:flex tw:items-start tw:gap-2 tw:rounded-container tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:p-3 tw:type-1 tw:text-app-warning-fg"
               role="note"
             >
               <AlertTriangle
@@ -560,7 +560,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
           ) : null}
           {error || (editable && !Number.isFinite(draft.scheduledFor)) ? (
             <p
-              className="automation-field-error tw:m-0 tw:type-caption tw:text-app-danger-fg"
+              className="automation-field-error tw:m-0 tw:type-1 tw:text-app-danger-fg"
               role="alert"
             >
               {error ?? '请选择执行时间。'}
@@ -568,7 +568,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
           ) : null}
         </section>
       </div>
-      <footer className="automation-form-actions automation-detail-footer tw:flex tw:min-h-8 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-3 tw:py-2">
+      <footer className="automation-form-actions automation-detail-footer tw:flex tw:min-h-6 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-3 tw:py-2">
         {!props.creating && props.task ? (
           <>
             {editable ? (
@@ -657,10 +657,10 @@ function Field({
 }): React.ReactNode {
   return (
     <label className="automation-field tw:[&_.ui-select-trigger]:w-full tw:grid tw:min-w-0 tw:content-start tw:gap-1">
-      <span className="automation-field-label tw:type-control tw:text-app-text">{label}</span>
+      <span className="automation-field-label tw:type-2 tw:weight-medium tw:text-app-text">{label}</span>
       {children}
       {hint ? (
-        <span className="automation-field-hint tw:type-caption tw:text-app-text-meta">{hint}</span>
+        <span className="automation-field-hint tw:type-1 tw:text-app-text-meta">{hint}</span>
       ) : null}
     </label>
   )

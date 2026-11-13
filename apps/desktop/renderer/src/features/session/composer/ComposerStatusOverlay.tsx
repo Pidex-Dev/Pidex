@@ -32,23 +32,23 @@ type Props = {
  */
 const SECTION_CLASS = 'composer-status-section tw:min-w-0'
 const HEADER_CLASS =
-  'composer-status-header tw:flex tw:min-h-10 tw:items-center tw:justify-between tw:gap-3 tw:px-3 tw:pb-1 tw:pt-2'
+  'composer-status-header tw:flex tw:min-h-7 tw:items-center tw:justify-between tw:gap-3 tw:px-3 tw:pb-1 tw:pt-2'
 
 function renderQuotaRow(quota: ProviderQuotaWindow): React.ReactNode {
   const percent = quotaRemainingPercent(quota)
   return (
     <div className="composer-status-quota-row tw:[&+&]:mt-2" key={quota.id}>
-      <div className="composer-status-label tw:mb-1 tw:text-app-text-meta tw:type-label tw:[&>svg]:size-[var(--inline-icon-size,1em)]">
+      <div className="composer-status-label tw:mb-1 tw:text-app-text-meta tw:type-1 tw:weight-medium tw:[&>svg]:size-[var(--inline-icon-size,1em)]">
         {quota.label}
       </div>
-      <div className="composer-status-bar-track tw:my-1 tw:h-1.5 tw:overflow-hidden tw:rounded-indicator tw:bg-app-border">
+      <div className="composer-status-bar-track tw:my-1 tw:h-[6px] tw:overflow-hidden tw:rounded-indicator tw:bg-app-border">
         <div
           className="composer-status-bar-fill"
           style={{ '--usage-ratio': percent / 100 } as React.CSSProperties}
         />
       </div>
-      <div className="composer-status-bar-meta tw:flex tw:items-center tw:justify-between tw:type-caption">
-        <span className="composer-status-bar-percent tw:text-app-text tw:type-label">
+      <div className="composer-status-bar-meta tw:flex tw:items-center tw:justify-between tw:type-1">
+        <span className="composer-status-bar-percent tw:text-app-text tw:type-1 tw:weight-medium">
           {quota.state === 'unlimited' ? '无限' : `${percent}%`}
         </span>
         <span className="composer-status-bar-detail tw:text-app-text-meta">
@@ -128,7 +128,7 @@ export function ComposerStatusOverlay({
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
-          <span className="tw:text-app-text-meta tw:type-label">状态与用量</span>
+          <span className="tw:text-app-text-meta tw:type-1 tw:weight-medium">状态与用量</span>
         </span>
         <Button color="ghostSecondary" size="composerSm" title="关闭状态与用量" onClick={onClose}>
           关闭
@@ -140,7 +140,7 @@ export function ComposerStatusOverlay({
         <div
           className={`${SECTION_CLASS} composer-status-field tw:flex tw:min-w-0 tw:items-center tw:gap-3`}
         >
-          <div className="composer-status-label tw:w-[7.5rem] tw:shrink-0 tw:text-app-text-meta tw:type-label tw:[&>svg]:size-[var(--inline-icon-size,1em)]">
+          <div className="composer-status-label tw:w-[7.5rem] tw:shrink-0 tw:text-app-text-meta tw:type-1 tw:weight-medium tw:[&>svg]:size-[var(--inline-icon-size,1em)]">
             会话 ID
           </div>
           <div className="composer-status-value tw:min-w-0 tw:flex-1 tw:break-all tw:text-app-text tw:type-code">
@@ -159,11 +159,11 @@ export function ComposerStatusOverlay({
         {showQuotaSection ? (
           <div className={SECTION_CLASS}>
             {loading ? (
-              <div className="composer-status-empty tw:py-2 tw:text-app-text-meta tw:type-secondary">
+              <div className="composer-status-empty tw:py-2 tw:text-app-text-meta tw:type-1">
                 正在查询用量...
               </div>
             ) : error ? (
-              <div className="composer-status-empty composer-status-empty-error tw:py-2 tw:text-app-danger tw:type-secondary">
+              <div className="composer-status-empty composer-status-empty-error tw:py-2 tw:text-app-danger tw:type-1">
                 {error}
               </div>
             ) : quotas.length > 0 ? (

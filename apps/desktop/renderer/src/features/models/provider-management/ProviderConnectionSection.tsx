@@ -314,8 +314,8 @@ export function ProviderConnectionSection({
         <section className="tw:grid tw:gap-3">
           <header className="model-center-detail-card-header tw:flex tw:items-center tw:justify-between tw:gap-3">
             <div>
-              <h3 className="tw:m-0 tw:text-app-text tw:type-title-sm">此 Provider 暂不可用</h3>
-              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+              <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">此 Provider 暂不可用</h3>
+              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
                 当前协议或 Endpoint 尚未适配，不能新增凭据或测试连接。
               </p>
             </div>
@@ -323,7 +323,7 @@ export function ProviderConnectionSection({
         </section>
         {panel?.host && section && section !== 'model'
           ? createPortal(
-              <p className="tw:p-4 tw:text-app-text-soft tw:type-body-sm">
+              <p className="tw:p-4 tw:text-app-text-soft tw:type-1">
                 当前提供商暂不可用，无法管理连接或请求配置。
               </p>,
               panel.host,
@@ -358,10 +358,10 @@ export function ProviderConnectionSection({
   const oauthActive = activeConnection?.kind === 'oauth'
   const envActive = activeConnection?.kind === 'env'
   return (
-    <div className="model-center-connection-section tw:grid tw:gap-6">
-      <div className="tw:grid tw:min-w-0 tw:grid-cols-1 tw:gap-6 tw:@min-[640px]:grid-cols-2">
+    <div className="model-center-connection-section tw:grid tw:gap-5">
+      <div className="tw:grid tw:min-w-0 tw:grid-cols-1 tw:gap-5 tw:@min-[640px]:grid-cols-2">
         <section aria-label="连接摘要" className="tw:grid tw:min-w-0 tw:gap-3">
-          <h3 className="tw:m-0 tw:text-app-text tw:type-title-sm">
+          <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
             {oauthActive
               ? '账号授权'
               : envActive
@@ -372,10 +372,10 @@ export function ProviderConnectionSection({
           </h3>
           <div className="tw:flex tw:items-center tw:gap-2">
             {oauthActive || envActive || !supportsInferenceKeys ? (
-              <span className="tw:flex tw:min-h-9 tw:flex-1 tw:items-center tw:gap-2 tw:type-body-sm">
+              <span className="tw:flex tw:min-h-7 tw:flex-1 tw:items-center tw:gap-2 tw:type-1">
                 {activeConnection?.label ??
                   (configured ? '已配置' : oauthAvailable ? '请登录账号' : '无需认证')}
-                <span className="tw:text-app-text-meta tw:type-caption">
+                <span className="tw:text-app-text-meta tw:type-1">
                   {oauthActive ? '已授权' : envActive ? '只读来源' : ''}
                 </span>
               </span>
@@ -398,7 +398,7 @@ export function ProviderConnectionSection({
           </div>
         </section>
         <section className="tw:grid tw:min-w-0 tw:gap-3">
-          <h3 className="tw:m-0 tw:text-app-text tw:type-title-sm">API 地址</h3>
+          <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">API 地址</h3>
           <div className="tw:flex tw:items-center tw:gap-2">
             <Input
               aria-label="API 地址"
@@ -434,14 +434,14 @@ export function ProviderConnectionSection({
             <div className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col">
               <div
                 ref={scrollRef}
-                className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-6 tw:overflow-y-auto tw:p-4 tw:[&_.model-center-oauth-flow]:p-0"
+                className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-5 tw:overflow-y-auto tw:p-4 tw:[&_.model-center-oauth-flow]:p-0"
               >
                 <section className="tw:grid tw:gap-4" aria-label="供应商信息">
-                  <h3 className="tw:m-0 tw:type-title-sm">供应商信息</h3>
+                  <h3 className="tw:m-0 tw:type-4 tw:weight-bold">供应商信息</h3>
                   <div className="tw:grid tw:min-w-0 tw:gap-4">
                     {customConfig ? <div ref={setProviderNameHost} /> : null}
                     <div className="tw:grid tw:min-w-0 tw:gap-2">
-                      <span className="tw:type-label">供应商图标</span>
+                      <span className="tw:type-1 tw:weight-medium">供应商图标</span>
                       <ProviderWebsiteIconSettings
                         key={provider.providerID}
                         providerID={provider.providerID}
@@ -455,13 +455,13 @@ export function ProviderConnectionSection({
                 </section>
                 <section
                   ref={credentialsRef}
-                  className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-6"
+                  className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5"
                   aria-label="认证与密钥"
                 >
-                  <h3 className="tw:m-0 tw:type-title-sm">认证与密钥</h3>
+                  <h3 className="tw:m-0 tw:type-4 tw:weight-bold">认证与密钥</h3>
                   {keyEditor ? (
                     <section className="tw:grid tw:gap-3">
-                      <h4 className="tw:m-0 tw:type-title-sm">
+                      <h4 className="tw:m-0 tw:type-4 tw:weight-bold">
                         {keyEditor === 'new' ? '新增 API Key' : '编辑 API Key'}
                       </h4>
                       <ApiKeyEditorForm
@@ -490,8 +490,8 @@ export function ProviderConnectionSection({
                     <section className="tw:grid tw:gap-3">
                       <header className="model-center-detail-card-header tw:flex tw:items-center tw:justify-between tw:gap-3">
                         <div>
-                          <h4 className="tw:m-0 tw:type-row-title">API Key</h4>
-                          <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                          <h4 className="tw:m-0 tw:type-2 tw:weight-medium">API Key</h4>
+                          <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
                             优先使用排在首位的活动密钥。
                           </p>
                         </div>
@@ -532,11 +532,11 @@ export function ProviderConnectionSection({
                                 className="model-center-key-row tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:py-2 tw:[&+&]:border-t tw:[&+&]:border-app-border-subtle"
                               >
                                 <KeyRound aria-hidden size="var(--inline-icon-size, 1em)" />
-                                <span className="tw:min-w-0 tw:flex-1 tw:truncate tw:type-body-sm">
+                                <span className="tw:min-w-0 tw:flex-1 tw:truncate tw:type-1">
                                   {connection.label}
                                 </span>
                                 <span
-                                  className="tw:text-app-text-meta tw:type-caption"
+                                  className="tw:text-app-text-meta tw:type-1"
                                   title="由运行环境提供，不支持编辑、删除或复制。"
                                 >
                                   环境变量 · 只读
@@ -545,7 +545,7 @@ export function ProviderConnectionSection({
                             ))}
                           </div>
                         ) : (
-                          <div className="model-center-section-empty-hint tw:flex tw:items-center tw:gap-2 tw:py-2 tw:text-app-text-soft tw:type-body-sm tw:[&_svg]:shrink-0 tw:[&_svg]:text-app-text-meta">
+                          <div className="model-center-section-empty-hint tw:flex tw:items-center tw:gap-2 tw:py-2 tw:text-app-text-soft tw:type-1 tw:[&_svg]:shrink-0 tw:[&_svg]:text-app-text-meta">
                             <KeyRound aria-hidden size="var(--inline-icon-size, 1em)" />
                             <span>尚未保存此供应商的 API Key，点击「新增 API Key」进行配置。</span>
                           </div>
@@ -559,10 +559,10 @@ export function ProviderConnectionSection({
                     <section className="tw:grid tw:gap-3">
                       <header className="model-center-detail-card-header tw:flex tw:items-center tw:justify-between tw:gap-3">
                         <div>
-                          <h3 className="tw:m-0 tw:text-app-text tw:type-title-sm">
+                          <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
                             OAuth 授权连接
                           </h3>
-                          <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                          <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
                             通过官方账号登录，连接此供应商。
                           </p>
                         </div>
@@ -597,14 +597,14 @@ export function ProviderConnectionSection({
                                 key={connection.id}
                               >
                                 <div className="tw:grid tw:min-w-0 tw:gap-1">
-                                  <strong className="tw:overflow-hidden tw:text-app-text tw:type-row-title tw:text-ellipsis tw:whitespace-nowrap">
+                                  <strong className="tw:overflow-hidden tw:text-app-text tw:type-2 tw:weight-medium tw:text-ellipsis tw:whitespace-nowrap">
                                     {connection.label}
                                   </strong>
-                                  <span className="tw:overflow-hidden tw:text-app-text-meta tw:type-caption tw:text-ellipsis tw:whitespace-nowrap">
+                                  <span className="tw:overflow-hidden tw:text-app-text-meta tw:type-1 tw:text-ellipsis tw:whitespace-nowrap">
                                     {connection.active ? '当前活动' : '未选择'}
                                   </span>
                                 </div>
-                                <div className="model-center-account-actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:min-h-9 tw:self-end tw:[&_svg]:size-icon tw:@max-[720px]:justify-start">
+                                <div className="model-center-account-actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:min-h-7 tw:self-end tw:[&_svg]:size-icon tw:@max-[720px]:justify-start">
                                   {!connection.active && connection.credentialId ? (
                                     <Button
                                       color="primary"
@@ -647,19 +647,19 @@ export function ProviderConnectionSection({
                 {(group?.usageSources.length ?? 0) > 0 ? (
                   <section
                     aria-label="用量与余额"
-                    className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-6"
+                    className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5"
                   >
                     <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
                       <div className="tw:grid tw:min-w-0 tw:gap-1">
                         <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-                          <h3 className="tw:m-0 tw:text-app-text tw:type-title-sm">用量与余额</h3>
+                          <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">用量与余额</h3>
                           {usageCheckedAt ? (
-                            <span className="tw:text-app-text-meta tw:type-caption tw:tabular-nums">
+                            <span className="tw:text-app-text-meta tw:type-1 tw:tabular-nums">
                               {formatRefreshedAt(usageCheckedAt)}
                             </span>
                           ) : null}
                         </div>
-                        <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+                        <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
                           按来源查看账户余额、额度与消耗；不同来源的连接方式不同。
                         </p>
                       </div>
@@ -735,10 +735,10 @@ export function ProviderConnectionSection({
                             >
                               <div className="tw:flex tw:min-w-0 tw:items-start tw:justify-between tw:gap-3">
                                 <div>
-                                  <h4 className="tw:m-0 tw:text-app-text tw:type-row-title">
+                                  <h4 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">
                                     {source.displayName}
                                   </h4>
-                                  <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                                  <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
                                     在供应商控制台查看用量与余额。
                                   </p>
                                 </div>
@@ -767,10 +767,10 @@ export function ProviderConnectionSection({
                               key={source.sourceId}
                             >
                               <div>
-                                <h4 className="tw:m-0 tw:text-app-text tw:type-row-title">
+                                <h4 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">
                                   {source.displayName}
                                 </h4>
-                                <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                                <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
                                   当前接入方式不支持查询余额或用量，请到供应商控制台查看。
                                 </p>
                               </div>
@@ -785,7 +785,7 @@ export function ProviderConnectionSection({
                 ) : null}
                 <section
                   ref={requestRef}
-                  className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-6"
+                  className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5"
                   aria-label="请求配置"
                 >
                   <ProviderRequestSettingsForm
@@ -852,9 +852,9 @@ function ApiKeyRowItem({
         title={`${HEALTH_LABELS[keyItem.health.status]} · 最近测试 ${formatTime(keyItem.health.lastTestedAt)}`}
       >
         <div className="tw:flex tw:items-center tw:gap-2">
-          <strong className="tw:truncate tw:type-row-title">{keyItem.label}</strong>
+          <strong className="tw:truncate tw:type-2 tw:weight-medium">{keyItem.label}</strong>
           {keyItem.active ? (
-            <span className="tw:text-app-accent-fg tw:type-caption">活动</span>
+            <span className="tw:text-app-accent-fg tw:type-1">活动</span>
           ) : null}
         </div>
         <code className="tw:truncate tw:text-app-text-soft tw:type-code">

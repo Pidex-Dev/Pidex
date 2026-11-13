@@ -12,7 +12,7 @@ import { usePlanDocumentActions } from './PlanDocumentActions.js'
 export const planDisclosureStore = createKeyedDisclosureStore({ initialExpandedKeys: [] })
 
 const WORKFLOW_PLAN_DOCK_BUTTON_CLASS =
-  'workflow-plan-card__dock tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:cursor-pointer tw:transition-[background,color] tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text'
+  'workflow-plan-card__dock tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:cursor-pointer tw:transition-[background,color] tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text'
 
 export function usePlanExpanded(
   threadId: string | undefined,
@@ -100,16 +100,16 @@ export function WorkflowPlanCard({
 
   if (presentation.compact) {
     return (
-      <article className="workflow-plan-card workflow-plan-card--compact tw:flex tw:w-full tw:min-w-0 tw:max-w-none tw:flex-col tw:gap-0 tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-0 tw:text-app-text tw:type-body tw:shadow-none">
+      <article className="workflow-plan-card workflow-plan-card--compact tw:flex tw:w-full tw:min-w-0 tw:max-w-none tw:flex-col tw:gap-0 tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-0 tw:text-app-text tw:type-2 tw:shadow-none">
         <button
           className="workflow-plan-card__compact-button tw:grid tw:w-full tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:px-4 tw:py-4 tw:text-left tw:text-app-text tw:cursor-pointer tw:hover:bg-app-hover"
           type="button"
           onClick={() => onOpenInRightDock(plan)}
         >
-          <span className="workflow-plan-card__label tw:text-app-text-meta tw:type-label">
+          <span className="workflow-plan-card__label tw:text-app-text-meta tw:type-1 tw:weight-medium">
             {presentation.label}
           </span>
-          <span className="workflow-plan-card__compact-title tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:type-row-title">
+          <span className="workflow-plan-card__compact-title tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:type-2 tw:weight-medium">
             {title}
           </span>
           <PanelRight size="var(--inline-icon-size, 1em)" strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -120,11 +120,11 @@ export function WorkflowPlanCard({
 
   return (
     <article
-      className="workflow-plan-card tw:relative tw:flex tw:w-full tw:min-w-0 tw:max-w-none tw:flex-col tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-4 tw:text-app-text tw:type-body tw:shadow-none tw:animate-[workflow-item-in_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-out)]"
+      className="workflow-plan-card tw:relative tw:flex tw:w-full tw:min-w-0 tw:max-w-none tw:flex-col tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-4 tw:text-app-text tw:type-2 tw:shadow-none tw:animate-[workflow-item-in_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-out)]"
       data-expanded={expanded ? 'true' : 'false'}
     >
       <header className="workflow-plan-card__header tw:flex tw:items-center tw:justify-between tw:gap-3">
-        <span className="workflow-plan-card__label tw:text-app-text-meta tw:type-label">
+        <span className="workflow-plan-card__label tw:text-app-text-meta tw:type-1 tw:weight-medium">
           {presentation.label}
         </span>
         <div className="workflow-plan-card__actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1">
@@ -168,10 +168,10 @@ export function WorkflowPlanCard({
         </div>
       </header>
 
-      <h2 className="workflow-plan-card__title tw:m-0 tw:text-app-text tw:type-body-lg">{title}</h2>
+      <h2 className="workflow-plan-card__title tw:m-0 tw:text-app-text tw:type-3">{title}</h2>
 
       <div
-        className="workflow-plan-card__body tw:relative tw:max-h-80 tw:overflow-hidden tw:[&_.md-body]:text-app-text tw:[&_.md-body_h1:first-child]:hidden tw:[&_.md-body_code:not(pre_code)]:border tw:[&_.md-body_code:not(pre_code)]:border-app-border tw:[&_.md-body_code:not(pre_code)]:bg-app-editor tw:[&_.md-body_code:not(pre_code)]:text-app-text tw:data-[expanded=true]:max-h-none tw:data-[expanded=true]:overflow-visible"
+        className="workflow-plan-card__body tw:relative tw:max-h-[20rem] tw:overflow-hidden tw:[&_.md-body]:text-app-text tw:[&_.md-body_h1:first-child]:hidden tw:[&_.md-body_code:not(pre_code)]:border tw:[&_.md-body_code:not(pre_code)]:border-app-border tw:[&_.md-body_code:not(pre_code)]:bg-app-editor tw:[&_.md-body_code:not(pre_code)]:text-app-text tw:data-[expanded=true]:max-h-none tw:data-[expanded=true]:overflow-visible"
         data-expanded={expanded ? 'true' : 'false'}
       >
         {structured ? <StructuredPlanView plan={structured} /> : <MarkdownMessage text={summary} />}
@@ -180,7 +180,7 @@ export function WorkflowPlanCard({
       {!streaming ? (
         <div className="workflow-plan-card__footer tw:flex tw:justify-center tw:pt-2">
           <button
-            className="workflow-plan-card__expand-button tw:inline-flex tw:h-7 tw:items-center tw:gap-1 tw:rounded-pill tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:text-app-text-soft tw:type-label tw:cursor-pointer tw:transition-[background,color] tw:duration-state tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text"
+            className="workflow-plan-card__expand-button tw:inline-flex tw:h-6 tw:items-center tw:gap-1 tw:rounded-pill tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:text-app-text-soft tw:type-1 tw:weight-medium tw:cursor-pointer tw:transition-[background,color] tw:duration-state tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text"
             type="button"
             onClick={() => setExpanded(!expanded)}
           >
@@ -208,7 +208,7 @@ export function WorkflowPlanCard({
  */
 export function StructuredPlanView({ plan }: { plan: StructuredPlan }): React.ReactNode {
   return (
-    <div className="workflow-plan-structured tw:flex tw:flex-col tw:gap-3 tw:text-app-text tw:type-reading">
+    <div className="workflow-plan-structured tw:flex tw:flex-col tw:gap-3 tw:text-app-text tw:type-2">
       <p className="workflow-plan-structured__summary tw:m-0 tw:text-app-text-soft">
         {plan.summary}
       </p>
@@ -218,7 +218,7 @@ export function StructuredPlanView({ plan }: { plan: StructuredPlan }): React.Re
             className="workflow-plan-structured__change tw:flex tw:flex-col tw:gap-1"
             key={`${change.area}:${index}`}
           >
-            <h4 className="workflow-plan-structured__area tw:m-0 tw:text-app-text tw:type-row-title">
+            <h4 className="workflow-plan-structured__area tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">
               {change.area}
             </h4>
             <ul className="workflow-plan-structured__list tw:m-0 tw:flex tw:flex-col tw:gap-1 tw:pl-4">
@@ -268,7 +268,7 @@ function StructuredPlanSection({
 }): React.ReactNode {
   return (
     <section className="workflow-plan-structured__section tw:flex tw:flex-col tw:gap-2">
-      <h3 className="workflow-plan-structured__heading tw:m-0 tw:text-app-text-meta tw:type-label tw:normal-case">
+      <h3 className="workflow-plan-structured__heading tw:m-0 tw:text-app-text-meta tw:type-1 tw:weight-medium tw:normal-case">
         {title}
       </h3>
       {children}

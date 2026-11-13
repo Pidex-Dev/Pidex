@@ -215,7 +215,7 @@ const PERMISSION_ITEM_ICON_CLASS =
 const PERMISSION_ITEM_BODY_CLASS =
   'permission-select-item-body menu-column-label tw:min-w-0 tw:flex-1 tw:grid tw:gap-0'
 const PERMISSION_ITEM_DETAIL_CLASS =
-  'permission-select-item-detail menu-column-detail tw:whitespace-normal tw:text-app-text-soft tw:type-secondary'
+  'permission-select-item-detail menu-column-detail tw:whitespace-normal tw:text-app-text-soft tw:type-1'
 const PERMISSION_ITEM_INDICATOR_CLASS =
   'permission-select-item-indicator menu-column-trailing tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text'
 
@@ -276,11 +276,11 @@ const UTILITY_BAR_DYNAMIC_CONTENT_CLASS =
 const TOOLBAR_CLASS =
   'composer-toolbar tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:pt-2 tw:@container/composer-footer'
 const TOOLBAR_LEFT_CLASS =
-  'toolbar-left tw:flex tw:shrink-0 tw:items-center tw:gap-1.5 tw:@max-[420px]/composer-footer:gap-1'
+  'toolbar-left tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:@max-[420px]/composer-footer:gap-1'
 const TOOLBAR_RIGHT_CLASS =
-  'toolbar-right tw:ml-auto tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-1.5 tw:@max-[420px]/composer-footer:gap-1'
+  'toolbar-right tw:ml-auto tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-1 tw:@max-[420px]/composer-footer:gap-1'
 const TOOLBAR_DIVIDER_CLASS =
-  'toolbar-divider tw:inline-block tw:h-3.5 tw:w-px tw:shrink-0 tw:bg-app-border-subtle tw:@max-[300px]/composer-footer:hidden'
+  'toolbar-divider tw:inline-block tw:h-3 tw:w-px tw:shrink-0 tw:bg-app-border-subtle tw:@max-[300px]/composer-footer:hidden'
 const COMPOSER_MODE_CHIP_LABEL_CLASS = 'composer-footer-label'
 
 /** 上下文用量圆环按 12px 槽位绘制；进度由描边虚线长度表达，避免低分辨率下的圆孔失真。 */
@@ -1472,7 +1472,7 @@ export function ComposerCard({
     >
       {fileDragActive ? (
         <div
-          className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised tw:type-control"
+          className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised tw:type-2 tw:weight-medium"
           role="status"
         >
           松开以添加文件
@@ -1619,7 +1619,7 @@ export function ComposerCard({
       >
         {inlineSubmitFailure ? (
           <div
-            className="composer-submit-error tw:mx-1 tw:mt-0 tw:mb-2 tw:text-app-warning tw:type-caption"
+            className="composer-submit-error tw:mx-1 tw:mt-0 tw:mb-2 tw:text-app-warning tw:type-1"
             id={submitErrorId}
             role="alert"
           >
@@ -1920,7 +1920,7 @@ export function ComposerCard({
                     <div className="permission-select-scroll-content tw:grid tw:min-w-0">
                       {permissionUnavailableReason ? (
                         <p
-                          className="permission-select-note tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-caption tw:whitespace-normal"
+                          className="permission-select-note tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-1 tw:whitespace-normal"
                           role="status"
                         >
                           {permissionUnavailableReason}
@@ -1988,7 +1988,7 @@ export function ComposerCard({
                   aria-pressed="true"
                   aria-label="退出目标输入"
                   className={cx(
-                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-secondary',
+                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-1',
                   )}
                   onClick={() => {
                     onGoalModeChange?.(false)
@@ -2031,7 +2031,7 @@ export function ComposerCard({
                     const budget = parseGoalTokenBudget(val)
                     if (budget !== undefined) onGoalTokenBudgetChange?.(budget)
                   }}
-                  className="tw:h-6 tw:w-20 tw:rounded tw:border tw:border-app-border-subtle tw:bg-transparent tw:px-1.5 tw:py-0 tw:text-app-text tw:type-caption tw:tabular-nums tw:outline-none tw:focus:border-app-focus"
+                  className="tw:h-5 tw:w-[5rem] tw:rounded tw:border tw:border-app-border-subtle tw:bg-transparent tw:px-1 tw:py-0 tw:text-app-text tw:type-1 tw:tabular-nums tw:outline-none tw:focus:border-app-focus"
                 />
               </>
             ) : null}
@@ -2042,7 +2042,7 @@ export function ComposerCard({
                   aria-pressed="true"
                   aria-label="退出深度访谈"
                   className={cx(
-                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-secondary',
+                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-1',
                   )}
                   onClick={() => {
                     void Promise.resolve(onGrillModeChange(false)).catch((error: unknown) =>
@@ -2087,7 +2087,7 @@ export function ComposerCard({
                   aria-pressed="true"
                   aria-label="退出计划模式"
                   className={cx(
-                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-secondary',
+                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-1',
                   )}
                   onClick={() => {
                     void Promise.resolve(onPlanModeChange(false)).catch((error: unknown) =>
@@ -2354,7 +2354,7 @@ export function ComposerCard({
               >
                 <div
                   ref={modelTextProbeRef}
-                  className="tw:inline-flex tw:items-center tw:gap-1.5 tw:w-max"
+                  className="tw:inline-flex tw:items-center tw:gap-1 tw:w-max"
                 >
                   <ModelSelectTrigger
                     id="model-select-trigger-probe-text"
@@ -2369,7 +2369,7 @@ export function ComposerCard({
                 </div>
                 <div
                   ref={modelIconProbeRef}
-                  className="tw:inline-flex tw:items-center tw:gap-1.5 tw:w-max"
+                  className="tw:inline-flex tw:items-center tw:gap-1 tw:w-max"
                 >
                   <ModelSelectTrigger
                     id="model-select-trigger-probe-icon"

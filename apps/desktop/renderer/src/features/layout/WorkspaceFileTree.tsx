@@ -52,11 +52,11 @@ export function WorkspaceFileTree(props: WorkspaceFileTreeProps): React.ReactNod
       >
         {projectFolders.map((folder) => (
           <section
-            className="workspace-file-tree-group tw:flex tw:min-h-20 tw:flex-1 tw:flex-col tw:overflow-hidden tw:border-b tw:border-app-border"
+            className="workspace-file-tree-group tw:flex tw:min-h-[5rem] tw:flex-1 tw:flex-col tw:overflow-hidden tw:border-b tw:border-app-border"
             data-folder-availability={folder.availability}
             key={folder.id}
           >
-            <header className="workspace-file-tree-group-header tw:sticky tw:top-0 tw:z-local tw:flex tw:h-8 tw:items-center tw:gap-2 tw:bg-app-dock tw:px-3 tw:text-app-text tw:type-label">
+            <header className="workspace-file-tree-group-header tw:sticky tw:top-0 tw:z-local tw:flex tw:h-6 tw:items-center tw:gap-2 tw:bg-app-dock tw:px-3 tw:text-app-text tw:type-1 tw:weight-medium">
               <ChevronRight
                 aria-hidden="true"
                 className="right-dock-tree-chevron tw:inline-flex tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta tw:transition-transform tw:duration-state tw:ease-out"
@@ -66,13 +66,13 @@ export function WorkspaceFileTree(props: WorkspaceFileTreeProps): React.ReactNod
                 {folder.name}
               </span>
               {folder.role === 'primary' ? (
-                <em className="tw:rounded-full tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-accent tw:type-meta tw:not-italic">
+                <em className="tw:rounded-full tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-accent tw:type-1 tw:not-italic">
                   主目录
                 </em>
               ) : null}
             </header>
             {folder.availability === 'missing' ? (
-              <div className="right-dock-tree-empty tw:px-2 tw:py-5 tw:text-app-text-meta tw:type-body-sm">
+              <div className="right-dock-tree-empty tw:px-2 tw:py-4 tw:text-app-text-meta tw:type-1">
                 目录当前不可用。
               </div>
             ) : (
@@ -361,7 +361,7 @@ function WorkspaceFileTreeContent({
           file.type === 'file' && activePath != null ? normalizePath(activePath) === key : undefined
         }
         className={cx(
-          'right-dock-tree-row tw:flex tw:h-6.5 tw:min-h-6.5 tw:w-full tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:py-0 tw:pr-2 tw:pl-2 tw:text-left tw:text-app-text tw:cursor-pointer tw:select-none tw:type-secondary tw:transition-[background-color,border-color,box-shadow,color] tw:duration-state tw:ease-out tw:hover:bg-app-hover',
+          'right-dock-tree-row tw:flex tw:h-5 tw:min-h-5 tw:w-full tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:py-0 tw:pr-2 tw:pl-2 tw:text-left tw:text-app-text tw:cursor-pointer tw:select-none tw:type-1 tw:transition-[background-color,border-color,box-shadow,color] tw:duration-state tw:ease-out tw:hover:bg-app-hover',
           activePath != null && normalizePath(activePath) === key && 'active tw:bg-app-selected',
         )}
         role="treeitem"
@@ -483,7 +483,7 @@ function WorkspaceFileTreeContent({
     <div
       className={cx(
         'workspace-file-tree right-dock-file-tree tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col tw:overflow-hidden tw:px-1 tw:py-2',
-        grouped ? 'tw:h-auto tw:min-h-12 tw:max-h-none' : 'tw:h-full',
+        grouped ? 'tw:h-auto tw:min-h-8 tw:max-h-none' : 'tw:h-full',
         className,
       )}
     >
@@ -491,7 +491,7 @@ function WorkspaceFileTreeContent({
         <SearchInput
           aria-label="筛选文件"
           autoFocus={autoFocusSearch}
-          className="right-dock-search tw:mb-1 tw:h-7 tw:min-h-7 tw:shrink-0 tw:text-app-text-meta tw:shadow-none"
+          className="right-dock-search tw:mb-1 tw:h-6 tw:min-h-6 tw:shrink-0 tw:text-app-text-meta tw:shadow-none"
           onChange={setQuery}
           onEscapeEmpty={onEscape}
           placeholder="筛选文件..."
@@ -511,7 +511,7 @@ function WorkspaceFileTreeContent({
           {(row) => <Fragment key={fileTreeRowKey(row)}>{renderRow(row)}</Fragment>}
         </VList>
       ) : (
-        <div className="right-dock-tree-empty tw:px-2 tw:py-5 tw:text-app-text-meta tw:type-body-sm">
+        <div className="right-dock-tree-empty tw:px-2 tw:py-4 tw:text-app-text-meta tw:type-1">
           {workspace && rootPath && directoryErrors.has(normalizePath(rootPath)) ? (
             <Button
               color="secondary"

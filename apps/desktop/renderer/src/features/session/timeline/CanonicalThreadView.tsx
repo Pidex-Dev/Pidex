@@ -497,7 +497,7 @@ export function CanonicalTurnActivity({
               aria-expanded={expanded}
               aria-label={`${expanded ? '收起' : '展开'}处理过程：${summary.label}`}
               className={cx(
-                'canonical-turn-activity__summary tw:inline-flex tw:min-h-8 tw:w-fit tw:max-w-full tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit',
+                'canonical-turn-activity__summary tw:inline-flex tw:min-h-6 tw:w-fit tw:max-w-full tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit',
                 'tw:cursor-pointer tw:transition-colors tw:duration-state tw:ease-out tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus',
               )}
               type="button"
@@ -506,7 +506,7 @@ export function CanonicalTurnActivity({
             </button>
           </CollapsibleTrigger>
         ) : (
-          <div className="canonical-turn-activity__summary tw:inline-flex tw:min-h-8 tw:w-fit tw:max-w-full tw:items-center tw:gap-2 tw:p-0 tw:text-left tw:text-inherit">
+          <div className="canonical-turn-activity__summary tw:inline-flex tw:min-h-6 tw:w-fit tw:max-w-full tw:items-center tw:gap-2 tw:p-0 tw:text-left tw:text-inherit">
             {summaryContent}
           </div>
         )}
@@ -705,7 +705,7 @@ function CanonicalThreadViewComponent({
   if (error && turns.length === 0) {
     return (
       <div
-        className="canonical-thread-state canonical-thread-state--error tw:mx-auto tw:flex tw:min-h-40 tw:w-[min(var(--page-content-max-width),var(--session-content-w))] tw:items-center tw:justify-center tw:gap-2 tw:p-6 tw:text-app-text-soft tw:type-body-sm"
+        className="canonical-thread-state canonical-thread-state--error tw:mx-auto tw:flex tw:min-h-[10rem] tw:w-[min(var(--page-content-max-width),var(--session-content-w))] tw:items-center tw:justify-center tw:gap-2 tw:p-5 tw:text-app-text-soft tw:type-1"
         role="alert"
       >
         <CircleAlert size="var(--inline-icon-size, 1em)" aria-hidden="true" />
@@ -734,7 +734,7 @@ function CanonicalThreadViewComponent({
       {hasOlder ? (
         <div className="canonical-history-control tw:mx-auto tw:mt-3 tw:mb-1 tw:flex tw:w-[min(var(--page-content-max-width),var(--session-content-w))] tw:justify-center tw:[overflow-anchor:none]">
           <button
-            className="tw:inline-flex tw:min-h-8 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-control tw:border-0 tw:bg-transparent tw:px-3 tw:py-1 tw:text-app-text-soft tw:type-body-sm tw:transition-colors tw:duration-state tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text tw:disabled:cursor-wait tw:disabled:opacity-65"
+            className="tw:inline-flex tw:min-h-6 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-control tw:border-0 tw:bg-transparent tw:px-3 tw:py-1 tw:text-app-text-soft tw:type-1 tw:transition-colors tw:duration-state tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text tw:disabled:cursor-wait tw:disabled:opacity-65"
             type="button"
             disabled={loadingOlder}
             onClick={() => void loadOlderPreservingAnchor()}
@@ -753,7 +753,7 @@ function CanonicalThreadViewComponent({
       {historyError ? (
         <p
           role="status"
-          className="tw:text-center tw:text-app-text-meta tw:type-caption tw:[overflow-anchor:none]"
+          className="tw:text-center tw:text-app-text-meta tw:type-1 tw:[overflow-anchor:none]"
         >
           {historyError}
         </p>

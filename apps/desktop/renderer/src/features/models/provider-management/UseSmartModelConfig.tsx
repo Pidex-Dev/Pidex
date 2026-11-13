@@ -108,10 +108,10 @@ export function useSmartModelConfig(
   }
 
   const controls = supported ? (
-    <div className="tw:grid tw:gap-2 tw:text-app-text-soft tw:type-body-sm">
+    <div className="tw:grid tw:gap-2 tw:text-app-text-soft tw:type-1">
       <div className="tw:flex tw:items-center tw:justify-between tw:gap-2">
         <div className="tw:flex tw:items-center tw:gap-2">
-          <h3 className="tw:m-0 tw:type-title-sm">智能配置</h3>
+          <h3 className="tw:m-0 tw:type-4 tw:weight-bold">智能配置</h3>
           <InfoTooltip
             ariaLabel="智能配置说明"
             content="按完整官方模型 ID、官方别名与供应商前缀匹配 models.dev 推荐；普通网关前缀不影响官方身份。打开开关后自动匹配并填充推荐值；暂未匹配时保留当前值和开启状态，目录更新同步后继续自动匹配。关闭后使用手动值，手动修改字段也会自动关闭开关。"

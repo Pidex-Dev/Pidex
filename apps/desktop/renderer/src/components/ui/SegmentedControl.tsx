@@ -33,10 +33,10 @@ type Props<T extends string> = {
 }
 
 const SIZE_BOX_CLASS: Record<SegmentedControlSize, string> = {
-  xs: 'tw:h-6 tw:min-h-6 tw:px-2 tw:py-0.5',
-  sm: 'tw:h-[30px] tw:min-h-[30px] tw:px-2.5 tw:py-1',
-  md: 'tw:h-9 tw:min-h-9 tw:px-3.5 tw:py-1.5',
-  lg: 'tw:h-[42px] tw:min-h-[42px] tw:px-4.5 tw:py-2',
+  xs: 'tw:h-[24px] tw:min-h-[24px] tw:px-2 tw:py-1',
+  sm: 'tw:h-[28px] tw:min-h-[28px] tw:px-3 tw:py-1',
+  md: 'tw:h-[36px] tw:min-h-[36px] tw:px-4 tw:py-1',
+  lg: 'tw:h-[40px] tw:min-h-[40px] tw:px-4 tw:py-2',
 }
 
 const RADIUS_CLASSES: Record<SegmentedControlShape, Record<SegmentedControlSize, string>> = {
@@ -55,9 +55,9 @@ const RADIUS_CLASSES: Record<SegmentedControlShape, Record<SegmentedControlSize,
 }
 
 const ROOT_GAP_CLASS: Record<SegmentedControlSize, string> = {
-  xs: 'tw:gap-0.5',
+  xs: 'tw:gap-1',
   sm: 'tw:gap-1',
-  md: 'tw:gap-1.5',
+  md: 'tw:gap-2',
   lg: 'tw:gap-2',
 }
 
@@ -93,7 +93,7 @@ export function SegmentedControl<T extends string>({
       ? cx(
           'tw:bg-app-underlay',
           resolvedShape === 'pill' ? 'tw:rounded-full' : 'tw:rounded-control',
-          resolvedSize === 'lg' ? 'tw:p-1' : 'tw:p-0.5',
+          'tw:p-1',
         )
       : false,
     className,
@@ -104,7 +104,7 @@ export function SegmentedControl<T extends string>({
    * inset 变体相反（选中态压过 hover），用普通 hover variant 即可。
    */
   const itemClassName = cx(
-    'segmented-control-item tw:inline-flex tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:gap-1.25 tw:border tw:border-transparent tw:bg-transparent tw:text-app-text-meta tw:type-control',
+    'segmented-control-item tw:inline-flex tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:gap-1 tw:border tw:border-transparent tw:bg-transparent tw:text-app-text-meta tw:type-2 tw:weight-medium',
     SIZE_BOX_CLASS[resolvedSize],
     RADIUS_CLASSES[resolvedShape][resolvedSize],
     'tw:transition-[background-color,border-color,box-shadow,color] tw:duration-feedback tw:ease-standard',

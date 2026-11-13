@@ -394,8 +394,8 @@ export function ModelSetupPage(): React.ReactNode {
       className="model-setup-page tw:grid tw:h-screen tw:w-full tw:min-w-0 tw:grid-rows-[36px_minmax(0,1fr)] tw:overflow-hidden tw:bg-app-canvas tw:text-app-text"
       ref={startupSurfaceReadyRef}
     >
-      <header className="model-setup-titlebar tw:flex tw:h-9 tw:[-webkit-app-region:drag] tw:min-w-0 tw:items-center tw:justify-between tw:border-b-[0.5px] tw:border-b-app-border-subtle">
-        <span className="model-setup-brand tw:ps-4 tw:text-app-text-soft tw:type-control tw:tracking-[0.01em]">
+      <header className="model-setup-titlebar tw:flex tw:h-7 tw:[-webkit-app-region:drag] tw:min-w-0 tw:items-center tw:justify-between tw:border-b-[0.5px] tw:border-b-app-border-subtle">
+        <span className="model-setup-brand tw:ps-4 tw:text-app-text-soft tw:type-2 tw:weight-medium tw:tracking-[0.01em]">
           Pidex
         </span>
         <WindowControls
@@ -408,9 +408,9 @@ export function ModelSetupPage(): React.ReactNode {
         />
       </header>
 
-      <main className="model-setup-main tw:grid tw:min-h-0 tw:overflow-auto tw:place-items-center tw:px-8 tw:pt-10 tw:pb-14 tw:max-[1040px]:px-6 tw:max-[760px]:items-start tw:max-[760px]:px-5 tw:max-[760px]:py-7 tw:[@media_(height<=700px)]:items-start tw:[@media_(height<=700px)]:justify-items-center tw:[@media_(height<=700px)]:py-7">
+      <main className="model-setup-main tw:grid tw:min-h-0 tw:overflow-auto tw:place-items-center tw:px-6 tw:pt-7 tw:pb-8 tw:max-[1040px]:px-5 tw:max-[760px]:items-start tw:max-[760px]:px-4 tw:max-[760px]:py-6 tw:[@media_(height<=700px)]:items-start tw:[@media_(height<=700px)]:justify-items-center tw:[@media_(height<=700px)]:py-6">
         <section
-          className="model-setup-workspace tw:grid tw:w-[min(640px,100%)] tw:min-w-0 tw:gap-7"
+          className="model-setup-workspace tw:grid tw:w-[min(640px,100%)] tw:min-w-0 tw:gap-6"
           aria-labelledby="model-setup-title"
         >
           <header className="model-setup-heading tw:grid tw:grid-cols-[36px_minmax(0,1fr)] tw:gap-5 tw:max-[760px]:grid-cols-1 tw:max-[760px]:gap-4">
@@ -419,7 +419,7 @@ export function ModelSetupPage(): React.ReactNode {
               aria-label={`第 ${step === 'provider' ? 1 : 2} 步，共 2 步`}
             >
               <span
-                className="tw:grid tw:size-7 tw:place-items-center tw:rounded-full tw:border-[0.5px] tw:border-app-border-strong tw:bg-app-canvas tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-sm)] tw:type-weight-label tw:data-[active=true]:border-app-text tw:data-[active=true]:text-app-text"
+                className="tw:grid tw:size-6 tw:place-items-center tw:rounded-full tw:border-[0.5px] tw:border-app-border-strong tw:bg-app-canvas tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-1)] tw:weight-medium tw:data-[active=true]:border-app-text tw:data-[active=true]:text-app-text"
                 data-active="true"
               >
                 1
@@ -429,23 +429,23 @@ export function ModelSetupPage(): React.ReactNode {
                 className="tw:h-[18px] tw:w-[0.5px] tw:bg-app-border-strong tw:max-[760px]:h-[0.5px] tw:max-[760px]:w-[18px]"
               />
               <span
-                className="tw:grid tw:size-7 tw:place-items-center tw:rounded-full tw:border-[0.5px] tw:border-app-border-strong tw:bg-app-canvas tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-sm)] tw:type-weight-label tw:data-[active=true]:border-app-text tw:data-[active=true]:text-app-text"
+                className="tw:grid tw:size-6 tw:place-items-center tw:rounded-full tw:border-[0.5px] tw:border-app-border-strong tw:bg-app-canvas tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-1)] tw:weight-medium tw:data-[active=true]:border-app-text tw:data-[active=true]:text-app-text"
                 data-active={step === 'model' || undefined}
               >
                 2
               </span>
             </div>
             <div>
-              <p className="model-setup-eyebrow tw:text-app-text-meta tw:type-label tw:tracking-[0.04em] tw:uppercase">
+              <p className="model-setup-eyebrow tw:text-app-text-meta tw:type-1 tw:weight-medium tw:tracking-[0.04em] tw:uppercase">
                 {step === 'provider' ? '1 / 2 · 连接供应商' : '2 / 2 · 选择模型'}
               </p>
               <h1
-                className="tw:mx-0 tw:mt-1 tw:mb-2 tw:text-app-text tw:type-title-xl tw:tracking-[-0.025em]"
+                className="tw:mx-0 tw:mt-1 tw:mb-2 tw:text-app-text tw:type-7 tw:weight-bold tw:tracking-[-0.025em]"
                 id="model-setup-title"
               >
                 {step === 'provider' ? '先连接一个模型供应商' : '选择模型'}
               </h1>
-              <p className="tw:m-0 tw:text-app-text-soft tw:[line-height:var(--cpx-sys-line-height-normal)]">
+              <p className="tw:m-0 tw:text-app-text-soft tw:[line-height:var(--cpx-sys-line-height-2)]">
                 {step === 'provider'
                   ? '凭据只会保存到现有安全凭据仓库。连接测试可稍后进行。'
                   : '新任务会记住你最近选择的模型，之后仍可在任务中随时切换。'}
@@ -454,7 +454,7 @@ export function ModelSetupPage(): React.ReactNode {
           </header>
 
           {step === 'provider' ? (
-            <div className="model-setup-content tw:grid tw:min-w-0 tw:gap-4 tw:ps-14 tw:max-[760px]:ps-0">
+            <div className="model-setup-content tw:grid tw:min-w-0 tw:gap-4 tw:ps-8 tw:max-[760px]:ps-0">
               <SearchInput
                 aria-label="搜索供应商"
                 mode="combobox"
@@ -498,21 +498,21 @@ export function ModelSetupPage(): React.ReactNode {
                       onMouseEnter={() => providerNav.setActive(index)}
                     >
                       <ProviderIcon
-                        className="model-setup-provider-logo tw:grid tw:size-3.5 tw:shrink-0 tw:place-items-center tw:rounded-md tw:object-contain tw:[&_svg]:size-3.5 tw:[&_svg]:text-app-text-meta"
+                        className="model-setup-provider-logo tw:grid tw:size-icon-sm tw:shrink-0 tw:place-items-center tw:rounded-md tw:object-contain tw:[&_svg]:size-icon-sm tw:[&_svg]:text-app-text-meta"
                         fallback={<Server data-icon-kind="artwork" size={14} aria-hidden />}
                         logoURL={provider.logoURL}
                         providerID={provider.providerID}
                       />
                       <span className="model-setup-provider-copy tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
-                        <strong className="tw:overflow-hidden tw:type-weight-label tw:text-ellipsis tw:whitespace-nowrap">
+                        <strong className="tw:overflow-hidden tw:weight-medium tw:text-ellipsis tw:whitespace-nowrap">
                           {provider.displayName}
                         </strong>
-                        <small className="tw:overflow-hidden tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-xs)] tw:text-ellipsis tw:whitespace-nowrap">
+                        <small className="tw:overflow-hidden tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-1)] tw:text-ellipsis tw:whitespace-nowrap">
                           {provider.providerID} · {provider.defaultModels.length} 个模型
                         </small>
                       </span>
                       <span
-                        className="model-setup-provider-status tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-xs)] tw:[&_svg]:size-[var(--inline-icon-size,1em)] tw:data-[connected=true]:text-app-success"
+                        className="model-setup-provider-status tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-1)] tw:[&_svg]:size-[var(--inline-icon-size,1em)] tw:data-[connected=true]:text-app-success"
                         data-connected={connected || undefined}
                       >
                         {connected ? (
@@ -538,17 +538,17 @@ export function ModelSetupPage(): React.ReactNode {
                 <div className="model-setup-connection tw:grid tw:gap-4 tw:pt-1 tw:pb-4 tw:border-b-[0.5px] tw:border-b-app-border-subtle">
                   <div className="model-setup-connection-heading tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-3 tw:max-[760px]:flex-col tw:max-[760px]:items-stretch">
                     <div>
-                      <strong className="tw:overflow-hidden tw:type-weight-label tw:text-ellipsis tw:whitespace-nowrap">
+                      <strong className="tw:overflow-hidden tw:weight-medium tw:text-ellipsis tw:whitespace-nowrap">
                         {selectedProvider.displayName}
                       </strong>
-                      <p className="tw:m-0 tw:text-app-text-soft tw:[line-height:var(--cpx-sys-line-height-normal)]">
+                      <p className="tw:m-0 tw:text-app-text-soft tw:[line-height:var(--cpx-sys-line-height-2)]">
                         {providerConnected
                           ? '此供应商已经可以用于模型请求。'
                           : '添加 API Key，或使用供应商支持的 OAuth。'}
                       </p>
                     </div>
                     {providerConnected ? (
-                      <span className="model-setup-connected tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:text-app-success tw:[font-size:var(--cpx-sys-font-size-xs)] tw:[&_svg]:size-[var(--inline-icon-size,1em)]">
+                      <span className="model-setup-connected tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:text-app-success tw:[font-size:var(--cpx-sys-font-size-1)] tw:[&_svg]:size-[var(--inline-icon-size,1em)]">
                         <Check size="var(--inline-icon-size, 1em)" aria-hidden />
                         已连接
                       </span>
@@ -557,7 +557,7 @@ export function ModelSetupPage(): React.ReactNode {
                   {!providerConnected && supportsApiKey ? (
                     <ApiKeyEditorForm
                       busy={status === 'saving'}
-                      className="model-setup-key-form tw:grid tw:gap-3 tw:[&_.model-center-key-dialog-fields]:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] tw:[&_.model-center-key-dialog-fields]:items-end tw:[&_.model-center-key-dialog-fields]:gap-3 tw:[&_.model-center-key-dialog-fields]:p-0 tw:[&_.model-center-field]:gap-2 tw:[&_.model-center-field]:text-app-text-soft tw:[&_.model-center-field]:[font-size:var(--cpx-sys-font-size-xs)] tw:[&_.model-center-key-dialog-actions]:border-0 tw:[&_.model-center-key-dialog-actions]:bg-transparent tw:[&_.model-center-key-dialog-actions]:p-0 tw:max-[760px]:[&_.model-center-key-dialog-fields]:grid-cols-1"
+                      className="model-setup-key-form tw:grid tw:gap-3 tw:[&_.model-center-key-dialog-fields]:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] tw:[&_.model-center-key-dialog-fields]:items-end tw:[&_.model-center-key-dialog-fields]:gap-3 tw:[&_.model-center-key-dialog-fields]:p-0 tw:[&_.model-center-field]:gap-2 tw:[&_.model-center-field]:text-app-text-soft tw:[&_.model-center-field]:[font-size:var(--cpx-sys-font-size-1)] tw:[&_.model-center-key-dialog-actions]:border-0 tw:[&_.model-center-key-dialog-actions]:bg-transparent tw:[&_.model-center-key-dialog-actions]:p-0 tw:max-[760px]:[&_.model-center-key-dialog-fields]:grid-cols-1"
                       defaultLabel={
                         selectedProvider ? `${selectedProvider.displayName} 账号` : '个人账号'
                       }
@@ -606,7 +606,7 @@ export function ModelSetupPage(): React.ReactNode {
               </Button>
             </div>
           ) : (
-            <div className="model-setup-content tw:grid tw:min-w-0 tw:gap-4 tw:ps-14 tw:max-[760px]:ps-0">
+            <div className="model-setup-content tw:grid tw:min-w-0 tw:gap-4 tw:ps-8 tw:max-[760px]:ps-0">
               <div className="model-setup-model-toolbar tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-3 tw:max-[760px]:flex-col tw:max-[760px]:items-stretch">
                 <SearchInput
                   className="tw:flex-1"
@@ -667,14 +667,14 @@ export function ModelSetupPage(): React.ReactNode {
                       onMouseEnter={() => modelNav.setActive(index)}
                     >
                       <span className="tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
-                        <strong className="tw:overflow-hidden tw:type-weight-label tw:text-ellipsis tw:whitespace-nowrap">
+                        <strong className="tw:overflow-hidden tw:weight-medium tw:text-ellipsis tw:whitespace-nowrap">
                           {metadata?.name ?? id}
                         </strong>
-                        <small className="tw:overflow-hidden tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-xs)] tw:text-ellipsis tw:whitespace-nowrap">
+                        <small className="tw:overflow-hidden tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-1)] tw:text-ellipsis tw:whitespace-nowrap">
                           {id}
                         </small>
                       </span>
-                      <span className="model-setup-model-capabilities tw:inline-flex tw:shrink-0 tw:gap-2 tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-xs)]">
+                      <span className="model-setup-model-capabilities tw:inline-flex tw:shrink-0 tw:gap-2 tw:text-app-text-meta tw:[font-size:var(--cpx-sys-font-size-1)]">
                         {metadata?.reasoning ? '推理' : null}
                         {metadata?.vision ? '图片' : null}
                       </span>
@@ -700,10 +700,10 @@ export function ModelSetupPage(): React.ReactNode {
                 ) : null}
               </div>
               {selectedVariants.length > 0 ? (
-                <label className="model-setup-variants tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)]">
+                <label className="model-setup-variants tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)]">
                   <span>模型变体</span>
                   <select
-                    className="tw:h-7 tw:w-full tw:rounded-control tw:border-[0.5px] tw:border-app-border-strong tw:bg-app-canvas tw:px-3 tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-[-2px] tw:focus-visible:outline-app-focus"
+                    className="tw:h-6 tw:w-full tw:rounded-control tw:border-[0.5px] tw:border-app-border-strong tw:bg-app-canvas tw:px-3 tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-[-2px] tw:focus-visible:outline-app-focus"
                     value={variant}
                     onChange={(event) => setVariant(event.target.value)}
                   >
@@ -745,7 +745,7 @@ export function ModelSetupPage(): React.ReactNode {
           )}
 
           <div
-            className="model-setup-feedback tw:min-h-5 tw:ps-14 tw:[font-size:var(--cpx-sys-font-size-sm)] tw:max-[760px]:ps-0"
+            className="model-setup-feedback tw:min-h-5 tw:ps-8 tw:[font-size:var(--cpx-sys-font-size-1)] tw:max-[760px]:ps-0"
             aria-live="polite"
           >
             {notice ? (

@@ -71,12 +71,12 @@
    * together. */
   .review-sidebar-counts,
   .review-file-counts {
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     font-variant-numeric: tabular-nums;
   }
 
   .review-comment-badge {
-    font: var(--cpx-sys-type-label);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1); font-weight: var(--cpx-sys-font-weight-medium);
     font-variant-numeric: tabular-nums;
   }
 
@@ -363,7 +363,7 @@
     margin-block: var(--review-diffs-gap-block);
     background: var(--cpx-sys-color-surface-raised);
     color: var(--cpx-sys-color-fg-tertiary);
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
     user-select: none;
   }
 

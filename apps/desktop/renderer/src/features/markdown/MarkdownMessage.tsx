@@ -794,7 +794,7 @@ function MarkdownTable({
             onCloseAutoFocus={onCloseAutoFocus}
           >
             <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-              <Dialog.Title className="tw:m-0 tw:type-row-title">表格预览</Dialog.Title>
+              <Dialog.Title className="tw:m-0 tw:type-2 tw:weight-medium">表格预览</Dialog.Title>
               <Dialog.Close asChild>
                 <Button
                   isIconOnly

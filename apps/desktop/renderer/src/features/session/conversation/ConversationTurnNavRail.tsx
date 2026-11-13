@@ -147,7 +147,7 @@ function PreviewCard({
 
   return (
     <div
-      className="conversation-turn-preview-card tw:box-border tw:w-80 tw:max-w-[calc(100vw-16px)] tw:rounded-xl tw:border-[0.5px] tw:border-app-border tw:bg-app-raised tw:p-2 tw:text-app-text tw:type-caption"
+      className="conversation-turn-preview-card tw:box-border tw:w-[20rem] tw:max-w-[calc(100vw-16px)] tw:rounded-xl tw:border-[0.5px] tw:border-app-border tw:bg-app-raised tw:p-2 tw:text-app-text tw:type-1"
       data-thread-user-message-navigation-tooltip-preview
     >
       <span className="tw:sr-only">
@@ -157,7 +157,7 @@ function PreviewCard({
       </span>
       <div className="tw:flex tw:items-start tw:gap-1">
         <div aria-hidden="true" inert className="tw:min-w-0 tw:flex-1">
-          <div className="preview-card-user-text tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-label">
+          <div className="preview-card-user-text tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-1 tw:weight-medium">
             {item.userText || '（无内容）'}
           </div>
         </div>
@@ -165,7 +165,7 @@ function PreviewCard({
           <Button
             aria-label={bookmarked ? '取消书签' : '添加书签'}
             aria-pressed={bookmarked}
-            className="tw:-mr-1 tw:-mt-0.5 tw:flex-none"
+            className="tw:-mr-1 tw:-mt-1 tw:flex-none"
             color="ghost"
             data-bookmark-toggle=""
             disabled={saveState === 'saving'}
@@ -183,7 +183,7 @@ function PreviewCard({
           >
             <Bookmark
               aria-hidden="true"
-              className="tw:size-3.5 tw:flex-none"
+              className="tw:size-icon-sm tw:flex-none"
               fill={bookmarked ? 'currentColor' : 'none'}
               strokeWidth={2}
             />
@@ -192,7 +192,7 @@ function PreviewCard({
       </div>
       <div aria-hidden="true" inert>
         {assistantPreview ? (
-          <div className="preview-card-assistant-text tw:mt-1 tw:text-app-text-meta tw:type-caption tw:line-clamp-3">
+          <div className="preview-card-assistant-text tw:mt-1 tw:text-app-text-meta tw:type-1 tw:line-clamp-3">
             <MarkdownMessage
               allowWideBlocks={false}
               externalResourcePolicy={{
@@ -203,15 +203,15 @@ function PreviewCard({
             />
           </div>
         ) : (
-          <div className="tw:mt-1 tw:text-app-text-meta tw:type-caption">
+          <div className="tw:mt-1 tw:text-app-text-meta tw:type-1">
             {item.isRunning ? '正在回复' : '暂无回复'}
           </div>
         )}
         {displayedOutputs.length > 0 ? (
-          <div className="preview-card-outputs tw:mt-2 tw:flex tw:min-w-0 tw:items-center tw:gap-3 tw:overflow-hidden tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
+          <div className="preview-card-outputs tw:mt-2 tw:flex tw:min-w-0 tw:items-center tw:gap-3 tw:overflow-hidden tw:whitespace-nowrap tw:text-app-text-meta tw:type-1">
             {displayedOutputs.map((output) => (
               <span
-                className="preview-card-output tw:inline-flex tw:min-w-0 tw:max-w-42 tw:flex-[0_1_auto] tw:items-center tw:gap-2"
+                className="preview-card-output tw:inline-flex tw:min-w-0 tw:max-w-[10.5rem] tw:flex-[0_1_auto] tw:items-center tw:gap-2"
                 key={`${output.type}:${output.path}`}
               >
                 <FileTypeIcon
@@ -220,7 +220,7 @@ function PreviewCard({
                   path={output.path}
                   size={APP_ICON_SIZE}
                 />
-                <span className="preview-card-output-label tw:max-w-36 tw:overflow-hidden tw:text-ellipsis">
+                <span className="preview-card-output-label tw:max-w-[9rem] tw:overflow-hidden tw:text-ellipsis">
                   {output.label || fileName(output.path)}
                 </span>
               </span>
@@ -234,7 +234,7 @@ function PreviewCard({
         ) : null}
       </div>
       {saveState === 'error' ? (
-        <div className="tw:mt-1 tw:text-app-text-meta tw:type-caption" role="alert">
+        <div className="tw:mt-1 tw:text-app-text-meta tw:type-1" role="alert">
           保存失败，请重试
         </div>
       ) : null}
@@ -537,12 +537,12 @@ export function ConversationTurnNavRail({
     <nav
       ref={anchorRef}
       aria-label="用户消息导航"
-      className="conversation-turn-nav-rail tw:absolute tw:top-1/2 tw:left-[var(--conversation-rail-inline-start,var(--cpx-sys-space-2))] tw:z-5 tw:w-9 tw:max-h-[min(70vh,640px)] tw:-translate-y-1/2"
+      className="conversation-turn-nav-rail tw:absolute tw:top-1/2 tw:left-[var(--conversation-rail-inline-start,var(--cpx-sys-space-2))] tw:z-5 tw:w-[2.25rem] tw:max-h-[min(70vh,640px)] tw:-translate-y-1/2"
       data-visible="true"
     >
       <div
         ref={listRef}
-        className="conversation-turn-nav-list tw:w-9 tw:max-h-[min(70vh,640px)] tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:[scrollbar-width:none]"
+        className="conversation-turn-nav-list tw:w-[2.25rem] tw:max-h-[min(70vh,640px)] tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:[scrollbar-width:none]"
         data-fade-start={!edges.atStart || undefined}
         data-fade-end={!edges.atEnd || undefined}
         data-scrubbing={scrubItemId !== null ? '' : undefined}
@@ -623,7 +623,7 @@ export function ConversationTurnNavRail({
                 }`}
                 aria-posinset={index + 1}
                 aria-setsize={items.length}
-                className="conversation-turn-nav-item tw:relative tw:flex tw:h-2.5 tw:min-h-2.5 tw:w-9 tw:min-w-9 tw:shrink-0 tw:items-center tw:justify-start tw:border-none tw:bg-transparent tw:p-0 tw:cursor-pointer tw:outline-none tw:focus-visible:rounded-md tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+                className="conversation-turn-nav-item tw:relative tw:flex tw:h-2 tw:min-h-2 tw:w-[2.25rem] tw:min-w-[2.25rem] tw:shrink-0 tw:items-center tw:justify-start tw:border-none tw:bg-transparent tw:p-0 tw:cursor-pointer tw:outline-none tw:focus-visible:rounded-md tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
                 data-neighbor-distance={
                   visualIndex === undefined ? undefined : Math.abs(index - visualIndex)
                 }

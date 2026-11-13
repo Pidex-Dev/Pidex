@@ -68,7 +68,7 @@ export function ModelPricingEditor({
       </div>
       {value ? (
         <>
-          <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">
+          <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
             以下为原币／百万 Token；固定美元价格仅在关闭分时计费后生效。请求开始时冻结价格与汇率。
           </p>
           <div className={rowClassName}>
@@ -108,9 +108,9 @@ export function ModelPricingEditor({
             <section
               key={period}
               aria-label={period === 'idle' ? '闲时价格' : '忙时价格'}
-              className="tw:grid tw:min-w-0 tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-6"
+              className="tw:grid tw:min-w-0 tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5"
             >
-              <h4 className="tw:m-0 tw:type-title-sm">
+              <h4 className="tw:m-0 tw:type-4 tw:weight-bold">
                 {period === 'idle' ? '闲时价格' : '忙时价格'}
               </h4>
               {(Object.keys(labels) as (keyof ModelUnitPrices)[]).map((key) => (
@@ -136,7 +136,7 @@ export function ModelPricingEditor({
               ))}
             </section>
           ))}
-          <h4 className="tw:m-0 tw:border-t tw:border-app-border-subtle tw:pt-6 tw:type-title-sm">
+          <h4 className="tw:m-0 tw:border-t tw:border-app-border-subtle tw:pt-5 tw:type-4 tw:weight-bold">
             时间规则
           </h4>
           {value.rules.map((item, index) => (
@@ -271,7 +271,7 @@ export function ModelPricingEditor({
           >
             添加规则
           </Button>
-          <h4 className="tw:m-0 tw:border-t tw:border-app-border-subtle tw:pt-6 tw:type-title-sm">
+          <h4 className="tw:m-0 tw:border-t tw:border-app-border-subtle tw:pt-5 tw:type-4 tw:weight-bold">
             指定日期覆盖
           </h4>
           {value.dateOverrides.map((item, index) => (
@@ -345,7 +345,7 @@ export function ModelPricingEditor({
             刷新汇率与节假日日历
           </Button>
           {status ? (
-            <p role="status" className="tw:m-0 tw:type-body-sm">
+            <p role="status" className="tw:m-0 tw:type-1">
               {status}
             </p>
           ) : null}

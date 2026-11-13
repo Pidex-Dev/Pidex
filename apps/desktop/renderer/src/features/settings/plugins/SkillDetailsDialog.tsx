@@ -176,7 +176,7 @@ export function SkillDetailsDialog({
         <Dialog.Portal>
           <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
           <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-6 tw:rounded-2xl tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl"
+            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-5 tw:rounded-2xl tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl"
             onCloseAutoFocus={(event) => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -191,7 +191,7 @@ export function SkillDetailsDialog({
             <div className="tw:flex tw:items-center tw:justify-between tw:shrink-0">
               <span
                 aria-hidden="true"
-                className="tw:flex tw:size-10 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-canvas/80 tw:text-app-text-soft"
+                className="tw:flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-canvas/80 tw:text-app-text-soft"
               >
                 {iconNode}
               </span>
@@ -254,29 +254,29 @@ export function SkillDetailsDialog({
             </div>
 
             {/* 中间：标题和类型 */}
-            <div className="tw:mt-4 tw:flex tw:items-baseline tw:gap-2.5 tw:min-w-0 tw:shrink-0">
-              <Dialog.Title className="tw:m-0 tw:type-page-title tw:text-app-text tw:truncate">
+            <div className="tw:mt-4 tw:flex tw:items-baseline tw:gap-2 tw:min-w-0 tw:shrink-0">
+              <Dialog.Title className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text tw:truncate">
                 {skill.name}
               </Dialog.Title>
-              <span className="tw:type-body-lg tw:text-app-text-soft tw:shrink-0">
+              <span className="tw:type-3 tw:text-app-text-soft tw:shrink-0">
                 Skill
               </span>
             </div>
 
             {/* 下方：描述 */}
-            <Dialog.Description className="tw:mt-1.5 tw:mb-0 tw:type-body-sm tw:text-app-text-soft tw:shrink-0 tw:line-clamp-3">
+            <Dialog.Description className="tw:mt-2 tw:mb-0 tw:type-1 tw:text-app-text-soft tw:shrink-0 tw:line-clamp-3">
               {skill.description || skill.shortDescription || '未提供技能说明。'}
             </Dialog.Description>
 
             {/* 再下方：正文（暗色背景圆角卡片，渲染 Markdown） */}
-            <div className="tw:mt-4 tw:min-h-0 tw:w-full tw:max-w-full tw:flex-1 tw:overflow-y-auto tw:overflow-x-hidden tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-4 tw:type-body-sm">
+            <div className="tw:mt-4 tw:min-h-0 tw:w-full tw:max-w-full tw:flex-1 tw:overflow-y-auto tw:overflow-x-hidden tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-4 tw:type-1">
               {loading ? (
-                <p className="tw:type-body-sm tw:m-0 tw:text-app-text-soft" role="status">
+                <p className="tw:type-1 tw:m-0 tw:text-app-text-soft" role="status">
                   正在读取技能内容…
                 </p>
               ) : error ? (
                 <div
-                  className="tw:type-body-sm tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-app-danger tw:rounded-container"
+                  className="tw:type-1 tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-app-danger tw:rounded-container"
                   role="alert"
                 >
                   {error}

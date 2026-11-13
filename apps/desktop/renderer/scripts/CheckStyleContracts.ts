@@ -1353,6 +1353,23 @@ for (const file of featureTokenScriptFiles) {
   }
 }
 
+/*
+ * Decimal spacing utility rule: UI components must use the integer Radix 9-step
+ * spacing scale (1..9) and never decimal spacing utilities (0.5, 1.5, 2.5, 3.5).
+ */
+const tailwindDecimalSpacingPattern =
+  /\btw:(?:[a-z-]+:)*(?:p|px|py|pt|pr|pb|pl|ps|pe|m|mx|my|mt|mr|mb|ml|ms|me|gap|gap-x|gap-y|space-x|space-y|w|h|min-w|min-h|max-w|max-h|size)-\d+\.\d+\b/g
+for (const file of featureTokenScriptFiles) {
+  const script = featureTokenScriptSources.get(file)
+  if (!script || !script.path.startsWith('src/components/')) continue
+  const { source, path, lineNumberAt } = script
+  for (const match of source.matchAll(tailwindDecimalSpacingPattern)) {
+    errors.push(
+      `component TSX must not use decimal spacing utility ${match[0]}: ${path}:${lineNumberAt(match.index)}`,
+    )
+  }
+}
+
 const entrypoint = resolve(workspaceRoot, manifest.styleEntrypoint)
 if (!(await isFile(entrypoint)) || !styleExtensions.has(extname(entrypoint))) {
   errors.push(

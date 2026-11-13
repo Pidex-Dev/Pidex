@@ -72,7 +72,7 @@ export function PluginCatalogCard({
           <span
             aria-hidden="true"
             className={cx(
-              'plugin-catalog-card__icon tw:inline-flex tw:size-9 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text',
+              'plugin-catalog-card__icon tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text',
               FORCED_COLORS_SURFACE_CLASS,
               statusClass,
             )}
@@ -87,7 +87,7 @@ export function PluginCatalogCard({
           <span className={cx('plugin-catalog-card__copy', STACKED_COPY_CLASS)}>
             <strong
               className={cx(
-                'tw:overflow-hidden tw:text-app-text tw:type-row-title tw:text-ellipsis tw:whitespace-nowrap',
+                'tw:overflow-hidden tw:text-app-text tw:type-2 tw:weight-medium tw:text-ellipsis tw:whitespace-nowrap',
                 statusClass,
               )}
             >
@@ -101,7 +101,7 @@ export function PluginCatalogCard({
             {item.id === 'computer-use' ? <ComputerRuntimeStatus /> : null}
             {error ? (
               <span
-                className="plugin-catalog-card__error tw:min-w-0 tw:text-app-danger tw:type-body-sm tw:wrap-anywhere"
+                className="plugin-catalog-card__error tw:min-w-0 tw:text-app-danger tw:type-1 tw:wrap-anywhere"
                 id={errorId}
                 role="status"
               >

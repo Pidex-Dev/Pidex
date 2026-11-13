@@ -15,9 +15,9 @@ const TRACK_CLASS = 'tw:inline-flex tw:min-w-max tw:items-center tw:gap-1'
 /* The model row constrains the name slot itself, so only the fills and the tight tracking are left. */
 const COMPOSER_EXTRA_CLASS = 'tw:grow tw:shrink tw:basis-auto tw:tracking-[-0.01em]'
 const SIDEBAR_PRESENTATION_CLASS: Record<OverflowTitlePresentation, string> = {
-  compact: 'tw:grow tw:shrink tw:basis-auto tw:type-row-title',
-  'workspace-meta': 'tw:flex-none tw:type-body',
-  activity: 'tw:flex-none tw:type-body',
+  compact: 'tw:grow tw:shrink tw:basis-auto tw:type-2 tw:weight-medium',
+  'workspace-meta': 'tw:flex-none tw:type-2',
+  activity: 'tw:flex-none tw:type-2',
 }
 
 function scrollSeconds(distance: number): string {

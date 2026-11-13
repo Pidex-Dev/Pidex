@@ -40,7 +40,7 @@ export function BranchOptionRow({
           >
             {branch}
           </span>
-          <small className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-soft tw:type-caption">
+          <small className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-soft tw:type-1">
             {detail}
           </small>
         </span>

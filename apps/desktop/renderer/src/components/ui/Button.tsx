@@ -367,8 +367,11 @@ const BUTTON_STYLES = String.raw`
     background: transparent;
     color: var(--cpx-sys-color-fg-secondary);
     white-space: nowrap;
-    font: var(--cpx-sys-type-control);
-    letter-spacing: var(--cpx-sys-letter-spacing-control);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
     text-decoration: none;
     cursor: pointer;
     user-select: none;
@@ -447,7 +450,7 @@ const BUTTON_STYLES = String.raw`
 
   :is(button, a)[data-size][data-variant][data-size='sm'] {
     --button-box-size: 1.75rem;
-    --button-padding-inline: 0.625rem;
+    --button-padding-inline: var(--cpx-sys-space-3);
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
@@ -465,7 +468,7 @@ const BUTTON_STYLES = String.raw`
 
   :is(button, a)[data-size][data-variant][data-size='composerSm'] {
     --button-box-size: var(--cpx-comp-button-size-toolbar);
-    --button-padding-inline: 0.375rem;
+    --button-padding-inline: var(--cpx-sys-space-2);
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
@@ -474,7 +477,7 @@ const BUTTON_STYLES = String.raw`
 
   :is(button, a)[data-size][data-variant][data-size='composerUtility'] {
     --button-box-size: var(--cpx-comp-button-size-toolbar);
-    --button-padding-inline: 0.375rem;
+    --button-padding-inline: var(--cpx-sys-space-2);
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
@@ -501,7 +504,7 @@ const BUTTON_STYLES = String.raw`
 
   :is(button, a)[data-size][data-variant][data-size='toolbarLabel'] {
     --button-box-size: var(--cpx-comp-button-size-toolbar);
-    --button-padding-inline: 0.625rem;
+    --button-padding-inline: var(--cpx-sys-space-3);
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap-compact);
     padding-inline: var(--button-padding-inline);
@@ -519,7 +522,7 @@ const BUTTON_STYLES = String.raw`
 
   :is(button, a)[data-size][data-variant][data-size='md'] {
     --button-box-size: var(--cpx-comp-button-size-medium);
-    --button-padding-inline: 0.75rem;
+    --button-padding-inline: var(--cpx-sys-space-3);
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
@@ -528,7 +531,7 @@ const BUTTON_STYLES = String.raw`
 
   :is(button, a)[data-size][data-variant][data-size='lg'] {
     --button-box-size: var(--cpx-comp-button-size-large);
-    --button-padding-inline: 0.75rem;
+    --button-padding-inline: var(--cpx-sys-space-3);
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);

@@ -56,16 +56,16 @@ export function CommitPopover({
           className="review-popover commit-popover tw:flex tw:flex-col tw:font-sans"
           role="dialog"
         >
-          <header className="review-popover-header tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:type-row-title">
+          <header className="review-popover-header tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:type-2 tw:weight-medium">
             <span className="review-popover-branch tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text">
               {branchName}
               <ChevronDown size={APP_ICON_SIZES.sm} />
             </span>
-            <span className="review-popover-counts tw:ml-auto tw:inline-flex tw:items-center tw:gap-1 tw:type-weight-label tw:tabular-nums">
-              <strong className="tw:text-app-success tw:type-weight-label">
+            <span className="review-popover-counts tw:ml-auto tw:inline-flex tw:items-center tw:gap-1 tw:weight-medium tw:tabular-nums">
+              <strong className="tw:text-app-success tw:weight-medium">
                 +{formatPanelNumber(additions)}
               </strong>
-              <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
+              <em className="tw:text-app-danger tw:not-italic tw:weight-medium">
                 -{formatPanelNumber(deletions)}
               </em>
             </span>
@@ -83,11 +83,11 @@ export function CommitPopover({
             </Button>
           </header>
 
-          <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-body-sm">
-            <span className="tw:type-weight-label">提交信息</span>
+          <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-1">
+            <span className="tw:weight-medium">提交信息</span>
             <textarea
               autoFocus
-              className="tw:w-full tw:min-h-16 tw:resize-y tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-control"
+              className="tw:w-full tw:min-h-9 tw:resize-y tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-2 tw:weight-medium"
               placeholder="输入提交信息..."
               rows={3}
               value={message}
@@ -106,7 +106,7 @@ export function CommitPopover({
             />
           </label>
 
-          <label className="review-popover-check tw:flex tw:items-center tw:gap-2 tw:text-app-text-soft tw:type-control">
+          <label className="review-popover-check tw:flex tw:items-center tw:gap-2 tw:text-app-text-soft tw:type-2 tw:weight-medium">
             <input
               checked={includeUnstaged}
               type="checkbox"

@@ -40,12 +40,12 @@ export function SettingsSectionHeader({
     >
       <div className="settings-section-header-copy tw:min-w-0 tw:flex-1">
         {title ? (
-          <h3 className="settings-section-title tw:m-0 tw:text-app-text tw:type-row-title">
+          <h3 className="settings-section-title tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
             {typeof title === 'string' ? t(title) : title}
           </h3>
         ) : null}
         {description ? (
-          <p className="settings-section-desc tw:mt-1 tw:mr-0 tw:mb-0 tw:ml-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
+          <p className="settings-section-desc tw:mt-1 tw:mr-0 tw:mb-0 tw:ml-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
             {typeof description === 'string' ? t(description) : description}
           </p>
         ) : null}
@@ -84,7 +84,7 @@ export function SettingsSectionContent({
 
 export function SettingsSectionFooter({ children }: SlotProps): React.ReactNode {
   return (
-    <footer className="settings-section-footer tw:mt-3 tw:px-1 tw:text-app-text-meta tw:type-caption">
+    <footer className="settings-section-footer tw:mt-3 tw:px-1 tw:text-app-text-meta tw:type-1">
       {children}
     </footer>
   )

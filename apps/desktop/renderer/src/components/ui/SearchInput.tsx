@@ -51,12 +51,12 @@ function stripModeFields(props: Record<string, unknown>): Record<string, unknown
  * class stays as a query hook, and never carries the Tailwind classes itself.
  */
 const SIZE_BOX_CLASSES: Record<SearchInputSize, string> = {
-  sm: 'tw:h-7 tw:min-h-7 tw:px-2.5',
-  md: 'tw:h-9 tw:min-h-9 tw:px-3.5',
+  sm: 'tw:h-[28px] tw:min-h-[28px] tw:px-3',
+  md: 'tw:h-[36px] tw:min-h-[36px] tw:px-3',
 }
 
 const DEFAULT_VARIANT_SIZE_CLASSES: Record<SearchInputVariant, string> = {
-  outlined: 'tw:h-7 tw:px-2.5',
+  outlined: 'tw:h-[28px] tw:min-h-[28px] tw:px-3',
   standard: 'tw:py-control-block tw:px-control-inline',
   compact: 'tw:py-1 tw:px-control-inline',
   embedded: 'tw:py-control-block tw:px-control-inline',
@@ -71,10 +71,10 @@ const DEFAULT_VARIANT_RADIUS_CLASSES: Record<SearchInputVariant, string> = {
 
 const VARIANT_BASE_CLASSES: Record<SearchInputVariant, string> = {
   outlined:
-    'search-input--outlined tw:bg-app-control tw:type-secondary tw:has-[:focus-visible]:outline-none',
-  standard: 'search-input--standard tw:type-control',
-  compact: 'search-input--compact tw:type-control',
-  embedded: 'search-input--embedded tw:border-0 tw:bg-transparent tw:type-body-sm',
+    'search-input--outlined tw:bg-app-control tw:type-1 tw:has-[:focus-visible]:outline-none',
+  standard: 'search-input--standard tw:type-2 tw:weight-medium',
+  compact: 'search-input--compact tw:type-2 tw:weight-medium',
+  embedded: 'search-input--embedded tw:border-0 tw:bg-transparent tw:type-1',
 }
 
 export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(function SearchInput(
@@ -160,7 +160,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
   return (
     <div
       className={cx(
-        'search-input tw:type-control tw:inline-flex tw:min-w-0 tw:items-center tw:gap-control-gap tw:border tw:border-app-border-subtle tw:bg-app-canvas',
+        'search-input tw:type-2 tw:weight-medium tw:inline-flex tw:min-w-0 tw:items-center tw:gap-control-gap tw:border tw:border-app-border-subtle tw:bg-app-canvas',
         'tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard',
         'tw:hover:border-app-border-strong',
         'tw:has-[:focus-visible]:border-app-focus tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus',

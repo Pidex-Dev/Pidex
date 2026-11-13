@@ -115,7 +115,7 @@ export function PluginDetailsPrimaryAction({
 
   if (action.kind === 'toggle-plugin') {
     return (
-      <span className="plugin-details-primary-toggle tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption tw:whitespace-nowrap">
+      <span className="plugin-details-primary-toggle tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1 tw:whitespace-nowrap">
         <span>{action.checked ? '已启用' : '已禁用'}</span>
         <ToggleSwitch
           ref={toggleRef}

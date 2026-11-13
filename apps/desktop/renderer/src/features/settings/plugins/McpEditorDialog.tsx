@@ -319,10 +319,10 @@ export function McpEditorDialog({
         >
           <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3">
             <span className="settings-management-dialog-heading tw:min-w-0 tw:flex-1">
-              <Dialog.Title className="tw:type-title-sm tw:m-0">
+              <Dialog.Title className="tw:type-4 tw:weight-bold tw:m-0">
                 {server ? `MCP：${server.name}` : '新增 MCP server'}
               </Dialog.Title>
-              <Dialog.Description className="tw:type-body-sm tw:mt-1 tw:mb-0 tw:text-app-text-soft">
+              <Dialog.Description className="tw:type-1 tw:mt-1 tw:mb-0 tw:text-app-text-soft">
                 使用结构化字段配置 stdio 或 Streamable HTTP；HTTP 会在协议不兼容时自动回退 SSE。
               </Dialog.Description>
               <Button size="md" color="secondary" className="tw:mt-1" onClick={onOpenDocumentation}>
@@ -345,14 +345,14 @@ export function McpEditorDialog({
 
           <div className="settings-management-dialog-body tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto">
             {runtimeError || needsAuth ? (
-              <div className="tw:type-body-sm tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text-soft">
+              <div className="tw:type-1 tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text-soft">
                 {runtimeError ??
                   '该 server 需要认证。请从 MCP 列表发起 OAuth 登录，或配置宿主环境变量凭据。'}
               </div>
             ) : null}
             {validationError ? (
               <div
-                className="tw:type-body-sm tw:border tw:border-app-danger/40 tw:bg-app-danger/10 tw:px-3 tw:py-2 tw:text-app-danger"
+                className="tw:type-1 tw:border tw:border-app-danger/40 tw:bg-app-danger/10 tw:px-3 tw:py-2 tw:text-app-danger"
                 role="alert"
               >
                 {validationError}
@@ -360,7 +360,7 @@ export function McpEditorDialog({
             ) : null}
 
             {server?.name === 'node_repl' ? (
-              <p className="tw:type-caption tw:text-app-text-soft">
+              <p className="tw:type-1 tw:text-app-text-soft">
                 按需启动兼容 js 工具的 stdio MCP
                 服务。更换程序需要配套运行时；删除自定义配置会恢复插件默认入口。
               </p>
@@ -380,7 +380,7 @@ export function McpEditorDialog({
               <FormRow label="类型">
                 <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2">
                   {server ? (
-                    <span className="tw:type-caption tw:text-app-text-soft">
+                    <span className="tw:type-1 tw:text-app-text-soft">
                       已有配置的 transport 不可修改。
                     </span>
                   ) : (
@@ -520,7 +520,7 @@ export function McpEditorDialog({
                       checked={form.required}
                       onChange={(required) => update((current) => ({ ...current, required }))}
                     />
-                    <span className="tw:type-caption tw:text-app-text-soft">
+                    <span className="tw:type-1 tw:text-app-text-soft">
                       开启后，连接失败会阻止任务开始。
                     </span>
                   </span>
@@ -540,7 +540,7 @@ export function McpEditorDialog({
                           }))
                         }
                       />
-                      <span className="tw:type-body-sm tw:text-app-text-soft">
+                      <span className="tw:type-1 tw:text-app-text-soft">
                         {form.httpAuth === 'oauth' ? '使用 OAuth 登录' : '不使用 OAuth'}
                       </span>
                     </span>
@@ -627,7 +627,7 @@ export function McpEditorDialog({
                         }))
                       }
                     />
-                    <span className="tw:type-caption tw:text-app-text-soft">
+                    <span className="tw:type-1 tw:text-app-text-soft">
                       仅向本地进程传递最近的可见消息和工具状态摘要，不包含系统提示词、推理内容、路径或工具原始参数。
                     </span>
                   </FormRow>
@@ -657,7 +657,7 @@ export function McpEditorDialog({
               </FormCard>
               <Field label="Server JSON">
                 <textarea
-                  className="settings-textarea settings-code-textarea tw:min-h-52 tw:w-full tw:resize-y"
+                  className="settings-textarea settings-code-textarea tw:min-h-[13rem] tw:w-full tw:resize-y"
                   rows={10}
                   spellCheck={false}
                   value={form.configText}
@@ -741,7 +741,7 @@ const McpAdvancedDisclosure = memo(function McpAdvancedDisclosure({
       <button
         aria-controls={contentId}
         aria-expanded={expanded}
-        className="mcp-editor-advanced-disclosure tw:inline-flex tw:min-h-8 tw:cursor-pointer tw:items-center tw:justify-start tw:gap-2 tw:rounded-compact tw:border-0 tw:bg-transparent tw:px-2 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text tw:aria-expanded:bg-app-hover tw:aria-expanded:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+        className="mcp-editor-advanced-disclosure tw:inline-flex tw:min-h-6 tw:cursor-pointer tw:items-center tw:justify-start tw:gap-2 tw:rounded-compact tw:border-0 tw:bg-transparent tw:px-2 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text tw:aria-expanded:bg-app-hover tw:aria-expanded:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
         type="button"
         onClick={toggle}
       >
@@ -766,8 +766,8 @@ const McpAdvancedDisclosure = memo(function McpAdvancedDisclosure({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }): React.ReactNode {
   return (
-    <label className="tw:grid tw:gap-1.5">
-      <span className="tw:type-control">{label}</span>
+    <label className="tw:grid tw:gap-1">
+      <span className="tw:type-2 tw:weight-medium">{label}</span>
       {children}
     </label>
   )

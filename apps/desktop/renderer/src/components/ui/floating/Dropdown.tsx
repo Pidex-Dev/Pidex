@@ -331,7 +331,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
         }}
       >
         {title && !showSearch && (
-          <div className="popover-title-region tw:px-2.5 tw:py-1 tw:type-label tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:uppercase tw:tracking-[0.8px]">
+          <div className="popover-title-region tw:px-3 tw:py-1 tw:type-1 tw:weight-medium tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:uppercase tw:tracking-[0.8px]">
             {title}
           </div>
         )}
@@ -365,7 +365,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
         {footer ? <div className="popover-footer-region">{footer}</div> : null}
         {empty && (
           <div
-            className="popover-empty-region tw:px-2.5 tw:py-3 tw:text-center tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:type-caption"
+            className="popover-empty-region tw:px-3 tw:py-3 tw:text-center tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:type-1"
             role="status"
           >
             {emptyText}
@@ -486,7 +486,7 @@ const DropdownItem = forwardRef<HTMLDivElement, DropdownItemProps>(
         className={
           asChild
             ? `${hidden ? 'tw:hidden' : ''} ${className}`
-            : `popover-menu-option tw:type-control tw:rounded-[var(--cpx-sys-radius-control)] tw:cursor-pointer tw:items-center tw:justify-between tw:transition-colors tw:outline-none ${hidden ? 'tw:hidden' : 'tw:flex'} ${disabled || context.disabled ? 'tw:opacity-40 tw:cursor-not-allowed' : highlighted ? 'tw:bg-[var(--cpx-sys-color-hover)] tw:text-[var(--cpx-sys-color-fg-primary)]' : selected ? 'tw:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]' : 'tw:text-[var(--cpx-sys-color-fg-secondary)] tw:hover:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]'} ${className}`
+            : `popover-menu-option tw:type-2 tw:weight-medium tw:rounded-[var(--cpx-sys-radius-control)] tw:cursor-pointer tw:items-center tw:justify-between tw:transition-colors tw:outline-none ${hidden ? 'tw:hidden' : 'tw:flex'} ${disabled || context.disabled ? 'tw:opacity-40 tw:cursor-not-allowed' : highlighted ? 'tw:bg-[var(--cpx-sys-color-hover)] tw:text-[var(--cpx-sys-color-fg-primary)]' : selected ? 'tw:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]' : 'tw:text-[var(--cpx-sys-color-fg-secondary)] tw:hover:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]'} ${className}`
         }
       >
         {asChild ? (
@@ -501,7 +501,7 @@ const DropdownItem = forwardRef<HTMLDivElement, DropdownItemProps>(
             <div className="menu-column-label tw:min-w-0">
               <div className="tw:truncate">{children}</div>
               {description && (
-                <div className="menu-column-detail tw:type-caption tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:whitespace-normal tw:wrap-anywhere tw:mt-0.5">
+                <div className="menu-column-detail tw:type-1 tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:whitespace-normal tw:wrap-anywhere tw:mt-1">
                   {description}
                 </div>
               )}
