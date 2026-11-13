@@ -255,16 +255,16 @@ export function SkillDetailsDialog({
 
             {/* 中间：标题和类型 */}
             <div className="tw:mt-4 tw:flex tw:items-baseline tw:gap-2.5 tw:min-w-0 tw:shrink-0">
-              <Dialog.Title className="tw:m-0 tw:text-2xl tw:font-semibold tw:text-app-text tw:truncate">
+              <Dialog.Title className="tw:m-0 tw:type-page-title tw:text-app-text tw:truncate">
                 {skill.name}
               </Dialog.Title>
-              <span className="tw:text-lg tw:font-normal tw:text-app-text-soft tw:shrink-0">
+              <span className="tw:type-body-lg tw:text-app-text-soft tw:shrink-0">
                 Skill
               </span>
             </div>
 
             {/* 下方：描述 */}
-            <Dialog.Description className="tw:mt-1.5 tw:mb-0 tw:type-body-sm tw:text-app-text-soft tw:leading-relaxed tw:shrink-0 tw:line-clamp-3">
+            <Dialog.Description className="tw:mt-1.5 tw:mb-0 tw:type-body-sm tw:text-app-text-soft tw:shrink-0 tw:line-clamp-3">
               {skill.description || skill.shortDescription || '未提供技能说明。'}
             </Dialog.Description>
 
