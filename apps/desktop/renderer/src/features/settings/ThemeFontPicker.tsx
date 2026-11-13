@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Download, Loader2 } from 'lucide-react'
 
-import type { DesktopExternalFontState } from '@pidex/shared/desktop-external-fonts'
+import {
+  findExternalFontByFamily,
+  type DesktopExternalFontState,
+} from '@pidex/shared/desktop-external-fonts'
 import { APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
 import type { DesktopThemeFontFace } from '../../../shared/Types.js'
 import {
@@ -13,7 +16,10 @@ import { SettingsDropdown } from './SettingsDropdown.js'
 import {
   SYSTEM_DEFAULT_FAMILY_VALUE,
   buildFamilyOptions,
+  buildWeightOptions,
+  faceForExternalWeight,
   fontPickerCurrentFamilyValue,
+  selectedWeightValue,
   type FontPickerKind,
 } from './ThemeFontPickerModel.js'
 
@@ -30,6 +36,7 @@ type ThemeFontPickerProps = {
 export function ThemeFontPicker({
   ariaLabel,
   family,
+  face,
   kind,
   controls = 'both',
   onCommit,
@@ -56,11 +63,36 @@ export function ThemeFontPicker({
     }
   }, [])
 
+  const currentFamilyValue = fontPickerCurrentFamilyValue(family, kind)
+  const selectedExternalSpec =
+    currentFamilyValue !== SYSTEM_DEFAULT_FAMILY_VALUE
+      ? findExternalFontByFamily(currentFamilyValue)
+      : undefined
+  const selectedExternalState = selectedExternalSpec
+    ? externalFonts.find((item) => item.id === selectedExternalSpec.id)
+    : undefined
+  const showWeightControl =
+    controls !== 'family' &&
+    Boolean(selectedExternalSpec) &&
+    selectedExternalState?.status === 'downloaded'
+
   if (controls === 'style') {
-    return null
+    if (!showWeightControl || !selectedExternalSpec) return null
+    return (
+      <SettingsDropdown
+        ariaLabel={`${ariaLabel}字重`}
+        disabled={downloadingFontName !== null}
+        options={buildWeightOptions(selectedExternalSpec)}
+        size="sm"
+        triggerClassName="appearance-font-style"
+        value={selectedWeightValue(selectedExternalSpec, face)}
+        onChange={(weightValue) =>
+          onCommit(selectedExternalSpec.family, faceForExternalWeight(selectedExternalSpec, weightValue))
+        }
+      />
+    )
   }
 
-  const currentFamilyValue = fontPickerCurrentFamilyValue(family, kind)
   const familyOptions = buildFamilyOptions({ kind, externalFonts }).map((option) => {
     if (option.externalStatus === 'not-downloaded' || option.externalStatus === 'error') {
       return {
@@ -145,6 +177,22 @@ export function ThemeFontPicker({
         onChange={handleFamilyChange}
         onOpenChange={handleOpenChange}
       />
+      {showWeightControl && selectedExternalSpec ? (
+        <SettingsDropdown
+          ariaLabel={`${ariaLabel}字重`}
+          disabled={downloadingFontName !== null}
+          options={buildWeightOptions(selectedExternalSpec)}
+          size="sm"
+          triggerClassName="appearance-font-style"
+          value={selectedWeightValue(selectedExternalSpec, face)}
+          onChange={(weightValue) =>
+            onCommit(
+              selectedExternalSpec.family,
+              faceForExternalWeight(selectedExternalSpec, weightValue),
+            )
+          }
+        />
+      ) : null}
     </div>
   )
 }

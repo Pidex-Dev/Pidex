@@ -9,7 +9,12 @@ const EXTERNAL_FONT_STYLE_PREFIX = 'cpx-external-font-'
 let cachedStates: DesktopExternalFontState[] | null = null
 let pendingStatesPromise: Promise<DesktopExternalFontState[]> | null = null
 const loadedCssFontIds = new Set<string>()
+const loadedCssByFontId = new Map<string, string>()
 const loadingCssPromises = new Map<string, Promise<boolean>>()
+
+export function getLoadedExternalFontCss(fontId: string): string | null {
+  return loadedCssByFontId.get(fontId) ?? null
+}
 
 function defaultNotDownloadedStates(): DesktopExternalFontState[] {
   return DESKTOP_EXTERNAL_FONTS.map((font) => ({
@@ -123,6 +128,7 @@ export function applyExternalFontCss(fontId: string, css: string | null): void {
 
   if (!css) {
     loadedCssFontIds.delete(fontId)
+    loadedCssByFontId.delete(fontId)
     styleEl?.remove()
     return
   }
@@ -136,11 +142,13 @@ export function applyExternalFontCss(fontId: string, css: string | null): void {
     styleEl.textContent = css
   }
   loadedCssFontIds.add(fontId)
+  loadedCssByFontId.set(fontId, css)
 }
 
 export function resetExternalFontsCache(): void {
   cachedStates = null
   pendingStatesPromise = null
   loadedCssFontIds.clear()
+  loadedCssByFontId.clear()
   loadingCssPromises.clear()
 }

@@ -1,4 +1,10 @@
+import {
+  findExternalFontByFamily,
+  type DesktopExternalFontSpec,
+  type DesktopExternalFontWeightOption,
+} from '@pidex/shared/desktop-external-fonts'
 import type { DesktopThemeFontFace } from '../../../shared/Types.js'
+import { getLoadedExternalFontCss } from './ThemeExternalFonts.js'
 
 /**
  * Theme font-face loading tool. A selected local face is registered under a
@@ -43,7 +49,62 @@ export function generateThemeFontFaceCss(alias: string, face: DesktopThemeFontFa
 }`
 }
 
+export function resolveExternalWeightOption(
+  spec: DesktopExternalFontSpec,
+  face: DesktopThemeFontFace,
+): DesktopExternalFontWeightOption {
+  const weight = extractWeightFromFace(face)
+  const byWeight = spec.weights.find((item) => item.weight === weight)
+  if (byWeight) return byWeight
+  const text = `${face.fullName} ${face.postscriptName}`.toLowerCase()
+  const byLongestLabel = [...spec.weights].sort((a, b) => b.label.length - a.label.length)
+  const byLabel = byLongestLabel.find((item) => text.includes(item.label.toLowerCase()))
+  return byLabel ?? spec.weights.find((item) => item.weight === 400) ?? spec.weights[0]!
+}
+
+export function generateExternalFontFaceCss(
+  alias: string,
+  spec: DesktopExternalFontSpec,
+  rawCss: string,
+  face: DesktopThemeFontFace,
+): string {
+  const selected = resolveExternalWeightOption(spec, face)
+  const escapedAlias = escapeCssString(alias)
+  const escapedFamily = spec.family.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const familyPattern = new RegExp(`font-family:\\s*['"]?${escapedFamily}['"]?`, 'g')
+
+  if (spec.isVariable) {
+    return rawCss
+      .replace(familyPattern, `font-family: "${escapedAlias}"`)
+      .replace(/(@font-face\s*\{[^}]*)(})/g, `$1\n  font-variation-settings: 'wght' ${selected.weight};\n$2`)
+  }
+
+  const targetSourceWeight = selected.sourceWeight ?? selected.weight
+  const weightPattern = new RegExp(`font-weight:\\s*${targetSourceWeight}\\b`)
+  const blocks: string[] = []
+  for (const match of rawCss.matchAll(/@font-face\s*\{[^}]*\}/g)) {
+    const block = match[0]
+    if (!weightPattern.test(block)) continue
+    blocks.push(
+      block
+        .replace(familyPattern, `font-family: "${escapedAlias}"`)
+        .replace(weightPattern, 'font-weight: 100 900'),
+    )
+  }
+  return blocks.join('\n')
+}
+
 export const THEME_FONT_FACES_STYLE_ID = 'cpx-theme-font-faces'
+
+function buildFaceCssBlock(alias: string, face: DesktopThemeFontFace): string | null {
+  const external = findExternalFontByFamily(face.family)
+  if (external) {
+    const loadedCss = getLoadedExternalFontCss(external.id)
+    if (!loadedCss) return null
+    return generateExternalFontFaceCss(alias, external, loadedCss, face)
+  }
+  return generateThemeFontFaceCss(alias, face)
+}
 
 export function applyThemeFontFaceStyles(
   uiFace: DesktopThemeFontFace | null | undefined,
@@ -55,10 +116,12 @@ export function applyThemeFontFaceStyles(
   const cssBlocks: string[] = []
 
   if (uiFace) {
-    cssBlocks.push(generateThemeFontFaceCss('Pidex-Selected-Sans', uiFace))
+    const block = buildFaceCssBlock('Pidex-Selected-Sans', uiFace)
+    if (block) cssBlocks.push(block)
   }
   if (codeFace) {
-    cssBlocks.push(generateThemeFontFaceCss('Pidex-Selected-Mono', codeFace))
+    const block = buildFaceCssBlock('Pidex-Selected-Mono', codeFace)
+    if (block) cssBlocks.push(block)
   }
 
   const css = cssBlocks.join('\n\n').trim()
