@@ -1,14 +1,14 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawn, spawnSync, type ChildProcessByStdio } from 'node:child_process'
-import type { Readable } from 'node:stream'
+import type { Readable, Writable } from 'node:stream'
 import { AgentError } from '../../Domain'
 
 const MAX_OUTPUT_BYTES = 1024 * 1024
 const DEFAULT_TIMEOUT_MS = 120_000
 const MAX_TIMEOUT_MS = 600_000
 
-export type CapturedChild = ChildProcessByStdio<null, Readable, Readable>
+export type CapturedChild = ChildProcessByStdio<Writable | null, Readable, Readable>
 
 export interface ProcessResult {
   exitCode: number | null
@@ -157,14 +157,29 @@ export async function runHostCommand(
   timeoutMs?: number,
   signal?: AbortSignal,
   env?: NodeJS.ProcessEnv,
+  stdin?: string,
 ): Promise<ProcessResult> {
   const shell = preferredShell()
-  const child = spawn(shell.exe, [...shell.args, command], {
+  const sharedOptions = {
     cwd,
     env: mergeProcessEnvironment(process.env, env),
     shell: false,
     windowsHide: true,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
+  } as const
+  const child =
+    stdin !== undefined
+      ? spawn(shell.exe, [...shell.args, command], {
+          ...sharedOptions,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        })
+      : spawn(shell.exe, [...shell.args, command], {
+          ...sharedOptions,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+  if (stdin !== undefined && child.stdin) {
+    // Ignore EPIPE when a short-lived hook exits without reading stdin.
+    child.stdin.on('error', () => undefined)
+    child.stdin.end(stdin, 'utf8')
+  }
   return collectProcess(child, boundedTimeout(timeoutMs), signal)
 }

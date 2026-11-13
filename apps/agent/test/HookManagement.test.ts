@@ -6,6 +6,7 @@ import { removeFixturePaths } from './FixtureCleanup'
 import { ConfigService } from '../src/config/ConfigService'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { HookService } from '../src/hooks/HookService'
+import { createHostHookRunner } from '../src/hooks/HookHostRunner'
 import { HooksManagement } from '../src/hooks/HooksManagementService'
 import { HookSettingsRepository } from '../src/storage/repositories/HookSettingsRepository'
 import type { PluginHookSource } from '../src/hooks/HookDiscovery'
@@ -356,5 +357,116 @@ describe('Hook 主动发现与启停管理', () => {
     expect(seen[0]?.pluginRoot).toBeTruthy()
 
     await fixtureValue.dispose()
+  })
+
+  test('宿主 HookRunner 直接执行工作区外插件命令、注入环境变量与 stdin，并正确处理退出码', async () => {
+    const fixtureValue = await fixture()
+    const outsidePluginRoot = await mkdtemp(join(tmpdir(), 'pidex-outside-plugin-'))
+    roots.push(outsidePluginRoot)
+    const scriptPath = join(outsidePluginRoot, 'activate.js')
+    await writeFile(
+      scriptPath,
+      [
+        "const fs = require('node:fs')",
+        "const stdin = fs.readFileSync(0, 'utf8').trim()",
+        'console.log(JSON.stringify({',
+        '  hookSpecificOutput: {',
+        "    hookEventName: 'SessionStart',",
+        '    additionalContext: JSON.stringify({',
+        '      stdin: JSON.parse(stdin),',
+        '      pluginRoot: process.env.CLAUDE_PLUGIN_ROOT,',
+        '      pluginData: process.env.CLAUDE_PLUGIN_DATA,',
+        '      projectDir: process.env.CLAUDE_PROJECT_DIR,',
+        '    }),',
+        '  },',
+        '}))',
+      ].join('\n'),
+      'utf8',
+    )
+    const pluginHooksFile = join(outsidePluginRoot, 'hooks.json')
+    await writeFile(
+      pluginHooksFile,
+      JSON.stringify({
+        hooks: {
+          SessionStart: [
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'node "${CLAUDE_PLUGIN_ROOT}/activate.js"',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      'utf8',
+    )
+
+    const runner = createHostHookRunner({ dataDir: fixtureValue.dataRoot })
+    const hooks = new HookService(
+      fixtureValue.db,
+      runner,
+      (value) => value,
+      undefined,
+      fixtureValue.configService,
+      {
+        dataRoot: fixtureValue.dataRoot,
+        userHome: fixtureValue.userHome,
+        settings: fixtureValue.settings,
+        pluginHookSources: async () => [
+          {
+            pluginId: 'ponytail',
+            pluginName: 'Ponytail',
+            pluginRoot: outsidePluginRoot,
+            scope: 'user',
+            hooksPaths: [pluginHooksFile],
+          },
+        ],
+      },
+    )
+
+    try {
+      await hooks.loadWithPlugins({ projectRoot: fixtureValue.projectRoot })
+      const startResults = await hooks.run(
+        'session_start',
+        { workspace: fixtureValue.projectRoot, source: 'startup' },
+        { workspaceRoot: fixtureValue.projectRoot, matcherValue: 'startup' },
+      )
+      expect(startResults).toHaveLength(1)
+      const payload = JSON.parse(startResults[0]!.result.additionalContext!)
+      expect(payload.stdin).toEqual({ workspace: fixtureValue.projectRoot, source: 'startup' })
+      expect(payload.pluginRoot).toBe(outsidePluginRoot)
+      expect(payload.pluginData).toBe(join(fixtureValue.dataRoot, 'plugins', 'data', 'ponytail'))
+      expect(payload.projectDir).toBe(fixtureValue.projectRoot)
+
+      const denyScript = join(outsidePluginRoot, 'deny.js')
+      await writeFile(denyScript, "process.stderr.write('blocked by hook'); process.exit(2)\n", 'utf8')
+      const denied = await runner.run({
+        hookID: 'test-deny',
+        command: `node "${denyScript}"`,
+        timeoutMs: 5_000,
+        evidence: '{}',
+        workspaceRoot: fixtureValue.projectRoot,
+      })
+      expect(JSON.parse(denied.output)).toEqual({
+        decision: 'deny',
+        reason: 'blocked by hook',
+      })
+
+      const failScript = join(outsidePluginRoot, 'fail.js')
+      await writeFile(failScript, "process.stderr.write('boom'); process.exit(1)\n", 'utf8')
+      await expect(
+        runner.run({
+          hookID: 'test-fail',
+          command: `node "${failScript}"`,
+          timeoutMs: 5_000,
+          evidence: '{}',
+          workspaceRoot: fixtureValue.projectRoot,
+        }),
+      ).rejects.toThrow('boom')
+    } finally {
+      await fixtureValue.dispose()
+    }
   })
 })

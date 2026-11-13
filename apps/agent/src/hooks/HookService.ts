@@ -29,6 +29,7 @@ export interface HookToolRunner {
     threadID?: string
     turnID?: string
     toolCallID?: string
+    workspaceRoot?: string
     pluginId?: string
     pluginRoot?: string
   }): Promise<{ output: string }>
@@ -308,7 +309,7 @@ export class HookService {
           startedAt,
         })
         try {
-          // The injected runner must route this command through the normal ToolExecutor.
+          // Trust gating is already enforced by HookService before reaching the host runner.
           const execution = await this.runner.run({
             hookID: hook.id,
             command: hook.command,
