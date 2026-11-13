@@ -1,4 +1,4 @@
-import { omitUndefined } from '../OmitUndefined'
+import { omitUndefined } from '@pidex/shared/guards'
 import { UsageRequestError } from './SafeFetch'
 import {
   emptySource,

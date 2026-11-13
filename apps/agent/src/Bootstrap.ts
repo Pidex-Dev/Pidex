@@ -6,9 +6,8 @@ import { ComputerUseService } from './computer/ComputerUseService'
 import { LocalEnvironmentRepository } from './local-environment/LocalEnvironmentRepository'
 import { LocalEnvironmentCatalog } from './local-environment/LocalEnvironmentCatalog'
 import { computerToolDefinitions } from './tool/Computer/Definition'
-import { NodeReplService, defaultNodeReplServer } from './nodeRepl/NodeReplService'
-import { nodeReplResetToolDefinition, nodeReplToolDefinition } from './nodeRepl/Definition'
-import { NODE_REPL_PLUGIN_ID, NODE_REPL_SERVER_NAME } from './nodeRepl/Association'
+import { createNodeReplBootstrap } from './nodeRepl/NodeReplBootstrapService'
+import { createScheduledTaskCheckRunner } from './calendar/ScheduledTaskCheckRunner'
 import { Effect } from 'effect'
 import { loadConfig } from './config/Config'
 import { ConfigService } from './config/ConfigService'
@@ -141,7 +140,6 @@ import {
   taskScheduleDefinitions,
   taskScheduleCheckDefinition,
 } from './tool/TaskSchedule/Definitions'
-import { normalizeScheduledPermission } from './automation/AutomationService'
 import { createSchedulePlanDefinition } from './tool/SchedulePlan/Definition'
 import {
   AutomationRunCoordinator,
@@ -667,17 +665,17 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     )
     const mcpElicitations = new McpElicitationService(db, hub)
     yield* Effect.promise(() => mcpElicitations.restore())
-    const nodeRepl = new NodeReplService((stop) => {
-      const unsubscribe = plugins.subscribe((pluginId) => {
-        if (pluginId === NODE_REPL_PLUGIN_ID && !plugins.isEnabled(NODE_REPL_PLUGIN_ID)) stop()
-      })
-      if (!plugins.isEnabled(NODE_REPL_PLUGIN_ID)) stop()
-      return unsubscribe
+    const {
+      nodeRepl,
+      mcpAdapter: nodeReplMcpAdapter,
+      listStatus: listNodeReplStatus,
+      fallbackServers: nodeReplFallbackServers,
+    } = createNodeReplBootstrap({
+      plugins,
+      mcpConfigs,
+      computer,
+      getToolExecutor: () => toolExecutor,
     })
-    const nodeReplConfiguration = async (workspace?: string) =>
-      (await mcpConfigs.list(workspace)).servers.find(
-        (item) => item.effective && item.server.name === NODE_REPL_SERVER_NAME,
-      )?.server
     const mcpConnections = new McpConnectionManager(
       mcpConfigs,
       tools,
@@ -693,68 +691,15 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
       new McpDiagnosticContextProvider(new ThreadProjection(db)),
       mcpOAuthCoordinator,
-      {
-        owns: (name) => name === NODE_REPL_SERVER_NAME,
-        definitions: async (workspace) => {
-          const server = await nodeReplConfiguration(workspace)
-          if (
-            server &&
-            (!server.enabled ||
-              server.transport.type !== 'stdio' ||
-              server.disabledTools?.includes('js') ||
-              (server.enabledTools && !server.enabledTools.includes('js')))
-          )
-            return []
-          const validateConfiguration = async () => {
-            if (JSON.stringify(await nodeReplConfiguration(workspace)) !== JSON.stringify(server))
-              throw new AgentError('MCP_CONFIG_CHANGED', 'node_repl 配置已变化，请开始新一轮任务', 409)
-          }
-          const shared = {
-            plugins,
-            computer,
-            service: nodeRepl,
-            executor: toolExecutor,
-            validateConfiguration,
-            ...(server ? { server } : {}),
-          }
-          // `js_reset` 只清空当前聊天的求值上下文，同样受该服务器自己的工具开关约束。
-          const resetEnabled =
-            !server ||
-            (!server.disabledTools?.includes('js_reset') &&
-              (!server.enabledTools || server.enabledTools.includes('js_reset')))
-          return [
-            nodeReplToolDefinition(shared),
-            ...(resetEnabled ? [nodeReplResetToolDefinition(shared)] : []),
-          ]
-        },
-      },
+      nodeReplMcpAdapter,
     )
     const mcpOAuth = new McpOAuthService(mcpConfigs, mcpConnections, mcpOAuthCoordinator)
     const mcp = new McpRuntimeService(
       mcpConfigs,
       mcpConnections,
       mcpOAuth,
-      async (workspace) => {
-        if (!plugins.isEnabled(NODE_REPL_PLUGIN_ID)) return []
-        const server = await nodeReplConfiguration(workspace)
-        const connected = computer.available() && server?.enabled !== false
-        return [
-          {
-            name: NODE_REPL_SERVER_NAME,
-            scope: server?.scope ?? 'user',
-            type: 'stdio',
-            state: server?.enabled === false ? 'disabled' : connected ? 'connected' : 'starting',
-            auth: { source: 'none', canLogin: false, canLogout: false },
-            toolCount: connected ? 1 : 0,
-            resourceCount: 0,
-            promptCount: 0,
-            onDemand: true,
-            managedBy: 'user',
-            pluginId: NODE_REPL_PLUGIN_ID,
-          },
-        ]
-      },
-      () => (plugins.isEnabled(NODE_REPL_PLUGIN_ID) ? [defaultNodeReplServer()] : []),
+      listNodeReplStatus,
+      nodeReplFallbackServers,
     )
     const guardianEvidence = new GuardianEvidenceService(async (threadID) => {
       try {
@@ -1174,42 +1119,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         if (task.execution.targetThreadId)
           await workspaceResolver.resolve(task.execution.targetThreadId)
       },
-      check: async (check, occurrence, run) => {
-        const threadId = run?.threadId ?? occurrence.snapshot.execution?.targetThreadId
-        const turnId =
-          run?.turnId ?? (threadId ? db.repositories.taskSchedules.latestTurnId(threadId) : null)
-        const execution = run ?? occurrence.snapshot.execution
-        if (!threadId || !turnId || !execution) return false
-        const runtime = await workspaceResolver.resolve(threadId)
-        const context = {
-          threadID: threadId,
-          turnID: turnId,
-          toolCallID: `task-check:${occurrence.id}:${occurrence.resultVersion}:${occurrence.snapshot.checks.indexOf(check)}`,
-          taskMode: 'chat' as const,
-          signal: AbortSignal.timeout(120_000),
-          workspace: runtime.workspace,
-          defaultCwd: runtime.cwd,
-          permissionConfig: normalizeScheduledPermission(execution.permissionConfig),
-          model: execution.model,
-          taskSummary: '任务自动验收',
-        }
-        if (check.kind === 'command-exit-code') {
-          const result = await toolExecutor.execute<{ exitCode: number }>(
-            'PowerShell',
-            { command: check.command, timeout: 120_000, description: '任务自动验收' },
-            context,
-          )
-          return result.exitCode === check.expectedExitCode
-        }
-        return await toolExecutor.execute<boolean>(
-          'task_schedule_check',
-          {
-            file_path: check.path,
-            ...(check.kind === 'document-section' ? { section: check.section } : {}),
-          },
-          context,
-        )
-      },
+      check: createScheduledTaskCheckRunner({ db, workspaceResolver, toolExecutor }),
       feedback: async (occurrence, feedback) => {
         const run = occurrence.scheduledTaskId
           ? scheduledTaskRepository.read(occurrence.scheduledTaskId, true)

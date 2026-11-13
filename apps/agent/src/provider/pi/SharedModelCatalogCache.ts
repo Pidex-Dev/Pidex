@@ -1,4 +1,4 @@
-import { omitUndefined } from '../../OmitUndefined'
+import { omitUndefined } from '@pidex/shared/guards'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'

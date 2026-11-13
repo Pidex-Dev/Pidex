@@ -1,4 +1,4 @@
-import { omitUndefined } from '../OmitUndefined'
+import { omitUndefined } from '@pidex/shared/guards'
 import { isAbsolute, normalize } from 'node:path'
 import type { AgentHarnessEvent } from '../orchestration/harness/Types'
 import type { EventEnvelope } from '../Domain'

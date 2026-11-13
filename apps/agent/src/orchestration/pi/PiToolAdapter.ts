@@ -1,4 +1,4 @@
-import { subagentToolDefinitions } from '../../subagent/ToolDefinitions'
+import { subagentToolDefinitions } from '../../tool/Delegation/Definitions'
 import type { AgentToolResult } from '../harness/AgentTypes'
 import { Type, type TSchema } from '@earendil-works/pi-ai'
 import { AgentError } from '../../Domain'

@@ -1,4 +1,8 @@
-import { formatPermissionInstructions } from '../prompt/PermissionInstructions'
+import {
+  capabilityCatalogSection,
+  composeRuntimePromptBundle,
+  resolveRuntimePromptSections,
+} from './prompt/RuntimePromptComposer'
 import { randomUUID } from 'node:crypto'
 import { Effect } from 'effect'
 import { contentText, type Api, type Model as PiModel, type Models } from '@earendil-works/pi-ai'
@@ -32,13 +36,11 @@ import type { EventHub } from '../storage/events/EventHub'
 import type { ToolExecutor } from '../tool/ToolExecutor'
 import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from '../tool/ToolExposurePlan'
 import {
-  toolCatalogSummary,
   type ToolCatalog,
   type ToolCatalogEntry,
   type ToolPauseRequest,
 } from '../tool/ToolRegistry'
 import { computerOperationRecoveryFrom } from '../nodeRepl/Protocol'
-import { buildCapabilityCatalogSection } from '../prompt/CapabilityCatalog'
 import type { PromptSection } from '../prompt/Types'
 import { resolveEffectivePermissionConfig } from '../permission/EffectivePermissionConfig'
 import { AgentError, type Item, type SubagentResult } from '../Domain'
@@ -68,7 +70,6 @@ import {
 } from '../storage/ArtifactService'
 import type { NewArtifactRecord } from '../storage/repositories/ArtifactRepository'
 import type { ToolResultBlock } from '@pidex/shared/thread'
-import { PromptComposer } from '../prompt/PromptComposer'
 import { RuntimeCompositionService } from '../runtime-composition/Service'
 import {
   composeRuntimeComposition,
@@ -96,23 +97,6 @@ type PendingTurn = {
 }
 
 const outputDelta = (value: unknown) => (typeof value === 'string' ? value : '')
-
-/**
- * Only tools the given turn may already discover appear in the summary; the
- * frozen deferred envelope is therefore never widened by a live registry.
- */
-const capabilityCatalogSection = (
-  catalog: ToolCatalog,
-  deferredNames: readonly string[],
-): PromptSection => {
-  const byName = new Map(catalog.all().map((tool) => [tool.sdkName, tool]))
-  return buildCapabilityCatalogSection(
-    deferredNames.flatMap((name) => {
-      const definition = byName.get(name)
-      return definition ? [toolCatalogSummary(definition)] : []
-    }),
-  )
-}
 
 const safeTimelinePatchPath = (path: string) => {
   const normalized = path.replaceAll('\\', '/').replace(/^\.\/+/, '')
@@ -1494,18 +1478,6 @@ export class AgentRuntimeService implements AgentRuntime {
       request.taskMode,
       request.permissionConfig,
     )
-    const effectivePromptSections = (request.promptSections ?? []).map((section) =>
-      section.id === 'permission.resolved'
-        ? {
-            ...section,
-            content: formatPermissionInstructions(
-              effectivePermissionConfig,
-              request.taskMode,
-              request.profile ?? 'main',
-            ),
-          }
-        : section,
-    )
     const model = resolved.model as unknown as PiModel<Api>
     let session
     try {
@@ -1529,16 +1501,16 @@ export class AgentRuntimeService implements AgentRuntime {
     })
     const toolCatalog = request.toolCatalog ?? this.options.toolExecutor.catalog()
     const activityToolCatalog = toolCatalog.all()
-    // The capability summary is part of the prompt that gets frozen below, so a
-    // resumed turn keeps the catalogue it started with. It is generated once for
-    // the main Agent and subagents instead of being declared per tool.
-    effectivePromptSections.splice(
-      effectivePromptSections.length - 1,
-      0,
-      capabilityCatalogSection(toolCatalog, exposurePlan.deferred),
-    )
+    const effectivePromptSections = resolveRuntimePromptSections({
+      ...(request.promptSections ? { sections: request.promptSections } : {}),
+      effectivePermissionConfig,
+      taskMode: request.taskMode,
+      profile: request.profile ?? 'main',
+      toolCatalog,
+      deferredToolNames: exposurePlan.deferred,
+    })
     const composeBundle = () =>
-      new PromptComposer().compose({
+      composeRuntimePromptBundle({
         threadID: request.threadID,
         mode: request.taskMode,
         profile: request.profile ?? 'main',

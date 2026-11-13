@@ -6,7 +6,6 @@ import { createProviderMessagePhaseReader } from './ProviderMessagePhase'
 import {
   type AssistantMessage,
   createAssistantMessageEventStream,
-  contentText,
   type ImageContent,
   type Model,
   type Models,
@@ -26,17 +25,12 @@ import type {
   ThinkingLevel,
 } from './AgentTypes.ts'
 import {
-  collectEntriesForBranchSummary,
-  generateBranchSummary,
-} from '../../context/harness/BranchSummarization.ts'
-import {
   compact,
   DEFAULT_COMPACTION_SETTINGS,
   prepareCompaction,
   estimateTokens,
 } from '../../context/harness/Compaction.ts'
 import { convertToLlm, createCompactionSummaryMessage } from './Messages.ts'
-import { formatPromptTemplateInvocation } from '../../prompt/harness/PromptTemplates.ts'
 import { formatSkillInvocation } from '../../prompt/harness/Skills.ts'
 import type {
   AbortResult,
@@ -52,7 +46,6 @@ import type {
   AgentHarnessTool,
   AgentHarnessToolContextSource,
   CompactResult,
-  NavigateTreeResult,
   PendingSessionWrite,
   PromptTemplate,
   Session,
@@ -1114,27 +1107,6 @@ export class AgentHarness<
     }
   }
 
-  async promptFromTemplate(name: string, args: string[] = []): Promise<AssistantMessage> {
-    if (this.phase !== 'idle') throw new AgentHarnessError('busy', 'AgentHarness is busy')
-    this.phase = 'turn'
-    const finishRunPromise = this.startRunPromise()
-    try {
-      this.currentTurnComposition = undefined
-      const turnState = await this.createTurnState()
-      const template = (turnState.resources.promptTemplates ?? []).find(
-        (candidate) => candidate.name === name,
-      )
-      if (!template)
-        throw new AgentHarnessError('invalid_argument', `Unknown prompt template: ${name}`)
-      return await this.executeTurn(turnState, formatPromptTemplateInvocation(template, args))
-    } catch (error) {
-      this.phase = 'idle'
-      throw normalizeHarnessError(error, 'unknown')
-    } finally {
-      finishRunPromise()
-    }
-  }
-
   async steer(
     text: string,
     options?: { images?: ImageContent[]; media?: MediaInput[]; inputId?: string },
@@ -1471,119 +1443,6 @@ export class AgentHarness<
         this.lastBudget = previousBudget
       }
       throw normalizeHarnessError(error, 'compaction')
-    }
-  }
-
-  async navigateTree(
-    targetId: string,
-    options?: {
-      summarize?: boolean
-      customInstructions?: string
-      replaceInstructions?: boolean
-      label?: string
-    },
-  ): Promise<NavigateTreeResult> {
-    if (this.phase !== 'idle')
-      throw new AgentHarnessError('busy', 'navigateTree() requires idle harness')
-    this.phase = 'branch_summary'
-    try {
-      const oldLeafId = await this.session.getLeafId()
-      if (oldLeafId === targetId) return { cancelled: false }
-      const targetEntry = await this.session.getEntry(targetId)
-      if (!targetEntry)
-        throw new AgentHarnessError('invalid_argument', `Entry ${targetId} not found`)
-      const { entries, commonAncestorId } = await collectEntriesForBranchSummary(
-        this.session,
-        oldLeafId,
-        targetId,
-      )
-      const preparation = {
-        targetId,
-        oldLeafId,
-        commonAncestorId,
-        entriesToSummarize: entries,
-        userWantsSummary: options?.summarize ?? false,
-        customInstructions: options?.customInstructions,
-        replaceInstructions: options?.replaceInstructions,
-        label: options?.label,
-      }
-      const signal = new AbortController().signal
-      const hookResult = await this.emitHook({ type: 'session_before_tree', preparation, signal })
-      if (hookResult?.cancel) return { cancelled: true }
-      let summaryEntry: NavigateTreeResult['summaryEntry']
-      let summaryText: string | undefined = hookResult?.summary?.summary
-      let summaryDetails: unknown = hookResult?.summary?.details
-      let summaryUsage = hookResult?.summary?.usage
-      if (!summaryText && options?.summarize && entries.length > 0) {
-        const model = this.model
-        if (!model) throw new AgentHarnessError('invalid_state', 'No model set for branch summary')
-        const customInstructions = hookResult?.customInstructions ?? options?.customInstructions
-        const replaceInstructions = hookResult?.replaceInstructions ?? options?.replaceInstructions
-        const branchSummary = await generateBranchSummary(entries, {
-          models: this.models,
-          model,
-          signal: new AbortController().signal,
-          ...(customInstructions !== undefined ? { customInstructions } : {}),
-          ...(replaceInstructions !== undefined ? { replaceInstructions } : {}),
-          ...(this.retry !== undefined ? { retry: this.retry } : {}),
-          callbacks: this.retryCallbacks('branch_summary'),
-        })
-        if (!branchSummary.ok) {
-          if (branchSummary.error.code === 'aborted') return { cancelled: true }
-          throw new AgentHarnessError(
-            'branch_summary',
-            branchSummary.error.message,
-            branchSummary.error,
-          )
-        }
-        summaryText = branchSummary.value.summary
-        summaryUsage = branchSummary.value.usage
-        summaryDetails = {
-          readFiles: branchSummary.value.readFiles,
-          modifiedFiles: branchSummary.value.modifiedFiles,
-        }
-      }
-      let editorText: string | undefined
-      let newLeafId: string | null
-      if (targetEntry.type === 'message' && targetEntry.message.role === 'user') {
-        newLeafId = targetEntry.parentId
-        editorText = contentText(targetEntry.message.content, '')
-      } else if (targetEntry.type === 'custom_message') {
-        newLeafId = targetEntry.parentId
-        editorText = contentText(targetEntry.content, '')
-      } else {
-        newLeafId = targetId
-      }
-      const summaryId = await this.session.moveTo(
-        newLeafId,
-        summaryText
-          ? {
-              summary: summaryText,
-              details: summaryDetails,
-              ...(summaryUsage !== undefined ? { usage: summaryUsage } : {}),
-              fromHook: hookResult?.summary !== undefined,
-            }
-          : undefined,
-      )
-      // The selected branch may carry a different active_tools_change state.
-      // Re-resolve it before the next provider request.
-      this.restoredActiveTools = false
-      if (summaryId) {
-        const entry = await this.session.getEntry(summaryId)
-        if (entry?.type === 'branch_summary') summaryEntry = entry
-      }
-      await this.emitOwn({
-        type: 'session_tree',
-        newLeafId: await this.session.getLeafId(),
-        oldLeafId,
-        summaryEntry,
-        fromHook: hookResult?.summary !== undefined,
-      })
-      return { cancelled: false, editorText, summaryEntry }
-    } catch (error) {
-      throw normalizeHarnessError(error, 'branch_summary')
-    } finally {
-      this.phase = 'idle'
     }
   }
 

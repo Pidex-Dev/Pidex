@@ -1,4 +1,4 @@
-import { omitUndefined } from '../OmitUndefined'
+import { isRecord as isObject, omitUndefined } from '@pidex/shared/guards'
 import type { ConfigObject } from '../config/ConfigService'
 import {
   LOCAL_ENVIRONMENT_SCHEMA_VERSION,
@@ -15,9 +15,6 @@ export class LocalEnvironmentConfigError extends Error {
     this.name = 'LocalEnvironmentConfigError'
   }
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const nonEmpty = (value: unknown, path: string): string => {
   if (typeof value !== 'string' || !value.trim()) {

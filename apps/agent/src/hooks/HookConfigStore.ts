@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { isRecord as isObject } from '@pidex/shared/guards'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
@@ -81,9 +82,6 @@ export type HookConfigStoreInput = {
   /** Known project roots, used to resolve the owning workspace for `cwd`. */
   projectRoots?: () => readonly string[]
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const contained = (root: string, path: string) => {
   const rel = relative(root, path)

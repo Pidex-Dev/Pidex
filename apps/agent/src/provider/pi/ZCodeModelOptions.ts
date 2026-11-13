@@ -1,4 +1,4 @@
-import { omitUndefined } from '../../OmitUndefined'
+import { omitUndefined } from '@pidex/shared/guards'
 /**
  * ZCode 静态模型参数规则的查询层。
  *

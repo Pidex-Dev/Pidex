@@ -1,4 +1,4 @@
-import { omitUndefined } from '../OmitUndefined'
+import { isRecord as isObject, omitUndefined } from '@pidex/shared/guards'
 import { Model } from '@pidex/model-schema'
 import { ConfigServiceError, type ConfigService, type ConfigValue } from '../config/ConfigService'
 import { AgentError } from '../Domain'
@@ -93,9 +93,6 @@ export interface ProviderModelSyncDraft {
 export interface ProviderDraftModelDiscovery extends ProviderModelDiscovery {
   readonly fetchedAt: number
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const isListableChatApi = (value: unknown): value is ListableChatApi =>
   typeof value === 'string' && (CUSTOM_PROVIDER_APIS as readonly string[]).includes(value)

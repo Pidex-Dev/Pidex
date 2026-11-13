@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { isRecord } from '@pidex/shared/guards'
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import {
@@ -91,9 +92,6 @@ export type HookDiscoveryOptions = {
   includeProjectHooks?: boolean
   pluginHookSources?: readonly PluginHookSource[]
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const contained = (root: string, candidate: string) => {
   const rel = relative(root, candidate)

@@ -1,5 +1,5 @@
 import { validatePricing, PricingValidationError } from '../ModelPricing'
-import { omitUndefined } from '../../OmitUndefined'
+import { isRecord as isObject, omitUndefined } from '@pidex/shared/guards'
 import { Schema } from 'effect'
 import type {
   Api,
@@ -216,9 +216,6 @@ export class PiProviderConfigValidationError extends Error {
     this.name = 'PiProviderConfigValidationError'
   }
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const strings = (value: unknown): readonly string[] =>
   Array.isArray(value)

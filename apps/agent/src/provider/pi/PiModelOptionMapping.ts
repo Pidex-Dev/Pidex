@@ -6,6 +6,7 @@
  * 当前协议请求体字段。显式 map 是对应参数最终请求字段的唯一权威：
  * 应用前先删除该参数的旧字段残留，避免同一语义出现重复字段。
  */
+import { isRecord } from '@pidex/shared/guards'
 import type { Model } from '@pidex/model-schema'
 import {
   applyOrderedJsonMergePatches,
@@ -72,9 +73,6 @@ const LEGACY_FIELDS: Record<'reasoningLevel' | 'maxOutputTokens', readonly strin
   ],
   maxOutputTokens: ['max_tokens', 'max_completion_tokens', 'max_output_tokens'],
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /**
  * 在已序列化的请求体上应用 optionSpecs 映射。

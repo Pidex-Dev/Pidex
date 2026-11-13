@@ -1,3 +1,4 @@
+import { isRecord as isObject } from '@pidex/shared/guards'
 import { ProviderRequestError, providerRequestError } from '../ProviderError'
 import { AgentError } from '../../Domain'
 import { discoverOpenAIModels } from './PiCustomProvider'
@@ -62,9 +63,6 @@ const MAX_LISTED_MODELS = 1_000
 
 const listingError = (message: string): AgentError =>
   new ProviderRequestError('PROVIDER_UNAVAILABLE', message, false)
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const trimTrailingSlashes = (value: string): string => value.replace(/\/+$/, '')
 

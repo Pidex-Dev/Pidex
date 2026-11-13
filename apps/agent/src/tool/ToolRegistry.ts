@@ -11,16 +11,17 @@ import { isReadOnlyTaskMode, type PermissionConfig, type SandboxMode } from '@pi
 import type { Model } from '@pidex/model-schema'
 import type { ToolExecutionMode as PiToolExecutionMode } from '../orchestration/harness/AgentTypes'
 import type { Tool as PiAiTool } from '@earendil-works/pi-ai'
-import { isAbsolute, relative, resolve } from 'node:path'
+import { isAbsolute, resolve } from 'node:path'
+import type { ToolingResolver, ToolProcessRunner } from './ToolingRuntime'
+import { nativeGlobWorkspace } from './NativeWorkspaceSearch'
+import { grepWorkspace, resolveRipgrep, ripgrep, searchPaths } from './Grep/GrepEngine'
 import {
-  resolveManagedTool,
-  runToolProcess,
-  type ToolingResolver,
-  type ToolProcessRunner,
-} from './ToolingRuntime'
-import { nativeGlobWorkspace, nativeGrepWorkspace } from './NativeWorkspaceSearch'
+  requestPermissionsDefinition,
+  type RequestPermissionsInput,
+} from './RequestPermissions/Definition'
+import { toolCatalogSummary, toolSearchDefinition } from './ToolSearch/Definition'
 import { applyEditsText } from './Edit/ApplyEditText'
-import { subagentToolDefinitions } from '../subagent/ToolDefinitions'
+import { subagentToolDefinitions } from './Delegation/Definitions'
 import { applyPatchDefinition } from './ApplyPatch/Definition'
 import type { TurnPatchMutationFile } from '../patch/TurnPatchTypes'
 import { diffLines } from 'diff'
@@ -250,217 +251,6 @@ const shellInputSchema = jsonObject(
   ['command'],
 )
 
-const searchPaths = async (context: ToolContext, value?: string) => {
-  if (!value?.trim()) {
-    return context.workspace.roots.map((root) => ({
-      root,
-      target: '.',
-      nativeTarget: root === context.workspace.rootPath ? '.' : root,
-    }))
-  }
-  const requested = value.trim()
-  if (!isAbsolute(requested) && requested.split(/[\\/]+/).includes('..')) {
-    throw new AgentError('WORKSPACE_PATH_DENIED', '搜索路径不得通过 .. 越出工作区', 403)
-  }
-  const canonical = await context.workspace.resolveDirectory(requested)
-  const owner = context.workspace.rootForPath(canonical)
-  if (!owner) {
-    // resolveDirectory already checks full access or this call's approved paths.
-    return [
-      { root: canonical, target: '.', nativeTarget: context.workspace.displayPath(canonical) },
-    ]
-  }
-  const child = relative(owner.path, canonical)
-  return [
-    {
-      root: owner.path,
-      target: child ? child.replaceAll('\\', '/') : '.',
-      nativeTarget: context.workspace.displayPath(canonical),
-    },
-  ]
-}
-
-const resolveRipgrep = async (context: ToolContext) => {
-  const resolution = await (context.resolveTooling ?? resolveManagedTool)('ripgrep', {
-    signal: context.signal,
-  })
-  if (!resolution.available && (resolution.code === 'TOOLING_ABORTED' || context.signal.aborted)) {
-    throw new AgentError('RUN_ABORTED', '任务已停止', 499)
-  }
-  return resolution
-}
-
-const ripgrep = async (
-  context: ToolContext,
-  executable: string,
-  args: readonly string[],
-  cwd = context.workspace.rootPath,
-) => {
-  const result = await (context.runToolProcess ?? runToolProcess)({
-    executable,
-    args,
-    cwd,
-    signal: context.signal,
-    timeoutMs: 10_000,
-    maxOutputBytes: 8 * 1024 * 1024,
-  })
-  if (result.exitCode !== 0 && result.exitCode !== 1)
-    throw new AgentError(
-      'WORKSPACE_SEARCH_FAILED',
-      result.stderr || `ripgrep 退出码 ${result.exitCode}`,
-      400,
-    )
-  return result
-}
-
-type RgEvent = {
-  type?: string
-  data?: {
-    path?: { text?: string }
-    lines?: { text?: string }
-    line_number?: number | null
-    submatches?: unknown[]
-  }
-}
-
-const grepWorkspace = async (input: any, context: ToolContext) => {
-  const targets = await searchPaths(context, input.path)
-  const resolution = await resolveRipgrep(context)
-  if (!resolution.available) {
-    const results = await Promise.all(
-      targets.map((target) =>
-        nativeGrepWorkspace(
-          { ...input, offset: 0, head_limit: 1_000 },
-          context,
-          target.nativeTarget,
-        ),
-      ),
-    )
-    const offset = input.offset ?? 0
-    const limit = input.head_limit ?? 200
-    if (input.output_mode === 'files_with_matches') {
-      const files = results.flatMap((result) => ('files' in result ? result.files : []))
-      return {
-        files: files.slice(offset, offset + limit),
-        truncated: results.some((result) => result.truncated) || files.length > offset + limit,
-        engine: 'native-fallback' as const,
-      }
-    }
-    if (input.output_mode === 'count') {
-      const counts = results.flatMap((result) => ('counts' in result ? result.counts : []))
-      return {
-        counts: counts.slice(offset, offset + limit),
-        truncated: results.some((result) => result.truncated) || counts.length > offset + limit,
-        engine: 'native-fallback' as const,
-      }
-    }
-    const matches = results.flatMap((result) => ('matches' in result ? result.matches : []))
-    return {
-      matches: matches.slice(offset, offset + limit),
-      truncated: results.some((result) => result.truncated) || matches.length > offset + limit,
-      engine: 'native-fallback' as const,
-    }
-  }
-  const before = input['-B'] ?? input['-C'] ?? input.context ?? 0
-  const after = input['-A'] ?? input['-C'] ?? input.context ?? 0
-  const args = ['--json', '--color', 'never', '--no-messages', '--sort', 'path']
-  if (input['-i']) args.push('--ignore-case')
-  if (input.multiline) args.push('--multiline', '--multiline-dotall')
-  if (before) args.push('--before-context', String(before))
-  if (after) args.push('--after-context', String(after))
-  if (input.glob) args.push('--glob', input.glob)
-  if (input.type) args.push('--type', input.type)
-  const matches: Array<{
-    path: string
-    line?: number
-    text: string
-    before?: string[]
-    after?: string[]
-  }> = []
-  const counts = new Map<string, number>()
-  const contexts = new Map<string, Map<number, string>>()
-  const searches = await Promise.all(
-    targets.map(async (target) => ({
-      target,
-      result: await ripgrep(
-        context,
-        resolution.path,
-        [...args, '--', input.pattern, target.target],
-        target.root,
-      ),
-    })),
-  )
-  for (const { target, result } of searches) {
-    for (const raw of result.stdout.toString('utf8').split(/\r?\n/)) {
-      if (!raw) continue
-      let event: RgEvent
-      try {
-        event = JSON.parse(raw) as RgEvent
-      } catch {
-        throw new AgentError('WORKSPACE_SEARCH_INVALID_OUTPUT', 'ripgrep 返回了无法解析的输出', 502)
-      }
-      const rawPath = event.data?.path?.text
-      const path = rawPath
-        ? context.workspace.displayPath(
-            isAbsolute(rawPath) ? resolve(rawPath) : resolve(target.root, rawPath),
-          )
-        : undefined
-      const text = event.data?.lines?.text?.replace(/\r?\n$/, '')
-      const line = event.data?.line_number ?? undefined
-      if (!path || text === undefined || line === undefined) continue
-      if (event.type === 'context') {
-        const byLine = contexts.get(path) ?? new Map<number, string>()
-        byLine.set(line, text)
-        contexts.set(path, byLine)
-      } else if (event.type === 'match') {
-        const occurrences = Math.max(1, event.data?.submatches?.length ?? 1)
-        counts.set(path, (counts.get(path) ?? 0) + occurrences)
-        for (let index = 0; index < occurrences; index += 1)
-          matches.push({
-            path,
-            ...(input['-n'] === false ? {} : { line }),
-            text: text.slice(0, 8_000),
-          })
-      }
-    }
-  }
-  for (const match of matches) {
-    if (match.line === undefined) continue
-    const byLine = contexts.get(match.path)
-    const prior = Array.from({ length: before }, (_, index) =>
-      byLine?.get(match.line! - before + index),
-    ).filter((line): line is string => line !== undefined)
-    const following = Array.from({ length: after }, (_, index) =>
-      byLine?.get(match.line! + index + 1),
-    ).filter((line): line is string => line !== undefined)
-    if (prior.length) match.before = prior
-    if (following.length) match.after = following
-  }
-  const offset = input.offset ?? 0
-  const limit = input.head_limit ?? 200
-  if (input.output_mode === 'files_with_matches') {
-    const files = [...counts.keys()]
-    return {
-      files: files.slice(offset, offset + limit),
-      truncated: files.length > offset + limit,
-      engine: 'ripgrep' as const,
-    }
-  }
-  if (input.output_mode === 'count') {
-    const values = [...counts].map(([path, count]) => ({ path, count }))
-    return {
-      counts: values.slice(offset, offset + limit),
-      truncated: values.length > offset + limit,
-      engine: 'ripgrep' as const,
-    }
-  }
-  return {
-    matches: matches.slice(offset, offset + limit),
-    truncated: matches.length > offset + limit,
-    engine: 'ripgrep' as const,
-  }
-}
-
 export const lineChangeSummary = (before: string, after: string) => {
   let additions = 0
   let deletions = 0
@@ -471,103 +261,10 @@ export const lineChangeSummary = (before: string, after: string) => {
   return { additions, deletions }
 }
 
-const requestPermissionsSchema = z
-  .object({
-    scope: z.enum(['tool-call', 'turn', 'session']),
-    readPaths: z.array(z.string()).optional(),
-    writePaths: z.array(z.string()).optional(),
-    networkDomains: z.array(z.string()).optional(),
-    escalationToken: z.string().uuid().optional(),
-    justification: z.string().min(1),
-  })
-  .strict()
-  .superRefine((input, context) => {
-    if (
-      !input.escalationToken &&
-      !input.readPaths?.length &&
-      !input.writePaths?.length &&
-      !input.networkDomains?.length
-    ) {
-      context.addIssue({
-        code: 'custom',
-        message: '至少需要申请一项路径、网络或 sandbox escalation 权限',
-      })
-    }
-  })
-
-export type RequestPermissionsInput = z.infer<typeof requestPermissionsSchema>
-
-/**
- * Canonical contract of the permission-request tool. The Pi lifecycle adapter
- * binds this same description and argument schema, so the model always sees the
- * scope enum, the required justification and the requestable path fields.
- */
-export const requestPermissionsDefinition: ToolDefinition<
-  RequestPermissionsInput,
-  RequestPermissionsInput & { granted: true }
-> = {
-  sdkName: 'request_permissions',
-  name: 'request_permissions',
-  description: [
-    'Request temporary permissions for the next tool call, current turn or running session, and wait for the user or reviewer decision.',
-    'Call ordinary file, write and network tools directly; the host applies current policy and grants. Use this tool only when an actual tool explicitly requires temporary permission. Grants cannot override protected paths, Plan or explicit read-only roots. Unavailable under never approval policy.',
-    'Each request requires justification and at least one readPaths, writePaths or networkDomains entry. Do not call without a requestable permission.',
-  ].join('\n'),
-  schema: requestPermissionsSchema,
-  inputSchema: jsonObject(
-    {
-      scope: {
-        enum: ['tool-call', 'turn', 'session'],
-        description: 'Grant lifetime: the next tool call, current turn or running session.',
-      },
-      readPaths: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Absolute paths requiring additional read access. Full access does not require a separate request for outside-workspace files.',
-      },
-      writePaths: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Absolute paths requiring additional write access. Full access does not require a separate request for outside-workspace files.',
-      },
-      networkDomains: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Domains the shell needs to access, such as npmjs.org. Full access does not require a network permission request.',
-      },
-      escalationToken: { type: 'string', format: 'uuid' },
-      justification: {
-        type: 'string',
-        description: 'Required explanation to the user of why the task needs these permissions.',
-      },
-    },
-    ['scope', 'justification'],
-  ),
-  capabilities: { ...noCapabilities(), userInteraction: true },
-  allowedModes: allModes,
-  allowedProfiles: allProfiles,
-  approvalStrategy: 'always-review',
-  visibility: 'internal',
-  executionMode: 'sequential',
-  execute: async (input) => ({ granted: true, ...input }),
-}
-
-/** Model-facing summary used by the capability catalog and ToolSearch results. */
-export const toolCatalogSummary = (
-  tool: Pick<ToolCatalogEntry, 'sdkName' | 'description' | 'origin'>,
-): { name: string; description: string; source?: string } => ({
-  name: tool.sdkName,
-  description: typeof tool.description === 'string' ? tool.description : '',
-  ...(tool.origin?.kind === 'mcp' ? { source: `mcp:${tool.origin.serverName}` } : {}),
-})
-
-/** Search matches the canonical name, the short description and the MCP server name. */
-const toolSearchHaystack = (tool: Pick<ToolCatalogEntry, 'sdkName' | 'description' | 'origin'>) => {
-  const summary = toolCatalogSummary(tool)
-  return `${summary.name}\n${summary.description}\n${summary.source ?? ''}`.toLowerCase()
+export {
+  requestPermissionsDefinition,
+  type RequestPermissionsInput,
+  toolCatalogSummary,
 }
 
 const builtinTools = (): ToolDefinition<any, any>[] => [
@@ -1025,79 +722,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
       throw new AgentError('SHELL_EXECUTOR_REQUIRED', `${sdkName} 必须经过统一执行器`, 500)
     },
   })),
-  {
-    sdkName: 'ToolSearch',
-    name: 'tool.search',
-    description:
-      'Discover and activate deferred tools within the allowed catalog. query matches names, descriptions and MCP server names. Use * to browse, offset to paginate and max_results up to 20. Matches become callable on the next request. select:<exact-name> activates an exact tool and returns its full schema.',
-    schema: z
-      .object({
-        query: z.string().min(1),
-        max_results: z.number().int().min(1).max(20).default(5),
-        offset: z.number().int().min(0).default(0),
-      })
-      .strict(),
-    inputSchema: jsonObject(
-      {
-        query: {
-          type: 'string',
-          minLength: 1,
-          description:
-            'Keywords matching names, descriptions and MCP server names; * browses the catalog, select:<exact-name> selects an exact tool.',
-        },
-        max_results: { type: 'integer', minimum: 1, maximum: 20, default: 5 },
-        offset: {
-          type: 'integer',
-          minimum: 0,
-          default: 0,
-          description: 'Pagination offset for browsing results omitted by the result limit.',
-        },
-      },
-      ['query'],
-    ),
-    capabilities: noCapabilities(),
-    allowedModes: allModes,
-    allowedProfiles: allProfiles,
-    approvalStrategy: 'never-review',
-    visibility: 'eager',
-    executionMode: 'parallel',
-    execute: async (input, context) => {
-      const raw = input.query.trim()
-      const selection = raw.match(/^select:(.+)$/i)?.[1]?.trim()
-      const browseAll = raw === '*'
-      const query = raw.toLowerCase()
-      const matches = (context.deferredTools ?? []).filter((tool) =>
-        selection
-          ? tool.sdkName === selection
-          : browseAll || toolSearchHaystack(tool).includes(query),
-      )
-      if (selection && matches.length === 0)
-        throw new AgentError(
-          'DEFERRED_TOOL_NOT_FOUND',
-          `延迟工具 ${selection} 不存在或不在当前权限范围内`,
-          404,
-        )
-      const page = matches.slice(input.offset, input.offset + input.max_results)
-      return {
-        tools: page.map((tool) => {
-          const summary = toolCatalogSummary(tool)
-          return {
-            name: summary.name,
-            description: summary.description,
-            ...(summary.source ? { source: summary.source } : {}),
-          }
-        }),
-        total: matches.length,
-        offset: input.offset,
-        addedToolNames: page.map((tool) => tool.sdkName),
-      }
-    },
-    formatResult: (output) => ({
-      content: JSON.stringify(output, null, 2),
-      details: output,
-      addedToolNames: output.addedToolNames,
-    }),
-  },
+  toolSearchDefinition,
   requestPermissionsDefinition,
   ...subagentToolDefinitions,
 ]

@@ -1,4 +1,4 @@
-import { omitUndefined } from '../../OmitUndefined'
+import { omitUndefined } from '@pidex/shared/guards'
 import { Schema } from 'effect'
 import { Model } from '@pidex/model-schema'
 
