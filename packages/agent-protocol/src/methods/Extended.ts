@@ -153,12 +153,7 @@ export type ProviderModelMatch = typeof ProviderModelMatchSchema.Type
 
 
 /** Wire protocols that can list models and run a minimal generation probe. */
-export const ProviderChatApiSchema = Schema.Literals([
-  'openai-completions',
-  'openai-responses',
-  'anthropic-messages',
-  'google-generative-ai',
-])
+export const ProviderChatApiSchema = PiProviderApiSchema
 export type ProviderChatApi = typeof ProviderChatApiSchema.Type
 
 const ProviderEndpointsSchema = Schema.Struct({

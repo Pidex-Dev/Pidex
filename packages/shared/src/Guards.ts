@@ -7,3 +7,14 @@
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
+
+/**
+ * Shallowly drops properties whose value is `undefined`.
+ */
+export function omitUndefined<T extends object>(obj: T): Partial<{
+  [K in keyof T]: Exclude<T[K], undefined>
+}> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== undefined),
+  ) as Partial<{ [K in keyof T]: Exclude<T[K], undefined> }>
+}

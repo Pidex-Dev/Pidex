@@ -1,6 +1,19 @@
 export type DesktopThemeVariant = 'light' | 'dark'
 export type DesktopThemeMode = DesktopThemeVariant | 'system'
+export type DesktopUiDensity = 'compact' | 'default' | 'spacious'
 export type DesktopHexColor = `#${string}`
+
+export const DESKTOP_UI_DENSITY_SCALING: Record<DesktopUiDensity, number> = {
+  compact: 0.9,
+  default: 1,
+  spacious: 1.1,
+}
+
+export function normalizeDesktopUiDensity(value: unknown): DesktopUiDensity {
+  return value === 'compact' || value === 'default' || value === 'spacious'
+    ? value
+    : 'default'
+}
 
 export const DESKTOP_ACCENT_PRESET_COLORS = {
   blue: '#3566F0',
@@ -225,7 +238,7 @@ export type DesktopThemeSettingsV7<CodeThemeId extends string = string> = Omit<
 export type DesktopThemeSettingsV8<CodeThemeId extends string = string> = Omit<
   DesktopThemeSettingsV7<CodeThemeId>,
   'version'
-> & { version: 8; fonts: DesktopThemeFonts }
+> & { version: 8; fonts: DesktopThemeFonts; uiDensity?: DesktopUiDensity }
 
 export const DEFAULT_LIGHT_CHROME_THEME: DesktopChromeTheme = {
   accent: '#0169cc',
@@ -270,6 +283,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV8 = {
   reduceMotion: 'system',
   fontSmoothingEnabled: true,
   fontSizes: { ui: 14, code: 12 },
+  uiDensity: 'default',
 }
 
 export type AppearanceMigrationBackup = {

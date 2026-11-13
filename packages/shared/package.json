@@ -10,7 +10,6 @@
     "./automation": "./src/Automation.ts",
     "./calendar": "./src/Calendar.ts",
     "./task-schedule": "./src/TaskSchedule.ts",
-    "./events": "./src/LlmEvent.ts",
     "./desktop-theme": "./src/DesktopTheme.ts",
     "./desktop-external-fonts": "./src/DesktopExternalFonts.ts",
     "./desktop-pet-overlay": "./src/DesktopPetOverlay.ts",

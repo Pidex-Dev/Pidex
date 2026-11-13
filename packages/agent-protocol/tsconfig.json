@@ -20,7 +20,6 @@
       "@pidex/shared/errors": ["../shared/src/Errors.ts"],
       "@pidex/shared/automation": ["../shared/src/Automation.ts"],
       "@pidex/shared/calendar": ["../shared/src/Calendar.ts"],
-      "@pidex/shared/events": ["../shared/src/LlmEvent.ts"],
       "@pidex/shared/desktop-theme": ["../shared/src/DesktopTheme.ts"],
       "@pidex/shared/desktop-pet-overlay": ["../shared/src/DesktopPetOverlay.ts"],
       "@pidex/shared/desktop-data-location-ipc": ["../shared/src/DesktopDataLocationIpc.ts"],
