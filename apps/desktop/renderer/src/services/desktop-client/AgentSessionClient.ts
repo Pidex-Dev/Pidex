@@ -66,6 +66,10 @@ import type {
   DesktopModelMetadata,
   DesktopPermissionDecision,
   DesktopPermissionMode,
+  DesktopMemoryNamespace,
+  DesktopProjectMemory,
+  DesktopProjectMemoryContent,
+  DesktopMemoryTask,
   DesktopReviewDiffResult,
   DesktopReviewSource,
   DesktopSessionEvent,
@@ -139,12 +143,13 @@ export const RENDERER_CAPABILITIES = [
   'thread.editUserMessage.v1',
   'skills.invocation.v1',
   'plan.approval.v1',
+  'plan.approval.fresh.v1',
   'plan.structured.v1',
   'turn.steer.v1',
   'turn.queue.management.v1',
   'attachments.v1',
   'local-context.paths.v1',
-  'memory.v2',
+  'memory.v3',
   'pets.management.v1',
   'workspace.editor.v1',
   'thread.creation-surface.v1',
@@ -162,6 +167,7 @@ export const RENDERER_CAPABILITIES = [
   'context.compact.v1',
   'context.compact.lifecycle.v1',
   'hooks.trust.v1',
+  'hooks.management.v1',
   'subagents.v1',
   'subagents.recursive.v1',
   'subagents.followup.v1',
@@ -178,6 +184,10 @@ export const RENDERER_CAPABILITIES = [
   'provider.protocolDetection.v1',
   'provider.builtinOverrides.v1',
   'provider.auth.pi.v1',
+  'model.documents.v1',
+  'project.edit.v1',
+  'project.restore.v1',
+  'task.schedule.v1',
   'tooling.management.v1',
   'skills.manage.v1',
   'plugins.manage.v1',
@@ -203,7 +213,7 @@ export const RENDERER_CAPABILITIES = [
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',
-  memory: 'memory.v2',
+  memory: 'memory.v3',
   compact: 'context.compact.v1',
   hookTrust: 'hooks.trust.v1',
 } as const satisfies Record<string, ProtocolCapability>
@@ -540,9 +550,9 @@ export function createAgentSessionDesktopClient(
         ? CAPABILITY_ALIASES[name as keyof typeof CAPABILITY_ALIASES]
         : (name as ProtocolCapability)
     if (version <= 1 && agentCapabilities.has(capability)) return
-    if (version === 2 && (name === 'prompt' || name === 'memory')) {
-      if (agentCapabilities.has(capability)) return
-    }
+    if (version === 2 && name === 'prompt' && agentCapabilities.has(capability)) return
+    // memory.v3 replaced the SQLite entry surface; older versions are unsupported.
+    if (version === 3 && name === 'memory' && agentCapabilities.has(capability)) return
     const versionLabel = name.endsWith(`.v${version}`) ? name : `${name} v${version}`
     unsupportedAgentOperation(versionLabel)
   }
@@ -913,6 +923,44 @@ export function createAgentSessionDesktopClient(
         })
     projectsByIdCache = null
     return ensureDesktopProjectTrusted(response.project)
+  }
+
+  /** Memory namespaces never take a filesystem path; project identity comes from RPC. */
+  async function projectNamespace(
+    workspacePath: string | null | undefined,
+  ): Promise<DesktopMemoryNamespace> {
+    const normalized = workspacePath?.trim()
+    if (!normalized) return { kind: 'user' }
+    const project = await loadProjectForPath(normalized)
+    return { kind: 'project', projectId: project.id }
+  }
+
+  function memoryFileView(file: RpcResult<'memory/list'>['files'][number]): DesktopProjectMemory {
+    return {
+      relativePath: file.path,
+      absolutePath: file.path,
+      type: file.type ?? undefined,
+      description: file.description,
+      size: file.size,
+      mtimeMs: file.updatedAt,
+      revision: file.revision,
+      indexed: file.indexed,
+      sourceThreadId: file.source?.threadId ?? null,
+      sourceTurnId: file.source?.turnId ?? null,
+    }
+  }
+
+  function memoryContentView(
+    response: RpcResult<'memory/read'>,
+  ): DesktopProjectMemoryContent {
+    const view = memoryFileView(response.file)
+    return {
+      ...view,
+      content: response.file.content,
+      revision: response.file.revision,
+      nextOffset: response.nextOffset,
+      truncated: response.truncated,
+    }
   }
 
   async function chooseProjectForPath(rootPath: string): Promise<Project | null> {
@@ -1959,6 +2007,19 @@ export function createAgentSessionDesktopClient(
     return agentPluginApiPromise
   }
 
+  type AgentHooksApi = ReturnType<(typeof import('./AgentHooksApi.js'))['createAgentHooksApi']>
+  let agentHooksApiPromise: Promise<AgentHooksApi> | null = null
+  const loadAgentHooksApi = (): Promise<AgentHooksApi> => {
+    agentHooksApiPromise ??= import('./AgentHooksApi.js').then((module) =>
+      module.createAgentHooksApi({
+        hasAgentCapability: (capability) => agentCapabilities.has(capability),
+        requireAgentCapability,
+        rpc: { call: rpc.call },
+      }),
+    )
+    return agentHooksApiPromise
+  }
+
   type AgentComputerApi = ReturnType<
     (typeof import('./AgentComputerApi.js'))['createAgentComputerApi']
   >
@@ -2419,7 +2480,8 @@ export function createAgentSessionDesktopClient(
       loadAgentPluginApi().then((api) => api.listPlugins(workspacePath, forceReload)),
     getPluginDetails: (pluginId, workspacePath) =>
       loadAgentPluginApi().then((api) => api.getPluginDetails(pluginId, workspacePath)),
-    installPlugin: (pluginId) => loadAgentPluginApi().then((api) => api.installPlugin(pluginId)),
+    installPlugin: (pluginId, expectedCatalogRevision) =>
+      loadAgentPluginApi().then((api) => api.installPlugin(pluginId, expectedCatalogRevision)),
     uninstallPlugin: (pluginId) =>
       loadAgentPluginApi().then((api) => api.uninstallPlugin(pluginId)),
     setPluginEnabled: (pluginId, enabled) =>
@@ -2436,6 +2498,10 @@ export function createAgentSessionDesktopClient(
         dispose()
       }
     },
+    supportsHookManagement: () => agentCapabilities.has('hooks.management.v1'),
+    requireHookManagement: () => requireAgentCapability('hooks.management.v1'),
+    listHookGroups: (cwd) => loadAgentHooksApi().then((api) => api.listHookGroups(cwd)),
+    setHookEnabled: (input) => loadAgentHooksApi().then((api) => api.setHookEnabled(input)),
     getComputerState: () => loadAgentComputerApi().then((api) => api.getComputerState()),
     discoverComputerApps: () => loadAgentComputerApi().then((api) => api.discoverComputerApps()),
     configureComputer: (input) =>
@@ -3222,88 +3288,72 @@ export function createAgentSessionDesktopClient(
       return mockClient.applyNewDesignTheme()
     },
     saveDesktopSettings: queueDesktopSettingsSave,
-    listProjectMemories: (workspacePath) =>
+    listProjectMemories: (workspacePath, namespace) =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('memory', 2)
-          const project = await loadProjectForPath(workspacePath)
-          const response = await rpc.call<{
-            entries: Array<{
-              id: string
-              scope: 'user' | 'project'
-              content: string
-              updatedAt: number
-            }>
-          }>('memory/list', { scope: 'project', projectId: project.id })
+          requireAgentCapability('memory', 3)
+          const target = namespace ?? (await projectNamespace(workspacePath))
+          const response = await rpc.call<RpcResult<'memory/list'>>('memory/list', {
+            namespace: target,
+          })
           return {
-            memoryDir: 'Agent data directory / project memory',
-            entrypointPath: 'SQLite:memory_entries',
-            memories: response.entries.map((entry) => ({
-              relativePath: entry.id,
-              absolutePath: entry.id,
-              type: 'project' as const,
-              description: entry.content.slice(0, 120),
-              size: entry.content.length,
-              mtimeMs: entry.updatedAt,
-            })),
+            namespace: target,
+            memoryDir: target.kind === 'user' ? '用户记忆' : '项目记忆',
+            entrypointPath: response.index.exists ? response.index.content : 'MEMORY.md',
+            diagnostics: response.diagnostics,
+            indexContent: response.index.content,
+            memories: response.files.map(memoryFileView),
           }
         },
-        () => mockClient.listProjectMemories(workspacePath),
+        () => mockClient.listProjectMemories(workspacePath, namespace),
       ),
-    readProjectMemory: (workspacePath, relativePath) =>
+    readProjectMemory: (workspacePath, relativePath, namespace) =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('memory', 2)
-          const project = await loadProjectForPath(workspacePath)
-          const response = await rpc.call<{
-            entry: { id: string; content: string; updatedAt: number }
-          }>('memory/read', { id: relativePath, scope: 'project', projectId: project.id })
-          return {
-            relativePath: response.entry.id,
-            absolutePath: response.entry.id,
-            type: 'project' as const,
-            description: response.entry.content.slice(0, 120),
-            size: response.entry.content.length,
-            mtimeMs: response.entry.updatedAt,
-            content: response.entry.content,
-          }
+          requireAgentCapability('memory', 3)
+          const target = namespace ?? (await projectNamespace(workspacePath))
+          const response = await rpc.call<RpcResult<'memory/read'>>('memory/read', {
+            namespace: target,
+            path: relativePath,
+          })
+          return memoryContentView(response)
         },
-        () => mockClient.readProjectMemory(workspacePath, relativePath),
+        () => mockClient.readProjectMemory(workspacePath, relativePath, namespace),
       ),
     saveProjectMemory: (input) =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('memory', 2)
-          const project = await loadProjectForPath(input.workspacePath)
-          const response = await rpc.call<{
-            entry: { id: string; content: string; updatedAt: number }
-          }>('memory/save', {
-            scope: 'project',
-            projectId: project.id,
-            ...(input.relativePath ? { id: input.relativePath } : {}),
+          requireAgentCapability('memory', 3)
+          const target = input.namespace ?? (await projectNamespace(input.workspacePath))
+          const response = await rpc.call<RpcResult<'memory/save'>>('memory/save', {
+            namespace: target,
+            path: input.relativePath,
             content: input.content,
+            ...(input.expectedRevision ? { expectedRevision: input.expectedRevision } : {}),
             operationId: crypto.randomUUID(),
           })
-          return {
-            relativePath: response.entry.id,
-            absolutePath: response.entry.id,
-            type: 'project' as const,
-            description: response.entry.content.slice(0, 120),
-            size: response.entry.content.length,
-            mtimeMs: response.entry.updatedAt,
+          const saved: DesktopProjectMemory = {
+            relativePath: response.path,
+            absolutePath: response.path,
+            description: null,
+            size: input.content.length,
+            mtimeMs: Date.now(),
+            revision: response.revision,
+            indexed: false,
           }
+          return saved
         },
         () => mockClient.saveProjectMemory(input),
       ),
     deleteProjectMemory: (input) =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('memory', 2)
-          const project = await loadProjectForPath(input.workspacePath)
+          requireAgentCapability('memory', 3)
+          const target = input.namespace ?? (await projectNamespace(input.workspacePath))
           await rpc.call('memory/delete', {
-            id: input.relativePath,
-            scope: 'project',
-            projectId: project.id,
+            namespace: target,
+            path: input.relativePath,
+            ...(input.expectedRevision ? { expectedRevision: input.expectedRevision } : {}),
             operationId: crypto.randomUUID(),
           })
         },
@@ -3312,43 +3362,132 @@ export function createAgentSessionDesktopClient(
     resetProjectMemory: (input) =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('memory', 2)
-          const project = await loadProjectForPath(input.workspacePath)
-          await rpc.call('memory/reset', {
-            scope: 'project',
-            projectId: project.id,
-            includeEventLog: input.includeRecallLog === true,
-            operationId: crypto.randomUUID(),
-          })
+          requireAgentCapability('memory', 3)
+          const target = input.namespace ?? (await projectNamespace(input.workspacePath))
+          await rpc.call('memory/reset', { namespace: target, operationId: crypto.randomUUID() })
         },
         () => mockClient.resetProjectMemory(input),
       ),
-    listProjectMemoryRecalls: (workspacePath) =>
+    listMemoryUsage: (workspacePath, namespace) =>
       withAgentOrMock(
-        async () => ({ recallLogPath: 'SQLite prompt context fragments', recalls: [] }),
-        () => mockClient.listProjectMemoryRecalls(workspacePath),
+        async () => {
+          requireAgentCapability('memory', 3)
+          const target = namespace ?? (await projectNamespace(workspacePath))
+          const response = await rpc.call<RpcResult<'memory/usage'>>('memory/usage', {
+            namespace: target,
+            limit: 100,
+          })
+          return response.records.map((record) => ({
+            id: record.id,
+            namespace: record.namespace,
+            kind: record.kind,
+            threadId: record.threadId,
+            turnId: record.turnId,
+            relativePath: record.path,
+            revision: record.revision,
+            truncated: record.truncated,
+            bytes: record.bytes,
+            createdAt: record.createdAt,
+          }))
+        },
+        () => mockClient.listMemoryUsage?.(workspacePath, namespace) ?? Promise.resolve([]),
+      ),
+    listMemoryTasks: (workspacePath, namespace) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('memory', 3)
+          const target = namespace ?? (await projectNamespace(workspacePath))
+          const response = await rpc.call<RpcResult<'memory/tasks'>>('memory/tasks', {
+            namespace: target,
+            limit: 50,
+          })
+          return {
+            tasks: response.tasks.map((task): DesktopMemoryTask => ({
+              id: task.id,
+              namespace: task.namespace,
+              kind: task.kind,
+              status: task.status,
+              trigger: task.trigger,
+              threadId: task.threadId,
+              turnId: task.turnId,
+              error: task.error,
+              createdAt: task.createdAt,
+              startedAt: task.startedAt,
+              finishedAt: task.finishedAt,
+            })),
+            autoOrganize: response.autoOrganize,
+          }
+        },
+        () =>
+          mockClient.listMemoryTasks?.(workspacePath, namespace) ??
+          Promise.resolve({ tasks: [], autoOrganize: true }),
+      ),
+    organizeMemory: (input) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('memory', 3)
+          const target = input.namespace ?? (await projectNamespace(input.workspacePath))
+          return rpc.call<RpcResult<'memory/organize'>>('memory/organize', {
+            namespace: target,
+            operationId: crypto.randomUUID(),
+          })
+        },
+        () =>
+          mockClient.organizeMemory?.(input) ?? Promise.resolve({ taskId: null, queued: false }),
+      ),
+    readMemorySettings: (workspacePath, namespace) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('memory', 3)
+          const target = namespace ?? (await projectNamespace(workspacePath))
+          const response = await rpc.call<RpcResult<'memory/settings'>>('memory/settings', {
+            namespace: target,
+            operationId: crypto.randomUUID(),
+          })
+          return {
+            autoOrganize: response.autoOrganize,
+            memoryDir: response.directory,
+            namedAgents: [...response.namedAgents],
+          }
+        },
+        () =>
+          mockClient.readMemorySettings?.(workspacePath, namespace) ??
+          Promise.resolve({ autoOrganize: true, memoryDir: '', namedAgents: [] }),
+      ),
+    saveMemorySettings: (input) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('memory', 3)
+          const target = input.namespace ?? (await projectNamespace(input.workspacePath))
+          const response = await rpc.call<RpcResult<'memory/settings'>>('memory/settings', {
+            namespace: target,
+            autoOrganize: input.autoOrganize,
+            operationId: crypto.randomUUID(),
+          })
+          return {
+            autoOrganize: response.autoOrganize,
+            memoryDir: response.directory,
+            namedAgents: [...response.namedAgents],
+          }
+        },
+        () =>
+          mockClient.saveMemorySettings?.(input) ??
+          Promise.resolve({ autoOrganize: input.autoOrganize, memoryDir: '', namedAgents: [] }),
       ),
     listUserMemories: () =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('memory', 2)
-          const response = await rpc.call<{
-            entries: Array<{ id: string; content: string; updatedAt: number }>
-          }>('memory/list', { scope: 'user' })
+          requireAgentCapability('memory', 3)
+          const response = await rpc.call<RpcResult<'memory/list'>>('memory/list', {
+            namespace: { kind: 'user' },
+          })
           return {
-            memoryDir: 'Agent data directory / user memory',
-            profilePath: 'SQLite:memory_entries',
-            preferencesPath: 'SQLite:memory_entries',
-            eventsPath: 'SQLite:memory_jobs',
-            conversationIndexPath: 'SQLite:agent.sqlite',
-            memories: response.entries.map((entry) => ({
-              relativePath: entry.id,
-              absolutePath: entry.id,
-              type: 'user' as const,
-              description: entry.content.slice(0, 120),
-              size: entry.content.length,
-              mtimeMs: entry.updatedAt,
-            })),
+            memoryDir: '用户记忆',
+            profilePath: 'MEMORY.md',
+            preferencesPath: 'MEMORY.md',
+            eventsPath: 'memory_usage',
+            conversationIndexPath: 'history.sqlite',
+            memories: response.files.map(memoryFileView),
           }
         },
         () => mockClient.listUserMemories(),
@@ -3356,69 +3495,64 @@ export function createAgentSessionDesktopClient(
     readUserMemory: (relativePath) =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('memory', 2)
-          const response = await rpc.call<{
-            entry: { id: string; content: string; updatedAt: number }
-          }>('memory/read', { id: relativePath, scope: 'user' })
-          return {
-            relativePath: response.entry.id,
-            absolutePath: response.entry.id,
-            type: 'user' as const,
-            description: response.entry.content.slice(0, 120),
-            size: response.entry.content.length,
-            mtimeMs: response.entry.updatedAt,
-            content: response.entry.content,
-          }
+          requireAgentCapability('memory', 3)
+          const response = await rpc.call<RpcResult<'memory/read'>>('memory/read', {
+            namespace: { kind: 'user' },
+            path: relativePath,
+          })
+          return memoryContentView(response)
         },
         () => mockClient.readUserMemory(relativePath),
       ),
     saveUserMemory: (input) =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('memory', 2)
-          const response = await rpc.call<{
-            entry: { id: string; content: string; updatedAt: number }
-          }>('memory/save', {
-            scope: 'user',
-            ...(input.relativePath ? { id: input.relativePath } : {}),
+          requireAgentCapability('memory', 3)
+          const response = await rpc.call<RpcResult<'memory/save'>>('memory/save', {
+            namespace: { kind: 'user' },
+            path: input.relativePath,
             content: input.content,
+            ...(input.expectedRevision ? { expectedRevision: input.expectedRevision } : {}),
             operationId: crypto.randomUUID(),
           })
-          return {
-            relativePath: response.entry.id,
-            absolutePath: response.entry.id,
-            type: 'user' as const,
-            description: response.entry.content.slice(0, 120),
-            size: response.entry.content.length,
-            mtimeMs: response.entry.updatedAt,
+          const saved: DesktopProjectMemory = {
+            relativePath: response.path,
+            absolutePath: response.path,
+            description: null,
+            size: input.content.length,
+            mtimeMs: Date.now(),
+            revision: response.revision,
+            indexed: false,
           }
+          return saved
         },
         () => mockClient.saveUserMemory(input),
       ),
     deleteUserMemory: (input) =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('memory', 2)
+          requireAgentCapability('memory', 3)
           await rpc.call('memory/delete', {
-            id: input.relativePath,
-            scope: 'user',
+            namespace: { kind: 'user' },
+            path: input.relativePath,
+            ...(input.expectedRevision ? { expectedRevision: input.expectedRevision } : {}),
             operationId: crypto.randomUUID(),
           })
         },
         () => mockClient.deleteUserMemory(input),
       ),
-    resetUserMemory: (input) =>
+    resetUserMemory: () =>
       withAgentOrMock(
         async () => {
-          requireAgentCapability('memory', 2)
+          requireAgentCapability('memory', 3)
           await rpc.call('memory/reset', {
-            scope: 'user',
-            includeEventLog: input.includeEventLog,
+            namespace: { kind: 'user' },
             operationId: crypto.randomUUID(),
           })
         },
-        () => mockClient.resetUserMemory(input),
+        () => mockClient.resetUserMemory({}),
       ),
+
     generateTaskSuggestions: (input: GenerateDesktopTaskSuggestionsInput) =>
       withRequiredAgent(async () => {
         requireAgentCapability('task-suggestions.v1')

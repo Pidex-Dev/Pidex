@@ -139,6 +139,36 @@ describe('语音输入设备设置', () => {
       })['desktop.voice.preferredInputDeviceId'],
     ).toBe('')
   })
+
+  test('语音语言、实时转写、快捷键、最近录音上限与词典归一化', () => {
+    const defaults = defaultDesktopStoredSettings()
+    expect(defaults['desktop.voice.language']).toBe('auto')
+    expect(defaults['desktop.voice.showLiveTranscript']).toBe(false)
+    expect(defaults['desktop.voice.dictationShortcut']).toBe('Ctrl+Shift+D')
+    expect(defaults['desktop.voice.handsFreeMode']).toBe('hold-or-double-tap')
+    expect(defaults['desktop.voice.recentRecordings']).toEqual([])
+    expect(defaults['desktop.voice.dictionary']).toEqual([])
+
+    const recordings = Array.from({ length: 25 }, (_, i) => ({
+      id: `rec-${i}`,
+      status: i % 2 === 0 ? 'saved' : 'cancelled',
+      createdAt: 1700000000000 + i,
+    }))
+    const normalized = normalizeDesktopStoredSettings({
+      'desktop.voice.language': 'zh',
+      'desktop.voice.showLiveTranscript': true,
+      'desktop.voice.dictationShortcut': '',
+      'desktop.voice.handsFreeMode': 'toggle',
+      'desktop.voice.recentRecordings': recordings as never,
+      'desktop.voice.dictionary': ['Pidex', '  Pidex ', 'TypeScript', ''] as never,
+    })
+    expect(normalized['desktop.voice.language']).toBe('zh')
+    expect(normalized['desktop.voice.showLiveTranscript']).toBe(true)
+    expect(normalized['desktop.voice.dictationShortcut']).toBe('')
+    expect(normalized['desktop.voice.handsFreeMode']).toBe('toggle')
+    expect(normalized['desktop.voice.recentRecordings']).toHaveLength(20)
+    expect(normalized['desktop.voice.dictionary']).toEqual(['Pidex', 'TypeScript'])
+  })
 })
 
 describe('宠物设置归一化', () => {

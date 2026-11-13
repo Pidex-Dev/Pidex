@@ -1,12 +1,16 @@
 import { describe, expect, test } from 'bun:test'
 import {
   closeTitlebarSessionTab,
+  mergeTitlebarSessionTabIdsFromSettings,
   normalizeTitlebarSessionTabIds,
+  normalizeTitlebarSessionTabSnapshots,
   openTitlebarSessionTab,
   pruneTitlebarSessionTabs,
   readStoredTitlebarSessionTabIds,
+  readStoredTitlebarSessionTabSnapshots,
   TITLEBAR_SESSION_TABS_STORAGE_KEY,
   writeStoredTitlebarSessionTabIds,
+  writeStoredTitlebarSessionTabSnapshots,
 } from '../src/features/layout/tabs/TitlebarSessionTabsState.js'
 
 describe('TitlebarSessionTabsState', () => {
@@ -78,5 +82,66 @@ describe('TitlebarSessionTabsState', () => {
     const valid = new Set(['s1', 's3'])
     expect(pruneTitlebarSessionTabs(['s1', 's2', 's3'], valid)).toEqual(['s1', 's3'])
     expect(pruneTitlebarSessionTabs(['s1', 's2', 's3'], valid, 's2')).toEqual(['s1', 's2', 's3'])
+  })
+
+  test('normalizes, reads, and writes snapshot objects while remaining compatible with legacy string arrays', () => {
+    const store = new Map<string, string>()
+    const mockStorage: Storage = {
+      getItem: (key) => store.get(key) ?? null,
+      setItem: (key, value) => {
+        store.set(key, value)
+      },
+      removeItem: (key) => {
+        store.delete(key)
+      },
+      clear: () => store.clear(),
+      key: (i) => Array.from(store.keys())[i] ?? null,
+      get length() {
+        return store.size
+      },
+    }
+
+    // Legacy string array format
+    store.set(TITLEBAR_SESSION_TABS_STORAGE_KEY, JSON.stringify(['s1', '  s2 ']))
+    expect(readStoredTitlebarSessionTabSnapshots(mockStorage)).toEqual([{ id: 's1' }, { id: 's2' }])
+    expect(readStoredTitlebarSessionTabIds(mockStorage)).toEqual(['s1', 's2'])
+
+    // New snapshot format with deduplication and trimming
+    writeStoredTitlebarSessionTabSnapshots(
+      [
+        { id: ' s1 ', title: ' First Chat ', subtitle: ' Project A ' },
+        { id: 's1', title: 'Duplicate' },
+        { id: 's2', title: 'Second Chat', subtitle: null },
+      ],
+      mockStorage,
+    )
+    expect(readStoredTitlebarSessionTabSnapshots(mockStorage)).toEqual([
+      { id: 's1', title: 'First Chat', subtitle: 'Project A' },
+      { id: 's2', title: 'Second Chat', subtitle: null },
+    ])
+    expect(readStoredTitlebarSessionTabIds(mockStorage)).toEqual(['s1', 's2'])
+    expect(normalizeTitlebarSessionTabSnapshots('invalid')).toEqual([])
+  })
+
+  test('mergeTitlebarSessionTabIdsFromSettings prefers backend settings and migrates legacy local tabs when backend is empty', () => {
+    // Backend non-empty wins
+    expect(mergeTitlebarSessionTabIdsFromSettings(['local-1'], ['remote-1', 'remote-2'])).toEqual({
+      nextIds: ['remote-1', 'remote-2'],
+      shouldWriteBackToSettings: false,
+    })
+
+    // Backend non-empty + active routed session not yet in backend
+    expect(
+      mergeTitlebarSessionTabIdsFromSettings(['local-1'], ['remote-1'], 'remote-2'),
+    ).toEqual({
+      nextIds: ['remote-1', 'remote-2'],
+      shouldWriteBackToSettings: true,
+    })
+
+    // Backend empty migrates local tabs
+    expect(mergeTitlebarSessionTabIdsFromSettings(['local-1', 'local-2'], [])).toEqual({
+      nextIds: ['local-1', 'local-2'],
+      shouldWriteBackToSettings: true,
+    })
   })
 })

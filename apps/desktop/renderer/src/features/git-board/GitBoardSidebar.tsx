@@ -1,12 +1,13 @@
 import { useShallow } from 'zustand/react/shallow'
 import { useState } from 'react'
-import { Github, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import type { DesktopWorkspace } from '../../../shared/Types.js'
 import type { SessionListItem } from '../../UiTypes.js'
 import { Tooltip } from '../../components/ui/Tooltip.js'
 import { Button } from '../../components/ui/Button.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
 import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
+import { GithubIcon } from '../../components/ui/GithubIcon.js'
 import { SidebarEmptyRow, SidebarRow } from '../../components/ui/SidebarRow.js'
 import { sortProjectsForSidebar } from '../layout/sidebar/SidebarViewModel.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
@@ -88,7 +89,7 @@ export function GitBoardSidebar(_props?: {
         <SidebarRow
           active={githubViewActive}
           layout="flex"
-          leading={<Github aria-hidden size={APP_ICON_SIZE} />}
+          leading={<GithubIcon size={APP_ICON_SIZE} />}
         >
           <button
             type="button"

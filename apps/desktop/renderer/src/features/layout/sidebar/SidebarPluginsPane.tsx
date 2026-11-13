@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Box, Plug } from 'lucide-react'
+import { Lightbulb, Plug } from 'lucide-react'
 import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { SearchHeading } from '../../../components/ui/SearchHeading.js'
@@ -115,7 +115,7 @@ export function SidebarPluginsPane({
               option.value === 'plugins' ? (
                 <Plug size={APP_ICON_SIZES.sm} />
               ) : (
-                <Box size={APP_ICON_SIZES.sm} />
+                <Lightbulb size={APP_ICON_SIZES.sm} />
               )
             }
           >

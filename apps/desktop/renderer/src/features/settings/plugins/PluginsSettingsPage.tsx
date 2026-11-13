@@ -1,7 +1,7 @@
 import { ComputerRuntimeStatus } from '../../plugins/ComputerRuntimeStatus.js'
 import { useComputerSettings } from '../UseComputerSettings.js'
 import type React from 'react'
-import { FileCode2, Package, Plus, RefreshCw, Server } from 'lucide-react'
+import { ChevronDown, Globe, Lightbulb, Package, Plus, RefreshCw, Server, Store } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type {
@@ -13,6 +13,8 @@ import type {
 } from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { PopoverItem } from '../../../components/ui/PopoverItem.js'
+import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
@@ -41,9 +43,15 @@ import {
   clearPluginDetailsDeepLink,
   resolvePluginDetailsDeepLink,
 } from './PluginDetailsDeepLink.js'
+import { AppDetailsDialog } from './AppDetailsDialog.js'
 import { SkillDetailsDialog } from './SkillDetailsDialog.js'
+import { preparePluginPrompt } from '../../plugins/PluginPrompt.js'
 import { listRuntimeSkills, setRuntimeSkillEnabled } from './SkillClientAdapter.js'
 import { errorMessageOr as errorMessageOf } from '@pidex/shared/errors'
+import {
+  PluginSettingsDetailsView,
+  resolvePluginDetailSkill,
+} from './PluginSettingsDetailsView.js'
 
 export type PluginsSettingsPageProps = {
   workspacePath: string | null
@@ -52,13 +60,48 @@ export type PluginsSettingsPageProps = {
   onNotice?: (message: string) => void
 }
 
-type Tab = 'plugins' | 'mcps' | 'skills'
+type Tab = 'plugins' | 'apps' | 'mcps' | 'skills' | 'marketplaces'
 type McpOAuthAttempt = {
   attemptId: string
   expiresAt: number
 }
 
-const VALID_TABS = new Set<Tab>(['plugins', 'mcps', 'skills'])
+type MarketplaceSource = {
+  id: string
+  name: string
+  description: string
+  url: string
+  official: boolean
+}
+
+const DEFAULT_MARKETPLACES: MarketplaceSource[] = [
+  {
+    id: 'official-plugins',
+    name: '官方插件市场',
+    description: 'Pidex 官方维护的扩展生态，涵盖 AI 辅助、研发流程与效率工具',
+    url: 'https://marketplace.antigravity.dev',
+    official: true,
+  },
+  {
+    id: 'skills-sh',
+    name: 'Skills.sh 技能市场',
+    description: '开放的智能体技能社区源，支持快速安装与自动化指令分发',
+    url: 'https://skills.sh',
+    official: false,
+  },
+]
+
+function isAppPlugin(item: PluginCatalogItem): boolean {
+  return (
+    item.id === 'computer-use' ||
+    item.capabilities.includes('ui') ||
+    item.capabilities.includes('webview') ||
+    item.capabilities.includes('browser') ||
+    item.capabilities.includes('app')
+  )
+}
+
+const VALID_TABS = new Set<Tab>(['plugins', 'apps', 'mcps', 'skills', 'marketplaces'])
 
 export function PluginsSettingsPage({
   workspacePath,
@@ -96,6 +139,10 @@ export function PluginsSettingsPage({
   const [skillDialogOpen, setSkillDialogOpen] = useState(false)
   const [skillDialogTrigger, setSkillDialogTrigger] = useState<HTMLElement | null>(null)
 
+  const [selectedApp, setSelectedApp] = useState<PluginCatalogItem | null>(null)
+  const [appDialogOpen, setAppDialogOpen] = useState(false)
+  const [appDialogTrigger, setAppDialogTrigger] = useState<HTMLElement | null>(null)
+
   const [servers, setServers] = useState<DesktopMcpServerListItem[] | undefined>()
   // Runtime-only host services are separate from editable MCP declarations.
   const [hostServers, setHostServers] = useState<DesktopMcpRuntimeServerStatus[]>([])
@@ -124,6 +171,9 @@ export function PluginsSettingsPage({
     null,
   )
 
+  const [marketplaces] = useState<MarketplaceSource[]>(DEFAULT_MARKETPLACES)
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+
   const pluginItems = useMemo(
     () =>
       mergePluginCatalog(
@@ -137,26 +187,42 @@ export function PluginsSettingsPage({
     [plugins, optimisticPluginEnabled],
   )
 
+  const standardPlugins = useMemo(
+    () => pluginItems.filter((item) => !isAppPlugin(item)),
+    [pluginItems],
+  )
+  const appPlugins = useMemo(
+    () => pluginItems.filter(isAppPlugin),
+    [pluginItems],
+  )
+
   const tabOptions = useMemo(() => {
-    const options: Array<{ value: Tab; label: React.ReactNode }> = []
-    if (pluginItems.length > 0) {
-      options.push({
+    const options: Array<{ value: Tab; label: React.ReactNode }> = [
+      {
         value: 'plugins',
         label: (
           <>
-            插件 <span aria-hidden="true">{pluginItems.length}</span>
+            插件 <span aria-hidden="true">{standardPlugins.length}</span>
           </>
         ),
-      })
-    }
-    options.push({
-      value: 'mcps',
-      label: (
-        <>
-          MCP <span aria-hidden="true">{servers?.length ?? 0}</span>
-        </>
-      ),
-    })
+      },
+      {
+        value: 'apps',
+        label: (
+          <>
+            应用 <span aria-hidden="true">{appPlugins.length}</span>
+          </>
+        ),
+      },
+      {
+        value: 'mcps',
+        label: (
+          <>
+            MCP <span aria-hidden="true">{servers?.length ?? 0}</span>
+          </>
+        ),
+      },
+    ]
     if (skills === undefined || skills.length > 0 || skillsError) {
       options.push({
         value: 'skills',
@@ -167,20 +233,40 @@ export function PluginsSettingsPage({
         ),
       })
     }
+    options.push({
+      value: 'marketplaces',
+      label: (
+        <>
+          市场 <span aria-hidden="true">{marketplaces.length}</span>
+        </>
+      ),
+    })
     return options
-  }, [pluginItems.length, servers?.length, skills, skillsError])
+  }, [
+    standardPlugins.length,
+    appPlugins.length,
+    servers?.length,
+    skills,
+    skillsError,
+    marketplaces.length,
+  ])
 
   const availableTabs = useMemo(
     () => new Set(tabOptions.map((option) => option.value)),
     [tabOptions],
   )
-  const tab = availableTabs.has(requestedTab) ? requestedTab : (tabOptions[0]?.value ?? 'mcps')
+  const tab = availableTabs.has(requestedTab) ? requestedTab : (tabOptions[0]?.value ?? 'plugins')
   const requestedPluginId = searchParams.get('plugin')
   const requestedSkillPath = searchParams.get('skill')
   const detailDeepLink = useMemo(
     () => resolvePluginDetailsDeepLink(searchParams, pluginItems, skills ?? []),
     [pluginItems, searchParams, skills],
   )
+
+  const requestedPlugin = useMemo(() => {
+    if (!requestedPluginId) return null
+    return pluginItems.find((candidate) => candidate.id === requestedPluginId) ?? null
+  }, [pluginItems, requestedPluginId])
 
   function clearDetailsDeepLink(): void {
     setSearchParams((current) => clearPluginDetailsDeepLink(current), { replace: true })
@@ -225,28 +311,28 @@ export function PluginsSettingsPage({
       return
     }
 
-    const targetTab: Tab = requestedPluginId ? 'plugins' : 'skills'
-    if (tab !== targetTab) {
+    if (requestedPluginId) {
+      // Plugins are rendered inline via PluginSettingsDetailsView
+      return
+    }
+
+    if (tab !== 'skills') {
       clearDetailsDeepLink()
       return
     }
-    const catalogReady = requestedPluginId ? !pluginsLoading : skills !== undefined
+    const catalogReady = skills !== undefined
     if (!catalogReady) return
     if (!detailDeepLink) {
       clearDetailsDeepLink()
       return
     }
 
-    if (detailDeepLink.kind === 'plugin') {
-      setSelectedPluginId(detailDeepLink.item.id)
-      setPluginDialogTrigger(null)
-      setPluginDialogOpen(true)
-      return
+    if (detailDeepLink.kind === 'skill') {
+      setSelectedSkill(detailDeepLink.skill)
+      setSkillDialogTrigger(null)
+      setSkillDialogOpen(true)
     }
-    setSelectedSkill(detailDeepLink.skill)
-    setSkillDialogTrigger(null)
-    setSkillDialogOpen(true)
-  }, [detailDeepLink, pluginsLoading, requestedPluginId, requestedSkillPath, skills, tab])
+  }, [detailDeepLink, requestedPluginId, requestedSkillPath, skills, tab])
 
   useEffect(() => {
     setMcpOAuthAttempts({})
@@ -378,9 +464,19 @@ export function PluginsSettingsPage({
   }
 
   async function refreshCurrentTab(): Promise<void> {
-    if (tab === 'plugins') refreshPlugins()
-    if (tab === 'skills') await loadSkills(true)
-    if (tab === 'mcps') await loadServers()
+    if (tab === 'plugins' || tab === 'apps') {
+      refreshPlugins()
+      return
+    }
+    if (tab === 'skills') {
+      await loadSkills(true)
+      return
+    }
+    if (tab === 'mcps') {
+      await loadServers()
+      return
+    }
+    onNotice?.('插件市场源已刷新。')
   }
 
   function selectTab(nextTab: Tab): void {
@@ -574,8 +670,14 @@ export function PluginsSettingsPage({
   }
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const visiblePlugins = pluginItems.filter((item) =>
+  const visiblePlugins = standardPlugins.filter((item) =>
     matchesQuery(normalizedQuery, item.name, item.description),
+  )
+  const visibleApps = appPlugins.filter((item) =>
+    matchesQuery(normalizedQuery, item.name, item.description),
+  )
+  const visibleMarketplaces = marketplaces.filter((market) =>
+    matchesQuery(normalizedQuery, market.name, market.description, market.url),
   )
   const visibleSkills = (skills ?? []).filter((skill) =>
     matchesQuery(
@@ -600,22 +702,171 @@ export function PluginsSettingsPage({
   const selectedPlugin = selectedPluginId
     ? (pluginItems.find((item) => item.id === selectedPluginId) ?? null)
     : null
-  const tabError = tab === 'plugins' ? pluginLoadError : tab === 'skills' ? skillsError : mcpError
+  const tabError =
+    tab === 'plugins' || tab === 'apps'
+      ? pluginLoadError
+      : tab === 'skills'
+        ? skillsError
+        : tab === 'mcps'
+          ? mcpError
+          : null
   const loading =
-    tab === 'plugins'
+    tab === 'plugins' || tab === 'apps'
       ? pluginsLoading
       : tab === 'skills'
         ? skills === undefined
-        : servers === undefined
+        : tab === 'mcps'
+          ? servers === undefined
+          : false
+
+  const skillDetailsDialog = (
+    <SkillDetailsDialog
+      workspacePath={workspacePath}
+      skill={selectedSkill}
+      open={skillDialogOpen}
+      restoreFocusElement={skillDialogTrigger}
+      onOpenChange={handleSkillDialogOpenChange}
+      onOpenSkill={(skill) => {
+        if (isBuiltinSkill(skill)) return
+        void desktopClient.openPathWithDefaultTarget(skill.path).catch((error) => {
+          onError(errorMessageOf(error, '无法打开技能文件。'))
+        })
+      }}
+      onUseSkill={(skill) => {
+        setSkillDialogOpen(false)
+        onUseSkill(skill)
+      }}
+      onToggleEnabled={(skill, enabled) => toggleSkill(skill, enabled)}
+      onUninstall={async (skill) => {
+        if (skill.path.startsWith('plugin://')) {
+          const match = skill.path.match(/^plugin:\/\/([^/]+)/)
+          if (match?.[1]) {
+            await desktopClient.uninstallPlugin(match[1])
+            await refreshPlugins()
+          }
+        }
+        await loadSkills(true)
+      }}
+      onError={onError}
+      onNotice={onNotice}
+    />
+  )
+
+  if (requestedPlugin) {
+    const matchingServer = servers?.find(
+      (s) =>
+        s.name.toLowerCase() === requestedPlugin.id.toLowerCase() ||
+        s.name.toLowerCase() === requestedPlugin.name.toLowerCase(),
+    )
+    const fallbackSkill = (skill: { id: string; name: string; description?: string }): DesktopInstalledSkill =>
+      resolvePluginDetailSkill(requestedPlugin, skill, skills) ?? {
+        name: skill.name,
+        description: skill.description || '',
+        path: `plugin://${requestedPlugin.id}/skills/${skill.id}/SKILL.md`,
+        scope: 'system',
+        source: 'system',
+        format: 'pidex',
+        enabled: requestedPlugin.enabled,
+      }
+
+    return (
+      <SettingsContentArea className="plugins-settings-page">
+        <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+          <PluginSettingsDetailsView
+            item={requestedPlugin}
+            workspacePath={workspacePath}
+            installedSkills={skills}
+            busySkillPaths={busySkillPaths}
+            matchingMcpServer={matchingServer}
+            mcpAttemptBusy={matchingServer ? busyMcpAuthKeys.has(mcpKey(matchingServer)) : false}
+            onBack={clearDetailsDeepLink}
+            onViewMarketDetails={(item) =>
+              navigate(`/plugins?plugin=${encodeURIComponent(item.id)}`)
+            }
+            onSelectSkill={(skill, trigger) => {
+              setSelectedSkill(fallbackSkill(skill))
+              setSkillDialogTrigger(trigger ?? null)
+              setSkillDialogOpen(true)
+            }}
+            onToggleSkill={(skill, enabled) => {
+              void toggleSkill(fallbackSkill(skill), enabled)
+            }}
+            onManageHooks={() => navigate('/settings/hooks')}
+            onUninstall={async (item) => {
+              await desktopClient.uninstallPlugin(item.id)
+              await refreshPlugins()
+            }}
+            onStartOAuth={(server) => void startMcpOAuth(server)}
+            onLogoutOAuth={(server) => void logoutMcpOAuth(server)}
+            onError={onError}
+            onNotice={onNotice}
+          />
+        </div>
+        {skillDetailsDialog}
+      </SettingsContentArea>
+    )
+  }
+
+  if (requestedPluginId && pluginsLoading) {
+    return (
+      <SettingsContentArea className="plugins-settings-page">
+        <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+          <LoadingRows />
+        </div>
+      </SettingsContentArea>
+    )
+  }
 
   return (
     <SettingsContentArea className="plugins-settings-page">
       <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-        <header className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">插件</h2>
-          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
-            管理插件、技能和 MCP
-          </p>
+        <header className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:flex tw:items-start tw:justify-between tw:gap-4">
+          <div className="tw:grid tw:gap-2">
+            <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">插件</h2>
+            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
+              管理插件、技能和 MCP
+            </p>
+          </div>
+          <div className="tw:flex tw:items-center tw:gap-3 tw:shrink-0">
+            <Button
+              color="secondary"
+              onClick={() => navigate('/plugins')}
+            >
+              浏览目录
+            </Button>
+            <PopoverMenu
+              align="end"
+              open={addMenuOpen}
+              onOpenChange={setAddMenuOpen}
+              size="md"
+              trigger={
+                <Button color="primary">
+                  添加
+                  <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+                </Button>
+              }
+            >
+              <PopoverItem
+                icon={<Plus aria-hidden="true" size={APP_ICON_SIZE} />}
+                onClick={() => {
+                  setAddMenuOpen(false)
+                  void desktopClient.openExternalURL('https://github.com/codepilotx-dev/Pidex-Plugins#创建插件')
+                }}
+              >
+                创建插件
+              </PopoverItem>
+              <PopoverItem
+                icon={<Server aria-hidden="true" size={APP_ICON_SIZE} />}
+                onClick={() => {
+                  setAddMenuOpen(false)
+                  setSelectedServer(null)
+                  setMcpDialogOpen(true)
+                }}
+              >
+                添加 MCP 服务器
+              </PopoverItem>
+            </PopoverMenu>
+          </div>
         </header>
 
         <div className="settings-management-toolbar plugins-settings-toolbar">
@@ -691,9 +942,9 @@ export function PluginsSettingsPage({
         >
           {loading ? (
             <LoadingRows />
-          ) : tab === 'plugins' ? (
-            visiblePlugins.length ? (
-              visiblePlugins.map((item) => (
+          ) : tab === 'plugins' || tab === 'apps' ? (
+            (tab === 'plugins' ? visiblePlugins : visibleApps).length ? (
+              (tab === 'plugins' ? visiblePlugins : visibleApps).map((item) => (
                 <ExtensionManagementRow
                   key={item.id}
                   title={item.name}
@@ -719,10 +970,22 @@ export function PluginsSettingsPage({
                       : pluginStatusLabel(item)
                   }
                   dimmed={item.status === 'disabled'}
+                  showChevron
                   onActivate={(trigger) => {
-                    setSelectedPluginId(item.id)
-                    setPluginDialogTrigger(trigger)
-                    setPluginDialogOpen(true)
+                    if (tab === 'apps') {
+                      setSelectedApp(item)
+                      setAppDialogTrigger(trigger)
+                      setAppDialogOpen(true)
+                    } else {
+                      setSearchParams(
+                        (current) => {
+                          const next = new URLSearchParams(current)
+                          next.set('plugin', item.id)
+                          return next
+                        },
+                        { replace: false },
+                      )
+                    }
                   }}
                   actions={
                     item.status === 'enabled' || item.status === 'disabled' ? (
@@ -741,7 +1004,29 @@ export function PluginsSettingsPage({
                 />
               ))
             ) : (
-              <EmptyState label="没有匹配的插件。" />
+              <EmptyState label={tab === 'apps' ? '没有匹配的应用。' : '没有匹配的插件。'} />
+            )
+          ) : tab === 'marketplaces' ? (
+            visibleMarketplaces.length ? (
+              visibleMarketplaces.map((market) => (
+                <ExtensionManagementRow
+                  key={market.id}
+                  title={market.name}
+                  description={market.description}
+                  icon={<Globe size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+                  metadata={market.official ? '官方源' : '社区源'}
+                  actions={
+                    <Button
+                      color="secondary"
+                      onClick={() => void desktopClient.openExternalURL(market.url)}
+                    >
+                      访问
+                    </Button>
+                  }
+                />
+              ))
+            ) : (
+              <EmptyState label="没有匹配的插件市场。" />
             )
           ) : tab === 'skills' ? (
             visibleSkills.length ? (
@@ -754,7 +1039,7 @@ export function PluginsSettingsPage({
                     getBuiltinSkillPresentation(skill) ? (
                       <BuiltinSkillIcon size={14} skill={skill} />
                     ) : (
-                      <FileCode2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <Lightbulb size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     )
                   }
                   metadata={skillScopeLabel(skill.scope)}
@@ -853,23 +1138,33 @@ export function PluginsSettingsPage({
           }
         }}
       />
-      <SkillDetailsDialog
+      {skillDetailsDialog}
+      <AppDetailsDialog
         workspacePath={workspacePath}
-        skill={selectedSkill}
-        open={skillDialogOpen}
-        restoreFocusElement={skillDialogTrigger}
-        onOpenChange={handleSkillDialogOpenChange}
-        onOpenSkill={(skill) => {
-          if (isBuiltinSkill(skill)) return
-          void desktopClient.openPathWithDefaultTarget(skill.path).catch((error) => {
-            onError(errorMessageOf(error, '无法打开技能文件。'))
-          })
+        item={selectedApp}
+        open={appDialogOpen}
+        busy={selectedApp ? busyPluginIds.has(selectedApp.id) : false}
+        restoreFocusElement={appDialogTrigger}
+        onOpenChange={setAppDialogOpen}
+        onToggleEnabled={(item, enabled) => togglePlugin(item, enabled)}
+        onUninstall={async (item) => {
+          await desktopClient.uninstallPlugin(item.id)
+          await refreshPlugins()
         }}
-        onUseSkill={(skill) => {
-          setSkillDialogOpen(false)
-          onUseSkill(skill)
+        onTryApp={async (item) => {
+          try {
+            const prompt = item.skills?.[0] ? `使用 ${item.name}` : `你好，请协助我使用 ${item.name}`
+            await preparePluginPrompt(item, prompt)
+            navigate('/chat')
+          } catch (err) {
+            onError(errorMessageOf(err, '启动应用失败'))
+          }
         }}
+        onViewMarketDetails={(item) =>
+          navigate(`/plugins?plugin=${encodeURIComponent(item.id)}`)
+        }
         onError={onError}
+        onNotice={onNotice}
       />
       <McpEditorDialog
         open={mcpDialogOpen}
@@ -945,13 +1240,15 @@ function parseTab(value: string | null): Tab {
 }
 
 function tabLabel(tab: Tab): string {
+  if (tab === 'apps') return '应用'
   if (tab === 'mcps') return 'MCP'
   if (tab === 'skills') return '技能'
+  if (tab === 'marketplaces') return '市场'
   return '插件'
 }
 
 function searchPlaceholder(tab: Tab): string {
-  return `搜索${tabLabel(tab)}`
+  return `搜索${tabLabel(tab)}...`
 }
 
 function matchesQuery(query: string, ...values: Array<string | undefined>): boolean {

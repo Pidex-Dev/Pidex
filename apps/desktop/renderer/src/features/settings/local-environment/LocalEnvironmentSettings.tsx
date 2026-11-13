@@ -305,7 +305,7 @@ export function LocalEnvironmentSettings({
           }
         >
           {readOnly ? (
-            <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4">
+            <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-2">
               {actions.length ? (
                 actions.map((action, index) => (
                   <div

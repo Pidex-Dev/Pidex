@@ -79,6 +79,7 @@ export type UseDesktopSettingsResult = {
   gitDraftPullRequest: boolean
   gitAutoDeleteWorktree: boolean
   gitAutoDeleteWorktreeLimit: number
+  gitConfirmDeleteWorktree: boolean
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
@@ -112,6 +113,7 @@ export type UseDesktopSettingsResult = {
   sidebarActivityCoachmarkDismissed: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
+  titlebarSessionTabIds: string[]
   collapsedSidebarProjectPaths: string[]
   sidebarSectionOrder: SidebarSectionId[]
   browserAllowedSites: string[]
@@ -151,6 +153,7 @@ export type UseDesktopSettingsResult = {
   setGitDraftPullRequest: (value: boolean) => void
   setGitAutoDeleteWorktree: (value: boolean) => void
   setGitAutoDeleteWorktreeLimit: (value: number) => void
+  setGitConfirmDeleteWorktree: (value: boolean) => void
   setAllowForcePush: (value: boolean) => void
   setCommitMessagePrompt: (value: string) => void
   setPullRequestPrompt: (value: string) => void
@@ -186,6 +189,7 @@ export type UseDesktopSettingsResult = {
   setSidebarSessionPins: (
     value: Record<string, string> | ((current: Record<string, string>) => Record<string, string>),
   ) => void
+  setTitlebarSessionTabIds: (value: string[] | ((current: string[]) => string[])) => void
   setCollapsedSidebarProjectPaths: (value: string[] | ((current: string[]) => string[])) => void
   setSidebarSectionOrder: (
     value: SidebarSectionId[] | ((current: SidebarSectionId[]) => SidebarSectionId[]),
@@ -219,6 +223,7 @@ export type UseDesktopRuntimeSettingsResult = Pick<
   | 'setSelectedModelPreset'
   | 'setReviewView'
   | 'setSidebarSessionPins'
+  | 'setTitlebarSessionTabIds'
   | 'setSidebarTimelineEnabled'
   | 'setSidebarProductMode'
   | 'setSidebarCustomization'
@@ -357,6 +362,10 @@ const hotData = import.meta.hot?.data as DesktopSettingsHotData | undefined
 const DesktopSettingsFieldStoreContext =
   hotData?.desktopSettingsFieldStoreContext ?? createContext<DesktopSettingsFieldStore | null>(null)
 
+const FALLBACK_EMPTY_SETTINGS_STORE: DesktopSettingsFieldStore = createStore(
+  () => ({}) as DesktopSettingsFieldSnapshot,
+)
+
 if (import.meta.hot) {
   const data = import.meta.hot.data as DesktopSettingsHotData
   data.desktopSettingsFieldStoreContext = DesktopSettingsFieldStoreContext
@@ -409,6 +418,17 @@ export function useDesktopSettingsDraftValue<Key extends keyof StoredDesktopSett
   return useDesktopSettingsField((settings) => settings.draft.values[key])
 }
 
+/** 可选按键订阅设置草稿值；在没有 DesktopSettingsProvider 时返回默认值。 */
+export function useOptionalDesktopSettingsDraftValue<Key extends keyof StoredDesktopSettings>(
+  key: Key,
+  fallback: StoredDesktopSettings[Key],
+): StoredDesktopSettings[Key] {
+  const store = useContext(DesktopSettingsFieldStoreContext)
+  return useStore(store ?? FALLBACK_EMPTY_SETTINGS_STORE, (state) =>
+    store ? state.settings.draft.values[key] : fallback,
+  )
+}
+
 export function useDesktopSettingsDraftDirty(): boolean {
   return useDesktopSettingsField((settings) => settings.draft.dirty)
 }
@@ -458,6 +478,7 @@ function useDesktopSettingsState(
       gitDraftPullRequest: initial.gitDraftPullRequest,
       gitAutoDeleteWorktree: initial.gitAutoDeleteWorktree,
       gitAutoDeleteWorktreeLimit: initial.gitAutoDeleteWorktreeLimit,
+      gitConfirmDeleteWorktree: initial.gitConfirmDeleteWorktree,
       allowForcePush: initial.allowForcePush,
       commitMessagePrompt: initial.commitMessagePrompt,
       pullRequestPrompt: initial.pullRequestPrompt,
@@ -493,6 +514,7 @@ function useDesktopSettingsState(
         false) as boolean,
       sidebarManualOrder: initial.sidebarManualOrder as Record<string, string[]>,
       sidebarSessionPins: initial.sidebarSessionPins as Record<string, string>,
+      titlebarSessionTabIds: initial.titlebarSessionTabIds as string[],
       collapsedSidebarProjectPaths: initial.collapsedSidebarProjectPaths as string[],
       sidebarSectionOrder: initial.sidebarSectionOrder as SidebarSectionId[],
       browserAllowedSites: initial.browserAllowedSites as string[],
@@ -577,6 +599,10 @@ function useDesktopSettingsState(
   const [gitAutoDeleteWorktreeLimit, setGitAutoDeleteWorktreeLimit] = useFieldState(
     stateStore,
     'gitAutoDeleteWorktreeLimit',
+  )
+  const [gitConfirmDeleteWorktree, setGitConfirmDeleteWorktree] = useFieldState(
+    stateStore,
+    'gitConfirmDeleteWorktree',
   )
   const [allowForcePush, setAllowForcePush] = useFieldState(stateStore, 'allowForcePush')
   const [commitMessagePrompt, setCommitMessagePrompt] = useFieldState(
@@ -683,6 +709,10 @@ function useDesktopSettingsState(
   const [sidebarSessionPins, setSidebarSessionPins] = useFieldState(
     stateStore,
     'sidebarSessionPins',
+  )
+  const [titlebarSessionTabIds, setTitlebarSessionTabIds] = useFieldState(
+    stateStore,
+    'titlebarSessionTabIds',
   )
   const [collapsedSidebarProjectPaths, setCollapsedSidebarProjectPaths] = useFieldState(
     stateStore,
@@ -796,6 +826,7 @@ function useDesktopSettingsState(
         setGitDraftPullRequest(settings.gitDraftPullRequest)
         setGitAutoDeleteWorktree(settings.gitAutoDeleteWorktree)
         setGitAutoDeleteWorktreeLimit(settings.gitAutoDeleteWorktreeLimit)
+        setGitConfirmDeleteWorktree(settings.gitConfirmDeleteWorktree)
         setAllowForcePush(settings.allowForcePush)
         setCommitMessagePrompt(settings.commitMessagePrompt)
         setPullRequestPrompt(settings.pullRequestPrompt)
@@ -830,6 +861,7 @@ function useDesktopSettingsState(
         setSidebarActivityCoachmarkDismissed(settings.sidebarActivityCoachmarkDismissed ?? false)
         setSidebarManualOrder(settings.sidebarManualOrder)
         setSidebarSessionPins(settings.sidebarSessionPins)
+        setTitlebarSessionTabIds(settings.titlebarSessionTabIds)
         setCollapsedSidebarProjectPaths(settings.collapsedSidebarProjectPaths)
         setSidebarSectionOrder(settings.sidebarSectionOrder)
         setBrowserAllowedSites(settings.browserAllowedSites)
@@ -894,6 +926,7 @@ function useDesktopSettingsState(
       gitDraftPullRequest,
       gitAutoDeleteWorktree,
       gitAutoDeleteWorktreeLimit,
+      gitConfirmDeleteWorktree,
       allowForcePush,
       commitMessagePrompt,
       pullRequestPrompt,
@@ -904,6 +937,12 @@ function useDesktopSettingsState(
       ...(firstUseSetupCompleted === undefined ? {} : { firstUseSetupCompleted }),
       'desktop.voice.preferredInputDeviceId':
         committedDraftValues['desktop.voice.preferredInputDeviceId'],
+      'desktop.voice.language': committedDraftValues['desktop.voice.language'],
+      'desktop.voice.showLiveTranscript': committedDraftValues['desktop.voice.showLiveTranscript'],
+      'desktop.voice.dictationShortcut': committedDraftValues['desktop.voice.dictationShortcut'],
+      'desktop.voice.handsFreeMode': committedDraftValues['desktop.voice.handsFreeMode'],
+      'desktop.voice.recentRecordings': committedDraftValues['desktop.voice.recentRecordings'],
+      'desktop.voice.dictionary': committedDraftValues['desktop.voice.dictionary'],
       'desktop.composer_predictions': committedDraftValues['desktop.composer_predictions'],
       personality,
       customInstructions,
@@ -931,6 +970,7 @@ function useDesktopSettingsState(
       sidebarActivityCoachmarkDismissed,
       sidebarManualOrder,
       sidebarSessionPins,
+      titlebarSessionTabIds,
       collapsedSidebarProjectPaths,
       sidebarSectionOrder,
       rustSearchAndDiffKernels,
@@ -983,6 +1023,7 @@ function useDesktopSettingsState(
       gitDraftPullRequest,
       gitAutoDeleteWorktree,
       gitAutoDeleteWorktreeLimit,
+      gitConfirmDeleteWorktree,
       allowForcePush,
       commitMessagePrompt,
       pullRequestPrompt,
@@ -992,6 +1033,12 @@ function useDesktopSettingsState(
       workspaceDependenciesMigrated,
       firstUseSetupCompleted,
       committedDraftValues['desktop.voice.preferredInputDeviceId'],
+      committedDraftValues['desktop.voice.language'],
+      committedDraftValues['desktop.voice.showLiveTranscript'],
+      committedDraftValues['desktop.voice.dictationShortcut'],
+      committedDraftValues['desktop.voice.handsFreeMode'],
+      committedDraftValues['desktop.voice.recentRecordings'],
+      committedDraftValues['desktop.voice.dictionary'],
       committedDraftValues['desktop.composer_predictions'],
       personality,
       customInstructions,
@@ -1018,6 +1065,7 @@ function useDesktopSettingsState(
       sidebarActivityCoachmarkDismissed,
       sidebarManualOrder,
       sidebarSessionPins,
+      titlebarSessionTabIds,
       collapsedSidebarProjectPaths,
       sidebarSectionOrder,
       rustSearchAndDiffKernels,
@@ -1107,6 +1155,7 @@ function useDesktopSettingsState(
     setGitDraftPullRequest(snapshot.gitDraftPullRequest)
     setGitAutoDeleteWorktree(snapshot.gitAutoDeleteWorktree)
     setGitAutoDeleteWorktreeLimit(snapshot.gitAutoDeleteWorktreeLimit)
+    setGitConfirmDeleteWorktree(snapshot.gitConfirmDeleteWorktree)
     setAllowForcePush(snapshot.allowForcePush)
     setCommitMessagePrompt(snapshot.commitMessagePrompt)
     setPullRequestPrompt(snapshot.pullRequestPrompt)
@@ -1140,6 +1189,7 @@ function useDesktopSettingsState(
     setSidebarActivityCoachmarkDismissed(snapshot.sidebarActivityCoachmarkDismissed ?? false)
     setSidebarManualOrder(snapshot.sidebarManualOrder)
     setSidebarSessionPins(snapshot.sidebarSessionPins)
+    setTitlebarSessionTabIds(snapshot.titlebarSessionTabIds)
     setCollapsedSidebarProjectPaths(snapshot.collapsedSidebarProjectPaths)
     setSidebarSectionOrder(snapshot.sidebarSectionOrder)
     setRustSearchAndDiffKernels(snapshot.rustSearchAndDiffKernels)
@@ -1315,6 +1365,7 @@ function useDesktopSettingsState(
       setSelectedModelPreset,
       setReviewView,
       setSidebarSessionPins,
+      setTitlebarSessionTabIds,
       setSidebarTimelineEnabled,
       setSidebarProductMode,
       setSidebarCustomization,
@@ -1361,6 +1412,7 @@ function useDesktopSettingsState(
     gitDraftPullRequest,
     gitAutoDeleteWorktree,
     gitAutoDeleteWorktreeLimit,
+    gitConfirmDeleteWorktree,
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
@@ -1393,6 +1445,7 @@ function useDesktopSettingsState(
     sidebarActivityCoachmarkDismissed,
     sidebarManualOrder,
     sidebarSessionPins,
+    titlebarSessionTabIds,
     collapsedSidebarProjectPaths,
     sidebarSectionOrder,
     rustSearchAndDiffKernels,
@@ -1427,6 +1480,7 @@ function useDesktopSettingsState(
     setGitDraftPullRequest,
     setGitAutoDeleteWorktree,
     setGitAutoDeleteWorktreeLimit,
+    setGitConfirmDeleteWorktree,
     setAllowForcePush,
     setCommitMessagePrompt,
     setPullRequestPrompt,
@@ -1456,6 +1510,7 @@ function useDesktopSettingsState(
     setSidebarActivityCoachmarkDismissed,
     setSidebarManualOrder,
     setSidebarSessionPins,
+    setTitlebarSessionTabIds,
     setCollapsedSidebarProjectPaths,
     setSidebarSectionOrder,
     setRustSearchAndDiffKernels,
@@ -1494,6 +1549,7 @@ function cloneDesktopSettings(settings: StoredDesktopSettings): StoredDesktopSet
       ]),
     ),
     sidebarSessionPins: { ...settings.sidebarSessionPins },
+    titlebarSessionTabIds: [...settings.titlebarSessionTabIds],
     collapsedSidebarProjectPaths: [...settings.collapsedSidebarProjectPaths],
     sidebarSectionOrder: [...settings.sidebarSectionOrder],
     browserAllowedSites: [...settings.browserAllowedSites],

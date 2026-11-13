@@ -792,7 +792,7 @@ export function MenuBar({
         {sessionTabs.length > 0 ? (
           <div
             aria-label="会话标签页"
-            className="menubar-session-tabs tw:flex tw:h-chrome tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:mr-3"
+            className="menubar-session-tabs tw:flex tw:h-chrome tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:mr-10"
             role="tablist"
           >
             <div

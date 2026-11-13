@@ -1,5 +1,5 @@
 import React from 'react'
-import { ListChecks } from 'lucide-react'
+import { Lightbulb } from 'lucide-react'
 
 import type { Attachment, LocalContextReference } from '@pidex/shared/thread'
 import { desktopUserMessageInputToPreviewText } from '../../../../shared/DesktopUserMessage.js'
@@ -74,7 +74,7 @@ export function CanonicalUserMessageContent({
                 {skills.map((skill) => (
                   <React.Fragment key={skill.path}>
                     <span className="composer-inline-skill-token">
-                      <ListChecks aria-hidden="true" className="composer-inline-skill-token-icon" />
+                      <Lightbulb aria-hidden="true" className="composer-inline-skill-token-icon" />
                       <span className="composer-inline-skill-token-label">${skill.name}</span>
                     </span>{' '}
                   </React.Fragment>

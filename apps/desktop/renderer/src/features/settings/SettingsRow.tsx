@@ -42,15 +42,10 @@ export function SettingsRow({
   return (
     <div
       className={cx(
-        'settings-row tw:min-w-0 tw:bg-transparent',
+        'settings-row tw:min-w-0 tw:bg-transparent tw:px-3 tw:py-2',
         variant === 'stacked'
-          ? 'tw:grid tw:gap-2 tw:py-3'
-          : variant === 'nested'
-            ? 'tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:py-2'
-            : cx(
-                'tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4',
-                size === 'compact' ? 'tw:py-2' : 'tw:py-3',
-              ),
+          ? 'tw:grid tw:gap-2'
+          : 'tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4',
       )}
       data-size={size}
       data-variant={variant}

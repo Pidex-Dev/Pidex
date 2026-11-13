@@ -25,7 +25,6 @@
   .desktop-workspace-header-item,
   .menubar-session-tab,
   .menubar-session-tab *,
-  .menubar-session-tabs-track,
   .auxiliary-titlebar button {
     -webkit-app-region: no-drag;
   }

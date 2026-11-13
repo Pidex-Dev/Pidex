@@ -120,6 +120,7 @@ import {
 } from './ComposerSlashCommands.js'
 import { useComposerSlashCommands } from './UseComposerSlashCommands.js'
 import { isDictationShortcut } from './UseComposerDictation.js'
+import { useOptionalDesktopSettingsDraftValue } from '../../settings/UseDesktopSettings.js'
 import { isComposerInputEmpty, parseGoalTokenBudget } from './ComposerTypes.js'
 import {
   ApprovalRulesDialog,
@@ -544,6 +545,10 @@ export function ComposerCard({
   onWorkingPluginChange,
 }: Props): React.ReactNode {
   const editorRef = useRef<ComposerEditorHandle | null>(null)
+  const dictationShortcut = useOptionalDesktopSettingsDraftValue(
+    'desktop.voice.dictationShortcut',
+    'Ctrl+Shift+D',
+  )
   const menuId = useId()
   const menuItemId = (key: string): string => `${menuId}-item-${encodeURIComponent(key)}`
   const capabilities = useMemo(
@@ -1682,7 +1687,7 @@ export function ComposerCard({
               }}
               onKeyDown={(event) => {
                 if (event.isComposing || event.keyCode === 229) return false
-                if (capabilities.dictation && isDictationShortcut(event)) {
+                if (capabilities.dictation && isDictationShortcut(event, dictationShortcut)) {
                   event.preventDefault()
                   if (dictationControlRef.current) {
                     dictationControlRef.current.toggle()

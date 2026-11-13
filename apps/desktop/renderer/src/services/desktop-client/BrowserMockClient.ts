@@ -684,10 +684,13 @@ export function createBrowserMockDesktopClient(
       emitSettingsChange()
       return settings
     },
-    listProjectMemories: async (workspacePath) => ({
-      memoryDir: `${workspacePath || 'mock'}/.pidex-memory/`,
-      entrypointPath: `${workspacePath || 'mock'}/.pidex-memory/MEMORY.md`,
+    listProjectMemories: async () => ({
+      namespace: { kind: 'user' },
+      memoryDir: 'mock/memories/',
+      entrypointPath: 'MEMORY.md',
       memories: [],
+      diagnostics: [],
+      indexContent: '',
     }),
     readProjectMemory: async (_workspacePath, relativePath) => ({
       relativePath,
@@ -695,6 +698,9 @@ export function createBrowserMockDesktopClient(
       description: null,
       size: 0,
       mtimeMs: 0,
+      revision: '',
+      nextOffset: null,
+      truncated: false,
       content: '',
     }),
     saveProjectMemory: async (input) => ({
@@ -703,19 +709,26 @@ export function createBrowserMockDesktopClient(
       description: null,
       size: input.content.length,
       mtimeMs: Date.now(),
+      revision: '',
+      indexed: false,
     }),
     deleteProjectMemory: async () => {},
     resetProjectMemory: async () => {},
-    listProjectMemoryRecalls: async (workspacePath) => ({
-      recallLogPath: `${workspacePath || 'mock'}/.pidex-memory/.recall-events.jsonl`,
-      recalls: [],
+    listMemoryUsage: async () => [],
+    listMemoryTasks: async () => ({ tasks: [], autoOrganize: true }),
+    organizeMemory: async () => ({ taskId: null, queued: false }),
+    readMemorySettings: async () => ({ autoOrganize: true, memoryDir: 'mock/memories/', namedAgents: [] }),
+    saveMemorySettings: async (input) => ({
+      autoOrganize: input.autoOrganize,
+      memoryDir: 'mock/memories/',
+      namedAgents: [],
     }),
     listUserMemories: async () => ({
-      memoryDir: 'mock/user-memory/',
-      profilePath: 'mock/user-memory/profile.memory.md',
-      preferencesPath: 'mock/user-memory/preferences.json',
-      eventsPath: 'mock/user-memory/memory_events.jsonl',
-      conversationIndexPath: 'mock/user-memory/conversation_index.sqlite',
+      memoryDir: 'mock/memories/user/',
+      profilePath: 'MEMORY.md',
+      preferencesPath: 'MEMORY.md',
+      eventsPath: 'memory_usage',
+      conversationIndexPath: 'history.sqlite',
       memories: [],
     }),
     readUserMemory: async (relativePath) => ({
@@ -724,6 +737,9 @@ export function createBrowserMockDesktopClient(
       description: null,
       size: 0,
       mtimeMs: 0,
+      revision: '',
+      nextOffset: null,
+      truncated: false,
       content: '',
     }),
     saveUserMemory: async (input) => ({
@@ -732,9 +748,12 @@ export function createBrowserMockDesktopClient(
       description: null,
       size: input.content.length,
       mtimeMs: Date.now(),
+      revision: '',
+      indexed: false,
     }),
     deleteUserMemory: async () => {},
     resetUserMemory: async () => {},
+
     generateTaskSuggestions: async () => {
       throw new Error('TASK_SUGGESTIONS_UNAVAILABLE')
     },

@@ -278,6 +278,7 @@
     margin-inline-start: calc(100% - 100cqi);
   }
 
+  .ui-dialog-surface .md-wide-block,
   .right-dock .md-wide-block,
   .workflow-composer-card .md-wide-block {
     left: auto;

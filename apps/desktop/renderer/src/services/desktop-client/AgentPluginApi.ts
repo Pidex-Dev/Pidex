@@ -82,13 +82,17 @@ export function createAgentPluginApi({
         },
         () => mockClient.getPluginDetails(pluginId, workspacePath),
       ),
-    installPlugin: (pluginId) =>
+    installPlugin: (pluginId, expectedCatalogRevision) =>
       withAgentOrMock(
         async () => {
           requireAgentCapability('plugins.lifecycle.v1')
-          return rpc.call('plugin/install', { pluginId, operationId: crypto.randomUUID() })
+          return rpc.call('plugin/install', {
+            pluginId,
+            operationId: crypto.randomUUID(),
+            ...(expectedCatalogRevision ? { expectedCatalogRevision } : {}),
+          })
         },
-        () => mockClient.installPlugin(pluginId),
+        () => mockClient.installPlugin(pluginId, expectedCatalogRevision),
       ),
     uninstallPlugin: (pluginId) =>
       withAgentOrMock(

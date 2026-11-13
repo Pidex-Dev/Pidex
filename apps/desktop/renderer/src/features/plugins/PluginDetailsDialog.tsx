@@ -10,6 +10,7 @@ import { SETTINGS_MANAGEMENT_DIALOG_SIZE } from '../settings/SettingsManagementD
 import type { PluginCatalogItem } from './PluginCatalog.js'
 import { PluginProductDetailsView } from './PluginProductDetailsView.js'
 import { usePluginDetails } from './UsePluginDetails.js'
+import { usePluginInstallConfirmation, isPluginInstallConflict } from './PluginInstallDialog.js'
 import { preparePluginPrompt } from './PluginPrompt.js'
 import { useNavigate } from 'react-router-dom'
 import { desktopClient } from '../../services/desktop-client/index.js'
@@ -45,6 +46,7 @@ export function PluginDetailsDialog({
   const item = open ? currentItem : retainedItem
   const navigate = useNavigate()
   const selectedDetails = usePluginDetails(open ? item : null, workspacePath)
+  const installConfirmation = usePluginInstallConfirmation(workspacePath)
   const [pending, setPending] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
@@ -59,6 +61,8 @@ export function PluginDetailsDialog({
       await work()
     } catch (cause) {
       setLocalError(cause instanceof Error ? cause.message : '插件操作失败，请重试。')
+      // Show the moved catalog before the user confirms the install again.
+      if (isPluginInstallConflict(cause)) selectedDetails.retry()
     } finally {
       setPending(false)
     }
@@ -66,6 +70,24 @@ export function PluginDetailsDialog({
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   if (!item) return null
+
+  function handlePrimaryAction(
+    target: PluginCatalogItem,
+    trigger: HTMLButtonElement,
+    checked?: boolean,
+  ): void {
+    if (target.installed) {
+      onPrimaryAction(target, trigger, checked)
+      return
+    }
+    void run(async () => {
+      const confirmation = await installConfirmation.confirmInstall(target, selectedDetails.details)
+      if (!confirmation) return
+      await desktopClient.installPlugin(target.id, confirmation.revision)
+      onChanged?.()
+      if (trigger.isConnected) trigger.focus()
+    })
+  }
 
   return (
     <>
@@ -112,10 +134,19 @@ export function PluginDetailsDialog({
                 busy={busy || pending}
                 error={localError || error}
                 workspacePath={workspacePath}
-                onPrimaryAction={onPrimaryAction}
+                onPrimaryAction={handlePrimaryAction}
                 onTryPrompt={(prompt) =>
                   void run(async () => {
-                    await preparePluginPrompt(item, prompt)
+                    let installRevision: string | undefined
+                    if (!item.installed) {
+                      const confirmation = await installConfirmation.confirmInstall(
+                        item,
+                        selectedDetails.details,
+                      )
+                      if (!confirmation) return
+                      installRevision = confirmation.revision
+                    }
+                    await preparePluginPrompt(item, prompt, { installRevision })
                     onChanged?.()
                     onOpenChange(false)
                     navigate('/new')
@@ -135,6 +166,7 @@ export function PluginDetailsDialog({
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+      {installConfirmation.dialog}
       <ConfirmationDialog
         open={confirmRemove}
         title="移除插件？"

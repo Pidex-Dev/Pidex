@@ -1,6 +1,6 @@
 import type { PluginDetails } from '@pidex/agent-protocol'
 import type React from 'react'
-import { ExternalLink, Plus, Sparkles } from 'lucide-react'
+import { ExternalLink, Lightbulb, Plus } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import type { DesktopSkillCatalogItem } from '../../../shared/Types.js'
@@ -59,7 +59,7 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
             FORCED_COLORS_SURFACE_CLASS,
           )}
         >
-          <Sparkles data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
+          <Lightbulb data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
         </span>
         <div className={cx('catalog-details-view__identity', DETAILS_IDENTITY_CLASS)}>
           <h1 className="tw:m-0 tw:text-app-text tw:type-title-sm tw:wrap-anywhere">{item.name}</h1>

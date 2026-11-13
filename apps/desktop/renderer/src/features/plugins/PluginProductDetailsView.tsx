@@ -3,14 +3,15 @@ import type { PluginDetails } from '@pidex/agent-protocol'
 import type React from 'react'
 import {
   ArrowRight,
-  Blocks,
   FileText,
+  Lightbulb,
   MessageCircle,
   MoreHorizontal,
   Server,
   Trash2,
 } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/ui/Button.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { usePluginSkills } from './UsePluginSkills.js'
@@ -60,6 +61,7 @@ export function PluginProductDetailsView({
   detailsError,
   onRetryDetails,
 }: Props): React.ReactNode {
+  const navigate = useNavigate()
   const [moreOpen, setMoreOpen] = useState(false)
   const prompts = (details?.defaultPrompts ?? []).map((prompt) => prompt.trim()).filter(Boolean)
   const skills =
@@ -109,6 +111,17 @@ export function PluginProductDetailsView({
             {item.id === 'computer-use' ? <ComputerRuntimeStatus /> : null}
           </div>
           <div className={cx('catalog-details-view__primary-action', DETAILS_ACTION_GROUP_CLASS)}>
+            {item.installed ? (
+              <Button
+                color="secondary"
+                onClick={() =>
+                  navigate(`/settings/plugins?plugin=${encodeURIComponent(item.id)}`)
+                }
+                title="前往设置管理此插件"
+              >
+                管理
+              </Button>
+            ) : null}
             {item.canUninstall && item.installed && onUninstall ? (
               <PopoverMenu
                 align="end"
@@ -253,7 +266,7 @@ export function PluginProductDetailsView({
                     )}
                     data-plugin-tone={item.tone}
                   >
-                    <Blocks aria-hidden="true" size={24} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Lightbulb aria-hidden="true" size={24} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   </span>
                   <div className="catalog-plugin-skill__copy tw:grid tw:min-w-0 tw:gap-1">
                     <h3 className="tw:m-0 tw:text-app-text tw:type-row-title">

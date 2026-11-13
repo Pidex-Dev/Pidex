@@ -57,13 +57,9 @@
     pointer-events: none;
   }
 
-  .settings-card > .settings-row {
-    padding-inline: var(--cpx-sys-space-4);
-  }
-
   .settings-card > .settings-row + .settings-row::before {
-    right: var(--cpx-sys-space-4);
-    left: var(--cpx-sys-space-4);
+    right: var(--cpx-sys-space-3);
+    left: var(--cpx-sys-space-3);
     background: var(--cpx-sys-color-border-subtle);
   }
 
@@ -132,8 +128,8 @@
     align-items: center;
     gap: var(--cpx-sys-space-3);
     min-width: 0;
-    min-height: calc(var(--cpx-sys-space-8) * 2 + var(--cpx-sys-space-1));
-    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
+    min-height: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-5));
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     border: 0;
     background: transparent;
     color: inherit;
@@ -202,7 +198,7 @@
     align-items: center;
     justify-content: flex-end;
     gap: var(--cpx-sys-space-2);
-    padding-right: var(--cpx-sys-space-4);
+    padding-right: var(--cpx-sys-space-3);
   }
 
   .settings-management-loading {

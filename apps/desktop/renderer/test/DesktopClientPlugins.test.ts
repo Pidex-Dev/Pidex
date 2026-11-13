@@ -1,5 +1,14 @@
 import { describe, expect, test } from 'bun:test'
+import type { PluginDetails } from '@pidex/agent-protocol'
 import { createDesktopClient } from '../src/services/desktop-client/index.js'
+import type { PluginCatalogItem } from '../src/features/plugins/PluginCatalog.js'
+import {
+  PLUGIN_INSTALL_PERMISSION_NOTICE,
+  pluginInstallDisclosure,
+  pluginInstallRevision,
+  pluginInstallSourceLabel,
+  pluginInstallSummaryLines,
+} from '../src/features/plugins/PluginInstallDisclosure.js'
 
 describe('desktop plugin client', () => {
   test('uses typed plugin RPC methods and supplies mutation operation ids', async () => {
@@ -106,18 +115,21 @@ describe('desktop plugin client', () => {
       kind: 'logo',
       workspace: 'F:\\workspace',
     })
-    await client.installPlugin('pidex-demo')
+    await client.installPlugin('pidex-demo', 'b'.repeat(40))
     await client.uninstallPlugin('pidex-demo')
     const listed = await client.listPlugins('F:\\workspace', true)
     const loadedDetails = await client.getPluginDetails('task-planning', 'F:\\workspace')
     const disabled = await client.setPluginEnabled('task-planning', false)
 
-    for (const method of ['plugin/install', 'plugin/uninstall']) {
-      expect(requests.find((item) => item.method === method)?.params).toEqual({
-        pluginId: 'pidex-demo',
-        operationId: expect.any(String),
-      })
-    }
+    expect(requests.find((item) => item.method === 'plugin/install')?.params).toEqual({
+      pluginId: 'pidex-demo',
+      operationId: expect.any(String),
+      expectedCatalogRevision: 'b'.repeat(40),
+    })
+    expect(requests.find((item) => item.method === 'plugin/uninstall')?.params).toEqual({
+      pluginId: 'pidex-demo',
+      operationId: expect.any(String),
+    })
     expect(listed.plugins[0]?.id).toBe('task-planning')
     expect(listed.plugins[0]?.inMarketplace).toBe(true)
     expect(listed.sections?.[0]?.pluginIds).toEqual(['task-planning'])
@@ -183,5 +195,122 @@ describe('desktop plugin client', () => {
     expect(client.listPlugins()).rejects.toThrow(
       'AGENT_OPERATION_UNSUPPORTED: 真实 Agent 会话暂不支持 plugins.manage.v1。',
     )
+  })
+})
+
+const demoItem: PluginCatalogItem = {
+  id: 'pidex-demo',
+  name: 'Pidex Demo',
+  description: 'Demo',
+  category: 'manageable',
+  actionKind: 'install',
+  iconName: 'plugin',
+  tone: 'creative',
+  status: 'not-installed',
+  installed: false,
+  enabled: false,
+  canInstall: true,
+  version: '1.0.0',
+  skills: ['pidex-demo'],
+}
+
+const installedDetails = (installSource?: PluginDetails['installSource']): PluginDetails => ({
+  pluginId: 'pidex-demo',
+  longDescription: 'Demo',
+  displayCapabilities: [],
+  defaultPrompts: [],
+  skills: [{ id: 'pidex-demo', name: 'pidex-demo', description: '规划任务。' }],
+  ...(installSource ? { installSource } : {}),
+})
+
+describe('plugin install disclosure', () => {
+  test('maps marketplace provenance, activated components and skipped declarations', () => {
+    const disclosure = pluginInstallDisclosure(
+      demoItem,
+      installedDetails({
+        repository: 'codepilotx-dev/Pidex-Plugins',
+        catalogRevision: 'a'.repeat(40),
+        version: '1.2.0',
+        components: [
+          {
+            kind: 'skill',
+            id: 'pidex-demo',
+            name: 'pidex-demo',
+            description: '规划任务。',
+            managedBy: 'plugin',
+          },
+          {
+            kind: 'mcp',
+            id: 'node_repl',
+            name: 'Node REPL',
+            description: '宿主执行入口',
+            managedBy: 'host',
+          },
+          {
+            kind: 'documentation',
+            id: 'readme',
+            name: 'README.md',
+            description: '',
+            managedBy: 'plugin',
+          },
+        ],
+        unsupportedComponents: ['commands', 'on-open'],
+      }),
+    )
+    expect(disclosure).toEqual({
+      pluginId: 'pidex-demo',
+      repository: 'codepilotx-dev/Pidex-Plugins',
+      catalogRevision: 'a'.repeat(40),
+      version: '1.2.0',
+      skills: [{ id: 'pidex-demo', name: 'pidex-demo', description: '规划任务。' }],
+      hostManagedMcp: [{ id: 'node_repl', name: 'Node REPL', description: '宿主执行入口' }],
+      manifestPending: true,
+      unsupportedComponents: ['commands', 'on-open'],
+      complete: true,
+    })
+    expect(pluginInstallRevision(disclosure)).toBe('a'.repeat(40))
+    expect(pluginInstallSourceLabel(disclosure)).toBe('codepilotx-dev/Pidex-Plugins')
+    expect(pluginInstallSummaryLines(disclosure)).toEqual([
+      '来源：codepilotx-dev/Pidex-Plugins',
+      `目录版本：${'a'.repeat(40)}`,
+      '版本：1.2.0',
+    ])
+    expect(PLUGIN_INSTALL_PERMISSION_NOTICE).toContain('不会授予执行权限')
+  })
+
+  test('local sources disclose a source name and no revision', () => {
+    const disclosure = pluginInstallDisclosure(
+      demoItem,
+      installedDetails({
+        repository: 'personal',
+        version: '1.0.0',
+        components: [],
+        unsupportedComponents: [],
+      }),
+    )
+    expect(pluginInstallSourceLabel(disclosure)).toBe('个人插件')
+    expect(pluginInstallRevision(disclosure)).toBeUndefined()
+    expect(pluginInstallSummaryLines(disclosure)).toEqual(['来源：个人插件', '版本：1.0.0'])
+    // Not installed yet, so the host-managed MCP list is still unknown.
+    expect(disclosure.manifestPending).toBe(true)
+    expect(
+      pluginInstallDisclosure(
+        { ...demoItem, installed: true, status: 'disabled' },
+        installedDetails({
+          repository: 'installed',
+          version: '1.0.0',
+          components: [],
+          unsupportedComponents: [],
+        }),
+      ).manifestPending,
+    ).toBe(false)
+  })
+
+  test('missing provenance is flagged incomplete so the dialog can refuse', () => {
+    const disclosure = pluginInstallDisclosure(demoItem, installedDetails())
+    expect(disclosure.complete).toBe(false)
+    expect(disclosure.repository).toBeNull()
+    expect(pluginInstallRevision(disclosure)).toBeUndefined()
+    expect(pluginInstallDisclosure(demoItem, null).complete).toBe(false)
   })
 })

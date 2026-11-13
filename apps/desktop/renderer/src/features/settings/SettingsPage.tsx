@@ -48,6 +48,12 @@ const SETTINGS_PANELS: Record<SettingsTabId, SettingsPanel> = {
   computer: lazy(() =>
     import('./ComputerSettings.js').then((m) => ({ default: m.ComputerSettings })),
   ),
+  hooks: lazy(() => import('./hooks/HookSettings.js').then((m) => ({ default: m.HookSettings }))),
+  environments: lazy(() =>
+    import('./local-environment/EnvironmentPage.js').then((m) => ({
+      default: m.EnvironmentPage,
+    })),
+  ),
   worktrees: lazy(() =>
     import('../worktree/WorktreeSettings.js').then((m) => ({ default: m.WorktreeSettings })),
   ),

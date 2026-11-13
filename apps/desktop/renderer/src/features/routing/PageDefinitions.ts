@@ -104,7 +104,7 @@ export const APP_PAGES: readonly AppPage[] = [
     id: 'projects',
     patterns: ['/projects', '/projects/:projectId'],
     title: '项目',
-    // 项目页复用的设置外壳，不承载聊天工作区工具栏与底部面板。
+    // 项目页承载项目环境、指令与共享来源，复用聊天侧栏而不带工作区工具栏与底部面板。
     workspace: false,
     sidebar: { kind: 'workspace' },
     nav: {

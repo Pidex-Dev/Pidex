@@ -7,6 +7,12 @@ export type TitlebarSessionTabItem = {
   active: boolean
 }
 
+export type StoredTitlebarSessionTabSnapshot = {
+  id: string
+  title?: string
+  subtitle?: string | null
+}
+
 function defaultStorage(): Storage | null {
   if (typeof window === 'undefined') return null
   try {
@@ -30,16 +36,73 @@ export function normalizeTitlebarSessionTabIds(value: unknown): string[] {
   return result
 }
 
-export function readStoredTitlebarSessionTabIds(
+export function normalizeTitlebarSessionTabSnapshots(
+  value: unknown,
+): StoredTitlebarSessionTabSnapshot[] {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  const result: StoredTitlebarSessionTabSnapshot[] = []
+  for (const item of value) {
+    if (typeof item === 'string') {
+      const id = item.trim()
+      if (!id || seen.has(id)) continue
+      seen.add(id)
+      result.push({ id })
+      continue
+    }
+    if (!item || typeof item !== 'object') continue
+    const record = item as { id?: unknown; title?: unknown; subtitle?: unknown }
+    if (typeof record.id !== 'string') continue
+    const id = record.id.trim()
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    const snapshot: StoredTitlebarSessionTabSnapshot = { id }
+    if (typeof record.title === 'string') {
+      const title = record.title.trim()
+      if (title) snapshot.title = title
+    }
+    if (typeof record.subtitle === 'string') {
+      const subtitle = record.subtitle.trim()
+      snapshot.subtitle = subtitle || null
+    } else if (record.subtitle === null) {
+      snapshot.subtitle = null
+    }
+    result.push(snapshot)
+  }
+  return result
+}
+
+export function readStoredTitlebarSessionTabSnapshots(
   storage: Storage | null | undefined = defaultStorage(),
-): string[] {
+): StoredTitlebarSessionTabSnapshot[] {
   if (!storage) return []
   try {
     const raw = storage.getItem(TITLEBAR_SESSION_TABS_STORAGE_KEY)
     if (!raw) return []
-    return normalizeTitlebarSessionTabIds(JSON.parse(raw))
+    return normalizeTitlebarSessionTabSnapshots(JSON.parse(raw))
   } catch {
     return []
+  }
+}
+
+export function readStoredTitlebarSessionTabIds(
+  storage: Storage | null | undefined = defaultStorage(),
+): string[] {
+  return readStoredTitlebarSessionTabSnapshots(storage).map((tab) => tab.id)
+}
+
+export function writeStoredTitlebarSessionTabSnapshots(
+  tabs: readonly StoredTitlebarSessionTabSnapshot[],
+  storage: Storage | null | undefined = defaultStorage(),
+): void {
+  if (!storage) return
+  try {
+    storage.setItem(
+      TITLEBAR_SESSION_TABS_STORAGE_KEY,
+      JSON.stringify(normalizeTitlebarSessionTabSnapshots(tabs)),
+    )
+  } catch {
+    /* localStorage full or disabled; keep in-memory state. */
   }
 }
 
@@ -55,6 +118,41 @@ export function writeStoredTitlebarSessionTabIds(
     )
   } catch {
     /* localStorage full or disabled; keep in-memory state. */
+  }
+}
+
+export function mergeTitlebarSessionTabIdsFromSettings(
+  localIds: readonly string[],
+  settingsIds: readonly string[],
+  activeRoutedSessionId?: string | null,
+): {
+  nextIds: string[]
+  shouldWriteBackToSettings: boolean
+} {
+  const normalizedSettings = normalizeTitlebarSessionTabIds(settingsIds)
+  const normalizedLocal = normalizeTitlebarSessionTabIds(localIds)
+  if (normalizedSettings.length > 0) {
+    const nextIds = activeRoutedSessionId
+      ? openTitlebarSessionTab(normalizedSettings, activeRoutedSessionId)
+      : normalizedSettings
+    return {
+      nextIds,
+      shouldWriteBackToSettings: nextIds.length !== normalizedSettings.length,
+    }
+  }
+  if (normalizedLocal.length > 0) {
+    const nextIds = activeRoutedSessionId
+      ? openTitlebarSessionTab(normalizedLocal, activeRoutedSessionId)
+      : normalizedLocal
+    return {
+      nextIds,
+      shouldWriteBackToSettings: true,
+    }
+  }
+  const nextIds = activeRoutedSessionId ? openTitlebarSessionTab([], activeRoutedSessionId) : []
+  return {
+    nextIds,
+    shouldWriteBackToSettings: nextIds.length > 0,
   }
 }
 

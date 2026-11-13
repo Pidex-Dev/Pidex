@@ -31,6 +31,7 @@ import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { useDesktopLayoutOutletContext } from '../layout/shell/DesktopLayoutOutletContext.js'
 import { preparePluginPrompt } from './PluginPrompt.js'
 import { usePluginDetails } from './UsePluginDetails.js'
+import { usePluginInstallConfirmation, isPluginInstallConflict } from './PluginInstallDialog.js'
 import { CatalogDetailsView } from './CatalogDetailsView.js'
 import { PluginCatalogCard } from './PluginCatalogCard.js'
 import { SkillCatalogCard } from './SkillCatalogCard.js'
@@ -204,6 +205,7 @@ export function PluginsView(): React.ReactNode {
     : null
 
   const selectedDetails = usePluginDetails(selectedPlugin, workspacePath)
+  const installConfirmation = usePluginInstallConfirmation(workspacePath)
 
   useEffect(() => {
     if (target) {
@@ -273,7 +275,12 @@ export function PluginsView(): React.ReactNode {
     setBusyPluginIds((current) => new Set(current).add(item.id))
     try {
       if (action.kind === 'install') {
-        await desktopClient.installPlugin(item.id)
+        const confirmation = await installConfirmation.confirmInstall(
+          item,
+          selectedPlugin?.id === item.id ? selectedDetails.details : undefined,
+        )
+        if (!confirmation) return
+        await desktopClient.installPlugin(item.id, confirmation.revision)
         setAnnouncement(`${item.name}已安装。`)
         refreshPlugins()
         selectedDetails.retry()
@@ -286,6 +293,9 @@ export function PluginsView(): React.ReactNode {
       const message = error instanceof Error ? error.message : `${item.name}状态更新失败。`
       setPluginErrors((current) => ({ ...current, [item.id]: message }))
       setAnnouncement(message)
+      // The catalog moved while the dialog was open: show the new details so the
+      // next attempt confirms the revision the host will actually install.
+      if (isPluginInstallConflict(error)) selectedDetails.retry()
     } finally {
       setBusyPluginIds((current) => {
         const next = new Set(current)
@@ -372,7 +382,13 @@ export function PluginsView(): React.ReactNode {
     setBusyPluginIds((current) => new Set(current).add(item.id))
     setPluginErrors((current) => ({ ...current, [item.id]: '' }))
     try {
-      await preparePluginPrompt(item, prompt)
+      let installRevision: string | undefined
+      if (!item.installed) {
+        const confirmation = await installConfirmation.confirmInstall(item, selectedDetails.details)
+        if (!confirmation) return
+        installRevision = confirmation.revision
+      }
+      await preparePluginPrompt(item, prompt, { installRevision })
       refreshPlugins()
       navigate('/new')
     } catch (cause) {
@@ -380,6 +396,7 @@ export function PluginsView(): React.ReactNode {
         ...current,
         [item.id]: cause instanceof Error ? cause.message : '插件准备失败，请重试。',
       }))
+      if (isPluginInstallConflict(cause)) selectedDetails.retry()
     } finally {
       setBusyPluginIds((current) => {
         const next = new Set(current)
@@ -636,6 +653,7 @@ export function PluginsView(): React.ReactNode {
         title="移除插件？"
         tone="danger"
       />
+      {installConfirmation.dialog}
     </>
   )
 }

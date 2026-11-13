@@ -108,7 +108,7 @@ export function createAppMenuActions(options: Options) {
   const help: Record<HelpMenuAction, Action | undefined> = {
     whatsNew: () => options.openWhatsNew(null),
     automations: () => options.navigate('/automations'),
-    localEnvironments: () => options.navigate('/settings/worktrees?tab=environments'),
+    localEnvironments: () => options.navigate('/settings/environments'),
     worktrees: () => options.navigate('/settings/worktrees'),
     skills: () => options.navigate('/settings/plugins?tab=skills'),
     modelContextProtocol: () => options.navigate('/settings/plugins?tab=mcps'),

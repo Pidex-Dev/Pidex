@@ -1,5 +1,5 @@
 import type React from 'react'
-import { Check, Plus, ShieldAlert, ShieldCheck, ShieldX, Sparkles } from 'lucide-react'
+import { Check, Lightbulb, Plus, ShieldAlert, ShieldCheck, ShieldX } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import {
   APP_ICON_SIZE,
@@ -65,7 +65,7 @@ export function SkillCatalogCard({
               FORCED_COLORS_SURFACE_CLASS,
             )}
           >
-            <Sparkles data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
+            <Lightbulb data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
           </span>
           <span className={cx('skill-catalog-card__copy', STACKED_COPY_CLASS)}>
             <span className="skill-catalog-card__title-line tw:flex tw:min-w-0 tw:items-center tw:gap-2">

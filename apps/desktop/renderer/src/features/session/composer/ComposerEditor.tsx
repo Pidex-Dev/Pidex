@@ -112,7 +112,6 @@ export const composerSchema = new Schema({
               'aria-hidden': 'true',
               class: 'composer-inline-skill-token-fallback-icon',
             },
-            '✦',
           ],
           ['span', { class: 'composer-inline-skill-token-label' }, String(node.attrs.label)],
         ]

@@ -691,7 +691,10 @@ function formatCommandLine(request: DesktopPermissionRequest): string {
   const affectedPaths = inlineApprovalAffectedPaths(request)
   if (affectedPaths.length > 0) {
     return affectedPaths
-      .map(({ path, operation }) => `${operation === 'create' ? '新增' : '修改'} ${path}`)
+      .map(
+        ({ path, operation }) =>
+          `${operation === 'create' ? '新增' : operation === 'delete' ? '删除' : '修改'} ${path}`,
+      )
       .join('\n')
   }
   if (toolName.toLowerCase() === 'apply_patch') {
@@ -749,7 +752,7 @@ function nonNegativeInteger(value: unknown): number | null {
 
 function inlineApprovalAffectedPaths(
   request: DesktopPermissionRequest,
-): Array<{ path: string; operation: 'create' | 'update' }> {
+): Array<{ path: string; operation: 'create' | 'update' | 'delete' }> {
   const value = request.input.affectedPaths
   if (!Array.isArray(value)) return []
   return value.flatMap((candidate) => {
@@ -759,6 +762,8 @@ function inlineApprovalAffectedPaths(
     const affected = candidate as Record<string, unknown>
     const path = stringValue(affected.path)
     const operation = affected.operation
-    return path && (operation === 'create' || operation === 'update') ? [{ path, operation }] : []
+    return path && (operation === 'create' || operation === 'update' || operation === 'delete')
+      ? [{ path, operation }]
+      : []
   })
 }

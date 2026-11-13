@@ -21,6 +21,10 @@ import type {
   DesktopSidebarSort,
   DesktopStoredSettings,
   DesktopThinkingMode,
+  DesktopVoiceHandsFreeMode,
+  DesktopVoiceLanguage,
+  DesktopVoiceRecordingEntry,
+  DesktopVoiceRecordingStatus,
   DesktopWorkspace,
   LocalRouterMode,
   ModelProviderID,
@@ -200,6 +204,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     gitDraftPullRequest: true,
     gitAutoDeleteWorktree: true,
     gitAutoDeleteWorktreeLimit: 15,
+    gitConfirmDeleteWorktree: false,
     worktreeRoot: '',
     worktreeFetchUpstream: false,
     prWatchAutoMerge: false,
@@ -210,6 +215,12 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     installPidexDependencies: true,
     workspaceDependenciesMigrated: false,
     'desktop.voice.preferredInputDeviceId': '',
+    'desktop.voice.language': 'auto',
+    'desktop.voice.showLiveTranscript': false,
+    'desktop.voice.dictationShortcut': 'Ctrl+Shift+D',
+    'desktop.voice.handsFreeMode': 'hold-or-double-tap',
+    'desktop.voice.recentRecordings': [],
+    'desktop.voice.dictionary': [],
     'desktop.composer_predictions': false,
     personality: 'pragmatic',
     customInstructions: '',
@@ -241,6 +252,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     sidebarActivityCoachmarkDismissed: false,
     sidebarManualOrder: {},
     sidebarSessionPins: {},
+    titlebarSessionTabIds: [],
     collapsedSidebarProjectPaths: [],
     sidebarSectionOrder: [...VALID_SIDEBAR_SECTION_IDS],
     browserAllowedSites: [],
@@ -425,6 +437,7 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
       parsed.gitAutoDeleteWorktreeLimit,
       defaults.gitAutoDeleteWorktreeLimit,
     ),
+    gitConfirmDeleteWorktree: parsed.gitConfirmDeleteWorktree === true,
     allowForcePush:
       typeof parsed.allowForcePush === 'boolean' ? parsed.allowForcePush : defaults.allowForcePush,
     commitMessagePrompt: stringOrDefault(parsed.commitMessagePrompt, defaults.commitMessagePrompt),
@@ -444,6 +457,24 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
       parsed['desktop.voice.preferredInputDeviceId'],
       defaults['desktop.voice.preferredInputDeviceId'],
     ),
+    'desktop.voice.language': normalizeVoiceLanguage(
+      parsed['desktop.voice.language'],
+      defaults['desktop.voice.language'],
+    ),
+    'desktop.voice.showLiveTranscript':
+      typeof parsed['desktop.voice.showLiveTranscript'] === 'boolean'
+        ? parsed['desktop.voice.showLiveTranscript']
+        : defaults['desktop.voice.showLiveTranscript'],
+    'desktop.voice.dictationShortcut':
+      typeof parsed['desktop.voice.dictationShortcut'] === 'string'
+        ? parsed['desktop.voice.dictationShortcut'].trim()
+        : defaults['desktop.voice.dictationShortcut'],
+    'desktop.voice.handsFreeMode': normalizeVoiceHandsFreeMode(
+      parsed['desktop.voice.handsFreeMode'],
+      defaults['desktop.voice.handsFreeMode'],
+    ),
+    'desktop.voice.recentRecordings': normalizeVoiceRecordings(parsed['desktop.voice.recentRecordings']),
+    'desktop.voice.dictionary': normalizeVoiceDictionary(parsed['desktop.voice.dictionary']),
     'desktop.composer_predictions':
       typeof parsed['desktop.composer_predictions'] === 'boolean'
         ? parsed['desktop.composer_predictions']
@@ -552,6 +583,10 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
       parsed.sidebarSessionPins,
       defaults.sidebarSessionPins,
     ),
+    titlebarSessionTabIds: normalizeUniqueStringList(
+      parsed.titlebarSessionTabIds,
+      defaults.titlebarSessionTabIds,
+    ),
     collapsedSidebarProjectPaths: normalizeUniqueStringList(
       parsed.collapsedSidebarProjectPaths,
       defaults.collapsedSidebarProjectPaths,
@@ -607,6 +642,7 @@ export function createSidebarStateResetPatch(
     sidebarActivityCoachmarkDismissed: settings.sidebarActivityCoachmarkDismissed ?? false,
     sidebarManualOrder: {},
     sidebarSessionPins: {},
+    titlebarSessionTabIds: [],
     collapsedSidebarProjectPaths: [],
     sidebarSectionOrder: [...VALID_SIDEBAR_SECTION_IDS],
     collapsedSidebarSections: ['projects', 'recent'],
@@ -1191,4 +1227,72 @@ function migrateModelAlias(model: string): string {
     default:
       return model
   }
+}
+
+const VOICE_LANGUAGES = new Set<DesktopVoiceLanguage>(['auto', 'zh', 'yue', 'en', 'ja', 'ko'])
+const VOICE_RECORDING_STATUSES = new Set<DesktopVoiceRecordingStatus>([
+  'saved',
+  'cancelled',
+  'error',
+])
+export const MAX_VOICE_RECENT_RECORDINGS = 20
+
+function normalizeVoiceLanguage(
+  value: unknown,
+  fallback: DesktopVoiceLanguage,
+): DesktopVoiceLanguage {
+  return typeof value === 'string' && VOICE_LANGUAGES.has(value as DesktopVoiceLanguage)
+    ? (value as DesktopVoiceLanguage)
+    : fallback
+}
+
+function normalizeVoiceHandsFreeMode(
+  value: unknown,
+  fallback: DesktopVoiceHandsFreeMode,
+): DesktopVoiceHandsFreeMode {
+  return value === 'hold-or-double-tap' || value === 'toggle' ? value : fallback
+}
+
+function normalizeVoiceRecordings(value: unknown): DesktopVoiceRecordingEntry[] {
+  if (!Array.isArray(value)) return []
+  const result: DesktopVoiceRecordingEntry[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+    const record = item as Record<string, unknown>
+    const id = typeof record.id === 'string' ? record.id.trim() : ''
+    if (!id || seen.has(id)) continue
+    const status = record.status
+    if (
+      typeof status !== 'string' ||
+      !VOICE_RECORDING_STATUSES.has(status as DesktopVoiceRecordingStatus)
+    ) {
+      continue
+    }
+    const createdAt =
+      typeof record.createdAt === 'number' && Number.isFinite(record.createdAt)
+        ? record.createdAt
+        : Date.now()
+    seen.add(id)
+    result.push({
+      id,
+      status: status as DesktopVoiceRecordingStatus,
+      createdAt,
+      ...(typeof record.durationMs === 'number' && Number.isFinite(record.durationMs)
+        ? { durationMs: Math.max(0, Math.round(record.durationMs)) }
+        : {}),
+      ...(typeof record.transcript === 'string' && record.transcript.trim()
+        ? { transcript: record.transcript }
+        : {}),
+      ...(typeof record.error === 'string' && record.error.trim()
+        ? { error: record.error }
+        : {}),
+    })
+    if (result.length >= MAX_VOICE_RECENT_RECORDINGS) break
+  }
+  return result
+}
+
+function normalizeVoiceDictionary(value: unknown): string[] {
+  return normalizeUniqueStringList(value, [])
 }

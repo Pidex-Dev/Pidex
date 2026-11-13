@@ -455,6 +455,15 @@ export type DesktopCalendarApi = {
   ): Promise<RpcResult<'schedule-draft/feedback'>>
 }
 
+export type DesktopHooksApi = {
+  supportsHookManagement(): boolean
+  listHookGroups(cwd?: string | null): Promise<RpcResult<'hook/list'>>
+  setHookEnabled(
+    input: Omit<RpcParams<'hook/setEnabled'>, 'operationId'>,
+  ): Promise<RpcResult<'hook/setEnabled'>>
+  requireHookManagement(): void
+}
+
 export type DesktopTaskScheduleApi = {
   taskSchedule<M extends keyof typeof import('@pidex/agent-protocol').TaskScheduleRpcMethods>(
     method: M,
@@ -468,7 +477,10 @@ export type DesktopPluginApi = {
     kind: RpcParams<'plugin/readAsset'>['kind'],
     workspacePath?: string | null,
   ): Promise<RpcResult<'plugin/readAsset'> | null>
-  installPlugin(pluginId: string): Promise<RpcResult<'plugin/install'>>
+  installPlugin(
+    pluginId: string,
+    expectedCatalogRevision?: string,
+  ): Promise<RpcResult<'plugin/install'>>
   uninstallPlugin(pluginId: string): Promise<RpcResult<'plugin/uninstall'>>
   listPlugins(
     workspacePath?: string | null,
@@ -627,6 +639,7 @@ export type DesktopClient = DesktopApi &
   DesktopCalendarApi &
   DesktopTaskScheduleApi &
   DesktopPluginApi &
+  DesktopHooksApi &
   DesktopComputerApi &
   DesktopSessionGroupApi &
   DesktopAttachmentApi &

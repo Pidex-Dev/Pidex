@@ -1,4 +1,5 @@
 import type React from 'react'
+import { ChevronRight } from 'lucide-react'
 
 type Props = {
   title: string
@@ -7,6 +8,7 @@ type Props = {
   metadata?: React.ReactNode
   actions?: React.ReactNode
   dimmed?: boolean
+  showChevron?: boolean
   onActivate?: (trigger: HTMLElement) => void
 }
 
@@ -17,6 +19,7 @@ export function ExtensionManagementRow({
   metadata,
   actions,
   dimmed = false,
+  showChevron = false,
   onActivate,
 }: Props): React.ReactNode {
   const rowContent = (
@@ -48,7 +51,18 @@ export function ExtensionManagementRow({
       ) : (
         <div className="settings-management-row-main">{rowContent}</div>
       )}
-      {actions ? <span className="settings-management-row-actions">{actions}</span> : null}
+      {actions || showChevron ? (
+        <span className="settings-management-row-actions">
+          {actions}
+          {showChevron ? (
+            <ChevronRight
+              size={16}
+              className="tw:text-app-text-meta tw:shrink-0 tw:ml-1"
+              aria-hidden="true"
+            />
+          ) : null}
+        </span>
+      ) : null}
     </article>
   )
 }

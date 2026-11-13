@@ -980,6 +980,21 @@ export type ProjectAppearance = {
   icon: ProjectAppearanceIcon
 }
 
+export type DesktopVoiceLanguage = 'auto' | 'zh' | 'yue' | 'en' | 'ja' | 'ko'
+
+export type DesktopVoiceHandsFreeMode = 'hold-or-double-tap' | 'toggle'
+
+export type DesktopVoiceRecordingStatus = 'saved' | 'cancelled' | 'error'
+
+export type DesktopVoiceRecordingEntry = {
+  id: string
+  status: DesktopVoiceRecordingStatus
+  createdAt: number
+  durationMs?: number
+  transcript?: string
+  error?: string
+}
+
 export type DesktopStoredSettings = {
   gitBoardState?: string | null
   language: 'system' | 'zh-CN' | 'en-US'
@@ -1037,6 +1052,7 @@ export type DesktopStoredSettings = {
   gitDraftPullRequest: boolean
   gitAutoDeleteWorktree: boolean
   gitAutoDeleteWorktreeLimit: number
+  gitConfirmDeleteWorktree: boolean
   worktreeRoot: string
   worktreeFetchUpstream: boolean
   prWatchAutoMerge: boolean
@@ -1051,6 +1067,12 @@ export type DesktopStoredSettings = {
   workspaceDependenciesMigrated: boolean
   firstUseSetupCompleted?: 0 | 1
   'desktop.voice.preferredInputDeviceId': string
+  'desktop.voice.language': DesktopVoiceLanguage
+  'desktop.voice.showLiveTranscript': boolean
+  'desktop.voice.dictationShortcut': string
+  'desktop.voice.handsFreeMode': DesktopVoiceHandsFreeMode
+  'desktop.voice.recentRecordings': DesktopVoiceRecordingEntry[]
+  'desktop.voice.dictionary': string[]
   /** 输入框灰字预测；默认关闭，开启后会调用模型产生额外费用。 */
   'desktop.composer_predictions': boolean
   personality: DesktopPersonality
@@ -1083,6 +1105,7 @@ export type DesktopStoredSettings = {
   sidebarActivityCoachmarkDismissed?: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
+  titlebarSessionTabIds: string[]
   collapsedSidebarProjectPaths: string[]
   sidebarSectionOrder: SidebarSectionId[]
   browserAllowedSites: string[]
@@ -1651,19 +1674,35 @@ export type RustSidecarProbeInfo = {
 
 export type DesktopProjectMemoryType = 'user' | 'feedback' | 'project' | 'reference'
 
+/** The three memory namespaces; named agents stay scoped to one project. */
+export type DesktopMemoryNamespace =
+  | { kind: 'user' }
+  | { kind: 'project'; projectId: string }
+  | { kind: 'agent'; projectId: string; memoryKey: string }
+
 export type DesktopProjectMemory = {
   relativePath: string
+  /** Absolute path of the file on disk, for reveal/open actions. */
   absolutePath: string
   type?: DesktopProjectMemoryType
   description: string | null
   size: number
   mtimeMs: number
+  revision?: string
+  indexed?: boolean
+  sourceThreadId?: string | null
+  sourceTurnId?: string | null
 }
 
 export type DesktopProjectMemoryListing = {
+  /** The namespace the Agent actually resolved for this request. */
+  namespace: DesktopMemoryNamespace
   memoryDir: string
   entrypointPath: string
   memories: DesktopProjectMemory[]
+  /** Index diagnostics: broken frontmatter, missing links, oversized files. */
+  diagnostics: ReadonlyArray<{ path: string; code: string; message: string }>
+  indexContent: string
 }
 
 export type DesktopUserMemoryListing = {
@@ -1677,6 +1716,10 @@ export type DesktopUserMemoryListing = {
 
 export type DesktopProjectMemoryContent = DesktopProjectMemory & {
   content: string
+  /** Present for every file read; required for conflict-safe saves. */
+  revision: string
+  nextOffset: number | null
+  truncated: boolean
 }
 
 export type DesktopTaskSuggestion = RpcResult<'task-suggestion/generate'>['suggestions'][number]
@@ -1694,30 +1737,35 @@ export type SaveProjectMemoryInput = {
   workspacePath: string
   relativePath: string
   content: string
+  /** Revision returned by the last read; conflicts are reported, never overwritten. */
+  expectedRevision?: string | null
+  namespace?: DesktopMemoryNamespace
 }
 
 export type DeleteProjectMemoryInput = {
   workspacePath: string
   relativePath: string
+  expectedRevision?: string | null
+  namespace?: DesktopMemoryNamespace
 }
 
 export type ResetProjectMemoryInput = {
   workspacePath: string
-  includeRecallLog: boolean
+  namespace?: DesktopMemoryNamespace
 }
 
 export type SaveUserMemoryInput = {
   relativePath: string
   content: string
+  expectedRevision?: string | null
 }
 
 export type DeleteUserMemoryInput = {
   relativePath: string
+  expectedRevision?: string | null
 }
 
-export type ResetUserMemoryInput = {
-  includeEventLog: boolean
-}
+export type ResetUserMemoryInput = Record<string, never>
 
 export type ExportUserMemoryResult = {
   memoryDir: string
@@ -1734,26 +1782,38 @@ export type ImportUserMemoryInput = {
   }>
 }
 
-export type DesktopMemoryRecallFile = {
-  relativePath: string
-  type?: DesktopProjectMemoryType
-  description?: string | null
-  mtimeMs?: number
-  truncated?: boolean
+/** Real usage timeline: index injection and body reads are separate records. */
+export type DesktopMemoryUsageRecord = {
+  id: string
+  namespace: DesktopMemoryNamespace
+  kind: 'index' | 'body'
+  threadId: string | null
+  turnId: string | null
+  relativePath: string | null
+  revision: string | null
+  truncated: boolean
+  bytes: number
+  createdAt: number
 }
 
-export type DesktopMemoryRecallEvent = {
-  sessionId: string
-  createdAt: string
-  querySummary: string
-  status: 'injected' | 'viewed'
-  consumedOnIteration: number
-  memories: DesktopMemoryRecallFile[]
+export type DesktopMemoryTask = {
+  id: string
+  namespace: DesktopMemoryNamespace
+  kind: 'extract' | 'organize'
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+  trigger: 'turn' | 'manual' | 'auto'
+  threadId: string | null
+  turnId: string | null
+  error: string | null
+  createdAt: number
+  startedAt: number | null
+  finishedAt: number | null
 }
 
-export type DesktopMemoryRecallListing = {
-  recallLogPath: string
-  recalls: DesktopMemoryRecallEvent[]
+export type DesktopMemorySettings = {
+  autoOrganize: boolean
+  memoryDir: string
+  namedAgents: readonly string[]
 }
 
 export type DesktopApi = {
@@ -1798,15 +1858,40 @@ export type DesktopApi = {
   selectConfigProfile(profileId: string | null): Promise<DesktopConfigProfileSelectResult>
   getDesktopSettings(): Promise<DesktopStoredSettings>
   saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
-  listProjectMemories(workspacePath: string): Promise<DesktopProjectMemoryListing>
+  listProjectMemories(
+    workspacePath: string | null,
+    namespace?: DesktopMemoryNamespace,
+  ): Promise<DesktopProjectMemoryListing>
   readProjectMemory(
-    workspacePath: string,
+    workspacePath: string | null,
     relativePath: string,
+    namespace?: DesktopMemoryNamespace,
   ): Promise<DesktopProjectMemoryContent>
   saveProjectMemory(input: SaveProjectMemoryInput): Promise<DesktopProjectMemory>
   deleteProjectMemory(input: DeleteProjectMemoryInput): Promise<void>
   resetProjectMemory(input: ResetProjectMemoryInput): Promise<void>
-  listProjectMemoryRecalls(workspacePath: string): Promise<DesktopMemoryRecallListing>
+  /** Real usage timeline for the selected namespace (no placeholder data). */
+  listMemoryUsage(
+    workspacePath: string | null,
+    namespace: DesktopMemoryNamespace,
+  ): Promise<DesktopMemoryUsageRecord[]>
+  listMemoryTasks(
+    workspacePath: string | null,
+    namespace: DesktopMemoryNamespace,
+  ): Promise<{ tasks: DesktopMemoryTask[]; autoOrganize: boolean }>
+  organizeMemory(input: {
+    workspacePath: string | null
+    namespace: DesktopMemoryNamespace
+  }): Promise<{ taskId: string | null; queued: boolean }>
+  readMemorySettings(
+    workspacePath: string | null,
+    namespace: DesktopMemoryNamespace,
+  ): Promise<DesktopMemorySettings>
+  saveMemorySettings(input: {
+    workspacePath: string | null
+    namespace: DesktopMemoryNamespace
+    autoOrganize: boolean
+  }): Promise<DesktopMemorySettings>
   listUserMemories(): Promise<DesktopUserMemoryListing>
   readUserMemory(relativePath: string): Promise<DesktopProjectMemoryContent>
   saveUserMemory(input: SaveUserMemoryInput): Promise<DesktopProjectMemory>

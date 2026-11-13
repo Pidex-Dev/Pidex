@@ -209,9 +209,12 @@ function ProjectCard({
       setBusy(false)
     }
   }
+  const subEnvironments = catalog?.environments.filter((item) => item.exists) ?? []
+  const hasChildren = subEnvironments.length > 0 || Boolean(error)
+
   return (
-    <article className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4">
-      <div className="tw:flex tw:items-center tw:gap-3">
+    <article className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-2">
+      <div className={`tw:flex tw:items-center tw:gap-3 ${hasChildren ? 'tw:mb-2' : ''}`}>
         <button
           type="button"
           disabled={!defaultEnvironment || busy}
@@ -240,25 +243,25 @@ function ProjectCard({
           <Plus size={APP_ICON_SIZE} />
         </Button>
       </div>
-      {catalog?.environments
-        .filter((item) => item.exists)
-        .map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="tw:mt-3 tw:flex tw:w-full tw:cursor-pointer tw:items-center tw:justify-between tw:gap-3 tw:border-0 tw:border-t tw:border-app-border-subtle tw:bg-transparent tw:pt-3 tw:text-left tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
-            onClick={() => onOpen(projectId, item.id, false)}
-          >
-            <span className="tw:min-w-0 tw:type-row-title">
-              {item.name}
-              <span className="tw:block tw:truncate tw:type-caption tw:text-app-text-meta">
-                {item.inherited ? '继承 · ' : ''}
-                {item.path.split(/[\\/]/).pop()}
-              </span>
+      {subEnvironments.map((item, index) => (
+        <button
+          key={item.id}
+          type="button"
+          className={`tw:flex tw:w-full tw:cursor-pointer tw:items-center tw:justify-between tw:gap-3 tw:border-0 tw:border-t tw:border-app-border-subtle tw:bg-transparent tw:pt-2 tw:text-left tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus ${
+            index < subEnvironments.length - 1 ? 'tw:pb-2' : ''
+          }`}
+          onClick={() => onOpen(projectId, item.id, false)}
+        >
+          <span className="tw:min-w-0 tw:type-row-title">
+            {item.name}
+            <span className="tw:block tw:truncate tw:type-caption tw:text-app-text-meta">
+              {item.inherited ? '继承 · ' : ''}
+              {item.path.split(/[\\/]/).pop()}
             </span>
-            <ChevronRight size="var(--inline-icon-size, 1em)" />
-          </button>
-        ))}
+          </span>
+          <ChevronRight size="var(--inline-icon-size, 1em)" />
+        </button>
+      ))}
       {error ? (
         <div role="alert" className="tw:mt-3 tw:type-caption tw:text-app-danger">
           {error}

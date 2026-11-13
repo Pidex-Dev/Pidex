@@ -60,10 +60,12 @@ import {
 } from '../tabs/ConversationUiState.js'
 import {
   closeTitlebarSessionTab,
+  mergeTitlebarSessionTabIdsFromSettings,
   openTitlebarSessionTab,
   pruneTitlebarSessionTabs,
-  readStoredTitlebarSessionTabIds,
-  writeStoredTitlebarSessionTabIds,
+  readStoredTitlebarSessionTabSnapshots,
+  writeStoredTitlebarSessionTabSnapshots,
+  type StoredTitlebarSessionTabSnapshot,
   type TitlebarSessionTabItem,
 } from '../tabs/TitlebarSessionTabsState.js'
 import { DesktopSidebar } from '../DesktopSidebar.js'
@@ -414,6 +416,9 @@ export function DesktopLayout(): React.ReactNode {
   const subscribedSidebarSessionPins = useDesktopRuntimeSettingsField(
     (s) => s.values.sidebarSessionPins,
   )
+  const subscribedTitlebarSessionTabIds = useDesktopRuntimeSettingsField(
+    (s) => s.values.titlebarSessionTabIds,
+  )
   const subscribedSyncExternalSettingsPatch = useDesktopRuntimeSettingsField(
     (s) => s.syncExternalSettingsPatch,
   )
@@ -428,6 +433,9 @@ export function DesktopLayout(): React.ReactNode {
   const subscribedSetReviewView = useDesktopRuntimeSettingsField((s) => s.setReviewView)
   const subscribedSetSidebarSessionPins = useDesktopRuntimeSettingsField(
     (s) => s.setSidebarSessionPins,
+  )
+  const subscribedSetTitlebarSessionTabIds = useDesktopRuntimeSettingsField(
+    (s) => s.setTitlebarSessionTabIds,
   )
   const subscribedSetSidebarTimelineEnabled = useDesktopRuntimeSettingsField(
     (s) => s.setSidebarTimelineEnabled,
@@ -467,6 +475,7 @@ export function DesktopLayout(): React.ReactNode {
         commitMessagePrompt: subscribedCommitMessagePrompt,
         pullRequestPrompt: subscribedPullRequestPrompt,
         sidebarSessionPins: subscribedSidebarSessionPins,
+        titlebarSessionTabIds: subscribedTitlebarSessionTabIds,
       },
       syncExternalSettingsPatch: subscribedSyncExternalSettingsPatch,
       setSidebarCustomization: subscribedSetSidebarCustomization,
@@ -477,6 +486,7 @@ export function DesktopLayout(): React.ReactNode {
       setDrawerTab: subscribedSetDrawerTab,
       setReviewView: subscribedSetReviewView,
       setSidebarSessionPins: subscribedSetSidebarSessionPins,
+      setTitlebarSessionTabIds: subscribedSetTitlebarSessionTabIds,
       setSidebarTimelineEnabled: subscribedSetSidebarTimelineEnabled,
     }),
     [
@@ -512,6 +522,7 @@ export function DesktopLayout(): React.ReactNode {
       subscribedCommitMessagePrompt,
       subscribedPullRequestPrompt,
       subscribedSidebarSessionPins,
+      subscribedTitlebarSessionTabIds,
       subscribedSyncExternalSettingsPatch,
       subscribedSetSidebarCustomization,
       subscribedPermissionMode,
@@ -521,6 +532,7 @@ export function DesktopLayout(): React.ReactNode {
       subscribedSetDrawerTab,
       subscribedSetReviewView,
       subscribedSetSidebarSessionPins,
+      subscribedSetTitlebarSessionTabIds,
       subscribedSetSidebarTimelineEnabled,
     ],
   )
@@ -556,6 +568,7 @@ export function DesktopLayout(): React.ReactNode {
       commitMessagePrompt,
       pullRequestPrompt,
       sidebarSessionPins,
+      titlebarSessionTabIds: storedTitlebarSessionTabIds,
     },
     permissionMode,
     settingsLoaded,
@@ -564,6 +577,7 @@ export function DesktopLayout(): React.ReactNode {
     setDrawerTab,
     setReviewView,
     setSidebarSessionPins,
+    setTitlebarSessionTabIds: persistTitlebarSessionTabIds,
     setSidebarTimelineEnabled,
   } = settings
   const taskNotificationState = useSystemNotifications(
@@ -581,9 +595,18 @@ export function DesktopLayout(): React.ReactNode {
   const [whatsNewDialogOpen, setWhatsNewDialogOpen] = useState(false)
   const [whatsNewRestoreFocusElement, setWhatsNewRestoreFocusElement] =
     useState<HTMLElement | null>(null)
-  const [titlebarSessionTabIds, setTitlebarSessionTabIds] = useState<string[]>(() =>
-    readStoredTitlebarSessionTabIds(),
+  const [initialTitlebarTabSnapshots] = useState<StoredTitlebarSessionTabSnapshot[]>(() =>
+    readStoredTitlebarSessionTabSnapshots(),
   )
+  const [titlebarSessionTabIds, setTitlebarSessionTabIds] = useState<string[]>(() =>
+    initialTitlebarTabSnapshots.map((tab) => tab.id),
+  )
+  const [titlebarTabSnapshotsById, setTitlebarTabSnapshotsById] = useState<
+    Record<string, StoredTitlebarSessionTabSnapshot>
+  >(() =>
+    Object.fromEntries(initialTitlebarTabSnapshots.map((tab) => [tab.id, tab])),
+  )
+  const titlebarTabsSettingsHydratedRef = useRef(false)
   const browserState = useStore(desktopBrowserClient.tabsStore, (state) =>
     state.displayTabId ? (state.tabs.get(state.displayTabId) ?? null) : null,
   )
@@ -849,32 +872,79 @@ export function DesktopLayout(): React.ReactNode {
     registerActivitySessions(sessions)
   }, [registerActivitySessions, sessions])
 
+  const lastSyncedSettingsTabIdsRef = useRef<readonly string[]>(storedTitlebarSessionTabIds)
+
+  // 从 DesktopSettings (L2 后端) 水合或同步外部变更的顶部会话标签列表
+  useEffect(() => {
+    if (!settingsLoaded) return
+    if (!titlebarTabsSettingsHydratedRef.current) {
+      titlebarTabsSettingsHydratedRef.current = true
+      lastSyncedSettingsTabIdsRef.current = storedTitlebarSessionTabIds
+      setTitlebarSessionTabIds((current) => {
+        const merged = mergeTitlebarSessionTabIdsFromSettings(
+          current,
+          storedTitlebarSessionTabIds,
+          routedSessionId,
+        )
+        if (merged.shouldWriteBackToSettings) {
+          lastSyncedSettingsTabIdsRef.current = merged.nextIds
+          persistTitlebarSessionTabIds(merged.nextIds)
+        }
+        return merged.nextIds.length === current.length &&
+          merged.nextIds.every((id, index) => id === current[index])
+          ? current
+          : merged.nextIds
+      })
+      return
+    }
+
+    const prevSettings = lastSyncedSettingsTabIdsRef.current
+    const settingsChanged =
+      storedTitlebarSessionTabIds.length !== prevSettings.length ||
+      storedTitlebarSessionTabIds.some((id, index) => id !== prevSettings[index])
+    if (settingsChanged) {
+      lastSyncedSettingsTabIdsRef.current = storedTitlebarSessionTabIds
+      setTitlebarSessionTabIds((current) => {
+        const next = routedSessionId
+          ? openTitlebarSessionTab(storedTitlebarSessionTabIds, routedSessionId)
+          : [...storedTitlebarSessionTabIds]
+        if (
+          next.length === current.length &&
+          next.every((id, index) => id === current[index])
+        ) {
+          return current
+        }
+        return next
+      })
+    }
+  }, [persistTitlebarSessionTabIds, routedSessionId, settingsLoaded, storedTitlebarSessionTabIds])
+
+  // 本地标签顺序/增删变化时同步回写到 DesktopSettings (L2 后端)
+  useEffect(() => {
+    if (!settingsLoaded || !titlebarTabsSettingsHydratedRef.current) return
+    const prevSettings = lastSyncedSettingsTabIdsRef.current
+    const changed =
+      titlebarSessionTabIds.length !== prevSettings.length ||
+      titlebarSessionTabIds.some((id, index) => id !== prevSettings[index])
+    if (!changed) return
+    lastSyncedSettingsTabIdsRef.current = titlebarSessionTabIds
+    persistTitlebarSessionTabIds(titlebarSessionTabIds)
+  }, [persistTitlebarSessionTabIds, settingsLoaded, titlebarSessionTabIds])
+
   // 当处于会话路由时，自动将其加入顶部会话标签
   useEffect(() => {
     if (!routedSessionId) return
-    setTitlebarSessionTabIds((current) => {
-      const next = openTitlebarSessionTab(current, routedSessionId)
-      if (next !== current) {
-        writeStoredTitlebarSessionTabIds(next)
-      }
-      return next
-    })
+    setTitlebarSessionTabIds((current) => openTitlebarSessionTab(current, routedSessionId))
   }, [routedSessionId])
 
-  // 当会话列表加载完毕后，清理已被归档或不存在的会话 ID（保护当前路由）
+  // 当会话列表加载完毕且目录就绪后，清理已被归档或不存在的会话 ID（保护当前路由）
   useEffect(() => {
-    if (!sessionsHydrated || sessions.length === 0) return
+    if (!sessionsHydrated || catalogStatus.state !== 'ready') return
     const valid = new Set(
       sessions.filter((item) => !item.archivedAt).map((item) => item.id),
     )
-    setTitlebarSessionTabIds((current) => {
-      const next = pruneTitlebarSessionTabs(current, valid, routedSessionId)
-      if (next !== current) {
-        writeStoredTitlebarSessionTabIds(next)
-      }
-      return next
-    })
-  }, [routedSessionId, sessions, sessionsHydrated])
+    setTitlebarSessionTabIds((current) => pruneTitlebarSessionTabs(current, valid, routedSessionId))
+  }, [catalogStatus.state, routedSessionId, sessions, sessionsHydrated])
 
   const effectiveRightDockVisible =
     (isHomeOrConversationRoute && rightDockVisible) || providerPanelVisible
@@ -2586,7 +2656,6 @@ export function DesktopLayout(): React.ReactNode {
       setTitlebarSessionTabIds((current) => {
         const result = closeTitlebarSessionTab(current, targetSessionId, routedSessionId)
         nextActive = result.nextActiveSessionId
-        writeStoredTitlebarSessionTabIds(result.nextTabIds)
         return result.nextTabIds
       })
       if (nextActive !== undefined) {
@@ -2617,23 +2686,30 @@ export function DesktopLayout(): React.ReactNode {
 
     return titlebarSessionTabIds.map((id) => {
       const item = sessionMap.get(id)
-      let title = id
-      let workspaceLabel: string | null = null
+      const cached = titlebarTabSnapshotsById[id]
+      let title = cached?.title || id
+      let subtitle: string | null = cached?.subtitle ?? null
 
       if (item) {
         const fallback =
           id === sessionId ? activeSessionFallbackTitle : sessionFallbackTitles[id]
         title = sessionDisplayTitle(item, fallback)
-        workspaceLabel = item.workspaceName || (item.workspacePath ? item.workspacePath.split(/[\\/]/).pop() ?? null : null)
+        const workspaceLabel =
+          item.workspaceName ||
+          (item.workspacePath ? item.workspacePath.split(/[\\/]/).pop() ?? null : null)
+        subtitle = hasMultipleWorkspaces ? workspaceLabel : null
       } else if (id === sessionId && quickChatSessionTitle) {
         title = quickChatSessionTitle
-        workspaceLabel = currentWorkspace?.name || (currentWorkspace?.path ? currentWorkspace.path.split(/[\\/]/).pop() ?? null : null)
+        const workspaceLabel =
+          currentWorkspace?.name ||
+          (currentWorkspace?.path ? currentWorkspace.path.split(/[\\/]/).pop() ?? null : null)
+        subtitle = hasMultipleWorkspaces ? workspaceLabel : null
       }
 
       return {
         id,
         title,
-        subtitle: hasMultipleWorkspaces ? workspaceLabel : null,
+        subtitle,
         active: id === routedSessionId,
       }
     })
@@ -2647,7 +2723,34 @@ export function DesktopLayout(): React.ReactNode {
     sessionFallbackTitles,
     sessions,
     titlebarSessionTabIds,
+    titlebarTabSnapshotsById,
   ])
+
+  // 将最新的标签列表及标题/项目名快照同步到 localStorage (L1 缓存)
+  useEffect(() => {
+    const nextSnapshots: StoredTitlebarSessionTabSnapshot[] = titlebarSessionTabs.map((tab) => {
+      const hasResolvedTitle = tab.title !== tab.id
+      return {
+        id: tab.id,
+        ...(hasResolvedTitle ? { title: tab.title } : {}),
+        ...(tab.subtitle ? { subtitle: tab.subtitle } : { subtitle: null }),
+      }
+    })
+    writeStoredTitlebarSessionTabSnapshots(nextSnapshots)
+
+    setTitlebarTabSnapshotsById((current) => {
+      const nextMap: Record<string, StoredTitlebarSessionTabSnapshot> = {}
+      let changed = Object.keys(current).length !== nextSnapshots.length
+      for (const snap of nextSnapshots) {
+        nextMap[snap.id] = snap
+        const prev = current[snap.id]
+        if (!prev || prev.title !== snap.title || prev.subtitle !== snap.subtitle) {
+          changed = true
+        }
+      }
+      return changed ? nextMap : current
+    })
+  }, [titlebarSessionTabs])
 
   const menuBar = useMemo(
     () => (
