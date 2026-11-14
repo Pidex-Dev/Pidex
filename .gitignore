@@ -54,3 +54,8 @@ performance-results/
 *.sw?
 .gstack/
 .zcode/
+
+# Temporary scratch files and test directories
+.tmp-tests/
+.tmp-*
+_tmp-*
