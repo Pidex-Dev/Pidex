@@ -559,7 +559,7 @@
     --cpx-sys-icon-size-xs: calc(12px * var(--cpx-sys-scaling));
     --cpx-sys-icon-size-sm: calc(14px * var(--cpx-sys-scaling));
     --cpx-sys-icon-size-md: calc(16px * var(--cpx-sys-scaling));
-    --cpx-sys-icon-size-lg: calc(20px * var(--cpx-sys-scaling));
+    --cpx-sys-icon-size-lg: calc(18px * var(--cpx-sys-scaling));
     --cpx-sys-icon-stroke-width: 1.6;
     --cpx-sys-icon-size: var(--cpx-sys-icon-size-md);
     --button-icon-size-xs: var(--cpx-sys-icon-size-sm);
