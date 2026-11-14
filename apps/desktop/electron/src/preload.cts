@@ -218,6 +218,10 @@ const DESKTOP_SHELL_IPC_CHANNELS = {
   listExternalOpenTargets: 'shell:list-external-open-targets',
   openPathWithTarget: 'shell:open-path-with-target',
   revealPathInFolder: 'shell:reveal-path-in-folder',
+  openDirectory: 'shell:open-directory',
+  getUserDataStorageSummary: 'shell:get-user-data-storage-summary',
+  listUserDataDownloadedResources: 'shell:list-user-data-downloaded-resources',
+  deleteUserDataDownloadedResource: 'shell:delete-user-data-downloaded-resource',
 } as const satisfies typeof import('@pidex/shared/desktop-shell-ipc').DESKTOP_SHELL_IPC_CHANNELS
 
 const DESKTOP_CLIPBOARD_IPC_CHANNELS = {
@@ -563,6 +567,18 @@ const desktop = {
     ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.openPathWithTarget, targetPath, targetId),
   revealPathInFolder: (targetPath: string): Promise<void> =>
     ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.revealPathInFolder, targetPath),
+  openDirectory: (targetPath: string): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.openDirectory, targetPath),
+  getUserDataStorageSummary: (): Promise<
+    import('@pidex/shared/desktop-shell-ipc').DesktopUserDataStorageSummary
+  > => ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.getUserDataStorageSummary),
+  listUserDataDownloadedResources: (): Promise<
+    import('@pidex/shared/desktop-shell-ipc').DesktopUserDataDownloadedResource[]
+  > => ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.listUserDataDownloadedResources),
+  deleteUserDataDownloadedResource: (
+    resourceId: string,
+  ): Promise<{ resourceId: string; reclaimedBytes: number }> =>
+    ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.deleteUserDataDownloadedResource, resourceId),
   getStartupSnapshot: async (): Promise<DesktopStartupSnapshot> => {
     const snapshot: unknown = await ipcRenderer.invoke(DESKTOP_STARTUP_IPC_CHANNELS.snapshot)
     if (!isDesktopStartupSnapshot(snapshot)) throw new Error('启动状态无效')

@@ -12,6 +12,7 @@ import type {
   PetInstallPreview,
 } from '@pidex/agent-protocol'
 import type { DesktopPetOverlayBridge } from '@pidex/shared/desktop-pet-overlay'
+import type { DesktopShellIpcBridge } from '@pidex/shared/desktop-shell-ipc'
 import type { DesktopDataLocationIpcBridge } from '@pidex/shared/desktop-data-location-ipc'
 import type { DesktopUpdateIpcBridge } from '@pidex/shared/desktop-update-ipc'
 import type { DesktopTerminalIpcBridge } from '@pidex/shared/desktop-terminal-ipc'
@@ -85,7 +86,8 @@ type DesktopClientWindow = {
     Partial<DesktopUpdateIpcBridge> &
     Partial<DesktopAttachmentIpcBridge> &
     Partial<DesktopBrowserIpcBridge> &
-    Partial<DesktopMicrophoneIpcBridge>
+    Partial<DesktopMicrophoneIpcBridge> &
+    Partial<DesktopShellIpcBridge>
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
   dispatchEvent?: Window['dispatchEvent']

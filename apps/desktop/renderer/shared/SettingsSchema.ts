@@ -30,6 +30,7 @@ import type {
   ModelProviderID,
   SidebarProductMode,
   SidebarSectionId,
+  DesktopSidebarPinnedSort,
   SidebarCustomization,
   SidebarCustomSection,
 } from './Types.js'
@@ -70,7 +71,12 @@ export const DESKTOP_SIDEBAR_ORGANIZATIONS = new Set<DesktopSidebarOrganization>
   'flat',
 ])
 
-export const DESKTOP_SIDEBAR_SORTS = new Set<DesktopSidebarSort>(['priority', 'updated', 'manual'])
+export const DESKTOP_SIDEBAR_SORTS = new Set<DesktopSidebarSort>([
+  'priority',
+  'updated',
+  'lastPrompt',
+  'manual',
+])
 
 export const DESKTOP_SHELL_SECURITY_LEVELS = new Set<DesktopShellSecurityLevel>([
   'strict',
@@ -934,7 +940,10 @@ export function normalizeSidebarCustomization(
     }
   }
 
-  const pinnedSort: 'manual' | 'updated' = raw.pinnedSort === 'updated' ? 'updated' : 'manual'
+  const pinnedSort: DesktopSidebarPinnedSort =
+    raw.pinnedSort === 'updated' || raw.pinnedSort === 'lastPrompt'
+      ? raw.pinnedSort
+      : 'manual'
 
   const rawDestOrder = Array.isArray(raw.destinationOrder)
     ? raw.destinationOrder.filter((id): id is string => typeof id === 'string')

@@ -9,7 +9,6 @@ import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import { environmentDomainClient } from '../../services/desktop-client/EnvironmentDomainClient.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { SettingsContentArea } from '../settings/SettingsContentArea.js'
-import { SettingsSection } from '../settings/SettingsSection.js'
 import {
   useDesktopSettingsDraftActions,
   useDesktopSettingsDraftValue,
@@ -19,8 +18,6 @@ import { WorktreePreferences } from './WorktreePreferences.js'
 
 type Props = { onError: (message: string) => void; onNotice?: (message: string) => void }
 type Mutation = { operation: RpcResult<'worktree/create'>['operation']; worktree: ManagedWorktree }
-type MutationOutcome =
-  { kind: 'mutation'; value: Mutation } | { kind: 'mutation-error'; error: unknown }
 
 type WorktreeEntry = RpcResult<'worktree/settings/list'>['worktrees'][number]
 
@@ -33,8 +30,6 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
   const [entries, setEntries] = React.useState<readonly WorktreeEntry[]>([])
   const [projects, setProjects] = React.useState<readonly DesktopWorkspace[]>([])
   const [busy, setBusy] = React.useState(false)
-  const [operation, setOperation] = React.useState<Mutation['operation'] | null>(null)
-  const [output, setOutput] = React.useState('')
 
   // 待删除工作树状态与确认弹窗
   const [deletingTarget, setDeletingTarget] = React.useState<{ id: string; path: string } | null>(
@@ -65,85 +60,20 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
     void refresh().catch((cause) => onError(message(cause)))
   }, [onError, refresh])
 
-  const track = async (operationId: string, mutationPromise: Promise<Mutation>) => {
-    setOutput('')
-    let cursor = 0
-    let current: Mutation['operation'] | null = null
-    const mutationOutcome: Promise<MutationOutcome> = mutationPromise.then(
-      (value) => ({ kind: 'mutation', value }),
-      (error) => ({ kind: 'mutation-error', error }),
-    )
-    let mutationPending = true
-    while (!current || current.status === 'pending' || current.status === 'running') {
-      const statusOutcome = client.worktreeOperationStatus(operationId, cursor).then(
-        (value) => ({ kind: 'status' as const, value }),
-        (error) => ({ kind: 'status-error' as const, error }),
-      )
-      const outcome = mutationPending
-        ? await Promise.race([mutationOutcome, statusOutcome])
-        : await statusOutcome
-      if (outcome.kind === 'mutation-error') throw outcome.error
-      if (outcome.kind === 'mutation') {
-        mutationPending = false
-        current = outcome.value.operation
-        setOperation(current)
-        if (current.status !== 'pending' && current.status !== 'running') break
-        continue
-      }
-      if (outcome.kind === 'status') {
-        current = outcome.value.operation
-        cursor = outcome.value.output.cursor
-        setOperation(current)
-        if (outcome.value.output.data)
-          setOutput((previous) => `${previous}${outcome.value.output.data}`.slice(-65_536))
-      } else if (current) throw outcome.error
-      const settled = mutationPending
-        ? await Promise.race([
-            mutationOutcome,
-            new Promise<{ kind: 'retry' }>((resolve) =>
-              setTimeout(() => resolve({ kind: 'retry' }), 100),
-            ),
-          ])
-        : { kind: 'retry' as const }
-      if (settled.kind === 'mutation-error') throw settled.error
-      if (settled.kind === 'mutation') {
-        mutationPending = false
-        current = settled.value.operation
-        setOperation(current)
-        if (current.status !== 'pending' && current.status !== 'running') break
-      }
-    }
-    if (mutationPending) {
-      const settled = await mutationOutcome
-      if (settled.kind === 'mutation-error') throw settled.error
-      current = settled.value.operation
-      setOperation(current)
-    }
-    try {
-      const finalStatus = await client.worktreeOperationStatus(operationId, cursor)
-      current = finalStatus.operation
-      setOperation(current)
-      if (finalStatus.output.data)
-        setOutput((previous) => `${previous}${finalStatus.output.data}`.slice(-65_536))
-    } catch {
-      // Mutation result remains authoritative when volatile output tail is unavailable.
-    }
-    await refresh()
-    if (current.status === 'failed') throw new Error(current.errorCode ?? 'Worktree 操作失败')
-    onNotice?.(
-      current.warnings.length
-        ? `Worktree 操作已完成；${current.warnings.join('；')}`
-        : 'Worktree 操作已完成。',
-    )
-  }
-
   const mutate = async (action: (operationId: string) => Promise<Mutation>) => {
     if (mutationActive.current) return
     mutationActive.current = true
     setBusy(true)
     const operationId = crypto.randomUUID()
     try {
-      await track(operationId, action(operationId))
+      const { operation } = await action(operationId)
+      await refresh()
+      if (operation.status === 'failed') throw new Error(operation.errorCode ?? 'Worktree 操作失败')
+      onNotice?.(
+        operation.warnings.length
+          ? `Worktree 操作已完成；${operation.warnings.join('；')}`
+          : 'Worktree 操作已完成。',
+      )
     } catch (cause) {
       onError(message(cause))
     } finally {
@@ -405,30 +335,6 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
             )}
           </div>
         </div>
-
-        {/* 操作输出 */}
-        {operation ? (
-          <div className="tw:mt-6">
-            <SettingsSection
-              title="操作进度"
-              description={`${operation.kind} · ${operation.step} · ${operation.status}`}
-            >
-              {operation.warnings.length ? (
-                <ul
-                  className="tw:type-1 tw:grid tw:gap-1 tw:px-3 tw:pt-3 tw:text-app-text-soft"
-                  role="status"
-                >
-                  {operation.warnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
-                  ))}
-                </ul>
-              ) : null}
-              <pre className="tw:type-code tw:max-h-[16rem] tw:overflow-auto tw:whitespace-pre-wrap tw:p-3">
-                {output || '等待输出…'}
-              </pre>
-            </SettingsSection>
-          </div>
-        ) : null}
 
         {/* 删除工作树确认对话框（对齐设计截图 2） */}
         <ConfirmationDialog

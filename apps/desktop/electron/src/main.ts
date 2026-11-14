@@ -319,6 +319,11 @@ async function startDesktop(): Promise<void> {
     timer: createDesktopClipboardTimer(),
   })
 
+  const externalFonts = new ExternalFontService({
+    rootDirectory: join(app.getPath('userData'), 'fonts'),
+    logger,
+  })
+
   registerDesktopIpc({
     windows,
     logger,
@@ -327,6 +332,7 @@ async function startDesktop(): Promise<void> {
     attachmentDownloads,
     composerPathGrants,
     clipboardService,
+    externalFonts,
     getSupervisor: () => supervisor,
     getLogDirectory: () => logger?.directory ?? logDirectory,
     quitDuringStartup: () => app.quit(),
@@ -369,10 +375,6 @@ async function startDesktop(): Promise<void> {
   registerBrowserIpc({
     controller: browserController,
     windowForSender: (sender) => windows?.windowForSender(sender),
-  })
-  const externalFonts = new ExternalFontService({
-    rootDirectory: join(app.getPath('userData'), 'fonts'),
-    logger,
   })
   registerAppearanceIpc(
     appearanceSettings,

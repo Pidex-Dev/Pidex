@@ -1,4 +1,6 @@
-import { dialog, ipcMain, shell, type OpenDialogOptions, type WebContents } from 'electron'
+import { app, dialog, ipcMain, shell, type OpenDialogOptions, type WebContents } from 'electron'
+import { lstat, readdir, rm, stat } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 import {
   DESKTOP_SETTINGS_IPC_CHANNELS,
   type DesktopSettingsPayload,
@@ -21,7 +23,7 @@ import {
   normalizeDesktopOpenWindowInput,
 } from '@pidex/shared/desktop-window-ipc'
 import { DESKTOP_WORKSPACE_IPC_CHANNELS } from '@pidex/shared/desktop-workspace-ipc'
-import { DESKTOP_SHELL_IPC_CHANNELS } from '@pidex/shared/desktop-shell-ipc'
+import { DESKTOP_SHELL_IPC_CHANNELS, type DesktopUserDataDownloadedResource } from '@pidex/shared/desktop-shell-ipc'
 import {
   DESKTOP_CLIPBOARD_IPC_CHANNELS,
   requireDesktopClipboardRichTextInput,
@@ -39,6 +41,7 @@ import type { SidecarSupervisor } from '../sidecar/Supervisor.js'
 import type { WindowManager } from '../windows/WindowManager.js'
 import type { DesktopAutoUpdater } from '../update/DesktopAutoUpdater.js'
 import type { ExternalOpenTargetService } from './ExternalOpenTargets.js'
+import type { ExternalFontService } from '../settings/ExternalFontService.js'
 import type { AttachmentDownloadService } from './AttachmentDownloadService.js'
 import type { ComposerPathGrantService } from './ComposerPathGrantService.js'
 
@@ -50,6 +53,7 @@ interface DesktopIpcDependencies {
   attachmentDownloads: AttachmentDownloadService
   composerPathGrants: ComposerPathGrantService
   clipboardService: DesktopClipboardService
+  externalFonts?: ExternalFontService
   getSupervisor: () => SidecarSupervisor | undefined
   getLogDirectory: () => string
   quitDuringStartup: () => void
@@ -267,6 +271,107 @@ export function registerDesktopIpc(dependencies: DesktopIpcDependencies): void {
     if (typeof targetPath !== 'string') throw new Error('路径参数无效')
     externalOpenTargets.revealPathInFolder(targetPath)
   })
+  ipcMain.handle(DESKTOP_SHELL_IPC_CHANNELS.openDirectory, async (event, targetPath: unknown) => {
+    requireMainWindowSender(event, windows)
+    if (typeof targetPath !== 'string' || !targetPath.trim()) {
+      throw new Error('目录路径无效')
+    }
+    const resolved = resolve(targetPath.trim())
+    const info = await stat(resolved).catch(() => null)
+    if (!info || !info.isDirectory()) {
+      throw new Error('目标目录不存在')
+    }
+    const openError = await shell.openPath(resolved)
+    if (openError) {
+      throw new Error(`无法打开目录：${openError}`)
+    }
+  })
+  ipcMain.handle(DESKTOP_SHELL_IPC_CHANNELS.getUserDataStorageSummary, async (event) => {
+    requireMainWindowSender(event, windows)
+    const userDataDir = resolve(app.getPath('userData'))
+    const runtimesDir = join(userDataDir, 'runtimes')
+    const [totalBytes, runtimesBytes] = await Promise.all([
+      computeDirectorySize(userDataDir),
+      computeDirectorySize(runtimesDir),
+    ])
+    return {
+      userDataDir,
+      totalBytes,
+      runtimesBytes,
+      otherBytes: Math.max(0, totalBytes - runtimesBytes),
+    }
+  })
+  ipcMain.handle(
+    DESKTOP_SHELL_IPC_CHANNELS.listUserDataDownloadedResources,
+    async (event): Promise<DesktopUserDataDownloadedResource[]> => {
+      requireMainWindowSender(event, windows)
+      const resources: DesktopUserDataDownloadedResource[] = []
+      const userDataDir = resolve(app.getPath('userData'))
+
+      if (dependencies.externalFonts) {
+        const fontStates = await dependencies.externalFonts.listStates()
+        for (const font of fontStates) {
+          if (font.status !== 'downloaded') continue
+          const fontDir = dependencies.externalFonts.getFontDirectory(font.id)
+          if (!fontDir) continue
+          const sizeBytes = await computeDirectorySize(fontDir)
+          resources.push({
+            id: `font:${font.id}`,
+            name: `${font.displayName} 字体`,
+            category: 'font',
+            description: `${font.family} · ${font.kind === 'code' ? '代码字体' : '界面字体'}`,
+            path: fontDir,
+            sizeBytes,
+          })
+        }
+      }
+
+      const cuaRoot = join(userDataDir, 'runtimes', 'cua')
+      const cuaSize = await computeDirectorySize(cuaRoot)
+      if (cuaSize > 0) {
+        resources.push({
+          id: 'runtime:cua',
+          name: 'Computer Use 本地运行时',
+          category: 'runtime',
+          description: '用于桌面屏幕操控的本地 CUA 执行器',
+          path: cuaRoot,
+          sizeBytes: cuaSize,
+        })
+      }
+
+      return resources
+    },
+  )
+  ipcMain.handle(
+    DESKTOP_SHELL_IPC_CHANNELS.deleteUserDataDownloadedResource,
+    async (event, resourceId: unknown) => {
+      requireMainWindowSender(event, windows)
+      if (typeof resourceId !== 'string' || !resourceId.trim()) {
+        throw new Error('资源标识无效')
+      }
+      const userDataDir = resolve(app.getPath('userData'))
+      if (resourceId.startsWith('font:')) {
+        if (!dependencies.externalFonts) {
+          throw new Error('字体管理服务不可用')
+        }
+        const fontId = resourceId.slice('font:'.length)
+        const fontDir = dependencies.externalFonts.getFontDirectory(fontId)
+        if (!fontDir) {
+          throw new Error('未找到指定的字体资源')
+        }
+        const beforeBytes = await computeDirectorySize(fontDir)
+        await dependencies.externalFonts.removeFont(fontId)
+        return { resourceId, reclaimedBytes: beforeBytes }
+      }
+      if (resourceId === 'runtime:cua') {
+        const cuaRoot = join(userDataDir, 'runtimes', 'cua')
+        const beforeBytes = await computeDirectorySize(cuaRoot)
+        await rm(cuaRoot, { recursive: true, force: true })
+        return { resourceId, reclaimedBytes: beforeBytes }
+      }
+      throw new Error(`未知资源：${resourceId}`)
+    },
+  )
   ipcMain.handle(DESKTOP_STARTUP_IPC_CHANNELS.openLogs, async (event) => {
     requireMainWindowSender(event, windows)
     const directory = getLogDirectory()
@@ -353,4 +458,30 @@ function requireMainWindowSender(
 function requireSupervisor(supervisor: SidecarSupervisor | undefined): SidecarSupervisor {
   if (!supervisor) throw new Error('Agent 尚未初始化')
   return supervisor
+}
+
+async function computeDirectorySize(rootDir: string): Promise<number> {
+  const rootStat = await lstat(rootDir).catch(() => null)
+  if (!rootStat || rootStat.isSymbolicLink() || !rootStat.isDirectory()) return 0
+
+  let total = 0
+  const stack: string[] = [rootDir]
+  while (stack.length > 0) {
+    const current = stack.pop()!
+    const entries = await readdir(current, { withFileTypes: true }).catch(() => null)
+    if (!entries) continue
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) continue
+      const fullPath = join(current, entry.name)
+      if (entry.isDirectory()) {
+        stack.push(fullPath)
+      } else if (entry.isFile()) {
+        const fileStat = await lstat(fullPath).catch(() => null)
+        if (fileStat && fileStat.isFile()) {
+          total += fileStat.size
+        }
+      }
+    }
+  }
+  return total
 }

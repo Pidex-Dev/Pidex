@@ -34,6 +34,15 @@ import type {
   DesktopDataLocationControlSource,
   DesktopDataLocationState,
 } from '@pidex/shared/desktop-data-location-ipc'
+import type { DesktopUserDataStorageSummary } from '@pidex/shared/desktop-shell-ipc'
+import type {
+  DownloadedResourceItem,
+  StorageOldChatsDeleteResult,
+  StorageOldChatsListResult,
+  StorageResourcesDeleteResult,
+  StorageResourcesListResult,
+  StorageSummaryResult,
+} from '@pidex/agent-protocol'
 import type { DesktopUpdateStatus } from '@pidex/shared/desktop-update-ipc'
 export type { DesktopUpdateStatus } from '@pidex/shared/desktop-update-ipc'
 export type { ThreadCreationSurface } from '@pidex/shared/thread'
@@ -909,7 +918,7 @@ export type DesktopReviewView = 'inline' | 'split'
 export type DesktopDiffMarkerStyle = 'color' | 'symbol'
 export type DesktopMessageDelivery = 'steer' | 'follow-up'
 export type DesktopSidebarOrganization = 'projects' | 'flat'
-export type DesktopSidebarSort = 'priority' | 'updated' | 'manual'
+export type DesktopSidebarSort = 'priority' | 'updated' | 'lastPrompt' | 'manual'
 
 export type DesktopRemovedWorkspace = {
   projectId?: string
@@ -1124,11 +1133,13 @@ export type SidebarCustomSection = {
   collapsed: boolean
 }
 
+export type DesktopSidebarPinnedSort = 'manual' | 'updated' | 'lastPrompt'
+
 export type SidebarCustomization = {
   version: number
   sections: SidebarCustomSection[]
   sectionOrder: string[]
-  pinnedSort: 'manual' | 'updated'
+  pinnedSort: DesktopSidebarPinnedSort
   showProjectsInRecents?: boolean
   destinationOrder: string[]
   hiddenDestinationIds: string[]
@@ -1324,6 +1335,7 @@ export type DesktopSessionListItem = {
   pendingPlanApproval?: boolean
   creationSurface?: ThreadCreationSurface
   lastMessageAt?: string | null
+  lastUserMessageAt?: string | null
   createdAt: string
 }
 
@@ -2359,6 +2371,21 @@ export type DesktopApi = {
   exitApp(): Promise<void>
   getDataLocation(): Promise<DesktopDataLocationState>
   chooseDataLocation(): Promise<DesktopDataLocationMigrationResult | null>
+  getStorageSummary(): Promise<StorageSummaryResult>
+  listOldChatsForStorage(
+    params: RpcParams<'storage/oldChats/list'>,
+  ): Promise<StorageOldChatsListResult>
+  deleteOldChatsForStorage(threadIds: readonly string[]): Promise<StorageOldChatsDeleteResult>
+  getUserDataStorageSummary(): Promise<DesktopUserDataStorageSummary>
+  openStorageDirectory(targetPath: string): Promise<void>
+  listAgentDownloadedResources(): Promise<StorageResourcesListResult>
+  deleteAgentDownloadedResource(resourceId: string): Promise<StorageResourcesDeleteResult>
+  listUserDataDownloadedResources(): Promise<
+    Array<Omit<DownloadedResourceItem, 'category'> & { category: 'font' | 'runtime' }>
+  >
+  deleteUserDataDownloadedResource(
+    resourceId: string,
+  ): Promise<{ resourceId: string; reclaimedBytes: number }>
   onAgentEvent(callback: (event: DesktopAgentEvent) => void): () => void
   onWorkflowEvent(callback: (event: DesktopWorkflowEvent) => void): () => void
   onUiCommand(callback: (command: DesktopUiCommand) => void): () => void

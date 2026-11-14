@@ -93,6 +93,21 @@ export class ExternalFontService {
     return task
   }
 
+  getFontDirectory(fontId: string): string | null {
+    const spec = findExternalFontById(fontId)
+    if (!spec) return null
+    return join(this.#rootDirectory, spec.id)
+  }
+
+  async removeFont(fontId: string): Promise<void> {
+    const spec = findExternalFontById(fontId)
+    if (!spec) {
+      throw new Error(`未知外部字体：${fontId}`)
+    }
+    this.#cssCache.delete(spec.id)
+    await rm(join(this.#rootDirectory, spec.id), { recursive: true, force: true })
+  }
+
   async #getStateForSpec(spec: DesktopExternalFontSpec): Promise<DesktopExternalFontState> {
     if (this.#inFlightDownloads.has(spec.id)) {
       return {

@@ -15,6 +15,7 @@ import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import type {
   DesktopSidebarOrganization,
+  DesktopSidebarPinnedSort,
   DesktopSidebarSort,
   DesktopWorkspace,
   SidebarSectionId,
@@ -73,6 +74,7 @@ import {
   sidebarPinnedProjectKey,
   sidebarPinnedSessionKey,
   sidebarProjectKey,
+  sortSidebarPinnedItems,
   type SidebarCustomSectionEntry,
   type SidebarCustomSectionModel,
   type SidebarFocusSection,
@@ -184,8 +186,8 @@ type Props = {
   onRequestArchiveAttention: () => void
   onShowTimelinePinnedChange: (value: boolean) => void
   customSections: SidebarCustomSectionModel[]
-  pinnedSort: 'manual' | 'updated'
-  onPinnedSortChange: (sort: 'manual' | 'updated') => void
+  pinnedSort: DesktopSidebarPinnedSort
+  onPinnedSortChange: (sort: DesktopSidebarPinnedSort) => void
   onCreateSection: (itemKeys?: string[]) => void
   onRenameSection: (sectionId: string, title: string) => void
   onDeleteSection: (sectionId: string) => void
@@ -361,12 +363,7 @@ function SidebarBodyContent({
     hasOverflow: hasProjectOverflow,
   } = getSidebarSessionDisplayGroups(orderedProjects, visibleProjectLimit)
   const displayedProjects = [...baseProjects, ...extraProjects]
-  const sortedPinnedItems =
-    pinnedSort === 'updated'
-      ? [...pinnedItems].sort(
-          (left, right) => pinnedAtMs(right.pinnedAt) - pinnedAtMs(left.pinnedAt),
-        )
-      : pinnedItems
+  const sortedPinnedItems = sortSidebarPinnedItems(pinnedItems, pinnedSort)
   const pinnedOrder = resolveSidebarDisplayOrder(drag.getSession(), {
     containerKey: 'pinned',
     order: sortedPinnedItems.map((item) => item.key),
@@ -1427,12 +1424,13 @@ const EMPTY_PROJECT_SESSION_BUCKET: SidebarProjectSessionBucket = {
   unreadCount: 0,
 }
 
-// 普通列表只提供最近更新与手动排序；历史 priority 值按最近更新呈现。
+// 普通列表提供最近更新、最近提问与手动排序；历史 priority 值按最近更新呈现。
 const SIDEBAR_SORT_OPTIONS: Array<{
   label: string
   value: DesktopSidebarSort
 }> = [
   { label: '最近更新', value: 'updated' },
+  { label: '最近提问', value: 'lastPrompt' },
   { label: '手动排序', value: 'manual' },
 ]
 
@@ -1549,8 +1547,8 @@ function SidebarPinnedSortMenu({
   sort,
   onSortChange,
 }: {
-  sort: 'manual' | 'updated'
-  onSortChange: (sort: 'manual' | 'updated') => void
+  sort: DesktopSidebarPinnedSort
+  onSortChange: (sort: DesktopSidebarPinnedSort) => void
 }): React.ReactNode {
   const [open, setOpen] = useState(false)
   return (
@@ -1570,9 +1568,10 @@ function SidebarPinnedSortMenu({
     >
       <PopoverRadioGroup
         value={sort}
-        onValueChange={(value) => onSortChange(value as 'manual' | 'updated')}
+        onValueChange={(value) => onSortChange(value as DesktopSidebarPinnedSort)}
       >
         <PopoverRadioItem value="updated">最近更新</PopoverRadioItem>
+        <PopoverRadioItem value="lastPrompt">最近提问</PopoverRadioItem>
         <PopoverRadioItem value="manual">手动排序</PopoverRadioItem>
       </PopoverRadioGroup>
     </PopoverMenu>
@@ -1657,12 +1656,6 @@ function orderItemsByKeys<T>(
   })
   const knownKeys = new Set(ordered.map(keyOf))
   return [...ordered, ...items.filter((item) => !knownKeys.has(keyOf(item)))]
-}
-
-function pinnedAtMs(value: string | null | undefined): number {
-  if (!value) return 0
-  const parsed = new Date(value).getTime()
-  return Number.isNaN(parsed) ? 0 : parsed
 }
 
 /**

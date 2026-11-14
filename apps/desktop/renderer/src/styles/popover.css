@@ -61,6 +61,11 @@
     row-gap: var(--cpx-comp-row-gap-y);
   }
 
+  /* Hover cards render unpadded layout rows directly inside the surface, so use 8px block / 4px inline padding. */
+  .sidebar-hover-card-surface:not(.chat-input__dropdown) {
+    padding:var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+  }
+
   :is([data-theme-component='dropdown-surface'], .popover-menu-spacing):not(.chat-input__dropdown) {
     --popover-menu-row-inset: var(--cpx-comp-row-padding-inline);
     --sidebar-leading-width: max-content;

@@ -2411,6 +2411,60 @@ export function createAgentSessionDesktopClient(
               .filter((path): path is string => typeof path === 'string'),
           )
         : mockClient.chooseDataLocation(),
+    getStorageSummary: () =>
+      withAgentOrMock(
+        () => rpc.call('storage/summary', {}),
+        () => mockClient.getStorageSummary(),
+      ),
+    listOldChatsForStorage: (params) =>
+      withAgentOrMock(
+        () => rpc.call('storage/oldChats/list', params),
+        () => mockClient.listOldChatsForStorage(params),
+      ),
+    deleteOldChatsForStorage: (threadIds) =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call('storage/oldChats/delete', {
+            threadIds: [...threadIds],
+          })
+          for (const id of result.deletedIds) {
+            sessionSnapshots.delete(id)
+            clearSessionLifecycle(id)
+            if (activeSessionId === id) {
+              activeSessionId =
+                [...sessionSnapshots.keys()].find((candidate) => candidate !== id) ?? null
+            }
+          }
+          return result
+        },
+        () => mockClient.deleteOldChatsForStorage(threadIds),
+      ),
+    getUserDataStorageSummary: () =>
+      environment.window?.DesktopBridge?.getUserDataStorageSummary
+        ? environment.window.DesktopBridge.getUserDataStorageSummary()
+        : mockClient.getUserDataStorageSummary(),
+    openStorageDirectory: (targetPath) =>
+      environment.window?.DesktopBridge?.openDirectory
+        ? environment.window.DesktopBridge.openDirectory(targetPath)
+        : mockClient.openStorageDirectory(targetPath),
+    listAgentDownloadedResources: () =>
+      withAgentOrMock(
+        () => rpc.call('storage/resources/list', {}),
+        () => mockClient.listAgentDownloadedResources(),
+      ),
+    deleteAgentDownloadedResource: (resourceId) =>
+      withAgentOrMock(
+        () => rpc.call('storage/resources/delete', { resourceId }),
+        () => mockClient.deleteAgentDownloadedResource(resourceId),
+      ),
+    listUserDataDownloadedResources: () =>
+      environment.window?.DesktopBridge?.listUserDataDownloadedResources
+        ? environment.window.DesktopBridge.listUserDataDownloadedResources()
+        : mockClient.listUserDataDownloadedResources(),
+    deleteUserDataDownloadedResource: (resourceId) =>
+      environment.window?.DesktopBridge?.deleteUserDataDownloadedResource
+        ? environment.window.DesktopBridge.deleteUserDataDownloadedResource(resourceId)
+        : mockClient.deleteUserDataDownloadedResource(resourceId),
     listTooling: () => loadAgentToolingApi().then((api) => api.listTooling()),
     refreshTooling: () => loadAgentToolingApi().then((api) => api.refreshTooling()),
     setToolingPreference: (id, preference) =>

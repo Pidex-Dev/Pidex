@@ -109,6 +109,7 @@ export function agentThreadListItemToDesktop(
     pendingPlanApproval: thread.pendingPlanApproval === true,
     ...(thread.goal === undefined ? {} : { threadGoal: thread.goal }),
     lastMessageAt: isoOrNull(thread.updatedAt),
+    lastUserMessageAt: isoOrNull(thread.lastUserMessageAt),
     createdAt: iso(thread.createdAt),
   }
 }
@@ -209,6 +210,9 @@ export function agentThreadSnapshotToDesktop(
     pendingPlanApproval: snapshot.pendingPlanApproval?.status === 'pending',
     threadGoal: snapshot.goal,
     lastMessageAt: iso(snapshot.thread.updatedAt),
+    lastUserMessageAt: isoOrNull(
+      [...snapshot.messages].reverse().find((message) => message.role === 'user')?.createdAt,
+    ),
     createdAt: iso(snapshot.thread.createdAt),
   }
   return {
