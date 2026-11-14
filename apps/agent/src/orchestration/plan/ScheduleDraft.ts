@@ -95,13 +95,11 @@ export const scheduleDraftParameters = Type.Object(
     name: Type.String({
       minLength: 1,
       maxLength: 200,
-      pattern: '\\S',
       description: 'Task name used as a one-line calendar and notification summary',
     }),
     prompt: Type.String({
       minLength: 1,
       maxLength: 4000,
-      pattern: '\\S',
       description: 'Execution prompt describing what to do on each run',
     }),
     taskPlan: Type.Object(

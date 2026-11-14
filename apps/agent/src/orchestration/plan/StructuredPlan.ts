@@ -63,19 +63,20 @@ export const parseStructuredPlan = (input: unknown): StructuredPlan => {
 /**
  * submit_plan 的模型可见参数：只描述内容章节，不开放组件名、样式或任意
  * Renderer props。
+ * 不在模型可见 JSON Schema 中声明 `pattern: '\\S'`（部分推理后端会把
+ * `pattern` 锚定为整串匹配 `^\S$`，导致模型把文本拆成单字符数组）；非空与
+ * 非全空白校验由 `parseStructuredPlan` 在运行时统一执行。
  */
 export const structuredPlanParameters = Type.Object(
   {
     title: Type.String({
       minLength: 1,
       maxLength: STRUCTURED_PLAN_MAX_TITLE_LENGTH,
-      pattern: '\\S',
       description: 'Plan title describing its intended outcome in one sentence',
     }),
     summary: Type.String({
       minLength: 1,
       maxLength: STRUCTURED_PLAN_MAX_TEXT_LENGTH,
-      pattern: '\\S',
       description: 'Plan summary describing objective, scope and key trade-offs',
     }),
     changes: Type.Array(
@@ -84,14 +85,12 @@ export const structuredPlanParameters = Type.Object(
           area: Type.String({
             minLength: 1,
             maxLength: STRUCTURED_PLAN_MAX_TITLE_LENGTH,
-            pattern: '\\S',
             description: 'Module or domain affected by the implementation',
           }),
           items: Type.Array(
             Type.String({
               minLength: 1,
               maxLength: STRUCTURED_PLAN_MAX_TEXT_LENGTH,
-              pattern: '\\S',
               description: 'One concrete change in this area',
             }),
             {
@@ -113,7 +112,6 @@ export const structuredPlanParameters = Type.Object(
       Type.String({
         minLength: 1,
         maxLength: STRUCTURED_PLAN_MAX_TEXT_LENGTH,
-        pattern: '\\S',
         description: 'Changes to interfaces, protocols, data or behavior contracts',
       }),
       {
@@ -125,7 +123,6 @@ export const structuredPlanParameters = Type.Object(
       Type.String({
         minLength: 1,
         maxLength: STRUCTURED_PLAN_MAX_TEXT_LENGTH,
-        pattern: '\\S',
         description: 'Planned verification or test',
       }),
       {
@@ -137,7 +134,6 @@ export const structuredPlanParameters = Type.Object(
       Type.String({
         minLength: 1,
         maxLength: STRUCTURED_PLAN_MAX_TEXT_LENGTH,
-        pattern: '\\S',
         description: 'Explicit assumption or boundary the user needs to know',
       }),
       {
