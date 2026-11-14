@@ -179,6 +179,8 @@ const sanitizeError = (cause: unknown) =>
         cause instanceof Error ? cause.message : '托管工具安装失败',
       )
 
+const AUTO_INSTALL_FAILURE_COOLDOWN_MS = 5 * 60_000
+
 export class ToolingManager {
   readonly root: string
   private readonly fetchImpl: typeof fetch
@@ -191,6 +193,15 @@ export class ToolingManager {
     Pick<ToolingStatus, 'phase' | 'progress' | 'error'>
   >()
   private readonly installs = new Map<ManagedToolID, Promise<ToolingResolution>>()
+  private readonly resolvedCache = new Map<
+    ManagedToolID,
+    {
+      preference: ToolingPreference
+      override: string | undefined
+      resolution: Extract<ToolingResolution, { available: true }>
+    }
+  >()
+  private readonly autoInstallBlockedUntil = new Map<ManagedToolID, number>()
   private readonly listeners = new Set<Listener>()
   private readonly pendingEmits = new Map<ManagedToolID, ReturnType<typeof setTimeout>>()
   private readonly statusCache = new Map<ManagedToolID, ToolingStatus>()
@@ -268,6 +279,8 @@ export class ToolingManager {
 
   async setPreference(id: ManagedToolID, preference: ToolingPreference): Promise<ToolingStatus> {
     await this.initialize()
+    this.resolvedCache.delete(id)
+    this.autoInstallBlockedUntil.delete(id)
     this.settings.preferences[id] = preference
     if (this.persistPreferences) await this.saveSettings()
     if (preference === 'system') await this.removeManaged(id)
@@ -283,25 +296,59 @@ export class ToolingManager {
     await this.initialize()
     if (options.signal?.aborted)
       return { available: false, code: 'TOOLING_ABORTED', reason: '工具解析已取消' }
-    if (this.settings.preferences[id] === 'system') {
+    const preference = this.settings.preferences[id]
+    const override = this.systemOverride(id)
+    const cached = this.resolvedCache.get(id)
+    if (
+      cached &&
+      cached.preference === preference &&
+      cached.override === override &&
+      (await fileExists(cached.resolution.path))
+    ) {
+      return cached.resolution
+    }
+    const cacheResolution = (resolution: ToolingResolution) => {
+      if (resolution.available) {
+        this.resolvedCache.set(id, { preference, override, resolution })
+      }
+      return resolution
+    }
+    if (preference === 'system') {
       const system = await this.findSystem(id)
-      return (
-        system ?? {
-          available: false,
-          code: 'TOOLING_UNAVAILABLE',
-          reason: `${id} 已选择本机版，但未检测到可用安装`,
-        }
-      )
+      return system
+        ? cacheResolution(system)
+        : {
+            available: false,
+            code: 'TOOLING_UNAVAILABLE',
+            reason: `${id} 已选择本机版，但未检测到可用安装`,
+          }
     }
     const managed = await this.findManaged(id)
-    if (managed) return managed
+    if (managed) return cacheResolution(managed)
+    // 本机已有可用运行时时直接复用，避免每次工具调用在未安装托管版时阻塞等待大体积下载/超时。
+    const system = await this.findSystem(id)
+    if (system) return cacheResolution(system)
+    const blockedUntil = this.autoInstallBlockedUntil.get(id) ?? 0
+    if (Date.now() < blockedUntil) {
+      const lastError = this.phases.get(id)?.error
+      return {
+        available: false,
+        code: lastError?.code ?? 'TOOLING_UNAVAILABLE',
+        reason: lastError?.message ?? `${id} 托管版暂不可用，请稍后重试`,
+      }
+    }
     const installed = await this.installResolution(
       id,
       options.signal ? { signal: options.signal } : {},
     )
-    if (installed.available) return installed
-    const system = await this.findSystem(id)
-    return system ?? installed
+    if (installed.available) {
+      this.autoInstallBlockedUntil.delete(id)
+      return cacheResolution(installed)
+    }
+    if (installed.code !== 'TOOLING_ABORTED') {
+      this.autoInstallBlockedUntil.set(id, Date.now() + AUTO_INSTALL_FAILURE_COOLDOWN_MS)
+    }
+    return installed
   }
 
   async resolveEnvironment(
@@ -329,6 +376,8 @@ export class ToolingManager {
     options: { force?: boolean; signal?: AbortSignal } = {},
   ): Promise<ToolingStatus> {
     await this.initialize()
+    this.resolvedCache.delete(id)
+    this.autoInstallBlockedUntil.delete(id)
     const resolution = await this.installResolution(id, options)
     if (!resolution.available) throw new ToolingError(resolution.code, resolution.reason)
     return this.getStatus(id)
