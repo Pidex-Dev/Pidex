@@ -1313,6 +1313,7 @@ export class ThreadProjection {
           ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting-permission', 'waiting_question', 'waiting-question', 'waiting_subagents', 'waiting-subagents') THEN 0 WHEN u.status != 'queued' THEN 1 ELSE 2 END,
             u.created_at DESC, u.id DESC LIMIT 1) AS latest_turn_error,
         ${this.db.repositories.planApprovals.available() ? "EXISTS (SELECT 1 FROM plan_approvals WHERE thread_id = t.id AND status = 'pending')" : '0'} AS pending_plan_approval,
+        (SELECT MAX(m.created_at) FROM messages AS m WHERE m.thread_id = t.id AND m.role = 'user') AS last_user_message_at,
         ${hasLimits ? 'l.max_context_tokens' : 'NULL AS max_context_tokens'}
       FROM threads AS t
       LEFT JOIN thread_read_state AS read_state ON read_state.thread_id = t.id
@@ -1377,6 +1378,8 @@ export class ThreadProjection {
         },
         createdAt: Number(row.created_at),
         updatedAt: Number(row.updated_at),
+        lastUserMessageAt:
+          row.last_user_message_at == null ? null : Number(row.last_user_message_at),
       }
     })
   }

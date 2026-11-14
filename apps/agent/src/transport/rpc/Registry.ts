@@ -36,6 +36,7 @@ import { threadHandlers } from './handlers/Thread'
 import { toolingHandlers } from './handlers/Tooling'
 import { usageHandlers } from './handlers/Usage'
 import { speechHandlers } from './handlers/Speech'
+import { storageHandlers } from './handlers/Storage'
 import { sessionGroupHandlers } from './handlers/SessionGroup'
 import { workflowHandlers } from './handlers/Workflow'
 import { automationHandlers } from './handlers/Automation'
@@ -89,6 +90,7 @@ const groups: readonly RpcHandlerGroup[] = [
   toolingHandlers,
   usageHandlers,
   speechHandlers,
+  storageHandlers,
   sessionGroupHandlers,
   workflowHandlers,
   automationHandlers,

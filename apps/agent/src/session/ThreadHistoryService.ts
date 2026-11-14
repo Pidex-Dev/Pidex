@@ -38,6 +38,7 @@ type ThreadRow = {
   approval_policy: string
   approvals_reviewer: ThreadListItem['settings']['permissionConfig']['approvalsReviewer']
   max_context_tokens?: number | null
+  last_user_message_at: number | null
   created_at: number
   updated_at: number
 }
@@ -86,6 +87,7 @@ export class ThreadHistoryService {
           WHERE u.thread_id = t.id
           ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting-permission', 'waiting_question', 'waiting-question', 'waiting_subagents', 'waiting-subagents') THEN 0 WHEN u.status != 'queued' THEN 1 ELSE 2 END,
             u.created_at DESC, u.id DESC LIMIT 1) AS latest_turn_error,
+        (SELECT MAX(m.created_at) FROM messages AS m WHERE m.thread_id = t.id AND m.role = 'user') AS last_user_message_at,
         ${hasLimits ? 'l.max_context_tokens' : 'NULL AS max_context_tokens'}
       FROM threads AS t
       LEFT JOIN thread_read_state AS read_state ON read_state.thread_id = t.id
@@ -129,6 +131,7 @@ export class ThreadHistoryService {
       },
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      lastUserMessageAt: row.last_user_message_at ?? null,
     }
   }
 
