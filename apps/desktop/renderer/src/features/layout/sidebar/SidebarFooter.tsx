@@ -325,7 +325,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           <PopoverItem
             icon={
               <span
-                className="popover-account-avatar tw:relative tw:inline-flex tw:size-full tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
+                className="popover-account-avatar tw:relative tw:inline-flex tw:size-icon-md tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
                 aria-hidden="true"
               >
                 {githubUser?.avatarUrl ? (
