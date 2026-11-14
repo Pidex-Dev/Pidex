@@ -1,12 +1,13 @@
 import { expect, test } from 'bun:test'
 import { getWorkbenchRouteLaunchers, getWorkbenchTabDisplayTitle, getWorkbenchTabDefinition, createLauncherTab } from '../src/features/layout/tabs/WorkbenchTabRegistry.js'
 import {
+  NEW_PROVIDER_PANEL_ID,
   providerManagementRouteId,
   scopedProviderManagementTab,
 } from '../src/features/models/provider-management/ProviderManagementPanelState.js'
 import { BUILTIN_COMPOSITE_VIEWS } from '../src/features/layout/dock/CompositeViews.js'
 
-test('供应商设置只跟随详情路由，保持区域并排除编辑、新建和聊天路由', () => {
+test('供应商设置只跟随详情或新建路由，保持区域并排除编辑和聊天路由', () => {
   const tab = {
     id: 'provider-management',
     kind: 'provider-management',
@@ -16,9 +17,13 @@ test('供应商设置只跟随详情路由，保持区域并排除编辑、新�
   expect(
     scopedProviderManagementTab(tab, '/providers', '?provider=deepseek&section=models'),
   ).toEqual({ ...tab, providerId: 'deepseek' })
+  expect(providerManagementRouteId('/providers', '?newProvider=1')).toBe(NEW_PROVIDER_PANEL_ID)
+  expect(scopedProviderManagementTab(tab, '/providers', '?newProvider=1')).toEqual({
+    ...tab,
+    providerId: NEW_PROVIDER_PANEL_ID,
+  })
   for (const [path, search] of [
     ['/providers', ''],
-    ['/providers', '?newProvider=1'],
     ['/providers', '?provider=magpie&edit=1'],
     ['/chat', '?provider=magpie'],
   ]) {

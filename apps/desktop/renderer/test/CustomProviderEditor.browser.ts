@@ -427,10 +427,10 @@ try {
   const page = await mount('/providers?newProvider=1')
   await expect(page.getByText('当前没有配置模型，添加并保存后可在聊天中使用。')).toBeVisible()
   assert.equal(await page.evaluate(() => (window as any).__calls.length), 0)
-  await page.getByRole('button', { name: '保存配置', exact: true }).click()
+  await page.getByRole('button', { name: '创建供应商', exact: true }).click()
   await expect(page.getByText('Provider ID、名称和 Base URL 不能为空。')).toBeVisible()
   await page.getByPlaceholder('如：Ollama 本地服务').fill('My Provider')
-  await page.getByPlaceholder('https://example.com/v1').fill('https://example.com/v1')
+  await page.getByPlaceholder('https://example.com/v1').first().fill('https://example.com/v1')
   await page.getByRole('button', { name: '新增模型', exact: true }).click()
   await page.getByPlaceholder('如：llama3.2 或 gpt-4o').fill('test-model')
   // 规格未命中时必须由用户明确填写上下文窗口与最大输出。
@@ -440,11 +440,11 @@ try {
   await page.evaluate(() => {
     ;(window as any).__failNext = true
   })
-  await page.getByRole('button', { name: '保存配置', exact: true }).click()
+  await page.getByRole('button', { name: '创建供应商', exact: true }).click()
   await expect(page.getByText('模拟保存失败')).toBeVisible()
   await expect(page.getByPlaceholder('如：Ollama 本地服务')).toHaveValue('My Provider')
   await expect(page.locator('#location')).toHaveText('newProvider=1')
-  await page.getByRole('button', { name: '保存配置', exact: true }).click()
+  await page.getByRole('button', { name: '创建供应商', exact: true }).click()
   await expect(page.locator('#location')).toHaveText(
     'provider=custom-provider-2&section=connection',
   )
@@ -455,13 +455,13 @@ try {
 
   // 新供应商保存前可从 /models 获取候选，并把上游基线随创建写入 modelSync。
   const presave = await mount('/providers?newProvider=1')
-  await presave.getByPlaceholder('https://example.com/v1').fill('https://pre-save.example/v1')
-  await presave.getByRole('button', { name: '从 /models 获取', exact: true }).click()
+  await presave.getByPlaceholder('https://example.com/v1').first().fill('https://pre-save.example/v1')
+  await presave.getByRole('button', { name: '同步模型', exact: true }).click()
   await expect(presave.getByText('发现 1 个候选模型')).toBeVisible()
   await expect(presave.getByRole('button', { name: '导入已选 (0)', exact: true })).toBeDisabled()
   await presave.getByRole('button', { name: '全选', exact: true }).click()
   await presave.getByRole('button', { name: '导入已选 (1)', exact: true }).click()
-  await presave.getByRole('button', { name: '保存配置', exact: true }).click()
+  await presave.getByRole('button', { name: '创建供应商', exact: true }).click()
   await expect
     .poll(() => presave.evaluate(() => (window as any).__calls.at(-1)?.kind))
     .toBe('create')
