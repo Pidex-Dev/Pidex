@@ -6406,6 +6406,95 @@ const fixtures = {
       updatedAt: 1700000000001,
     },
   ),
+  'storage/summary': methodFixture(
+    'storage/summary',
+    {},
+    {
+      dataDir: '/tmp/.pidex',
+      defaultWorktreeRoot: '/tmp/.pidex/managed-worktrees',
+      configuredWorktreeRoot: null,
+      breakdown: {
+        chatBytes: 1024,
+        worktreeBytes: 2048,
+        artifactsBytes: 512,
+        otherBytes: 256,
+      },
+      chatDetails: {
+        messagesBytes: 768,
+        attachmentsBytes: 128,
+        archivedBytes: 256,
+        sqliteOverheadBytes: 256,
+      },
+      folders: {
+        dataDirBytes: 3840,
+        customWorktreeRootBytes: null,
+      },
+      computedAt: 1700000000001,
+    },
+  ),
+  'storage/oldChats/list': methodFixture(
+    'storage/oldChats/list',
+    {
+      olderThanDays: 90,
+      scope: 'archived',
+      limit: 20,
+      offset: 0,
+    },
+    {
+      items: [
+        {
+          threadId: 'thread-1',
+          title: '旧对话',
+          updatedAt: 1700000000000,
+          archivedAt: 1700000000001,
+          estimatedBytes: 4096,
+          subagentCount: 1,
+          subagentBytes: 1024,
+        },
+      ],
+      totalCount: 1,
+      totalSubagentCount: 1,
+      hasMore: false,
+    },
+  ),
+  'storage/oldChats/delete': methodFixture(
+    'storage/oldChats/delete',
+    {
+      threadIds: ['thread-1'],
+    },
+    {
+      deletedIds: ['thread-1'],
+      failed: [],
+      reclaimedBytes: 4096,
+      vacuumed: true,
+    },
+  ),
+  'storage/resources/list': methodFixture(
+    'storage/resources/list',
+    {},
+    {
+      items: [
+        {
+          id: 'speech:sensevoice',
+          name: 'SenseVoice 本地语音模型',
+          category: 'speech',
+          description: '本地离线语音转写模型与运行时',
+          path: '/tmp/.pidex/speech/sensevoice-llamacpp',
+          sizeBytes: 2048,
+        },
+      ],
+    },
+  ),
+  'storage/resources/delete': methodFixture(
+    'storage/resources/delete',
+    {
+      resourceId: 'speech:sensevoice',
+    },
+    {
+      resourceId: 'speech:sensevoice',
+      reclaimedBytes: 2048,
+    },
+  ),
 } satisfies MethodFixtures
 
 describe('RPC method schema contracts', () => {
@@ -6528,7 +6617,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(366)
+    expect(methods).toHaveLength(371)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -6896,7 +6985,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(345)
+    expect(Object.keys(RpcMethods)).toHaveLength(350)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })
