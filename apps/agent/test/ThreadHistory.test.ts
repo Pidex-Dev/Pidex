@@ -61,7 +61,7 @@ const input = (content: string) =>
 
 describe('Thread 历史', () => {
   test('按项目列出并投影首条用户消息', async () => {
-    const { db, projection, root } = await makeHistory()
+    const { db, history, projection, root } = await makeHistory()
     const project = db.createProject({ rootPath: join(root, 'project'), name: '测试项目' })
     const first = db.createThread('第一段', project.id)
     db.createTurn(first.id, input('alpha 历史搜索目标'))
@@ -72,6 +72,10 @@ describe('Thread 历史', () => {
     expect(new Set(threads.map((thread) => thread.id))).toEqual(new Set([first.id, second.id]))
     expect(threads.find((thread) => thread.id === first.id)?.firstUserMessage).toBe(
       'alpha 历史搜索目标',
+    )
+    expect(threads.find((thread) => thread.id === first.id)?.lastUserMessageAt).toBeTypeOf('number')
+    expect(history.getListItem(first.id)?.lastUserMessageAt).toBe(
+      threads.find((thread) => thread.id === first.id)?.lastUserMessageAt,
     )
   })
 
