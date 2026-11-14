@@ -59,10 +59,10 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
   return (
     <div
       aria-label="侧边栏停靠视图"
-      className="sidebar-docked-panes tw:grid tw:gap-1 tw:px-2 tw:py-1"
+      className="sidebar-docked-panes tw:grid tw:gap-1 tw:px-1 tw:py-1"
       data-sidebar-docked-open="true"
     >
-      <div className="tw:flex tw:items-center tw:justify-between tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta">
+      <div className="tw:flex tw:items-center tw:justify-between tw:px-1 tw:py-1 tw:type-1 tw:text-app-text-meta">
         <span>工作区停靠视图</span>
         <span className="tw:type-1 tw:opacity-75">{state.tabIds.length}</span>
       </div>
@@ -114,7 +114,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
               layout="grid"
               trigger={
                 <div
-                  className="sidebar-docked-pane-header tw:flex tw:items-center tw:justify-between tw:px-2 tw:py-1 tw:cursor-pointer tw:hover:bg-app-hover"
+                  className="sidebar-docked-pane-header tw:flex tw:items-center tw:justify-between tw:px-1 tw:py-1 tw:cursor-pointer tw:hover:bg-app-hover"
                   aria-expanded={active}
                   onClick={() => onSelectTab(tab.id)}
                   onKeyDown={(event) => {

@@ -258,7 +258,7 @@ export function SidebarHeader({
 
   return (
     <>
-      <header className="sidebar-header tw:mx-2 tw:my-0 tw:flex tw:h-7 tw:min-h-7 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
+      <header className="sidebar-header tw:mx-1 tw:my-0 tw:flex tw:h-7 tw:min-h-7 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
         <div className="sidebar-header-left tw:flex tw:min-w-0 tw:flex-1 tw:items-center">
           <Select<SidebarProductMode>
             ariaLabel={t('产品模式')}
@@ -395,7 +395,7 @@ export function SidebarTopNav({
   return (
     <nav
       aria-label={t('主要导航')}
-      className="sidebar-top-nav tw:flex tw:flex-col tw:gap-1 tw:px-2"
+      className="sidebar-top-nav tw:flex tw:flex-col tw:gap-1 tw:px-1"
     >
       <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} />
     </nav>
@@ -427,7 +427,7 @@ export function SidebarNewTaskNav({
   return (
     <nav
       aria-label={t('新建对话')}
-      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col tw:flex-none tw:gap-1 tw:p-2"
+      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col tw:flex-none tw:gap-1 tw:px-1 tw:py-2"
     >
       <SidebarNavItems
         items={label ? fixedItems.map((item) => ({ ...item, label })) : fixedItems}

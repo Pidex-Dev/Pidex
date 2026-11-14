@@ -39,7 +39,7 @@ export function SidebarPetsPane(): ReactNode {
         {t('已安装')}
       </h3>
       <ScrollArea
-        className="tw:min-h-0 tw:flex-1 tw:px-2 tw:pb-2 tw:pt-0"
+        className="tw:min-h-0 tw:flex-1 tw:px-1 tw:pb-2 tw:pt-0"
         contentClassName="tw:flex tw:flex-col tw:sidebar-row-gap"
       >
         {pets.length === 0 ? (

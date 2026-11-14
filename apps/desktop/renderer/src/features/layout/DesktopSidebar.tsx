@@ -903,14 +903,14 @@ function SidebarLoadingSkeleton(): React.ReactNode {
       label="正在加载侧栏"
       shimmer
     >
-      <div className="sidebar-header tw:mx-2 tw:my-0 tw:flex tw:h-6 tw:min-h-6 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
+      <div className="sidebar-header tw:mx-1 tw:my-0 tw:flex tw:h-6 tw:min-h-6 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
         <SkeletonBlock className="tw:h-4 tw:w-[5rem] tw:rounded-3" />
         <div className="tw:flex tw:shrink-0 tw:items-center tw:gap-1">
           <SkeletonBlock className="tw:size-6 tw:rounded-3" />
           <SkeletonBlock className="tw:size-6 tw:rounded-3" />
         </div>
       </div>
-      <div className="tw:mx-2 tw:mt-4 tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-5">
+      <div className="tw:mx-1 tw:mt-4 tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-5">
         <SidebarSkeletonListGroup />
         <SidebarSkeletonListGroup />
       </div>

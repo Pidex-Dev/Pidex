@@ -126,7 +126,7 @@ export function SidebarScheduledPane(): ReactNode {
           )
         })}
       </div>
-      <div className="sidebar-pane-filters tw:flex tw:flex-col tw:gap-2 tw:px-2 tw:pb-2">
+      <div className="sidebar-pane-filters tw:flex tw:flex-col tw:gap-2 tw:px-1 tw:pb-2">
         <SegmentedControl
           ariaLabel={t('任务状态')}
           options={[
@@ -139,7 +139,7 @@ export function SidebarScheduledPane(): ReactNode {
         />
       </div>
       <ScrollArea
-        className="sidebar-scheduled-scroll tw:min-h-0 tw:flex-1 tw:p-2"
+        className="sidebar-scheduled-scroll tw:min-h-0 tw:flex-1 tw:px-1 tw:py-2"
         contentClassName="tw:flex tw:flex-col tw:sidebar-row-gap"
       >
         {controller.supported === false ? (

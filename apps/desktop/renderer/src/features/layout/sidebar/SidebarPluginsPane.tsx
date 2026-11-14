@@ -137,7 +137,7 @@ export function SidebarPluginsPane({
         {t('已安装')}
       </h3>
       <ScrollArea
-        className="sidebar-scheduled-scroll tw:min-h-0 tw:flex-1 tw:px-2 tw:pb-2 tw:pt-0"
+        className="sidebar-scheduled-scroll tw:min-h-0 tw:flex-1 tw:px-1 tw:pb-2 tw:pt-0"
         contentClassName="tw:flex tw:flex-col tw:sidebar-row-gap"
       >
         {loading ? (

@@ -244,7 +244,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         'sidebar-footer tw:flex tw:w-full tw:flex-none tw:min-w-0 tw:items-center tw:gap-1 tw:mt-1',
         compact
           ? 'sidebar-footer--rail tw:flex-col tw:border-t-0 tw:p-0'
-          : 'tw:border-t tw:border-t-app-border-subtle tw:px-2 tw:pt-1',
+          : 'tw:border-t tw:border-t-app-border-subtle tw:px-1 tw:pt-1',
       )}
       ref={ref}
     >

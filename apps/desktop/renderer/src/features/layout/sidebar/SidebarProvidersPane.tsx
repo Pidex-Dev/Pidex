@@ -114,7 +114,7 @@ export function SidebarProvidersPane(): React.ReactNode {
       </div>
       <ScrollArea
         className="sidebar-providers-scroll tw:min-h-0 tw:flex-1 tw:overflow-x-hidden tw:scroll-pb-2"
-        contentClassName="tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2 tw:pb-2"
+        contentClassName="tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1 tw:pb-2"
       >
         {loading ? (
           <SidebarEmptyRow role="status">{t('正在加载供应商…')}</SidebarEmptyRow>
@@ -130,7 +130,7 @@ export function SidebarProvidersPane(): React.ReactNode {
         ) : (
           [true, false].map((configured) => (
             <div key={String(configured)} className="tw:flex tw:flex-col tw:sidebar-row-gap">
-              <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:items-center tw:px-2 tw:text-app-text-meta tw:type-2">
+              <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:items-center tw:px-1 tw:text-app-text-meta tw:type-2">
                 {t(configured ? '已配置' : '未配置')}
               </h3>
               {items

@@ -94,9 +94,9 @@ const PINNED_INITIAL_LIMIT = 10
 const PINNED_LIMIT_STEP = 10
 const CUSTOM_SECTION_INITIAL_LIMIT = 10
 
-/* 分组标题行：sticky 30px 头部、8px gutter、右侧 60px trailing 列。 */
+/* 分组标题行：sticky 30px 头部、左对齐下方图标左边缘、右侧 60px trailing 列。 */
 const SECTION_HEADER_CLASS =
-  'sidebar-section-header tw:sticky tw:top-0 tw:z-local tw:grid tw:h-[var(--sidebar-row-height)] tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:grid-cols-[minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-3 tw:px-2 tw:select-none tw:focus-within:outline-none tw:group'
+  'sidebar-section-header tw:sticky tw:top-0 tw:z-local tw:grid tw:h-[var(--sidebar-row-height)] tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:grid-cols-[minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-3 tw:pr-1 tw:select-none tw:focus-within:outline-none tw:group'
 const SECTION_TITLE_CLASS =
   'sidebar-section-title tw:flex tw:min-w-0 tw:items-center tw:type-2 tw:normal-case tw:text-app-text-meta'
 const SECTION_TOGGLE_CLASS =
@@ -115,7 +115,7 @@ const SECTION_CONTENT_CLASS =
   'sidebar-section-content tw:grid tw:min-w-0 tw:sidebar-row-gap tw:overflow-hidden tw:pt-0'
 /* 更多/收起操作行：与分组行同一 gutter，1px 行间距。 */
 const SHOW_MORE_ACTIONS_CLASS =
-  'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-0.5 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-3 tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard'
+  'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-0.5 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-3 tw:px-1 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard'
 const SHOW_MORE_ROW_CLASS = 'sidebar-row-main tw:min-w-0 tw:flex tw:items-center tw:gap-4'
 const SHOW_MORE_BUTTON_CLASS =
   'tw:w-auto sidebar-show-more-button tw:first:-ml-2 tw:min-w-0 tw:border-0 tw:[font:inherit]'
@@ -848,7 +848,7 @@ function SidebarBodyContent({
             />
           ) : (
             <SidebarDropList
-              className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2"
+              className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1"
               list={{
                 key: 'default',
                 destination: { kind: 'default', index: 0 },
@@ -1241,7 +1241,7 @@ function Timeline({
   ]
   if (groups.length === 0) groups.push({ id: 'day-0', label: '今天', sessions: [] })
   return (
-    <div className="sidebar-timeline tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2">
+    <div className="sidebar-timeline tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1">
       {groups.map((section, index) => (
         <FocusSectionGroup
           key={section.id}
