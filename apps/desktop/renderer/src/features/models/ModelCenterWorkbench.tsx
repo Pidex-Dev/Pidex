@@ -36,7 +36,7 @@ import {
   updateModelCenterSearchParams,
 } from './ModelCenterState.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
-import { ProviderEditorForm } from './provider-management/ProviderEditorForm.js'
+import { NEW_PROVIDER_PANEL_ID, ProviderEditorForm } from './provider-management/ProviderEditorForm.js'
 import { ProviderConnectionSection } from './provider-management/ProviderConnectionSection.js'
 import { ProviderModelsSection } from './provider-management/ProviderModelsSection.js'
 import {
@@ -430,11 +430,16 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
 
   useEffect(() => {
     providerPanel?.claimProvider(
-      showingProviderDetail && !showingCustomEditor ? (selectedProvider?.providerID ?? null) : null,
+      creatingCustomProvider
+        ? NEW_PROVIDER_PANEL_ID
+        : showingProviderDetail && !showingCustomEditor
+          ? (selectedProvider?.providerID ?? null)
+          : null,
     )
     return () => providerPanel?.claimProvider(null)
   }, [
     providerPanel?.claimProvider,
+    creatingCustomProvider,
     showingProviderDetail,
     showingCustomEditor,
     selectedProvider?.providerID,
@@ -621,42 +626,26 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
       ) : (
         <div className="model-center-shell tw:@container tw:h-full tw:w-full tw:min-w-0 tw:overflow-x-hidden tw:overflow-y-auto tw:p-5">
           <div className="tw:mx-auto tw:min-w-0 tw:w-full tw:max-w-[var(--page-content-max-width)] tw:pb-6">
-            {showingCustomEditor ? (
-              <>
-                <div className="plugins-detail-breadcrumb model-center-detail-breadcrumb tw:mb-4 tw:inline-flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
-                  <Button
-                    color="ghostSecondary"
-                    onClick={
-                      showingCustomEditor && !creatingCustomProvider
-                        ? showProviderDetail
-                        : showProviderCatalog
-                    }
-                    size="toolbar"
-                    title={
-                      showingCustomEditor && !creatingCustomProvider
-                        ? '返回供应商详情'
-                        : '返回供应商列表'
-                    }
-                  >
-                    {showingCustomEditor && !creatingCustomProvider
-                      ? selectedProvider?.displayName
-                      : '供应商'}
-                  </Button>
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="model-center-breadcrumb-separator tw:shrink-0 tw:text-app-text-meta tw:opacity-60"
-                    size="var(--inline-icon-size, 1em)"
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
-                  <span className="model-center-breadcrumb-current tw:overflow-hidden tw:text-app-text tw:text-ellipsis tw:whitespace-nowrap">
-                    {creatingCustomProvider
-                      ? '新供应商'
-                      : showingCustomEditor
-                        ? '编辑配置'
-                        : selectedProvider?.displayName}
-                  </span>
-                </div>
-              </>
+            {showingCustomEditor && !creatingCustomProvider ? (
+              <div className="plugins-detail-breadcrumb model-center-detail-breadcrumb tw:mb-4 tw:inline-flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
+                <Button
+                  color="ghostSecondary"
+                  onClick={showProviderDetail}
+                  size="toolbar"
+                  title="返回供应商详情"
+                >
+                  {selectedProvider?.displayName}
+                </Button>
+                <ChevronRight
+                  aria-hidden="true"
+                  className="model-center-breadcrumb-separator tw:shrink-0 tw:text-app-text-meta tw:opacity-60"
+                  size="var(--inline-icon-size, 1em)"
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+                <span className="model-center-breadcrumb-current tw:overflow-hidden tw:text-app-text tw:text-ellipsis tw:whitespace-nowrap">
+                  编辑配置
+                </span>
+              </div>
             ) : null}
             {showInitialSkeleton ? (
               <ModelCenterInitialSkeleton view="detail" />
@@ -672,6 +661,13 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
                 onDelete={deleteCustomProvider}
                 onOpenChange={showProviderDetail}
                 onSaveDefinition={saveProviderDefinition}
+                onSaveInitialApiKey={async (providerId, key) => {
+                  await providerManagementStore.createApiKey({
+                    providerId,
+                    label: 'API Key 1',
+                    key,
+                  })
+                }}
                 onSaved={saveCustomProvider}
               />
             ) : showingProviderDetail && selectedProvider ? (

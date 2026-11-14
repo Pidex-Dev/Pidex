@@ -9,12 +9,14 @@ export function ProviderWebsiteIconSettings({
   providerID,
   logoURL,
   address,
+  draft = false,
   onNotice,
   onError,
 }: {
   providerID: string
   logoURL?: string
   address: string
+  draft?: boolean
   onNotice: (message: string) => void
   onError: (message: string) => void
 }) {
@@ -30,9 +32,10 @@ export function ProviderWebsiteIconSettings({
   const bridge = window.DesktopBridge
   const canSetWebsiteIcon = typeof bridge?.setProviderWebsiteIcon === 'function'
   const canUploadIcon = typeof bridge?.setProviderUploadedIcon === 'function'
-  if (!bridge || !canSetWebsiteIcon) return null
+  if (!draft && (!bridge || !canSetWebsiteIcon)) return null
 
   async function update(restore: boolean) {
+    if (draft || !bridge?.setProviderWebsiteIcon) return
     setBusy(true)
     try {
       await bridge.setProviderWebsiteIcon({
@@ -48,6 +51,7 @@ export function ProviderWebsiteIconSettings({
   }
 
   async function upload(file: File) {
+    if (draft || !bridge?.setProviderUploadedIcon) return
     setBusy(true)
     try {
       const dataURL = await readProviderIconUpload(file)
@@ -64,29 +68,33 @@ export function ProviderWebsiteIconSettings({
     <div className="tw:grid tw:gap-3">
       <div className="tw:flex tw:min-w-0 tw:items-center tw:gap-3">
         <span className="provider-icon-settings-preview tw:flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-control">
-          <ProviderIcon
-            providerID={providerID}
-            logoURL={logoURL}
-            className="tw:size-5"
-            imageClassName="tw:object-contain"
-          />
+          {!draft || logoURL ? (
+            <ProviderIcon
+              providerID={providerID}
+              logoURL={logoURL}
+              className="tw:size-5"
+              imageClassName="tw:object-contain"
+            />
+          ) : null}
         </span>
         <Input
           aria-label="图标来源网站"
           className="tw:min-w-0 tw:flex-1"
-          disabled={busy}
+          disabled={busy || draft}
           placeholder="https://example.com"
+          title={draft ? '创建供应商后可设置图标' : undefined}
           value={website}
           onChange={(event) => setWebsite(event.target.value)}
         />
       </div>
       <div className="tw:flex tw:flex-wrap tw:gap-2">
-        {canUploadIcon ? (
+        {draft || canUploadIcon ? (
           <Button
             size="sm"
             shape="default"
             color="secondary"
-            disabled={busy}
+            disabled={busy || draft}
+            title={draft ? '创建供应商后可上传图标' : undefined}
             onClick={() => fileRef.current?.click()}
           >
             上传图片
@@ -97,7 +105,8 @@ export function ProviderWebsiteIconSettings({
           shape="default"
           color="secondary"
           loading={busy}
-          disabled={busy || !website.trim()}
+          disabled={busy || draft || !website.trim()}
+          title={draft ? '创建供应商后可从网站获取图标' : undefined}
           onClick={() => void update(false)}
         >
           从网站获取
@@ -106,7 +115,8 @@ export function ProviderWebsiteIconSettings({
           size="sm"
           shape="default"
           variant="outline"
-          disabled={busy}
+          disabled={busy || draft}
+          title={draft ? '创建供应商后可恢复默认图标' : undefined}
           onClick={() => void update(true)}
         >
           恢复默认图标

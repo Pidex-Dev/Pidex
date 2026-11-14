@@ -119,6 +119,9 @@ export function ProviderRequestSettingsForm({
   footerHost,
   nameHost,
   provider,
+  isDraft = false,
+  draftApiKey,
+  primaryAction,
   saveRef,
   resetRef,
   onDraftChange,
@@ -131,6 +134,14 @@ export function ProviderRequestSettingsForm({
   nameHost?: HTMLElement | null
   footerHost?: HTMLElement | null
   provider: DesktopModelProviderSummary
+  isDraft?: boolean
+  draftApiKey?: string
+  primaryAction?: {
+    label: string
+    loading?: boolean
+    disabled?: boolean
+    onClick: () => void
+  }
   saveRef: RefObject<(() => Promise<boolean>) | null>
   resetRef: RefObject<(() => void) | null>
   onDraftChange: (dirty: boolean) => void
@@ -401,8 +412,15 @@ export function ProviderRequestSettingsForm({
     setError(null)
     try {
       const result = await desktopClient.detectProviderProtocols({
-        draft: requestDraftValue,
-        providerId: provider.providerID as RpcParams<'provider/protocol/detect'>['providerId'],
+        draft: {
+          ...requestDraftValue,
+          ...(isDraft && draftApiKey?.trim() ? { apiKey: draftApiKey.trim() } : {}),
+        },
+        ...(isDraft
+          ? {}
+          : {
+              providerId: provider.providerID as RpcParams<'provider/protocol/detect'>['providerId'],
+            }),
       })
       if (result.models.some((row) => row.cells.some((cell) => cell.status === 'success'))) {
         await applyDetection(result as DetectionResultLike)
@@ -447,10 +465,27 @@ export function ProviderRequestSettingsForm({
 
   const footer = (
     <footer className="tw:flex tw:shrink-0 tw:justify-end tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-4 tw:py-4">
-      <Button color="secondary" size="sm" shape="default" disabled={saving} onClick={onCancel}>
+      <Button
+        color="secondary"
+        size="sm"
+        shape="default"
+        disabled={saving || primaryAction?.loading}
+        onClick={onCancel}
+      >
         关闭
       </Button>
-      {onDelete ? (
+      {primaryAction ? (
+        <Button
+          color="primary"
+          size="sm"
+          shape="default"
+          loading={primaryAction.loading}
+          disabled={saving || primaryAction.disabled || primaryAction.loading}
+          onClick={primaryAction.onClick}
+        >
+          {primaryAction.label}
+        </Button>
+      ) : onDelete ? (
         <Button
           variant="danger"
           size="sm"
@@ -529,6 +564,7 @@ export function ProviderRequestSettingsForm({
                 </span>
                 <Input
                   onBlur={() => void save()}
+                  placeholder="https://example.com/v1"
                   aria-label={
                     draft.protocol === option.value ? 'API 地址' : `${option.label} API 地址`
                   }
@@ -552,6 +588,7 @@ export function ProviderRequestSettingsForm({
             API 地址
             <Input
               aria-label="API 地址"
+              placeholder="https://example.com/v1"
               onBlur={() => void save()}
               value={draft.address}
               onChange={(event) => setDraft({ ...draft, address: event.target.value })}
@@ -703,6 +740,7 @@ export function ProviderRequestSettingsForm({
               供应商名称
               <Input
                 disabled={detecting}
+                placeholder={isDraft ? '如：Ollama 本地服务' : undefined}
                 onBlur={() => void save()}
                 value={draft.name}
                 onChange={(event) => setDraft({ ...draft, name: event.target.value })}

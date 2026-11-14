@@ -11,8 +11,8 @@ import {
   ChevronDown,
   ChevronRight,
   Eye,
+  KeyRound,
   MoreHorizontal,
-  Pencil,
   Plus,
   RefreshCw,
   Server,
@@ -23,6 +23,12 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { memo, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { WorkspaceHeaderItem } from '../../layout/workspace-header/index.js'
+import { useDesktopLayoutOutletContext } from '../../layout/shell/DesktopLayoutOutletContext.js'
+import { NEW_PROVIDER_PANEL_ID } from './ProviderManagementPanelState.js'
+
+export { NEW_PROVIDER_PANEL_ID }
 import type {
   DesktopCustomProviderDefinition,
   DesktopModelProviderSummary,
@@ -38,6 +44,8 @@ import { newCustomProviderId, providerApiFormat } from './ProviderEditorState.js
 import { Button } from '../../../components/ui/Button.js'
 
 import { Input } from '../../../components/ui/Input.js'
+import { ProviderWebsiteIconSettings } from './ProviderWebsiteIconSettings.js'
+import { ProviderRequestSettingsForm } from './ProviderRequestSettingsForm.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
@@ -185,6 +193,7 @@ export type ProviderEditorFormProps = {
     definition: DesktopProviderDefinition,
     providerId?: ModelProviderID,
   ) => Promise<void>
+  onSaveInitialApiKey?: (providerId: string, apiKey: string) => Promise<void>
   operationBusy?: boolean
   onTestModel?: (modelId: string) => Promise<void>
   embedded?: boolean
@@ -203,6 +212,9 @@ export type ProviderEditorFormProps = {
 /* 编辑弹窗字段：标签/说明排版与输入宽度，窄屏回到单列。 */
 const PROVIDER_EDITOR_FIELD_CLASS =
   'provider-editor-field tw:grid tw:gap-2 tw:[&>span]:flex tw:[&>span]:items-center tw:[&>span]:justify-between tw:[&>span]:gap-2 tw:[&>span]:text-app-text tw:[&>span]:type-label tw:[&>span>small]:text-app-text-meta tw:[&>span>small]:type-caption tw:[&>p]:col-start-2 tw:[&>p]:m-0 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body-sm tw:[&_input]:w-full tw:[&_textarea]:w-full tw:max-[720px]:grid-cols-1 tw:max-[720px]:[&>p]:col-start-1'
+
+const PROVIDER_EDITOR_PANEL_FIELD_CLASS =
+  'provider-editor-field tw:grid tw:min-w-0 tw:content-start tw:gap-2 tw:[&>span]:flex tw:[&>span]:items-center tw:[&>span]:justify-between tw:[&>span]:gap-2 tw:[&>span]:text-app-text tw:[&>span]:type-1 tw:[&>span]:weight-medium tw:[&>span>small]:text-app-text-meta tw:[&>span>small]:type-1 tw:[&>p]:m-0 tw:[&>p]:text-app-text-soft tw:[&>p]:type-1 tw:[&_input]:w-full tw:[&_textarea]:w-full'
 
 /* `--mono` 变体把该字段的输入控件切到等宽字体。 */
 const PROVIDER_EDITOR_FIELD_MONO_CLASS =
@@ -225,6 +237,7 @@ export function ProviderEditorForm({
   onTestModel,
   existingProviderIds = [],
   onDelete,
+  onSaveInitialApiKey,
   open,
   provider: currentProvider,
   deepSeekProtocolSupported = false,
@@ -239,6 +252,24 @@ export function ProviderEditorForm({
   const provider = open ? currentProvider : (retainedProvider ?? undefined)
   const titleId = useId()
   const editing = provider?.providerKind === 'custom'
+  const panel = useDesktopLayoutOutletContext()?.providerManagement
+  const isNewEmbeddedDraft = embedded && !editing
+  const panelRef = useRef(panel)
+  panelRef.current = panel
+  useEffect(() => {
+    if (!isNewEmbeddedDraft) return
+    const frame = requestAnimationFrame(() => {
+      const currentPanel = panelRef.current
+      if (!currentPanel || currentPanel.tab?.providerId === NEW_PROVIDER_PANEL_ID) return
+      void currentPanel.open(NEW_PROVIDER_PANEL_ID, 'request')
+    })
+    return () => {
+      cancelAnimationFrame(frame)
+      if (panelRef.current?.tab?.providerId === NEW_PROVIDER_PANEL_ID) {
+        panelRef.current.close()
+      }
+    }
+  }, [isNewEmbeddedDraft])
   // 内置 DeepSeek 走同一编辑入口，但只允许切换全局 API 协议。
   // memo 保持引用稳定，避免初始化 effect 在每次渲染后重复执行。
   const managed = useMemo(
@@ -258,9 +289,26 @@ export function ProviderEditorForm({
   const [headers, setHeaders] = useState('')
   const [models, setModels] = useState<EditableModel[]>([])
   const [defaultApi, setDefaultApi] = useState<Api>('anthropic-messages')
+  const [endpoints, setEndpoints] = useState<Record<string, string>>({})
   const [baseline, setBaseline] = useState('')
   const [advancedOpen, setAdvancedOpen] = useState(false)
-  const nameInputRef = useRef<HTMLInputElement>(null)
+  const [requestNameHost, setRequestNameHost] = useState<HTMLDivElement | null>(null)
+  const [requestFooterHost, setRequestFooterHost] = useState<HTMLDivElement | null>(null)
+  const [draftKeyEditorOpen, setDraftKeyEditorOpen] = useState(false)
+  const [requestDirty, setRequestDirty] = useState(false)
+  const [requestBusy, setRequestBusy] = useState(false)
+  const requestSaveRef = useRef<(() => Promise<boolean>) | null>(null)
+  const requestResetRef = useRef<(() => void) | null>(null)
+  const pendingDraftRef = useRef<{
+    name: string
+    baseUrl: string
+    auth: 'api-key' | 'none'
+    allowInsecureHttp: boolean
+    env: string
+    headers: string
+    endpoints: Record<string, string>
+    defaultApi: Api
+  } | null>(null)
   const busyRef = useRef(false)
   const allowNavigation = useRef(false)
   const createdProviderId = useRef<string | null>(null)
@@ -276,7 +324,7 @@ export function ProviderEditorForm({
   const [discovering, setDiscovering] = useState(false)
   const [protocol, setProtocol] = useState<DeepSeekProtocol>(DEFAULT_DEEPSEEK_PROTOCOL)
   const [internalBusy, setBusy] = useState(false)
-  const busy = internalBusy || operationBusy
+  const busy = internalBusy || operationBusy || requestBusy
   const [error, setError] = useState<string | null>(null)
 
   function resetForm(provider: DesktopModelProviderSummary | undefined): void {
@@ -325,6 +373,9 @@ export function ProviderEditorForm({
     setHeaders(headersToText(customConfig?.headers ?? {}))
     setModels(nextModels)
     setDefaultApi(nextModels[0]?.api ?? (embedded ? 'anthropic-messages' : 'openai-completions'))
+    setEndpoints(customConfig?.endpoints ?? {})
+    setDraftKeyEditorOpen(false)
+    pendingDraftRef.current = null
     setBaseline(
       draftSignature({
         id: nextId,
@@ -375,6 +426,16 @@ export function ProviderEditorForm({
     )
     setError(null)
   }
+
+  const effectiveEndpoints = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(endpoints)
+          .map(([api, address]) => [api, address.trim()] as const)
+          .filter(([, address]) => address.length > 0),
+      ),
+    [endpoints],
+  )
 
   const definition = useMemo(() => {
     const headerEntries = parseHeaders(headers)
@@ -438,16 +499,18 @@ export function ProviderEditorForm({
       name: trimmedName,
       enabled,
       baseUrl: trimmedBaseUrl,
-      ...(provider?.config?.endpoints
-        ? {
-            endpoints: Object.fromEntries(
-              Object.entries(provider.config.endpoints).map(([api, address]) => [
-                api,
-                address === provider.config?.baseUrl ? trimmedBaseUrl : address,
-              ]),
-            ),
-          }
-        : {}),
+      ...(Object.keys(effectiveEndpoints).length > 0
+        ? { endpoints: effectiveEndpoints }
+        : provider?.config?.endpoints
+          ? {
+              endpoints: Object.fromEntries(
+                Object.entries(provider.config.endpoints).map(([api, address]) => [
+                  api,
+                  address === provider.config?.baseUrl ? trimmedBaseUrl : address,
+                ]),
+              ),
+            }
+          : {}),
       auth,
       env: envList,
       allowInsecureHttp,
@@ -463,6 +526,7 @@ export function ProviderEditorForm({
     auth,
     baseUrl,
     editing,
+    effectiveEndpoints,
     enabled,
     env,
     headers,
@@ -471,6 +535,69 @@ export function ProviderEditorForm({
     name,
     pendingModelSync,
     provider?.config,
+  ])
+
+  const draftProviderSummary = useMemo<DesktopModelProviderSummary | null>(() => {
+    if (!isNewEmbeddedDraft) return null
+    const headerEntries = parseHeaders(headers)
+    const effectiveHeaders = headerEntries instanceof Error ? {} : headerEntries
+    const envList = env
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+    const draftEndpoints =
+      Object.keys(endpoints).length > 0 ? endpoints : { [defaultApi]: baseUrl }
+    const customConfig = {
+      kind: 'custom',
+      id: id as ModelProviderID,
+      name,
+      enabled,
+      baseUrl,
+      auth,
+      env: envList,
+      allowInsecureHttp,
+      headers: effectiveHeaders,
+      endpoints: draftEndpoints,
+      models: models.map((model) => ({
+        id: model.id as DesktopProviderModelDefinition['id'],
+        name: model.name,
+        api: model.api,
+        reasoning: model.reasoning,
+        input: model.imageInput ? (['text', 'image'] as const) : (['text'] as const),
+        cost: {
+          input: model.inputCost,
+          output: model.outputCost,
+          cacheRead: model.cacheReadCost,
+          cacheWrite: model.cacheWriteCost,
+        },
+        contextWindow: model.contextWindow,
+        maxTokens: model.maxTokens,
+      })),
+    } as unknown as DesktopCustomProviderDefinition
+    return {
+      providerID: id as ModelProviderID,
+      providerKind: 'custom',
+      displayName: name,
+      baseURL: baseUrl,
+      enabled,
+      authMethods: ['api-key'],
+      defaultApi,
+      defaultModels: [],
+      config: customConfig,
+    } as unknown as DesktopModelProviderSummary
+  }, [
+    allowInsecureHttp,
+    auth,
+    baseUrl,
+    defaultApi,
+    enabled,
+    endpoints,
+    env,
+    headers,
+    id,
+    isNewEmbeddedDraft,
+    models,
+    name,
   ])
 
   const signature = draftSignature({
@@ -491,6 +618,32 @@ export function ProviderEditorForm({
 
   async function save(select = true): Promise<boolean> {
     if (busyRef.current || operationBusy) return false
+    if (isNewEmbeddedDraft && requestSaveRef.current) {
+      const ok = await requestSaveRef.current()
+      if (!ok) return false
+    }
+    const pendingDraft = pendingDraftRef.current
+    const resolvedDefinition: DesktopCustomProviderDefinition | Error =
+      pendingDraft && !(definition instanceof Error)
+        ? ({
+            ...definition,
+            name: pendingDraft.name.trim() || definition.name,
+            baseUrl: pendingDraft.baseUrl.trim() || definition.baseUrl,
+            auth: pendingDraft.auth,
+            allowInsecureHttp: pendingDraft.allowInsecureHttp,
+            env: pendingDraft.env
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean),
+            headers: (() => {
+              const parsed = parseHeaders(pendingDraft.headers)
+              return parsed instanceof Error ? definition.headers : parsed
+            })(),
+            ...(Object.keys(pendingDraft.endpoints).length > 0
+              ? { endpoints: pendingDraft.endpoints }
+              : {}),
+          } as unknown as DesktopCustomProviderDefinition)
+        : definition
     if (managed) {
       busyRef.current = true
       setBusy(true)
@@ -511,14 +664,14 @@ export function ProviderEditorForm({
         setBusy(false)
       }
     }
-    if (definition instanceof Error) {
-      setError(definition.message)
+    if (resolvedDefinition instanceof Error) {
+      setError(resolvedDefinition.message)
       return false
     }
     if (
-      definition.allowInsecureHttp &&
-      /^http:\/\//i.test(definition.baseUrl) &&
-      !isLoopbackUrl(definition.baseUrl) &&
+      resolvedDefinition.allowInsecureHttp &&
+      /^http:\/\//i.test(resolvedDefinition.baseUrl) &&
+      !isLoopbackUrl(resolvedDefinition.baseUrl) &&
       !window.confirm('此 Endpoint 使用局域网或远程明文 HTTP，凭据可能被窃听。仍要保存吗？')
     )
       return false
@@ -528,17 +681,20 @@ export function ProviderEditorForm({
     try {
       if (editing || createdProviderId.current) {
         await onSaveDefinition(
-          definition,
+          resolvedDefinition,
           (provider?.providerID ??
             createdProviderId.current!) as DesktopModelProviderSummary['providerID'],
         )
       } else {
-        await onSaveDefinition(definition)
-        createdProviderId.current = definition.id
+        await onSaveDefinition(resolvedDefinition)
+        createdProviderId.current = resolvedDefinition.id
+        if (tempApiKey.trim() && resolvedDefinition.auth === 'api-key' && onSaveInitialApiKey) {
+          await onSaveInitialApiKey(resolvedDefinition.id, tempApiKey.trim())
+        }
       }
       setPendingModelSync(undefined)
       allowNavigation.current = true
-      const savedProvider = await onSaved(definition.id, select)
+      const savedProvider = await onSaved(resolvedDefinition.id, select)
       if (savedProvider) resetForm(savedProvider)
       else setBaseline(signature)
       if (!embedded) onOpenChange(false)
@@ -652,12 +808,16 @@ export function ProviderEditorForm({
     ...(managed ? [] : [{ value: 'advanced' as const, label: '高级与网络' }]),
   ]
 
+  const activeFieldClass = embedded
+    ? PROVIDER_EDITOR_PANEL_FIELD_CLASS
+    : PROVIDER_EDITOR_FIELD_CLASS
+
   const credentialFields = (
     <>
       <label
         className={cx(
           embedded ? undefined : 'settings-management-dialog-row',
-          PROVIDER_EDITOR_FIELD_CLASS,
+          activeFieldClass,
         )}
       >
         <span>认证方式</span>
@@ -669,13 +829,14 @@ export function ProviderEditorForm({
           ]}
           value={auth}
           size="lg"
+          triggerClassName={embedded ? 'tw:w-full tw:max-w-none' : undefined}
           onChange={(value) => setAuth(value as 'api-key' | 'none')}
         />
       </label>
       <label
         className={cx(
           embedded ? undefined : 'settings-management-dialog-row',
-          PROVIDER_EDITOR_FIELD_CLASS,
+          activeFieldClass,
           PROVIDER_EDITOR_FIELD_MONO_CLASS,
         )}
       >
@@ -687,6 +848,182 @@ export function ProviderEditorForm({
         />
       </label>
     </>
+  )
+
+  const apiFormatField = (
+    <label className={activeFieldClass}>
+      <span>API 格式</span>
+      <SettingsDropdown
+        ariaLabel="默认 API 格式"
+        size="lg"
+        triggerClassName="tw:w-full tw:max-w-none"
+        value={format}
+        options={[
+          ...(format === 'per-model'
+            ? [{ value: 'per-model', label: '按模型设置', disabled: true }]
+            : []),
+          ...API_OPTIONS,
+        ]}
+        onChange={(value) => {
+          if (value === 'per-model') return
+          setDefaultApi(value as Api)
+          setModels((current) =>
+            current.map((model) => ({ ...model, api: value as Api })),
+          )
+        }}
+      />
+    </label>
+  )
+
+  const candidatesSection =
+    candidates.length > 0 ? (
+      <section className="provider-editor-candidates-card tw:grid tw:gap-3 tw:rounded-4 tw:border tw:border-app-accent-border tw:bg-app-accent-subtle tw:p-4">
+        <header className="tw:flex tw:items-center tw:justify-between tw:gap-2">
+          <strong className="tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-1)]">
+            发现 {candidates.length} 个候选模型，已选 {selectedCandidates.size} 个
+          </strong>
+          <Button
+            size="md"
+            color="secondary"
+            onClick={() =>
+              setSelectedCandidates(
+                new Set(
+                  filteredCandidates
+                    .filter((model) =>
+                      isImportableCandidate(model, candidateMatches[String(model.id)]),
+                    )
+                    .map((model) => String(model.id)),
+                ),
+              )
+            }
+          >
+            全选
+          </Button>
+          <Button
+            size="md"
+            color="secondary"
+            disabled={selectedCandidates.size === 0}
+            onClick={() => setSelectedCandidates(new Set())}
+          >
+            清空
+          </Button>
+          <Button
+            size="md"
+            color="primary"
+            disabled={selectedCandidates.size === 0}
+            onClick={importSelected}
+          >
+            导入已选 ({selectedCandidates.size})
+          </Button>
+        </header>
+        <Input
+          aria-label="筛选候选模型"
+          autoComplete="off"
+          placeholder="按 ID 筛选候选模型"
+          value={candidateFilter}
+          onChange={(event) => setCandidateFilter(event.target.value)}
+        />
+        <div className="provider-editor-candidates-list tw:grid tw:max-h-[10rem] tw:gap-1 tw:overflow-y-auto tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2">
+          {filteredCandidates.length === 0 ? (
+            <p role="status" className="tw:m-0 tw:text-app-text-soft tw:type-1">
+              没有匹配的候选模型。
+            </p>
+          ) : null}
+          {filteredCandidates.map((candidate) => {
+            const match = candidateMatches[String(candidate.id)]
+            const importable = isImportableCandidate(candidate, match)
+            const hint = candidateMatchHint(match)
+            return (
+              <div
+                className="provider-editor-candidate-row tw:flex tw:items-center tw:gap-2 tw:rounded-2 tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-1)] tw:hover:bg-app-hover"
+                key={String(candidate.id)}
+                title={hint}
+              >
+                <label className="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
+                  <input
+                    checked={selectedCandidates.has(String(candidate.id))}
+                    disabled={!importable}
+                    type="checkbox"
+                    onChange={(event) =>
+                      setSelectedCandidates((current) => {
+                        const next = new Set(current)
+                        if (event.target.checked) next.add(String(candidate.id))
+                        else next.delete(String(candidate.id))
+                        return next
+                      })
+                    }
+                  />
+                  <span className="tw:truncate">{String(candidate.id)}</span>
+                </label>
+                <span className="provider-editor-model-card-badge tw:shrink-0 tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-1)]">
+                  {candidateMatchLabel(match?.status)}
+                </span>
+                {candidate.contextWindow ? (
+                  <span className="tw:shrink-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)]">
+                    上下文 {candidate.contextWindow.toLocaleString()}
+                  </span>
+                ) : null}
+                {!importable ? (
+                  <Button variant="ghost" size="xs" onClick={() => manualImport(candidate)}>
+                    手动补齐
+                  </Button>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+        {candidates.some(
+          (candidate) =>
+            !isImportableCandidate(candidate, candidateMatches[String(candidate.id)]),
+        ) ? (
+          <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
+            {candidates.filter(
+              (candidate) =>
+                !isImportableCandidate(candidate, candidateMatches[String(candidate.id)]),
+            ).length}{' '}
+            个候选未匹配、歧义或缺少额度，不会默认导入；请点击“手动补齐”填写上下文与最大输出。
+          </p>
+        ) : null}
+      </section>
+    ) : null
+
+  const modelsListSection = (
+    <div className="provider-editor-models-list tw:grid tw:gap-3">
+      {models.length === 0 ? (
+        <p
+          className={cx(
+            'tw:m-0 tw:text-app-text-soft tw:type-1',
+            embedded
+              ? 'tw:rounded-3 tw:bg-app-raised/60 tw:px-4 tw:py-5 tw:text-center'
+              : 'tw:rounded-4 tw:border tw:border-dashed tw:border-app-border-subtle tw:p-4',
+          )}
+        >
+          当前没有配置模型，添加并保存后可在聊天中使用。
+        </p>
+      ) : null}
+      {models.map((model, index) => (
+        <ProviderModelCard
+          providerId={id}
+          baseUrl={baseUrl}
+          canRemove={embedded || models.length > 1}
+          dialog={embedded}
+          defaultExpanded={index === 0}
+          key={model.editorKey}
+          model={model}
+          {...(editing && onTestModel && model.id.trim() && !busy
+            ? { onTest: () => void onTestModel(model.id.trim()) }
+            : {})}
+          onChange={(next) =>
+            setModels((current) =>
+              current.map((item) => (item.editorKey === model.editorKey ? next : item)),
+            )
+          }
+          onRemove={() =>
+            setModels((current) => current.filter((item) => item.editorKey !== model.editorKey))
+          }
+        />
+      ))}
+    </div>
   )
 
   const content = (
@@ -729,27 +1066,21 @@ export function ProviderEditorForm({
               checked={enabled}
               onChange={setEnabled}
             />
-            <Dropdown
-              align="end"
-              trigger={
-                <Button
-                  isIconOnly
-                  color="ghostSecondary"
-                  size="toolbar"
-                  title="供应商操作"
-                  disabled={busy}
-                >
-                  <MoreHorizontal className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-                </Button>
-              }
-            >
-              <PopoverItem
-                icon={<Pencil className="tw:size-icon-md" size={APP_ICON_SIZE} />}
-                onClick={() => requestAnimationFrame(() => nameInputRef.current?.focus())}
+            {editing && onDelete ? (
+              <Dropdown
+                align="end"
+                trigger={
+                  <Button
+                    isIconOnly
+                    color="ghostSecondary"
+                    size="toolbar"
+                    title="供应商操作"
+                    disabled={busy}
+                  >
+                    <MoreHorizontal className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+                  </Button>
+                }
               >
-                重命名
-              </PopoverItem>
-              {editing && onDelete ? (
                 <PopoverItem
                   icon={<Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                   onClick={() => {
@@ -768,8 +1099,8 @@ export function ProviderEditorForm({
                 >
                   删除供应商
                 </PopoverItem>
-              ) : null}
-            </Dropdown>
+              </Dropdown>
+            ) : null}
           </div>
         ) : (
           <Dialog.Close asChild>
@@ -812,14 +1143,14 @@ export function ProviderEditorForm({
                 <div
                   className={
                     embedded
-                      ? 'tw:grid tw:gap-4'
+                      ? 'tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5'
                       : 'settings-management-dialog-card provider-editor-basic-card'
                   }
                 >
                   <div
                     className={cx(
                       embedded ? undefined : 'settings-management-dialog-row',
-                      PROVIDER_EDITOR_FIELD_CLASS,
+                      activeFieldClass,
                     )}
                   >
                     <span>API 协议</span>
@@ -839,7 +1170,7 @@ export function ProviderEditorForm({
                   <label
                     className={cx(
                       embedded ? undefined : 'settings-management-dialog-row',
-                      PROVIDER_EDITOR_FIELD_CLASS,
+                      activeFieldClass,
                       PROVIDER_EDITOR_FIELD_MONO_CLASS,
                     )}
                   >
@@ -857,7 +1188,7 @@ export function ProviderEditorForm({
                 </div>
               ) : null}
 
-              {!managed && !editing && !createdProviderId.current ? (
+              {!embedded && !managed && !editing && !createdProviderId.current ? (
                 <section className="provider-editor-presets-section tw:grid tw:gap-2 tw:rounded-4 tw:border tw:border-dashed tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3">
                   <div className="provider-editor-presets-header tw:flex tw:items-center tw:justify-between tw:gap-2">
                     <span className="tw:text-app-text-meta tw:type-1 tw:weight-medium">快速套用常用预设</span>
@@ -884,18 +1215,38 @@ export function ProviderEditorForm({
               ) : null}
 
               {!managed ? (
-                <div
-                  className={
-                    embedded
-                      ? 'tw:grid tw:gap-4'
-                      : 'settings-management-dialog-card provider-editor-basic-card'
-                  }
-                >
-                  {!embedded ? (
+                embedded ? (
+                  <section className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5">
+                    <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">
+                      连接与基础信息
+                    </h3>
+                    <div className="tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[640px]:grid-cols-1">
+                      <label className={activeFieldClass}>
+                        <span>显示名称</span>
+                        <Input
+                          placeholder="如：Ollama 本地服务"
+                          value={name}
+                          onChange={(event) => setName(event.target.value)}
+                        />
+                      </label>
+                      {apiFormatField}
+                    </div>
+                    <label className={cx(activeFieldClass, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
+                      <span>Base URL</span>
+                      <Input
+                        placeholder="https://example.com/v1"
+                        value={baseUrl}
+                        onChange={(event) => setBaseUrl(event.target.value)}
+                      />
+                      <p>端点 URL，例如本地服务 http://localhost:11434/v1 或官方 API 路径。</p>
+                    </label>
+                  </section>
+                ) : (
+                  <div className="settings-management-dialog-card provider-editor-basic-card">
                     <label
                       className={cx(
-                        embedded ? undefined : 'settings-management-dialog-row',
-                        PROVIDER_EDITOR_FIELD_CLASS,
+                        'settings-management-dialog-row',
+                        activeFieldClass,
                         PROVIDER_EDITOR_FIELD_MONO_CLASS,
                       )}
                     >
@@ -905,75 +1256,49 @@ export function ProviderEditorForm({
                       </span>
                       <Input
                         placeholder="如：custom-ollama"
-                        readOnly={editing || embedded || Boolean(createdProviderId.current)}
+                        readOnly={editing || Boolean(createdProviderId.current)}
                         value={id}
                         onChange={(event) => setId(event.target.value)}
                       />
                     </label>
-                  ) : null}
-                  <label
-                    className={cx(
-                      embedded ? undefined : 'settings-management-dialog-row',
-                      PROVIDER_EDITOR_FIELD_CLASS,
-                    )}
-                  >
-                    <span>显示名称</span>
-                    <Input
-                      ref={nameInputRef}
-                      placeholder="如：Ollama 本地服务"
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                    />
-                  </label>
-                  <label
-                    className={cx(
-                      embedded ? undefined : 'settings-management-dialog-row',
-                      PROVIDER_EDITOR_FIELD_CLASS,
-                      PROVIDER_EDITOR_FIELD_MONO_CLASS,
-                    )}
-                  >
-                    <span>Base URL</span>
-                    <Input
-                      placeholder="https://example.com/v1"
-                      value={baseUrl}
-                      onChange={(event) => setBaseUrl(event.target.value)}
-                    />
-                    <p>端点 URL，例如本地服务 http://localhost:11434/v1 或官方 API 路径。</p>
-                  </label>
-                  {!embedded ? credentialFields : null}
-                </div>
+                    <label className={cx('settings-management-dialog-row', activeFieldClass)}>
+                      <span>显示名称</span>
+                      <Input
+                        placeholder="如：Ollama 本地服务"
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                      />
+                    </label>
+                    <label
+                      className={cx(
+                        'settings-management-dialog-row',
+                        activeFieldClass,
+                        PROVIDER_EDITOR_FIELD_MONO_CLASS,
+                      )}
+                    >
+                      <span>Base URL</span>
+                      <Input
+                        placeholder="https://example.com/v1"
+                        value={baseUrl}
+                        onChange={(event) => setBaseUrl(event.target.value)}
+                      />
+                      <p>端点 URL，例如本地服务 http://localhost:11434/v1 或官方 API 路径。</p>
+                    </label>
+                    {credentialFields}
+                  </div>
+                )
               ) : null}
             </div>
           ) : null}
 
-          {embedded ? (
-            <>
-              <label className={PROVIDER_EDITOR_FIELD_CLASS}>
-                <span>API 格式</span>
-                <SettingsDropdown
-                  ariaLabel="默认 API 格式"
-                  size="lg"
-                  triggerClassName="tw:w-full tw:max-w-none"
-                  value={format}
-                  options={[
-                    ...(format === 'per-model'
-                      ? [{ value: 'per-model', label: '按模型设置', disabled: true }]
-                      : []),
-                    ...API_OPTIONS,
-                  ]}
-                  onChange={(value) => {
-                    if (value === 'per-model') return
-                    setDefaultApi(value as Api)
-                    setModels((current) =>
-                      current.map((model) => ({ ...model, api: value as Api })),
-                    )
-                  }}
-                />
-              </label>
-            </>
-          ) : null}
+          {embedded && managed ? apiFormatField : null}
           {embedded || activeTab === 'models' ? (
-            <div className="provider-editor-tab-panel tw:grid tw:gap-4">
+            <div
+              className={cx(
+                'provider-editor-tab-panel tw:grid tw:gap-4',
+                embedded && 'tw:border-t tw:border-app-border-subtle tw:pt-5',
+              )}
+            >
               <header className="provider-editor-models-header tw:flex tw:items-center tw:justify-between tw:gap-3">
                 <div className="provider-editor-models-title tw:flex tw:items-center tw:gap-2">
                   <h3 className="tw:m-0 tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-2)] tw:weight-medium">
@@ -1000,7 +1325,14 @@ export function ProviderEditorForm({
               </header>
 
               {!managed && !editing && !createdProviderId.current ? (
-                <section className="provider-editor-discover-card tw:grid tw:gap-3 tw:rounded-4 tw:border tw:border-dashed tw:border-app-border-subtle tw:bg-app-panel tw:p-4">
+                <section
+                  className={cx(
+                    'provider-editor-discover-card tw:grid tw:gap-2.5',
+                    embedded
+                      ? 'tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3'
+                      : 'tw:rounded-4 tw:border tw:border-dashed tw:border-app-border-subtle tw:bg-app-panel tw:p-4',
+                  )}
+                >
                   <header className="tw:grid tw:gap-1">
                     <strong className="tw:text-app-text tw:type-2 tw:weight-medium">保存前获取模型</strong>
                     <span className="tw:text-app-text-soft tw:type-1">
@@ -1011,7 +1343,7 @@ export function ProviderEditorForm({
                     <Input
                       aria-label="临时 API Key"
                       autoComplete="off"
-                      className="tw:flex-1"
+                      className="tw:min-w-0 tw:flex-1"
                       placeholder="临时 API Key（仅本次获取，不保存）"
                       type="password"
                       value={tempApiKey}
@@ -1165,7 +1497,14 @@ export function ProviderEditorForm({
               ) : (
                 <div className="provider-editor-models-list tw:grid tw:gap-3">
                   {models.length === 0 ? (
-                    <p className="tw:m-0 tw:rounded-4 tw:border tw:border-dashed tw:border-app-border-subtle tw:p-4 tw:text-app-text-soft tw:type-1">
+                    <p
+                      className={cx(
+                        'tw:m-0 tw:text-app-text-soft tw:type-1',
+                        embedded
+                          ? 'tw:rounded-3 tw:bg-app-raised/60 tw:px-4 tw:py-5 tw:text-center'
+                          : 'tw:rounded-4 tw:border tw:border-dashed tw:border-app-border-subtle tw:p-4',
+                      )}
+                    >
                       当前没有配置模型，添加并保存后可在聊天中使用。
                     </p>
                   ) : null}
@@ -1198,44 +1537,107 @@ export function ProviderEditorForm({
             </div>
           ) : null}
 
-          {embedded ? (
-            <Button
-              size="md"
-              color="ghostSecondary"
-              aria-expanded={advancedOpen}
-              onClick={() => setAdvancedOpen((value) => !value)}
-            >
-              <ChevronRight className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-              高级与网络
-            </Button>
-          ) : null}
-          {(embedded ? advancedOpen : activeTab === 'advanced') && !managed ? (
-            <div className="provider-editor-tab-panel tw:grid tw:gap-4">
-              {embedded ? credentialFields : null}
-              {embedded ? (
-                <label className={PROVIDER_EDITOR_FIELD_CLASS}>
-                  <span>供应商 ID（自动生成，不可修改）</span>
-                  <Input readOnly value={id} />
-                </label>
-              ) : null}
-              <div className="settings-management-dialog-card">
-                {!embedded ? (
-                  <div className="settings-management-dialog-row provider-editor-switch-card tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3">
-                    <div className="provider-editor-switch-info tw:grid tw:min-w-0 tw:gap-1">
-                      <strong className="tw:text-app-text tw:type-2 tw:weight-medium">
-                        启用此 Provider
-                      </strong>
-                      <span className="tw:text-app-text-soft tw:type-1">
-                        在模型选择菜单与 Agent 会话中允许调用此 Provider
-                      </span>
-                    </div>
-                    <ToggleSwitch
-                      ariaLabel="启用 Provider"
-                      checked={enabled}
-                      onChange={setEnabled}
-                    />
+          {embedded && !managed ? (
+            <section className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5">
+              <Button
+                size="md"
+                color="ghostSecondary"
+                className="tw:h-auto tw:w-full tw:justify-between tw:rounded-3 tw:px-0 tw:py-1 tw:text-left tw:hover:bg-transparent"
+                aria-expanded={advancedOpen}
+                onClick={() => setAdvancedOpen((value) => !value)}
+              >
+                <span className="tw:grid tw:min-w-0 tw:gap-0.5">
+                  <span className="tw:text-app-text tw:type-2 tw:weight-medium">高级与网络</span>
+                  <span className="tw:text-app-text-soft tw:type-1 tw:weight-normal">
+                    认证方式、凭据环境变量、HTTP 安全与自定义请求头
+                  </span>
+                </span>
+                <ChevronRight
+                  className={cx(
+                    'tw:size-icon-md tw:shrink-0 tw:text-app-text-soft tw:transition-transform tw:duration-state',
+                    advancedOpen && 'tw:rotate-90',
+                  )}
+                  aria-hidden
+                  size={APP_ICON_SIZE}
+                />
+              </Button>
+              {advancedOpen ? (
+                <div className="provider-editor-tab-panel tw:grid tw:gap-4">
+                  <div className="tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[640px]:grid-cols-1">
+                    {credentialFields}
                   </div>
-                ) : null}
+                  <label className={cx(activeFieldClass, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
+                    <span>供应商 ID（自动生成，不可修改）</span>
+                    <Input readOnly value={id} />
+                  </label>
+                  <div className="tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised">
+                    <div className="provider-editor-switch-card tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:px-4 tw:py-3">
+                      <div className="provider-editor-switch-info tw:grid tw:min-w-0 tw:gap-1">
+                        <strong className="tw:text-app-text tw:type-2 tw:weight-medium">
+                          允许非 loopback 明文 HTTP
+                        </strong>
+                        <span className="tw:text-app-text-soft tw:type-1">
+                          允许连接局域网或远程非 localhost 的 http:// 端点
+                        </span>
+                      </div>
+                      <ToggleSwitch
+                        ariaLabel="允许非 loopback HTTP"
+                        checked={allowInsecureHttp}
+                        onChange={setAllowInsecureHttp}
+                      />
+                    </div>
+                  </div>
+                  {isRemoteHttp && !allowInsecureHttp ? (
+                    <div
+                      className="provider-editor-alert tw:flex tw:items-start tw:gap-3 tw:rounded-3 tw:px-4 tw:py-3 tw:type-1 tw:[&_svg]:size-icon tw:[&_svg]:shrink-0 tw:[&_svg]:mt-1 tw:data-[tone=warning]:border tw:data-[tone=warning]:border-app-warning-border tw:data-[tone=warning]:bg-app-warning-subtle tw:data-[tone=warning]:text-app-warning tw:data-[tone=danger]:border tw:data-[tone=danger]:border-app-danger-border tw:data-[tone=danger]:bg-app-danger-subtle tw:data-[tone=danger]:text-app-danger tw:data-[tone=info]:border tw:data-[tone=info]:border-app-info-border tw:data-[tone=info]:bg-app-info-subtle tw:data-[tone=info]:text-app-info-fg"
+                      data-tone="warning"
+                    >
+                      <AlertTriangle className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
+                      <div>
+                        <strong>检测到非本地明文 HTTP 端点</strong>
+                        <p>
+                          当前 Base URL 使用明文 HTTP 且不是本机回环地址，建议开启“允许非 loopback 明文
+                          HTTP”或使用 HTTPS。
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+                  <label className={activeFieldClass}>
+                    <span>
+                      全局非敏感 Headers
+                      <small>每行 name: value</small>
+                    </span>
+                    <textarea
+                      className="provider-editor-textarea tw:w-full tw:min-h-[5rem] tw:resize-y tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
+                      placeholder="X-Custom-Header: value&#10;Custom-Client: Pidex"
+                      rows={4}
+                      value={headers}
+                      onChange={(event) => setHeaders(event.target.value)}
+                    />
+                    <p>仅填写非敏感请求头。Authorization / API Key 等凭据请勿直接写入此处。</p>
+                  </label>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+          {!embedded && activeTab === 'advanced' && !managed ? (
+            <div className="provider-editor-tab-panel tw:grid tw:gap-4">
+              <div className="settings-management-dialog-card">
+                <div className="settings-management-dialog-row provider-editor-switch-card tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3">
+                  <div className="provider-editor-switch-info tw:grid tw:min-w-0 tw:gap-1">
+                    <strong className="tw:text-app-text tw:type-2 tw:weight-medium">
+                      启用此 Provider
+                    </strong>
+                    <span className="tw:text-app-text-soft tw:type-1">
+                      在模型选择菜单与 Agent 会话中允许调用此 Provider
+                    </span>
+                  </div>
+                  <ToggleSwitch
+                    ariaLabel="启用 Provider"
+                    checked={enabled}
+                    onChange={setEnabled}
+                  />
+                </div>
                 <div className="settings-management-dialog-row provider-editor-switch-card tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3">
                   <div className="provider-editor-switch-info tw:grid tw:min-w-0 tw:gap-1">
                     <strong className="tw:text-app-text tw:type-2 tw:weight-medium">
@@ -1272,7 +1674,7 @@ export function ProviderEditorForm({
               <label
                 className={cx(
                   'settings-management-dialog-card settings-management-dialog-row',
-                  PROVIDER_EDITOR_FIELD_CLASS,
+                  activeFieldClass,
                 )}
               >
                 <span>
@@ -1333,6 +1735,314 @@ export function ProviderEditorForm({
       </footer>
     </>
   )
+
+  if (isNewEmbeddedDraft)
+    return (
+      <section className="model-center-provider-detail tw:grid tw:min-w-0 tw:gap-3" aria-label="新建供应商">
+        <WorkspaceHeaderItem id="provider-detail" slot="left">
+          <div className="model-center-provider-detail-header tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+            <div className="model-center-provider-identity tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+              <span className="model-center-provider-identity-logo tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-3 tw:text-app-text">
+                <Server
+                  className="tw:size-icon-sm"
+                  aria-hidden
+                  size={14}
+                  data-icon-kind="artwork"
+                  strokeWidth={2}
+                />
+              </span>
+              <div className="model-center-provider-identity-copy tw:grid tw:min-w-0 tw:gap-1">
+                <h2 className="tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:type-2 tw:weight-medium tw:text-ellipsis tw:whitespace-nowrap">
+                  {name.trim() || '新供应商'}
+                </h2>
+              </div>
+            </div>
+          </div>
+        </WorkspaceHeaderItem>
+        <WorkspaceHeaderItem id="provider-actions" slot="right">
+          <div className="model-center-provider-context-actions tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:gap-2 tw:group-data-[right-dock-open]:pr-0 tw:pr-2">
+            {panel && panel.tab?.providerId !== NEW_PROVIDER_PANEL_ID ? (
+              <Button
+                size="sm"
+                color="secondary"
+                disabled={busy}
+                onClick={() => void panel.open(NEW_PROVIDER_PANEL_ID, 'request')}
+              >
+                供应商设置
+              </Button>
+            ) : null}
+            <ToggleSwitch
+              ariaLabel="启用供应商"
+              disabled={busy}
+              checked={enabled}
+              onChange={setEnabled}
+            />
+          </div>
+        </WorkspaceHeaderItem>
+
+        {error ? (
+          <div
+            className="provider-editor-alert tw:flex tw:items-start tw:gap-3 tw:rounded-3 tw:px-4 tw:py-3 tw:type-1 tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:text-app-danger"
+            role="status"
+          >
+            <AlertTriangle className="tw:size-icon-md tw:mt-0.5 tw:shrink-0" size={APP_ICON_SIZE} aria-hidden />
+            <span className="tw:min-w-0 tw:break-words">{error}</span>
+          </div>
+        ) : null}
+
+        <div className="model-center-provider-panel tw:grid tw:min-w-0 tw:gap-5">
+          <div className="model-center-connection-section tw:grid tw:gap-5">
+            <div className="tw:grid tw:min-w-0 tw:grid-cols-1 tw:gap-5 tw:@min-[640px]:grid-cols-2">
+              <section aria-label="API 密钥" className="tw:grid tw:min-w-0 tw:gap-3">
+                <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">API 密钥</h3>
+                <div className="tw:flex tw:items-center tw:gap-2">
+                  <Input
+                    aria-label="API 密钥"
+                    autoComplete="off"
+                    className="tw:min-w-0 tw:flex-1"
+                    disabled={busy || auth === 'none'}
+                    placeholder={
+                      auth === 'none'
+                        ? '当前认证方式无需密钥'
+                        : '输入 API Key（创建时保存并可用于同步模型）'
+                    }
+                    type="password"
+                    value={tempApiKey}
+                    onChange={(event) => setTempApiKey(event.target.value)}
+                  />
+                </div>
+              </section>
+              <section aria-label="API 地址" className="tw:grid tw:min-w-0 tw:gap-3">
+                <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">API 地址</h3>
+                <div className="tw:flex tw:items-center tw:gap-2">
+                  <Input
+                    aria-label="API 地址"
+                    className="tw:min-w-0 tw:flex-1 tw:type-code"
+                    disabled={busy}
+                    placeholder="https://example.com/v1"
+                    value={baseUrl}
+                    onChange={(event) => setBaseUrl(event.target.value)}
+                  />
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <section className="tw:grid tw:min-w-0 tw:gap-4" aria-label="模型列表">
+            <header className="provider-editor-models-header tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3">
+              <div className="provider-editor-models-title tw:flex tw:items-center tw:gap-2">
+                <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">模型</h3>
+                <span className="tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:weight-medium">
+                  {models.length}
+                </span>
+              </div>
+              <div className="provider-editor-models-actions tw:flex tw:items-center tw:gap-1">
+                <Button
+                  size="sm"
+                  color="ghostSecondary"
+                  disabled={busy || discovering}
+                  loading={discovering}
+                  onClick={() => void discover()}
+                >
+                  <RefreshCw className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+                  同步模型
+                </Button>
+                <Button
+                  size="sm"
+                  color="ghostSecondary"
+                  disabled={busy}
+                  onClick={() => {
+                    setModels((current) => [...current, { ...emptyModel(), api: defaultApi }])
+                  }}
+                >
+                  <Plus className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+                  新增模型
+                </Button>
+              </div>
+            </header>
+
+            {pendingModelSync ? (
+              <p className="tw:m-0 tw:text-app-text-soft tw:type-1" role="status">
+                已获取 {pendingModelSync.models.length} 个上游模型，保存时将记录同步基线。
+              </p>
+            ) : null}
+
+            {candidatesSection}
+            {modelsListSection}
+          </section>
+        </div>
+
+        {panel?.host && panel.tab?.providerId === NEW_PROVIDER_PANEL_ID && draftProviderSummary
+          ? createPortal(
+              <div className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col">
+                <div className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-5 tw:overflow-y-auto tw:p-4 tw:[&_.model-center-oauth-flow]:p-0">
+                  <section className="tw:grid tw:gap-4" aria-label="供应商信息">
+                    <h3 className="tw:m-0 tw:type-4 tw:weight-bold">供应商信息</h3>
+                    <div className="tw:grid tw:min-w-0 tw:gap-4">
+                      <div ref={setRequestNameHost} />
+                      <div className="tw:grid tw:min-w-0 tw:gap-2">
+                        <span className="tw:type-1 tw:weight-medium">供应商图标</span>
+                        <ProviderWebsiteIconSettings
+                          draft
+                          key={id}
+                          providerID={id}
+                          address={baseUrl}
+                          onNotice={() => {}}
+                          onError={setError}
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section
+                    className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5"
+                    aria-label="认证与密钥"
+                  >
+                    <h3 className="tw:m-0 tw:type-4 tw:weight-bold">认证与密钥</h3>
+                    <section className="tw:grid tw:gap-3">
+                      <header className="model-center-detail-card-header tw:flex tw:items-center tw:justify-between tw:gap-3">
+                        <div>
+                          <h4 className="tw:m-0 tw:type-2 tw:weight-medium">API Key</h4>
+                          <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
+                            优先使用排在首位的活动密钥。
+                          </p>
+                        </div>
+                        <Button
+                          color="secondary"
+                          size="sm"
+                          shape="default"
+                          disabled={busy || draftKeyEditorOpen || auth === 'none'}
+                          onClick={() => setDraftKeyEditorOpen(true)}
+                        >
+                          <Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
+                          新增 API Key
+                        </Button>
+                      </header>
+                      <div className="model-center-detail-card-body tw:min-w-0">
+                        {draftKeyEditorOpen ? (
+                          <div className="tw:grid tw:gap-2">
+                            <Input
+                              aria-label="新增 API Key"
+                              autoComplete="off"
+                              disabled={busy}
+                              placeholder="输入 API Key（创建供应商时保存）"
+                              type="password"
+                              value={tempApiKey}
+                              onChange={(event) => setTempApiKey(event.target.value)}
+                            />
+                            <div className="tw:flex tw:justify-end tw:gap-2">
+                              <Button
+                                size="sm"
+                                shape="default"
+                                color="secondary"
+                                onClick={() => setDraftKeyEditorOpen(false)}
+                              >
+                                完成
+                              </Button>
+                            </div>
+                          </div>
+                        ) : tempApiKey.trim() ? (
+                          <article className="model-center-key-row tw:grid tw:min-w-0 tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-3 tw:px-3 tw:py-2 tw:hover:bg-app-hover">
+                            <div className="tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+                              <KeyRound aria-hidden size="var(--inline-icon-size, 1em)" />
+                              <span className="tw:truncate tw:type-code">
+                                {tempApiKey.trim().length > 4
+                                  ? `••••${tempApiKey.trim().slice(-4)}`
+                                  : '••••'}
+                              </span>
+                              <span className="tw:text-app-text-meta tw:type-1">待保存</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              shape="default"
+                              color="ghostSecondary"
+                              disabled={busy}
+                              onClick={() => setTempApiKey('')}
+                            >
+                              移除
+                            </Button>
+                          </article>
+                        ) : (
+                          <div className="model-center-section-empty-hint tw:flex tw:items-center tw:gap-2 tw:py-2 tw:text-app-text-soft tw:type-1 tw:[&_svg]:shrink-0 tw:[&_svg]:text-app-text-meta">
+                            <KeyRound aria-hidden size="var(--inline-icon-size, 1em)" />
+                            <span>
+                              尚未保存此供应商的 API Key，点击「新增 API Key」进行配置。
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                  </section>
+
+                  <section
+                    className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5"
+                    aria-label="请求配置"
+                  >
+                    <ProviderRequestSettingsForm
+                      isDraft
+                      draftApiKey={tempApiKey}
+                      footerHost={requestFooterHost}
+                      nameHost={requestNameHost}
+                      provider={draftProviderSummary}
+                      saveRef={requestSaveRef}
+                      resetRef={requestResetRef}
+                      onDraftChange={setRequestDirty}
+                      onBusyChange={setRequestBusy}
+                      onSaveDefinition={async (nextDefinition) => {
+                        if (nextDefinition.kind !== 'custom') return
+                        const nextEnv = nextDefinition.env.join(', ')
+                        const nextHeaders = headersToText(nextDefinition.headers)
+                        const nextEndpoints = nextDefinition.endpoints ?? {}
+                        const nextBaseUrl = nextDefinition.baseUrl ?? ''
+                        const nextDefaultApi =
+                          (Object.keys(nextEndpoints)[0] as Api | undefined) ?? defaultApi
+                        pendingDraftRef.current = {
+                          name: nextDefinition.name,
+                          baseUrl: nextBaseUrl,
+                          auth: nextDefinition.auth,
+                          allowInsecureHttp: nextDefinition.allowInsecureHttp,
+                          env: nextEnv,
+                          headers: nextHeaders,
+                          endpoints: nextEndpoints,
+                          defaultApi: nextDefaultApi,
+                        }
+                        setName(nextDefinition.name)
+                        setBaseUrl(nextBaseUrl)
+                        setAuth(nextDefinition.auth)
+                        setAllowInsecureHttp(nextDefinition.allowInsecureHttp)
+                        setEnv(nextEnv)
+                        setHeaders(nextHeaders)
+                        setEndpoints(nextEndpoints)
+                        setDefaultApi(nextDefaultApi)
+                      }}
+                      onSaved={async () => {}}
+                      onCancel={() => panel.close()}
+                      primaryAction={{
+                        label: '创建供应商',
+                        loading: busy,
+                        disabled: busy,
+                        onClick: () => void save(),
+                      }}
+                    />
+                  </section>
+                </div>
+                <div
+                  ref={setRequestFooterHost}
+                  className="tw:relative tw:z-10 tw:shrink-0 tw:bg-app-panel"
+                />
+              </div>,
+              panel.host,
+            )
+          : null}
+
+        <ProviderEditorNavigationGuard
+          dirty={dirty || requestDirty || models.length > 0 || tempApiKey.trim().length > 0}
+          busy={busy}
+          allowNavigation={allowNavigation}
+          onSave={() => save(false)}
+        />
+      </section>
+    )
 
   if (embedded)
     return (
