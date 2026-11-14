@@ -73,15 +73,15 @@ describe('workbench chrome contract', () => {
     }
   })
 
-  test('caps the sidebar minimum at the last menu button without limiting expansion', () => {
+  test('uses fixed sidebar minimum width without coupling to menu bar button bounds', () => {
     const menuBar = readRendererFile('src/features/layout/MenuBar.tsx')
     const controller = readRendererFile('src/features/layout/shell/UseWorkbenchShellController.ts')
     const layout = readRendererFile('src/features/layout/shell/DesktopLayout.tsx')
 
-    expectSourceContains(menuBar, 'lastButton.getBoundingClientRect().right - menuBar.getBoundingClientRect().left')
-    expectSourceContains(menuBar, 'observer.disconnect()')
-    expectSourceContains(layout, 'onSidebarBoundaryChange={setSidebarMenuBoundary}')
-    expectSourceContains(controller, 'Math.min(MODERN_SIDEBAR_MIN_WIDTH, sidebarMenuBoundary)')
+    expectSourceNotContains(menuBar, 'onSidebarBoundaryChange')
+    expectSourceNotContains(layout, 'setSidebarMenuBoundary')
+    expectSourceNotContains(controller, 'sidebarMenuBoundary')
+    expectSourceContains(controller, 'sidebarMinWidth: MODERN_SIDEBAR_MIN_WIDTH')
     expectSourceContains(controller, 'sidebarMaxWidth: SIDEBAR_MAX_WIDTH')
   })
 

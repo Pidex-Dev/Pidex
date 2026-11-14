@@ -181,10 +181,8 @@ export function useWorkbenchShellController({
     rightDockDragRaw === null ? null : resolveRightDockDragLayout(rightDockDragRaw)
   const workspaceLayout = dragWorkspaceLayout ?? committedWorkspaceLayout
 
-  const [sidebarMenuBoundary, setSidebarMenuBoundary] = useState(SIDEBAR_MAX_WIDTH)
-  const sidebarMinWidth = Math.min(MODERN_SIDEBAR_MIN_WIDTH, sidebarMenuBoundary)
   const displayedSidebarWidth = Math.max(
-    sidebarMinWidth,
+    MODERN_SIDEBAR_MIN_WIDTH,
     workbenchLayoutState?.primarySidebarWidth ?? sidebarWidth,
   )
 
@@ -875,9 +873,8 @@ export function useWorkbenchShellController({
     toggleSidebarCollapsed,
     collapseSidebar,
     sidebarShell,
-    sidebarMinWidth,
+    sidebarMinWidth: MODERN_SIDEBAR_MIN_WIDTH,
     sidebarMaxWidth: SIDEBAR_MAX_WIDTH,
-    setSidebarMenuBoundary,
     workbenchPanelState,
     setWorkbenchPanelState,
     workspaceView,

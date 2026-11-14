@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Menubar from '@radix-ui/react-menubar'
 import type { DesktopEditAction } from '@pidex/shared/desktop-edit-ipc'
 import {
@@ -86,7 +86,6 @@ type Props = {
   sessionTabs?: readonly TitlebarSessionTabItem[]
   onSelectSessionTab?: (sessionId: string) => void
   onCloseSessionTab?: (sessionId: string) => void
-  onSidebarBoundaryChange?: (width: number) => void
   onToggleSidebar: () => void
   onMinimize: () => void
   onToggleMaximize: () => void
@@ -214,7 +213,6 @@ export function MenuBar({
   sessionTabs = [],
   onSelectSessionTab,
   onCloseSessionTab,
-  onSidebarBoundaryChange,
   onToggleSidebar,
   onMinimize,
   onToggleMaximize,
@@ -228,7 +226,6 @@ export function MenuBar({
     useEditCommands()
   const focusModality = useFloatingFocusModality()
   const menuTriggerRef = useRef<HTMLButtonElement>(null)
-  const sidebarTriggerRef = useRef<HTMLButtonElement>(null)
   const menuBarFocusedRef = useRef(false)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
   const ignoreStaleCloseRef = useRef(false)
@@ -256,23 +253,6 @@ export function MenuBar({
       behavior: reducedMotion ? 'auto' : 'smooth',
     })
   }, [reducedMotion, sessionTabs])
-
-  useLayoutEffect(() => {
-    const lastButton = sidebarTriggerRef.current
-    const menuBar = lastButton?.closest('.app-menubar')
-    const leftCluster = lastButton?.closest('.menubar-left')
-    if (!lastButton || !menuBar || !onSidebarBoundaryChange) return
-    const update = (): void => {
-      onSidebarBoundaryChange(
-        Math.floor(lastButton.getBoundingClientRect().right - menuBar.getBoundingClientRect().left),
-      )
-    }
-    update()
-    const observer = new ResizeObserver(update)
-    observer.observe(menuBar)
-    if (leftCluster) observer.observe(leftCluster)
-    return () => observer.disconnect()
-  }, [onSidebarBoundaryChange])
 
   function closeMenu(): void {
     ignoreStaleCloseRef.current = false
@@ -776,7 +756,6 @@ export function MenuBar({
               data-app-shell-sidebar-trigger
               onClick={onToggleSidebar}
               color="ghost"
-              ref={sidebarTriggerRef}
               size="toolbar"
               title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
             >

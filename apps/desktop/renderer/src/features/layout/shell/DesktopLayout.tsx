@@ -448,7 +448,6 @@ export function DesktopLayout(): React.ReactNode {
     sidebarShell,
     sidebarMinWidth,
     sidebarMaxWidth,
-    setSidebarMenuBoundary,
     workbenchLayoutState,
     workbenchPanelState,
     setWorkbenchPanelState,
@@ -2441,7 +2440,6 @@ export function DesktopLayout(): React.ReactNode {
   const menuBar = useMemo(
     () => (
       <MenuBar
-        onSidebarBoundaryChange={setSidebarMenuBoundary}
         sidebarCollapsed={sidebarShell.mode !== 'docked'}
         isMaximized={isWindowMaximized}
         canNavigateBack={canNavigateBack}
@@ -2463,7 +2461,6 @@ export function DesktopLayout(): React.ReactNode {
       />
     ),
     [
-      setSidebarMenuBoundary,
       sidebarShell.mode,
       isWindowMaximized,
       canNavigateBack,
