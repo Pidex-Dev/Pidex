@@ -287,4 +287,76 @@ describe('ToolingManager', () => {
     expect((await manager.getStatus('ripgrep')).error?.code).toBe('TOOLING_CHECKSUM_MISMATCH')
     expect(await readdir(join(root, '.staging'))).toEqual([])
   })
+
+  test('managed 偏好在托管版未安装时优先复用有效本机版并缓存命中，避免每次工具调用阻塞下载', async () => {
+    const root = await temporaryRoot()
+    const fakeSystemExe = join(root, 'fake-git-bash.exe')
+    await writeFile(fakeSystemExe, 'stub')
+    process.env.PIDEX_GIT_BASH_PATH = fakeSystemExe
+
+    let fetchCalls = 0
+    let findSystemCalls = 0
+    const manager = new ToolingManager({
+      root,
+      fetch: (async () => {
+        fetchCalls += 1
+        throw new Error('unexpected download')
+      }) as unknown as typeof fetch,
+    })
+
+    const internal = manager as unknown as {
+      findManaged(id: ToolingStatus['id']): Promise<{ available: true; source: 'managed'; id: ToolingStatus['id']; path: string; version: string | null } | null>
+      findSystem(id: ToolingStatus['id']): Promise<{ available: true; source: 'system'; id: ToolingStatus['id']; path: string; version: string | null } | null>
+    }
+    internal.findManaged = async () => null
+    internal.findSystem = async (id) => {
+      findSystemCalls += 1
+      return {
+        available: true,
+        source: 'system',
+        id,
+        path: process.env.PIDEX_GIT_BASH_PATH ?? fakeSystemExe,
+        version: '2.50.0',
+      }
+    }
+
+    const first = await manager.resolve('git-bash')
+    const second = await manager.resolve('git-bash')
+    expect(first).toMatchObject({ available: true, source: 'system', path: fakeSystemExe })
+    expect(second).toEqual(first)
+    expect(fetchCalls).toBe(0)
+    expect(findSystemCalls).toBe(1)
+
+    const nextSystemExe = join(root, 'fake-git-bash-v2.exe')
+    await writeFile(nextSystemExe, 'stub-v2')
+    process.env.PIDEX_GIT_BASH_PATH = nextSystemExe
+    const third = await manager.resolve('git-bash')
+    expect(third).toMatchObject({ available: true, source: 'system', path: nextSystemExe })
+    expect(findSystemCalls).toBe(2)
+  })
+
+  test('自动安装失败后进入冷却期不重复拉取网络，显式 install 或切换偏好会清除冷却与缓存', async () => {
+    const root = await temporaryRoot()
+    process.env.PIDEX_RIPGREP_PATH = join(root, 'missing-rg.exe')
+    let fetchCalls = 0
+    const manager = new ToolingManager({
+      root,
+      fetch: (async () => {
+        fetchCalls += 1
+        return new Response('unavailable', { status: 503 })
+      }) as unknown as typeof fetch,
+    })
+
+    const first = await manager.resolve('ripgrep')
+    expect(first.available).toBe(false)
+    const callsAfterFirst = fetchCalls
+    expect(callsAfterFirst).toBeGreaterThan(0)
+
+    const second = await manager.resolve('ripgrep')
+    expect(second.available).toBe(false)
+    expect(fetchCalls).toBe(callsAfterFirst)
+
+    await expect(manager.install('ripgrep', { force: true })).rejects.toThrow()
+    expect(fetchCalls).toBeGreaterThan(callsAfterFirst)
+  })
 })

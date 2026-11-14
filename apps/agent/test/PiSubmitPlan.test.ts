@@ -20,6 +20,7 @@ import {
   structuredPlanDomainFields,
   structuredPlanParameters,
 } from '../src/orchestration/plan/StructuredPlan'
+import { scheduleDraftParameters } from '../src/orchestration/plan/ScheduleDraft'
 import type {
   ActiveHarness,
   HarnessRuntimeOptions,
@@ -163,11 +164,21 @@ describe('structured plan module', () => {
       expect(String(error)).not.toContain('sk-sensitive-value')
     }
   })
-  test('模型可见参数 schema 覆盖共享领域全部字段', () => {
+  test('模型可见参数 schema 覆盖共享领域全部字段且不包含 pattern 正则约束', () => {
     const exposed = Object.keys(
       (structuredPlanParameters as { properties?: Record<string, unknown> }).properties ?? {},
     ).sort()
     expect(exposed).toEqual(structuredPlanDomainFields)
+
+    const hasPatternKeyword = (node: unknown): boolean => {
+      if (!node || typeof node !== 'object') return false
+      if (Array.isArray(node)) return node.some(hasPatternKeyword)
+      const record = node as Record<string, unknown>
+      if ('pattern' in record) return true
+      return Object.values(record).some(hasPatternKeyword)
+    }
+    expect(hasPatternKeyword(structuredPlanParameters)).toBe(false)
+    expect(hasPatternKeyword(scheduleDraftParameters)).toBe(false)
   })
 
   test('缺字段、空字符串和额外字段都被拒绝且不回显字段值', () => {
