@@ -901,53 +901,55 @@ function SidebarBodyContent({
                 </SidebarSectionPresence>
               </SidebarPinnedPresence>
 
-              <SidebarDropList
-                className="tw:flex tw:min-w-0 tw:flex-col tw:gap-4"
-                list={{
-                  key: 'sections',
-                  destination: { kind: 'default', index: 0 },
-                  order: orderedSections.map((section) => `section:${section.id}`),
-                  onReorder: (order) => onReorderSections(order.map((key) => key.slice(8))),
-                }}
-              >
-                {orderedSections.map((section) => (
-                  <SidebarReorderItem
-                    key={section.id}
-                    value={`section:${section.id}`}
-                    reducedMotion={reducedMotion}
-                    dragHandleSelector=".sidebar-section-toggle"
-                  >
-                    <SidebarCustomSection
+              {orderedSections.length > 0 ? (
+                <SidebarDropList
+                  className="tw:flex tw:min-w-0 tw:flex-col tw:gap-4"
+                  list={{
+                    key: 'sections',
+                    destination: { kind: 'default', index: 0 },
+                    order: orderedSections.map((section) => `section:${section.id}`),
+                    onReorder: (order) => onReorderSections(order.map((key) => key.slice(8))),
+                  }}
+                >
+                  {orderedSections.map((section) => (
+                    <SidebarReorderItem
                       key={section.id}
-                      activeSessionId={activeSessionId}
-                      manualOrderByScope={manualOrderByScope}
-                      now={now}
-                      pendingPermissionSessionIds={pendingPermissionSessionIds}
-                      section={section}
-                      sectionOptions={customSectionOptions}
-                      selectedKeys={selectedKeys}
-                      sessionFallbackTitles={sessionFallbackTitles}
-                      showPullRequestIcons={showPullRequestIcons}
-                      titleLoadingIds={titleLoadingIds}
-                      unavailableProjectKeys={unavailableProjectKeys}
-                      onArchiveSessions={onArchiveSessions}
-                      onDelete={onDeleteSection}
-                      onMoveSessionToDefault={onMoveSessionToDefault}
-                      onMoveSessionToSection={onMoveSessionToSection}
-                      onPinSession={onPinSession}
-                      onRename={onRenameSection}
-                      onRenameSession={onRenameSession}
-                      onRenderProject={renderProjectGroup}
-                      onReorderItems={onReorderSectionItems}
-                      onSelectSession={onSelectSession}
-                      onSetCollapsed={onSetSectionCollapsed}
-                      onSetSort={onSetSectionSort}
-                      onToggleSessionUnread={onToggleSessionUnread}
-                      onUnpinSession={onUnpinSession}
-                    />
-                  </SidebarReorderItem>
-                ))}
-              </SidebarDropList>
+                      value={`section:${section.id}`}
+                      reducedMotion={reducedMotion}
+                      dragHandleSelector=".sidebar-section-toggle"
+                    >
+                      <SidebarCustomSection
+                        key={section.id}
+                        activeSessionId={activeSessionId}
+                        manualOrderByScope={manualOrderByScope}
+                        now={now}
+                        pendingPermissionSessionIds={pendingPermissionSessionIds}
+                        section={section}
+                        sectionOptions={customSectionOptions}
+                        selectedKeys={selectedKeys}
+                        sessionFallbackTitles={sessionFallbackTitles}
+                        showPullRequestIcons={showPullRequestIcons}
+                        titleLoadingIds={titleLoadingIds}
+                        unavailableProjectKeys={unavailableProjectKeys}
+                        onArchiveSessions={onArchiveSessions}
+                        onDelete={onDeleteSection}
+                        onMoveSessionToDefault={onMoveSessionToDefault}
+                        onMoveSessionToSection={onMoveSessionToSection}
+                        onPinSession={onPinSession}
+                        onRename={onRenameSection}
+                        onRenameSession={onRenameSession}
+                        onRenderProject={renderProjectGroup}
+                        onReorderItems={onReorderSectionItems}
+                        onSelectSession={onSelectSession}
+                        onSetCollapsed={onSetSectionCollapsed}
+                        onSetSort={onSetSectionSort}
+                        onToggleSessionUnread={onToggleSessionUnread}
+                        onUnpinSession={onUnpinSession}
+                      />
+                    </SidebarReorderItem>
+                  ))}
+                </SidebarDropList>
+              ) : null}
 
               <AnimatePresence initial={false}>
                 {organization === 'projects' ? (
