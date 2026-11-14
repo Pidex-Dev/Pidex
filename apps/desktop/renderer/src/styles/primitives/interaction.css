@@ -1,7 +1,7 @@
 @layer reset {
-  /* 基础点击尺寸不得覆盖组件声明的行高；密集型会话回合刻度导轨保持高密度微型槽位。 */
+  /* 基础点击尺寸不得覆盖组件声明的行高；密集型会话回合刻度导轨、色块与开关保持各自几何。 */
   :where(
-    button:not(.conversation-turn-nav-item, .appearance-color-swatch),
+    button:not(.conversation-turn-nav-item, .appearance-color-swatch, .toggle-switch),
     [role='button'],
     [role='tab'],
     [role='menuitem'],
@@ -22,7 +22,7 @@
   }
 
   :where(
-    button:not(.conversation-turn-nav-item, .appearance-color-swatch),
+    button:not(.conversation-turn-nav-item, .appearance-color-swatch, .toggle-switch),
     [role='button'],
     [role='tab'],
     [role='menuitem'],

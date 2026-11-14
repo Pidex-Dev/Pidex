@@ -257,7 +257,7 @@ export function ComposerLaunchSettingsPopover({
                     }
                     trailing={
                       <ToggleSwitch
-                        size="sm"
+                        size="xs"
                         ariaLabel="新建工作树"
                         checked={settings.createWorktree}
                         disabled={executionDisabled || !pendingBranch}
