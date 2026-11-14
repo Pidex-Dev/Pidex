@@ -191,7 +191,7 @@ export function SidebarNavigationRailBody({
     >
       <Button
         isIconOnly
-        iconSize="md"
+        iconSize="lg"
         title={t(label)}
         nativeTitle={false}
         aria-label={t(label)}
@@ -258,7 +258,7 @@ export function SidebarNavigationRailBody({
           {button(
             'home',
             '首页',
-            <Home className="tw:size-icon-md" size={APP_ICON_SIZES.md} />,
+            <Home className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} />,
             () => {
               navigate(lastChatPath.current)
             },
@@ -271,7 +271,7 @@ export function SidebarNavigationRailBody({
               <Popover.Trigger asChild>
                 <Button
                   isIconOnly
-                  iconSize="md"
+                  iconSize="lg"
                   ref={moreTriggerRef}
                   title={t('更多')}
                   nativeTitle={false}
@@ -282,7 +282,7 @@ export function SidebarNavigationRailBody({
                   variant="ghost"
                   size="md"
                 >
-                  <Ellipsis className="tw:size-icon-md" size={APP_ICON_SIZES.md} />
+                  <Ellipsis className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} />
                 </Button>
               </Popover.Trigger>
               <Popover.Portal>

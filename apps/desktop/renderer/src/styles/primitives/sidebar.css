@@ -21,6 +21,10 @@
  *   scripts/CheckStyleContracts.ts).
  */
 @layer primitives {
+  .sidebar-navigation-rail {
+    --cpx-comp-button-size-large: 35px;
+  }
+
   .sidebar-rail-destinations {
     scrollbar-width: none;
   }
