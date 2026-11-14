@@ -135,6 +135,12 @@ describe('plugin catalog controls', () => {
     expect(themed).toContain('plugin-logo__image--dark tw:block')
   })
 
+  test('renders the pets app logo image', () => {
+    const html = renderToStaticMarkup(<PluginIcon name="pets" />)
+    expect(html).toContain('<img')
+    expect(html).toContain('plugin-logo__image')
+  })
+
   test('renders a downloadable demo with an enabled install action', () => {
     const html = renderCard('pidex-demo')
     expect(html).toContain('未安装')
