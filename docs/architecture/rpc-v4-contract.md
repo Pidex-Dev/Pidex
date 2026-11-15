@@ -43,7 +43,7 @@ rules are fixed here for review.
 | Project and workspace                | `PROJECT_NOT_FOUND`, `PATH_DENIED`, `CONFLICT`                                                                                |
 | Thread, prompt, and Turn             | `THREAD_NOT_FOUND`, `TURN_NOT_FOUND`, `CONFLICT`, `CHECKPOINT_UNAVAILABLE`, `MODEL_UNAVAILABLE`                               |
 | Sandbox and tools                    | `SANDBOX_UNAVAILABLE`, `PERMISSION_DENIED`, `CONFLICT`                                                                        |
-| Attachment and memory                | `ATTACHMENT_NOT_FOUND`, `ATTACHMENT_LIMIT`, `MEMORY_NOT_FOUND`, `MEMORY_REJECTED`, `CONFLICT`, `PERMISSION_DENIED`              |
+| Attachment and memory                | `ATTACHMENT_NOT_FOUND`, `ATTACHMENT_LIMIT`, `MEMORY_NOT_FOUND`, `MEMORY_REJECTED`, `CONFLICT`, `PERMISSION_DENIED`            |
 | Subagent and workspace operations    | `SUBAGENT_NOT_FOUND`, `WORKSPACE_CONFLICT`, `PERMISSION_DENIED`, `CONFLICT`                                                   |
 | Model, provider, and auth            | `MODEL_UNAVAILABLE`, `PROVIDER_NOT_FOUND`, `PROVIDER_UNAVAILABLE`, `CREDENTIAL_NOT_FOUND`, `AUTHORIZATION_FAILED`, `CONFLICT` |
 
