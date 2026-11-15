@@ -1,5 +1,5 @@
 import { lstat, readdir, rm } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type {
   DownloadedResourceItem,
   OldChatStorageItem,
@@ -526,5 +526,3 @@ export class StorageManagementService {
     throw new AgentError('INVALID_REQUEST', `未知资源标识：${resourceId}`, 400)
   }
 }
-
-export const storageDisplayName = (dirPath: string): string => basename(dirPath) || dirPath

@@ -304,6 +304,3 @@ export const prepareStorage = (paths: StoragePaths) => {
     migrateOne(paths.legacyPath, paths.profilePath, 'profile')
   }
 }
-
-/** Compatibility wrapper retained for callers outside the production bootstrap. */
-export const prepareDatabase = (path: string) => prepareHistoryStorage(path)

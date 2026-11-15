@@ -1,6 +1,6 @@
 import { mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
+import { parse as parseYaml } from 'yaml'
 
 /**
  * Markdown files under the Pidex data root are the only source of truth for
@@ -182,23 +182,6 @@ const parseFrontmatter = (
     diagnostic: null,
   }
 }
-
-export const serializeMemoryDocument = (
-  frontmatter: { name: string; description?: string; type: MemoryType },
-  body: string,
-) =>
-  [
-    '---',
-    stringifyYaml({
-      name: frontmatter.name,
-      description: frontmatter.description ?? '',
-      type: frontmatter.type,
-    }).trimEnd(),
-    '---',
-    '',
-    body.trimEnd(),
-    '',
-  ].join('\n')
 
 const normalizeIndexLinkTarget = (raw: string): string | null => {
   const target = raw.replace(/^\.\//, '').split('#')[0]!

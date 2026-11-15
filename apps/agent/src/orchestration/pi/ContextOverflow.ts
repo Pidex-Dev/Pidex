@@ -22,15 +22,3 @@ export const isProviderContextOverflow = (message: string | undefined) => {
     return true
   return false
 }
-
-export const REACTIVE_COMPACTION_INSTRUCTIONS = [
-  'Preserve the current user request, completed tool calls, key file state and remaining steps.',
-  'Remove old tool output and repeated background that do not help continue the task.',
-  'Do not treat compaction itself as a user request.',
-].join('\n')
-
-export const REACTIVE_CONTINUATION_PROMPT = [
-  'Context was compacted because of the window limit. Continue the current unfinished request.',
-  'Do not narrate compaction or ask again for information the user already provided.',
-  'Reuse tool results from retained history. Never repeat a toolCallId or clearly completed side effect.',
-].join('\n')

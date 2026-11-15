@@ -2,7 +2,6 @@ import { JsonValueSchema, ProviderErrorDetailsSchema } from '@pidex/agent-protoc
 import { ProviderRequestError } from '../../provider/ProviderError'
 import type { ComputerUseService } from '../../computer/ComputerUseService'
 import {
-  PermissionConfigSchema,
   ThreadSettingsPatchSchema,
   ThreadSettingsSchema,
   type PermissionConfig,
@@ -237,7 +236,6 @@ export const decodeQueueInput = Schema.decodeUnknownSync(QueueInputParamsSchema)
 export const decodeQueueResume = Schema.decodeUnknownSync(QueueResumeParamsSchema)
 export const decodeThreadSettings = Schema.decodeUnknownSync(ThreadSettingsSchema)
 export const decodeThreadSettingsPatch = Schema.decodeUnknownSync(ThreadSettingsPatchSchema)
-export const decodePermissionConfig = Schema.decodeUnknownSync(PermissionConfigSchema)
 export const decodeSandboxUninstall = Schema.decodeUnknownSync(SandboxUninstallParamsSchema)
 export const decodeReviewSummary = Schema.decodeUnknownSync(ReviewSummaryParamsSchema)
 export const decodeReviewFileDiff = Schema.decodeUnknownSync(ReviewFileDiffParamsSchema)
@@ -909,14 +907,6 @@ export const modelRef = (value: Record<string, unknown>) => {
 
 export const modelRefOrNull = (value: unknown) =>
   value == null ? null : modelRef(record(value, 'model'))
-
-export const parseJsonRecord = (value: string) => {
-  try {
-    return record(JSON.parse(value))
-  } catch {
-    return {}
-  }
-}
 
 export const encodeOffsetCursor = (offset: number) => `offset:${offset}`
 export const decodeOffsetCursor = (value: unknown) => {

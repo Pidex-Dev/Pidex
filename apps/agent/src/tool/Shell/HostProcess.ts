@@ -64,10 +64,6 @@ export function preferredShell(): CommandShell {
   return systemWindowsPowerShell()
 }
 
-export function preferredSandboxShell(): CommandShell {
-  return process.platform === 'win32' ? systemWindowsPowerShell() : preferredShell()
-}
-
 export function killProcessTree(child: {
   pid?: number | undefined
   kill(signal?: NodeJS.Signals): boolean

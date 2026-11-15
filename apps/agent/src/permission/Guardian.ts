@@ -259,13 +259,6 @@ export function guardianReview(input: {
   }
 }
 
-export function attachGuardianReview(
-  decision: PermissionDecision,
-  review: GuardianReview,
-): PermissionDecision {
-  return { ...decision, guardian: review }
-}
-
 export type GuardianFallbackApprovalCategory =
   keyof import('@pidex/shared/thread').GranularApprovalConfig
 
@@ -618,19 +611,4 @@ export function guardianActionSensitivity(invocation: ToolInvocation): {
     analysis.risk !== 'low' ||
     analysis.categories.some((category) => SENSITIVE_CATEGORIES.has(category))
   return { scope, sensitive }
-}
-
-export function guardianStatusLabel(status: GuardianReviewStatus): string {
-  switch (status) {
-    case 'completed':
-      return '审查完成'
-    case 'cached':
-      return '低风险自动放行'
-    case 'unavailable':
-      return '审查不可用'
-    case 'timeout':
-      return '审查超时'
-    case 'circuit_open':
-      return '本轮已中断'
-  }
 }

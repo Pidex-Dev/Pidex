@@ -66,7 +66,6 @@ export function toError(error: unknown): Error {
  * Skill loaded from a `SKILL.md` file or provided by an application.
  *
  * `name`, `description`, and `filePath` are inserted into the system prompt in an XML-formatted block as suggested by agentskills.io.
- * Use {@link formatSkillsForSystemPrompt} to generate the spec-compatible system prompt block.
  */
 export interface Skill {
   /** Stable skill name used for lookup and model-visible listings. */
