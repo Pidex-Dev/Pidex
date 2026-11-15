@@ -34,7 +34,5 @@ export const ComposerPredictionRpcMethods = {
   }),
 } as const satisfies MethodMap
 
-export type ComposerPredictionGenerateParams =
-  typeof ComposerPredictionGenerateParamsSchema.Type
-export type ComposerPredictionGenerateResult =
-  typeof ComposerPredictionGenerateResultSchema.Type
+export type ComposerPredictionGenerateParams = typeof ComposerPredictionGenerateParamsSchema.Type
+export type ComposerPredictionGenerateResult = typeof ComposerPredictionGenerateResultSchema.Type

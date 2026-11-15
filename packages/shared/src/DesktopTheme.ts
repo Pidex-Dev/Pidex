@@ -10,9 +10,7 @@ export const DESKTOP_UI_DENSITY_SCALING: Record<DesktopUiDensity, number> = {
 }
 
 export function normalizeDesktopUiDensity(value: unknown): DesktopUiDensity {
-  return value === 'compact' || value === 'default' || value === 'spacious'
-    ? value
-    : 'default'
+  return value === 'compact' || value === 'default' || value === 'spacious' ? value : 'default'
 }
 
 export const DESKTOP_ACCENT_PRESET_COLORS = {

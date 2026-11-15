@@ -6,7 +6,11 @@ import { defaultTaskSchedule } from '@pidex/shared/task-schedule'
 import { RpcMethods, type RpcMethod, type RpcParams, type RpcResult } from '../src/methods/index'
 import { AllRpcMethods } from '../src/methods/Host'
 import { Capabilities, ProtocolCapabilitySchema } from '../src/runtime/Capabilities'
-import { ProviderModelDefinitionSchema, ModelHealthItemSchema, ModelHealthRunSchema } from '../src/methods/Extended'
+import {
+  ProviderModelDefinitionSchema,
+  ModelHealthItemSchema,
+  ModelHealthRunSchema,
+} from '../src/methods/Extended'
 import { EventManifest } from '../src/wire/Events'
 
 const providerId = Schema.decodeUnknownSync(Provider.ID)('provider:test')
@@ -932,9 +936,21 @@ function taskScheduleFixtures() {
   }
 }
 const fixtures = {
-  'model/document/extract': methodFixture('model/document/extract', { operationId: 'document-1', url: 'https://example.com/models', modelId: 'example' }, { candidates: [] }),
-  'model/document/cancel': methodFixture('model/document/cancel', { operationId: 'document-1' }, { cancelled: true }),
-  'model/pricing/refresh': methodFixture('model/pricing/refresh', { operationId: 'pricing-1' }, { calendarYear: 2026, calendarAvailable: false }),
+  'model/document/extract': methodFixture(
+    'model/document/extract',
+    { operationId: 'document-1', url: 'https://example.com/models', modelId: 'example' },
+    { candidates: [] },
+  ),
+  'model/document/cancel': methodFixture(
+    'model/document/cancel',
+    { operationId: 'document-1' },
+    { cancelled: true },
+  ),
+  'model/pricing/refresh': methodFixture(
+    'model/pricing/refresh',
+    { operationId: 'pricing-1' },
+    { calendarYear: 2026, calendarAvailable: false },
+  ),
   'model/recommendation/preview': {
     params: { providerId: 'relay', modelId: 'example', modelType: 'chat' },
     result: { status: 'matched', recommended: { contextWindow: 128000 }, updatedAt: 1 },
@@ -7609,11 +7625,20 @@ test('消息阶段为可选字段，未知阶段降级且事件按独立能力�
   ).toBe('text')
 })
 
-
 test('模型规格与推荐契约允许 1.5 亿上下文，拒绝不安全整数', () => {
-  expect(Schema.decodeUnknownSync(ProviderModelDefinitionSchema)({
-    id: modelId, api: 'google-generative-ai', contextWindow: 150_000_000, maxInputTokens: 150_000_000, maxTokens: 32768,
-  }).contextWindow).toBe(150_000_000)
-  expect(Schema.decodeUnknownSync(Model.Recommendation)({ contextWindow: 150_000_000 }).contextWindow).toBe(150_000_000)
-  expect(() => Schema.decodeUnknownSync(Model.Recommendation)({ contextWindow: Number.MAX_SAFE_INTEGER + 1 })).toThrow()
+  expect(
+    Schema.decodeUnknownSync(ProviderModelDefinitionSchema)({
+      id: modelId,
+      api: 'google-generative-ai',
+      contextWindow: 150_000_000,
+      maxInputTokens: 150_000_000,
+      maxTokens: 32768,
+    }).contextWindow,
+  ).toBe(150_000_000)
+  expect(
+    Schema.decodeUnknownSync(Model.Recommendation)({ contextWindow: 150_000_000 }).contextWindow,
+  ).toBe(150_000_000)
+  expect(() =>
+    Schema.decodeUnknownSync(Model.Recommendation)({ contextWindow: Number.MAX_SAFE_INTEGER + 1 }),
+  ).toThrow()
 })

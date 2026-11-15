@@ -101,11 +101,7 @@ export const DESKTOP_EXTERNAL_FONTS: readonly DesktopExternalFontSpec[] = [
   },
 ] as const
 
-export type DesktopExternalFontStatus =
-  | 'not-downloaded'
-  | 'downloading'
-  | 'downloaded'
-  | 'error'
+export type DesktopExternalFontStatus = 'not-downloaded' | 'downloading' | 'downloaded' | 'error'
 
 export type DesktopExternalFontState = {
   id: string

@@ -11,7 +11,11 @@ export const RecommendationPreviewParams = Schema.Struct({
 })
 export const RecommendationSourceSchema = Schema.Literals(['official', 'provider'])
 
-export const ModelSpecFieldSchema = Schema.Literals(['contextWindow', 'maxInputTokens', 'maxTokens'])
+export const ModelSpecFieldSchema = Schema.Literals([
+  'contextWindow',
+  'maxInputTokens',
+  'maxTokens',
+])
 export type ModelSpecField = typeof ModelSpecFieldSchema.Type
 
 export const ModelSpecMatchSchema = Schema.Struct({
@@ -87,18 +91,46 @@ export const ModelSpecRepairRpcMethods = {
 
 export const ModelDocumentRpcMethods = {
   'model/document/extract': defineMethod({
-    params: Schema.Struct({ operationId: OpaqueIDSchema, url: Schema.String.check(Schema.isMaxLength(2048)), modelId: Schema.String, extractor: Schema.optional(Model.Ref) }),
-    result: Schema.Struct({ candidates: Schema.Array(Schema.Struct({ modelId: Schema.String, snapshot: Model.DocumentSnapshot })) }),
-    errors: ['INVALID_REQUEST', 'PROVIDER_UNAVAILABLE'], capability: 'model.documents.v1', mutation: true, exactParams: true,
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      url: Schema.String.check(Schema.isMaxLength(2048)),
+      modelId: Schema.String,
+      extractor: Schema.optional(Model.Ref),
+    }),
+    result: Schema.Struct({
+      candidates: Schema.Array(
+        Schema.Struct({ modelId: Schema.String, snapshot: Model.DocumentSnapshot }),
+      ),
+    }),
+    errors: ['INVALID_REQUEST', 'PROVIDER_UNAVAILABLE'],
+    capability: 'model.documents.v1',
+    mutation: true,
+    exactParams: true,
   }),
   'model/document/cancel': defineMethod({
-    params: Schema.Struct({ operationId: OpaqueIDSchema }), result: Schema.Struct({ cancelled: Schema.Boolean }),
-    errors: ['INVALID_REQUEST'], capability: 'model.documents.v1', mutation: true, exactParams: true,
+    params: Schema.Struct({ operationId: OpaqueIDSchema }),
+    result: Schema.Struct({ cancelled: Schema.Boolean }),
+    errors: ['INVALID_REQUEST'],
+    capability: 'model.documents.v1',
+    mutation: true,
+    exactParams: true,
   }),
   'model/pricing/refresh': defineMethod({
-    params: Schema.Struct({ operationId: OpaqueIDSchema, force: Schema.optional(Schema.Boolean), year: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 2000, maximum: 2200 }))) }),
-    result: Schema.Struct({ fxRate: Schema.optional(Schema.Finite), fxDate: Schema.optional(Schema.String), calendarYear: Schema.Int, calendarAvailable: Schema.Boolean }),
-    errors: ['INVALID_REQUEST', 'PROVIDER_UNAVAILABLE'], capability: 'model.documents.v1', mutation: true, exactParams: true,
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      force: Schema.optional(Schema.Boolean),
+      year: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 2000, maximum: 2200 }))),
+    }),
+    result: Schema.Struct({
+      fxRate: Schema.optional(Schema.Finite),
+      fxDate: Schema.optional(Schema.String),
+      calendarYear: Schema.Int,
+      calendarAvailable: Schema.Boolean,
+    }),
+    errors: ['INVALID_REQUEST', 'PROVIDER_UNAVAILABLE'],
+    capability: 'model.documents.v1',
+    mutation: true,
+    exactParams: true,
   }),
 } as const
 
@@ -115,10 +147,12 @@ export const ModelRecommendationRpcMethods = {
       /** 基础规格来自官方目录，或叠加了当前供应商的差异。 */
       source: Schema.optional(RecommendationSourceSchema),
       /** 官方目录同阶段对应多个身份时的候选身份。 */
-      priceSource: Schema.optional(Schema.Struct({
-        kind: Schema.Literals(['provider', 'reference']),
-        providerId: Provider.ID,
-      })),
+      priceSource: Schema.optional(
+        Schema.Struct({
+          kind: Schema.Literals(['provider', 'reference']),
+          providerId: Provider.ID,
+        }),
+      ),
       candidates: Schema.optional(Schema.Array(Model.ID)),
     }),
     errors: ['INVALID_REQUEST', 'PROVIDER_UNAVAILABLE'],

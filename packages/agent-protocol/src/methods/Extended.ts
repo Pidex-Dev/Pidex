@@ -150,7 +150,6 @@ export const ProviderModelMatchSchema = Schema.Struct({
 })
 export type ProviderModelMatch = typeof ProviderModelMatchSchema.Type
 
-
 /** Wire protocols that can list models and run a minimal generation probe. */
 export const ProviderChatApiSchema = PiProviderApiSchema
 export type ProviderChatApi = typeof ProviderChatApiSchema.Type

@@ -7,10 +7,7 @@ const NonNegativeFiniteSchema = Schema.Number.check(
   Schema.isGreaterThanOrEqualTo(0),
 )
 
-const NonNegativeIntSchema = Schema.Int.check(
-  Schema.isFinite(),
-  Schema.isGreaterThanOrEqualTo(0),
-)
+const NonNegativeIntSchema = Schema.Int.check(Schema.isFinite(), Schema.isGreaterThanOrEqualTo(0))
 
 export const StorageSummaryParamsSchema = Schema.Struct({})
 
