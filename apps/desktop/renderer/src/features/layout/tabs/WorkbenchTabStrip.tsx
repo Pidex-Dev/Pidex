@@ -321,7 +321,7 @@ export function WorkbenchTabStrip({
             >
               <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
-          ) : state.tabIds.length > 0 ? (
+          ) : state.tabIds.length > 0 && launchers.length > 1 ? (
             <PopoverMenu
               align="end"
               avoidCollisions={false}

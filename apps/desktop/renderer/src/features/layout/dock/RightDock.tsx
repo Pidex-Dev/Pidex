@@ -473,6 +473,7 @@ function WorkbenchLauncher({
   sideChatAvailable: boolean
 }): React.ReactNode {
   const launchers = getWorkbenchRouteLaunchers(panelRoute, sideChatAvailable)
+  if (launchers.length <= 1) return null
 
   const actions = launchers.flatMap<
     Parameters<typeof WorkbenchPanelLauncher>[0]['actions'][number]

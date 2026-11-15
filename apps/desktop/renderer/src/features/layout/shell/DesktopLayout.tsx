@@ -160,7 +160,10 @@ import {
 import { SettingsSidebarContent } from '../../settings/SettingsSidebarContent.js'
 import { WorkbenchPanel } from '../dock/RightDock.js'
 import { AuxiliaryWindowsHost } from '../auxiliary/AuxiliaryWindowsHost.js'
-import type { WorkbenchTabRenderContext } from '../tabs/WorkbenchTabRegistry.js'
+import {
+  getWorkbenchRouteLaunchers,
+  type WorkbenchTabRenderContext,
+} from '../tabs/WorkbenchTabRegistry.js'
 import { createWorkspaceFileTabId } from '../tabs/WorkspaceFileTabId.js'
 import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
 import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
@@ -324,6 +327,12 @@ export function DesktopLayout(): React.ReactNode {
     const tabs = Object.fromEntries(Object.entries(providerPanelTabs).filter(([id]) => ids.includes(id)))
     setProviderPanelTabs(tabs)
     setProviderManagementTab((active) => active && tabs[active.id] ? active : Object.values(tabs).at(-1) ?? null)
+    const launchers = providerRouteId
+      ? getWorkbenchRouteLaunchers({ page: 'providers', providerId: providerRouteId })
+      : []
+    if (Object.keys(tabs).length === 0 && launchers.length <= 1) {
+      setProviderPanelOpen(false)
+    }
   }
   const closeProviderManagement = (tabId?: string) => {
     void retainProviderTabs(Object.keys(providerPanelTabs).filter((id) => id !== (tabId ?? providerManagementTab?.id)))
@@ -4205,8 +4214,27 @@ export function DesktopLayout(): React.ReactNode {
                             size="toolbar"
                             title={providerPanelVisible ? '隐藏右侧边栏' : '显示右侧边栏'}
                             onClick={() => {
-                              if (providerPanelVisible) hideProviderManagement()
-                              else if (providerRouteId) setProviderPanelOpen(true)
+                              if (providerPanelVisible) {
+                                hideProviderManagement()
+                                return
+                              }
+                              if (!providerRouteId) return
+                              if (Object.keys(providerPanelTabs).length > 0) {
+                                setProviderPanelOpen(true)
+                                return
+                              }
+                              const launchers = getWorkbenchRouteLaunchers({
+                                page: 'providers',
+                                providerId: providerRouteId,
+                              })
+                              if (launchers.length === 1) {
+                                const onlyTab = launchers[0]?.createTab()
+                                if (onlyTab?.kind === 'provider-management') {
+                                  void openProviderManagement(onlyTab.providerId, onlyTab.section)
+                                  return
+                                }
+                              }
+                              setProviderPanelOpen(true)
                             }}
                           >
                             <RightPanelToggleIcon open={providerPanelVisible} />
