@@ -30,9 +30,6 @@ export { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_CHROME_THEMES } from '@pidex/share
 import { isRecord } from '@pidex/shared/guards'
 
 type HexColor = DesktopHexColor
-type AppearanceVariant = DesktopThemeVariant
-
-type RecordValue = Record<string, unknown>
 const CURRENT_APPEARANCE_SETTINGS_VERSION = 8
 const MIGRATION_RECORD_VERSION = 1
 const MIGRATION_ID = 'ui-design-visual-theme'
