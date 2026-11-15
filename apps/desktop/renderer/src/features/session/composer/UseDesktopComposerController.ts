@@ -121,14 +121,6 @@ type ControllerOptions = {
   ) => Promise<'sent' | 'queued' | 'steered' | null>
 }
 
-export function resolveActiveComposerSkillToken(
-  _workingPlugin: WorkingPlugin | null | undefined,
-  selectedSkillToken: ComposerSkillCommand | null,
-  _skillCommands: readonly ComposerSkillCommand[],
-): ComposerSkillCommand | null {
-  return selectedSkillToken
-}
-
 export type ResolveComposerCanSubmitInput = {
   workingPluginSkillUnavailable: boolean
   hasContent: boolean

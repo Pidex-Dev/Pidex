@@ -144,11 +144,3 @@ export function applyExternalFontCss(fontId: string, css: string | null): void {
   loadedCssFontIds.add(fontId)
   loadedCssByFontId.set(fontId, css)
 }
-
-export function resetExternalFontsCache(): void {
-  cachedStates = null
-  pendingStatesPromise = null
-  loadedCssFontIds.clear()
-  loadedCssByFontId.clear()
-  loadingCssPromises.clear()
-}

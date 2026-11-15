@@ -978,19 +978,6 @@ export function shouldShowSelectionSendAction(selectedText: string): boolean {
   return selectedText.trim().length > 0
 }
 
-/**
- * Appends `text` to the end of `prev`, trimming `text` first.
- * Adds a `\n\n` separator if `prev` already contains non-whitespace content.
- * Returns `prev` unchanged if trimmed `text` is empty.
- */
-export function buildAppendText(prev: string, text: string): string {
-  const trimmed = text.trim()
-  if (!trimmed) return prev
-  const existing = prev.trim()
-  if (!existing) return trimmed
-  return `${prev}\n\n${trimmed}`
-}
-
 export { getSendableFilePath }
 export { createWorkspaceFileTabId }
 

@@ -35,17 +35,3 @@ export function SidebarHoverCardRow({ className, ...props }: ContainerProps): Re
     />
   )
 }
-
-export function SidebarHoverCardDivider({ className, ...props }: ContainerProps): React.ReactNode {
-  return (
-    <div
-      {...props}
-      aria-hidden="true"
-      className={cx(
-        'sidebar-hover-card-divider tw:mx-0 tw:my-1 tw:h-px tw:bg-app-border-subtle',
-        className,
-      )}
-      role="separator"
-    />
-  )
-}

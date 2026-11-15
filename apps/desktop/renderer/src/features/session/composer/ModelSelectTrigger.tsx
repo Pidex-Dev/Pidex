@@ -36,8 +36,6 @@ const NAME_PREFIX_CLASS =
 const NAME_SEPARATOR_CLASS =
   'composer-model-trigger-name-separator tw:shrink-0 tw:text-app-text-meta'
 const NAME_MODEL_CLASS = 'composer-model-trigger-name-model tw:min-w-0 tw:truncate'
-const EFFORT_WRAP_CLASS =
-  'composer-model-trigger-effort-wrap tw:inline-flex tw:shrink-0 tw:items-center'
 const EFFORT_BUTTON_CLASS = cx(
   'composer-model-trigger-effort-btn tw:inline-flex tw:cursor-pointer tw:items-center tw:rounded-indicator tw:border-0',
   'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_5%,transparent)] tw:px-1 tw:py-px tw:text-app-text-soft tw:type-1 tw:weight-medium',
@@ -177,16 +175,14 @@ export const ModelSelectTrigger = React.forwardRef<HTMLElement, ModelSelectTrigg
     },
     ref,
   ) {
-    const [effortMenuOpen, setEffortMenuOpen] = useState(false)
-    const [reasoningHeld, setReasoningHeld] = useState(false)
     const [focused, setFocused] = useState(false)
     const buttonRef = useRef<HTMLButtonElement>(null)
 
     const active = isOpen
     const { prefix, model } = splitComposerModelName(modelName)
     useEffect(() => {
-      onHeldChange?.(focused || reasoningHeld)
-    }, [focused, reasoningHeld, onHeldChange])
+      onHeldChange?.(focused)
+    }, [focused, onHeldChange])
 
     // The capsule always opens the model popover; compact keeps the name as
     // accessible text while the visible content becomes the icon.

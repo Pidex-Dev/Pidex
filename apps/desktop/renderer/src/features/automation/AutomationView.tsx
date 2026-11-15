@@ -17,7 +17,6 @@ import {
   Play,
   Plus,
   Settings,
-  Sparkles,
   Trash2,
 } from 'lucide-react'
 import type { Automation, AutomationRun } from '@pidex/shared/automation'
@@ -54,7 +53,6 @@ import {
   isCompletedAutomation,
   runStatusLabel,
   runTriggerLabel,
-  type AutomationFilter,
   type AutomationTemplate,
   type AutomationTemplateId,
 } from './AutomationModel.js'
@@ -73,12 +71,6 @@ export const TAB_OPTIONS = [
 ] as const
 
 type ConfirmState = { kind: 'delete'; automation: Automation } | null
-const FILTER_OPTIONS: Array<{ value: AutomationFilter; label: string }> = [
-  { value: 'all', label: '全部' },
-  { value: 'active', label: '已开启' },
-  { value: 'paused', label: '已暂停' },
-  { value: 'completed', label: '已完成' },
-]
 
 export function AutomationView(): React.ReactNode {
   const controller = useContext(AutomationControllerContext)

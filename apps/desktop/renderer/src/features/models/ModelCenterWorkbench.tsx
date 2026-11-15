@@ -1,17 +1,14 @@
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
-  APP_ICON_SIZES,
 } from '../../components/ui/IconTokens.js'
-import { desktopClient, desktopClipboard } from '../../services/desktop-client/index.js'
-import { isExecutableDesktopProvider } from '../../services/desktop-client/ProviderAdapters.js'
+import { desktopClipboard } from '../../services/desktop-client/index.js'
 import React, { useEffect, useMemo, useState } from 'react'
 import type {
   DesktopApiKeySummary,
   DesktopProviderCredential,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
-  DesktopProviderDefinition,
   ModelProviderID,
 } from '../../../shared/Types.js'
 import { useDesktopSettingsField } from '../settings/UseDesktopSettings.js'
@@ -39,10 +36,6 @@ import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { NEW_PROVIDER_PANEL_ID, ProviderEditorForm } from './provider-management/ProviderEditorForm.js'
 import { ProviderConnectionSection } from './provider-management/ProviderConnectionSection.js'
 import { ProviderModelsSection } from './provider-management/ProviderModelsSection.js'
-import {
-  deepSeekManagedProvider,
-  deepSeekProtocolOf,
-} from './provider-management/DeepseekProtocol.js'
 import { type ApiKeyEditorValue } from './ApiKeyEditorDialog.js'
 import {
   providerManagementStore,
@@ -65,21 +58,6 @@ export function getProviderSelectionState(provider: DesktopModelProviderSummary 
   }
 }
 
-export function getProviderConnectionState({
-  provider,
-  model,
-  providerModels,
-}: {
-  provider: DesktopModelProviderSummary | undefined
-  model: string
-  providerModels: string[]
-}): { model: string } {
-  const defaultSelection = getProviderSelectionState(provider)
-  return {
-    model: providerModels.includes(model) ? model : defaultSelection.model,
-  }
-}
-
 export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactNode {
   const subscribedProviderID = useDesktopSettingsField((state) => state.providerID)
   const subscribedModel = useDesktopSettingsField((state) => state.model)
@@ -93,7 +71,6 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
   const [model, setModel] = useState(settings.model)
   const [busyKeyId, setBusyKeyId] = useState<string | null>(null)
   const [providerQuery, setProviderQuery] = useState('')
-  const [deepSeekProtocolSupported, setDeepSeekProtocolSupported] = useState(false)
   const [connectionDraftDirty, setConnectionDraftDirty] = useState(false)
   const [deleteKey, setDeleteKey] = useState<DesktopApiKeySummary | null>(null)
   const [orphanToDelete, setOrphanToDelete] = useState<DesktopProviderCredential | null>(null)

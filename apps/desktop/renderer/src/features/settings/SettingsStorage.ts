@@ -3,7 +3,6 @@ import type {
   DesktopPermissionMode,
   DesktopStoredSettings,
   DesktopThinkingMode,
-  LocalRouterMode,
 } from '../../../shared/Types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { defaultDesktopStoredSettings } from '../../../shared/SettingsSchema.js'
@@ -11,7 +10,6 @@ import {
   permissionConfigForSelection,
   permissionPresetSelection,
   visiblePermissionPresetOptions,
-  type PermissionPresetVisibility,
 } from './PermissionPresetView.js'
 export {
   permissionPresetDescription,
@@ -36,12 +34,6 @@ export const PERMISSION_MODE_OPTIONS: Array<{
   enableFullAccessPermissionMode: true,
 })
 
-export function getVisiblePermissionModeOptions(
-  visibility: PermissionPresetVisibility,
-): typeof PERMISSION_MODE_OPTIONS {
-  return visiblePermissionPresetOptions(visibility)
-}
-
 export const THINKING_MODE_OPTIONS: Array<{
   value: DesktopThinkingMode
   label: string
@@ -51,8 +43,6 @@ export const THINKING_MODE_OPTIONS: Array<{
   { value: 'adaptive', label: '高' },
   { value: 'enabled', label: '超高' },
 ]
-
-export const DESKTOP_SETTINGS_STORAGE_KEY = 'claude-code-desktop-settings'
 
 export type StoredDesktopSettings = DesktopStoredSettings
 

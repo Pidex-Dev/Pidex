@@ -3,7 +3,6 @@ import { reconcileQuestionDrafts } from '../../features/session/approvals/AskUse
 import { arePathsEqual } from '../../utils/PathUtils.js'
 import { toUserErrorMessage } from '../../utils/Errors.js'
 import {
-  defaultDesktopStoredSettings,
   normalizeDesktopStoredSettings,
 } from '../../../shared/SettingsSchema.js'
 import {
@@ -44,12 +43,9 @@ import type {
   DesktopFileSaveResult,
   DesktopModelSelection,
   DesktopModelProviderState,
-  DesktopModelProviderSummary,
   DesktopProviderCredential,
-  DesktopModelMetadata,
   DesktopPermissionDecision,
   DesktopPermissionMode,
-  DesktopReviewDiffResult,
   DesktopReviewSource,
   DesktopSessionCatalogStatus,
   DesktopSessionMetadataPatch,
@@ -57,13 +53,10 @@ import type {
   GenerateDesktopComposerPredictionInput,
   DesktopProjectSource,
   DesktopProjectSourceReadResult,
-  DesktopSettingsChange,
   DesktopSessionStoreChange,
   DesktopSessionSnapshot,
   DesktopSessionListItem,
-  DesktopStoredSettings,
   DesktopUserMessageInput,
-  DesktopWorkspace,
   ModelProviderID,
 } from '../../../shared/Types.js'
 import {
@@ -1132,13 +1125,6 @@ export function createAgentSessionDesktopClient(
     sessionSnapshots.set(sessionId, snapshot)
     await refreshAgentSessionStoreChange().catch(() => emitSessionStoreChange())
     return snapshot
-  }
-
-  async function restoreArchivedAgentSession(sessionId: string): Promise<void> {
-    const snapshot = await loadAgentSessionSnapshot(sessionId)
-    if (snapshot.item.archivedAt) {
-      await updateAgentSessionMetadata(sessionId, { archivedAt: null })
-    }
   }
 
   async function refreshAgentSessionStoreChange(

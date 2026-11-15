@@ -41,7 +41,6 @@ import type {
   WorkingPlugin,
 } from './ComposerTypes.js'
 import { useDesktopComposerController } from './UseDesktopComposerController.js'
-import { resolveAvailableCodingModel } from './CodingModelSelection.js'
 import { hasTaskPlanningInvocation } from './ComposerSkillToken.js'
 
 export { loadCachedRuntimeSkills } from './UseDesktopComposerController.js'
@@ -321,7 +320,6 @@ export function DesktopComposer({
     handleCompact,
     handleComposerDocumentChange,
     handleRemoveAttachment,
-    handleSkillDeselect,
     handleSkillSelect,
     handleSubmit,
     handleCompositionEnd,

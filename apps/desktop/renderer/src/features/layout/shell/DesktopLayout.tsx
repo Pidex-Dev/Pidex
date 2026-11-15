@@ -8,10 +8,7 @@ import {
   restoreFailedArchiveAssignments,
 } from '../sidebar/SidebarCustomization.js'
 import { DEFAULT_SIDEBAR_CUSTOMIZATION } from '../../../../shared/SettingsSchema.js'
-import {
-  notifyProjectCatalogChanged,
-  subscribeProjectRestores,
-} from '../../projects/ProjectCatalogEvents.js'
+import { notifyProjectCatalogChanged } from '../../projects/ProjectCatalogEvents.js'
 import { mergeBrowserWorkbench } from '../../browser/BrowserWorkbenchState.js'
 import { mergeComposerAttachments } from '../../session/composer/ComposerAttachmentSelection.js'
 import { ConversationProjectDetails } from '../../projects/ConversationProjectDetails.js'
@@ -460,16 +457,12 @@ export function DesktopLayout(): React.ReactNode {
     workbenchLayoutState,
     workbenchPanelState,
     setWorkbenchPanelState,
-    workspaceView,
     workspaceLayout,
-    committedWorkspaceLayout,
-    setWorkspaceLayout,
     stepWorkspaceLayout,
     rightDockState,
     bottomPanelState,
     bottomPanelVisible,
     workspaceRef,
-    workspaceWidth,
     rightDockVisible,
     rightDockMinWidth,
     rightDockMaxWidth,
@@ -515,13 +508,6 @@ export function DesktopLayout(): React.ReactNode {
   useEffect(() => {
     document.title = `${routeLabel} · Pidex Desktop`
   }, [routeLabel])
-  const visibleRightDockState = useMemo(
-    () => ({
-      ...rightDockState,
-      open: workspaceLayout !== 'chat',
-    }),
-    [rightDockState, workspaceLayout],
-  )
   const lastErrorRef = useRef<{ message: string; timestamp: number } | null>(null)
   const handleErrorMessage = useCallback((raw: unknown): void => {
     if (!raw) {
@@ -561,7 +547,6 @@ export function DesktopLayout(): React.ReactNode {
     workspace: currentWorkspace,
     files: workspaceFiles,
     selectedFile,
-    runtimeStatus,
     setActiveSessionId,
     refreshWorkspace,
     chooseWorkspace,
@@ -581,7 +566,7 @@ export function DesktopLayout(): React.ReactNode {
   }, [gitStatus?.upstream])
   const [homePlanModeActive, setHomePlanModeActive] = useState(false)
   const [homeGrillModeActive, setHomeGrillModeActive] = useState(false)
-  const [homeLocalRouterMode, setHomeLocalRouterMode] = useState<'off'>('off')
+  const [homeLocalRouterMode] = useState<'off'>('off')
 
   /**
    * 新建会话时的模式复位：清掉首页 plan/grill 页面态与草稿中的协作模式、
@@ -2153,23 +2138,6 @@ export function DesktopLayout(): React.ReactNode {
   )
   const hasPendingSubmission = Boolean(routedSessionId && pendingSubmissions[routedSessionId])
   const branchName = getDesktopComposerBranchName(currentWorkspace)
-  const quickChatRecentTasks = useMemo(() => {
-    const workspaceKey = currentWorkspace?.path.replace(/\\/g, '/').toLowerCase() ?? null
-    return sessions
-      .filter((item) => {
-        if (item.archivedAt) return false
-        if (!workspaceKey) return item.standalone === true
-        return item.workspacePath.replace(/\\/g, '/').toLowerCase() === workspaceKey
-      })
-      .slice(0, 5)
-      .map((item) => ({
-        id: item.id,
-        title: sessionDisplayTitle(item),
-        firstPrompt: item.firstPrompt ?? null,
-        status: item.status,
-        updatedAt: Date.parse(item.lastMessageAt ?? item.createdAt),
-      }))
-  }, [currentWorkspace?.path, sessions])
   const composerContextTasks = useMemo(
     () =>
       sessions.filter((item) => !item.archivedAt).map((item) => ({
@@ -2213,31 +2181,6 @@ export function DesktopLayout(): React.ReactNode {
       [sessionId]: activeSessionFallbackTitle,
     }
   }, [activeSessionFallbackTitle, sessionFallbackTitles, sessionId])
-  useEffect(
-    () =>
-      subscribeProjectRestores((project, selected) => {
-        setRemovedWorkspaces((current) => {
-          const next = current.filter((entry) =>
-            project.projectId && entry.projectId
-              ? entry.projectId !== project.projectId
-              : entry.path !== project.path,
-          )
-          settings.syncExternalSettingsPatch({ removedWorkspaces: next })
-          return next
-        })
-        setRecentWorkspaces((current) => [
-          ...current.filter((entry) =>
-            project.projectId ? entry.projectId !== project.projectId : entry.path !== project.path,
-          ),
-          project,
-        ])
-        if (selected && !currentWorkspace) {
-          setWorkspaceState(project)
-          void refreshWorkspace(project, { force: true })
-        }
-      }),
-    [currentWorkspace, refreshWorkspace, settings, setRecentWorkspaces, setWorkspaceState],
-  )
 
   const handleRemoveWorkspace = useCallback(
     (target: DesktopWorkspace): void => {
@@ -3850,7 +3793,6 @@ export function DesktopLayout(): React.ReactNode {
           ? publishedReviewSummary?.snapshot
           : null,
       recentWorkspaces,
-      recentTasks: quickChatRecentTasks,
       onArchiveSession: () => {
         if (!activeSessionItem) return
         void handleArchiveSessions([activeSessionItem.id])
@@ -3964,7 +3906,6 @@ export function DesktopLayout(): React.ReactNode {
       gitDetection,
       reviewTabState.source,
       publishedReviewSummary,
-      quickChatRecentTasks,
       handleCreateBranch,
       navigate,
       handleOpenWorkspacePath,

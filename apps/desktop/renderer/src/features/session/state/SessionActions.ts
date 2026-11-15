@@ -1,4 +1,3 @@
-import { sessionModelSelections } from './SessionModelSelectionStore.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { toUserErrorMessage, type ErrorContext } from '../../../utils/Errors.js'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
@@ -357,55 +356,6 @@ export async function decidePermissionAction(
     onErrorRef.current(errorMessageOf(error))
     throw error
   }
-}
-
-export async function closeSessionAction(
-  context: SessionActionContext,
-  sessions: SessionListItem[],
-  targetSessionId: string,
-): Promise<CloseSessionResult | null> {
-  try {
-    await desktopClient.disposeSession(targetSessionId)
-  } catch (error) {
-    context.onErrorRef.current(errorMessageOf(error))
-    return null
-  }
-  sessionModelSelections.delete(targetSessionId)
-  canonicalThreadCache.invalidate(targetSessionId)
-
-  const remaining = sessions.filter((session) => session.id !== targetSessionId)
-  const { [targetSessionId]: _removedSessionView, ...remainingSessionViews } =
-    context.sessionViewsRef.current
-  const { [targetSessionId]: _removedWorkspace, ...remainingSessionWorkspaces } =
-    context.sessionWorkspacesRef.current
-  context.sessionViewsRef.current = remainingSessionViews
-  context.sessionWorkspacesRef.current = remainingSessionWorkspaces
-  context.setSessions(remaining)
-
-  if (targetSessionId !== context.activeSessionIdRef.current) {
-    return { nextActiveSession: null, nextWorkspace: null }
-  }
-
-  const next = remaining[0]
-  activateSession(context, next?.id ?? null)
-  context.setSessionStatus(next?.status ?? 'idle')
-  if (next) {
-    applySessionView(
-      context.sessionViewsRef.current[next.id] ?? createEmptySessionView(),
-      context.viewSetters,
-    )
-    const nextWorkspace = remainingSessionWorkspaces[next.id] ?? {
-      name: next.workspaceName,
-      path: next.workspacePath,
-      isStandalone: next.standalone,
-    }
-    return {
-      nextActiveSession: next,
-      nextWorkspace: next.standalone ? null : nextWorkspace,
-    }
-  }
-  applySessionView(createEmptySessionView(), context.viewSetters)
-  return { nextActiveSession: null, nextWorkspace: null }
 }
 
 export async function updateSessionMetadataAction(

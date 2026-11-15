@@ -163,7 +163,7 @@ export function prefetchFileDocument(
     .then(publish)
     .catch((error) => {
       const loadError = toError(error)
-      const failed = publish({
+      publish({
         ...snapshotFor(workspacePath, path, scope),
         status: 'error',
         loadError: loadError.message,
@@ -486,14 +486,6 @@ export function hasDirtyFileDocuments(): boolean {
   return Object.values(fileDocumentStateStore.getState().documents).some(
     (document) => document.dirty,
   )
-}
-
-export function isFileDocumentDirty(
-  workspacePath: string,
-  path: string,
-  scope: FileDocumentScope = {},
-): boolean {
-  return snapshotFor(workspacePath, path, scope).dirty
 }
 
 function toError(error: unknown): Error {

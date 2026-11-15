@@ -3,8 +3,6 @@ import type { DesktopReviewDiffFile } from '../../../../shared/Types.js'
 export type ReviewFileStatusKind =
   'added' | 'deleted' | 'modified' | 'renamed' | 'copied' | 'unknown'
 
-export type ReviewFilter = 'all' | 'added' | 'modified' | 'removed'
-
 export function normalizeReviewFileStatus(
   file: Pick<DesktopReviewDiffFile, 'isUntracked' | 'status'>,
 ): ReviewFileStatusKind {
@@ -51,13 +49,4 @@ export function reviewFileStatusLabel(status: ReviewFileStatusKind): string {
     case 'unknown':
       return '未知'
   }
-}
-
-export function filterStatusForFile(
-  file: Pick<DesktopReviewDiffFile, 'isUntracked' | 'status'>,
-): ReviewFilter {
-  const status = normalizeReviewFileStatus(file)
-  if (status === 'added') return 'added'
-  if (status === 'deleted') return 'removed'
-  return 'modified'
 }

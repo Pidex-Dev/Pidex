@@ -2,35 +2,21 @@ import React from 'react'
 import { MarkdownMessage } from '../../markdown/index.js'
 import { VList } from 'virtua'
 import {
-  Briefcase,
   ChevronDown,
   ChevronRight,
-  Clipboard,
   Code2,
   CheckCircle2,
-  Columns2,
-  Ellipsis,
   Eye,
   ExternalLink,
-  File,
   FileDiff,
-  GitCommitHorizontal,
-  GitFork,
-  GitPullRequestArrow,
   Minus,
   Plus,
-  RotateCcw,
-  Rows2,
-  Search,
   Trash2,
-  Type,
   Undo2,
-  WrapText,
   createLucideIcon,
 } from 'lucide-react'
 import type {
   DesktopDiffMarkerStyle,
-  DesktopGitStatus,
   DesktopReviewComment,
   DesktopReviewDiffFile,
   DesktopReviewDiffHunk,
@@ -38,14 +24,11 @@ import type {
   DesktopReviewScope,
   DesktopReviewSource,
   DesktopReviewView,
-  DesktopSessionStatus,
 } from '../../../../shared/Types.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 
-import { PopoverItem } from '../../../components/ui/PopoverItem.js'
-import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { FileTypeIcon } from '../../layout/FileTypeIcon.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
@@ -53,15 +36,7 @@ import {
   useDisclosureExpanded,
   type KeyedDisclosureStore,
 } from '../../../components/ui/KeyedDisclosureStore.js'
-import { buildCommentCountsByPath } from '../comments/ReviewCommentUtils.js'
-import { CommitPopover } from '../workspace/CommitPopover.js'
-import { PullRequestPopover } from '../workspace/PullRequestPopover.js'
 import { formatReviewCount } from './ReviewFormat.js'
-import {
-  isReviewDiffExpanded,
-  toggleReviewDiffExpansion,
-  type ReviewTabUiState,
-} from '../../layout/tabs/ConversationUiState.js'
 import {
   buildReviewIntralineByLineId,
   type ReviewIntralineByLineId,
@@ -79,26 +54,12 @@ import {
   formatUnmodifiedLines,
   splitDiffLines,
   useReviewDiffSyntax,
-  type CommentAnchor,
   type CommentDraft,
   type ReviewCell,
   type ReviewSyntaxByLineId,
 } from './ReviewDiffSurface.js'
 export { ReviewComment, type CommentAnchor, type CommentDraft } from './ReviewDiffSurface.js'
-import {
-  ReviewFileRequestCoordinator,
-  reviewAgentClient,
-  pickDefaultReviewBaseBranch,
-  retainCurrentReviewFileDiffs,
-  reviewLoadStateForError,
-  reviewSourceLabel,
-  summaryFileToDesktop,
-  type ReviewBranch,
-  type ReviewCommit,
-  type ReviewFileDiff,
-  type ReviewLoadState,
-  type ReviewSummarySnapshot,
-} from '../source/ReviewAgentClient.js'
+import type { ReviewLoadState } from '../source/ReviewAgentClient.js'
 import { errorMessageOf } from '@pidex/shared/errors'
 import { cx } from '../../../utils/Cx.js'
 
@@ -1384,26 +1345,6 @@ export function scopeLabel(scope: DesktopReviewScope): string {
 
 export function formatPanelNumber(value: number): string {
   return formatReviewCount(value)
-}
-
-export function buildReviewComposerPrompt(
-  gitStatus: DesktopGitStatus | null,
-  files: DesktopReviewDiffFile[],
-): string {
-  const changedFiles = files.length > 0 ? files : []
-  const fileList =
-    changedFiles.length > 0
-      ? changedFiles
-          .slice(0, 50)
-          .map((file) => `- ${file.path} (+${file.additions}/-${file.deletions})`)
-          .join('\n')
-      : gitStatus?.files.length
-        ? gitStatus.files
-            .slice(0, 50)
-            .map((file) => `- ${file.path} (${file.status.trim() || '已修改'})`)
-            .join('\n')
-        : '- 当前没有可用变更'
-  return ['请对当前工作区变更发起一次代码审查。', '', '变更文件：', fileList].join('\n')
 }
 
 export function parseGithubPullRequestUrl(

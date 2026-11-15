@@ -136,30 +136,6 @@ export function WorkbenchPanelError({
   )
 }
 
-export function WorkbenchPanelTooLarge({
-  title,
-  description,
-}: Pick<StateSurfaceProps, 'title' | 'description'>): React.ReactNode {
-  return <WorkbenchPanelStateSurface title={title} description={description} />
-}
-
-export function WorkbenchPanelWarning({
-  title,
-  description,
-  children,
-}: Pick<StateSurfaceProps, 'title' | 'description' | 'children'>): React.ReactNode {
-  return (
-    <WorkbenchPanelStateSurface
-      title={title}
-      description={description}
-      icon={<AlertTriangle className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
-      tone="warning"
-    >
-      {children}
-    </WorkbenchPanelStateSurface>
-  )
-}
-
 export type WorkbenchLauncherAction = {
   disabled?: boolean
   id: string

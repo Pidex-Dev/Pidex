@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Info,
   Columns2,
-  Ellipsis,
   MessageSquarePlus,
   Plus,
   RotateCcw,
@@ -21,13 +20,9 @@ import type {
   DesktopDiffMarkerStyle,
   DesktopGitStatus,
   DesktopReviewComment,
-  DesktopReviewDiffFile,
-  DesktopReviewDiffHunk,
-  DesktopReviewDiffLine,
   DesktopReviewDiffResult,
   DesktopReviewScope,
   DesktopReviewSource,
-  DesktopReviewSide,
   DesktopReviewView,
   DesktopSessionStatus,
 } from '../../../../shared/Types.js'
@@ -109,7 +104,6 @@ import {
   ReviewProjectEmptyState,
   attachComments,
   clampReviewFileTreePanelWidth,
-  buildReviewComposerPrompt,
   copyGitApplyCommand,
   errorMessageOf,
   formatPanelNumber,
@@ -118,7 +112,6 @@ import {
   type CommentDraft,
   type ReviewFileLoadState,
 } from '../diff/WorkspaceReviewDiff.js'
-import { filterStatusForFile, type ReviewFilter } from './ReviewFileStatus.js'
 import { hideImportOnlyHunks } from '../diff/ReviewDiffAdapter.js'
 import { cx } from '../../../utils/Cx.js'
 import { containsRelatedTarget } from '../../../utils/DomTargets.js'
@@ -257,7 +250,7 @@ function WorkspaceReviewSidebarImpl({
   React.useEffect(() => {
     onReviewSummaryChange?.(summary)
   }, [summary, onReviewSummaryChange])
-  const [loadedDiffs, setLoadedDiffs] = React.useState<ReadonlyMap<string, ReviewFileDiff>>(
+  const [, setLoadedDiffs] = React.useState<ReadonlyMap<string, ReviewFileDiff>>(
     () => new Map(),
   )
   const [fileLoadStates, setFileLoadStates] = React.useState<
@@ -284,8 +277,6 @@ function WorkspaceReviewSidebarImpl({
     [onReviewTabStateChange],
   )
   const [search, setSearch] = React.useState('')
-  const [filter, setFilter] = React.useState<ReviewFilter>('all')
-  const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [loadState, setLoadState] = React.useState<ReviewLoadState>('loading')
@@ -1523,12 +1514,9 @@ function WorkspaceReviewSidebarImpl({
   const showProjectEmptyState = loadState === 'empty' && summary !== null && files.length === 0
   const visibleFiles = React.useMemo(() => {
     const query = search.trim().toLowerCase()
-    return files.filter((file) => {
-      if (query && !file.path.toLowerCase().includes(query)) return false
-      if (filter === 'all') return true
-      return filterStatusForFile(file) === filter
-    })
-  }, [files, filter, search])
+    if (!query) return files
+    return files.filter((file) => file.path.toLowerCase().includes(query))
+  }, [files, search])
 
   React.useEffect(() => {
     if (!selectedPath || !summary || visibleFiles.some((file) => file.path === selectedPath)) {
@@ -1588,7 +1576,6 @@ function WorkspaceReviewSidebarImpl({
     () => buildCommentCountsByPath(openComments),
     [openComments],
   )
-  const sessionBusy = sessionStatus === 'running' || sessionStatus === 'waiting'
 
   const setDiffExpanded = React.useCallback(
     (path: string, expanded: boolean): void => {
@@ -1738,21 +1725,6 @@ function WorkspaceReviewSidebarImpl({
     setComments((current) => current.filter((comment) => comment.id !== commentId))
   }
 
-  async function sendCommentsToAgent(): Promise<void> {
-    if (!activeSessionId || sessionBusy || openComments.length === 0) return
-    const body = [
-      '请按这些本地行内审查评论修改代码：',
-      '',
-      ...openComments.map(
-        (comment, index) =>
-          `${index + 1}. ${comment.filePath}:${comment.lineNumber} (${comment.side})\n` +
-          `   行内容：${comment.lineContent || '(空行)'}\n` +
-          `   评论：${comment.body}`,
-      ),
-    ].join('\n')
-    await desktopClient.sendUserMessage(activeSessionId, { text: body })
-  }
-
   async function submitGithubReview(
     event: 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES',
   ): Promise<void> {
@@ -1832,13 +1804,6 @@ function WorkspaceReviewSidebarImpl({
         setPending(false)
       }
     }
-  }
-
-  function sendReviewPromptToComposer(): void {
-    if (!onAppendComposerText) return
-    onAppendComposerText(
-      buildReviewComposerPrompt(reviewDiff?.status ?? gitStatus, reviewDiff?.files ?? []),
-    )
   }
 
   async function handleCommit(message: string, includeUnstaged: boolean): Promise<boolean> {

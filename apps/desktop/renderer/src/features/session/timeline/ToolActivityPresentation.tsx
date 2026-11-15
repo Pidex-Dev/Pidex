@@ -427,14 +427,6 @@ export function toolSemanticIcon(kind: ToolActivityIconKind | ToolSemanticKind):
   }
 }
 
-export function isExplorationToolActivity(item: ToolItem): boolean {
-  return (
-    (item.activity?.type === 'read' && item.activity.subject === 'file') ||
-    item.activity?.type === 'search' ||
-    item.activity?.type === 'list_files'
-  )
-}
-
 export function ToolActivityHeader({
   canExpand,
   children,

@@ -27,7 +27,6 @@ import {
 } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { SidebarRow } from '../../../components/ui/SidebarRow.js'
-import type { DesktopSessionStatus } from '../../../../shared/Types.js'
 import { useQuickChatContext } from '../QuickChatContext.js'
 import {
   useDesktopSettingsDraftActions,
@@ -202,7 +201,6 @@ export function ConversationPage(): React.ReactNode {
     dockedPlanItemId,
   } = useQuickChatContext()
   const diffMarkerStyle = useDesktopSettingsField((settings) => settings.diffMarkerStyle)
-  const reviewView = useDesktopSettingsField((settings) => settings.reviewView)
   const setSidebarSessionPins = useDesktopSettingsField(
     (settings) => settings.setSidebarSessionPins,
   )
@@ -384,7 +382,6 @@ export function ConversationPage(): React.ReactNode {
       clearConversationSelectionHighlight()
     }
   }, [])
-  const [isRefreshingDiff, setIsRefreshingDiff] = React.useState(false)
   const timelineListRef = React.useRef<import('virtua').VirtualizerHandle | null>(null)
   const timelineNavigationRef = React.useRef<ThreadTimelineNavigationHandle | null>(null)
   const [hasRailInlineClearance, setHasRailInlineClearance] = React.useState(false)
@@ -489,15 +486,6 @@ export function ConversationPage(): React.ReactNode {
     }
   }, [activeSessionId])
 
-  const handleRefreshDiff = React.useCallback(() => {
-    if (isRefreshingDiff) return
-    setIsRefreshingDiff(true)
-    try {
-      onRefreshDiff()
-    } finally {
-      window.setTimeout(() => setIsRefreshingDiff(false), 600)
-    }
-  }, [isRefreshingDiff, onRefreshDiff])
   const workspaceChangedFileCount = workspacePath ? (gitStatus?.files.length ?? 0) : 0
   const composerExecutionPlan = findLatestExecutionPlan(canonicalConversation.turns)
   const conversationChangeSummary = React.useMemo(

@@ -6,7 +6,7 @@ import { desktopClient } from '../../services/desktop-client/index.js'
 import { useEverOpened } from '../../hooks/UsePresenceRetention.js'
 import { useDesktopSettingsField } from '../settings/UseDesktopSettings.js'
 import { DEFAULT_PROJECT_APPEARANCE } from './ProjectAppearance.js'
-import { notifyProjectCatalogChanged, notifyProjectRemoved } from './ProjectCatalogEvents.js'
+import { notifyProjectCatalogChanged } from './ProjectCatalogEvents.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 
 const ProjectEditDialog = lazy(async () => {
@@ -71,15 +71,7 @@ export function ProjectManagementDialogs({
               setProcessingAction('remove')
               void (
                 project.projectId
-                  ? desktopClient.removeProject(project.projectId).then((result) => {
-                      if (result.removalOperationId && result.undoExpiresAt)
-                        notifyProjectRemoved({
-                          project,
-                          removalOperationId: result.removalOperationId,
-                          undoExpiresAt: result.undoExpiresAt,
-                        })
-                      return true
-                    })
+                  ? desktopClient.removeProject(project.projectId).then(() => true)
                   : Promise.resolve(true)
               )
                 .then((success) => {

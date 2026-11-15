@@ -40,7 +40,7 @@ export type SidebarNavItem = {
   availability: SidebarNavAvailability
 }
 
-export const UNKNOWN_SIDEBAR_CAPABILITY_STATE: SidebarCapabilityState = {
+const UNKNOWN_SIDEBAR_CAPABILITY_STATE: SidebarCapabilityState = {
   status: 'unknown',
   capabilities: null,
 }
@@ -189,12 +189,6 @@ function SidebarNavItems({
       })}
     </>
   )
-}
-
-type Props = {
-  capabilityState?: SidebarCapabilityState
-  isActiveView: (view: AppView) => boolean
-  showProjects: boolean
 }
 
 export const SIDEBAR_PRODUCT_MODE_ORDER: readonly SidebarProductMode[] = [
@@ -375,30 +369,6 @@ export function SidebarHeader({
         isActiveView={(view) => view === 'new' && location.pathname === '/new'}
       />
     </>
-  )
-}
-
-export function SidebarTopNav({
-  capabilityState = UNKNOWN_SIDEBAR_CAPABILITY_STATE,
-  isActiveView,
-  showProjects,
-}: Props): React.ReactNode {
-  const { t } = useLocale()
-  const sidebarProductMode = useDesktopSettingsField((settings) => settings.sidebarProductMode)
-  const { scrollableItems } = splitSidebarTopNavItems(
-    getSidebarTopNavItems({
-      showProjects,
-      surface: sidebarProductMode,
-      capabilityState,
-    }),
-  )
-  return (
-    <nav
-      aria-label={t('主要导航')}
-      className="sidebar-top-nav tw:flex tw:flex-col tw:gap-1 tw:px-1"
-    >
-      <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} />
-    </nav>
   )
 }
 

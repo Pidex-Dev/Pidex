@@ -159,8 +159,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
     reviewDelivery,
     rustSearchAndDiffKernels,
     'desktop.composer_predictions': composerPredictions,
-    enableParetoCodeRouter,
-    enableFusionRouter,
     defaultModeRequestUserInput,
     notifications,
   } = draft.values
@@ -272,20 +270,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
   const setComposerPredictions = useCallback(
     (value: boolean) => {
       draft.setValue('desktop.composer_predictions', value)
-      draft.autoSave()
-    },
-    [draft],
-  )
-  const setEnableParetoCodeRouter = useCallback(
-    (value: boolean) => {
-      draft.setValue('enableParetoCodeRouter', value)
-      draft.autoSave()
-    },
-    [draft],
-  )
-  const setEnableFusionRouter = useCallback(
-    (value: boolean) => {
-      draft.setValue('enableFusionRouter', value)
       draft.autoSave()
     },
     [draft],

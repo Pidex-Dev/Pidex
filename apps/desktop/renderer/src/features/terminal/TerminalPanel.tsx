@@ -159,7 +159,6 @@ export function TerminalPanel({
 
     let disposed = false
     displayPathCallbackRef.current?.(null)
-    let snapshotReady = false
     let snapshotGeneration = 0
     const queuedEvents: DesktopTerminalEvent[] = []
 
@@ -168,7 +167,6 @@ export function TerminalPanel({
       snapshotRef.current = snapshot
       displayPathCallbackRef.current?.(snapshotDisplayPath(snapshot))
       applyUpdate(consumeTerminalSnapshot(createTerminalOutputState(), snapshot))
-      snapshotReady = true
       for (const event of queuedEvents.splice(0)) consumeEvent(event)
       setError(null)
     }
@@ -306,12 +304,10 @@ export function TerminalPanel({
         displayPathCallbackRef.current?.(snapshotDisplayPath(snapshot))
         const update = consumeTerminalSnapshot(createTerminalOutputState(), snapshot)
         applyUpdate(update)
-        snapshotReady = true
         for (const event of queuedEvents.splice(0)) consumeEvent(event)
         fitAndResize()
         terminal.focus()
       } catch (reason) {
-        snapshotReady = true
         if (!disposed) {
           setStatus('failed')
           setError(errorMessage(reason))
