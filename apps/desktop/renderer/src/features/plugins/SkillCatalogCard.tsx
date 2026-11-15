@@ -4,7 +4,6 @@ import { Button } from '../../components/ui/Button.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
-  APP_ICON_SIZES,
 } from '../../components/ui/IconTokens.js'
 import type { DesktopSkillAuditStatus, DesktopSkillCatalogItem } from '../../../shared/Types.js'
 import { cx } from '../../utils/Cx.js'

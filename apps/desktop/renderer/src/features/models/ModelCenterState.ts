@@ -82,9 +82,6 @@ export type ProviderDirectoryOptions = {
   credentials?: readonly DesktopProviderCredential[]
 }
 
-const isProviderSection = (value: string | null): value is ModelCenterProviderSection =>
-  MODEL_CENTER_PROVIDER_SECTIONS.some((candidate) => candidate === value)
-
 export function parseModelCenterSearchParams(
   params: URLSearchParams,
   allowedProviderIds: readonly string[],

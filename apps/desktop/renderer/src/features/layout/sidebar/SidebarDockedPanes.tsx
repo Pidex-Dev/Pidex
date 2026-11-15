@@ -11,7 +11,6 @@ import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import type {
   WorkbenchPanelSnapshot,
   WorkbenchPanelTarget,
-  WorkbenchTabDescriptor,
   WorkbenchTabId,
   WorkbenchTabsState,
 } from '../dock/RightDockState.js'

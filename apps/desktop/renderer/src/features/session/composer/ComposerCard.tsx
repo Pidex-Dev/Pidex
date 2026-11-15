@@ -1,6 +1,5 @@
 import type React from 'react'
 import {
-  Fragment,
   lazy,
   Suspense,
   useEffect,
@@ -10,7 +9,6 @@ import {
   useRef,
   useState,
 } from 'react'
-import { Dropdown as DropdownMenu } from '../../../components/ui/floating/Dropdown.js'
 import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
 import { Dropdown as Select } from '../../../components/ui/floating/Dropdown.js'
 import {
@@ -22,7 +20,6 @@ import {
   Check,
   ChevronLeft,
   File,
-  FileText,
   Folder,
   Split,
   GitBranch,
@@ -155,7 +152,6 @@ import {
   writePreferredSessionGroupId,
 } from '../../session-groups/SessionGroupPreference.js'
 import type { DesktopSessionGroup } from '../../../services/desktop-client/Types.js'
-import { formatCompactNumber } from '../../../utils/UsageFormatters.js'
 import { cx } from '../../../utils/Cx.js'
 import { containsRelatedTarget } from '../../../utils/DomTargets.js'
 
@@ -552,7 +548,6 @@ export function ComposerCard({
     'Ctrl+Shift+D',
   )
   const menuId = useId()
-  const menuItemId = (key: string): string => `${menuId}-item-${encodeURIComponent(key)}`
   const capabilities = useMemo(
     () => ({ ...DEFAULT_COMPOSER_CAPABILITIES, ...capabilityOverrides }),
     [capabilityOverrides],

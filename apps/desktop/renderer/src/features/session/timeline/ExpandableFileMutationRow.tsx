@@ -1,4 +1,3 @@
-import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { ChevronRight, Pencil } from 'lucide-react'
 import type { Item } from '@pidex/shared/thread'

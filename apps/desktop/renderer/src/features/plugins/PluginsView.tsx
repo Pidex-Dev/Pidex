@@ -23,7 +23,6 @@ import { SkeletonBlock, SkeletonRegion } from '../../components/ui/Skeleton.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
-  APP_ICON_SIZES,
 } from '../../components/ui/IconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type { DesktopSkillCatalogItem, DesktopSkillOwnerFilter } from '../../../shared/Types.js'

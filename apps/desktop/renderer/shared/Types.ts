@@ -16,7 +16,7 @@ import type {
   DesktopAgentPermissionMode,
 } from '@pidex/core/agent/Permissions.js'
 import type { ThreadEvent } from '@pidex/core/agent/Workflow.js'
-import type { Attachment, UserMessage } from '@pidex/core/attachments/Types.js'
+import type { UserMessage } from '@pidex/core/attachments/Types.js'
 import type {
   ApprovalRequest,
   SubagentProjection,

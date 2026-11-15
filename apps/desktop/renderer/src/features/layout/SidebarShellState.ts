@@ -144,7 +144,7 @@ export function useSidebarShellController({
   const appBodyRef = useRef<HTMLDivElement>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewPane, setPreviewPane] = useState<SidebarPane | null>(null)
-  const [floatingResizing, setFloatingResizing] = useState(false)
+  const [, setFloatingResizing] = useState(false)
   const previewOpenRef = useRef(previewOpen)
   const previewPaneRef = useRef(previewPane)
   const collapsedRef = useRef(desktopCollapsed)

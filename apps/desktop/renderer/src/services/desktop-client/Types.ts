@@ -42,7 +42,6 @@ import type { AgentRpcSubscription } from '../AgentRpcClient.js'
 import type {
   DesktopApi,
   DesktopComposerAttachment,
-  DesktopGitStatus,
   DesktopReviewSource,
   DesktopSessionSnapshot,
   DesktopStoredSettings,

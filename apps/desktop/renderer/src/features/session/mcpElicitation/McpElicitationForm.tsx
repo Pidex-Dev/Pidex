@@ -7,7 +7,6 @@ import { RadioGroup, RadioItem } from '../../../components/ui/RadioGroup.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
 import type {
   McpElicitationBooleanSchema,
-  McpElicitationConstOption,
   McpElicitationMultiSelectEnumSchema,
   McpElicitationNumberSchema,
   McpElicitationPrimitiveSchema,

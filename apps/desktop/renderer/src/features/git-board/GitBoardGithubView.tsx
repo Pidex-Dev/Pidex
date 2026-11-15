@@ -7,7 +7,6 @@ import {
   GitBranch,
   GitFork,
   Lock,
-  RefreshCw,
   SquareArrowOutUpRight,
   Unlock,
 } from 'lucide-react'

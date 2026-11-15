@@ -1,90 +1,29 @@
-import {
-  DESKTOP_AGENT_EVENT_CHANNEL,
-  DESKTOP_API_METHODS,
-  DESKTOP_SETTINGS_CHANGE_CHANNEL,
-  DESKTOP_SESSION_STORE_CHANGE_CHANNEL,
-  DESKTOP_UI_COMMAND_CHANNEL,
-  DESKTOP_UPDATE_STATUS_CHANNEL,
-  DESKTOP_WORKFLOW_EVENT_CHANNEL,
-  type DesktopApiMethod,
-} from '../../../shared/IpcChannels.js'
 import { mockThreadHistoryPage } from './FixtureShared.js'
 import { permissionModeFromDesktopConfig } from './FixtureRuntime.js'
-import { encodeDesktopBridgeArgs } from '../../../shared/DesktopBridgeArgs.js'
 import {
-  defaultDesktopStoredSettings,
-  normalizeDesktopStoredSettings,
-} from '../../../shared/SettingsSchema.js'
-import {
-  collaborationModeFromPlanModeActive,
   planModeActiveFromCollaborationMode,
   resolveCollaborationMode,
 } from '../../shims/core/agent/SessionContract.js'
-import type { CatalogProvider, ModelRef, Project } from '@pidex/shared'
-import type {
-  PermissionConfig,
-  SubagentProjection,
-  ThreadListItem,
-  ThreadSettings,
-  ThreadSettingsPatch,
-  ThreadSnapshot,
-} from '@pidex/shared/thread'
-import type { EventEnvelope, ProtocolCapability, RpcParams, RpcResult } from '@pidex/agent-protocol'
+import type { RpcResult } from '@pidex/agent-protocol'
 import {
   DEFAULT_DESKTOP_THEME_SETTINGS,
   normalizeDesktopThemeSettings,
 } from '../../../shared/Theme.js'
-import { desktopUserMessageInputToPreviewText } from '../../../shared/DesktopUserMessage.js'
 import type {
   CreateDesktopSessionOptions,
-  CreateDesktopSessionResult,
-  DesktopApi,
   DesktopBrowserState,
-  DesktopFileEntry,
-  DesktopFilePreview,
-  DesktopFileRevision,
-  DesktopFileSaveResult,
-  DesktopModelSelection,
-  DesktopModelProviderState,
   DesktopModelProviderSummary,
-  DesktopApiKeySummary,
-  DesktopModelMetadata,
-  DesktopPermissionDecision,
-  DesktopPermissionMode,
   DesktopReviewDiffResult,
   DesktopReviewSource,
-  DesktopSessionEvent,
-  DesktopSessionCatalogStatus,
-  DesktopSessionMetadataPatch,
-  DesktopRuntimeStatus,
-  DesktopGithubAuthMode,
-  DesktopGithubAuthStatus,
   DesktopGithubLoginStatus,
-  DesktopGithubProfileOverviewResult,
-  DesktopGithubRepositoryListResult,
-  DesktopGitStatus,
-  DesktopGitOperationResult,
-  DesktopPullRequestResult,
-  DesktopSettingsChange,
-  DesktopSessionStoreChange,
   DesktopSessionSnapshot,
-  DesktopStoredSettings,
-  DesktopThemeSettings,
-  DesktopSubagentRead,
-  DesktopUpdateStatus,
-  DesktopUserMessageInput,
   DesktopWorkspace,
+  DesktopThemeSettings,
   ModelProviderID,
+  DesktopGithubAuthMode,
+  DesktopSessionEvent,
 } from '../../../shared/Types.js'
-import {
-  agentEventsFromNotification,
-  agentQuestionIdFromRequestId,
-  agentThreadListItemToDesktopSnapshot,
-  agentThreadSnapshotToDesktop,
-  desktopPermissionModeToPermissionConfig,
-  projectToDesktopWorkspace,
-} from '../AgentThreadAdapter.js'
-import { createAgentRpcClient, type AgentRpcSubscription } from '../AgentRpcClient.js'
+import { desktopPermissionModeToPermissionConfig } from '../AgentThreadAdapter.js'
 
 const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY = 'pidex.desktop.appearance.v8'
 const LEGACY_BROWSER_APPEARANCE_SETTINGS_STORAGE_KEYS = [

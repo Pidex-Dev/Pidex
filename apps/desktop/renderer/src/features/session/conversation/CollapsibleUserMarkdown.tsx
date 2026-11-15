@@ -1,4 +1,3 @@
-import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cx } from '../../../utils/Cx.js'

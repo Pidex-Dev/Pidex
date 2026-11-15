@@ -761,8 +761,7 @@ export function ModelSetupPage(): React.ReactNode {
         open={providerEditorOpen}
         onOpenChange={setProviderEditorOpen}
         onSaved={async (savedProviderId) => {
-          const next = await providerManagementStore.refresh()
-          const saved = next.providers.find((provider) => provider.providerID === savedProviderId)
+          await providerManagementStore.refresh()
           setProviderId(savedProviderId as ModelProviderID)
         }}
       />

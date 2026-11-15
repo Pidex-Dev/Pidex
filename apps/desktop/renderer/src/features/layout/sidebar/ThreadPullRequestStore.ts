@@ -44,10 +44,6 @@ type FetchLists = (
   refreshEnvironment: boolean,
 ) => Promise<readonly ThreadPullRequestList[] | null>
 
-type Batch = {
-  waiters: Set<() => void>
-}
-
 const EMPTY_BY_THREAD: ReadonlyMap<string, readonly ThreadPullRequestSummary[]> = new Map()
 
 export const threadPullRequestStore = createStore<ThreadPullRequestsState>()(() => ({

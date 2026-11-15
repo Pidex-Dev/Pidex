@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChevronRight, MoreHorizontal, Pencil, Plus, X } from 'lucide-react'
 import type {
   DesktopVoiceHandsFreeMode,

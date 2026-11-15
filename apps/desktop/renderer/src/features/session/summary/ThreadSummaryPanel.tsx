@@ -15,7 +15,6 @@ import {
   Link2,
   Package,
   Paperclip,
-  Pause,
   Play,
   Plus,
   Plug,
@@ -226,7 +225,6 @@ export function ThreadSummaryPanel({
   const [showAllAgents, setShowAllAgents] = React.useState(false)
   const [showAllArtifacts, setShowAllArtifacts] = React.useState(false)
   const sourcePreview = previewThreadSummarySources(model.sources)
-  const sourceListId = React.useId()
   const agentPreview = previewThreadSummaryAgents(model.agents)
   const visibleAgents = showAllAgents ? model.agents : agentPreview.items
   const artifactPreview = {

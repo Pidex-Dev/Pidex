@@ -93,7 +93,6 @@ export const composerSchema = new Schema({
       inline: true,
       selectable: true,
       toDOM: (node) => {
-        const name = String(node.attrs.name || node.attrs.label)
         return [
           'span',
           {
@@ -550,10 +549,6 @@ export function composerDocumentFromProseMirrorDocument(doc: EditorState['doc'])
   })
 
   return { text: lines.join('\n'), tokens }
-}
-
-function textFromDocument(doc: EditorState['doc']): string {
-  return composerDocumentFromProseMirrorDocument(doc).text
 }
 
 function composerTokenFromNode(node: ProseMirrorNode): ComposerDocumentToken | null {

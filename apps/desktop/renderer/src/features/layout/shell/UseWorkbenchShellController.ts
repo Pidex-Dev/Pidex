@@ -166,7 +166,7 @@ export function useWorkbenchShellController({
   })
   /** 右栏宽度的有效区间比例（分裂态持久值），以及旧 width/W 兼容值。 */
   const [rightDockRangeRatio, setRightDockRangeRatio] = useState<number | null>(null)
-  const [rightDockWidthRatio, setRightDockWidthRatio] = useState<number | null>(null)
+  const [, setRightDockWidthRatio] = useState<number | null>(null)
   const [bottomPanelHeightRatio, setBottomPanelHeightRatio] = useState<number | null>(null)
   const responsiveBottomPanelHeight = bottomPanelHeightFromRatio(
     bottomPanelHeightRatio ?? 0,

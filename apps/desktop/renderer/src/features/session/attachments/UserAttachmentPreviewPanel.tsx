@@ -91,7 +91,7 @@ function UserAttachmentFilePreview({
     )
   }
 
-  const { attachment, data, encoding } = state.value
+  const { attachment, encoding } = state.value
   const isMedia = isMediaPreviewKind(attachment.kind)
   const openFullscreen = viewer && isMedia && !fullscreen ? () => viewer.open([tab], 0) : undefined
   if ((attachment.kind === 'video' || attachment.kind === 'audio') && encoding === 'base64') {

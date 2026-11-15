@@ -10,7 +10,6 @@ import {
   X,
 } from 'lucide-react'
 import type {
-  ApprovalRequest,
   Item,
   SubagentRun,
   SubagentTask,
@@ -30,7 +29,6 @@ import {
 import { Button } from '../../../components/ui/Button.js'
 
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { approvalToRequest } from '../../../services/AgentThreadAdapter.js'
 import {
   InlineApprovalCard,
   type InlineApprovalCardProps,

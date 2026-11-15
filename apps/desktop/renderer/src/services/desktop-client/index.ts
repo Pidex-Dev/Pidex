@@ -3,8 +3,6 @@ import { createLazyBrowserMockClient } from './LazyBrowserMockClient.js'
 import { defaultDesktopClientEnvironment } from './Environment.js'
 import { createGithubAccountCache } from './GithubAccountCache.js'
 import type {
-  DesktopAttachmentApi,
-  DesktopLocalContextApi,
   DesktopClientEnvironment,
 } from './Types.js'
 

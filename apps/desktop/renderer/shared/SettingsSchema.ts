@@ -26,7 +26,6 @@ import type {
   DesktopVoiceRecordingEntry,
   DesktopVoiceRecordingStatus,
   DesktopWorkspace,
-  LocalRouterMode,
   ModelProviderID,
   SidebarProductMode,
   SidebarSectionId,
@@ -1189,13 +1188,6 @@ export function normalizeProjectAppearances(value: unknown): Record<string, Proj
     }
   }
   return normalized
-}
-
-function normalizeSidebarSectionOrder(value: unknown): SidebarSectionId[] {
-  const normalized = normalizeUniqueStringList(value, []).filter((id): id is SidebarSectionId =>
-    (VALID_SIDEBAR_SECTION_IDS as readonly string[]).includes(id),
-  )
-  return [...normalized, ...VALID_SIDEBAR_SECTION_IDS.filter((id) => !normalized.includes(id))]
 }
 
 function normalizeSidebarManualOrder(

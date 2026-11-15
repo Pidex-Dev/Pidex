@@ -14,7 +14,6 @@ import {
   quotaRemainingPercent,
   sumDecimalAmounts,
   usageStatusLabel,
-  type ProviderQuotaWindow,
   type ProviderUsageSource,
 } from '../../../utils/UsageFormatters.js'
 import { ProviderBalanceCards } from './ProviderBalanceCards.js'

@@ -1,38 +1,16 @@
 import {
-  DESKTOP_AGENT_EVENT_CHANNEL,
-  DESKTOP_API_METHODS,
-  DESKTOP_SETTINGS_CHANGE_CHANNEL,
-  DESKTOP_SESSION_STORE_CHANGE_CHANNEL,
-  DESKTOP_UI_COMMAND_CHANNEL,
-  DESKTOP_UPDATE_STATUS_CHANNEL,
-  DESKTOP_WORKFLOW_EVENT_CHANNEL,
-  type DesktopApiMethod,
-} from '../../../shared/IpcChannels.js'
-import { encodeDesktopBridgeArgs } from '../../../shared/DesktopBridgeArgs.js'
-import {
   defaultDesktopStoredSettings,
-  normalizeDesktopStoredSettings,
 } from '../../../shared/SettingsSchema.js'
 import {
   collaborationModeFromPlanModeActive,
-  planModeActiveFromCollaborationMode,
-  resolveCollaborationMode,
 } from '../../shims/core/agent/SessionContract.js'
-import type { CatalogProvider, ModelRef, Project } from '@pidex/shared'
+import type { ModelRef } from '@pidex/shared'
 import { threadGoalBudgetViolation } from '@pidex/shared/thread'
 import type {
-  PermissionConfig,
   PermissionRule,
-  SubagentProjection,
-  ThreadListItem,
-  ThreadSettings,
-  ThreadSettingsPatch,
-  ThreadSnapshot,
 } from '@pidex/shared/thread'
 import {
-  type EventEnvelope,
   type JsonValue,
-  type ProtocolCapability,
   type PluginSummary,
   type RpcParams,
   type RpcResult,
@@ -41,68 +19,32 @@ import {
   DEFAULT_DESKTOP_THEME_SETTINGS,
   normalizeDesktopThemeSettings,
 } from '../../../shared/Theme.js'
-import { desktopUserMessageInputToPreviewText } from '../../../shared/DesktopUserMessage.js'
 import type {
-  CreateDesktopSessionOptions,
-  CreateDesktopSessionResult,
   DesktopApi,
   DesktopBrowserState,
   DesktopDataLocationMigrationResult,
   DesktopDataLocationState,
   DesktopFileEntry,
-  DesktopFilePreview,
-  DesktopFileRevision,
-  DesktopFileSaveResult,
-  DesktopModelSelection,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
-  DesktopApiKeySummary,
-  DesktopModelMetadata,
-  DesktopPermissionDecision,
-  DesktopPermissionMode,
-  DesktopReviewDiffResult,
-  DesktopReviewSource,
-  DesktopSessionEvent,
-  DesktopSessionCatalogStatus,
-  DesktopSessionMetadataPatch,
-  DesktopRuntimeStatus,
   DesktopGithubAuthMode,
-  DesktopGithubAuthStatus,
-  DesktopGithubLoginStatus,
-  DesktopGithubProfileOverviewResult,
-  DesktopGithubRepositoryListResult,
-  DesktopGitStatus,
-  DesktopGitOperationResult,
-  DesktopPullRequestResult,
   DesktopSettingsChange,
   DesktopSessionStoreChange,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
   DesktopThemeSettings,
-  DesktopSubagentRead,
-  DesktopUpdateStatus,
-  DesktopUserMessageInput,
   DesktopProviderModelDefinition,
-  DesktopWorkspace,
   ModelProviderID,
 } from '../../../shared/Types.js'
 import {
-  agentEventsFromNotification,
-  agentQuestionIdFromRequestId,
-  agentThreadListItemToDesktopSnapshot,
-  agentThreadSnapshotToDesktop,
   desktopPermissionModeToPermissionConfig,
-  projectToDesktopWorkspace,
 } from '../AgentThreadAdapter.js'
-import { createAgentRpcClient, type AgentRpcSubscription } from '../AgentRpcClient.js'
-
 import {
   cleanGitStatus,
   createBrowserPerformanceFixture,
   createBrowserVisualFixture,
   emptyBrowserState,
   emptyReviewDiff,
-  githubLoginFailure,
   mockCopilotLogin,
   mockGithubLogin,
   mockModelProvider,
@@ -117,7 +59,6 @@ import type {
   DesktopAttachmentApi,
   DesktopAutomationApi,
   DesktopCalendarApi,
-  DesktopClientEnvironment,
   DesktopComputerApi,
   DesktopLocalContextApi,
   DesktopModelProviderRefreshApi,

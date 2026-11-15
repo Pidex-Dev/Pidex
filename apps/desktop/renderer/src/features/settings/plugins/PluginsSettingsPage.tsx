@@ -1,7 +1,7 @@
 import { ComputerRuntimeStatus } from '../../plugins/ComputerRuntimeStatus.js'
 import { useComputerSettings } from '../UseComputerSettings.js'
 import type React from 'react'
-import { ChevronDown, Globe, Lightbulb, Package, Plus, RefreshCw, Server, Store } from 'lucide-react'
+import { ChevronDown, Globe, Lightbulb, Package, Plus, RefreshCw, Server } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { AppSummary } from '@pidex/agent-protocol'
@@ -118,9 +118,9 @@ export function PluginsSettingsPage({
   )
   const [busyPluginIds, setBusyPluginIds] = useState<Set<string>>(() => new Set())
   const [pluginErrors, setPluginErrors] = useState<Record<string, string>>({})
-  const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null)
+  const [selectedPluginId] = useState<string | null>(null)
   const [pluginDialogOpen, setPluginDialogOpen] = useState(false)
-  const [pluginDialogTrigger, setPluginDialogTrigger] = useState<HTMLElement | null>(null)
+  const [pluginDialogTrigger] = useState<HTMLElement | null>(null)
 
   const [skills, setSkills] = useState<DesktopInstalledSkill[] | undefined>()
   const [skillsError, setSkillsError] = useState<string | null>(null)

@@ -62,7 +62,6 @@ export function SpecializedModelSelect({
   const [providerMetadata, setProviderMetadata] = useState<
     Record<string, Record<string, DesktopModelMetadata> | undefined>
   >({})
-  const [loading, setLoading] = useState(false)
 
   // Load all providers
   useEffect(() => {
@@ -87,7 +86,6 @@ export function SpecializedModelSelect({
     if (configured.length === 0) return
 
     let cancelled = false
-    setLoading(true)
 
     void (async () => {
       const models: Record<string, string[]> = {}
@@ -109,7 +107,6 @@ export function SpecializedModelSelect({
       if (!cancelled) {
         setProviderModels(models)
         setProviderMetadata(metadata)
-        setLoading(false)
       }
     })()
 
@@ -147,9 +144,6 @@ export function SpecializedModelSelect({
       !opts.some((o) => o.value === value) &&
       !opts.some((o) => o.value === parsedValue?.id)
     ) {
-      const savedMeta = parsedValue?.providerID
-        ? providerMetadata[parsedValue.providerID]?.[parsedValue.id]
-        : undefined
       opts.push({
         value,
         label: getModelDisplayLabel(parsedValue?.id ?? value),

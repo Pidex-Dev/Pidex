@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useState } from 'react'
 import { CalendarClock, Database, Folder, GitBranch, User } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import { APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 import {
   SidebarHoverCard,

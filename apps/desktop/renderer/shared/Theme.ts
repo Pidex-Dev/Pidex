@@ -8,7 +8,6 @@ import type {
 } from './Types.js'
 import {
   DEFAULT_APPEARANCE_SETTINGS,
-  DEFAULT_CHROME_THEMES,
   DEFAULT_DARK_CHROME_THEME,
   DEFAULT_LIGHT_CHROME_THEME,
   desktopThemeFontFaceMatchesFamily,

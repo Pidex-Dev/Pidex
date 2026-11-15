@@ -37,7 +37,6 @@ import type { SideChatComposerRenderContext } from '../../session/conversation/S
 import type { ConversationItemContextValue } from '../../session/timeline/ConversationItemContext.js'
 import type { OpenPlanInDockRequest } from '../../session/workflow/WorkflowPlanCard.js'
 import type { FileDocumentLoadErrorPhase } from '../dock/RightDockPanels.js'
-import { FileTypeIcon } from '../FileTypeIcon.js'
 import { createWorkspaceFileTabId } from './WorkspaceFileTabId.js'
 import type {
   MarkdownFileViewMode,
@@ -45,7 +44,6 @@ import type {
   WorkbenchTabKind,
 } from '../dock/RightDockState.js'
 import {
-  WorkbenchPanelEmpty,
   WorkbenchPanelLoading,
   WorkbenchPanelUnavailable,
 } from '../panels/WorkbenchPanelStates.js'

@@ -1,4 +1,4 @@
-import type { ModelPricing, ModelUnitPrices } from '@pidex/agent-protocol'
+import type { ModelPricing } from '@pidex/agent-protocol'
 import { ModelPricingEditor } from './ModelPricingEditor.js'
 import { ModelCatalogDetails } from './ModelCatalogDetails.js'
 import { useSmartModelConfig } from './UseSmartModelConfig.js'

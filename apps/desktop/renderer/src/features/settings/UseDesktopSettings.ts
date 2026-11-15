@@ -33,7 +33,6 @@ import type {
   SidebarProductMode,
   SidebarSectionId,
   SidebarCustomization,
-  SidebarCustomSection,
 } from '../../../shared/Types.js'
 import {
   DEFAULT_SIDEBAR_CUSTOMIZATION,

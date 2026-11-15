@@ -7,7 +7,7 @@ import type {
   DesktopSessionCatalogStatus,
   DesktopWorkspace,
 } from '../../../shared/Types.js'
-import type { AppView, SessionListItem } from '../../UiTypes.js'
+import type { SessionListItem } from '../../UiTypes.js'
 import { SidebarBody } from './sidebar/SidebarBody.js'
 import { useSidebarActivity } from './sidebar/UseSidebarActivity.js'
 import { archiveSidebarActivity, sessionNeedsStop } from './sidebar/SidebarActivityActions.js'
@@ -61,7 +61,6 @@ import {
   renameSidebarSection,
   captureSidebarAssignments,
   restoreFailedArchiveAssignments,
-  restoreSidebarAssignments,
   setSidebarSectionCollapsed,
   setSidebarSectionItems,
   setSidebarSectionSort,
@@ -173,7 +172,6 @@ export function DesktopSidebar({
     sidebarProjectSort,
     sidebarSort,
     setSidebarSort,
-    sidebarTimelineEnabled,
     sidebarProductMode,
     sidebarTimelinePriorityEnabled,
     setSidebarTimelinePriorityEnabled,

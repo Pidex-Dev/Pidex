@@ -32,7 +32,6 @@ import {
   questionOptionId,
   questionDrafts,
   nextQuestionIndex,
-  nextQuestionOptionId,
   parseAskUserQuestions,
   selectQuestionOption,
   shouldDeferAskUserQuestionShortcutToTextEntry,

@@ -22,7 +22,6 @@ import { SearchInput } from '../../components/ui/SearchInput.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
-  APP_ICON_SIZES,
 } from '../../components/ui/IconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { arrayBufferToBase64 } from '../../utils/BinaryEncoding.js'
@@ -177,12 +176,6 @@ function EnvironmentList({
     </div>
   ) : (
     <div className="environment-project-list tw:grid tw:gap-3">{projectRows}</div>
-  )
-
-  const projectSection = (
-    <SettingsSection bare title="选择项目" description="最近打开的项目排在前面。">
-      {projectList}
-    </SettingsSection>
   )
 
   if (routeBase === '/projects') {
