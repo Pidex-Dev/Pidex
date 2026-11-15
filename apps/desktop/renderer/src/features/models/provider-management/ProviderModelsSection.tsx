@@ -33,6 +33,7 @@ import type {
 } from '../../../../shared/Types.js'
 import type { ModelTestStatus } from '../UseModelCenterController.js'
 import { Button } from '../../../components/ui/Button.js'
+import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { ProviderIcon } from '../ProviderIcon.js'
 import { modelLogoURL } from '../../../services/desktop-client/ModelLogo.js'
 import { SearchHeading } from '../../../components/ui/SearchHeading.js'
@@ -769,6 +770,7 @@ function ModelRowItem({
   providerID?: string
 }): React.ReactNode {
   const details = `${modelId} · 上下文 ${metadata?.contextWindow ? formatCompactNumber(metadata.contextWindow) : '未知'} / 输出 ${metadata?.outputTokens ? formatCompactNumber(metadata.outputTokens) : '未知'}${enabled ? '' : ' · 已停用'}`
+  const hasCapabilities = Boolean(metadata?.reasoning || metadata?.vision || metadata?.toolCall)
   return (
     <article
       className="model-center-model-row tw:flex tw:min-w-0 tw:items-center tw:gap-3 tw:px-4 tw:py-3 tw:hover:bg-app-hover"
@@ -792,70 +794,105 @@ function ModelRowItem({
       >
         {metadata?.name || modelId}
       </button>
-      <div className="tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:text-app-text-soft">
-        {metadata?.reasoning ? (
-          <span role="img" aria-label="推理" title="推理">
-            <Brain className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-          </span>
-        ) : null}
-        {metadata?.vision ? (
-          <span role="img" aria-label="图片输入" title="图片输入">
-            <Eye className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-          </span>
-        ) : null}
-        {metadata?.toolCall ? (
-          <span role="img" aria-label="工具调用" title="工具调用">
-            <Wrench className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-          </span>
-        ) : null}
-        {testStatus?.state === 'reachable' ? (
-          <span role="status" className="tw:text-app-success tw:type-1">
-            {testStatus.api ? `${testStatus.api} · ` : ''}
-            {testStatus.latencyMs} ms
-          </span>
-        ) : testStatus?.state === 'failed' ? (
-          <span
-            role="status"
-            className="tw:text-app-danger tw:type-1"
-            title={`${testStatus.message}${testStatus.category ? ` · ${testStatus.category}` : ''}`}
+      <div className="tw:flex tw:shrink-0 tw:items-center tw:gap-4">
+        {hasCapabilities ? (
+          <div
+            role="group"
+            aria-label="模型功能"
+            className="tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:text-app-text-soft"
           >
-            失败
-          </span>
+            {metadata?.reasoning ? (
+              <Tooltip content="推理">
+                <span
+                  role="img"
+                  aria-label="推理"
+                  className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center"
+                >
+                  <Brain className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+                </span>
+              </Tooltip>
+            ) : null}
+            {metadata?.vision ? (
+              <Tooltip content="图片输入">
+                <span
+                  role="img"
+                  aria-label="图片输入"
+                  className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center"
+                >
+                  <Eye className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+                </span>
+              </Tooltip>
+            ) : null}
+            {metadata?.toolCall ? (
+              <Tooltip content="工具调用">
+                <span
+                  role="img"
+                  aria-label="工具调用"
+                  className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center"
+                >
+                  <Wrench className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+                </span>
+              </Tooltip>
+            ) : null}
+          </div>
         ) : null}
-        <Button
-          color="ghostSecondary"
-          isIconOnly
-          size="toolbar"
-          disabled={disabled}
-          aria-label={`测试模型 ${modelId}`}
-          title={`测试模型 ${modelId}`}
-          loading={testStatus?.state === 'testing'}
-          onClick={onTest}
+        <div
+          role="group"
+          aria-label="模型操作"
+          className="tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:text-app-text-soft"
         >
-          <Activity className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-        </Button>
-        <Button
-          color="ghostSecondary"
-          isIconOnly
-          size="toolbar"
-          aria-label={`模型设置 ${modelId}`}
-          title={`模型设置 ${modelId}`}
-          disabled={editingDisabled}
-          onClick={onEdit}
-        >
-          <Pencil className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-        </Button>
-        <Button
-          color="ghostSecondary"
-          isIconOnly
-          size="toolbar"
-          aria-label={`移除模型 ${modelId}`}
-          title={`移除模型 ${modelId}`}
-          disabled={editingDisabled}
-          onClick={onRemove}
-        >
-          <Minus className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-        </Button>
+          {testStatus?.state === 'reachable' ? (
+            <span role="status" className="tw:px-1.5 tw:text-app-success tw:type-1">
+              {testStatus.api ? `${testStatus.api} · ` : ''}
+              {testStatus.latencyMs} ms
+            </span>
+          ) : testStatus?.state === 'failed' ? (
+            <Tooltip
+              content={`${testStatus.message}${testStatus.category ? ` · ${testStatus.category}` : ''}`}
+            >
+              <span role="status" className="tw:px-1.5 tw:text-app-danger tw:type-1">
+                失败
+              </span>
+            </Tooltip>
+          ) : null}
+          <Tooltip content="测试模型">
+            <Button
+              color="ghostSecondary"
+              isIconOnly
+              size="toolbar"
+              disabled={disabled}
+              aria-label={`测试模型 ${modelId}`}
+              loading={testStatus?.state === 'testing'}
+              onClick={onTest}
+            >
+              <Activity className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+            </Button>
+          </Tooltip>
+          <Tooltip content="模型设置">
+            <Button
+              color="ghostSecondary"
+              isIconOnly
+              size="toolbar"
+              aria-label={`模型设置 ${modelId}`}
+              disabled={editingDisabled}
+              onClick={onEdit}
+            >
+              <Pencil className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+            </Button>
+          </Tooltip>
+          <Tooltip content="移除模型">
+            <Button
+              color="ghostSecondary"
+              isIconOnly
+              size="toolbar"
+              aria-label={`移除模型 ${modelId}`}
+              disabled={editingDisabled}
+              onClick={onRemove}
+            >
+              <Minus className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+            </Button>
+          </Tooltip>
+        </div>
       </div>
     </article>
   )
