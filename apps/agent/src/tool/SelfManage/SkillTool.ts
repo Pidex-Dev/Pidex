@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { AgentError } from '../../Domain'
 import type { SkillManagementService } from '../../prompt/SkillManagementService'
-import type { ToolContext, ToolDefinition } from '../ToolRegistry'
+import type { ToolDefinition } from '../ToolRegistry'
 import {
   assertSelfManageWritable,
   buildSelfManageInspection,

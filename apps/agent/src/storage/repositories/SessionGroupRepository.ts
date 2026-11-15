@@ -1,13 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import type {
-  SessionGroupChangedFile,
   SessionGroupContextEntry,
   SessionGroupContextSection,
-  SessionGroupFailure,
   SessionGroupStep,
   SessionGroupStepStatus,
-  SessionGroupValidation,
 } from '@pidex/shared/session-group'
 import type { RepositoryDatabase } from './RepositoryDatabase'
 

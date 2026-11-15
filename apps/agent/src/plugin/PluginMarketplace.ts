@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import type {
   PluginComponent,
   PluginDetails,
-  PluginInstallSource,
   PluginSummary,
   PluginMarketplaceSection,
   PluginAssetKind,

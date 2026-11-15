@@ -181,12 +181,6 @@ export class ApprovalService {
     this.turnInterruptHandler = handler
   }
 
-  private async emit(threadID: string, turnID: string, method: string, params: unknown) {
-    const event = this.db.insertEvent(threadID, turnID, method, params)
-    await Effect.runPromise(this.hub.publish(event))
-    return event
-  }
-
   async authorize(invocation: ToolInvocation, signal: AbortSignal): Promise<PermissionDecision> {
     if (signal.aborted) return { decision: 'deny', risk: 'low', reason: '操作已取消' }
     const tool = (invocation.toolPolicy ??

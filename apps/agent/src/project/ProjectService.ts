@@ -32,7 +32,7 @@ const requireDirectory = async (path: string) => {
 export class ProjectService {
   constructor(
     private readonly db: RepositoryDatabase,
-    private readonly sources?: ProjectSourceService,
+    _sources?: ProjectSourceService,
     private readonly publish?: (events: readonly EventEnvelope[]) => Promise<void>,
   ) {}
 

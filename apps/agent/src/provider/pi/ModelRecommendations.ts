@@ -2,18 +2,6 @@ import { omitUndefined } from '@pidex/shared/guards'
 import { Schema } from 'effect'
 import { Model } from '@pidex/model-schema'
 
-const recommendationFields = [
-  'name',
-  'contextWindow',
-  'maxInputTokens',
-  'maxTokens',
-  'reasoning',
-  'tools',
-  'input',
-  'reasoningLevels',
-] as const
-type RecommendationField = (typeof recommendationFields)[number]
-
 type JsonObject = Record<string, unknown>
 const object = (value: unknown): JsonObject => {
   if (!value || typeof value !== 'object' || Array.isArray(value))

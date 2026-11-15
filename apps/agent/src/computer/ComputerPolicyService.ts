@@ -31,7 +31,6 @@ const policySchema = z
       .default({ aumids: {}, exes: [] }),
   })
   .passthrough()
-type Policy = z.infer<typeof policySchema>
 const defaults = () => policySchema.parse({})
 
 /** Machine restrictions are read-only; user grants never enter this service. */

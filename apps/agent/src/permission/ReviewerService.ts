@@ -1,11 +1,10 @@
 import type { Model } from '@pidex/model-schema'
-import { contentText, type Message, type Tool } from '@earendil-works/pi-ai'
+import type { Message, Tool } from '@earendil-works/pi-ai'
 import { z } from 'zod'
 import { riskFor } from './PermissionDecisionEngine'
 import { AgentError, type PermissionDecision, type ToolInvocation } from '../Domain'
 import {
   analyzeShellRisk,
-  RISK_CATEGORIES,
   type RiskCategory,
   type ShellReviewInput,
   type ShellRiskAnalysis,

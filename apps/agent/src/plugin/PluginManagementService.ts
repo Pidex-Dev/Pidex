@@ -8,7 +8,6 @@ import type {
   PluginComponent,
   PluginDetails,
   PluginAssetKind,
-  PluginInstallSource,
   PluginInstallationPolicy,
   PluginSource,
   PluginSummary,

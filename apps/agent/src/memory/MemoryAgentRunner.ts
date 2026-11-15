@@ -1,4 +1,4 @@
-import type { Api, AssistantMessage, Context, Model as PiModel, Tool } from '@earendil-works/pi-ai'
+import type { Api, Context, Model as PiModel, Tool } from '@earendil-works/pi-ai'
 import { z } from 'zod'
 import type { Models } from '@earendil-works/pi-ai'
 import type { MemoryAgentRunner, MemoryService, MemoryToolScope } from './MemoryService'
@@ -111,12 +111,6 @@ const toolDefinitions = (memory: MemoryService, scope: MemoryToolScope) => {
   ]
   return { tools, run }
 }
-
-const textOf = (message: AssistantMessage) =>
-  message.content
-    .filter((part): part is Extract<typeof part, { type: 'text' }> => part.type === 'text')
-    .map((part) => part.text)
-    .join('\n')
 
 const failureText = (cause: unknown) =>
   cause instanceof Error ? cause.message : String(cause).slice(0, 2_000)
