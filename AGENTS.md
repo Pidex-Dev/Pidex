@@ -17,6 +17,7 @@
 - 修改前检查当前实现与相关测试。工作区中与当前任务无关的未提交修改及未跟踪文件默认属于用户，未经明确指示禁止回退、丢弃或顺手格式化；若当前任务的目标文件已有未提交修改，在保留已有改动语义的前提下直接叠加完成本次修改，无需停下确认。
 - 默认端到端自主完成任务闭环：仅当（a）触及第（1）（2）层安全红线或架构/协议/数据兼容契约冲突、（b）需执行不可逆破坏性操作、或（c）核心产品意图存在互斥解释且无法通过代码库推断时，才停下向用户确认；常规实现细节与模块内设计取舍按现有代码惯例自主决策并直接执行。
 - 优先移动、复用或改造现有实现，禁止擅自创建平行实现；默认只编写保护本次行为的必要测试，未经用户明确要求，禁止添加无关测试或大面积快照。
+- 注释纪律与纠偏固化：源码遵循分级注释契约（仅允许导出 API 的 JSDoc 与 `// INVARIANT:` / `// SAFETY:` 结构化不变量注释，禁止新增普通“what”注释、裸 `@ts-ignore`/`oxlint-disable` 与未追踪 `TODO`/`FIXME`/`HACK`）；每次纠正 AI 同类错误后，优先把约束固化到 API 原语、[`scripts/contracts/CheckArchContracts.ts`](scripts/contracts/CheckArchContracts.ts)、[`scripts/feature-map/FeatureMap.ts`](scripts/feature-map/FeatureMap.ts) 或 [`specs/tla/`](specs/tla/) 及其测试中，而非仅在文档补充文字说明。
 - 可将边界清晰、相互独立的只读调研或实现子任务自主交给子代理并行处理；子代理不得独立决定架构、数据兼容策略、安全边界或验收标准。
 
 ## 仓库与多客户端边界
@@ -54,7 +55,7 @@
 
 ## 验证、变更记录与提交
 
-- 常用命令：开发栈 `bun run dev`；全仓类型检查 `bun run typecheck`；分层构建 `bun run build:agent`、`bun run build:renderer`、`bun run build:desktop`；Renderer 样式检查 `bun run --cwd apps/desktop/renderer css:check`；仅在修改打包/发布行为或用户明确要求时运行 `bun run package:win`。
+- 常用命令：开发栈 `bun run dev`；全仓类型检查 `bun run typecheck`；`oxlint` 分规则棘轮 `bun run lint:ratchet`；架构契约与棘轮检查 `bun run arch:check`；功能地图覆盖检查 `bun run feature-map:check`；TLA+ 模型校验 `bun run formal:check`；可编程运行驱动 `bun run app:drive`；治理套件 `bun run test:governance`；启用本地 pre-push 钩子 `bun run hooks:install`；分层构建 `bun run build:agent`、`bun run build:renderer`、`bun run build:desktop`；Renderer 样式检查 `bun run --cwd apps/desktop/renderer css:check`；仅在修改打包/发布行为或用户明确要求时运行 `bun run package:win`。
 - 验证范围：默认先运行受影响 workspace 的 typecheck 和相关测试；跨 workspace 契约、RPC、数据 schema 或 preload 接口变化后，必须验证所有消费者并运行根目录 `bun run typecheck`；Renderer 目录或 lazy import 变化后，必须运行 `bun run build:renderer` 并确认 chunk 可解析。禁止为了让检查通过而盲目更新 CSS、style 或 test 基线。
 - 交付前检查：按本次变更涉及的协议、路径和调用方搜索旧协议、旧路径和失效 import，并运行 `git diff --check`；纯文档修改检查引用，不扩展为全仓代码审计。
 - `CHANGELOG.md` 规范：根据实际影响判断是否更新（值得用户或集成方关注的新能力、明显操作变化、重要修复，以及兼容性、数据迁移和安全变更应记录；细小样式调整、内部重构、普通文档修订和测试补充通常省略）。仅整理 `Unreleased`，未经明确要求不得改写已发布历史；优先更新或合并同功能的已有条目，只描述最终行为与影响（禁止写成逐任务流水账或堆砌像素参数、实现细节、测试批次）。每个分类只出现一次，按 `Added`、`Changed`、`Fixed`、`Deprecated`、`Removed`、`Security` 顺序排列并省略空分类，条目格式为 `- [作用域] 中文说明`。
