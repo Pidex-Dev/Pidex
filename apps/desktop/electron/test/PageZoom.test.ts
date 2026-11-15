@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { scaleDesktopBrowserBounds } from '../src/browser/BrowserBounds.js'
 import {
   nextPageZoomPercent,
   normalizePageZoomPercent,
@@ -41,12 +40,4 @@ describe('page zoom', () => {
     expect(nextPageZoomPercent(170, 'reset')).toBe(100)
   })
 
-  test('converts zoomed renderer CSS bounds back to Electron DIP', () => {
-    expect(scaleDesktopBrowserBounds({ x: 10, y: 20, width: 300, height: 200 }, 1.5)).toEqual({
-      x: 15,
-      y: 30,
-      width: 450,
-      height: 300,
-    })
-  })
 })

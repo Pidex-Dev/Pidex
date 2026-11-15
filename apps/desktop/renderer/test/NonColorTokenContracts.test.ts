@@ -633,7 +633,7 @@ describe('non-color design token contracts', () => {
     expect(conversation).not.toContain('--page-content-max-width: 40rem;')
     expect(conversation).not.toContain('--conversation-composer-overhang')
     expect(conversation).not.toContain('--conversation-inline-gutter')
-    for (const homeView of ['QuickChatView', 'ChatNewSessionView', 'WorkingNewSessionView']) {
+    for (const homeView of ['QuickChatView']) {
       const source = await read(`../src/features/session/${homeView}.tsx`)
       expect(source).not.toContain('tw:px-8')
       expect(source).not.toContain('tw:max-w-none')

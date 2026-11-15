@@ -16,8 +16,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { createSessionDisplayStore, useSessionDisplayField } from ${source('features/session/state/SessionDisplayStore.ts')};
 import { SessionBoundComposer } from ${source('features/session/composer/SessionBoundComposer.tsx')};
 import { QuickChatContext, useQuickChatContext } from ${source('features/session/QuickChatContext.ts')};
-import { WorkingNewSessionView } from ${source('features/session/WorkingNewSessionView.tsx')};
-import { ChatNewSessionView } from ${source('features/session/ChatNewSessionView.tsx')};
+import { QuickChatView } from ${source('features/session/QuickChatView.tsx')};
 import { EditCommandProvider } from ${source('components/ui/EditCommandProvider.tsx')};
 import { AppContextMenu } from ${source('components/ui/AppContextMenu.tsx')};
 
@@ -113,7 +112,6 @@ function DesktopLayoutMock() {
     workspacePath: '/test/path',
     branchName: 'main',
     gitStatus: null,
-    recentTasks: [],
     recentWorkspaces: [],
     providerModelOptions: [],
     browserTabs: [],
@@ -125,9 +123,9 @@ function DesktopLayoutMock() {
         <SidebarWatcher />
         <ContextMenuWatcher />
         <main id="main-content">
-          {route === 'home' && <ChatNewSessionView />}
+          {route === 'home' && <QuickChatView />}
           {route === 'session' && <SessionConversationView />}
-          {route === 'working' && <WorkingNewSessionView />}
+          {route === 'working' && <QuickChatView />}
         </main>
       </div>
     </QuickChatContext.Provider>
@@ -188,6 +186,7 @@ if (process.versions.bun) {
           }))
           builder.onLoad({ filter: /^client$/, namespace: 'fixture' }, () => ({
             contents: `
+              export const CONFIG_UPDATED_EVENT = 'fixture-config';
               export const desktopClient = {
                 isComposerFileAttachmentAvailable: async () => true,
                 listRuntimeSkills: async () => ({ state: 'ready', data: [] }),

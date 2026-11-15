@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test'
 import {
-  filterStatusForFile,
   normalizeReviewFileStatus,
   reviewFileStatusLabel,
 } from '../src/features/review/workspace/ReviewFileStatus.js'
@@ -29,10 +28,7 @@ describe('review file status presentation', () => {
     expect(normalizeReviewFileStatus(file('X'))).toBe('unknown')
   })
 
-  test('shares normalized status with filtering and Chinese labels', () => {
-    expect(filterStatusForFile(file('added'))).toBe('added')
-    expect(filterStatusForFile(file('deleted'))).toBe('removed')
-    expect(filterStatusForFile(file('renamed'))).toBe('modified')
+  test('provides Chinese labels for review file statuses', () => {
     expect(reviewFileStatusLabel('added')).toBe('新增')
     expect(reviewFileStatusLabel('deleted')).toBe('删除')
     expect(reviewFileStatusLabel('modified')).toBe('修改')

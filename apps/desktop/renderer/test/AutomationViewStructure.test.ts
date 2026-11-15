@@ -29,10 +29,9 @@ describe('AutomationView primary page hierarchy', () => {
   test('uses the shared primary page with Codex status navigation', () => {
     expectSourceContains(viewSource, '<PrimaryPageLayout')
     expectSourceContains(viewSource, 'search={')
-    expectSourceContains(viewSource, "{ value: 'all', label: '全部' }")
-    expectSourceContains(viewSource, "{ value: 'active', label: '已开启' }")
-    expectSourceContains(viewSource, "{ value: 'paused', label: '已暂停' }")
-    expectSourceContains(viewSource, "{ value: 'completed', label: '已完成' }")
+    expectSourceContains(sidebarSource, "{ value: 'all', label: t('全部') }")
+    expectSourceContains(sidebarSource, "{ value: 'active', label: t('已开启') }")
+    expectSourceContains(sidebarSource, "{ value: 'paused', label: t('已暂停') }")
     expectSourceNotContains(viewSource, "label: '计划任务'")
     expectSourceNotContains(viewSource, "label: '运行收件箱'")
     expectSourceNotContains(viewSource, 'automation-header-meta')
