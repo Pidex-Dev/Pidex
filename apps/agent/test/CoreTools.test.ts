@@ -976,7 +976,9 @@ describe('核心工具面', () => {
       mutation: 'create',
       path: 'src/core/writer.ts',
     })
-    expect(await Bun.file(join(root, 'src/core/writer.ts')).text()).toBe('export const written = 1\n')
+    expect(await Bun.file(join(root, 'src/core/writer.ts')).text()).toBe(
+      'export const written = 1\n',
+    )
 
     await writeFile(join(root, 'unready.ts'), 'unready\n', 'utf8')
     await expect(
@@ -1473,5 +1475,95 @@ describe('核心工具面', () => {
     expect(serialized).not.toContain('post hook secret')
     expect(serialized).toContain('[outside-workspace]')
     expect(serialized).toContain('"inputBytes":')
+  })
+
+  test('Read 支持读取本地图片并返回图像块，同时脱敏审计并跳过文本编辑快照', async () => {
+    const { executor, context, root } = await fixture()
+    const pngBytes = Buffer.from([
+      137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0,
+      0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 96, 0, 0, 0, 2, 0, 1, 226,
+      33, 188, 51, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+    ])
+    const imagePath = join(root, 'sample.png')
+    await writeFile(imagePath, pngBytes)
+    await writeFile(join(root, 'broken.png'), 'not-a-png', 'utf8')
+
+    let skillReadCount = 0
+    const result = await executor.execute<any>(
+      'Read',
+      { file_path: 'sample.png' },
+      {
+        ...context,
+        onSkillDocumentRead: async () => {
+          skillReadCount += 1
+          return undefined
+        },
+      },
+    )
+    expect(skillReadCount).toBe(0)
+    expect(result).toMatchObject({
+      kind: 'image',
+      path: 'sample.png',
+      mimeType: 'image/png',
+      sizeBytes: pngBytes.byteLength,
+      base64: pngBytes.toString('base64'),
+    })
+
+    const definition = executor.definition('Read')
+    expect(definition.auditResult?.(result)).toEqual({
+      kind: 'image',
+      path: 'sample.png',
+      mimeType: 'image/png',
+      sizeBytes: pngBytes.byteLength,
+    })
+    expect(definition.formatResult?.(result, context as never)).toEqual({
+      content: JSON.stringify(
+        {
+          path: 'sample.png',
+          kind: 'image',
+          mimeType: 'image/png',
+          sizeBytes: pngBytes.byteLength,
+        },
+        null,
+        2,
+      ),
+      details: {
+        path: 'sample.png',
+        kind: 'image',
+        mimeType: 'image/png',
+        sizeBytes: pngBytes.byteLength,
+      },
+      images: [{ type: 'image', data: pngBytes.toString('base64'), mimeType: 'image/png' }],
+      structuredContent: false,
+    })
+
+    await expect(
+      executor.execute('Read', { file_path: 'broken.png' }, context),
+    ).rejects.toMatchObject({ code: 'WORKSPACE_FILE_UNREADABLE' })
+
+    await expect(
+      executor.execute(
+        'Edit',
+        { path: 'sample.png', edits: [{ oldText: 'PNG', newText: 'JPG' }] },
+        context,
+      ),
+    ).rejects.toMatchObject({ code: 'WORKSPACE_FILE_UNREADABLE' })
+
+    const outsideDir = await mkdtemp(join(tmpdir(), 'pidex-outside-img-'))
+    temporary.push(outsideDir)
+    const outsidePng = join(outsideDir, 'outside.png')
+    await writeFile(outsidePng, pngBytes)
+    await expect(context.workspace.readImageFile(outsidePng)).rejects.toMatchObject({
+      code: 'WORKSPACE_PATH_DENIED',
+    })
+    await expect(
+      executor.execute('Read', { file_path: '../outside.png' }, context),
+    ).rejects.toMatchObject({ code: 'WORKSPACE_PATH_DENIED' })
+    const outsideResult = await executor.execute<any>('Read', { file_path: outsidePng }, context)
+    expect(outsideResult).toMatchObject({
+      kind: 'image',
+      mimeType: 'image/png',
+      sizeBytes: pngBytes.byteLength,
+    })
   })
 })

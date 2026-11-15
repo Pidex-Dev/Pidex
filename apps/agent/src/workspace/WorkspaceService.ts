@@ -14,7 +14,7 @@ import {
   unlink,
   writeFile,
 } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
+import { basename, dirname, extname, isAbsolute, relative, resolve } from 'node:path'
 import { AgentError } from '../Domain'
 import { pathContains } from '../permission/PathPermissions'
 import type { RequestedPermissions } from '../permission/PermissionDecisionEngine'
@@ -32,10 +32,50 @@ const IGNORED_DIRECTORIES = new Set([
 const MAX_FILE_BYTES = 1_000_000
 const EDITOR_READ_MAX_BYTES = 20 * 1024 * 1024
 const EDITOR_WRITE_MAX_BYTES = 10 * 1024 * 1024
+const IMAGE_READ_MAX_BYTES = 10 * 1024 * 1024
 const LIST_LIMIT = 2_000
 const WINDOWS_REPLACE_BLOCKED_CODES = new Set(['EPERM', 'EACCES', 'EBUSY'])
 const decoder = new TextDecoder('utf-8', { fatal: true })
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf])
+
+export type SupportedImageMimeType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
+
+const IMAGE_EXTENSION_MIME_TYPES: Readonly<Record<string, SupportedImageMimeType>> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+}
+
+/** Detects a supported raster image MIME type from file header magic bytes. */
+export const detectImageMimeType = (data: Uint8Array): SupportedImageMimeType | null => {
+  if (
+    data.length >= 8 &&
+    [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => data[index] === byte)
+  ) {
+    return 'image/png'
+  }
+  if (data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) {
+    return 'image/jpeg'
+  }
+  if (data.length >= 6) {
+    const header = new TextDecoder().decode(data.subarray(0, 6))
+    if (header === 'GIF87a' || header === 'GIF89a') return 'image/gif'
+  }
+  if (
+    data.length >= 12 &&
+    new TextDecoder().decode(data.subarray(0, 4)) === 'RIFF' &&
+    new TextDecoder().decode(data.subarray(8, 12)) === 'WEBP'
+  ) {
+    return 'image/webp'
+  }
+  return null
+}
+
+/** Reports whether the file extension identifies a supported local image format. */
+export const isSupportedImagePath = (path: string): boolean =>
+  Object.hasOwn(IMAGE_EXTENSION_MIME_TYPES, extname(path).toLowerCase())
 const isWindowsReplaceBlocked = (cause: unknown) =>
   process.platform === 'win32' &&
   typeof cause === 'object' &&
@@ -66,6 +106,13 @@ export interface WorkspaceSearchResult {
   path: string
   line?: number
   preview?: string
+}
+
+export interface WorkspaceImageFile {
+  path: string
+  mimeType: SupportedImageMimeType
+  base64: string
+  sizeBytes: number
 }
 
 export type WorkspaceReadOnlyPath = {
@@ -630,10 +677,7 @@ export class WorkspaceService {
     }
   }
 
-  private async ensureMissingDirectories(
-    directories: readonly string[],
-    created: string[] = [],
-  ) {
+  private async ensureMissingDirectories(directories: readonly string[], created: string[] = []) {
     for (const dir of directories) {
       try {
         await mkdir(dir)
@@ -923,6 +967,35 @@ export class WorkspaceService {
     }
   }
 
+  /** Reads and validates a local image file within workspace or granted read scope. */
+  async readImageFile(path: string): Promise<WorkspaceImageFile> {
+    const canonical = await this.existingPath(path)
+    const metadata = await stat(canonical)
+    if (!metadata.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是图片文件', 400)
+    if (metadata.size > IMAGE_READ_MAX_BYTES) {
+      throw new AgentError(
+        'WORKSPACE_FILE_TOO_LARGE',
+        `图片超过 ${IMAGE_READ_MAX_BYTES} 字节读取上限`,
+        413,
+        {
+          sizeBytes: metadata.size,
+          maxBytes: IMAGE_READ_MAX_BYTES,
+        },
+      )
+    }
+    const bytes = await readFile(canonical)
+    const mimeType = detectImageMimeType(bytes)
+    if (!mimeType) {
+      throw new AgentError('WORKSPACE_FILE_UNREADABLE', '图片文件格式无效或已损坏', 400)
+    }
+    return {
+      path: this.displayPath(canonical),
+      mimeType,
+      base64: bytes.toString('base64'),
+      sizeBytes: bytes.byteLength,
+    }
+  }
+
   async watchEditorFile(path: string, onChange: (path: string) => void) {
     const canonical = await this.existingPath(path)
     const metadata = await stat(canonical)
@@ -1077,7 +1150,10 @@ export class WorkspaceService {
         }
 
         for (const item of staged) {
-          if (item.inspection.expectation === 'new-file' && item.inspection.missingDirs.length > 0) {
+          if (
+            item.inspection.expectation === 'new-file' &&
+            item.inspection.missingDirs.length > 0
+          ) {
             await this.ensureMissingDirectories(item.inspection.missingDirs, createdDirs)
           }
         }

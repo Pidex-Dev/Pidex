@@ -6,7 +6,12 @@ import {
   type ToolAuthorizationScope,
   type ToolInvocation,
 } from '../Domain'
-import { WorkspaceService, type WorkspaceFileRevision } from '../workspace/WorkspaceService'
+import {
+  WorkspaceService,
+  isSupportedImagePath,
+  type SupportedImageMimeType,
+  type WorkspaceFileRevision,
+} from '../workspace/WorkspaceService'
 import { isReadOnlyTaskMode, type PermissionConfig, type SandboxMode } from '@pidex/shared/thread'
 import type { Model } from '@pidex/model-schema'
 import type { ToolExecutionMode as PiToolExecutionMode } from '../orchestration/harness/AgentTypes'
@@ -58,6 +63,7 @@ export type ToolStructuredResult = {
   images?: Array<{ type: 'image'; data: string; mimeType: string }>
   content: string
   details: unknown
+  structuredContent?: boolean
   addedToolNames?: string[]
   /** Stops the agent loop after this batch; used by durable pauses. */
   terminate?: boolean
@@ -261,18 +267,33 @@ export const lineChangeSummary = (before: string, after: string) => {
   return { additions, deletions }
 }
 
-export {
-  requestPermissionsDefinition,
-  type RequestPermissionsInput,
-  toolCatalogSummary,
-}
+export { requestPermissionsDefinition, type RequestPermissionsInput, toolCatalogSummary }
+
+type ReadToolOutput =
+  | {
+      kind?: 'text'
+      path: string
+      content: string
+      offset: number
+      lineCount: number
+      truncated: boolean
+      sizeBytes: number
+      snapshot: WorkspaceFileRevision
+    }
+  | {
+      kind: 'image'
+      path: string
+      mimeType: SupportedImageMimeType
+      sizeBytes: number
+      base64: string
+    }
 
 const builtinTools = (): ToolDefinition<any, any>[] => [
   {
     sdkName: 'Read',
     name: 'workspace.read',
     description:
-      'Read a UTF-8 text file and retain its full snapshot for subsequent edits. Returned text is paginated; continue reading when needed. For outside-workspace files, call with an absolute path and let the host authorize access.',
+      'Read a UTF-8 text file or local image file (PNG, JPEG, GIF, WebP). Text files retain their full snapshot for subsequent edits and are paginated; continue reading when needed. For outside-workspace files, call with an absolute path and let the host authorize access.',
     schema: z
       .object({
         file_path: z.string().min(1),
@@ -285,7 +306,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
         file_path: {
           type: 'string',
           description:
-            'An observed existing UTF-8 file path, relative to the workspace or absolute where host policy permits. Files only, not directories or guessed paths.',
+            'An observed existing UTF-8 text or supported image file path (.png, .jpg, .jpeg, .gif, .webp), relative to the workspace or absolute where host policy permits. Files only, not directories or guessed paths.',
         },
         offset: { type: 'number', minimum: 0 },
         limit: { type: 'number', minimum: 1, maximum: 10_000 },
@@ -299,7 +320,17 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     visibility: 'eager',
     executionMode: 'parallel',
     progress: (input) => ({ message: `正在读取 ${input.file_path}` }),
-    execute: async (input, context) => {
+    execute: async (input, context): Promise<ReadToolOutput> => {
+      if (isSupportedImagePath(input.file_path)) {
+        const image = await context.workspace.readImageFile(input.file_path)
+        return {
+          kind: 'image',
+          path: image.path,
+          mimeType: image.mimeType,
+          sizeBytes: image.sizeBytes,
+          base64: image.base64,
+        }
+      }
       const file = await context.workspace.readEditorFile(input.file_path)
       const offset = input.offset ?? 0
       const limit = input.limit ?? 400
@@ -312,6 +343,34 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
         truncated: offset + limit < lines.length,
         sizeBytes: file.sizeBytes,
         snapshot: file.revision,
+      }
+    },
+    auditResult: (output: ReadToolOutput) => {
+      if (output.kind === 'image') {
+        const { base64: _, ...metadata } = output
+        return metadata
+      }
+      return output
+    },
+    formatResult: (output: ReadToolOutput) => {
+      if (output.kind === 'image') {
+        const metadata = {
+          path: output.path,
+          kind: output.kind,
+          mimeType: output.mimeType,
+          sizeBytes: output.sizeBytes,
+        }
+        return {
+          content: JSON.stringify(metadata, null, 2),
+          details: metadata,
+          images: [{ type: 'image' as const, data: output.base64, mimeType: output.mimeType }],
+          structuredContent: false,
+        }
+      }
+      return {
+        content: JSON.stringify(output, null, 2),
+        details: output,
+        structuredContent: false,
       }
     },
   },

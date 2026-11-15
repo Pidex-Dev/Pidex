@@ -281,10 +281,12 @@ export class ToolExecutor {
       context.onSkillDocumentRead
     ) {
       const file = output as {
+        kind?: string
         path: string
-        snapshot: { sha256: string; rawSha256?: string }
-        truncated: boolean
+        snapshot?: { sha256: string; rawSha256?: string }
+        truncated?: boolean
       }
+      if (!file || file.kind === 'image' || !file.snapshot) return output
       const skill = await context.onSkillDocumentRead(
         file.path,
         file.snapshot.rawSha256 ?? file.snapshot.sha256,
@@ -876,7 +878,11 @@ export class ToolExecutor {
           grant: grantResult,
         }
       }
-      if (filePath && ['Read', 'Write', 'Edit'].includes(name)) {
+      if (
+        filePath &&
+        ['Read', 'Write', 'Edit'].includes(name) &&
+        (output as { kind?: unknown } | null)?.kind !== 'image'
+      ) {
         const savedSnapshotKey = await this.snapshotKey(context, workspace, filePath)
         const revision =
           (

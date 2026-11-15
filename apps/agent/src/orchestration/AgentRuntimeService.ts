@@ -26,7 +26,8 @@ import {
 import { GOAL_WRAPUP_OUTPUT_TOKENS, goalBudgetAdmission } from '../session/GoalWrapupPolicy'
 import { estimateTokens } from '../context/harness/Compaction'
 import type { GoalUsageEntry } from '../storage/repositories/ThreadGoalLedgerRepository'
-import { piToolResultText } from './pi/PiEventAdapter'
+import { piToolResultBlocks, piToolResultText } from './pi/PiEventAdapter'
+import { formatToolExecutionResult } from './pi/PiToolAdapter'
 import {
   SqlitePiSessionRepo,
   type SqlitePiSessionStorage,
@@ -1678,6 +1679,10 @@ export class AgentRuntimeService implements AgentRuntime {
               : 'The user denied this tool call. Choose another authorized approach.'
             : (request.resume.answer ?? request.resume.decision ?? 'continue')
         let resolutionDetails: unknown
+        let resolutionContent: import('@earendil-works/pi-ai').ToolResultMessage['content'] | null =
+          null
+        let resumedResultBlocks: import('@pidex/shared/thread').ToolResultBlock[] = []
+        let resumedArtifacts: import('../storage/ArtifactService').ArtifactBlobInput[] = []
         let isError = request.resume.decision === 'deny'
         const lifecycleNames = new Set([
           'request_user_input',
@@ -1743,37 +1748,56 @@ export class AgentRuntimeService implements AgentRuntime {
             resolutionText = resumedToolResultText(completed.output, completed.name)
           } else
             try {
+              const resumeToolContext = {
+                threadID: request.threadID,
+                turnID: request.turnID,
+                agentID: request.agentID,
+                profile: request.profile ?? 'main',
+                taskMode: request.taskMode,
+                signal: request.signal,
+                workspace: request.workspace,
+                ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+                permissionConfig: effectivePermissionConfig,
+                model: request.fallbackModel,
+                taskSummary: request.content,
+                toolCallID: request.resume.toolCallID,
+                approvedToolCallID: request.resume.toolCallID,
+                ...(request.resume.computerGrant
+                  ? { approvedComputerGrant: request.resume.computerGrant }
+                  : {}),
+                onSkillDocumentRead: (path: string, hash: string) =>
+                  composition.bindings.skills.documentRead(path, hash),
+                ...(request.resume.authorizationFingerprint
+                  ? { approvedAuthorizationFingerprint: request.resume.authorizationFingerprint }
+                  : {}),
+                toolCatalog: composition.bindings.toolCatalog,
+                ...(nodeReplRecovery ? { computerRecovery: nodeReplRecovery } : {}),
+              }
               const resolution = await this.options.toolExecutor.execute(
                 toolCall.name,
                 toolCall.arguments as Record<string, unknown>,
-                {
-                  threadID: request.threadID,
-                  turnID: request.turnID,
-                  agentID: request.agentID,
-                  profile: request.profile ?? 'main',
-                  taskMode: request.taskMode,
-                  signal: request.signal,
-                  workspace: request.workspace,
-                  ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
-                  permissionConfig: effectivePermissionConfig,
-                  model: request.fallbackModel,
-                  taskSummary: request.content,
-                  toolCallID: request.resume.toolCallID,
-                  approvedToolCallID: request.resume.toolCallID,
-                  ...(request.resume.computerGrant
-                    ? { approvedComputerGrant: request.resume.computerGrant }
-                    : {}),
-                  onSkillDocumentRead: (path, hash) =>
-                    composition.bindings.skills.documentRead(path, hash),
-                  ...(request.resume.authorizationFingerprint
-                    ? { approvedAuthorizationFingerprint: request.resume.authorizationFingerprint }
-                    : {}),
-                  toolCatalog: composition.bindings.toolCatalog,
-                  ...(nodeReplRecovery ? { computerRecovery: nodeReplRecovery } : {}),
-                },
+                resumeToolContext,
               )
-              resolutionDetails = secretScrubber.scrub(resolution)
-              resolutionText = resumedToolResultText(resolution, toolCall.name)
+              const resumedDefinition = activityToolCatalog.find(
+                (entry) => entry.sdkName === toolCall.name || entry.name === toolCall.name,
+              )
+              const formattedResult = formatToolExecutionResult(
+                resumedDefinition,
+                resolution,
+                resumeToolContext,
+              )
+              resolutionDetails = secretScrubber.scrub(
+                resumedDefinition?.auditResult?.(resolution) ?? formattedResult.details,
+              )
+              resolutionText =
+                piToolResultText(formattedResult, { tool: toolCall.name }) ||
+                '工具执行完成（无输出）'
+              resolutionContent = formattedResult.content ?? null
+              const projected = piToolResultBlocks(formattedResult)
+              if (projected.artifacts.length > 0) {
+                resumedResultBlocks = projected.blocks
+                resumedArtifacts = projected.artifacts
+              }
             } catch (cause) {
               isError = true
               resolutionText = secretScrubber.scrubText(
@@ -1786,7 +1810,7 @@ export class AgentRuntimeService implements AgentRuntime {
             role: 'toolResult',
             toolCallId: request.resume.toolCallID,
             toolName: toolCall.name,
-            content: [
+            content: resolutionContent ?? [
               {
                 type: 'text',
                 text: resolutionText,
@@ -1795,6 +1819,7 @@ export class AgentRuntimeService implements AgentRuntime {
             isError,
             timestamp: Date.now(),
           })
+          const artifactRecords = await this.persistFinishedToolArtifacts(resumedArtifacts)
           let completedEvents: Array<ReturnType<AgentDatabase['insertEvent']>> = []
           this.options.db.transaction(() => {
             storage.flush()
@@ -1813,6 +1838,8 @@ export class AgentRuntimeService implements AgentRuntime {
                 output: resolutionText,
                 details: resolutionDetails,
                 isError,
+                ...(resumedResultBlocks.length ? { resultBlocks: resumedResultBlocks } : {}),
+                ...(artifactRecords.length ? { artifactRecords } : {}),
               },
               request.workspace,
               integrationSourceFor(activityToolCatalog, toolCall.name),

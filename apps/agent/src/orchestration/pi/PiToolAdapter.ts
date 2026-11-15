@@ -5,7 +5,11 @@ import { AgentError } from '../../Domain'
 import { QUESTION_CHOICES_WRITE_MAX } from '@pidex/shared/thread'
 import { taskArrangementInput } from '../../tool/TaskSchedule/Definitions'
 import { secretScrubber } from '../../security/SecretScrubber'
-import { requestPermissionsDefinition, type ToolDefinition } from '../../tool/ToolRegistry'
+import {
+  requestPermissionsDefinition,
+  type ToolContext,
+  type ToolDefinition,
+} from '../../tool/ToolRegistry'
 import { executionPlanInputSchema } from '../plan/ExecutionPlanInput'
 import { parseStructuredPlan, structuredPlanParameters } from '../plan/StructuredPlan'
 import { parseScheduleDraft, scheduleDraftParameters } from '../plan/ScheduleDraft'
@@ -48,6 +52,27 @@ const descriptionFor = (
         permissionConfig: request.permissionConfig,
         model: request.policyModel,
       })
+
+/** Formats a tool execution output into a scrubbed Pi tool result, preserving images and artifacts. */
+export function formatToolExecutionResult(
+  definition: Pick<ToolDefinition, 'formatResult'> | undefined,
+  output: unknown,
+  toolContext: ToolContext,
+): AgentToolResult<unknown> {
+  if (definition?.formatResult) {
+    const formatted = definition.formatResult(output, toolContext)
+    const safe = secretScrubber.scrub({ ...formatted, images: undefined, artifacts: undefined })
+    return {
+      content: [{ type: 'text', text: safe.content }, ...(formatted.images ?? [])],
+      details: safe.details,
+      ...(formatted.structuredContent !== false ? { structuredContent: safe.details } : {}),
+      ...(formatted.artifacts ? { artifacts: formatted.artifacts } : {}),
+      ...(safe.addedToolNames ? { addedToolNames: safe.addedToolNames } : {}),
+      ...(safe.terminate ? { terminate: true } : {}),
+    }
+  }
+  return textResult(output)
+}
 
 export function adaptToolDefinition(
   definition: ToolDefinition,
@@ -105,19 +130,7 @@ export function adaptToolDefinition(
           ? { onSkillDocumentRead: request.onSkillDocumentRead }
           : {}),
       })
-      if (definition.formatResult) {
-        const formatted = definition.formatResult(output, toolContext)
-        const safe = secretScrubber.scrub({ ...formatted, images: undefined, artifacts: undefined })
-        return {
-          content: [{ type: 'text', text: safe.content }, ...(formatted.images ?? [])],
-          details: safe.details,
-          structuredContent: safe.details,
-          ...(formatted.artifacts ? { artifacts: formatted.artifacts } : {}),
-          ...(safe.addedToolNames ? { addedToolNames: safe.addedToolNames } : {}),
-          ...(safe.terminate ? { terminate: true } : {}),
-        }
-      }
-      return textResult(output)
+      return formatToolExecutionResult(definition, output, toolContext)
     },
   }
 }
