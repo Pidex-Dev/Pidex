@@ -1,0 +1,15 @@
+{
+  "ruleBudgets": {
+    "eslint(no-control-regex)": 11,
+    "eslint(no-unused-vars)": 96,
+    "eslint(no-useless-rename)": 10,
+    "import(no-duplicates)": 66,
+    "react-hooks(exhaustive-deps)": 183,
+    "react(immutability)": 22,
+    "react(only-export-components)": 289,
+    "react(preserve-manual-memoization)": 27,
+    "react(refs)": 208,
+    "react(set-state-in-effect)": 170,
+    "react(use-memo)": 10
+  }
+}
