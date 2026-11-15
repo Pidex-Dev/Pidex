@@ -263,6 +263,10 @@ describe('composer surface variant', () => {
     let commands: ReturnType<typeof useComposerSlashCommands>['commands'] = []
     let executeCommand: ReturnType<typeof useComposerSlashCommands>['executeCommand']
     let failPlan = false
+    const captureControls = (controls: ReturnType<typeof useComposerSlashCommands>) => {
+      commands = controls.commands
+      executeCommand = controls.executeCommand
+    }
     function Harness({ plan }: { plan: boolean }) {
       const controls = useComposerSlashCommands({
         capabilities: DEFAULT_COMPOSER_CAPABILITIES,
@@ -290,8 +294,7 @@ describe('composer surface variant', () => {
           changes.push(`plan:${active}`)
         },
       })
-      commands = controls.commands
-      executeCommand = controls.executeCommand
+      captureControls(controls)
       return null
     }
     renderToStaticMarkup(<Harness plan />)
@@ -310,36 +313,41 @@ describe('composer surface variant', () => {
     const changes: string[] = []
     let taskMode = 'plan'
     let commands: ReturnType<typeof useComposerSlashCommands>['commands'] = []
+    const captureCommands = (next: ReturnType<typeof useComposerSlashCommands>['commands']) => {
+      commands = next
+    }
     function Harness({ plan, grill }: { plan: boolean; grill: boolean }) {
-      commands = useComposerSlashCommands({
-        capabilities: DEFAULT_COMPOSER_CAPABILITIES,
-        planModeActive: plan,
-        grillModeActive: grill,
-        goalModeEnabled: false,
-        hasConversationMessages: true,
-        hasThread: true,
-        canReview: false,
-        subagentMode: false,
-        sessionBusy: false,
-        reasoningAvailable: false,
-        showThreadActions: false,
-        showNewSessionActions: false,
-        canFork: false,
-        hasProject: false,
-        onOpenModel: () => {},
-        onOpenReasoning: () => {},
-        onOpenStatus: () => {},
-        onOpenReview: () => {},
-        onGoalModeChange: (active) => changes.push(`goal:${active}`),
-        onPlanModeChange: (active) => {
-          taskMode = active ? 'plan' : 'chat'
-          changes.push(`plan:${active}`)
-        },
-        onGrillModeChange: (active) => {
-          taskMode = active ? 'grill' : 'chat'
-          changes.push(`grill:${active}`)
-        },
-      }).commands
+      captureCommands(
+        useComposerSlashCommands({
+          capabilities: DEFAULT_COMPOSER_CAPABILITIES,
+          planModeActive: plan,
+          grillModeActive: grill,
+          goalModeEnabled: false,
+          hasConversationMessages: true,
+          hasThread: true,
+          canReview: false,
+          subagentMode: false,
+          sessionBusy: false,
+          reasoningAvailable: false,
+          showThreadActions: false,
+          showNewSessionActions: false,
+          canFork: false,
+          hasProject: false,
+          onOpenModel: () => {},
+          onOpenReasoning: () => {},
+          onOpenStatus: () => {},
+          onOpenReview: () => {},
+          onGoalModeChange: (active) => changes.push(`goal:${active}`),
+          onPlanModeChange: (active) => {
+            taskMode = active ? 'plan' : 'chat'
+            changes.push(`plan:${active}`)
+          },
+          onGrillModeChange: (active) => {
+            taskMode = active ? 'grill' : 'chat'
+            changes.push(`grill:${active}`)
+          },
+        }).commands,
+      )
       return null
     }
     renderToStaticMarkup(<Harness plan grill={false} />)
@@ -519,6 +527,10 @@ describe('composer surface variant', () => {
     let commands: ReturnType<typeof useComposerSlashCommands>['commands'] = []
     let executeCommand: ReturnType<typeof useComposerSlashCommands>['executeCommand']
     let opens = 0
+    const captureControls = (controls: ReturnType<typeof useComposerSlashCommands>) => {
+      commands = controls.commands
+      executeCommand = controls.executeCommand
+    }
 
     function Harness() {
       const controls = useComposerSlashCommands({
@@ -542,8 +554,7 @@ describe('composer surface variant', () => {
         },
         onOpenReview: () => {},
       })
-      commands = controls.commands
-      executeCommand = controls.executeCommand
+      captureControls(controls)
       return null
     }
 

@@ -1,11 +1,8 @@
-import type React from 'react'
+import React from 'react'
 import { CircleAlert, Folder, GitBranch, GitFork, Laptop, Unlink } from 'lucide-react'
 import type { ThreadPullRequestSummary } from '@pidex/shared/thread'
 import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
-import {
-  APP_ICON_STROKE_WIDTH,
-  APP_ICON_SIZES,
-} from '../../../components/ui/IconTokens.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { cx } from '../../../utils/Cx.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
@@ -49,12 +46,12 @@ function PullRequestRow({
   const Icon = threadPullRequestIcon(item.status)
   return (
     <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:text-app-text-meta tw:type-1">
-      <Icon
-        aria-hidden="true"
-        className={cx('tw:size-[var(--inline-icon-size,1em)]', visual.className)}
-        size={APP_ICON_SIZES.sm}
-        strokeWidth={APP_ICON_STROKE_WIDTH}
-      />
+      {React.createElement(Icon, {
+        'aria-hidden': 'true',
+        className: cx('tw:size-[var(--inline-icon-size,1em)]', visual.className),
+        size: APP_ICON_SIZES.sm,
+        strokeWidth: APP_ICON_STROKE_WIDTH,
+      })}
       <span className="sidebar-session-hover-card-row-content tw:inline-flex tw:min-w-0 tw:items-center tw:gap-1">
         <button
           className="sidebar-session-hover-card-pr tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:hover:underline"

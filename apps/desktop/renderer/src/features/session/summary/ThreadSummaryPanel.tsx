@@ -238,7 +238,7 @@ export function ThreadSummaryPanel({
   }
   const environment = model.environment
   // 相对时间在渲染时计算；面板不常驻 ticker（与侧栏一致）。
-  const now = Date.now()
+  const [now] = React.useState(Date.now)
 
   const isSectionExpanded = (id: ThreadSummarySectionId): boolean => !collapsedSections.has(id)
   const toggleSection = (id: ThreadSummarySectionId): void => onToggleSection(id)
@@ -434,7 +434,11 @@ export function ThreadSummaryPanel({
                       title="Git 操作"
                       className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:text-app-text tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
                     >
-                      <GitBranch className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
+                      <GitBranch
+                        className="tw:size-icon-md"
+                        aria-hidden="true"
+                        size={APP_ICON_SIZE}
+                      />
                     </button>
                   }
                 >
@@ -550,7 +554,11 @@ export function ThreadSummaryPanel({
                     type="button"
                     onClick={() => onStopSubagent?.(agent.id)}
                   >
-                    <Square className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
+                    <Square
+                      className="tw:size-icon-sm"
+                      aria-hidden="true"
+                      size={APP_ICON_SIZES.sm}
+                    />
                   </button>
                 </Tooltip>
               ) : null}

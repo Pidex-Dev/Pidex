@@ -2,7 +2,7 @@ import { startupSurfaceReadyRef } from '../../../startup/StartupSplashHandoff.js
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Check, ChevronLeft, Server } from 'lucide-react'
 import type React from 'react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import type {
   DesktopModelMetadata,
@@ -89,10 +89,8 @@ export function ModelSetupPage(): React.ReactNode {
   const [modelReloadToken, setModelReloadToken] = useState(0)
   const [providerEditorOpen, setProviderEditorOpen] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
-  const providerListboxId = useRef(
-    `model-setup-provider-list-${Math.random().toString(36).slice(2)}`,
-  )
-  const modelListboxId = useRef(`model-setup-model-list-${Math.random().toString(36).slice(2)}`)
+  const providerListboxId = useId()
+  const modelListboxId = useId()
 
   const providers = useMemo(
     () =>
@@ -391,10 +389,10 @@ export function ModelSetupPage(): React.ReactNode {
 
   return (
     <div
-      className="model-setup-page tw:grid tw:h-screen tw:w-full tw:min-w-0 tw:grid-rows-[36px_minmax(0,1fr)] tw:overflow-hidden tw:bg-app-canvas tw:text-app-text"
+      className="model-setup-page tw:grid tw:h-screen tw:w-full tw:min-w-0 tw:grid-rows-[40px_minmax(0,1fr)] tw:overflow-hidden tw:bg-app-canvas tw:text-app-text"
       ref={startupSurfaceReadyRef}
     >
-      <header className="model-setup-titlebar tw:flex tw:h-[36px] tw:[-webkit-app-region:drag] tw:min-w-0 tw:items-center tw:justify-between tw:border-b-[0.5px] tw:border-b-app-border-subtle">
+      <header className="model-setup-titlebar tw:flex tw:h-[40px] tw:[-webkit-app-region:drag] tw:min-w-0 tw:items-center tw:justify-between tw:border-b-[0.5px] tw:border-b-app-border-subtle">
         <span className="model-setup-brand tw:ps-4 tw:text-app-text-soft tw:type-2 tw:weight-medium tw:tracking-[0.01em]">
           Pidex
         </span>
@@ -458,7 +456,7 @@ export function ModelSetupPage(): React.ReactNode {
               <SearchInput
                 aria-label="搜索供应商"
                 mode="combobox"
-                controls={providerListboxId.current}
+                controls={providerListboxId}
                 expanded
                 activeDescendant={
                   providerNav.activeIndex >= 0
@@ -476,7 +474,7 @@ export function ModelSetupPage(): React.ReactNode {
               <div
                 aria-label="供应商"
                 className="model-setup-provider-list tw:min-h-0 tw:max-h-[248px] tw:overflow-auto tw:border-y-[0.5px] tw:border-app-border-subtle"
-                id={providerListboxId.current}
+                id={providerListboxId}
                 onKeyDown={providerNav.onKeyDown}
                 role="listbox"
               >
@@ -499,7 +497,14 @@ export function ModelSetupPage(): React.ReactNode {
                     >
                       <ProviderIcon
                         className="model-setup-provider-logo tw:grid tw:size-icon-sm tw:shrink-0 tw:place-items-center tw:rounded-3 tw:object-contain tw:[&_svg]:size-icon-sm tw:[&_svg]:text-app-text-meta"
-                        fallback={<Server className="tw:size-icon-sm" data-icon-kind="artwork" size={14} aria-hidden />}
+                        fallback={
+                          <Server
+                            className="tw:size-icon-sm"
+                            data-icon-kind="artwork"
+                            size={14}
+                            aria-hidden
+                          />
+                        }
                         logoURL={provider.logoURL}
                         providerID={provider.providerID}
                       />
@@ -517,7 +522,11 @@ export function ModelSetupPage(): React.ReactNode {
                       >
                         {connected ? (
                           <>
-                            <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden />
+                            <Check
+                              className="tw:size-icon-sm"
+                              size={APP_ICON_SIZES.sm}
+                              aria-hidden
+                            />
                             已连接
                           </>
                         ) : (
@@ -612,7 +621,7 @@ export function ModelSetupPage(): React.ReactNode {
                   className="tw:flex-1"
                   aria-label="搜索模型"
                   mode="combobox"
-                  controls={modelListboxId.current}
+                  controls={modelListboxId}
                   expanded
                   activeDescendant={
                     modelNav.activeIndex >= 0
@@ -643,7 +652,7 @@ export function ModelSetupPage(): React.ReactNode {
               <div
                 aria-label="模型"
                 className="model-setup-model-list tw:min-h-0 tw:max-h-[248px] tw:overflow-auto tw:border-y-[0.5px] tw:border-app-border-subtle"
-                id={modelListboxId.current}
+                id={modelListboxId}
                 onKeyDown={modelNav.onKeyDown}
                 role="listbox"
               >

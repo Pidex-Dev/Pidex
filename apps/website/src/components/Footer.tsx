@@ -8,6 +8,8 @@ import {
 } from '../constants/Content'
 import { ArrowUpRight } from 'lucide-react'
 
+const CURRENT_YEAR = new Date().getFullYear()
+
 export const Footer: React.FC = () => {
   return (
     <footer className="border-t border-[#DCD6CB] bg-[#F4F0E7] py-16 text-sm text-[#55625D]">
@@ -78,9 +80,7 @@ export const Footer: React.FC = () => {
 
         {/* Bottom copyright */}
         <div className="mt-12 pt-8 border-t border-[#DCD6CB]/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <div>
-            &copy; {new Date().getFullYear()} Pidex Contributors. Released under the MIT License.
-          </div>
+          <div>&copy; {CURRENT_YEAR} Pidex Contributors. Released under the MIT License.</div>
           <div className="font-mono text-[11px] text-[#63715A]">Current Version: v0.2.0-beta.5</div>
         </div>
       </div>

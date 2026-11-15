@@ -34,7 +34,7 @@ const normalizeLineEndings = (value: string): NormalizedText => {
 const findMatchRanges = (content: string, oldString: string): MatchRange[] => {
   const findNext = (offset: number) => {
     let index = content.indexOf(oldString, offset)
-    while (index >= 0 && oldString.startsWith('\n') && index > 0 && content[index - 1] === '\r') {
+    while (index > 0 && oldString.startsWith('\n') && content[index - 1] === '\r') {
       index = content.indexOf(oldString, index + 1)
     }
     return index

@@ -580,8 +580,6 @@ export class ToolingManager {
             },
           })
         }
-      } catch (cause) {
-        throw cause
       } finally {
         await output.close()
       }

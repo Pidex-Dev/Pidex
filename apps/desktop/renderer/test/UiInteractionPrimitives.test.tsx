@@ -31,29 +31,71 @@ describe('loading interaction primitives', () => {
    * stylesheet needs is selected from the emitted attributes.
    */
   const buttonFixtures: Array<[string, React.ReactElement]> = [
-    ['plain', <Button>确认</Button>],
+    ['plain', <Button key="plain">确认</Button>],
     [
       'icon only',
-      <Button isIconOnly size="md" aria-label="搜索">
+      <Button key="icon-only" isIconOnly size="md" aria-label="搜索">
         <span />
       </Button>,
     ],
     [
       'sidebar',
-      <Button data-position="sidebar" variant="ghost" size="md" isIconOnly aria-label="首页">
+      <Button
+        key="sidebar"
+        data-position="sidebar"
+        variant="ghost"
+        size="md"
+        isIconOnly
+        aria-label="首页"
+      >
         <span />
       </Button>,
     ],
-    ['primary', <Button variant="primary">保存</Button>],
-    ['danger', <Button variant="danger">删除</Button>],
-    ['pill', <Button shape="pill">圆角</Button>],
-    ['balanced', <Button contentLayout="balanced">居中</Button>],
-    ['full width', <Button fullWidth>撑满</Button>],
-    ['loading', <Button loading>加载中</Button>],
-    ['disabled', <Button disabled>禁用</Button>],
+    [
+      'primary',
+      <Button key="primary" variant="primary">
+        保存
+      </Button>,
+    ],
+    [
+      'danger',
+      <Button key="danger" variant="danger">
+        删除
+      </Button>,
+    ],
+    [
+      'pill',
+      <Button key="pill" shape="pill">
+        圆角
+      </Button>,
+    ],
+    [
+      'balanced',
+      <Button key="balanced" contentLayout="balanced">
+        居中
+      </Button>,
+    ],
+    [
+      'full width',
+      <Button key="full-width" fullWidth>
+        撑满
+      </Button>,
+    ],
+    [
+      'loading',
+      <Button key="loading" loading>
+        加载中
+      </Button>,
+    ],
+    [
+      'disabled',
+      <Button key="disabled" disabled>
+        禁用
+      </Button>,
+    ],
     [
       'grouped',
-      <ButtonGroup>
+      <ButtonGroup key="grouped">
         <Button>确认</Button>
       </ButtonGroup>,
     ],
@@ -198,12 +240,8 @@ describe('loading interaction primitives', () => {
   })
 
   test('custom utilities merge without treating typography as text color', () => {
-    expect(cn('tw:type-2 tw:text-app-text', 'tw:type-1')).toBe(
-      'tw:text-app-text tw:type-1',
-    )
-    expect(cn('tw:type-2 tw:weight-regular', 'tw:weight-bold')).toBe(
-      'tw:type-2 tw:weight-bold',
-    )
+    expect(cn('tw:type-2 tw:text-app-text', 'tw:type-1')).toBe('tw:text-app-text tw:type-1')
+    expect(cn('tw:type-2 tw:weight-regular', 'tw:weight-bold')).toBe('tw:type-2 tw:weight-bold')
     expect(cn('tw:type-2', 'tw:[font:inherit]')).toBe('tw:[font:inherit]')
     expect(cn('tw:[font:inherit]', 'tw:type-2')).toBe('tw:type-2')
     expect(cn('tw:[&>svg]:size-icon', 'tw:[&>svg]:size-6')).toBe('tw:[&>svg]:size-6')
@@ -348,9 +386,12 @@ describe('controlled interaction state', () => {
   test('keeps a close request after opening before the owner renders again', () => {
     const changes: boolean[] = []
     let setOpen!: (open: boolean) => void
+    const captureUpdate = (update: (open: boolean) => void) => {
+      setOpen = update
+    }
     function Controlled() {
       const [, update] = useControllableState(false, false, (open) => changes.push(open))
-      setOpen = update
+      captureUpdate(update)
       return null
     }
     renderToStaticMarkup(<Controlled />)

@@ -171,7 +171,8 @@ function AutomationViewContent(): React.ReactNode {
     [resolvedModel],
   )
   const hasDraftModel = Boolean(draftModel.providerID && draftModel.id)
-  const selectedDate = params.get('date') ?? localDateValue(new Date())
+  const [todayDateValue] = useState(() => localDateValue(new Date()))
+  const selectedDate = params.get('date') ?? todayDateValue
   const scheduledTaskDraft = useMemo<ScheduledTaskDefinition>(() => {
     return taskDefinition({
       ...defaultAutomationDraft({
@@ -473,7 +474,12 @@ function AutomationViewContent(): React.ReactNode {
       onOpenChange={setCreateMenuOpen}
       trigger={
         <Button ref={createButtonRef} color="primary" shape="pill" size="md">
-          <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus
+            className="tw:size-icon-md"
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
           <span>创建</span>
           <ChevronDown className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
         </Button>
@@ -485,7 +491,10 @@ function AutomationViewContent(): React.ReactNode {
       >
         使用 CPX 创建
       </PopoverItem>
-      <PopoverItem icon={<Settings className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={() => openManualCreate()}>
+      <PopoverItem
+        icon={<Settings className="tw:size-icon-md" size={APP_ICON_SIZE} />}
+        onClick={() => openManualCreate()}
+      >
         手动设置
       </PopoverItem>
     </PopoverMenu>
@@ -885,7 +894,11 @@ function AutomationRunsList({
             className="automation-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*6)] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft"
             role="status"
           >
-            <CalendarClock className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} aria-hidden="true" />
+            <CalendarClock
+              className="tw:size-icon-lg"
+              size={APP_ICON_SIZES.lg}
+              aria-hidden="true"
+            />
             <h2 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text">暂无执行记录</h2>
             <p className="tw:m-0 tw:type-2">
               任务在计划时间或手动触发运行后，执行记录会显示在这里。
@@ -954,7 +967,11 @@ function AutomationRunsList({
                             className="automation-runs-page-link tw:flex tw:items-center tw:text-app-text-meta tw:group-hover:text-app-accent-fg"
                             aria-label="查看对话"
                           >
-                            <ArrowUpRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
+                            <ArrowUpRight
+                              className="tw:size-icon-sm"
+                              size={APP_ICON_SIZES.sm}
+                              aria-hidden="true"
+                            />
                           </span>
                         ) : null}
                       </div>
@@ -1074,7 +1091,10 @@ function AutomationRow({
           </Button>
         }
       >
-        <PopoverItem icon={<Play className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={onRun}>
+        <PopoverItem
+          icon={<Play className="tw:size-icon-md" size={APP_ICON_SIZE} />}
+          onClick={onRun}
+        >
           立即运行
         </PopoverItem>
         <PopoverItem
@@ -1089,7 +1109,10 @@ function AutomationRow({
         >
           {automation.status === 'paused' ? '恢复' : '暂停'}
         </PopoverItem>
-        <PopoverItem icon={<Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={onDelete}>
+        <PopoverItem
+          icon={<Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />}
+          onClick={onDelete}
+        >
           删除
         </PopoverItem>
       </PopoverMenu>

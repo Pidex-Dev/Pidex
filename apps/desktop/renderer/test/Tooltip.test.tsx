@@ -525,9 +525,12 @@ describe('Tooltip interaction & lifecycle regressions', () => {
 
   test('delay priority: delayDuration overrides delay, delay overrides provider, fallback to 120', () => {
     let capturedDelay: number | undefined
+    const captureDelay = (delay: number) => {
+      capturedDelay = delay
+    }
     function DelaySpy() {
       const ctx = useTooltipContext()
-      capturedDelay = ctx.delayDuration
+      captureDelay(ctx.delayDuration)
       return null
     }
 
@@ -658,10 +661,8 @@ describe('Tooltip interaction & lifecycle regressions', () => {
   })
 
   test('trigger click and escape key handlers dismissal contract', () => {
-    let openState = true
     function ControlledDismiss() {
       const [open, setOpen] = useState(true)
-      openState = open
       return (
         <Tooltip content="点按测试" open={open} onOpenChange={setOpen}>
           <button id="click-trigger">动作按钮</button>

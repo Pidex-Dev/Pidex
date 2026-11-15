@@ -673,8 +673,8 @@ describe('canonical latest plan identity', () => {
       workspace: {
         kind: 'projectless',
         projectID: null,
-        workspaceRoot: 'C:\workspace',
-        cwd: 'C:\workspace',
+        workspaceRoot: 'C:\\workspace',
+        cwd: 'C:\\workspace',
         outputDirectory: null,
       },
       settings: { taskMode: 'plan', permissionConfig },

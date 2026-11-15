@@ -155,7 +155,9 @@ describe('PiStructuredOutput', () => {
       type: 'json_schema',
       strict: 'require',
     })
-    const payload = await (capturedOptions?.onPayload as (payload: unknown) => unknown)({
+    const onPayload = capturedOptions?.onPayload as ((payload: unknown) => unknown) | undefined
+    expect(onPayload).toBeTypeOf('function')
+    const payload = await onPayload?.({
       model: 'gpt-6-astra',
     })
     expect(payload).toEqual({

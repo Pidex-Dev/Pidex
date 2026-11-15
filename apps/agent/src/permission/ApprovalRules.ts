@@ -70,7 +70,7 @@ const isProjectRule = (value: unknown, workspace: string): value is ApprovalRule
 
 /** Deliberately accepts only literal argv; shell syntax and script runners have no prefix grant. */
 export function simpleCommandArgv(command: string): string[] | null {
-  if (!command.trim() || /[;&|<>$`%!\r\n(){}\[\]*?]/u.test(command)) return null
+  if (!command.trim() || /[;&|<>$`%!\r\n(){}[\]*?]/u.test(command)) return null
   const tokens = command.match(/(?:^|\s+)(?:"[^"\\]*"|'[^']*'|[^\s"']+)(?=\s|$)/gu)
   if (!tokens || tokens.join(' ').replace(/\s+/gu, '') !== command.replace(/\s+/gu, '')) return null
   const argv = tokens.map((token) => token.trim().replace(/^(["'])(.*)\1$/u, '$2'))

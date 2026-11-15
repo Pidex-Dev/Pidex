@@ -99,7 +99,13 @@ export function WorkbenchPanelUnavailable({
     <WorkbenchPanelStateSurface
       title={title}
       description={description}
-      icon={<AlertTriangle className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+      icon={
+        <AlertTriangle
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      }
       tone="warning"
     />
   )
@@ -122,13 +128,23 @@ export function WorkbenchPanelError({
     <WorkbenchPanelStateSurface
       title={title}
       description={code ? `${message}（${code}）` : message}
-      icon={<AlertTriangle className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+      icon={
+        <AlertTriangle
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      }
       role="alert"
       tone="warning"
     >
       {retryable && onRetry ? (
         <Button color="secondary" size="compact" onClick={onRetry}>
-          <RotateCcw className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <RotateCcw
+            className="tw:size-icon-sm"
+            size={APP_ICON_SIZES.sm}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
           重试
         </Button>
       ) : null}
@@ -192,22 +208,31 @@ type WorkbenchTabErrorBoundaryProps = {
 type WorkbenchTabErrorBoundaryState = {
   error: Error | null
   retryKey: number
+  tabId: WorkbenchTabId
 }
 
 export class WorkbenchTabErrorBoundary extends Component<
   WorkbenchTabErrorBoundaryProps,
   WorkbenchTabErrorBoundaryState
 > {
-  state: WorkbenchTabErrorBoundaryState = { error: null, retryKey: 0 }
+  state: WorkbenchTabErrorBoundaryState = {
+    error: null,
+    retryKey: 0,
+    tabId: this.props.tabId,
+  }
 
   static getDerivedStateFromError(error: Error): Partial<WorkbenchTabErrorBoundaryState> {
     return { error }
   }
 
-  componentDidUpdate(previous: WorkbenchTabErrorBoundaryProps): void {
-    if (previous.tabId !== this.props.tabId && this.state.error) {
-      this.setState({ error: null })
+  static getDerivedStateFromProps(
+    props: WorkbenchTabErrorBoundaryProps,
+    state: WorkbenchTabErrorBoundaryState,
+  ): Partial<WorkbenchTabErrorBoundaryState> | null {
+    if (props.tabId !== state.tabId) {
+      return { error: null, tabId: props.tabId }
     }
+    return null
   }
 
   render(): React.ReactNode {

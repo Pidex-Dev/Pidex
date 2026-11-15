@@ -66,7 +66,7 @@ export function AutomationCalendar({
   onRunOccurrence,
   onOpenThread,
 }: Props): React.ReactNode {
-  const today = useMemo(() => new Date(), [])
+  const [today] = useState(() => new Date())
   const initialDate = parseDateValue(selectedDate ?? defaultSelectedDate) ?? today
   const [internalSelectedDate, setInternalSelectedDate] = useState(formatDateValue(initialDate))
   const activeDateValue = selectedDate ?? internalSelectedDate

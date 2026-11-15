@@ -1150,7 +1150,7 @@ describe('数据库兼容与迁移', () => {
     expect((legacy as Record<string, unknown>).creationSurface).toBeUndefined()
     const snap = projection.snapshot(existing.id)
     expect(snap?.thread.title).toBe('向前兼容会话')
-    expect((snap?.thread as Record<string, unknown>).creationSurface).toBeUndefined()
+    expect((snap?.thread as Record<string, unknown> | undefined)?.creationSurface).toBeUndefined()
     expect(probeThreadsStorageCapabilities(reopened.sqlite).creationSurface).toBe(false)
 
     // 步骤 6：create 路径不得写到不存在的列；显式传入 creationSurface 验证 repository 主动丢弃，

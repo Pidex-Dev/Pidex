@@ -652,7 +652,8 @@ function AssistantActionsGroup({
             size="xs"
             title="更多操作"
           >
-            <MoreHorizontal className="tw:size-icon-md"
+            <MoreHorizontal
+              className="tw:size-icon-md"
               aria-hidden="true"
               size={APP_ICON_SIZE}
               strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -712,7 +713,14 @@ function TextItemView({
       actionItems.push({
         id: 'fork',
         label: '在新聊天中继续',
-        icon: <Split className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+        icon: (
+          <Split
+            className="tw:size-icon-md"
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+        ),
         onClick: () => onForkFromMessage({ itemId: item.id, turnId: item.turnId }),
         element: (
           <Tooltip content="在新聊天中继续">
@@ -727,7 +735,12 @@ function TextItemView({
                 onForkFromMessage({ itemId: item.id, turnId: item.turnId })
               }}
             >
-              <Split className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Split
+                className="tw:size-icon-md"
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           </Tooltip>
         ),
@@ -769,7 +782,8 @@ function TextItemView({
           ) : null}
           {goalAchievedDuration ? (
             <span className="canonical-goal-achieved tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
-              <CheckCircle2 className="tw:size-icon-md"
+              <CheckCircle2
+                className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -903,7 +917,11 @@ function ActivityItemView({
             aria-hidden="true"
           />
         ) : (
-          <Check size={APP_ICON_SIZES.sm} className="tw:size-icon-sm cpx-agent-activity__icon" aria-hidden="true" />
+          <Check
+            size={APP_ICON_SIZES.sm}
+            className="tw:size-icon-sm cpx-agent-activity__icon"
+            aria-hidden="true"
+          />
         )}
         <span className="cpx-agent-activity__label">{item.title}</span>
         <ChevronRight
@@ -1005,11 +1023,11 @@ export function ToolItemView({
               aria-hidden="true"
             />
           ) : (
-            <SummaryIcon
-              size={APP_ICON_SIZES.sm}
-              className="cpx-agent-activity__icon"
-              aria-hidden="true"
-            />
+            React.createElement(SummaryIcon, {
+              size: APP_ICON_SIZES.sm,
+              className: 'cpx-agent-activity__icon',
+              'aria-hidden': 'true',
+            })
           )}
           {view.semanticSummary ? (
             <ToolActivityLabel summary={view.semanticSummary} />
@@ -1220,7 +1238,11 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
           ) : item.state === 'error' || item.state === 'interrupted' ? (
             <CircleAlert className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
           ) : (
-            <LoaderCircle size={APP_ICON_SIZES.sm} className="tw:size-icon-sm canonical-spin" aria-hidden="true" />
+            <LoaderCircle
+              size={APP_ICON_SIZES.sm}
+              className="tw:size-icon-sm canonical-spin"
+              aria-hidden="true"
+            />
           )}
           {view.statusLabel}
         </span>
@@ -1543,7 +1565,11 @@ export function PatchSummaryView({
         >
           {filesExpanded ? '收起文件' : `再显示 ${hiddenFileCount} 个文件`}
           {filesExpanded ? (
-            <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" className="tw:size-icon-sm is-expanded" />
+            <ChevronDown
+              size={APP_ICON_SIZES.sm}
+              aria-hidden="true"
+              className="tw:size-icon-sm is-expanded"
+            />
           ) : (
             <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
           )}

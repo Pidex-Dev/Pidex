@@ -9,6 +9,9 @@ import assert from 'node:assert/strict'
 
 // Real Chromium/Electron boundary check; no screenshot or UI click sequence.
 const root = await mkdtemp(join(tmpdir(), 'pidex-visualization-check-'))
+if (dirname(resolve(root)) !== resolve(tmpdir()) || !root.includes('pidex-visualization-check-')) {
+  throw new Error('Unexpected cleanup directory')
+}
 const renderer = fileURLToPath(new URL('..', import.meta.url))
 let leaks = 0
 const server = createServer(async (request, response) => {
@@ -184,7 +187,7 @@ app.whenReady().then(()=>{const win=new BrowserWindow({show:false,webPreferences
   await app?.close()
   server.closeAllConnections()
   await new Promise<void>((resolve) => server.close(() => resolve()))
-  if (dirname(resolve(root)) !== resolve(tmpdir()) || !root.includes('pidex-visualization-check-'))
-    throw new Error('Unexpected cleanup directory')
-  await rm(root, { recursive: true, force: true })
+  if (dirname(resolve(root)) === resolve(tmpdir()) && root.includes('pidex-visualization-check-')) {
+    await rm(root, { recursive: true, force: true })
+  }
 }

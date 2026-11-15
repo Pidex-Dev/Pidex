@@ -101,7 +101,7 @@ export function DatePicker({
   onValueChange,
 }: DatePickerProps): React.ReactNode {
   const { locale, t } = useLocale()
-  const today = React.useMemo(() => new Date(), [])
+  const [today] = React.useState(() => new Date())
   const todayValue = formatDateValue(today)
   const selectedDate = parseDateValue(value)
   const [open, setOpen] = React.useState(false)

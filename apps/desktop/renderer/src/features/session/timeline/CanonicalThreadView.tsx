@@ -171,15 +171,23 @@ export function CanonicalProcessGroup({
         <span className="cpx-agent-activity__dots">
           {dots}
           {active ? (
-            <LoaderCircle className="tw:size-icon-sm canonical-spin" size={APP_ICON_SIZES.sm} aria-hidden="true" />
+            <LoaderCircle
+              className="tw:size-icon-sm canonical-spin"
+              size={APP_ICON_SIZES.sm}
+              aria-hidden="true"
+            />
           ) : null}
         </span>
       ) : active ? (
-        <LoaderCircle size={APP_ICON_SIZES.sm} className="tw:size-icon-sm canonical-spin" aria-hidden="true" />
+        <LoaderCircle
+          size={APP_ICON_SIZES.sm}
+          className="tw:size-icon-sm canonical-spin"
+          aria-hidden="true"
+        />
       ) : failed ? (
         <CircleAlert className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
       ) : (
-        <SummaryIcon size={APP_ICON_SIZES.sm} aria-hidden="true" />
+        React.createElement(SummaryIcon, { size: APP_ICON_SIZES.sm, 'aria-hidden': 'true' })
       )}
       <span className="cpx-agent-activity__summary">{visibleLabel}</span>
       {canExpand && !onActivate ? (
@@ -267,7 +275,8 @@ function processSummaryIcon(kind: ProcessSemanticKind): LucideIcon {
 
 function useDeferredProcessSummary(label: string, summaryKey: string, defer: boolean): string {
   const [visible, setVisible] = React.useState(() => ({ label, summaryKey }))
-  const lastCommitAt = React.useRef(Date.now())
+  const [mountTime] = React.useState(Date.now)
+  const lastCommitAt = React.useRef(mountTime)
 
   React.useEffect(() => {
     if (visible.summaryKey === summaryKey) return

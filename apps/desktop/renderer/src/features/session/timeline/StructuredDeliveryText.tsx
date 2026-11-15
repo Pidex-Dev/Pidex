@@ -47,7 +47,7 @@ function referenceMarkdown(reference: ResultCardReference, workspacePath?: strin
       : reference.kind === 'file'
         ? resultCardFilePath(reference.value, workspacePath)
         : null
-  const label = (reference.label ?? reference.value).replace(/([\\\[\]])/gu, '\\$1')
+  const label = (reference.label ?? reference.value).replace(/([\\[\]])/gu, '\\$1')
   return target
     ? `- [${label}](<${target.replace(/>/gu, '%3E')}>)${reference.label ? `：${reference.value}` : ''}`
     : `- ${reference.label ? `${reference.label}：` : ''}${reference.value}`

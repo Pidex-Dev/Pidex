@@ -92,7 +92,7 @@ const shellWords = (command: string): string[] => {
       continue
     }
     const next = source[index + 1]
-    if (character === '\\' && quote !== "'" && next && /[\s\\'\"]/.test(next)) {
+    if (character === '\\' && quote !== "'" && next && /[\s\\'"]/.test(next)) {
       escaped = true
       continue
     }

@@ -30,25 +30,30 @@ afterEach(() => {
 function controller() {
   let result: ReturnType<typeof useSideChatController> | undefined
   const errors: string[] = []
+  const captureResult = (value: ReturnType<typeof useSideChatController>) => {
+    result = value
+  }
   function Harness() {
-    result = useSideChatController({
-      activeTab: null,
-      sourceThreadId: 'source',
-      initialSettings: {
-        permissionMode: 'default',
-        planModeActive: false,
-        providerID: 'source-provider',
-        providerBaseURL: 'https://source.example',
-        model: 'source-model',
-        selectedModelPreset: 'source-model',
-        thinkingMode: 'adaptive',
-        variant: 'adaptive',
-      },
-      openRightDockTab() {},
-      removeWorkbenchTab() {},
-      replaceWorkbenchTab() {},
-      onError: (message) => errors.push(message),
-    })
+    captureResult(
+      useSideChatController({
+        activeTab: null,
+        sourceThreadId: 'source',
+        initialSettings: {
+          permissionMode: 'default',
+          planModeActive: false,
+          providerID: 'source-provider',
+          providerBaseURL: 'https://source.example',
+          model: 'source-model',
+          selectedModelPreset: 'source-model',
+          thinkingMode: 'adaptive',
+          variant: 'adaptive',
+        },
+        openRightDockTab() {},
+        removeWorkbenchTab() {},
+        replaceWorkbenchTab() {},
+        onError: (message) => errors.push(message),
+      }),
+    )
     return null
   }
   renderToStaticMarkup(<Harness />)

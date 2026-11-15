@@ -145,7 +145,7 @@ export function serializeComposerDocument(document: ComposerDraft['document']): 
 }
 
 function escapeMarkdownLabel(value: string): string {
-  return value.replace(/([\\\[\]])/gu, '\\$1')
+  return value.replace(/([\\[\]])/gu, '\\$1')
 }
 
 export async function executeComposerSubmitTransaction({
