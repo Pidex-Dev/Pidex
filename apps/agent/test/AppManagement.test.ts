@@ -144,9 +144,9 @@ describe('AppManagementService', () => {
     )
 
     const initial = await apps.list()
-    expect(initial.apps.some((app) => app.id === 'figma-connector' && app.source === 'plugin')).toBe(
-      true,
-    )
+    expect(
+      initial.apps.some((app) => app.id === 'figma-connector' && app.source === 'plugin'),
+    ).toBe(true)
 
     const first = await apps.setEnabled({
       appId: 'pets',

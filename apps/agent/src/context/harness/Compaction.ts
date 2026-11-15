@@ -152,7 +152,14 @@ function combineUsage(first: Usage, second: Usage): Usage {
   const b = second as typeof a
 
   return {
-    ...({ priceSnapshotIds: [...(a.priceSnapshotIds ?? (a.priceSnapshotId ? [a.priceSnapshotId] : [])), ...(b.priceSnapshotIds ?? (b.priceSnapshotId ? [b.priceSnapshotId] : []))], costUnknown: a.costUnknown || b.costUnknown, conservativeCost: a.conservativeCost || b.conservativeCost } as object),
+    ...({
+      priceSnapshotIds: [
+        ...(a.priceSnapshotIds ?? (a.priceSnapshotId ? [a.priceSnapshotId] : [])),
+        ...(b.priceSnapshotIds ?? (b.priceSnapshotId ? [b.priceSnapshotId] : [])),
+      ],
+      costUnknown: a.costUnknown || b.costUnknown,
+      conservativeCost: a.conservativeCost || b.conservativeCost,
+    } as object),
     input: first.input + second.input,
     output: first.output + second.output,
     cacheRead: first.cacheRead + second.cacheRead,

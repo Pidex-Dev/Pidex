@@ -181,7 +181,9 @@ export class MemoryRepository {
     const row = this.sqlite
       .query('SELECT last_turn_id, last_created_at FROM memory_extract_cursors WHERE namespace = ?')
       .get(namespace) as { last_turn_id: string | null; last_created_at: number | null } | null
-    return row ? { turnId: row.last_turn_id, createdAt: row.last_created_at } : { turnId: null, createdAt: null }
+    return row
+      ? { turnId: row.last_turn_id, createdAt: row.last_created_at }
+      : { turnId: null, createdAt: null }
   }
 
   advanceCursor(namespace: string, turnId: string | null, createdAt: number) {
@@ -216,13 +218,18 @@ export class MemoryRepository {
     modelRef?: string | null
   }) {
     return this.db.transaction(() => {
-      const existing = this.sqlite        .query(
+      const existing = this.sqlite
+        .query(
           "SELECT id, kind, status FROM memory_tasks WHERE namespace = ? AND status IN ('queued', 'running') ORDER BY created_at LIMIT 1",
         )
         .get(input.namespace) as { id: string; kind: MemoryJobKind; status: MemoryJobStatus } | null
       if (existing) {
         // A manual organize request outranks a pending extraction.
-        if (input.kind === 'organize' && existing.kind === 'extract' && existing.status === 'queued')
+        if (
+          input.kind === 'organize' &&
+          existing.kind === 'extract' &&
+          existing.status === 'queued'
+        )
           this.sqlite
             .query(
               "UPDATE memory_tasks SET kind = 'organize', trigger = ?, thread_id = ?, turn_id = ?, model_ref = COALESCE(?, model_ref), updated_at = ? WHERE id = ?",
@@ -286,7 +293,9 @@ export class MemoryRepository {
 
   finishTask(id: string, status: MemoryJobStatus, error: string | null = null) {
     this.sqlite
-      .query('UPDATE memory_tasks SET status = ?, error = ?, finished_at = ?, updated_at = ? WHERE id = ?')
+      .query(
+        'UPDATE memory_tasks SET status = ?, error = ?, finished_at = ?, updated_at = ? WHERE id = ?',
+      )
       .run(status, error, now(), now(), id)
   }
 
@@ -308,7 +317,9 @@ export class MemoryRepository {
   /** A restart requeues claims that never settled instead of dropping them. */
   recoverInterruptedTasks() {
     this.sqlite
-      .query("UPDATE memory_tasks SET status = 'queued', started_at = NULL, updated_at = ? WHERE status = 'running'")
+      .query(
+        "UPDATE memory_tasks SET status = 'queued', started_at = NULL, updated_at = ? WHERE status = 'running'",
+      )
       .run(now())
   }
 
@@ -323,7 +334,13 @@ export class MemoryRepository {
   }
 
   hasActiveTasks() {
-    return Boolean(this.sqlite.query("SELECT 1 AS present FROM memory_tasks WHERE status IN ('queued', 'running') LIMIT 1").get())
+    return Boolean(
+      this.sqlite
+        .query(
+          "SELECT 1 AS present FROM memory_tasks WHERE status IN ('queued', 'running') LIMIT 1",
+        )
+        .get(),
+    )
   }
 
   lastSuccessfulTask(namespace: string, kind: MemoryJobKind) {
@@ -372,7 +389,13 @@ export class MemoryRepository {
            source_turn_id = COALESCE(excluded.source_turn_id, source_turn_id),
            updated_at = excluded.updated_at`,
       )
-      .run(input.namespace, input.path, input.threadId ?? null, input.turnId ?? null, input.updatedAt ?? now())
+      .run(
+        input.namespace,
+        input.path,
+        input.threadId ?? null,
+        input.turnId ?? null,
+        input.updatedAt ?? now(),
+      )
   }
 
   sources(namespace: string) {
@@ -395,7 +418,9 @@ export class MemoryRepository {
   }
 
   forgetSource(namespace: string, path: string) {
-    this.sqlite.query('DELETE FROM memory_sources WHERE namespace = ? AND path = ?').run(namespace, path)
+    this.sqlite
+      .query('DELETE FROM memory_sources WHERE namespace = ? AND path = ?')
+      .run(namespace, path)
   }
 
   clearSources(namespace: string) {
@@ -444,7 +469,9 @@ export class MemoryRepository {
           )
           .all(input.namespace, input.cursor ?? Number.MAX_SAFE_INTEGER, limit)
       : this.sqlite
-          .query('SELECT * FROM memory_usage WHERE created_at < ? ORDER BY created_at DESC, id DESC LIMIT ?')
+          .query(
+            'SELECT * FROM memory_usage WHERE created_at < ? ORDER BY created_at DESC, id DESC LIMIT ?',
+          )
           .all(input.cursor ?? Number.MAX_SAFE_INTEGER, limit)
     return (
       rows as Array<{
@@ -495,7 +522,8 @@ export class MemoryRepository {
       const entries = (
         this.db.profileSqlite.query('DELETE FROM memory_entries').run() as { changes: number }
       ).changes
-      const jobs = (this.sqlite.query('DELETE FROM memory_jobs').run() as { changes: number }).changes
+      const jobs = (this.sqlite.query('DELETE FROM memory_jobs').run() as { changes: number })
+        .changes
       return { entries, jobs }
     })
   }

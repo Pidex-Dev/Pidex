@@ -23,7 +23,11 @@ const namespaceField = z
   .optional()
   .describe('可选：宿主已绑定的命名空间标识；省略时使用当前默认命名空间。')
 
-const pathField = z.string().min(1).max(160).describe('命名空间内的相对文件名，例如 preferences.md。')
+const pathField = z
+  .string()
+  .min(1)
+  .max(160)
+  .describe('命名空间内的相对文件名，例如 preferences.md。')
 
 const listSchema = z.object({ namespace: namespaceField }).strict()
 
@@ -84,8 +88,7 @@ const resolveScope = async (
   context: { invocation?: { threadID: string }; profile?: SubagentProfile },
 ) => {
   const threadID = context.invocation?.threadID
-  if (!threadID)
-    throw new AgentError('MEMORY_DISABLED', '记忆工具缺少宿主线程身份', 500)
+  if (!threadID) throw new AgentError('MEMORY_DISABLED', '记忆工具缺少宿主线程身份', 500)
   const scope = await binding({ threadID, profile: context.profile ?? 'main' })
   if (!scope) throw new AgentError('MEMORY_DISABLED', '记忆功能未启用或当前任务没有记忆作用域', 409)
   return scope
@@ -209,7 +212,10 @@ export const createMemoryToolDefinitions = (
       properties: {
         namespace: { type: 'string', description: '宿主已绑定的命名空间标识；通常省略。' },
         path: { type: 'string', description: '命名空间内的相对文件名，必须为 .md。' },
-        content: { type: 'string', description: '完整文件内容，含 YAML frontmatter 与 Markdown 正文。' },
+        content: {
+          type: 'string',
+          description: '完整文件内容，含 YAML frontmatter 与 Markdown 正文。',
+        },
         expected_revision: { type: 'string', description: '覆盖已存在文件时必填。' },
       },
       required: ['path', 'content'],

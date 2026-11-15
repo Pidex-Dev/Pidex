@@ -37,7 +37,10 @@ export interface ListedProviderModel {
 type ListedLimits = Pick<ListedProviderModel, 'contextWindow' | 'maxInputTokens' | 'maxTokens'>
 
 const explicitLimit = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= Number.MAX_SAFE_INTEGER
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value > 0 &&
+  value <= Number.MAX_SAFE_INTEGER
     ? value
     : undefined
 

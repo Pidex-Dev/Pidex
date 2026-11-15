@@ -72,8 +72,7 @@ export const createMcpTool = (mcp: McpRuntimeService): ToolDefinition<Input, unk
   ...SELF_MANAGE_BASE,
   sdkName: 'pidex_mcp',
   name: 'pidex.mcp',
-  description:
-    'List, check status, save, remove, enable/disable, or reload MCP servers for Pidex.',
+  description: 'List, check status, save, remove, enable/disable, or reload MCP servers for Pidex.',
   schema,
   inputSchema: toJsonObjectSchema(
     {
@@ -162,7 +161,8 @@ export const createMcpTool = (mcp: McpRuntimeService): ToolDefinition<Input, unk
       }
     }
     const scope = normalizeMcpScope(input.scope)
-    if (!input.name) throw new AgentError('INVALID_TOOL_INPUT', `${input.action} 操作必须提供 name`, 400)
+    if (!input.name)
+      throw new AgentError('INVALID_TOOL_INPUT', `${input.action} 操作必须提供 name`, 400)
     if (input.action === 'remove') {
       const removed = await mcp.remove({
         workspace: context.workspace.rootPath,

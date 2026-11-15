@@ -297,8 +297,8 @@ export class UsageRepository {
         cachedTokens: usage.cachedTokens,
         totalTokens: usage.totalTokens,
         estimatedCostUsd: decimal(usage.costUsd),
-          unknownCostRequests: usage.unknownCostRequests,
-          conservativeCostRequests: usage.conservativeCostRequests,
+        unknownCostRequests: usage.unknownCostRequests,
+        conservativeCostRequests: usage.conservativeCostRequests,
         modelResponses: usage.modelResponses,
         sharePercent:
           totals.totalTokens > 0

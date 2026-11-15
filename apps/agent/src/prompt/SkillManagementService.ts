@@ -35,7 +35,8 @@ type SkillStorageRoots = {
 
 export class SkillManagementError extends Error {
   constructor(
-    readonly code: 'SKILL_NOT_FOUND' | 'PATH_DENIED' | 'CONFLICT' | 'SKILL_INVALID' | 'INTERNAL_ERROR',
+    readonly code:
+      'SKILL_NOT_FOUND' | 'PATH_DENIED' | 'CONFLICT' | 'SKILL_INVALID' | 'INTERNAL_ERROR',
     message: string,
     readonly status: number,
   ) {
@@ -345,18 +346,17 @@ export class SkillManagementService {
     if (exists && !input.overwrite) {
       throw new SkillManagementError('CONFLICT', `Skill "${target.name}" 已存在`, 409)
     }
-    const documentContent =
-      input.content?.trim()
-        ? input.content
-        : [
-            '---',
-            `name: ${target.name}`,
-            `description: ${JSON.stringify(input.description?.trim() || `${target.name} skill`)}`,
-            '---',
-            '',
-            (input.body ?? '').trim(),
-            '',
-          ].join('\n')
+    const documentContent = input.content?.trim()
+      ? input.content
+      : [
+          '---',
+          `name: ${target.name}`,
+          `description: ${JSON.stringify(input.description?.trim() || `${target.name} skill`)}`,
+          '---',
+          '',
+          (input.body ?? '').trim(),
+          '',
+        ].join('\n')
 
     if (Buffer.byteLength(documentContent, 'utf8') > MAX_SKILL_BYTES) {
       throw new SkillManagementError('SKILL_INVALID', 'SKILL.md 体积超过 1MB 限制', 400)
@@ -465,9 +465,7 @@ export class SkillManagementService {
           throw new SkillManagementError('SKILL_INVALID', `拉取远程 Skill 仓库失败${detail}`, 502)
         }
         await rm(join(cloneDir, '.git'), { recursive: true, force: true })
-        const candidate = input.source.subpath
-          ? resolve(cloneDir, input.source.subpath)
-          : cloneDir
+        const candidate = input.source.subpath ? resolve(cloneDir, input.source.subpath) : cloneDir
         if (!contained(cloneDir, candidate)) {
           throw new SkillManagementError('PATH_DENIED', '远程 Skill 子路径越界', 403)
         }
@@ -478,7 +476,11 @@ export class SkillManagementService {
         sourceDir = resolvedSource
         inferredName =
           input.source.subpath?.split(/[\\/]/).filter(Boolean).pop() ??
-          parsedUrl.pathname.split('/').filter(Boolean).pop()?.replace(/\.git$/i, '') ??
+          parsedUrl.pathname
+            .split('/')
+            .filter(Boolean)
+            .pop()
+            ?.replace(/\.git$/i, '') ??
           ''
       }
 

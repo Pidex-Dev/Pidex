@@ -377,7 +377,9 @@ describe('WorkspaceService editor files', () => {
         content: 'export const ok = true\n',
       }),
     ).resolves.toMatchObject({ operation: 'create', path: 'src/deep/created.ts' })
-    expect(await readFile(join(root, 'src/deep/created.ts'), 'utf8')).toBe('export const ok = true\n')
+    expect(await readFile(join(root, 'src/deep/created.ts'), 'utf8')).toBe(
+      'export const ok = true\n',
+    )
 
     await expect(
       service.inspectMutationPath('file.txt/nested/child.ts', 'new-file'),

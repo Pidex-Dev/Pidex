@@ -221,7 +221,9 @@ export const listMemoryDirectory = async (
   } catch (cause) {
     if ((cause as NodeJS.ErrnoException).code !== 'ENOENT') throw cause
   }
-  const indexEntry = entries.find((entry) => entry.toLowerCase() === MEMORY_INDEX_FILE.toLowerCase())
+  const indexEntry = entries.find(
+    (entry) => entry.toLowerCase() === MEMORY_INDEX_FILE.toLowerCase(),
+  )
   let indexContent = ''
   let indexRevision = memoryFileRevision('')
   let indexExists = false
@@ -384,7 +386,8 @@ export const paginateMemoryContent = (content: string, offset = 0): MemoryReadPa
   const end = Math.min(bytes.length, start + MEMORY_READ_MAX_BYTES)
   // Never split a multi-byte sequence: trim trailing continuation bytes.
   let safeEnd = end
-  while (safeEnd > start && safeEnd < bytes.length && (bytes[safeEnd]! & 0xc0) === 0x80) safeEnd -= 1
+  while (safeEnd > start && safeEnd < bytes.length && (bytes[safeEnd]! & 0xc0) === 0x80)
+    safeEnd -= 1
   const slice = bytes.subarray(start, safeEnd).toString('utf8')
   return {
     content: slice,
@@ -472,7 +475,9 @@ export const pruneMemoryIndexEntry = async (input: {
     if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return false
     throw cause
   }
-  const indexEntry = entries.find((entry) => entry.toLowerCase() === MEMORY_INDEX_FILE.toLowerCase())
+  const indexEntry = entries.find(
+    (entry) => entry.toLowerCase() === MEMORY_INDEX_FILE.toLowerCase(),
+  )
   if (!indexEntry) return false
   const target = await resolveSafePath(directory, indexEntry)
   let content: string
@@ -532,10 +537,7 @@ export const deleteMemoryFile = async (input: {
     if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return false
     throw cause
   }
-  if (
-    input.expectedRevision != null &&
-    input.expectedRevision !== memoryFileRevision(previous)
-  )
+  if (input.expectedRevision != null && input.expectedRevision !== memoryFileRevision(previous))
     throw Object.assign(new Error('记忆文件已在外部修改，请重新读取后再删除'), {
       code: 'MEMORY_CONFLICT',
     })

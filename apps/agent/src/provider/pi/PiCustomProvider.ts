@@ -111,7 +111,10 @@ const asRecord = (value: unknown): Record<string, unknown> | undefined =>
 
 /** 只接受上游明确声明的额度字段；缺失保持缺失，不从名称或数量级推断。 */
 const explicitLimit = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= Number.MAX_SAFE_INTEGER
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value > 0 &&
+  value <= Number.MAX_SAFE_INTEGER
     ? value
     : undefined
 
@@ -120,7 +123,9 @@ const explicitLimit = (value: unknown): number | undefined =>
  * 扩展）或 `supported_reasoning_levels`（`{effort}` 对象数组）。只接受字符串
  * 值，保序去重；两者都缺失时返回 undefined，由推荐目录继续决定。
  */
-const explicitReasoningLevels = (record: Record<string, unknown>): readonly string[] | undefined => {
+const explicitReasoningLevels = (
+  record: Record<string, unknown>,
+): readonly string[] | undefined => {
   const text = (value: unknown): string | undefined =>
     typeof value === 'string' && value.trim() ? value.trim() : undefined
   const listed = Array.isArray(record.reasoning_levels)

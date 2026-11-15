@@ -27,7 +27,12 @@ const capture = (respond: (request: CapturedRequest) => Response) => {
   return { requests, fetch }
 }
 
-const expectListingError = async (operation: Promise<unknown>, message?: string, code = 'PROVIDER_UNAVAILABLE', status = 400) => {
+const expectListingError = async (
+  operation: Promise<unknown>,
+  message?: string,
+  code = 'PROVIDER_UNAVAILABLE',
+  status = 400,
+) => {
   const error = (await operation.then(
     () => undefined,
     (cause: unknown) => cause,
@@ -119,7 +124,11 @@ describe('Pi model listing', () => {
           data: [
             { id: 'listed', reasoning_levels: ['low', 'high', 'low', ''] },
             { id: 'efforts', supported_reasoning_levels: [{ effort: 'none' }, { effort: 'max' }] },
-            { id: 'declared-both', reasoning_levels: ['medium'], supported_reasoning_levels: [{ effort: 'low' }] },
+            {
+              id: 'declared-both',
+              reasoning_levels: ['medium'],
+              supported_reasoning_levels: [{ effort: 'low' }],
+            },
             { id: 'none' },
             { id: 'invalid', reasoning_levels: [1, null], supported_reasoning_levels: 'low' },
           ],
@@ -166,9 +175,7 @@ describe('Pi model listing', () => {
 
     const gemini = capture(() =>
       Response.json({
-        models: [
-          { name: 'models/gemini-x', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
-        ],
+        models: [{ name: 'models/gemini-x', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 }],
       }),
     )
     const google = await listProviderModels({
@@ -302,7 +309,9 @@ describe('Pi model listing', () => {
         apiKey: secretKey,
         fetch: async () => new Response(body, { status: 503 }),
       }),
-      'HTTP 503', 'PROVIDER_UNAVAILABLE', 502,
+      'HTTP 503',
+      'PROVIDER_UNAVAILABLE',
+      502,
     )
     const openaiHttp = await expectListingError(
       listProviderModels({
@@ -311,7 +320,9 @@ describe('Pi model listing', () => {
         apiKey: secretKey,
         fetch: async () => new Response(body, { status: 401 }),
       }),
-      'HTTP 401', 'PROVIDER_AUTH_FAILED', 400,
+      'HTTP 401',
+      'PROVIDER_AUTH_FAILED',
+      400,
     )
     for (const error of [http, openaiHttp]) {
       expect(JSON.stringify(error)).not.toContain(secretKey)
@@ -344,7 +355,9 @@ describe('Pi model listing', () => {
           throw new DOMException('The operation timed out.', 'TimeoutError')
         },
       }),
-      '超时', 'PROVIDER_TIMEOUT', 502,
+      '超时',
+      'PROVIDER_TIMEOUT',
+      502,
     )
     await expectListingError(
       listProviderModels({
@@ -364,11 +377,19 @@ describe('Pi model listing', () => {
   })
 })
 
-
 test('Google 模型发现保留 1.5 亿输入额度', async () => {
   const result = await listProviderModels({
-    api: 'google-generative-ai', baseUrl: 'https://gateway.example/v1beta',
-    fetch: async () => Response.json({ models: [{ name: 'models/large-context', inputTokenLimit: 150_000_000, outputTokenLimit: 32768 }] }),
+    api: 'google-generative-ai',
+    baseUrl: 'https://gateway.example/v1beta',
+    fetch: async () =>
+      Response.json({
+        models: [
+          { name: 'models/large-context', inputTokenLimit: 150_000_000, outputTokenLimit: 32768 },
+        ],
+      }),
   })
-  expect(result.models[0]).toMatchObject({ contextWindow: 150_000_000, maxInputTokens: 150_000_000 })
+  expect(result.models[0]).toMatchObject({
+    contextWindow: 150_000_000,
+    maxInputTokens: 150_000_000,
+  })
 })

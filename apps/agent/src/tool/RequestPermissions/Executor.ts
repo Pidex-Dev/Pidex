@@ -24,11 +24,7 @@ export const canonicalPermissionPath = async (
     return await realpath(absolute)
   } catch {
     const parent = await realpath(dirname(absolute)).catch(() => {
-      throw new AgentError(
-        'PERMISSION_PATH_NOT_FOUND',
-        `申请写入路径的父目录不存在：${value}`,
-        400,
-      )
+      throw new AgentError('PERMISSION_PATH_NOT_FOUND', `申请写入路径的父目录不存在：${value}`, 400)
     })
     return resolve(parent, absolute.slice(dirname(absolute).length + 1))
   }

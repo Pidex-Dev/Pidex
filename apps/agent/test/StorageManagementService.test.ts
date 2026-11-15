@@ -129,10 +129,7 @@ describe('StorageManagementService', () => {
     await writeFile(join(root, 'tooling', 'ripgrep', 'rg.exe'), 'r'.repeat(2048))
 
     const resources = await service.listDownloadedResources()
-    expect(resources.items.map((item) => item.id)).toEqual([
-      'speech:sensevoice',
-      'tooling:ripgrep',
-    ])
+    expect(resources.items.map((item) => item.id)).toEqual(['speech:sensevoice', 'tooling:ripgrep'])
 
     const deleteSpeech = await service.deleteDownloadedResource('speech:sensevoice')
     expect(deleteSpeech.reclaimedBytes).toBe(4096)

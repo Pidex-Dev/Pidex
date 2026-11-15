@@ -14,7 +14,7 @@ import {
 const hookSchema = z
   .object({
     id: z.string().min(1),
-    event: z.enum(HOOK_EVENTS as [typeof HOOK_EVENTS[number], ...typeof HOOK_EVENTS[number][]]),
+    event: z.enum(HOOK_EVENTS as [(typeof HOOK_EVENTS)[number], ...(typeof HOOK_EVENTS)[number][]]),
     command: z.string().min(1),
     matcher: z.string().optional(),
     timeoutMs: z.number().int().positive().max(60_000).optional(),
@@ -46,8 +46,7 @@ export const createHookTool = (
   ...SELF_MANAGE_BASE,
   sdkName: 'pidex_hook',
   name: 'pidex.hook',
-  description:
-    'List, upsert, remove, enable/disable Pidex hooks, or inspect recent hook run logs.',
+  description: 'List, upsert, remove, enable/disable Pidex hooks, or inspect recent hook run logs.',
   schema,
   inputSchema: toJsonObjectSchema(
     {
@@ -116,7 +115,11 @@ export const createHookTool = (
     }
     if (input.action === 'set_enabled') {
       if (!input.identity || typeof input.enabled !== 'boolean') {
-        throw new AgentError('INVALID_TOOL_INPUT', 'set_enabled 操作必须提供 identity 和 enabled', 400)
+        throw new AgentError(
+          'INVALID_TOOL_INPUT',
+          'set_enabled 操作必须提供 identity 和 enabled',
+          400,
+        )
       }
       return hooksManagement.setEnabled({
         identity: input.identity,

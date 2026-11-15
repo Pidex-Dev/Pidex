@@ -98,7 +98,16 @@ describe('Memory RPC 项目作用域', () => {
     await memory.write({
       namespace: namespaceA,
       path: 'only-a.md',
-      content: ['---', 'name: only-a', 'description: A', 'type: project', '---', '', '正文 A', ''].join(String.fromCharCode(10)),
+      content: [
+        '---',
+        'name: only-a',
+        'description: A',
+        'type: project',
+        '---',
+        '',
+        '正文 A',
+        '',
+      ].join(String.fromCharCode(10)),
     })
 
     expect((await call('memory/read', { path: 'only-a.md' })).error).toMatchObject({ code: -32602 })

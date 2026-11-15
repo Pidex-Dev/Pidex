@@ -81,12 +81,39 @@ const isEnoent = (error: unknown): boolean =>
   !!error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT'
 
 const LIMIT_KEYS = ['context', 'input', 'output'] as const
-const COST_KEYS = ['input', 'output', 'cache_read', 'cache_write', 'reasoning', 'input_audio', 'output_audio', 'tiers', 'context_over_200k'] as const
+const COST_KEYS = [
+  'input',
+  'output',
+  'cache_read',
+  'cache_write',
+  'reasoning',
+  'input_audio',
+  'output_audio',
+  'tiers',
+  'context_over_200k',
+] as const
 
 /** 只保留下游实际消费的字段。 */
 const trimFacts = (raw: Record<string, unknown>): CatalogFacts => {
   const facts: CatalogFacts = {}
-  for (const key of ['description', 'family', 'knowledge', 'release_date', 'last_updated', 'status', 'open_weights', 'license', 'links', 'weights', 'benchmarks', 'attachment', 'temperature', 'structured_output', 'interleaved', 'provider']) {
+  for (const key of [
+    'description',
+    'family',
+    'knowledge',
+    'release_date',
+    'last_updated',
+    'status',
+    'open_weights',
+    'license',
+    'links',
+    'weights',
+    'benchmarks',
+    'attachment',
+    'temperature',
+    'structured_output',
+    'interleaved',
+    'provider',
+  ]) {
     if (raw[key] !== undefined) facts[key] = raw[key]
   }
   if (typeof raw.name === 'string') facts.name = raw.name

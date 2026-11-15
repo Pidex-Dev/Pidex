@@ -546,7 +546,9 @@ export const providerHandlers = {
         if (!providerID) {
           throw new AgentError('INVALID_REQUEST', '模型发现需要 providerId 或草稿配置', 400)
         }
-        const definition = (await piModels.providerDefinitions()).find((item) => item.id === providerID)
+        const definition = (await piModels.providerDefinitions()).find(
+          (item) => item.id === providerID,
+        )
         if (definition?.kind === 'builtin') {
           const models = await piModels.discoverBuiltinModels(providerID)
           return { models, matches: models.map((model) => ({ id: model.id, status: 'provider' })) }

@@ -149,11 +149,15 @@ export const parseProviderDirectory = (snapshot: Snapshot): DirectoryProvider[] 
       const modelBaseUrls: Record<string, string> = {}
       for (const [modelID, inputModel] of Object.entries(record(raw.models))) {
         const model = record(inputModel)
-        const override = model.provider && typeof model.provider === 'object' ? record(model.provider) : {}
+        const override =
+          model.provider && typeof model.provider === 'object' ? record(model.provider) : {}
         const sdk = typeof override.npm === 'string' ? override.npm : raw.npm
-        const modelApi = sdk === '@ai-sdk/openai' && override.shape === 'responses'
-          ? 'openai-responses'
-          : typeof sdk === 'string' ? sdkApis[sdk] : undefined
+        const modelApi =
+          sdk === '@ai-sdk/openai' && override.shape === 'responses'
+            ? 'openai-responses'
+            : typeof sdk === 'string'
+              ? sdkApis[sdk]
+              : undefined
         if ((model.type !== undefined && model.type !== 'chat') || !modelApi) continue
         const modelBaseUrl = address(override.api) ?? baseUrl
         if (modelBaseUrl) {

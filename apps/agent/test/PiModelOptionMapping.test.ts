@@ -107,7 +107,10 @@ describe('PiModelOptionMapping — 双层 values/map 协议映射', () => {
     )
     expect(compiled?.reasoningLevel).toBeUndefined()
     const body = { reasoning_effort: 'high', reasoning: { effort: 'high' }, max_tokens: 1024 }
-    const out = applyModelOptionMap(body, compiled!, { reasoningLevel: 'enabled', maxOutputTokens: 4096 })
+    const out = applyModelOptionMap(body, compiled!, {
+      reasoningLevel: 'enabled',
+      maxOutputTokens: 4096,
+    })
     expect(out).toEqual({
       reasoning_effort: 'high',
       reasoning: { effort: 'high' },

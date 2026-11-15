@@ -203,7 +203,10 @@ const parseRemoteGitSource = (sourceDescriptor: JsonRecord | null): RemoteGitSou
   }
   if (parsedUrl.protocol !== 'https:') return null
   const rawRef = stringValue(sourceDescriptor.ref)
-  if (rawRef && (rawRef.startsWith('-') || rawRef.includes('..') || !safeGitRefPattern.test(rawRef))) {
+  if (
+    rawRef &&
+    (rawRef.startsWith('-') || rawRef.includes('..') || !safeGitRefPattern.test(rawRef))
+  ) {
     return null
   }
   const rawSubpath = stringValue(sourceDescriptor.path)
@@ -307,8 +310,7 @@ export class PluginManagementService {
     if (includeCatalog) {
       const ids = new Set(plugins.map((plugin) => plugin.summary.id))
       for (const entry of this.marketplace?.entries() ?? []) {
-        if (!ids.has(entry.summary.id))
-          plugins.push({ ...entry, skillRoot: null, hookRoot: null })
+        if (!ids.has(entry.summary.id)) plugins.push({ ...entry, skillRoot: null, hookRoot: null })
       }
     }
     this.knownPlugins.clear()

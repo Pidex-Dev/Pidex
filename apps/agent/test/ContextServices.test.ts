@@ -693,7 +693,12 @@ describe('Hooks 与记忆', () => {
     await memory.drain()
     expect(calls).toBe(2)
     expect(maxActive).toBe(1)
-    expect(memory.tasks().map((task) => task.status).sort()).toEqual(['completed', 'failed'])
+    expect(
+      memory
+        .tasks()
+        .map((task) => task.status)
+        .sort(),
+    ).toEqual(['completed', 'failed'])
     db.close()
   })
 })

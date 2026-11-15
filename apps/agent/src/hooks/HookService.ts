@@ -7,11 +7,7 @@ import type { ConfigService } from '../config/ConfigService'
 import { HookRunRepository } from '../storage/repositories/HookRunRepository'
 import type { HookSettingsRepository } from '../storage/repositories/HookSettingsRepository'
 import type { HookDecision, HookDefinition, HookEvent, HookResult } from './HookDefinitions'
-import {
-  discoverHooks,
-  type DiscoveredHookEntry,
-  type PluginHookSource,
-} from './HookDiscovery'
+import { discoverHooks, type DiscoveredHookEntry, type PluginHookSource } from './HookDiscovery'
 import {
   hookFileExists,
   inlineHookDefinitions as readInlineHooks,

@@ -305,8 +305,20 @@ describe('ToolingManager', () => {
     })
 
     const internal = manager as unknown as {
-      findManaged(id: ToolingStatus['id']): Promise<{ available: true; source: 'managed'; id: ToolingStatus['id']; path: string; version: string | null } | null>
-      findSystem(id: ToolingStatus['id']): Promise<{ available: true; source: 'system'; id: ToolingStatus['id']; path: string; version: string | null } | null>
+      findManaged(id: ToolingStatus['id']): Promise<{
+        available: true
+        source: 'managed'
+        id: ToolingStatus['id']
+        path: string
+        version: string | null
+      } | null>
+      findSystem(id: ToolingStatus['id']): Promise<{
+        available: true
+        source: 'system'
+        id: ToolingStatus['id']
+        path: string
+        version: string | null
+      } | null>
     }
     internal.findManaged = async () => null
     internal.findSystem = async (id) => {

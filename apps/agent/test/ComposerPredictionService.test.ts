@@ -161,7 +161,7 @@ describe('ComposerPredictionService', () => {
       seedTurn(db, thread.id, `第 ${index} 轮指令`, `第 ${index} 轮回复`)
     }
     const latest = db.sqlite
-      .query("SELECT id FROM turns WHERE thread_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+      .query('SELECT id FROM turns WHERE thread_id = ? ORDER BY created_at DESC, id DESC LIMIT 1')
       .get(thread.id) as { id: string }
     let prompt = ''
     const service = new ComposerPredictionService(db, models(), logger, {
@@ -181,10 +181,15 @@ describe('ComposerPredictionService', () => {
 
   test('上下文总长度不超过 12,000 字符，并脱敏凭据与绝对路径', async () => {
     const { db, logger, thread } = await seedThread()
-    seedTurn(db, thread.id, '读取 C:\\private\\secret.md 并 api_key=sk-abcdefghijklmnopqrstuv', '第一轮回复')
+    seedTurn(
+      db,
+      thread.id,
+      '读取 C:\\private\\secret.md 并 api_key=sk-abcdefghijklmnopqrstuv',
+      '第一轮回复',
+    )
     seedTurn(db, thread.id, '继续', '很长的历史内容 '.repeat(3_000))
     const latest = db.sqlite
-      .query("SELECT id FROM turns WHERE thread_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+      .query('SELECT id FROM turns WHERE thread_id = ? ORDER BY created_at DESC, id DESC LIMIT 1')
       .get(thread.id) as { id: string }
     let prompt = ''
     const service = new ComposerPredictionService(db, models(), logger, {
@@ -213,7 +218,7 @@ describe('ComposerPredictionService', () => {
     const { db, logger, thread } = await seedThread()
     seedTurn(db, thread.id, '读取 C:\\private\\secret.md 并总结', '已读取')
     const latest = db.sqlite
-      .query("SELECT id FROM turns WHERE thread_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+      .query('SELECT id FROM turns WHERE thread_id = ? ORDER BY created_at DESC, id DESC LIMIT 1')
       .get(thread.id) as { id: string }
     let prompt = ''
     const service = new ComposerPredictionService(db, models(), logger, {
@@ -248,9 +253,9 @@ describe('ComposerPredictionService', () => {
         throw new Error('provider down')
       },
     })
-    await expect(
-      failing.predict({ threadId: thread.id, turnId: turn.turnID }),
-    ).resolves.toEqual({ prediction: null })
+    await expect(failing.predict({ threadId: thread.id, turnId: turn.turnID })).resolves.toEqual({
+      prediction: null,
+    })
 
     const unavailable = new ComposerPredictionService(
       db,

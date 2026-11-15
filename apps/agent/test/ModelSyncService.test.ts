@@ -558,17 +558,13 @@ describe('ModelSyncService', () => {
       id: 'mystery-model',
       enabled: true,
     })
-    const matchedDraft = draft.models.find(
-      (model) => model.id === 'qwen/deepseek-v4.1-flash',
-    )!
+    const matchedDraft = draft.models.find((model) => model.id === 'qwen/deepseek-v4.1-flash')!
     expect(matchedDraft).toMatchObject({
       contextWindow: 1_000_000,
       maxTokens: 384_000,
       smartConfig: { pinned: [] },
     })
-    expect(
-      draft.matches?.find((match) => match.id === 'qwen/deepseek-v4.1-flash'),
-    ).toMatchObject({
+    expect(draft.matches?.find((match) => match.id === 'qwen/deepseek-v4.1-flash')).toMatchObject({
       status: 'official',
       identity: 'deepseek/deepseek-v4.1-flash',
     })

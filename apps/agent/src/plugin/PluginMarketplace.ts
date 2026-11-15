@@ -100,10 +100,7 @@ export function parseCatalog(
         ...(catalogRevision ? { catalogRevision } : {}),
         version,
         components: installComponents,
-        unsupportedComponents: unsupportedPluginComponents([
-          entry.commands,
-          entry.agents,
-        ]),
+        unsupportedComponents: unsupportedPluginComponents([entry.commands, entry.agents]),
       },
     }
     return {

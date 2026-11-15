@@ -394,7 +394,9 @@ export class RpcRouter {
     return new RpcApplicationError(
       code,
       exposeMessage ? cause.message : 'Agent 内部错误',
-      cause instanceof ProviderRequestError ? cause.retryable : cause.status === 429 || cause.status >= 500,
+      cause instanceof ProviderRequestError
+        ? cause.retryable
+        : cause.status === 429 || cause.status >= 500,
       safeErrorDetails(code, cause.details, cause instanceof ProviderRequestError),
     )
   }

@@ -31,7 +31,11 @@ export const selfManageOperationId = (context: ToolContext, suffix?: string) => 
 export const assertSelfManageWritable = (context: ToolContext) => {
   const fileAccess = fileAccessProfileFromV4(context.permissionConfig.sandboxMode)
   if (fileAccess === 'read-only') {
-    throw new AgentError('TOOL_NOT_ALLOWED_IN_SANDBOX', '只读沙箱模式禁止修改 Pidex 配置或组件', 403)
+    throw new AgentError(
+      'TOOL_NOT_ALLOWED_IN_SANDBOX',
+      '只读沙箱模式禁止修改 Pidex 配置或组件',
+      403,
+    )
   }
 }
 

@@ -628,7 +628,10 @@ describe('PiModelService', () => {
   test('reload advances catalog revision and re-evaluates OAuth model availability', async () => {
     const fake = repository()
     const selectedModels: string[] = []
-    const service = new PiModelService(fake.adapter, { env: {}, config: { providers: { 'openai-codex': { kind: 'builtin', allow_models: selectedModels } } } })
+    const service = new PiModelService(fake.adapter, {
+      env: {},
+      config: { providers: { 'openai-codex': { kind: 'builtin', allow_models: selectedModels } } },
+    })
     selectedModels.push(service.pi.getModels('openai-codex')[0]!.id)
     const beforeRevision = service.catalogRevision()
 
@@ -948,34 +951,75 @@ describe('PiModelService', () => {
   })
 })
 
-
 test('明确三档贯通推荐、旧自动配置、内置模型和协议映射，手动配置保留', async () => {
   const recommendations = new ModelRecommendationStore()
   const resolve = spyOn(recommendations, 'resolve').mockResolvedValue({
-    status: 'matched', recommended: { reasoning: true, optionSpecs: { reasoningLevel: { values: ['none', 'low', 'high'] } } },
+    status: 'matched',
+    recommended: {
+      reasoning: true,
+      optionSpecs: { reasoningLevel: { values: ['none', 'low', 'high'] } },
+    },
   })
   const oldOptions = { reasoningLevel: { values: ['disabled', 'enabled'], map: '{}' } }
-  const config = { providers: {
-    gateway: { kind: 'custom', enabled: true, name: 'Gateway', base_url: 'https://gateway.example/v1', auth: 'none', models: {
-      'hy4-preview': { api: 'openai-completions', reasoning: true, smart_config: { pinned: [] }, option_specs: oldOptions },
-      manual: { api: 'openai-completions', reasoning: true, option_specs: oldOptions },
-    } },
-    google: { kind: 'builtin', enabled: true, models: {} as Record<string, unknown> },
-  } }
+  const config = {
+    providers: {
+      gateway: {
+        kind: 'custom',
+        enabled: true,
+        name: 'Gateway',
+        base_url: 'https://gateway.example/v1',
+        auth: 'none',
+        models: {
+          'hy4-preview': {
+            api: 'openai-completions',
+            reasoning: true,
+            smart_config: { pinned: [] },
+            option_specs: oldOptions,
+          },
+          manual: { api: 'openai-completions', reasoning: true, option_specs: oldOptions },
+        },
+      },
+      google: { kind: 'builtin', enabled: true, models: {} as Record<string, unknown> },
+    },
+  }
   let service = new PiModelService(repository().adapter, { recommendations, config })
   const builtinID = service.pi.getModels('google')[0]!.id
-  config.providers.google.models[builtinID] = { enabled: true, smart_config: { pinned: [] }, option_specs: oldOptions }
+  config.providers.google.models[builtinID] = {
+    enabled: true,
+    smart_config: { pinned: [] },
+    option_specs: oldOptions,
+  }
   try {
-    const preview = await service.previewRecommendation({ providerId: 'gateway', modelId: 'hy4-preview', modelType: 'chat' })
+    const preview = await service.previewRecommendation({
+      providerId: 'gateway',
+      modelId: 'hy4-preview',
+      modelType: 'chat',
+    })
     expect(preview.recommended.optionSpecs?.reasoningLevel?.values).toEqual(['none', 'low', 'high'])
     const check = async () => {
-      expect((await service.models('gateway' as never)).find((model) => model.id === 'hy4-preview')?.variants.map((variant) => String(variant.id))).toEqual(['none', 'low', 'high'])
-      expect((await service.models('gateway' as never)).find((model) => model.id === 'manual')?.variants.map((variant) => String(variant.id))).toEqual(['disabled', 'enabled'])
-      expect((await service.models('google' as never))[0]?.variants.map((variant) => String(variant.id))).toEqual(['none', 'low', 'high'])
+      expect(
+        (await service.models('gateway' as never))
+          .find((model) => model.id === 'hy4-preview')
+          ?.variants.map((variant) => String(variant.id)),
+      ).toEqual(['none', 'low', 'high'])
+      expect(
+        (await service.models('gateway' as never))
+          .find((model) => model.id === 'manual')
+          ?.variants.map((variant) => String(variant.id)),
+      ).toEqual(['disabled', 'enabled'])
+      expect(
+        (await service.models('google' as never))[0]?.variants.map((variant) => String(variant.id)),
+      ).toEqual(['none', 'low', 'high'])
     }
     await check()
-    const model = await service.getPiModel({ providerID: 'gateway', id: 'hy4-preview', variant: 'low' } as never)
-    const specs = (model as typeof model & { optionSpecs: Parameters<typeof compileOptionSpecs>[0] }).optionSpecs
+    const model = await service.getPiModel({
+      providerID: 'gateway',
+      id: 'hy4-preview',
+      variant: 'low',
+    } as never)
+    const specs = (
+      model as typeof model & { optionSpecs: Parameters<typeof compileOptionSpecs>[0] }
+    ).optionSpecs
     const patch = applyModelOptionMap({}, compileOptionSpecs(specs)!, { reasoningLevel: 'low' })
     expect(patch).toMatchObject({ reasoning_effort: 'low', reasoning: { effort: 'low' } })
     expect(config.providers.gateway.models['hy4-preview'].option_specs).toEqual(oldOptions)
@@ -996,18 +1040,51 @@ test('模型自身声明的档位不被 ZCode 通用两档覆盖，且空 map �
     recommended: { reasoning: true },
   })
   const generic = { reasoningLevel: { values: ['disabled', 'enabled'], map: '{}' } }
-  const config = { providers: {
-    gateway: { kind: 'custom', enabled: true, name: 'Gateway', base_url: 'https://gateway.example/v1', auth: 'none', models: {
-      // 网关映射到官方 hy4-preview，但自身只声明了 high。
-      'hy4-preview': { api: 'openai-completions', reasoning: true, option_specs: generic,
-        thinking_level_map: { off: null, minimal: null, low: null, medium: null, high: 'high', xhigh: null, max: null } },
-      // 网关自己声明了 low/high，比通用两档更精确。
-      'hy3': { api: 'openai-completions', reasoning: true, option_specs: generic,
-        thinking_level_map: { off: null, minimal: null, low: 'low', medium: null, high: 'high', xhigh: null, max: null } },
-      // 没有任何声明时保留通用兜底。
-      'mystery': { api: 'openai-completions', reasoning: true, option_specs: generic },
-    } },
-  } }
+  const config = {
+    providers: {
+      gateway: {
+        kind: 'custom',
+        enabled: true,
+        name: 'Gateway',
+        base_url: 'https://gateway.example/v1',
+        auth: 'none',
+        models: {
+          // 网关映射到官方 hy4-preview，但自身只声明了 high。
+          'hy4-preview': {
+            api: 'openai-completions',
+            reasoning: true,
+            option_specs: generic,
+            thinking_level_map: {
+              off: null,
+              minimal: null,
+              low: null,
+              medium: null,
+              high: 'high',
+              xhigh: null,
+              max: null,
+            },
+          },
+          // 网关自己声明了 low/high，比通用两档更精确。
+          hy3: {
+            api: 'openai-completions',
+            reasoning: true,
+            option_specs: generic,
+            thinking_level_map: {
+              off: null,
+              minimal: null,
+              low: 'low',
+              medium: null,
+              high: 'high',
+              xhigh: null,
+              max: null,
+            },
+          },
+          // 没有任何声明时保留通用兜底。
+          mystery: { api: 'openai-completions', reasoning: true, option_specs: generic },
+        },
+      },
+    },
+  }
   const service = new PiModelService(repository().adapter, { recommendations, config })
   try {
     const variants = async (id: string) =>
@@ -1022,7 +1099,11 @@ test('模型自身声明的档位不被 ZCode 通用两档覆盖，且空 map �
       service.getPiModel({ providerID: 'gateway', id: 'hy4-preview', variant: 'high' } as never),
     ).resolves.toBeDefined()
     await expect(
-      service.getPiModel({ providerID: 'gateway', id: 'hy4-preview', variant: 'disabled' } as never),
+      service.getPiModel({
+        providerID: 'gateway',
+        id: 'hy4-preview',
+        variant: 'disabled',
+      } as never),
     ).rejects.toMatchObject({ code: 'VARIANT_NOT_FOUND' })
   } finally {
     await service.dispose()
@@ -1030,28 +1111,55 @@ test('模型自身声明的档位不被 ZCode 通用两档覆盖，且空 map �
   }
 })
 
-
 test('v1 推理开关走 Pi 原生控制且不发送不支持的 temperature', async () => {
   const recommendations = new ModelRecommendationStore()
-  const resolve = spyOn(recommendations, 'resolve').mockResolvedValue({ status: 'matched', recommended: {
-    reasoning: true, optionSpecs: { reasoningLevel: { values: ['disabled', 'enabled'] } },
-    catalog: { temperature: false, reasoningOptions: [{ type: 'toggle' }] },
-  } })
+  const resolve = spyOn(recommendations, 'resolve').mockResolvedValue({
+    status: 'matched',
+    recommended: {
+      reasoning: true,
+      optionSpecs: { reasoningLevel: { values: ['disabled', 'enabled'] } },
+      catalog: { temperature: false, reasoningOptions: [{ type: 'toggle' }] },
+    },
+  })
   const bodies: Record<string, unknown>[] = []
-  const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
-    bodies.push(await request.json() as Record<string, unknown>)
-    return new Response('data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
-  } })
-  const service = new PiModelService(repository().adapter, { recommendations, config: { providers: {
-    toggle: { kind: 'custom', name: 'Toggle', base_url: `${server.url}v1`, auth: 'none', models: {
-      'toggle-example': { api: 'openai-completions', reasoning: true, option_specs: { reasoningLevel: { values: ['disabled', 'enabled'], map: '{}' } } },
-    } },
-  } } })
+  const server = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    async fetch(request) {
+      bodies.push((await request.json()) as Record<string, unknown>)
+      return new Response('data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
+    },
+  })
+  const service = new PiModelService(repository().adapter, {
+    recommendations,
+    config: {
+      providers: {
+        toggle: {
+          kind: 'custom',
+          name: 'Toggle',
+          base_url: `${server.url}v1`,
+          auth: 'none',
+          models: {
+            'toggle-example': {
+              api: 'openai-completions',
+              reasoning: true,
+              option_specs: { reasoningLevel: { values: ['disabled', 'enabled'], map: '{}' } },
+            },
+          },
+        },
+      },
+    },
+  })
   try {
     const model = await service.getPiModel({ providerID: 'toggle', id: 'toggle-example' } as never)
     for (const reasoning of ['enabled', 'disabled']) {
-      await service.pi.streamSimple(model, normalizeContext({ messages: [{ role: 'user', content: 'test', timestamp: 0 }] }),
-        { apiKey: 'fixture-only', reasoning: reasoning as never, temperature: 0.5 }).result()
+      await service.pi
+        .streamSimple(
+          model,
+          normalizeContext({ messages: [{ role: 'user', content: 'test', timestamp: 0 }] }),
+          { apiKey: 'fixture-only', reasoning: reasoning as never, temperature: 0.5 },
+        )
+        .result()
     }
     expect(bodies[0]?.reasoning_effort).toBe('medium')
     expect(bodies[1]?.reasoning_effort).toBeUndefined()
@@ -1062,7 +1170,6 @@ test('v1 推理开关走 Pi 原生控制且不发送不支持的 temperature', a
     resolve.mockRestore()
   }
 })
-
 
 test('内置目录模型经当前协议过滤后无可发送模态时，发现结果省略 input 并通过 RPC schema', async () => {
   const service = new PiModelService(repository().adapter)
@@ -1075,28 +1182,73 @@ test('内置目录模型经当前协议过滤后无可发送模态时，发现�
     const models = await service.discoverBuiltinModels('google')
     expect(models).toHaveLength(1)
     expect(models[0]?.input).toBeUndefined()
-    expect(() => Schema.decodeUnknownSync(Schema.Array(ProviderModelDefinitionSchema))(models)).not.toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(Schema.Array(ProviderModelDefinitionSchema))(models),
+    ).not.toThrow()
   } finally {
     getModels.mockRestore()
     await service.dispose()
   }
 })
 
-
 test('文档字段优先于目录，缺项继承目录，手动整份模式不被重匹配', async () => {
   const recommendations = new ModelRecommendationStore()
-  const resolve = spyOn(recommendations, 'resolve').mockResolvedValue({ status: 'matched', recommended: { name: 'Catalog name', contextWindow: 100000, maxTokens: 12000 } })
-  const document = { url: 'https://example.com/docs', extractor: { providerID: 'openai', id: 'model' }, extractedAt: 123, data: { contextWindow: 150000000 }, evidence: ['150M context'] }
-  const config = { providers: { docs: { kind: 'custom', name: 'Docs', enabled: true, base_url: 'https://example.com/v1', auth: 'none', models: { automatic: { api: 'openai-completions', smart_config: { pinned: [], source: 'document', document } }, manual: { api: 'openai-completions', context_window: 60000, smart_config: { pinned: [], enabled: false, source: 'document', document } } } } } }
+  const resolve = spyOn(recommendations, 'resolve').mockResolvedValue({
+    status: 'matched',
+    recommended: { name: 'Catalog name', contextWindow: 100000, maxTokens: 12000 },
+  })
+  const document = {
+    url: 'https://example.com/docs',
+    extractor: { providerID: 'openai', id: 'model' },
+    extractedAt: 123,
+    data: { contextWindow: 150000000 },
+    evidence: ['150M context'],
+  }
+  const config = {
+    providers: {
+      docs: {
+        kind: 'custom',
+        name: 'Docs',
+        enabled: true,
+        base_url: 'https://example.com/v1',
+        auth: 'none',
+        models: {
+          automatic: {
+            api: 'openai-completions',
+            smart_config: { pinned: [], source: 'document', document },
+          },
+          manual: {
+            api: 'openai-completions',
+            context_window: 60000,
+            smart_config: { pinned: [], enabled: false, source: 'document', document },
+          },
+        },
+      },
+    },
+  }
   const service = new PiModelService(repository().adapter, { config, recommendations })
   try {
     const automatic = await service.getPiModel({ providerID: 'docs', id: 'automatic' } as never)
-    expect(automatic.contextWindow).toBe(150000000); expect(automatic.maxTokens).toBe(12000); expect(automatic.name).toBe('Catalog name')
-    resolve.mockResolvedValue({ status: 'matched', recommended: { name: 'Updated', contextWindow: 200000, maxTokens: 16000 } })
+    expect(automatic.contextWindow).toBe(150000000)
+    expect(automatic.maxTokens).toBe(12000)
+    expect(automatic.name).toBe('Catalog name')
+    resolve.mockResolvedValue({
+      status: 'matched',
+      recommended: { name: 'Updated', contextWindow: 200000, maxTokens: 16000 },
+    })
     config.providers.docs.models.automatic.smart_config.document.extractedAt++
     await service.reload()
-    expect((await service.getPiModel({ providerID: 'docs', id: 'automatic' } as never)).contextWindow).toBe(150000000)
-    expect((await service.getPiModel({ providerID: 'docs', id: 'automatic' } as never)).maxTokens).toBe(16000)
-    expect((await service.getPiModel({ providerID: 'docs', id: 'manual' } as never)).contextWindow).toBe(60000)
-  } finally { await service.dispose(); resolve.mockRestore() }
+    expect(
+      (await service.getPiModel({ providerID: 'docs', id: 'automatic' } as never)).contextWindow,
+    ).toBe(150000000)
+    expect(
+      (await service.getPiModel({ providerID: 'docs', id: 'automatic' } as never)).maxTokens,
+    ).toBe(16000)
+    expect(
+      (await service.getPiModel({ providerID: 'docs', id: 'manual' } as never)).contextWindow,
+    ).toBe(60000)
+  } finally {
+    await service.dispose()
+    resolve.mockRestore()
+  }
 })

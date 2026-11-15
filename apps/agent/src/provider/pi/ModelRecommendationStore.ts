@@ -30,7 +30,9 @@ export class ModelRecommendationStore {
     if (onUpdated) this.onAutoUpdated = onUpdated
     if (this.refreshTimer) return
     const update = () => {
-      void this.refresh().then(() => this.onAutoUpdated?.()).catch(() => undefined)
+      void this.refresh()
+        .then(() => this.onAutoUpdated?.())
+        .catch(() => undefined)
     }
     update()
     this.refreshTimer = setInterval(update, REFRESH_INTERVAL_MS)

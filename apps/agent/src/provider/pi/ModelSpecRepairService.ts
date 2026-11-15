@@ -1,16 +1,16 @@
 import type { ModelSpecField, ModelSpecMatch, ModelSpecRepairItem } from '@pidex/agent-protocol'
 import { Model } from '@pidex/model-schema'
 import { AgentError } from '../../Domain'
-import { ConfigServiceError, type ConfigService, type ConfigValue } from '../../config/ConfigService'
+import {
+  ConfigServiceError,
+  type ConfigService,
+  type ConfigValue,
+} from '../../config/ConfigService'
 import type { PiCustomModelConfig } from './PiProviderConfig'
 import type { PiModelService } from './PiModelService'
 
 const PLACEHOLDER_CONTEXT = 32_768
-const REPAIR_FIELDS: readonly ModelSpecField[] = [
-  'contextWindow',
-  'maxTokens',
-  'maxInputTokens',
-]
+const REPAIR_FIELDS: readonly ModelSpecField[] = ['contextWindow', 'maxTokens', 'maxInputTokens']
 
 /** 配置键使用 snake_case；key-path 局部更新保留未知字段。 */
 const CONFIG_KEYS: Record<ModelSpecField, string> = {
@@ -64,7 +64,11 @@ export class ModelSpecRepairService {
             suggested,
             pinned: false,
             noRepair,
-            defaultSelected: !!model.smartConfig && model.smartConfig.enabled !== false && model.smartConfig.pinned.length === 0 && !noRepair,
+            defaultSelected:
+              !!model.smartConfig &&
+              model.smartConfig.enabled !== false &&
+              model.smartConfig.pinned.length === 0 &&
+              !noRepair,
           },
         ]
       })
@@ -126,8 +130,7 @@ export class ModelSpecRepairService {
       }
       if (touched) updatedModels += 1
     }
-    if (!edits.length)
-      return { providerId: input.providerId, updatedModels: 0, updatedFields: 0 }
+    if (!edits.length) return { providerId: input.providerId, updatedModels: 0, updatedFields: 0 }
     try {
       await this.config.batchWrite({
         target: { kind: 'user' },

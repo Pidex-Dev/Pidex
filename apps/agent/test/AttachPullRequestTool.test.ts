@@ -50,9 +50,7 @@ const restPullRequest = {
   mergeable: true,
 }
 
-const fixture = async (
-  options: { readPullRequest?: () => unknown } = {},
-) => {
+const fixture = async (options: { readPullRequest?: () => unknown } = {}) => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-attach-pr-'))
   paths.push(root)
   const db = new AgentDatabase({
@@ -124,9 +122,9 @@ describe('attach_pull_request 工具', () => {
       userInteraction: false,
     })
     for (const profile of ['main', 'default', 'worker'] as const) {
-      expect(catalog.list('chat', 'workspace-write', profile).map(({ sdkName }) => sdkName)).toContain(
-        'attach_pull_request',
-      )
+      expect(
+        catalog.list('chat', 'workspace-write', profile).map(({ sdkName }) => sdkName),
+      ).toContain('attach_pull_request')
     }
     expect(catalog.list('plan', 'workspace-write', 'main')).toEqual([])
     expect(catalog.list('grill', 'workspace-write', 'main')).toEqual([])
@@ -142,19 +140,22 @@ describe('attach_pull_request 工具', () => {
   test('explorer profile 执行被拒绝', async () => {
     const { catalog, thread, db } = await fixture()
     await expect(
-      catalog.execute(
-        'attach_pull_request',
-        { url: PR_URL },
-        { ...contextFor(thread.id), profile: 'explorer' } as never,
-      ),
+      catalog.execute('attach_pull_request', { url: PR_URL }, {
+        ...contextFor(thread.id),
+        profile: 'explorer',
+      } as never),
     ).rejects.toMatchObject({ code: 'TOOL_NOT_ALLOWED_FOR_PROFILE' })
     db.close()
   })
 
   test.each(['default', 'worker'] as const)('%s profile 可以绑定 PR', async (profile) => {
     const { catalog, thread, db } = await fixture()
-    await expect(catalog.execute('attach_pull_request', { url: PR_URL }, { ...contextFor(thread.id), profile } as never))
-      .resolves.toMatchObject({ thread: { items: [{ url: PR_URL }] } })
+    await expect(
+      catalog.execute('attach_pull_request', { url: PR_URL }, {
+        ...contextFor(thread.id),
+        profile,
+      } as never),
+    ).resolves.toMatchObject({ thread: { items: [{ url: PR_URL }] } })
     db.close()
   })
 

@@ -66,7 +66,14 @@ export function createHostHookRunner(options: HostHookRunnerOptions): HookToolRu
           ? `$global:LASTEXITCODE = 0; & { ${expandedCommand} }; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } elseif (-not $?) { exit 1 }`
           : expandedCommand
       const stdin = input.evidence.endsWith('\n') ? input.evidence : `${input.evidence}\n`
-      const result = await runHostCommand(command, resolved.cwd, input.timeoutMs, undefined, env, stdin)
+      const result = await runHostCommand(
+        command,
+        resolved.cwd,
+        input.timeoutMs,
+        undefined,
+        env,
+        stdin,
+      )
 
       if (result.timedOut) {
         throw new Error(`Hook ${input.hookID} 执行超时 (${input.timeoutMs}ms)`)

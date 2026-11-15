@@ -199,7 +199,7 @@ const inheritedTurnModel = async (
       db.sqlite
         .query(
           kind === 'organize'
-            ? "SELECT model_ref FROM turns WHERE thread_id = ? AND model_ref IS NOT NULL ORDER BY created_at DESC LIMIT 1"
+            ? 'SELECT model_ref FROM turns WHERE thread_id = ? AND model_ref IS NOT NULL ORDER BY created_at DESC LIMIT 1'
             : "SELECT model_ref FROM turns WHERE thread_id = ? AND status = 'completed' AND model_ref IS NOT NULL ORDER BY created_at DESC LIMIT 1",
         )
         .get(threadId) as { model_ref: string | null } | null
@@ -517,14 +517,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       getCallbackURL: () =>
         config.port > 0 ? `http://127.0.0.1:${config.port}/auth/github/callback` : null,
     })
-    const apps = new AppManagementService(
-      pluginSettings,
-      plugins,
-      async (provider) => {
-        if (provider !== 'github') return false
-        return Boolean(await github.optionalAccessToken())
-      },
-    )
+    const apps = new AppManagementService(pluginSettings, plugins, async (provider) => {
+      if (provider !== 'github') return false
+      return Boolean(await github.optionalAccessToken())
+    })
     plugins.setAppResolver((ref) => apps.resolveUsedApp(ref))
     const unsubscribeApps = apps.subscribe((_appId, generation) => {
       void publishAgentEvent(db, hub, null, null, 'plugins/updated', { generation }).catch(() =>
@@ -632,7 +628,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     })
     const browser = new BrowserService(db, hub, configService)
     const tools = new ToolRegistry()
-    const registerWithAppGate = (definition: Parameters<ToolRegistry['register']>[0], appId: string) => {
+    const registerWithAppGate = (
+      definition: Parameters<ToolRegistry['register']>[0],
+      appId: string,
+    ) => {
       const baseAvailable = definition.available
       tools.register({
         ...definition,
@@ -937,7 +936,13 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       return !active
     })
     const suggestions = new TaskSuggestionService(db, piModels, memory, logger, {}, configService)
-    const composerPredictions = new ComposerPredictionService(db, piModels, logger, {}, configService)
+    const composerPredictions = new ComposerPredictionService(
+      db,
+      piModels,
+      logger,
+      {},
+      configService,
+    )
     const sideChatEnvironmentCleanup = new SideChatEnvironmentCleanup(
       db.repositories.sideChats,
       environmentDeltas,

@@ -118,7 +118,12 @@ export const memoryHandlers = {
             content: requiredString(params, 'content'),
             expectedRevision: optionalString(params, 'expectedRevision'),
           })
-          return { namespace, path: result.path, revision: result.revision, created: result.created }
+          return {
+            namespace,
+            path: result.path,
+            revision: result.revision,
+            created: result.created,
+          }
         }
         case 'memory/delete': {
           const namespace = namespaceParam(params)

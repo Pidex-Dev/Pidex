@@ -271,10 +271,7 @@ export class StorageManagementService {
     limit?: number | undefined
     offset?: number | undefined
   }): StorageOldChatsListResult {
-    const limit = Math.min(
-      MAX_OLD_CHATS_LIMIT,
-      Math.max(1, input.limit ?? DEFAULT_OLD_CHATS_LIMIT),
-    )
+    const limit = Math.min(MAX_OLD_CHATS_LIMIT, Math.max(1, input.limit ?? DEFAULT_OLD_CHATS_LIMIT))
     const offset = Math.max(0, input.offset ?? 0)
     const cutoff =
       input.olderThanDays === null ? null : Date.now() - Math.max(0, input.olderThanDays) * DAY_MS

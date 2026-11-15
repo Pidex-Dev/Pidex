@@ -39,7 +39,11 @@ import {
   type PromptBundle,
 } from '../prompt'
 import type { SkillManagementService } from '../prompt/SkillManagementService'
-import { memoryIndexPrompts, type MemoryService, type MemoryToolScope } from '../memory/MemoryService'
+import {
+  memoryIndexPrompts,
+  type MemoryService,
+  type MemoryToolScope,
+} from '../memory/MemoryService'
 import { normalizeMemoryKey, type MemoryNamespace } from '../memory/MemoryFiles'
 import { ContextManager, type ContextFragment } from '../context/ContextManager'
 import type { McpConnectionManager, McpTurnLease } from '../mcp/McpConnectionManager'
@@ -461,9 +465,7 @@ export class SubagentService {
         displayName,
         profile,
         ...(requested.role ? { role: requested.role } : {}),
-        ...(requested.memoryKey
-          ? { memoryKey: normalizeMemoryKey(requested.memoryKey)! }
-          : {}),
+        ...(requested.memoryKey ? { memoryKey: normalizeMemoryKey(requested.memoryKey)! } : {}),
         task: requested.task.trim(),
         model,
         ...(allowedTools ? { allowedTools } : {}),
@@ -986,7 +988,9 @@ export class SubagentService {
                 ? (parentWorkspace.runtimeWorkspaceRoots[0]?.path ?? workspace.rootPath)
                 : undefined
             await this.hooks!.loadWithPlugins({
-              ...(projectRoot ? { projectRoot, includeProjectHooks: true } : { includeProjectHooks: false }),
+              ...(projectRoot
+                ? { projectRoot, includeProjectHooks: true }
+                : { includeProjectHooks: false }),
             })
             return this.hooks!.run(
               'subagent_start',
@@ -1010,7 +1014,9 @@ export class SubagentService {
         : []
       const subagentHookFeedback = subagentHookResults.flatMap(({ hook, result }) => [
         ...(result.additionalContext ? [result.additionalContext] : []),
-        ...(result.suggestions ?? []).map((suggestion) => `Hook ${hook.id} suggestion: ${suggestion}`),
+        ...(result.suggestions ?? []).map(
+          (suggestion) => `Hook ${hook.id} suggestion: ${suggestion}`,
+        ),
       ])
       const promptSections = createPromptSections({
         permissionInstructions: formatPermissionInstructions(

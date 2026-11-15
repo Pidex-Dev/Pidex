@@ -92,7 +92,12 @@ const createFixture = async () => {
 
   const registry = new ToolRegistry()
   const mcpConfigs = new McpConfigService(new McpSettingsRepository(db), configService)
-  const mcpConnections = new McpConnectionManager(mcpConfigs, registry, undefined, async () => undefined)
+  const mcpConnections = new McpConnectionManager(
+    mcpConfigs,
+    registry,
+    undefined,
+    async () => undefined,
+  )
   const mcp = new McpRuntimeService(mcpConfigs, mcpConnections)
 
   for (const tool of createSelfManageTools({
@@ -169,7 +174,13 @@ describe('SelfManageTools', () => {
 
       await fx.executor.previewApproval(
         'pidex_skill',
-        { action: 'create', scope: 'user', name: 'global-check', description: 'check', body: 'run' },
+        {
+          action: 'create',
+          scope: 'user',
+          name: 'global-check',
+          description: 'check',
+          body: 'run',
+        },
         fx.baseContext,
         'tc-skill-user',
       )
@@ -177,7 +188,13 @@ describe('SelfManageTools', () => {
 
       await fx.executor.previewApproval(
         'pidex_skill',
-        { action: 'create', scope: 'user', name: 'global-check', description: 'check', body: 'run' },
+        {
+          action: 'create',
+          scope: 'user',
+          name: 'global-check',
+          description: 'check',
+          body: 'run',
+        },
         { ...fx.baseContext, permissionConfig: FULL_ACCESS_PERMISSION_CONFIG },
         'tc-skill-full',
       )
@@ -337,14 +354,20 @@ describe('SelfManageTools', () => {
           },
         },
         { ...fx.baseContext, toolCallID: 'tc-hk-upsert' },
-      )) as { action: string; filePath: string; groups: Array<{ hooks: Array<{ id: string; identity: string }> }> }
+      )) as {
+        action: string
+        filePath: string
+        groups: Array<{ hooks: Array<{ id: string; identity: string }> }>
+      }
       expect(upserted.action).toBe('created')
       expect(fx.getApprovalCount()).toBe(0)
 
       const hooksFileText = await readFile(join(fx.workspaceDir, '.pidex', 'hooks.json'), 'utf8')
       expect(JSON.parse(hooksFileText).hooks).toHaveLength(1)
 
-      const identity = upserted.groups.flatMap((g) => g.hooks).find((h) => h.id === 'lint-check')?.identity
+      const identity = upserted.groups
+        .flatMap((g) => g.hooks)
+        .find((h) => h.id === 'lint-check')?.identity
       expect(identity).toBeTruthy()
 
       const toggled = (await fx.executor.execute(

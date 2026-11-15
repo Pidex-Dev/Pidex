@@ -97,7 +97,9 @@ describe('Hook 主动发现与启停管理', () => {
     // ~/.pidex/hooks.json (Pidex native)
     await writeFile(
       userHooksFile,
-      JSON.stringify({ hooks: [{ id: 'audit-user', event: 'pre_tool_use', command: 'echo user' }] }),
+      JSON.stringify({
+        hooks: [{ id: 'audit-user', event: 'pre_tool_use', command: 'echo user' }],
+      }),
       'utf8',
     )
     // ~/.claude/settings.json (Claude Code nested event map)
@@ -441,7 +443,11 @@ describe('Hook 主动发现与启停管理', () => {
       expect(payload.projectDir).toBe(fixtureValue.projectRoot)
 
       const denyScript = join(outsidePluginRoot, 'deny.js')
-      await writeFile(denyScript, "process.stderr.write('blocked by hook'); process.exit(2)\n", 'utf8')
+      await writeFile(
+        denyScript,
+        "process.stderr.write('blocked by hook'); process.exit(2)\n",
+        'utf8',
+      )
       const denied = await runner.run({
         hookID: 'test-deny',
         command: `node "${denyScript}"`,

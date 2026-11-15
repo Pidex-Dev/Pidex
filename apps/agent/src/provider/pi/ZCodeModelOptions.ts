@@ -121,9 +121,8 @@ export const resolveZCodeOptionSpecs = (input: ZCodeOptionInput): Model.OptionSp
  * 带来源的解析。`genericReasoningValues` 为真表示档位只是 `.*` 兜底的
  * disabled/enabled，调用方必须让位给模型自身或推荐目录里更精确的档位。
  */
-export const resolveZCodeOptionSpecsDetailed = (
-  input: ZCodeOptionInput,
-): ZCodeOptionResolution => resolveFrom(ZCODE_MODEL_OPTION_RULES, input)
+export const resolveZCodeOptionSpecsDetailed = (input: ZCodeOptionInput): ZCodeOptionResolution =>
+  resolveFrom(ZCODE_MODEL_OPTION_RULES, input)
 
 /** 允许测试注入自定义规则集（默认使用生成的静态数据）。 */
 export const resolveZCodeOptionSpecsFrom = (

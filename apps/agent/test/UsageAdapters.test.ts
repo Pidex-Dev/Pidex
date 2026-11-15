@@ -505,11 +505,15 @@ describe('provider usage adapters', () => {
   })
 })
 
-
 test('额度映射保留零限额与零用量，null 和无效数值仍不生成字段', async () => {
   const source = providerUsageAdapters.find((item) => item.sourceId === 'openrouter-key')!
   const zero = await source.query(context({ data: { usage: 0, limit: 0, limit_remaining: 0 } }))
-  expect(zero.groups[0]?.quotaWindows[0]).toMatchObject({ limit: 0, used: 0, remaining: 0, state: 'exhausted' })
+  expect(zero.groups[0]?.quotaWindows[0]).toMatchObject({
+    limit: 0,
+    used: 0,
+    remaining: 0,
+    state: 'exhausted',
+  })
   for (const limit of [null, -1]) {
     const result = await source.query(context({ data: { usage: 0, limit, limit_remaining: 0 } }))
     const window = result.groups[0]?.quotaWindows[0]

@@ -34,22 +34,20 @@ export interface ProviderModelDefinition {
   readonly reasoning?: boolean
   readonly tools?: boolean
   readonly input?: readonly ('text' | 'image' | 'audio' | 'video')[]
-  readonly cost?: {
-    readonly input?: number | undefined
-    readonly output?: number | undefined
-    readonly cacheRead?: number | undefined
-    readonly cacheWrite?: number | undefined
-    readonly tiers?: readonly (typeof Model.PriceTier.Type)[] | undefined
-  } | undefined
+  readonly cost?:
+    | {
+        readonly input?: number | undefined
+        readonly output?: number | undefined
+        readonly cacheRead?: number | undefined
+        readonly cacheWrite?: number | undefined
+        readonly tiers?: readonly (typeof Model.PriceTier.Type)[] | undefined
+      }
+    | undefined
   readonly smartConfig?: { readonly pinned: readonly Model.SmartConfigPinnedField[] }
 }
 
 export type ProviderModelMatchStatus =
-  | 'official'
-  | 'provider'
-  | 'unmatched'
-  | 'ambiguous'
-  | 'no-cache'
+  'official' | 'provider' | 'unmatched' | 'ambiguous' | 'no-cache'
 
 /** 候选与推荐目录的匹配结果；规格来源随候选一起返回，供 UI 标注。 */
 export interface ProviderModelMatchInfo {
@@ -96,7 +94,6 @@ export interface ProviderDraftModelDiscovery extends ProviderModelDiscovery {
 
 const isListableChatApi = (value: unknown): value is ListableChatApi =>
   typeof value === 'string' && (CUSTOM_PROVIDER_APIS as readonly string[]).includes(value)
-
 
 /**
  * Immediate upstream model sync for saved custom providers.
@@ -317,8 +314,11 @@ export class ModelSyncService {
           : undefined
       // 上游明确额度属于手动规格，其他完整推荐使用自动模式。
       const smartConfig =
-        contextWindow !== undefined && maxTokens !== undefined &&
-        model.contextWindow === undefined && model.maxInputTokens === undefined && model.maxTokens === undefined
+        contextWindow !== undefined &&
+        maxTokens !== undefined &&
+        model.contextWindow === undefined &&
+        model.maxInputTokens === undefined &&
+        model.maxTokens === undefined
           ? { pinned: [] }
           : undefined
       resolved.push({

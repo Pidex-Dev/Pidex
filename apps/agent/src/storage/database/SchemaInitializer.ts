@@ -1512,7 +1512,12 @@ export class SchemaInitializer {
               if (columns.size > 0 && !columns.has('memory_key'))
                 this.sqlite.exec('ALTER TABLE subagent_tasks ADD COLUMN memory_key TEXT')
             },
-            72: () => this.sqlite.exec(MODEL_PRICING_SCHEMA.map(statement => statement.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ')).join(';')),
+            72: () =>
+              this.sqlite.exec(
+                MODEL_PRICING_SCHEMA.map((statement) =>
+                  statement.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS '),
+                ).join(';'),
+              ),
             // 子智能体展示职能：nullable 列，旧写入方无需提供，不回填历史推断结果。
             71: () => {
               // 极老的库还没建过 subagent_tasks；这类库由后续建表语句补全，不需要 ALTER。

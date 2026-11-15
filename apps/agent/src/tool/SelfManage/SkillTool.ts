@@ -100,7 +100,11 @@ export const createSkillTool = (
     const scope = resolveSkillScope(input)
     const target =
       input.name && /^[a-z0-9][a-z0-9_-]{0,63}$/i.test(input.name.trim())
-        ? skillManagement.resolveSkillTargetDir(scope, input.name.trim(), context.workspace.rootPath)
+        ? skillManagement.resolveSkillTargetDir(
+            scope,
+            input.name.trim(),
+            context.workspace.rootPath,
+          )
         : null
     const externalWrite = scope === 'user'
     const networkAccess = input.action === 'install' && input.source?.kind === 'git'
@@ -155,7 +159,8 @@ export const createSkillTool = (
       })
     }
     if (input.action === 'install') {
-      if (!input.source) throw new AgentError('INVALID_TOOL_INPUT', 'install 操作必须提供 source', 400)
+      if (!input.source)
+        throw new AgentError('INVALID_TOOL_INPUT', 'install 操作必须提供 source', 400)
       return skillManagement.installSkill({
         scope,
         workspace: context.workspace.rootPath,

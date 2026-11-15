@@ -532,7 +532,9 @@ const parseCustomModel = (
       output: finiteNonNegative(cost.output, 0),
       cacheRead: finiteNonNegative(cost.cache_read ?? cost.cacheRead, 0),
       cacheWrite: finiteNonNegative(cost.cache_write ?? cost.cacheWrite, 0),
-      ...(cost.tiers !== undefined ? { tiers: [...Schema.decodeUnknownSync(Schema.Array(Model.PriceTier))(cost.tiers)] } : {}),
+      ...(cost.tiers !== undefined
+        ? { tiers: [...Schema.decodeUnknownSync(Schema.Array(Model.PriceTier))(cost.tiers)] }
+        : {}),
     },
     headers: assertSafeProviderHeaders(value.headers, `model ${providerID}/${configuredID}`),
     ...(thinkingLevelMap ? { thinkingLevelMap } : {}),
@@ -809,7 +811,10 @@ export const parsePiProviderCatalog = (config: PiModelCatalogConfig): ParsedPiPr
       // 仅当我们自己的 optionSpecs 受限 CEL 校验提供安全、面向用户的具体信息时才附带，
       // 其他内部解析错误保持原有 issue 形状（不扩大暴露面）。
       const safeMessage =
-        (cause instanceof PricingValidationError || /Map \(CEL\)|optionSpecs/u.test(message)) && message.trim() ? message.trim() : undefined
+        (cause instanceof PricingValidationError || /Map \(CEL\)|optionSpecs/u.test(message)) &&
+        message.trim()
+          ? message.trim()
+          : undefined
       issues.push({
         providerID,
         path: `model_providers.${providerID}`,
@@ -1031,7 +1036,9 @@ export const serializePiProviderDefinition = (
                       }
                     : {}),
                   ...(model.compat ? { compat: structuredClone(model.compat) } : {}),
-                  ...(model.pricing !== undefined ? { pricing: validatePricing(model.pricing) } : {}),
+                  ...(model.pricing !== undefined
+                    ? { pricing: validatePricing(model.pricing) }
+                    : {}),
                   ...(model.smartConfig
                     ? { smart_config: structuredClone(model.smartConfig) }
                     : {}),

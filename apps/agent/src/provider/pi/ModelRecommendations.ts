@@ -92,11 +92,38 @@ export function applyRecommendation<T extends PiModelFields>(
       tools: recommended.tools,
       input: recommended.input,
     }),
-    ...((recommended.optionSpecs || recommended.reasoningLevels) ? { optionSpecs: {
-      ...model.optionSpecs, ...(recommended.reasoningLevels ? { reasoningLevel: { ...model.optionSpecs?.reasoningLevel, values: recommended.reasoningLevels } } : {}), ...recommended.optionSpecs,
-      ...(recommended.optionSpecs?.reasoningLevel ? { reasoningLevel: { ...model.optionSpecs?.reasoningLevel, ...recommended.optionSpecs?.reasoningLevel } } : {}),
-      ...(recommended.optionSpecs?.maxOutputTokens ? { maxOutputTokens: { ...model.optionSpecs?.maxOutputTokens, ...recommended.optionSpecs?.maxOutputTokens } } : {}),
-    } } : {}),
+    ...(recommended.optionSpecs || recommended.reasoningLevels
+      ? {
+          optionSpecs: {
+            ...model.optionSpecs,
+            ...(recommended.reasoningLevels
+              ? {
+                  reasoningLevel: {
+                    ...model.optionSpecs?.reasoningLevel,
+                    values: recommended.reasoningLevels,
+                  },
+                }
+              : {}),
+            ...recommended.optionSpecs,
+            ...(recommended.optionSpecs?.reasoningLevel
+              ? {
+                  reasoningLevel: {
+                    ...model.optionSpecs?.reasoningLevel,
+                    ...recommended.optionSpecs?.reasoningLevel,
+                  },
+                }
+              : {}),
+            ...(recommended.optionSpecs?.maxOutputTokens
+              ? {
+                  maxOutputTokens: {
+                    ...model.optionSpecs?.maxOutputTokens,
+                    ...recommended.optionSpecs?.maxOutputTokens,
+                  },
+                }
+              : {}),
+          },
+        }
+      : {}),
     ...(Object.keys(cost).length
       ? {
           cost: {
@@ -130,40 +157,74 @@ function values(raw: JsonObject): Model.Recommendation {
   const limit = raw.limit === undefined ? {} : object(raw.limit)
   const modalities = raw.modalities === undefined ? {} : object(raw.modalities)
   const supportedInput = Array.isArray(modalities.input)
-    ? modalities.input.filter((value) => ['text', 'image', 'audio', 'video'].includes(String(value)))
+    ? modalities.input.filter((value) =>
+        ['text', 'image', 'audio', 'video'].includes(String(value)),
+      )
     : []
   const cost = raw.cost === undefined ? undefined : object(raw.cost)
   const positive = (v: unknown) =>
-    typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= Number.MAX_SAFE_INTEGER ? v : undefined
+    typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= Number.MAX_SAFE_INTEGER
+      ? v
+      : undefined
   const efforts = Array.isArray(raw.reasoning_options)
     ? raw.reasoning_options.flatMap((item) => {
         const option = object(item)
         return option.type === 'effort' && Array.isArray(option.values) ? option.values : []
       })
     : []
-  const explicitEfforts = [...new Set(efforts.filter((value): value is string => typeof value === 'string' && value.length > 0))]
-  const toggle = Array.isArray(raw.reasoning_options) && raw.reasoning_options.some((item) => object(item).type === 'toggle')
+  const explicitEfforts = [
+    ...new Set(
+      efforts.filter((value): value is string => typeof value === 'string' && value.length > 0),
+    ),
+  ]
+  const toggle =
+    Array.isArray(raw.reasoning_options) &&
+    raw.reasoning_options.some((item) => object(item).type === 'toggle')
   const levels = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
-  const catalog = Schema.decodeUnknownSync(Model.CatalogDetails)(omitUndefined({
-    description: raw.description, family: raw.family, knowledge: raw.knowledge,
-    releaseDate: raw.release_date, lastUpdated: raw.last_updated, status: raw.status,
-    openWeights: raw.open_weights, license: raw.license, attachment: raw.attachment,
-    temperature: raw.temperature, structuredOutput: raw.structured_output,
-    ...(raw.provider && typeof raw.provider === 'object' ? {
-      providerSdk: object(raw.provider).npm, apiShape: object(raw.provider).shape,
-    } : {}),
-    ...(raw.interleaved && typeof raw.interleaved === 'object' ? { interleavedField: object(raw.interleaved).field } : {}),
-    input: modalities.input, output: modalities.output, reasoningOptions: raw.reasoning_options,
-    links: raw.links, weights: raw.weights, benchmarks: raw.benchmarks,
-    reasoningCost: cost?.reasoning, inputAudioCost: cost?.input_audio, outputAudioCost: cost?.output_audio,
-  }))
-  const rawTiers = Array.isArray(cost?.tiers) ? cost.tiers : cost?.context_over_200k
-    ? [{ ...object(cost.context_over_200k), tier: { size: 200_000 } }] : undefined
+  const catalog = Schema.decodeUnknownSync(Model.CatalogDetails)(
+    omitUndefined({
+      description: raw.description,
+      family: raw.family,
+      knowledge: raw.knowledge,
+      releaseDate: raw.release_date,
+      lastUpdated: raw.last_updated,
+      status: raw.status,
+      openWeights: raw.open_weights,
+      license: raw.license,
+      attachment: raw.attachment,
+      temperature: raw.temperature,
+      structuredOutput: raw.structured_output,
+      ...(raw.provider && typeof raw.provider === 'object'
+        ? {
+            providerSdk: object(raw.provider).npm,
+            apiShape: object(raw.provider).shape,
+          }
+        : {}),
+      ...(raw.interleaved && typeof raw.interleaved === 'object'
+        ? { interleavedField: object(raw.interleaved).field }
+        : {}),
+      input: modalities.input,
+      output: modalities.output,
+      reasoningOptions: raw.reasoning_options,
+      links: raw.links,
+      weights: raw.weights,
+      benchmarks: raw.benchmarks,
+      reasoningCost: cost?.reasoning,
+      inputAudioCost: cost?.input_audio,
+      outputAudioCost: cost?.output_audio,
+    }),
+  )
+  const rawTiers = Array.isArray(cost?.tiers)
+    ? cost.tiers
+    : cost?.context_over_200k
+      ? [{ ...object(cost.context_over_200k), tier: { size: 200_000 } }]
+      : undefined
   const tiers = rawTiers?.map((item) => {
     const tier = object(item)
     return {
       inputTokensAbove: object(tier.tier).size,
-      input: tier.input, output: tier.output,
+      input: tier.input,
+      output: tier.output,
       cacheRead: tier.cache_read ?? cost?.cache_read ?? 0,
       cacheWrite: tier.cache_write ?? cost?.cache_write ?? 0,
     }
@@ -177,7 +238,15 @@ function values(raw: JsonObject): Model.Recommendation {
     ...(typeof raw.reasoning === 'boolean' ? { reasoning: raw.reasoning } : {}),
     ...(typeof raw.tool_call === 'boolean' ? { tools: raw.tool_call } : {}),
     ...(supportedInput.length ? { input: supportedInput } : {}),
-    ...(explicitEfforts.length || toggle ? { optionSpecs: { reasoningLevel: { values: explicitEfforts.length ? explicitEfforts : ['disabled', 'enabled'] } } } : {}),
+    ...(explicitEfforts.length || toggle
+      ? {
+          optionSpecs: {
+            reasoningLevel: {
+              values: explicitEfforts.length ? explicitEfforts : ['disabled', 'enabled'],
+            },
+          },
+        }
+      : {}),
     ...(efforts.length
       ? {
           reasoningLevels: levels.filter(
@@ -200,9 +269,16 @@ function values(raw: JsonObject): Model.Recommendation {
 }
 
 const mergeValues = (entries: readonly Entry[]): Model.Recommendation =>
-  entries.reduce<Model.Recommendation>((merged, entry) => ({ ...merged, ...entry.values,
-    ...(merged.catalog || entry.values.catalog ? { catalog: { ...merged.catalog, ...entry.values.catalog } } : {}),
-  }), {})
+  entries.reduce<Model.Recommendation>(
+    (merged, entry) => ({
+      ...merged,
+      ...entry.values,
+      ...(merged.catalog || entry.values.catalog
+        ? { catalog: { ...merged.catalog, ...entry.values.catalog } }
+        : {}),
+    }),
+    {},
+  )
 
 /**
  * 模型身份解析索引。
@@ -222,8 +298,7 @@ export class ModelRecommendationIndex {
       if (!['chat', 'embedding', 'rerank'].includes(String(type))) return
       // 官方条目身份就是自身；供应商条目没有显式 canonical 时只代表自己，
       // 不再按裸名跨供应商推断别人家的身份。
-      const canonical =
-        typeof raw.canonical_model_id === 'string' ? raw.canonical_model_id : id
+      const canonical = typeof raw.canonical_model_id === 'string' ? raw.canonical_model_id : id
       this.entries.push({
         id,
         canonical,
@@ -265,10 +340,7 @@ export class ModelRecommendationIndex {
     value: string,
     official: readonly Entry[],
     supplied: readonly Entry[],
-  ):
-    | { official: readonly Entry[] }
-    | { official: readonly Entry[]; provider: Entry }
-    | undefined {
+  ): { official: readonly Entry[] } | { official: readonly Entry[]; provider: Entry } | undefined {
     // 1. 完整官方 ID 或官方目录显式别名优先。
     const exact = official.filter(
       (entry) =>
@@ -297,8 +369,7 @@ export class ModelRecommendationIndex {
 
   private matchBare(name: string, official: readonly Entry[]): readonly Entry[] {
     return official.filter(
-      (entry) =>
-        bare(entry.id) === name || entry.aliases.some((alias) => bare(alias) === name),
+      (entry) => bare(entry.id) === name || entry.aliases.some((alias) => bare(alias) === name),
     )
   }
 
@@ -399,20 +470,24 @@ export class ModelRecommendationIndex {
     }
     const priceSource = price
       ? {
-          kind: providerEntry === price ? 'provider' as const : 'reference' as const,
+          kind: providerEntry === price ? ('provider' as const) : ('reference' as const),
           providerId: price.provider!,
         }
       : undefined
-    if (recommended.catalog || priceSource) recommended.catalog = {
-      ...recommended.catalog,
-      reasoningCost: price?.values.catalog?.reasoningCost,
-      inputAudioCost: price?.values.catalog?.inputAudioCost,
-      outputAudioCost: price?.values.catalog?.outputAudioCost,
-      ...(priceSource ? { priceSource } : {}),
-    }
+    if (recommended.catalog || priceSource)
+      recommended.catalog = {
+        ...recommended.catalog,
+        reasoningCost: price?.values.catalog?.reasoningCost,
+        inputAudioCost: price?.values.catalog?.inputAudioCost,
+        outputAudioCost: price?.values.catalog?.outputAudioCost,
+        ...(priceSource ? { priceSource } : {}),
+      }
     if (input.modelType === 'chat')
       return {
-        status: 'matched', recommended, identity, source,
+        status: 'matched',
+        recommended,
+        identity,
+        source,
         ...(priceSource ? { priceSource } : {}),
       }
     const { maxTokens: _maxTokens, reasoning: _reasoning, ...rest } = recommended
@@ -423,7 +498,10 @@ export class ModelRecommendationIndex {
       ...nonChat
     } = rest
     return {
-      status: 'matched', recommended: nonChat, identity, source,
+      status: 'matched',
+      recommended: nonChat,
+      identity,
+      source,
       ...(priceSource ? { priceSource } : {}),
     }
   }

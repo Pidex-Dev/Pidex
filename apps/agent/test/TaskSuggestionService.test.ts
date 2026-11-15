@@ -131,9 +131,16 @@ const workingGenerated: { suggestions: Array<Omit<TaskSuggestion, 'id'>> } = {
 
 /** Memory bodies are files with frontmatter; index metadata is what reaches prompts. */
 const document = (name: string, description: string) =>
-  ['---', `name: ${name}`, `description: ${description}`, 'type: project', '---', '', description, ''].join(
-    String.fromCharCode(10),
-  )
+  [
+    '---',
+    `name: ${name}`,
+    `description: ${description}`,
+    'type: project',
+    '---',
+    '',
+    description,
+    '',
+  ].join(String.fromCharCode(10))
 
 const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-suggestions-'))

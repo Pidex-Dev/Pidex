@@ -95,7 +95,11 @@ describe('文件记忆存储', () => {
   test('并发保存冲突要求重新读取且不覆盖外部编辑', async () => {
     const { root, db, memory } = await fixture()
     const namespace = { kind: 'user' as const }
-    const created = await memory.write({ namespace, path: 'p.md', content: document('P', 'v1', 'user') })
+    const created = await memory.write({
+      namespace,
+      path: 'p.md',
+      content: document('P', 'v1', 'user'),
+    })
     const directory = memoryNamespaceDirectory(join(root, 'memories'), namespace)
     await writeFile(join(directory, 'p.md'), document('P', '外部版本', 'user'), 'utf8')
     await expect(
@@ -251,7 +255,11 @@ describe('记忆注入与命名空间', () => {
   test('无关任务的索引注入不包含正文', async () => {
     const { db, memory } = await fixture()
     const namespace = { kind: 'user' as const }
-    await memory.write({ namespace, path: 'a.md', content: document('A', '只有正文才有的内容', 'user') })
+    await memory.write({
+      namespace,
+      path: 'a.md',
+      content: document('A', '只有正文才有的内容', 'user'),
+    })
     await memory.write({ namespace, path: 'MEMORY.md', content: '- [A](a.md)\n' })
     const injection = await memory.inject({
       projectId: null,
@@ -348,9 +356,7 @@ describe('一次性旧记忆清理', () => {
     expect(db.sqlite.query('SELECT COUNT(*) AS c FROM memory_jobs').get()).toEqual({ c: 0 })
 
     const second = new MemoryService(db, { enabled: true, rootDirectory: join(root, 'memories') })
-    expect((await second.list({ kind: 'user' })).files.map((file) => file.path)).toEqual([
-      'new.md',
-    ])
+    expect((await second.list({ kind: 'user' })).files.map((file) => file.path)).toEqual(['new.md'])
     second.dispose()
     db.close()
   })
@@ -367,9 +373,11 @@ describe('一次性旧记忆清理', () => {
 
     const db = new AgentDatabase(path)
     const names = new Set(
-      (db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{
-        name: string
-      }>).map((row) => row.name),
+      (
+        db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{
+          name: string
+        }>
+      ).map((row) => row.name),
     )
     // 定价迁移(72)与记忆迁移(73)必须占用不同编号，否则其中一个永远不会执行。
     expect(names.has('model_price_snapshots')).toBe(true)

@@ -76,7 +76,8 @@ const EXTRACT_MAX_TURNS = 5
 const ORGANIZE_MAX_TURNS = 30
 
 /** An explicit request to ignore memory suppresses this turn's injection and reads. */
-export const memoryIgnoredFor = (text: string) => FORGET_MEMORY.some((pattern) => pattern.test(text))
+export const memoryIgnoredFor = (text: string) =>
+  FORGET_MEMORY.some((pattern) => pattern.test(text))
 
 const SECRET_PATTERNS = [
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i,
@@ -183,7 +184,9 @@ export class MemoryService {
   }
 
   private enabled() {
-    return typeof this.options.enabled === 'function' ? this.options.enabled() : this.options.enabled
+    return typeof this.options.enabled === 'function'
+      ? this.options.enabled()
+      : this.options.enabled
   }
 
   /** The runner needs the service itself, so it is attached right after construction. */
@@ -271,10 +274,16 @@ export class MemoryService {
     threadId?: string | null
     turnId?: string | null
   }) {
-    if (!this.enabled()) throw Object.assign(new Error('记忆功能未启用'), { code: 'MEMORY_DISABLED' })
+    if (!this.enabled())
+      throw Object.assign(new Error('记忆功能未启用'), { code: 'MEMORY_DISABLED' })
     const scrubbed = this.scrub(input.content)
-    if (SECRET_PATTERNS.some((pattern) => pattern.test(input.content)) || scrubbed.includes('[REDACTED'))
-      throw Object.assign(new Error('记忆内容包含疑似凭据，已拒绝保存'), { code: 'MEMORY_REJECTED' })
+    if (
+      SECRET_PATTERNS.some((pattern) => pattern.test(input.content)) ||
+      scrubbed.includes('[REDACTED')
+    )
+      throw Object.assign(new Error('记忆内容包含疑似凭据，已拒绝保存'), {
+        code: 'MEMORY_REJECTED',
+      })
     const result = await writeMemoryFile({
       rootDirectory: this.root,
       namespace: input.namespace,
@@ -291,7 +300,11 @@ export class MemoryService {
     return result
   }
 
-  async delete(input: { namespace: MemoryNamespace; path: string; expectedRevision?: string | null }) {
+  async delete(input: {
+    namespace: MemoryNamespace
+    path: string
+    expectedRevision?: string | null
+  }) {
     const path = normalizeMemoryPath(input.path)
     const deleted = await deleteMemoryFile({
       rootDirectory: this.root,
@@ -538,7 +551,10 @@ export class MemoryService {
     const namespaces = new Set(this.repository.tasks({ limit: 200 }).map((task) => task.namespace))
     for (const namespace of namespaces) {
       const lastSuccess = this.repository.lastSuccessfulTask(namespace, 'organize')
-      if (lastSuccess?.finishedAt && this.now() - lastSuccess.finishedAt < AUTO_ORGANIZE_MIN_INTERVAL_MS)
+      if (
+        lastSuccess?.finishedAt &&
+        this.now() - lastSuccess.finishedAt < AUTO_ORGANIZE_MIN_INTERVAL_MS
+      )
         continue
       const recentAuto = this.repository
         .tasks({ namespace, limit: 200 })

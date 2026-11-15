@@ -15,17 +15,29 @@ export class ProviderRequestError extends AgentError {
 
 export function providerRequestError(cause: unknown, providerId?: string): ProviderRequestError {
   const error = cause as { status?: number; statusCode?: number; code?: string }
-  const status = error?.statusCode ?? error?.status ??
+  const status =
+    error?.statusCode ??
+    error?.status ??
     Number(/\bHTTP (\d{3})\b/.exec(cause instanceof Error ? cause.message : '')?.[1])
   const category = providerFailureCategory(status ? { status } : cause)
-  const code: ApplicationErrorCode = error?.code === 'CREDENTIAL_NOT_FOUND' ? 'CREDENTIAL_NOT_FOUND'
-    : error?.code === 'MODEL_UNAVAILABLE' ? 'MODEL_UNAVAILABLE'
-    : status === 403 ? 'PROVIDER_ACCESS_DENIED'
-    : category === 'authentication' ? 'PROVIDER_AUTH_FAILED'
-    : category === 'rate-limit' ? 'RATE_LIMITED'
-    : category === 'timeout' ? 'PROVIDER_TIMEOUT'
-    : category === 'network' ? 'PROVIDER_CONNECTION_FAILED' : 'PROVIDER_UNAVAILABLE'
-  const retryable = ['RATE_LIMITED', 'PROVIDER_TIMEOUT', 'PROVIDER_CONNECTION_FAILED'].includes(code) ||
+  const code: ApplicationErrorCode =
+    error?.code === 'CREDENTIAL_NOT_FOUND'
+      ? 'CREDENTIAL_NOT_FOUND'
+      : error?.code === 'MODEL_UNAVAILABLE'
+        ? 'MODEL_UNAVAILABLE'
+        : status === 403
+          ? 'PROVIDER_ACCESS_DENIED'
+          : category === 'authentication'
+            ? 'PROVIDER_AUTH_FAILED'
+            : category === 'rate-limit'
+              ? 'RATE_LIMITED'
+              : category === 'timeout'
+                ? 'PROVIDER_TIMEOUT'
+                : category === 'network'
+                  ? 'PROVIDER_CONNECTION_FAILED'
+                  : 'PROVIDER_UNAVAILABLE'
+  const retryable =
+    ['RATE_LIMITED', 'PROVIDER_TIMEOUT', 'PROVIDER_CONNECTION_FAILED'].includes(code) ||
     (code === 'PROVIDER_UNAVAILABLE' && category === 'provider')
   return new ProviderRequestError(
     code,
@@ -37,7 +49,11 @@ export function providerRequestError(cause: unknown, providerId?: string): Provi
 
 export function catalogRefreshError(failures: readonly ProviderFailure[]): ProviderRequestError {
   if (failures.length === 0)
-    return new ProviderRequestError('PROVIDER_UNAVAILABLE', '模型目录刷新失败，请检查供应商配置和连接。', false)
+    return new ProviderRequestError(
+      'PROVIDER_UNAVAILABLE',
+      '模型目录刷新失败，请检查供应商配置和连接。',
+      false,
+    )
   const first = failures[0]
   if (failures.length === 1 && first)
     return new ProviderRequestError(first.code, '模型目录刷新失败', first.retryable, {
@@ -47,7 +63,7 @@ export function catalogRefreshError(failures: readonly ProviderFailure[]): Provi
   return new ProviderRequestError(
     'PROVIDER_CATALOG_REFRESH_FAILED',
     '多个供应商模型目录刷新失败',
-    failures.every(failure => failure.retryable),
+    failures.every((failure) => failure.retryable),
     { failures: failures.slice(0, 5), totalFailures: failures.length },
   )
 }

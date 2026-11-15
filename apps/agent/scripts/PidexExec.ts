@@ -286,7 +286,10 @@ function createRpcClient(transport: RpcTransport) {
   let seq = 0
   let connectionId = ''
 
-  const call = async <T = any>(method: string, params: Record<string, unknown> = {}): Promise<T> => {
+  const call = async <T = any>(
+    method: string,
+    params: Record<string, unknown> = {},
+  ): Promise<T> => {
     const response = await transport.request('http://agent.local/rpc', {
       method: 'POST',
       headers: {
@@ -454,7 +457,9 @@ async function main(): Promise<number> {
               catalog.defaultModel?.id === String(m.id),
           })),
       )
-      process.stdout.write(`${JSON.stringify({ defaultModel: catalog.defaultModel, models }, null, 2)}\n`)
+      process.stdout.write(
+        `${JSON.stringify({ defaultModel: catalog.defaultModel, models }, null, 2)}\n`,
+      )
       return 0
     }
 
@@ -611,7 +616,12 @@ async function main(): Promise<number> {
           } else if (eventType === 'item/completed') {
             const item = payload.item as Record<string, any> | undefined
             if (item?.type === 'text' || item?.type === 'plan') {
-              const text = typeof item.text === 'string' ? item.text : typeof item.markdown === 'string' ? item.markdown : ''
+              const text =
+                typeof item.text === 'string'
+                  ? item.text
+                  : typeof item.markdown === 'string'
+                    ? item.markdown
+                    : ''
               if (text) completedTexts.push(text)
             }
             if (item?.usage && typeof item.usage === 'object') {
@@ -676,10 +686,12 @@ async function main(): Promise<number> {
       await rpc.call('event/unsubscribe', { subscriptionId }).catch(() => undefined)
     }
     if (args.deleteThread && createdThreadId) {
-      await rpc.call('thread/delete', {
-        threadId: createdThreadId,
-        operationId: crypto.randomUUID(),
-      }).catch(() => undefined)
+      await rpc
+        .call('thread/delete', {
+          threadId: createdThreadId,
+          operationId: crypto.randomUUID(),
+        })
+        .catch(() => undefined)
     }
     await transport.dispose()
   }

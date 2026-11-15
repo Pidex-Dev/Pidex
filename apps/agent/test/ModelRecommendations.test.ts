@@ -153,7 +153,6 @@ describe('models.dev recommendations', () => {
       input: ['text', 'image'],
       cost: { input: 3, output: 15, cacheRead: 0, cacheWrite: 0 },
     })
-
   })
 
   test('没有推荐时原样返回', () => {
@@ -188,7 +187,9 @@ describe('models.dev recommendations', () => {
       models: { 'maker/example': { name: 'Example', reasoning: true } },
       providers: {
         a: { models: { example: { canonical_model_id: 'maker/example', ...row(128000) } } },
-        b: { models: { example: { canonical_model_id: 'maker/example', limit: { context: 64000 } } } },
+        b: {
+          models: { example: { canonical_model_id: 'maker/example', limit: { context: 64000 } } },
+        },
       },
     }
     const result = new ModelRecommendationIndex(payload).resolve(input).recommended
@@ -242,9 +243,9 @@ describe('models.dev recommendations', () => {
       'alibaba/qwen3.8-max',
     )
     // 目录不存在的日期版本不回退基础型号。
-    expect(
-      index.resolve({ ...input, modelId: 'qwen/deepseek-v4.1-flash-1018' }).status,
-    ).toBe('unmatched')
+    expect(index.resolve({ ...input, modelId: 'qwen/deepseek-v4.1-flash-1018' }).status).toBe(
+      'unmatched',
+    )
     // 第三方条目的 canonical 指向别的身份，不能否决官方条目。
     expect(index.resolve({ ...input, modelId: 'qwen3.8-max-0902' }).identity).toBe(
       'alibaba/qwen3.8-max-0902',
@@ -368,13 +369,17 @@ describe('models.dev recommendations', () => {
   })
 })
 
-
 test('价格优先当前供应商，否则取原厂参考价并覆盖已有价格', () => {
   const payload = catalog()
   Object.assign(payload.providers, {
-    maker: { models: { example: row(128000, {
-      canonical_model_id: 'maker/example', cost: { input: 10, output: 20, cache_read: 1 },
-    }) } },
+    maker: {
+      models: {
+        example: row(128000, {
+          canonical_model_id: 'maker/example',
+          cost: { input: 10, output: 20, cache_read: 1 },
+        }),
+      },
+    },
   })
   const index = new ModelRecommendationIndex(payload)
   const reference = index.resolve(input)
@@ -390,19 +395,30 @@ test('价格优先当前供应商，否则取原厂参考价并覆盖已有价�
     expect(result.priceSource).toEqual({ kind: 'provider', providerId: 'vendor' })
   }
   const model = {
-    name: 'Example', contextWindow: 128000, maxTokens: 4000, reasoning: false,
-    input: ['text'] as const, cost: { input: 99, output: 88, cacheRead: 77, cacheWrite: 66 },
+    name: 'Example',
+    contextWindow: 128000,
+    maxTokens: 4000,
+    reasoning: false,
+    input: ['text'] as const,
+    cost: { input: 99, output: 88, cacheRead: 77, cacheWrite: 66 },
   }
-  expect(applyRecommendation(model, reference.recommended).cost)
-    .toEqual({ input: 10, output: 20, cacheRead: 1, cacheWrite: 66 })
+  expect(applyRecommendation(model, reference.recommended).cost).toEqual({
+    input: 10,
+    output: 20,
+    cacheRead: 1,
+    cacheWrite: 66,
+  })
   const missingPrice = catalog()
   Object.assign(missingPrice.providers, structuredClone(payload.providers))
   delete (missingPrice.providers.vendor.models.example as Record<string, unknown>).cost
-  expect(new ModelRecommendationIndex(missingPrice).resolve({ ...input, providerId: 'vendor' }))
-    .toMatchObject({ priceSource: { kind: 'reference', providerId: 'maker' }, recommended: { cost: { input: 10, output: 20 } } })
+  expect(
+    new ModelRecommendationIndex(missingPrice).resolve({ ...input, providerId: 'vendor' }),
+  ).toMatchObject({
+    priceSource: { kind: 'reference', providerId: 'maker' },
+    recommended: { cost: { input: 10, output: 20 } },
+  })
   expect(new ModelRecommendationIndex(catalog()).resolve(input).recommended.cost).toBeUndefined()
 })
-
 
 test('推荐目录保留 1.5 亿上下文，不再按 1000 万丢弃', () => {
   const result = new ModelRecommendationIndex(catalog(150_000_000)).resolve(input)
@@ -410,14 +426,19 @@ test('推荐目录保留 1.5 亿上下文，不再按 1000 万丢弃', () => {
   expect(result.recommended.maxInputTokens).toBe(149_999_000)
 })
 
-
 test('已开启智能配置的未知模型保留原值，目录更新后采用新增推荐', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'pidex-follow-model-'))
   let payload: unknown = { models: { 'maker/other': row(128000) }, providers: {} }
-  const store = new ModelRecommendationStore(join(directory, 'recommendations.json'), async () => Response.json(payload))
+  const store = new ModelRecommendationStore(join(directory, 'recommendations.json'), async () =>
+    Response.json(payload),
+  )
   const saved = {
-    name: 'Example', contextWindow: 64000, maxTokens: 8192, reasoning: false,
-    input: ['text'] as const, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    name: 'Example',
+    contextWindow: 64000,
+    maxTokens: 8192,
+    reasoning: false,
+    input: ['text'] as const,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     smartConfig: { pinned: [] },
   }
   try {
@@ -430,14 +451,14 @@ test('已开启智能配置的未知模型保留原值，目录更新后采用�
     const matched = await store.resolve(input)
     expect(matched.status).toBe('matched')
     expect(applyRecommendation(saved, matched.recommended)).toMatchObject({
-      contextWindow: 256000, smartConfig: { pinned: [] },
+      contextWindow: 256000,
+      smartConfig: { pinned: [] },
     })
   } finally {
     store.dispose()
     await rm(directory, { recursive: true, force: true })
   }
 })
-
 
 test('后台目录同步通知可在启动后注册，失败不通知且不重复启动定时器', async () => {
   const store = new ModelRecommendationStore()
@@ -446,7 +467,9 @@ test('后台目录同步通知可在启动后注册，失败不通知且不重�
   let updates = 0
   try {
     store.startAutoRefresh()
-    store.startAutoRefresh(() => { updates++ })
+    store.startAutoRefresh(() => {
+      updates++
+    })
     await Promise.resolve()
     expect(updates).toBe(1)
     expect(interval).toHaveBeenCalledTimes(1)
@@ -468,67 +491,123 @@ test('后台目录同步通知可在启动后注册，失败不通知且不重�
   }
 })
 
-
 test('模型明确思考档位保留原始值、顺序和非固定七档，不被规范化替换', () => {
   const payload = catalog()
-  payload.models['maker/example'] = row(128000, { reasoning_options: [{ type: 'effort', values: ['none', 'low', 'high', 'adaptive'] }] })
+  payload.models['maker/example'] = row(128000, {
+    reasoning_options: [{ type: 'effort', values: ['none', 'low', 'high', 'adaptive'] }],
+  })
   payload.providers = {} as typeof payload.providers
-  expect(new ModelRecommendationIndex(payload).resolve(input).recommended.optionSpecs?.reasoningLevel?.values)
-    .toEqual(['none', 'low', 'high', 'adaptive'])
+  expect(
+    new ModelRecommendationIndex(payload).resolve(input).recommended.optionSpecs?.reasoningLevel
+      ?.values,
+  ).toEqual(['none', 'low', 'high', 'adaptive'])
 })
-
 
 test('v1 资料与三种推理控制保留；PDF 只在目录资料中，分项价格不参与基础计费', () => {
   const index = new ModelRecommendationIndex({
-    models: { 'maker/example': row(400000, {
-      description: 'Model description', family: 'example', release_date: '2026-01-01',
-      modalities: { input: ['text', 'pdf', 'audio'], output: ['text'] },
-      reasoning_options: [{ type: 'toggle' }, { type: 'budget_tokens', min: 1024, max: 8192 }],
-      temperature: false, structured_output: true,
-    }) },
-    providers: { maker: { models: { example: {
-      canonical_model_id: 'maker/example', status: 'deprecated',
-      cost: { input: 0, output: 3, reasoning: 5, input_audio: 8, output_audio: 12,
-        cache_read: 0.2, cache_write: 1,
-        tiers: [{ tier: { type: 'context', size: 200000 }, input: 4, output: 6, cache_read: 0.4, cache_write: 2 }],
+    models: {
+      'maker/example': row(400000, {
+        description: 'Model description',
+        family: 'example',
+        release_date: '2026-01-01',
+        modalities: { input: ['text', 'pdf', 'audio'], output: ['text'] },
+        reasoning_options: [{ type: 'toggle' }, { type: 'budget_tokens', min: 1024, max: 8192 }],
+        temperature: false,
+        structured_output: true,
+      }),
+    },
+    providers: {
+      maker: {
+        models: {
+          example: {
+            canonical_model_id: 'maker/example',
+            status: 'deprecated',
+            cost: {
+              input: 0,
+              output: 3,
+              reasoning: 5,
+              input_audio: 8,
+              output_audio: 12,
+              cache_read: 0.2,
+              cache_write: 1,
+              tiers: [
+                {
+                  tier: { type: 'context', size: 200000 },
+                  input: 4,
+                  output: 6,
+                  cache_read: 0.4,
+                  cache_write: 2,
+                },
+              ],
+            },
+          },
+        },
       },
-    } } } },
+    },
   })
   const result = index.resolve({ ...input, providerId: 'maker' })
   expect(result.recommended.input).toEqual(['text', 'audio'])
   expect(result.recommended.reasoningLevels).toBeUndefined()
   expect(result.recommended.catalog).toMatchObject({
-    description: 'Model description', temperature: false, structuredOutput: true,
-    input: ['text', 'pdf', 'audio'], status: 'deprecated',
+    description: 'Model description',
+    temperature: false,
+    structuredOutput: true,
+    input: ['text', 'pdf', 'audio'],
+    status: 'deprecated',
     reasoningOptions: [{ type: 'toggle' }, { type: 'budget_tokens', min: 1024, max: 8192 }],
-    reasoningCost: 5, inputAudioCost: 8, outputAudioCost: 12,
+    reasoningCost: 5,
+    inputAudioCost: 8,
+    outputAudioCost: 12,
   })
-  expect(result.recommended.cost).toEqual({ input: 0, output: 3, cacheRead: 0.2, cacheWrite: 1,
+  expect(result.recommended.cost).toEqual({
+    input: 0,
+    output: 3,
+    cacheRead: 0.2,
+    cacheWrite: 1,
     tiers: [{ inputTokensAbove: 200000, input: 4, output: 6, cacheRead: 0.4, cacheWrite: 2 }],
   })
 })
 
-
 test('目录输入为空或只有 PDF 时不返回空 input，仍保留原始目录模态', () => {
   for (const modalities of [[], ['pdf'], ['unsupported']]) {
-    const index = new ModelRecommendationIndex({ models: { 'maker/example': row(128000, {
-      modalities: { input: modalities, output: ['text'] },
-    }) }, providers: {} })
+    const index = new ModelRecommendationIndex({
+      models: {
+        'maker/example': row(128000, {
+          modalities: { input: modalities, output: ['text'] },
+        }),
+      },
+      providers: {},
+    })
     const recommended = index.resolve(input).recommended
     expect(recommended.input).toBeUndefined()
     expect(recommended.catalog?.input).toEqual(modalities)
   }
 })
 
-
 test('推荐过滤只移除 undefined，保留 false、零、空字符串与未提供的原配置', () => {
-  const model = { name: 'saved', contextWindow: 32000, maxTokens: 8000, reasoning: true, tools: true,
-    input: ['text' as const], cost: { input: 2, output: 3, cacheRead: 1, cacheWrite: 1 } }
-  const result = applyRecommendation(model, { name: '', reasoning: false, tools: false,
-    maxInputTokens: undefined, cost: { input: 0, output: undefined },
+  const model = {
+    name: 'saved',
+    contextWindow: 32000,
+    maxTokens: 8000,
+    reasoning: true,
+    tools: true,
+    input: ['text' as const],
+    cost: { input: 2, output: 3, cacheRead: 1, cacheWrite: 1 },
+  }
+  const result = applyRecommendation(model, {
+    name: '',
+    reasoning: false,
+    tools: false,
+    maxInputTokens: undefined,
+    cost: { input: 0, output: undefined },
   })
-  expect(result).toMatchObject({ name: '', reasoning: false, tools: false, contextWindow: 32000,
-    cost: { input: 0, output: 3, cacheRead: 1, cacheWrite: 1 } })
+  expect(result).toMatchObject({
+    name: '',
+    reasoning: false,
+    tools: false,
+    contextWindow: 32000,
+    cost: { input: 0, output: 3, cacheRead: 1, cacheWrite: 1 },
+  })
   expect(Object.hasOwn(result, 'maxInputTokens')).toBe(false)
   expect(applyRecommendation(model, { cost: {} }).cost).toBe(model.cost)
 })

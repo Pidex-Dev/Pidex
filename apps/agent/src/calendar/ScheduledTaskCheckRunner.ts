@@ -18,8 +18,7 @@ export const createScheduledTaskCheckRunner = (deps: {
   ): Promise<boolean> => {
     const threadId = run?.threadId ?? occurrence.snapshot.execution?.targetThreadId
     const turnId =
-      run?.turnId ??
-      (threadId ? deps.db.repositories.taskSchedules.latestTurnId(threadId) : null)
+      run?.turnId ?? (threadId ? deps.db.repositories.taskSchedules.latestTurnId(threadId) : null)
     const execution = run ?? occurrence.snapshot.execution
     if (!threadId || !turnId || !execution) return false
     const runtime = await deps.workspaceResolver.resolve(threadId)

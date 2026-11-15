@@ -25,12 +25,14 @@ const model = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
-const setup = (options: {
-  readonly models: Record<string, unknown>
-  readonly configVersion?: string
-  readonly recommended?: Record<string, unknown>
-  readonly updatedAt?: number
-} = { models: {} }) => {
+const setup = (
+  options: {
+    readonly models: Record<string, unknown>
+    readonly configVersion?: string
+    readonly recommended?: Record<string, unknown>
+    readonly updatedAt?: number
+  } = { models: {} },
+) => {
   const writes: Parameters<ConfigService['batchWrite']>[0][] = []
   const config = {
     read: async () => ({
@@ -183,9 +185,7 @@ describe('ModelSpecRepairService', () => {
       ],
     })
     // 未选中的模型不会被写入。
-    expect(
-      writes[0]!.edits.every((edit) => edit.keyPath.includes('pinned')),
-    ).toBe(true)
+    expect(writes[0]!.edits.every((edit) => edit.keyPath.includes('pinned'))).toBe(true)
   })
 
   test('配置或推荐目录在预览后变化时拒绝按旧结果覆盖', async () => {

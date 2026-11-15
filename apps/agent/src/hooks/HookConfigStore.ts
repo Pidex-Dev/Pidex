@@ -6,8 +6,7 @@ import type { ConfigObject } from '../config/ConfigService'
 import type { HookDefinition } from './HookDefinitions'
 import { HookConfigError, MAX_HOOK_CONFIG_BYTES, parseHookDefinitions } from './HookDefinitions'
 
-const sha256Hex = (value: string | Uint8Array) =>
-  createHash('sha256').update(value).digest('hex')
+const sha256Hex = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 
 /**
  * Document shapes accepted by the loader. Only three exist, and each one is

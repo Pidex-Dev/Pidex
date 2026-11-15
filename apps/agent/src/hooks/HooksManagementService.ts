@@ -136,8 +136,7 @@ export class HooksManagement implements HooksManagementService {
         workspaceRoot !== undefined && !this.input.configService.isProjectTrusted(workspaceRoot)
 
       const groups: HookSourceGroup[] = discovered.groups.map((group) => {
-        const isUntrustedProject =
-          group.scope === 'project' && projectUntrusted
+        const isUntrustedProject = group.scope === 'project' && projectUntrusted
         const diagnostics = isUntrustedProject
           ? [
               {
@@ -313,11 +312,7 @@ export class HooksManagement implements HooksManagementService {
     }
   }
 
-  async removeHook(input: {
-    scope: 'user' | 'project'
-    cwd?: string | undefined
-    id: string
-  }) {
+  async removeHook(input: { scope: 'user' | 'project'; cwd?: string | undefined; id: string }) {
     try {
       const filePath = this.resolveHooksFile(input.scope, input.cwd)
       const { root, hooks } = await this.readHooksFile(filePath)

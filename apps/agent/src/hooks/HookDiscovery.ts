@@ -111,8 +111,7 @@ const normalizedPath = (path: string) => {
   return process.platform === 'win32' ? absolute.toLowerCase() : absolute
 }
 
-const sha256Hex = (value: string | Uint8Array) =>
-  createHash('sha256').update(value).digest('hex')
+const sha256Hex = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 
 const normalizeEventName = (raw: string): HookEvent | null => {
   const trimmed = raw.trim()
@@ -173,7 +172,10 @@ const parseClaudeEventMap = (
     for (const entry of rawEntries) {
       if (!isRecord(entry)) continue
       if (Array.isArray(entry.hooks)) {
-        const matcher = typeof entry.matcher === 'string' && entry.matcher.trim() ? entry.matcher.trim() : undefined
+        const matcher =
+          typeof entry.matcher === 'string' && entry.matcher.trim()
+            ? entry.matcher.trim()
+            : undefined
         for (const inner of entry.hooks) {
           if (!isRecord(inner)) continue
           const type = typeof inner.type === 'string' ? inner.type : 'command'
@@ -192,9 +194,7 @@ const parseClaudeEventMap = (
               ? inner.statusMessage.trim()
               : undefined
           const id =
-            typeof inner.id === 'string' && inner.id.trim()
-              ? inner.id.trim()
-              : `${event}:${index}`
+            typeof inner.id === 'string' && inner.id.trim() ? inner.id.trim() : `${event}:${index}`
           definitions.push({
             id,
             event,
@@ -209,7 +209,10 @@ const parseClaudeEventMap = (
       if (typeof entry.command === 'string' && entry.command.trim()) {
         index++
         const timeoutMs = normalizeTimeoutMs(entry)
-        const matcher = typeof entry.matcher === 'string' && entry.matcher.trim() ? entry.matcher.trim() : undefined
+        const matcher =
+          typeof entry.matcher === 'string' && entry.matcher.trim()
+            ? entry.matcher.trim()
+            : undefined
         const statusMessage =
           typeof entry.statusMessage === 'string' && entry.statusMessage.trim()
             ? entry.statusMessage.trim()
