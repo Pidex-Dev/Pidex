@@ -183,7 +183,7 @@ for (const uiFontSize of [11, 16]) {
     expect(await metrics(bySize('iconSm'))).toMatchObject({ iconSize: 12 })
     expect(await metrics(bySize('tabStripAction'))).toMatchObject({ iconSize: 16 })
 
-    await expect(page.locator('.app-menubar')).toHaveCSS('height', '36px')
+    await expect(page.locator('.app-menubar')).toHaveCSS('height', '40px')
     await expect(page.locator('.desktop-workspace-header')).toHaveCSS('height', '46px')
     await expectBox(page.getByRole('button', { name: '搜索任务' }), 36)
     await expectBox(page.getByRole('button', { name: '查看活动 (Ctrl+Alt+U)', exact: true }), 36)

@@ -27,8 +27,8 @@
 ## Windows 标题栏
 
 - Windows 主窗口继续使用 `titleBarStyle: "hidden"` 和 Electron Window Controls Overlay（通过 `createWindowsTitleBarOverlay` 统一创建）；Renderer 绘制菜单栏，Windows/Electron 只绘制原生最小化、最大化和关闭按钮，禁止改回完整原生标题栏或全自绘窗口按钮。
-- Window Controls Overlay 高度固定为 `36px`，背景保持完全透明以透出 Renderer 菜单栏；Electron 只能根据当前主题的 `ink` 更新原生窗口按钮图标色，禁止重新加入 Renderer DOM 颜色或高度回写 IPC。
-- 修改标题栏高度、overlay 参数或窗口标题栏装配时，必须同步核对 Electron overlay 与 Renderer `.desktop-menubar` 的高度（`36px`）及主题色映射，并验证 Electron 与 Renderer 相关检查；若需完整桌面进程的三主题（浅色、深色、自定义）原生按钮实机视觉验收，在交付时提示用户重启桌面进程核对（仅在用户明确授权时由 Agent 启动桌面进程）。
+- Window Controls Overlay 高度固定为 `40px`，背景保持完全透明以透出 Renderer 菜单栏；Electron 只能根据当前主题的 `ink` 更新原生窗口按钮图标色，禁止重新加入 Renderer DOM 颜色或高度回写 IPC。
+- 修改标题栏高度、overlay 参数或窗口标题栏装配时，必须同步核对 Electron overlay 与 Renderer `.desktop-menubar` 的高度（`40px`）及主题色映射，并验证 Electron 与 Renderer 相关检查；若需完整桌面进程的三主题（浅色、深色、自定义）原生按钮实机视觉验收，在交付时提示用户重启桌面进程核对（仅在用户明确授权时由 Agent 启动桌面进程）。
 
 ## 验证
 

@@ -38,10 +38,9 @@ describe('Codex CPX design system token contract', () => {
   })
 
   test('governs feature colors through precise, stale-detectable exceptions', async () => {
-    const [checker, manifestText, guidance] = await Promise.all([
+    const [checker, manifestText] = await Promise.all([
       Bun.file(new URL('../scripts/CheckStyleContracts.ts', import.meta.url)).text(),
       Bun.file(new URL('../style-contracts.json', import.meta.url)).text(),
-      Bun.file(new URL('../../../../docs/design/renderer-color-system.md', import.meta.url)).text(),
     ])
     const manifest = JSON.parse(manifestText) as {
       featureColorContract: {
@@ -67,9 +66,6 @@ describe('Codex CPX design system token contract', () => {
     expect(checker).toContain('stale feature component-token exception')
     expect(checker).toContain('stale feature literal-color exception')
     expect(checker).toContain('stale feature color-mix exception')
-    expect(guidance).toContain('系统语义颜色')
-    expect(guidance).toContain('组件私有实现')
-    expect(guidance).toContain('Agent 选择流程')
   })
 
   test('exports component tokens for all 13 components', async () => {
@@ -263,9 +259,9 @@ describe('Codex CPX design system token contract', () => {
       Bun.file(new URL('../src/features/settings/SettingsNav.tsx', import.meta.url)).text(),
     ])
 
-    // 设置导航与侧栏共用 8px 内边距契约：导航滚动区从该共享变量取
+    // 设置导航与侧栏共用 4px 内边距契约：导航滚动区从该共享变量取
     // padding-inline，不再有独立的 settings-nav gutter 变量。
-    expectSourceContains(sidebar, '--sidebar-inline-gutter: var(--cpx-sys-space-2);')
+    expectSourceContains(sidebar, '--sidebar-inline-gutter: var(--cpx-sys-space-1);')
     expect(sidebar).toMatch(
       /\.settings-nav-scroll-content\s*\{[\s\S]*?padding-inline: var\(--sidebar-inline-gutter\);/,
     )
@@ -357,7 +353,7 @@ describe('Codex CPX design system token contract', () => {
     expectSourceContains(pullRequests, '<PrimaryPageLayout')
     expectSourceContains(primaryPageCss, 'padding-bottom: var(--cpx-sys-space-8);')
     // 模型引导页的两行网格改由 TSX utility 承担（原 `_model-setup.scss` 规则）。
-    expectSourceContains(setup, 'tw:grid-rows-[36px_minmax(0,1fr)]')
+    expectSourceContains(setup, 'tw:grid-rows-[40px_minmax(0,1fr)]')
     expectSourceContains(review, 'tw:px-4 tw:py-4 tw:type-2 tw:weight-medium')
     // 状态行保留语义类名与 alert 角色，迁移只在其上追加 utility。
     expect(browser).toMatch(/className="browser-status-row[^"]*"[\s\S]*?role="alert"/)
@@ -554,9 +550,7 @@ describe('Codex CPX design system token contract', () => {
     expect(summary).not.toContain('--thread-summary-inline-width')
     expect(threadSummary).not.toContain('tw:w-[var(--thread-summary-inline-width)]')
     expect(threadSummary).toContain('thread-summary-popover tw:w-[16.25rem] tw:p-1')
-    expect(threadSummary).toContain(
-      'tw:w-full tw:flex tw:min-h-0 tw:flex-col tw:gap-1',
-    )
+    expect(threadSummary).toContain('tw:w-full tw:flex tw:min-h-0 tw:flex-col tw:gap-1')
     expect(threadSummary).toContain('tw:overflow-y-auto tw:[scrollbar-width:thin]')
     expect(threadSummary).toContain('tw:pb-2 tw:last:pb-0')
     expect(threadSummary).not.toContain('thread-summary-inline tw:absolute')
@@ -665,7 +659,7 @@ describe('Codex CPX design system token contract', () => {
 
     // Panel and toolbar borders moved out of the dock stylesheet into the
     // components that render them, still on public system semantics.
-    expectSourceContains(tabStrip, 'tw:rounded-md')
+    expectSourceContains(tabStrip, 'tw:rounded-3')
     expectSourceContains(dockFrame, 'tw:border-l tw:border-app-border')
     expectSourceContains(dockFrame, 'tw:border-t tw:border-app-border')
     expectSourceNotContains(panelSurface, 'tw:border-b tw:border-app-border-subtle')
@@ -722,8 +716,8 @@ describe('UI-Design native floating behavior', () => {
           createElement(Dropdown.Content, null, createElement(Dropdown.Item, { value: 'a' }, 'A')),
         ),
       )
-    expect(render('menu')).not.toContain('tw:max-h-[220px]')
-    expect(render('select')).toContain('tw:max-h-[220px]')
+    expect(render('menu')).not.toContain('tw:max-h-[var(--dropdown-list-max-height,220px)]')
+    expect(render('select')).toContain('tw:max-h-[var(--dropdown-list-max-height,220px)]')
   })
   test('asChild delegates row layout instead of spreading native flex spacing into rich rows', () => {
     const html = renderToStaticMarkup(

@@ -18,7 +18,7 @@
 
 ## Windows 标题栏
 
-- `.desktop-menubar` 的最终计算背景色是 Windows 标题栏颜色真源，菜单栏高度 token 固定为 `36px`（与 [`../electron/AGENTS.md`](../electron/AGENTS.md) 的透明 Window Controls Overlay 契约保持一致）；禁止重新依赖 DOM 实测高度或 `titlebar-area-height` 回写。
+- `.desktop-menubar` 的最终计算背景色是 Windows 标题栏颜色真源，菜单栏高度 token 固定为 `40px`（与 [`../electron/AGENTS.md`](../electron/AGENTS.md) 的透明 Window Controls Overlay 契约保持一致）；禁止重新依赖 DOM 实测高度或 `titlebar-area-height` 回写。
 - 修改菜单栏高度或标题栏背景 token 时，必须同步检查 Renderer token、最终计算样式与 Electron overlay 图标色映射。
 
 ## 测试与验证

@@ -414,12 +414,11 @@
 
     /* System Typography */
     --cpx-sys-font-family-sans:
-      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-      Arial, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif, 'Apple Color Emoji',
+      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+      'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif, 'Apple Color Emoji',
       'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     --cpx-sys-font-family-mono:
-      'SF Mono', 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas,
-      monospace;
+      'SF Mono', 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
     --cpx-sys-font-size-ui: 14px;
     --cpx-sys-font-size-code: 12px;
@@ -566,9 +565,9 @@
     --button-icon-size-sm: var(--cpx-sys-icon-size);
     --button-size-icon-large: 36px;
 
-    /* Chrome & workspace sizing (menubar height is strictly locked to 36px, never scaled) */
-    --chrome-h: 36px;
-    --application-menubar-height: 36px;
+    /* Chrome & workspace sizing (menubar height is strictly locked to 40px, never scaled) */
+    --chrome-h: 40px;
+    --application-menubar-height: 40px;
     --workspace-toolbar-height: 46px;
     --pane-toolbar-height: 40px;
     --floating-composer-h: 142px;
@@ -765,8 +764,8 @@
     --cpx-comp-workbench-tab-hover-bg: var(--cpx-sys-color-hover);
     --cpx-comp-workbench-tab-border: var(--cpx-sys-color-border-subtle);
 
-    /* 10. MenuBar Component (strictly locked to 36px, never multiplied by --cpx-sys-scaling) */
-    --cpx-comp-menubar-height: 36px;
+    /* 10. MenuBar Component (strictly locked to 40px, never multiplied by --cpx-sys-scaling) */
+    --cpx-comp-menubar-height: 40px;
     --cpx-comp-menubar-selection-bg: var(--cpx-sys-color-selected);
     --cpx-comp-menubar-selection-fg: var(--cpx-sys-color-fg-primary);
 

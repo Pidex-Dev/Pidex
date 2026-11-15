@@ -164,7 +164,9 @@ describe('non-color design token contracts', () => {
     expect(base).toMatch(/body\s*\{[\s\S]*?font-size:\s*var\(--cpx-sys-font-size-2\);/)
     for (const step of ['1', '2', '3', '4', '5', '6', '7', '8', '9']) {
       expect(tailwind).toMatch(
-        new RegExp(`@utility type-${step} \\{[\\s\\S]*?font-size: var\\(--cpx-sys-font-size-${step}\\);`),
+        new RegExp(
+          `@utility type-${step} \\{[\\s\\S]*?font-size: var\\(--cpx-sys-font-size-${step}\\);`,
+        ),
       )
       expect(tailwind).toContain(`--text-${step}: var(--cpx-sys-font-size-${step});`)
     }
@@ -173,7 +175,9 @@ describe('non-color design token contracts', () => {
     )
     for (const weight of ['light', 'regular', 'medium', 'bold']) {
       expect(tailwind).toMatch(
-        new RegExp(`@utility weight-${weight} \\{\\s*font-weight: var\\(--cpx-sys-font-weight-${weight}\\);`),
+        new RegExp(
+          `@utility weight-${weight} \\{\\s*font-weight: var\\(--cpx-sys-font-weight-${weight}\\);`,
+        ),
       )
     }
   })
@@ -191,7 +195,9 @@ describe('non-color design token contracts', () => {
       ])
 
     expect(generalSettings).toMatch(/className="settings-page-title [^"]*tw:type-6 tw:weight-bold/)
-    expect(settingsSection).toMatch(/className="settings-section-title [^"]*tw:type-4 tw:weight-bold/)
+    expect(settingsSection).toMatch(
+      /className="settings-section-title [^"]*tw:type-4 tw:weight-bold/,
+    )
     expect(settings).toMatch(
       /\.settings-management-row-title\s*\{[^}]*font-size:\s*var\(--cpx-sys-font-size-2\);/s,
     )
@@ -221,7 +227,7 @@ describe('non-color design token contracts', () => {
       '--cpx-sys-space-7': '40px',
       '--cpx-sys-space-8': '48px',
       '--cpx-sys-space-9': '64px',
-      '--cpx-comp-menubar-height': '36px',
+      '--cpx-comp-menubar-height': '40px',
     }
     const mismatched = Object.entries(expected).filter(
       ([name, value]) => tokens.get(name) !== value,
@@ -561,10 +567,7 @@ describe('non-color design token contracts', () => {
       expect(conversation).toMatch(new RegExp(`${selector}\\s*\\{[\\s\\S]*?font:\\s*inherit;`))
     }
     const itemRenderer = await read('../src/features/session/timeline/CanonicalItemRenderer.tsx')
-    expectSourceContains(
-      itemRenderer,
-      'canonical-text-item tw:min-w-0 tw:text-app-text tw:type-2',
-    )
+    expectSourceContains(itemRenderer, 'canonical-text-item tw:min-w-0 tw:text-app-text tw:type-2')
     expect(markdown).toMatch(/\.md-body\s*\{[\s\S]*?font-size:\s*var\(--cpx-sys-font-size-2\);/)
     expect(conversation).toMatch(
       /\.canonical-turn__process\s*\{\s*gap:\s*var\(--cpx-sys-space-3\);/,

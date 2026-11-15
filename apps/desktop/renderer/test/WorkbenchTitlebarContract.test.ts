@@ -16,14 +16,14 @@ describe('workbench chrome contract', () => {
     const tokens = readRendererFile('src/styles/design-system/tokens.css')
     const tailwind = readRendererFile('src/styles/tailwind.css')
 
-    // 36px 菜单栏高度来自 --chrome-h，经 tw:h-chrome 作用到菜单栏与其标题栏。
-    expectSourceContains(tokens, '--chrome-h: 36px')
+    // 40px 菜单栏高度来自 --chrome-h，经 tw:h-chrome 作用到菜单栏与其标题栏。
+    expectSourceContains(tokens, '--chrome-h: 40px')
     expectSourceContains(tailwind, '--height-chrome: var(--chrome-h)')
     expectSourceContains(shell, 'desktop-menubar tw:h-chrome tw:shrink-0 tw:bg-app-titlebar')
     expectSourceContains(menuBar, 'menubar-titlebar tw:flex tw:h-chrome')
     expectSourceNotContains(shell, 'updateTitleBarOverlay')
     expectSourceNotContains(shell, 'getBoundingClientRect().height')
-    expectSourceContains(tokens, '--application-menubar-height: 36px')
+    expectSourceContains(tokens, '--application-menubar-height: 40px')
     expectSourceNotContains(tokens, 'env(titlebar-area-height')
   })
 
