@@ -6,10 +6,7 @@ import {
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
-  type Api,
   type JsonObject,
-  type Model as PiModel,
-  type Models,
 } from '@earendil-works/pi-ai'
 import type { SubagentResult } from '../src/Domain'
 import { executeHarnessRun } from '../src/orchestration/pi/ExecuteHarnessRun'

@@ -93,7 +93,7 @@ async function fixture(options: { project?: boolean; trusted?: boolean } = {}) {
 
 describe('权限规则匹配', () => {
   test('Deny 高于 Ask 高于 Allow，项目规则仅在受信任时生效', async () => {
-    const { db, config, tools, invocation, thread, workspace } = await fixture({ project: true })
+    const { db, config, tools, invocation, thread } = await fixture({ project: true })
     const rules = new ApprovalRules(db, tools, config)
     await rules.upsert(thread.id, {
       effect: 'allow',
@@ -235,8 +235,7 @@ describe('权限规则匹配', () => {
   })
 
   test('精确域名、MCP server/tool、命令完整值与安全 argv 前缀按各自语义匹配', async () => {
-    const { db, config, tools, invocation } = await fixture({ project: true })
-    const rules = new ApprovalRules(db, tools, config)
+    const { invocation, tools } = await fixture({ project: true })
     expect(
       permissionRuleMatches({ kind: 'network', domain: 'example.test' }, invocation, {
         networkDomains: ['example.test'],

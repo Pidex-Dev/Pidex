@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { Model, Provider } from '@pidex/model-schema'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { SubagentService } from '../src/subagent/SubagentService'
-import { SubagentRepository } from '../src/subagent/SubagentRepository'
 import { SubagentCollaborationRepository } from '../src/subagent/SubagentCollaborationRepository'
 import type {
   AgentRuntimeRequest,

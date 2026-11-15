@@ -11,12 +11,10 @@ import {
   isDynamicDirectiveMessage,
   buildContinuationPrompt,
   getRootThreadId,
-  GoalBudgetLimitError,
 } from '../src/session/GoalDirectiveService'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { ThreadGoalService } from '../src/session/ThreadGoalService'
 import { ThreadService } from '../src/session/ThreadService'
-import { WorkspaceService } from '../src/workspace/WorkspaceService'
 import { SubagentService } from '../src/subagent/SubagentService'
 import { AgentError } from '../src/Domain'
 import type { ThreadGoal } from '@pidex/shared/thread'

@@ -5,8 +5,6 @@ import { join } from 'node:path'
 import { ProviderDirectoryStore } from '../src/provider/pi/ProviderDirectoryStore'
 import { ModelRecommendationStore } from '../src/provider/pi/ModelRecommendationStore'
 
-const response = (body: unknown) => async () => Response.json(body)
-
 const commonModel = (overrides: Record<string, unknown> = {}) => ({
   name: 'Common model',
   limit: { context: 128000, input: 120000, output: 8000 },
