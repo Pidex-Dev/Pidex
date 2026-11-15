@@ -2,7 +2,7 @@ import { ThreadGoalService } from '../src/session/ThreadGoalService'
 import { EventHub } from '../src/storage/events/EventHub'
 import { ContextCompactionService } from '../src/context/ContextCompactionService'
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -308,8 +308,8 @@ describe('核心工具面', () => {
     })
     expect(defaultPlan.eager).toContain('Edit')
     expect(defaultPlan.exposed).toContain('spawn_agents')
-    expect(defaultPlan.eager).not.toContain('apply_patch')
-    expect(defaultPlan.deferred).toContain('apply_patch')
+    expect(defaultPlan.eager).toContain('apply_patch')
+    expect(defaultPlan.deferred).not.toContain('apply_patch')
     const sideChatPlan = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
@@ -959,6 +959,82 @@ describe('核心工具面', () => {
 
     expect(await Bun.file(join(root, 'first.txt')).text()).toBe('first\n')
     expect(await Bun.file(join(root, 'second.txt')).text()).toBe('second\n')
+  })
+
+  test('Write 与 apply_patch 为新建和移动目标自动创建缺失父目录，预检失败时不落盘空目录', async () => {
+    const { root, executor, context } = await fixture()
+    await writeFile(join(root, 'legacy.ts'), 'export const legacy = 1\n', 'utf8')
+    await executor.execute('Read', { file_path: 'legacy.ts' }, context)
+
+    const written = await executor.execute<any>(
+      'Write',
+      { file_path: 'src/core/writer.ts', content: 'export const written = 1\n' },
+      context,
+    )
+    expect(written).toMatchObject({
+      operation: 'write',
+      mutation: 'create',
+      path: 'src/core/writer.ts',
+    })
+    expect(await Bun.file(join(root, 'src/core/writer.ts')).text()).toBe('export const written = 1\n')
+
+    await writeFile(join(root, 'unready.ts'), 'unready\n', 'utf8')
+    await expect(
+      executor.execute(
+        'apply_patch',
+        {
+          patch: [
+            '*** Begin Patch',
+            '*** Add File: rollback/dir/new.ts',
+            '+export const n = 1',
+            '*** Update File: unready.ts',
+            '@@',
+            '-unready',
+            '+ready',
+            '*** End Patch',
+          ].join('\n'),
+        },
+        context,
+      ),
+    ).rejects.toMatchObject({ code: 'WORKSPACE_FILE_STALE' })
+    await expect(lstat(join(root, 'rollback'))).rejects.toMatchObject({ code: 'ENOENT' })
+
+    const patched = await executor.execute<any>(
+      'apply_patch',
+      {
+        patch: [
+          '*** Begin Patch',
+          '*** Add File: pkg/deep/added.ts',
+          '+export const added = 1',
+          '*** Update File: legacy.ts',
+          '*** Move to: pkg/moved/next.ts',
+          '@@',
+          '-export const legacy = 1',
+          '+export const next = 2',
+          '*** End Patch',
+        ].join('\n'),
+      },
+      context,
+    )
+    expect(patched).toMatchObject({
+      operation: 'apply_patch',
+      files: [
+        { operation: 'create', path: 'pkg/deep/added.ts' },
+        {
+          operation: 'create',
+          path: 'pkg/moved/next.ts',
+          movedFrom: 'legacy.ts',
+        },
+        {
+          operation: 'delete',
+          path: 'legacy.ts',
+          movedTo: 'pkg/moved/next.ts',
+        },
+      ],
+    })
+    expect(await Bun.file(join(root, 'pkg/deep/added.ts')).text()).toBe('export const added = 1\n')
+    expect(await Bun.file(join(root, 'pkg/moved/next.ts')).text()).toBe('export const next = 2\n')
+    await expect(lstat(join(root, 'legacy.ts'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   test('apply_patch 任一受保护目标会让整批进入审批并投影全部安全路径', async () => {

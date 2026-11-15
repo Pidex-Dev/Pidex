@@ -545,7 +545,7 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
   allowedModes: ['chat'],
   allowedProfiles: ['main', 'default', 'worker'],
   approvalStrategy: 'policy',
-  visibility: 'deferred',
+  visibility: 'eager',
   executionMode: 'sequential',
   inspectInput: async (input, context) => {
     const prepared = await preparePatch(input, context)

@@ -9,6 +9,7 @@ import {
   readFile,
   realpath,
   rename,
+  rmdir,
   stat,
   unlink,
   writeFile,
@@ -138,6 +139,7 @@ export interface EditorMutationCommitResult {
 type InternalMutationPathInspection =
   | (Extract<WorkspaceMutationPathInspection, { expectation: 'new-file' }> & {
       key: string
+      missingDirs: readonly string[]
     })
   | (Extract<WorkspaceMutationPathInspection, { expectation: 'existing-file' }> & {
       key: string
@@ -538,71 +540,12 @@ export class WorkspaceService {
     return canonical
   }
 
-  private async createPath(path: string) {
-    const requested = this.requestedPath(path)
-    const alias = this.aliasTarget(path)
-    if (!alias && path.replaceAll('\\', '/').toLowerCase() === '.pidex/config.json') {
-      await mkdir(dirname(requested), { recursive: true })
-    }
-    const parent = await realpath(dirname(requested)).catch(() => {
-      throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
-    })
-    if (alias) {
-      if (parent !== dirname(alias))
-        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名父目录无效', 403)
-    } else {
-      this.ensureWithinRoot(resolve(parent, basename(requested)))
-    }
-    const metadata = await stat(parent)
-    if (!metadata.isDirectory())
-      throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
-    const canonical = resolve(parent, basename(requested))
-    if (alias) {
-      if (canonical !== alias)
-        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名目标无效', 403)
-    } else {
-      this.ensureWithinRoot(canonical)
-    }
-    try {
-      await lstat(canonical)
-      throw new AgentError('WORKSPACE_PATH_EXISTS', '目标文件已存在', 409)
-    } catch (error) {
-      if (error instanceof AgentError) throw error
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw new AgentError('WORKSPACE_PATH_UNREADABLE', '目标文件状态无法确认', 400)
-      }
-    }
-    return canonical
-  }
-
   private mutationKey(path: string) {
     const normalized = resolve(path)
     return process.platform === 'win32' ? normalized.toLowerCase() : normalized
   }
 
-  private async inspectNewFilePath(path: string) {
-    const requested = this.requestedPath(path)
-    const alias = this.aliasTarget(path)
-    const parent = await realpath(dirname(requested)).catch(() => {
-      throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
-    })
-    if (alias) {
-      if (parent !== dirname(alias))
-        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名父目录无效', 403)
-    } else {
-      this.ensureWithinRoot(resolve(parent, basename(requested)))
-    }
-    const metadata = await stat(parent)
-    if (!metadata.isDirectory())
-      throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
-    const canonical = resolve(parent, basename(requested))
-    if (alias) {
-      if (canonical !== alias)
-        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名目标无效', 403)
-    } else {
-      this.ensureWithinRoot(canonical)
-    }
-    this.ensureWritable(canonical)
+  private async ensureNewTargetAbsent(canonical: string) {
     try {
       await lstat(canonical)
       throw new AgentError('WORKSPACE_PATH_EXISTS', '目标文件已存在', 409)
@@ -612,7 +555,104 @@ export class WorkspaceService {
         throw new AgentError('WORKSPACE_PATH_UNREADABLE', '目标文件状态无法确认', 400)
       }
     }
-    return canonical
+  }
+
+  /** Resolves a new-file target and its missing parent directories without mutating the filesystem. */
+  private async resolveNewFileTarget(path: string): Promise<{
+    canonicalPath: string
+    missingDirs: readonly string[]
+  }> {
+    const requested = this.requestedPath(path)
+    const alias = this.aliasTarget(path)
+    if (alias) {
+      const parent = await realpath(dirname(requested)).catch(() => {
+        throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
+      })
+      if (parent !== dirname(alias))
+        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名父目录无效', 403)
+      const metadata = await stat(parent)
+      if (!metadata.isDirectory())
+        throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
+      const canonicalPath = resolve(parent, basename(requested))
+      if (canonicalPath !== alias)
+        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名目标无效', 403)
+      this.ensureWritable(canonicalPath)
+      await this.ensureNewTargetAbsent(canonicalPath)
+      return { canonicalPath, missingDirs: [] }
+    }
+
+    const missingSegments: string[] = []
+    let probe = dirname(requested)
+    let existingAncestor: string | null = null
+    while (existingAncestor === null) {
+      try {
+        await lstat(probe)
+        existingAncestor = await realpath(probe).catch(() => {
+          throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
+        })
+      } catch (cause) {
+        if (cause instanceof AgentError) throw cause
+        const code = (cause as NodeJS.ErrnoException).code
+        if (code === 'ENOTDIR') {
+          throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
+        }
+        if (code !== 'ENOENT') {
+          throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
+        }
+        const parentProbe = dirname(probe)
+        if (parentProbe === probe) {
+          throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
+        }
+        missingSegments.unshift(basename(probe))
+        probe = parentProbe
+      }
+    }
+
+    const metadata = await stat(existingAncestor).catch(() => {
+      throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
+    })
+    if (!metadata.isDirectory()) {
+      throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
+    }
+
+    const missingDirs: string[] = []
+    let currentDir = existingAncestor
+    for (const segment of missingSegments) {
+      currentDir = resolve(currentDir, segment)
+      missingDirs.push(currentDir)
+    }
+    const canonicalPath = resolve(currentDir, basename(requested))
+    this.ensureWithinRoot(canonicalPath)
+    this.ensureWritable(canonicalPath)
+    await this.ensureNewTargetAbsent(canonicalPath)
+    return { canonicalPath, missingDirs }
+  }
+
+  private async rollbackDirectories(directories: readonly string[]) {
+    for (let index = directories.length - 1; index >= 0; index -= 1) {
+      await rmdir(directories[index]!).catch(() => undefined)
+    }
+  }
+
+  private async ensureMissingDirectories(
+    directories: readonly string[],
+    created: string[] = [],
+  ) {
+    for (const dir of directories) {
+      try {
+        await mkdir(dir)
+        created.push(dir)
+      } catch (cause) {
+        if ((cause as NodeJS.ErrnoException).code === 'EEXIST') {
+          const info = await lstat(dir).catch(() => null)
+          if (info?.isDirectory() && !info.isSymbolicLink()) continue
+        }
+        await this.rollbackDirectories(created)
+        created.length = 0
+        throw new AgentError('WORKSPACE_WRITE_FAILED', '无法创建目标文件的父目录', 500)
+      }
+    }
+    return created
   }
 
   private async readMutationFileState(canonical: string) {
@@ -660,12 +700,13 @@ export class WorkspaceService {
     expectation: WorkspaceMutationExpectation,
   ): Promise<InternalMutationPathInspection> {
     if (expectation === 'new-file') {
-      const canonicalPath = await this.inspectNewFilePath(path)
+      const target = await this.resolveNewFileTarget(path)
       return {
         expectation,
-        path: this.displayPath(canonicalPath),
-        canonicalPath,
-        key: this.mutationKey(canonicalPath),
+        path: this.displayPath(target.canonicalPath),
+        canonicalPath: target.canonicalPath,
+        key: this.mutationKey(target.canonicalPath),
+        missingDirs: target.missingDirs,
       }
     }
     const canonicalPath = await this.existingPath(path)
@@ -984,6 +1025,7 @@ export class WorkspaceService {
       const results: Array<EditorMutationResult | undefined> = Array.from({
         length: mutations.length,
       })
+      const createdDirs: string[] = []
       const committed = new Set<number>()
       try {
         for (let index = 0; index < mutations.length; index += 1) {
@@ -1036,6 +1078,12 @@ export class WorkspaceService {
               ? resolve(dirname(inspection.canonicalPath), `.pidex-${randomUUID()}.tmp`)
               : null,
           })
+        }
+
+        for (const item of staged) {
+          if (item.inspection.expectation === 'new-file' && item.inspection.missingDirs.length > 0) {
+            await this.ensureMissingDirectories(item.inspection.missingDirs, createdDirs)
+          }
         }
 
         for (const item of staged) {
@@ -1156,6 +1204,9 @@ export class WorkspaceService {
               : Promise.resolve(),
           ),
         )
+        if (committed.size === 0 && createdDirs.length > 0) {
+          await this.rollbackDirectories(createdDirs)
+        }
         if (committed.size > 0) {
           throw new AgentError(
             'PATCH_PARTIAL_COMMIT',
@@ -1222,8 +1273,14 @@ export class WorkspaceService {
           `最终文件超过 ${MAX_FILE_BYTES} 字节上限`,
           413,
         )
-      const canonical = await this.createPath(input.path)
-      await this.replaceAtomically(canonical, input.content)
+      const { canonicalPath: canonical, missingDirs } = await this.resolveNewFileTarget(input.path)
+      const createdDirs = await this.ensureMissingDirectories(missingDirs)
+      try {
+        await this.replaceAtomically(canonical, input.content)
+      } catch (cause) {
+        await this.rollbackDirectories(createdDirs)
+        throw cause
+      }
       const path = this.displayPath(canonical)
       return {
         operation: input.operation,

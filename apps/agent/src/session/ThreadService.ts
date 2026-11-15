@@ -108,10 +108,10 @@ const workspaceEditingSection = (): PromptSection => ({
   authority: 'builtin',
   source: { type: 'runtime', name: 'workspace-editing' },
   content: [
-    'Before modifying an existing file, use Read to capture its snapshot, then Edit with precise atomic replacements.',
-    'Use Write for new files or necessary complete rewrites. Discover apply_patch with ToolSearch when atomic multi-file changes are needed.',
-    'Every Edit oldText must match exactly and uniquely in the same original text. On a missing or ambiguous match, Read again and add context; never replay unchanged.',
-    'Do not use Python, sed, Bash or PowerShell to bypass Edit, Write, workspace boundaries, Read snapshots or approvals.',
+    'Before modifying an existing file, use Read to capture its snapshot, then Edit or apply_patch with precise atomic replacements.',
+    'Use apply_patch for atomic multi-file changes, creating multiple new files together, or moving and deleting files. Use Edit for ordinary single-file edits, and Write for creating a single new file or complete rewrites.',
+    'Every Edit oldText or apply_patch hunk context must match exactly and uniquely in the same original text. On a missing or ambiguous match, Read again and add context; never replay unchanged.',
+    'Do not use Python, sed, Bash or PowerShell to bypass Edit, Write, apply_patch, workspace boundaries, Read snapshots or approvals.',
   ].join('\n'),
 })
 

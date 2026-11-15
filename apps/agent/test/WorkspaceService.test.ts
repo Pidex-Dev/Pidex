@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
-import { chmod, mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises'
+import { chmod, lstat, mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeFixturePaths } from './FixtureCleanup'
@@ -334,10 +334,9 @@ describe('WorkspaceService editor files', () => {
     const added = await service.inspectMutationPath('new.txt', 'new-file')
     expect(added).toMatchObject({ expectation: 'new-file', path: 'new.txt' })
     expect(await Bun.file(join(root, 'new.txt')).exists()).toBe(false)
-    await expect(service.inspectMutationPath('missing/new.txt', 'new-file')).rejects.toMatchObject({
-      code: 'WORKSPACE_PATH_NOT_FOUND',
-    })
-    expect(await Bun.file(join(root, 'missing')).exists()).toBe(false)
+    const nested = await service.inspectMutationPath('missing/new.txt', 'new-file')
+    expect(nested).toMatchObject({ expectation: 'new-file', path: 'missing/new.txt' })
+    await expect(lstat(join(root, 'missing'))).rejects.toMatchObject({ code: 'ENOENT' })
 
     const readSnapshot = (await service.readEditorFile('source.txt')).revision
     await writeFile(join(root, 'source.txt'), 'before\r\n', 'utf8')
@@ -358,6 +357,54 @@ describe('WorkspaceService editor files', () => {
       ]),
     ).rejects.toMatchObject({ code: 'WORKSPACE_FILE_STALE' })
     expect(await readFile(join(root, 'source.txt'))).toEqual(Buffer.from('before\r\n', 'utf8'))
+  })
+
+  test('新建文件自动创建缺失父目录，拒绝非目录祖先与越界符号链接', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'pidex-workspace-mkdir-'))
+    paths.push(parent)
+    const root = join(parent, 'workspace')
+    const outside = join(parent, 'outside')
+    await mkdir(root)
+    await mkdir(outside)
+    await writeFile(join(root, 'file.txt'), 'not a dir\n', 'utf8')
+    await symlink(outside, join(root, 'outside-link'), 'dir')
+    const service = await WorkspaceService.open(root)
+
+    await expect(
+      service.applyPatch({
+        operation: 'create',
+        path: 'src/deep/created.ts',
+        content: 'export const ok = true\n',
+      }),
+    ).resolves.toMatchObject({ operation: 'create', path: 'src/deep/created.ts' })
+    expect(await readFile(join(root, 'src/deep/created.ts'), 'utf8')).toBe('export const ok = true\n')
+
+    await expect(
+      service.inspectMutationPath('file.txt/nested/child.ts', 'new-file'),
+    ).rejects.toMatchObject({ code: 'WORKSPACE_NOT_DIRECTORY' })
+    await expect(
+      service.inspectMutationPath('outside-link/nested/leaked.ts', 'new-file'),
+    ).rejects.toMatchObject({ code: 'WORKSPACE_PATH_DENIED' })
+    await expect(
+      service.applyPatch({
+        operation: 'create',
+        path: 'outside-link/nested/leaked.ts',
+        content: 'nope',
+      }),
+    ).rejects.toMatchObject({ code: 'WORKSPACE_PATH_DENIED' })
+    await expect(lstat(join(outside, 'nested'))).rejects.toMatchObject({ code: 'ENOENT' })
+
+    const fullAccess = service.withFileAccess('full-access')
+    await expect(
+      fullAccess.applyPatch({
+        operation: 'create',
+        path: join(outside, 'extra/sub/outside.ts'),
+        content: 'export const outside = true\n',
+      }),
+    ).resolves.toMatchObject({ operation: 'create' })
+    expect(await readFile(join(outside, 'extra/sub/outside.ts'), 'utf8')).toBe(
+      'export const outside = true\n',
+    )
   })
 
   test('批量提交在暂存前拒绝只读目标', async () => {
