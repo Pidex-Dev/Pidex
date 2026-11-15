@@ -14,6 +14,7 @@
 ## 状态与副作用
 
 - React component 必须保持声明式；网络、IPC、持久化和 subscription 副作用放入 service、hook 或既有 feature state 层。
+- 副作用原语与 `useEffect` 棘轮：禁止在组件和普通 hook 中新增裸 `useEffect`（由 `bun run arch:check` 锁定存量棘轮）；挂载初始化使用 [`hooks/UseMountEffect.ts`](hooks/UseMountEffect.ts)，外部订阅与窗口事件使用 [`hooks/UseExternalSubscription.ts`](hooks/UseExternalSubscription.ts)。
 - UI component 不得直接解释新的 server wire 格式；事件必须先经过 Agent adapter、`session-view` projection 或既有 reducer。
 - 设置变化必须经过现有 settings hook、storage helper 和 `desktop-client`，并验证本地更新及经过 service boundary 的持久化往返。
 

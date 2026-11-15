@@ -1,12 +1,10 @@
 import { chooseSessionGroupForThread } from '../../session-groups/SessionGroupActions.js'
 import { buildThreadDeepLink } from '@pidex/shared/thread-reference'
-import type React from 'react'
-import {
+import React, {
   lazy,
   memo,
   Suspense,
   useCallback,
-  useEffect,
   useMemo,
   useId,
   useRef,
@@ -14,6 +12,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react'
+import { useMountEffect } from '../../../hooks/UseMountEffect.js'
 import {
   Archive,
   CircleAlert,
@@ -282,7 +281,7 @@ function SidebarSessionGroupComponent({
   useThreadPullRequestLifecycle()
   // `thread/pull-requests/updated` 持久事件到达时直接回填 PR store，
   // 不等待下一轮轮询，也不触发目录全量刷新。
-  useEffect(() => observeThreadPullRequestUpdates(), [])
+  useMountEffect(observeThreadPullRequestUpdates)
   useThreadPullRequestEnvironments(
     useMemo(
       () =>
@@ -448,7 +447,11 @@ function SidebarSessionGroupComponent({
         {
           kind: 'item',
           label: sessionReadStatusActionLabel(session),
-          icon: session.unreadAt ? <Eye className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} /> : <EyeOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
+          icon: session.unreadAt ? (
+            <Eye className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+          ) : (
+            <EyeOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+          ),
           onSelect: () => onToggleSessionUnread(session),
         },
         pullRequests.supported === false
@@ -881,7 +884,9 @@ function SidebarSessionRowComponent({
       indent={showConversationIcon || sessionIndent === 'gutter' ? 'none' : 'session'}
       layout="grid"
       leading={
-        showConversationIcon ? <MessageCircle className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} /> : undefined
+        showConversationIcon ? (
+          <MessageCircle className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
+        ) : undefined
       }
       leadingMode={showConversationIcon ? 'icon' : sessionIndent === 'gutter' ? 'none' : 'spacer'}
       onMouseOver={(event) => {
@@ -953,11 +958,11 @@ function SidebarSessionRowComponent({
                   void desktopClient.openExternalURL(primaryPullRequest.url)
                 }}
               >
-                <PrimaryPullRequestIcon
-                  aria-hidden="true"
-                  className={primaryPullRequestVisual?.className}
-                  size={APP_ICON_SIZES.sm}
-                />
+                {React.createElement(PrimaryPullRequestIcon, {
+                  'aria-hidden': 'true',
+                  className: primaryPullRequestVisual?.className,
+                  size: APP_ICON_SIZES.sm,
+                })}
               </button>
             )}
           {showActions ? (
