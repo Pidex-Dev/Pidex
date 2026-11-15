@@ -20,7 +20,6 @@ import {
   OpaqueIDSchema,
   OperationParamsSchema,
   SequenceSchema,
-  StreamPositionSchema,
   TimestampSchema,
 } from '../wire/Primitives'
 

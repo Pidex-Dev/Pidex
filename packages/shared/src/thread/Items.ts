@@ -15,7 +15,6 @@ import {
   PermissionConfigSchema,
   PermissionGrantScopeSchema,
   RiskCategorySchema,
-  ShellInputSchema,
   ShellReviewSchema,
 } from './Permission'
 import { TaskModeSchema } from './Settings'

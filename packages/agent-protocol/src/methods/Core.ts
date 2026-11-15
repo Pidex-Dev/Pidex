@@ -10,7 +10,6 @@ import { defineMethod, type MethodMap } from '../wire/Definition'
 import {
   AdmissionSchema,
   CapabilityListSchema,
-  CapabilitySchema,
   CursorSchema,
   EmptyParamsSchema,
   JsonValueSchema,
