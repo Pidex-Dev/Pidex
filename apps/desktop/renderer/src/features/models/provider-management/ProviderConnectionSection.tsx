@@ -6,6 +6,7 @@ import {
   KeyRound,
   MoreHorizontal,
   Plus,
+  RefreshCw,
   Activity,
 } from 'lucide-react'
 import type React from 'react'
@@ -25,6 +26,10 @@ import { ApiKeyEditorForm, ApiKeyQuickAdd, type ApiKeyEditorValue } from '../Api
 import { ProviderRequestSettingsForm } from './ProviderRequestSettingsForm.js'
 import { ProviderWebsiteIconSettings } from './ProviderWebsiteIconSettings.js'
 import { ProviderEditorNavigationGuard } from './ProviderEditorNavigationGuard.js'
+import {
+  PROVIDER_PANEL_CONTAINER_CLASS,
+  ProviderPanelActionButton,
+} from './ProviderPanelActionButton.js'
 import { Dropdown } from '../../../components/ui/Dropdown.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import {
@@ -431,7 +436,7 @@ export function ProviderConnectionSection({
       ) : null}
       {panel?.host && section && section !== 'model'
         ? createPortal(
-            <div className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col">
+            <div className={`${PROVIDER_PANEL_CONTAINER_CLASS} tw:flex tw:min-h-0 tw:flex-1 tw:flex-col`}>
               <div
                 ref={scrollRef}
                 className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-5 tw:overflow-y-auto tw:p-4 tw:[&_.model-center-oauth-flow]:p-0"
@@ -495,16 +500,12 @@ export function ProviderConnectionSection({
                             优先使用排在首位的活动密钥。
                           </p>
                         </div>
-                        <Button
-                          color="secondary"
-                          size="sm"
-                          shape="default"
+                        <ProviderPanelActionButton
                           disabled={busy || keyEditor !== null}
+                          icon={<Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
+                          label="新增 API Key"
                           onClick={() => setKeyEditor('new')}
-                        >
-                          <Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
-                          新增 API Key
-                        </Button>{' '}
+                        />
                       </header>
 
                       <div className="model-center-detail-card-body tw:min-w-0">
@@ -652,7 +653,7 @@ export function ProviderConnectionSection({
                     <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
                       <div className="tw:grid tw:min-w-0 tw:gap-1">
                         <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-                          <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">用量与余额</h3>
+                          <h3 className="tw:m-0 tw:whitespace-nowrap tw:text-app-text tw:type-4 tw:weight-bold">用量与余额</h3>
                           {usageCheckedAt ? (
                             <span className="tw:text-app-text-meta tw:type-1 tw:tabular-nums">
                               {formatRefreshedAt(usageCheckedAt)}
@@ -664,14 +665,12 @@ export function ProviderConnectionSection({
                         </p>
                       </div>
                       {connectedQueryableSourceIds.length > 0 ? (
-                        <Button
-                          color="secondary"
-                          size="sm"
+                        <ProviderPanelActionButton
+                          icon={<RefreshCw className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
+                          label="刷新余额"
                           loading={refreshingUsage}
                           onClick={refreshUsageSources}
-                        >
-                          刷新余额
-                        </Button>
+                        />
                       ) : null}
                     </header>
                     <div className="model-center-detail-card-body tw:grid tw:min-w-0 tw:gap-3">

@@ -21,6 +21,7 @@ import {
   type DetectionResultLike,
 } from './ProtocolDetectionApply.js'
 import { DEEPSEEK_PROTOCOL_OPTIONS } from './DeepseekProtocol.js'
+import { ProviderPanelActionButton } from './ProviderPanelActionButton.js'
 
 type RequestDraftModel = {
   id: string
@@ -511,35 +512,27 @@ export function ProviderRequestSettingsForm({
         className="tw:m-0 tw:grid tw:min-h-0 tw:min-w-0 tw:content-start tw:gap-4 tw:border-0 tw:p-0"
       >
         <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-          <h3 className="tw:m-0 tw:type-4 tw:weight-bold">请求配置</h3>
-          <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
+          <h3 className="tw:m-0 tw:shrink-0 tw:whitespace-nowrap tw:type-4 tw:weight-bold">请求配置</h3>
+          <div className="tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-2">
             {!oauthOnly ? (
-              <Button
-                size="sm"
-                shape="default"
-                color="secondary"
+              <ProviderPanelActionButton
+                icon={<Activity className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />}
+                label="检测协议"
                 disabled={saving || detecting}
                 loading={detecting}
                 onClick={() => void detectProtocols()}
-              >
-                <Activity className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
-                检测协议
-              </Button>
+              />
             ) : null}
             {!addingEndpoint ? (
-              <Button
-                size="sm"
-                shape="default"
-                variant="outline"
+              <ProviderPanelActionButton
+                icon={<Plus className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />}
+                label="添加端点"
                 disabled={!availableEndpoints.length}
                 onClick={() => {
                   setEndpointProtocol(availableEndpoints[0]!.value)
                   setAddingEndpoint(true)
                 }}
-              >
-                <Plus className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
-                添加端点
-              </Button>
+              />
             ) : null}
           </div>
         </header>
@@ -548,7 +541,7 @@ export function ProviderRequestSettingsForm({
             .filter((option) => option.value in draft.endpoints)
             .map((option) => (
               <div key={option.value} className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
-                <span className="tw:flex tw:items-center tw:gap-2">
+                <span className="tw:flex tw:items-center tw:justify-between tw:gap-2">
                   {option.label}
                   {!['openai-embeddings', 'jina-rerank'].includes(option.value) ? (
                     <Button

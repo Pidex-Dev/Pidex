@@ -1,9 +1,12 @@
+import { Globe, RotateCcw, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { Button } from '../../../components/ui/Button.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Input } from '../../../components/ui/Input.js'
+import { useProviderIconSource } from '../../../services/desktop-client/ProviderIconClient.js'
 import { toUserErrorMessage } from '../../../utils/Errors.js'
 import { ProviderIcon } from '../ProviderIcon.js'
 import { readProviderIconUpload } from './ProviderIconUpload.js'
+import { ProviderPanelActionButton } from './ProviderPanelActionButton.js'
 
 export function ProviderWebsiteIconSettings({
   providerID,
@@ -32,6 +35,11 @@ export function ProviderWebsiteIconSettings({
   const bridge = window.DesktopBridge
   const canSetWebsiteIcon = typeof bridge?.setProviderWebsiteIcon === 'function'
   const canUploadIcon = typeof bridge?.setProviderUploadedIcon === 'function'
+  const { override } = useProviderIconSource(
+    draft ? undefined : logoURL,
+    draft ? undefined : providerID,
+  )
+  const hasCustomIcon = typeof bridge?.resolveProviderIcon === 'function' ? override : true
   if (!draft && (!bridge || !canSetWebsiteIcon)) return null
 
   async function update(restore: boolean) {
@@ -89,38 +97,35 @@ export function ProviderWebsiteIconSettings({
       </div>
       <div className="tw:flex tw:flex-wrap tw:gap-2">
         {draft || canUploadIcon ? (
-          <Button
-            size="sm"
-            shape="default"
-            color="secondary"
+          <ProviderPanelActionButton
             disabled={busy || draft}
-            title={draft ? '创建供应商后可上传图标' : undefined}
+            icon={<Upload className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
+            label="上传图片"
+            title={draft ? '创建供应商后可上传图标' : '上传图片'}
             onClick={() => fileRef.current?.click()}
-          >
-            上传图片
-          </Button>
+          />
         ) : null}
-        <Button
-          size="sm"
-          shape="default"
-          color="secondary"
-          loading={busy}
+        <ProviderPanelActionButton
           disabled={busy || draft || !website.trim()}
-          title={draft ? '创建供应商后可从网站获取图标' : undefined}
+          icon={<Globe className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
+          label="从网站获取"
+          loading={busy}
+          title={draft ? '创建供应商后可从网站获取图标' : '从网站获取'}
           onClick={() => void update(false)}
-        >
-          从网站获取
-        </Button>
-        <Button
-          size="sm"
-          shape="default"
-          variant="outline"
-          disabled={busy || draft}
-          title={draft ? '创建供应商后可恢复默认图标' : undefined}
+        />
+        <ProviderPanelActionButton
+          disabled={busy || draft || !hasCustomIcon}
+          icon={<RotateCcw className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
+          label="恢复默认图标"
+          title={
+            draft
+              ? '创建供应商后可恢复默认图标'
+              : !hasCustomIcon
+                ? '当前已使用默认图标'
+                : '恢复默认图标'
+          }
           onClick={() => void update(true)}
-        >
-          恢复默认图标
-        </Button>
+        />
       </div>
       <input
         hidden

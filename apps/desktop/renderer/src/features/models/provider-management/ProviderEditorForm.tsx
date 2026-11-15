@@ -45,6 +45,10 @@ import { Button } from '../../../components/ui/Button.js'
 
 import { Input } from '../../../components/ui/Input.js'
 import { ProviderWebsiteIconSettings } from './ProviderWebsiteIconSettings.js'
+import {
+  PROVIDER_PANEL_CONTAINER_CLASS,
+  ProviderPanelActionButton,
+} from './ProviderPanelActionButton.js'
 import { ProviderRequestSettingsForm } from './ProviderRequestSettingsForm.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
@@ -1874,7 +1878,7 @@ export function ProviderEditorForm({
 
         {panel?.host && panel.tab?.providerId === NEW_PROVIDER_PANEL_ID && draftProviderSummary
           ? createPortal(
-              <div className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col">
+              <div className={`${PROVIDER_PANEL_CONTAINER_CLASS} tw:flex tw:min-h-0 tw:flex-1 tw:flex-col`}>
                 <div className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-5 tw:overflow-y-auto tw:p-4 tw:[&_.model-center-oauth-flow]:p-0">
                   <section className="tw:grid tw:gap-4" aria-label="供应商信息">
                     <h3 className="tw:m-0 tw:type-4 tw:weight-bold">供应商信息</h3>
@@ -1907,16 +1911,13 @@ export function ProviderEditorForm({
                             优先使用排在首位的活动密钥。
                           </p>
                         </div>
-                        <Button
-                          color="secondary"
-                          size="sm"
-                          shape="default"
+                        <ProviderPanelActionButton
+                          icon={<Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
+                          label="新增 API Key"
+                          className="tw:shrink-0"
                           disabled={busy || draftKeyEditorOpen || auth === 'none'}
                           onClick={() => setDraftKeyEditorOpen(true)}
-                        >
-                          <Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
-                          新增 API Key
-                        </Button>
+                        />
                       </header>
                       <div className="model-center-detail-card-body tw:min-w-0">
                         {draftKeyEditorOpen ? (
