@@ -26,9 +26,16 @@ export function PullRequestsPlaceholder(): React.ReactNode {
           aria-hidden="true"
           className="pull-requests-placeholder__icon tw:mb-3 tw:inline-flex tw:size-8 tw:items-center tw:justify-center tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text-meta tw:forced-colors:border-[color:ButtonText]"
         >
-          <GitPullRequest className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <GitPullRequest
+            className="tw:size-icon-lg"
+            size={APP_ICON_SIZES.lg}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
         </span>
-        <h2 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium" id="pull-requests-empty-title">
+        <h2
+          className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium"
+          id="pull-requests-empty-title"
+        >
           拉取请求收件箱正在开发中
         </h2>
         <p className="tw:m-0 tw:max-w-[440px] tw:text-app-text-soft tw:type-1">

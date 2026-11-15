@@ -91,7 +91,10 @@ describe('ProviderEditor optionSpecs 往返', () => {
 
   test('Max Output Tokens 越界不再静默钳制，而是返回可见校验错误', () => {
     const editable = editableModel(definition())
-    const overLimit = normalizeEditableModel({ ...editable, maxOutputTokensMax: Number.MAX_SAFE_INTEGER + 1 })
+    const overLimit = normalizeEditableModel({
+      ...editable,
+      maxOutputTokensMax: Number.MAX_SAFE_INTEGER + 1,
+    })
     expect(overLimit).toBeInstanceOf(Error)
     expect((overLimit as Error).message).toContain('整数范围')
     const nonInteger = normalizeEditableModel({ ...editable, maxOutputTokensMax: 1.5 })
@@ -100,29 +103,43 @@ describe('ProviderEditor optionSpecs 往返', () => {
   })
 })
 
-
 test('上下文支持 1,048,576 和 1.5 亿，仍拒绝无法精确表示的整数', () => {
   for (const contextWindow of [1_048_576, 150_000_000]) {
     const normalized = normalizeEditableModel(editableModel(definition({ contextWindow })))
     expect(normalized).not.toBeInstanceOf(Error)
     expect((normalized as DesktopProviderModelDefinition).contextWindow).toBe(contextWindow)
   }
-  expect(normalizeEditableModel(editableModel(definition({ contextWindow: Number.MAX_SAFE_INTEGER + 1 })))).toBeInstanceOf(Error)
+  expect(
+    normalizeEditableModel(
+      editableModel(definition({ contextWindow: Number.MAX_SAFE_INTEGER + 1 })),
+    ),
+  ).toBeInstanceOf(Error)
 })
-
 
 test('模型发现复用聊天协议筛选，跳过非聊天和不支持的协议', () => {
   expect(resolveDiscoveryChatApi([])).toBe('openai-completions')
-  for (const api of ['openai-completions', 'openai-responses', 'anthropic-messages', 'google-generative-ai']) {
-    expect(resolveDiscoveryChatApi([
-      { api: 'openai-responses', modelType: 'embedding' },
-      { api: 'unknown-api', modelType: 'chat' },
-      { api, modelType: 'chat' },
-      { api: 'openai-completions' },
-    ])).toBe(api)
+  for (const api of [
+    'openai-completions',
+    'openai-responses',
+    'anthropic-messages',
+    'google-generative-ai',
+  ]) {
+    expect(
+      resolveDiscoveryChatApi([
+        { api: 'openai-responses', modelType: 'embedding' },
+        { api: 'unknown-api', modelType: 'chat' },
+        { api, modelType: 'chat' },
+        { api: 'openai-completions' },
+      ]),
+    ).toBe(api)
   }
-  expect(resolveDiscoveryChatApi([{ api: 'unknown-api' }, { api: 'openai-responses', modelType: 'rerank' }]))
-    .toBe('openai-completions')
-  expect(resolveDiscoveryChatApi([{ api: 'anthropic-messages' }, { api: 'openai-responses' }]))
-    .toBe('anthropic-messages')
+  expect(
+    resolveDiscoveryChatApi([
+      { api: 'unknown-api' },
+      { api: 'openai-responses', modelType: 'rerank' },
+    ]),
+  ).toBe('openai-completions')
+  expect(
+    resolveDiscoveryChatApi([{ api: 'anthropic-messages' }, { api: 'openai-responses' }]),
+  ).toBe('anthropic-messages')
 })

@@ -358,9 +358,7 @@ export function ContextUsagePanel({
               className="context-usage-panel-detail-item tw:flex tw:min-w-0 tw:items-center tw:justify-center tw:gap-1"
               key={item.label}
             >
-              <span className="tw:shrink-0 tw:text-app-text-meta tw:type-1">
-                {item.label}
-              </span>
+              <span className="tw:shrink-0 tw:text-app-text-meta tw:type-1">{item.label}</span>
               <span className="context-usage-panel-detail-chip tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text tw:type-1 tw:tabular-nums">
                 {item.value}
               </span>

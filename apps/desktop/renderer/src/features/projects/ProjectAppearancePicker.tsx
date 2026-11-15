@@ -80,7 +80,11 @@ export function ProjectAppearancePicker({
             value={color}
           >
             <RadioGroup.Indicator>
-              <Check aria-hidden="true" className="tw:size-icon-sm tw:text-app-canvas" size={APP_ICON_SIZES.sm} />
+              <Check
+                aria-hidden="true"
+                className="tw:size-icon-sm tw:text-app-canvas"
+                size={APP_ICON_SIZES.sm}
+              />
             </RadioGroup.Indicator>
           </RadioGroup.Item>
         ))}

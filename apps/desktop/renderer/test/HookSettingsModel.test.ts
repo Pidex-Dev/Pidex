@@ -34,7 +34,12 @@ describe('Hook 设置模型', () => {
   test('按来自配置和来自插件拆分分组', () => {
     const { configGroups, pluginGroups } = splitHookGroups([
       makeGroup({ id: 'config:user', kind: 'config' }),
-      makeGroup({ id: 'plugin:ponytail', kind: 'plugin', pluginId: 'ponytail', displayName: 'Ponytail' }),
+      makeGroup({
+        id: 'plugin:ponytail',
+        kind: 'plugin',
+        pluginId: 'ponytail',
+        displayName: 'Ponytail',
+      }),
     ])
     expect(configGroups.map((g) => g.id)).toEqual(['config:user'])
     expect(pluginGroups.map((g) => g.id)).toEqual(['plugin:ponytail'])

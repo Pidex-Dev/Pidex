@@ -51,7 +51,11 @@ import {
   isImportableCandidate,
 } from './ModelCandidateImport.js'
 import { ProviderModelSpecRepairDialog } from './ProviderModelSpecRepairDialog.js'
-import { editableModel, normalizeEditableModel, resolveDiscoveryChatApi } from './ProviderEditorForm.js'
+import {
+  editableModel,
+  normalizeEditableModel,
+  resolveDiscoveryChatApi,
+} from './ProviderEditorForm.js'
 import { useDialogFocusRestore } from '../../../components/ui/UseDialogFocusRestore.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
@@ -145,7 +149,9 @@ export function ProviderModelsSection({
         api: resolveDiscoveryChatApi(customConfig?.models ?? []),
       })
       setDiscoveredModels([...result.models])
-      setCandidateMatches(Object.fromEntries((result.matches ?? []).map((match) => [String(match.id), match])))
+      setCandidateMatches(
+        Object.fromEntries((result.matches ?? []).map((match) => [String(match.id), match])),
+      )
       setAddedModelIds(new Set(rows.map((row) => row.id)))
       pendingConfigRef.current = provider.config ?? null
     } catch (error) {
@@ -175,17 +181,28 @@ export function ProviderModelsSection({
         return
       }
       nextAdded.add(model.id)
-      nextModels = [...currentConfig.models.filter((m) => m.id !== model.id), currentConfig.kind === 'builtin' ? { id: model.id, enabled: true } : { ...model, enabled: true }]
+      nextModels = [
+        ...currentConfig.models.filter((m) => m.id !== model.id),
+        currentConfig.kind === 'builtin'
+          ? { id: model.id, enabled: true }
+          : { ...model, enabled: true },
+      ]
     }
 
     setAddedModelIds(nextAdded)
     const nextConfig = {
       ...currentConfig,
       models: nextModels,
-      ...(currentConfig.kind === 'builtin' ? {
-        denyModels: isCurrentlyAdded ? [...new Set([...currentConfig.denyModels, model.id])] : currentConfig.denyModels.filter((id) => id !== model.id),
-        allowModels: isCurrentlyAdded ? currentConfig.allowModels.filter((id) => id !== model.id) : [...new Set([...currentConfig.allowModels, model.id])],
-      } : {}),
+      ...(currentConfig.kind === 'builtin'
+        ? {
+            denyModels: isCurrentlyAdded
+              ? [...new Set([...currentConfig.denyModels, model.id])]
+              : currentConfig.denyModels.filter((id) => id !== model.id),
+            allowModels: isCurrentlyAdded
+              ? currentConfig.allowModels.filter((id) => id !== model.id)
+              : [...new Set([...currentConfig.allowModels, model.id])],
+          }
+        : {}),
     } as DesktopProviderDefinition
     pendingConfigRef.current = nextConfig
     setTogglingModelIds((prev) => new Set(prev).add(model.id))
@@ -335,7 +352,12 @@ export function ProviderModelsSection({
       },
     } as DesktopProviderModelDefinition
     const creating = !id || (!!candidate && !configured)
-    setEditingModel({ version: ++modelEditorVersion.current, model: creating ? { ...model, enabled: true } : model, creating, ...(nativeApi ? { nativeApi } : {}) })
+    setEditingModel({
+      version: ++modelEditorVersion.current,
+      model: creating ? { ...model, enabled: true } : model,
+      creating,
+      ...(nativeApi ? { nativeApi } : {}),
+    })
   }
 
   /**
@@ -366,11 +388,22 @@ export function ProviderModelsSection({
       await onSaveDefinition(
         {
           ...currentConfig,
-          models: [...currentConfig.models.filter((model) => !added.some((item) => item.id === model.id)), ...added.map((model) => currentConfig.kind === 'builtin' ? { id: model.id, enabled: true } : model)],
-          ...(currentConfig.kind === 'builtin' ? {
-            denyModels: currentConfig.denyModels.filter((id) => !added.some((model) => model.id === id)),
-            allowModels: [...new Set([...currentConfig.allowModels, ...added.map((model) => model.id)])],
-          } : {}),
+          models: [
+            ...currentConfig.models.filter((model) => !added.some((item) => item.id === model.id)),
+            ...added.map((model) =>
+              currentConfig.kind === 'builtin' ? { id: model.id, enabled: true } : model,
+            ),
+          ],
+          ...(currentConfig.kind === 'builtin'
+            ? {
+                denyModels: currentConfig.denyModels.filter(
+                  (id) => !added.some((model) => model.id === id),
+                ),
+                allowModels: [
+                  ...new Set([...currentConfig.allowModels, ...added.map((model) => model.id)]),
+                ],
+              }
+            : {}),
         } as DesktopProviderDefinition,
         provider.providerID,
       )
@@ -430,7 +463,7 @@ export function ProviderModelsSection({
       )
     }
     await onRefresh()
-    setEditingModel((current) => current ? { ...current, model, creating: false } : null)
+    setEditingModel((current) => (current ? { ...current, model, creating: false } : null))
     onNotice('模型配置已保存。')
   }
 
@@ -565,9 +598,7 @@ export function ProviderModelsSection({
             onRemove={() => setDeletingModel(row.id)}
             editingDisabled={busy || saving || editingBlocked || !provider.config || !editable}
             logoURL={modelLogoURL(row.id, row.metadata?.name) ?? provider.logoURL}
-            providerID={
-              modelLogoURL(row.id, row.metadata?.name) ? undefined : provider.providerID
-            }
+            providerID={modelLogoURL(row.id, row.metadata?.name) ? undefined : provider.providerID}
           />
         ))}
         {filtered.length === 0 ? (
@@ -576,20 +607,25 @@ export function ProviderModelsSection({
           </p>
         ) : null}
       </div>
-      {editingModel && panel?.host && panel.tab?.providerId === provider.providerID && panel.tab.section === 'model' ? createPortal(
-        <ProviderModelPanel
-          key={editingModel.version}
-          panel={panel}
-          providerId={provider.providerID}
-          baseUrl={provider.baseURL ?? ''}
-          model={editingModel.model}
-          creating={editingModel.creating}
-          {...(editingModel.nativeApi ? { nativeApi: editingModel.nativeApi } : {})}
-          onSave={saveModel}
-          onClose={panel.close}
-        />,
-        panel.host,
-      ) : null}
+      {editingModel &&
+      panel?.host &&
+      panel.tab?.providerId === provider.providerID &&
+      panel.tab.section === 'model'
+        ? createPortal(
+            <ProviderModelPanel
+              key={editingModel.version}
+              panel={panel}
+              providerId={provider.providerID}
+              baseUrl={provider.baseURL ?? ''}
+              model={editingModel.model}
+              creating={editingModel.creating}
+              {...(editingModel.nativeApi ? { nativeApi: editingModel.nativeApi } : {})}
+              onSave={saveModel}
+              onClose={panel.close}
+            />,
+            panel.host,
+          )
+        : null}
       <Dialog.Root
         open={discoveredModels !== null}
         onOpenChange={(open) => {
@@ -649,7 +685,11 @@ export function ProviderModelsSection({
                           }
                         }}
                       >
-                        <Activity className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
+                        <Activity
+                          className="tw:size-icon-sm"
+                          aria-hidden
+                          size={APP_ICON_SIZES.sm}
+                        />
                         测试全部模型
                       </Button>
                       <Button
@@ -665,7 +705,11 @@ export function ProviderModelsSection({
                           }
                         }}
                       >
-                        <CheckCheck className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
+                        <CheckCheck
+                          className="tw:size-icon-sm"
+                          aria-hidden
+                          size={APP_ICON_SIZES.sm}
+                        />
                         添加全部模型
                       </Button>
                       <Button
@@ -701,8 +745,13 @@ export function ProviderModelsSection({
                           isSelected={addedModelIds.has(model.id)}
                           isToggling={togglingModelIds.size > 0}
                           expanded={expandedModelId === model.id}
-                          onExpand={() => setExpandedModelId(expandedModelId === model.id ? null : model.id)}
-                          current={provider.config?.models.find((entry) => entry.id === model.id) as DesktopProviderModelDefinition | undefined}
+                          onExpand={() =>
+                            setExpandedModelId(expandedModelId === model.id ? null : model.id)
+                          }
+                          current={
+                            provider.config?.models.find((entry) => entry.id === model.id) as
+                              DesktopProviderModelDefinition | undefined
+                          }
                           onToggle={() => void toggleModel(model)}
                         />
                       ))}
@@ -1004,15 +1053,21 @@ export function resolveModelCapabilities(
   }
 
   for (const kind of ['video', 'pdf'] as const) {
-    if ((model.catalog?.input ?? model.input)?.includes(kind)) caps.push({
-      key: kind, label: kind === 'pdf' ? 'PDF（目录）' : '视频', icon: Eye,
+    if ((model.catalog?.input ?? model.input)?.includes(kind))
+      caps.push({
+        key: kind,
+        label: kind === 'pdf' ? 'PDF（目录）' : '视频',
+        icon: Eye,
+        badgeClass: 'tw:bg-app-hover tw:text-app-text-soft',
+      })
+  }
+  if (model.catalog?.structuredOutput)
+    caps.push({
+      key: 'structured',
+      label: '结构化输出',
+      icon: Code,
       badgeClass: 'tw:bg-app-hover tw:text-app-text-soft',
     })
-  }
-  if (model.catalog?.structuredOutput) caps.push({
-    key: 'structured', label: '结构化输出', icon: Code,
-    badgeClass: 'tw:bg-app-hover tw:text-app-text-soft',
-  })
 
   const isCode = Boolean(/coder|coding|code/i.test(text))
   if (isCode) {
@@ -1101,11 +1156,14 @@ export function DiscoveredModelCard({
   isSelected,
   isToggling,
   onToggle,
-  expanded, onExpand, current,
+  expanded,
+  onExpand,
+  current,
 }: DiscoveredModelCardProps): React.ReactNode {
   const vendor = resolveModelVendor(model, provider)
-  const capabilities = resolveModelCapabilities(model, metadata)
-    .sort((a, b) => Number(b.key === 'tools') - Number(a.key === 'tools'))
+  const capabilities = resolveModelCapabilities(model, metadata).sort(
+    (a, b) => Number(b.key === 'tools') - Number(a.key === 'tools'),
+  )
   const contextWindow = resolveModelContextWindow(model, metadata)
   const importable = isImportableCandidate(model, match)
   const matchLabel = candidateMatchLabel(match?.status)
@@ -1114,115 +1172,149 @@ export function DiscoveredModelCard({
 
   return (
     <div className="tw:min-w-0 tw:self-start">
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={isSelected}
-      aria-label={`${modelName}，${
-        isSelected ? '已添加，点击移除' : importable ? '未添加，点击添加' : '规格待补齐，点击手动填写'
-      }`}
-      title={candidateMatchHint(match)}
-      disabled={isToggling}
-      onClick={onToggle}
-      className={cx(
-        'discovered-model-card tw:group tw:relative tw:flex tw:flex-col tw:justify-between tw:gap-2 tw:rounded-5 tw:p-3 tw:text-left tw:transition-all tw:duration-150 tw:cursor-pointer tw:outline-none tw:select-none tw:min-h-[118px] tw:w-full',
-        'tw:focus-visible:ring-2 tw:focus-visible:ring-app-focus tw:focus-visible:ring-offset-1',
-        isSelected
-          ? 'tw:bg-app-accent-subtle/80 tw:border tw:border-app-accent tw:ring-1 tw:ring-app-accent tw:shadow-md tw:shadow-app-accent/20 dark:tw:shadow-app-accent/35'
-          : 'tw:bg-app-panel tw:border tw:border-app-border-subtle tw:shadow-none tw:hover:border-app-border tw:hover:bg-app-hover/50 tw:hover:shadow-sm',
-        isToggling && 'tw:opacity-70 tw:cursor-wait',
-      )}
-    >
-      {/* 第一行：厂商和模型名称 */}
-      <div className="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:min-w-0 tw:w-full">
-        <div className="tw:flex tw:items-center tw:gap-2 tw:min-w-0 tw:flex-1">
-          <span className="tw:inline-flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center">
-            <ProviderIcon
-              logoURL={logo}
-              providerID={modelLogoURL(model.id, model.name) ? undefined : provider.providerID}
-              className="tw:size-full"
-              imageClassName="tw:object-contain tw:[.dark-theme_&]:invert tw:[.dark-theme_&]:hue-rotate-180"
-              fallback={<Server className="tw:size-icon-sm" aria-hidden size={14} />}
-            />
-          </span>
-          <span className="tw:truncate tw:type-2 tw:weight-medium tw:text-app-text" title={modelName}>
-            {modelName}
-          </span>
-          <span className="tw:shrink-0 tw:rounded tw:bg-app-hover tw:px-1 tw:py-1 tw:type-1 tw:text-app-text-soft">
-            {vendor}
-          </span>
-          <span
-            className={cx(
-              'tw:shrink-0 tw:rounded tw:px-1 tw:py-1 tw:type-1',
-              importable
-                ? 'tw:bg-app-accent-subtle tw:text-app-accent-fg'
-                : 'tw:bg-app-hover tw:text-app-text-meta',
-            )}
-          >
-            {matchLabel}
-          </span>
-        </div>
-
-        <div className="tw:shrink-0">
-          {isToggling ? (
-            <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft">
-              <RefreshCw size="var(--inline-icon-size, 1em)" className="tw:animate-spin" />
-              <span>保存中</span>
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={isSelected}
+        aria-label={`${modelName}，${
+          isSelected
+            ? '已添加，点击移除'
+            : importable
+              ? '未添加，点击添加'
+              : '规格待补齐，点击手动填写'
+        }`}
+        title={candidateMatchHint(match)}
+        disabled={isToggling}
+        onClick={onToggle}
+        className={cx(
+          'discovered-model-card tw:group tw:relative tw:flex tw:flex-col tw:justify-between tw:gap-2 tw:rounded-5 tw:p-3 tw:text-left tw:transition-all tw:duration-150 tw:cursor-pointer tw:outline-none tw:select-none tw:min-h-[118px] tw:w-full',
+          'tw:focus-visible:ring-2 tw:focus-visible:ring-app-focus tw:focus-visible:ring-offset-1',
+          isSelected
+            ? 'tw:bg-app-accent-subtle/80 tw:border tw:border-app-accent tw:ring-1 tw:ring-app-accent tw:shadow-md tw:shadow-app-accent/20 dark:tw:shadow-app-accent/35'
+            : 'tw:bg-app-panel tw:border tw:border-app-border-subtle tw:shadow-none tw:hover:border-app-border tw:hover:bg-app-hover/50 tw:hover:shadow-sm',
+          isToggling && 'tw:opacity-70 tw:cursor-wait',
+        )}
+      >
+        {/* 第一行：厂商和模型名称 */}
+        <div className="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:min-w-0 tw:w-full">
+          <div className="tw:flex tw:items-center tw:gap-2 tw:min-w-0 tw:flex-1">
+            <span className="tw:inline-flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center">
+              <ProviderIcon
+                logoURL={logo}
+                providerID={modelLogoURL(model.id, model.name) ? undefined : provider.providerID}
+                className="tw:size-full"
+                imageClassName="tw:object-contain tw:[.dark-theme_&]:invert tw:[.dark-theme_&]:hue-rotate-180"
+                fallback={<Server className="tw:size-icon-sm" aria-hidden size={14} />}
+              />
             </span>
-          ) : isSelected ? (
-            <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:bg-app-hover tw:text-app-text tw:px-2 tw:py-1 tw:type-1 tw:shadow-sm">
-              <Check size="var(--inline-icon-size, 1em)" strokeWidth={2.5} />
-              <span>已添加</span>
-            </span>
-          ) : (
-            <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-dashed tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta tw:group-hover:border-app-border tw:group-hover:text-app-text-soft">
-              <Plus size="var(--inline-icon-size, 1em)" />
-              <span>未添加</span>
-            </span>
-          )}
-        </div>
-      </div>
-
-      <span className="tw:truncate tw:font-mono tw:type-1 tw:text-app-text-meta tw:w-full" title={model.id}>{model.id}</span>
-      {model.catalog?.status && <span>{model.catalog.status}</span>}
-      {/* 第二行：模型的信息，例如视觉，推理等 */}
-      <div className="tw:flex tw:items-center tw:gap-1 tw:flex-wrap tw:min-h-5">
-        {capabilities.slice(0, 4).map((cap) => {
-          const Icon = cap.icon
-          return (
             <span
-              key={cap.key}
+              className="tw:truncate tw:type-2 tw:weight-medium tw:text-app-text"
+              title={modelName}
+            >
+              {modelName}
+            </span>
+            <span className="tw:shrink-0 tw:rounded tw:bg-app-hover tw:px-1 tw:py-1 tw:type-1 tw:text-app-text-soft">
+              {vendor}
+            </span>
+            <span
               className={cx(
-                'tw:inline-flex tw:items-center tw:gap-1 tw:rounded tw:px-1 tw:py-1 tw:type-1',
-                cap.badgeClass,
+                'tw:shrink-0 tw:rounded tw:px-1 tw:py-1 tw:type-1',
+                importable
+                  ? 'tw:bg-app-accent-subtle tw:text-app-accent-fg'
+                  : 'tw:bg-app-hover tw:text-app-text-meta',
               )}
             >
-              <Icon size={11} />
-              <span>{cap.label}</span>
+              {matchLabel}
             </span>
-          )
-        })}
-      </div>
+          </div>
 
-      {capabilities.length > 4 && <span>+{capabilities.length - 4}</span>}
-      {/* 第三行：模型的上下文长度 */}
-      <div className="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:type-1 tw:text-app-text-soft tw:pt-1 tw:border-t tw:border-app-border-subtle/40">
-        <div className="tw:flex tw:items-center tw:gap-1 tw:min-w-0">
-          <Cpu size="var(--inline-icon-size, 1em)" className="tw:shrink-0 tw:text-app-text-meta" />
-          <span>
-            上下文长度:{' '}
-            <strong className="tw:text-app-text">
-              {contextWindow ? formatCompactNumber(contextWindow) : '未知'}
-            </strong>
-            {' · '}最大输出:{' '}
-            <strong className="tw:text-app-text">{model.maxTokens ? formatCompactNumber(model.maxTokens) : '未知'}</strong>
-          </span>
+          <div className="tw:shrink-0">
+            {isToggling ? (
+              <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft">
+                <RefreshCw size="var(--inline-icon-size, 1em)" className="tw:animate-spin" />
+                <span>保存中</span>
+              </span>
+            ) : isSelected ? (
+              <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:bg-app-hover tw:text-app-text tw:px-2 tw:py-1 tw:type-1 tw:shadow-sm">
+                <Check size="var(--inline-icon-size, 1em)" strokeWidth={2.5} />
+                <span>已添加</span>
+              </span>
+            ) : (
+              <span className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-dashed tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta tw:group-hover:border-app-border tw:group-hover:text-app-text-soft">
+                <Plus size="var(--inline-icon-size, 1em)" />
+                <span>未添加</span>
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-      <span className="tw:type-1 tw:text-app-text-soft">输入 {modelPrice(model.cost?.input)} / 输出 {modelPrice(model.cost?.output)} · USD / 百万 tokens{model.catalog?.priceSource?.kind === 'reference' ? ' · 原厂参考价' : model.catalog?.priceSource ? ' · 供应商价格' : ''}</span>
-    </button>
-    {onExpand && <button type="button" aria-expanded={expanded === true} onClick={onExpand} className="tw:py-2 tw:text-app-accent-fg tw:type-1">{expanded ? '收起详情' : '查看详情'}</button>}
-    {expanded && <ModelCatalogDetails model={model} current={current} />}
+
+        <span
+          className="tw:truncate tw:font-mono tw:type-1 tw:text-app-text-meta tw:w-full"
+          title={model.id}
+        >
+          {model.id}
+        </span>
+        {model.catalog?.status && <span>{model.catalog.status}</span>}
+        {/* 第二行：模型的信息，例如视觉，推理等 */}
+        <div className="tw:flex tw:items-center tw:gap-1 tw:flex-wrap tw:min-h-5">
+          {capabilities.slice(0, 4).map((cap) => {
+            const Icon = cap.icon
+            return (
+              <span
+                key={cap.key}
+                className={cx(
+                  'tw:inline-flex tw:items-center tw:gap-1 tw:rounded tw:px-1 tw:py-1 tw:type-1',
+                  cap.badgeClass,
+                )}
+              >
+                <Icon size={11} />
+                <span>{cap.label}</span>
+              </span>
+            )
+          })}
+        </div>
+
+        {capabilities.length > 4 && <span>+{capabilities.length - 4}</span>}
+        {/* 第三行：模型的上下文长度 */}
+        <div className="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:type-1 tw:text-app-text-soft tw:pt-1 tw:border-t tw:border-app-border-subtle/40">
+          <div className="tw:flex tw:items-center tw:gap-1 tw:min-w-0">
+            <Cpu
+              size="var(--inline-icon-size, 1em)"
+              className="tw:shrink-0 tw:text-app-text-meta"
+            />
+            <span>
+              上下文长度:{' '}
+              <strong className="tw:text-app-text">
+                {contextWindow ? formatCompactNumber(contextWindow) : '未知'}
+              </strong>
+              {' · '}最大输出:{' '}
+              <strong className="tw:text-app-text">
+                {model.maxTokens ? formatCompactNumber(model.maxTokens) : '未知'}
+              </strong>
+            </span>
+          </div>
+        </div>
+        <span className="tw:type-1 tw:text-app-text-soft">
+          输入 {modelPrice(model.cost?.input)} / 输出 {modelPrice(model.cost?.output)} · USD / 百万
+          tokens
+          {model.catalog?.priceSource?.kind === 'reference'
+            ? ' · 原厂参考价'
+            : model.catalog?.priceSource
+              ? ' · 供应商价格'
+              : ''}
+        </span>
+      </button>
+      {onExpand && (
+        <button
+          type="button"
+          aria-expanded={expanded === true}
+          onClick={onExpand}
+          className="tw:py-2 tw:text-app-accent-fg tw:type-1"
+        >
+          {expanded ? '收起详情' : '查看详情'}
+        </button>
+      )}
+      {expanded && <ModelCatalogDetails model={model} current={current} />}
     </div>
   )
 }

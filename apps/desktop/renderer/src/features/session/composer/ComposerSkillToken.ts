@@ -90,10 +90,13 @@ export function composerTokenFromPastedLink(
   const href = singleLink?.href ?? source
   const target = classifyMarkdownTarget(href)
   const kind =
-    target.kind === 'external' ? 'browser'
-      : target.kind === 'thread' ? 'thread'
-      : isInlinePluginLink(href) ? 'plugin'
-      : undefined
+    target.kind === 'external'
+      ? 'browser'
+      : target.kind === 'thread'
+        ? 'thread'
+        : isInlinePluginLink(href)
+          ? 'plugin'
+          : undefined
   if (!kind) return
 
   const value = target.kind === 'external' ? target.url : href

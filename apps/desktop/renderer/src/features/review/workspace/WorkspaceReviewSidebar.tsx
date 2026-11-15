@@ -250,9 +250,7 @@ function WorkspaceReviewSidebarImpl({
   React.useEffect(() => {
     onReviewSummaryChange?.(summary)
   }, [summary, onReviewSummaryChange])
-  const [, setLoadedDiffs] = React.useState<ReadonlyMap<string, ReviewFileDiff>>(
-    () => new Map(),
-  )
+  const [, setLoadedDiffs] = React.useState<ReadonlyMap<string, ReviewFileDiff>>(() => new Map())
   const [fileLoadStates, setFileLoadStates] = React.useState<
     ReadonlyMap<string, ReviewFileLoadState>
   >(() => new Map())
@@ -2396,9 +2394,17 @@ function WorkspaceReviewSidebarImpl({
                 onClick={onToggleReviewView}
               >
                 {reviewView === 'inline' ? (
-                  <Columns2 className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Columns2
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 ) : (
-                  <Rows2 className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Rows2
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 )}
               </Button>
             </Tooltip>

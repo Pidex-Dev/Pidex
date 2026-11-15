@@ -478,7 +478,9 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
       parsed['desktop.voice.handsFreeMode'],
       defaults['desktop.voice.handsFreeMode'],
     ),
-    'desktop.voice.recentRecordings': normalizeVoiceRecordings(parsed['desktop.voice.recentRecordings']),
+    'desktop.voice.recentRecordings': normalizeVoiceRecordings(
+      parsed['desktop.voice.recentRecordings'],
+    ),
     'desktop.voice.dictionary': normalizeVoiceDictionary(parsed['desktop.voice.dictionary']),
     'desktop.composer_predictions':
       typeof parsed['desktop.composer_predictions'] === 'boolean'
@@ -940,9 +942,7 @@ export function normalizeSidebarCustomization(
   }
 
   const pinnedSort: DesktopSidebarPinnedSort =
-    raw.pinnedSort === 'updated' || raw.pinnedSort === 'lastPrompt'
-      ? raw.pinnedSort
-      : 'manual'
+    raw.pinnedSort === 'updated' || raw.pinnedSort === 'lastPrompt' ? raw.pinnedSort : 'manual'
 
   const rawDestOrder = Array.isArray(raw.destinationOrder)
     ? raw.destinationOrder.filter((id): id is string => typeof id === 'string')
@@ -1285,9 +1285,7 @@ function normalizeVoiceRecordings(value: unknown): DesktopVoiceRecordingEntry[] 
       ...(typeof record.transcript === 'string' && record.transcript.trim()
         ? { transcript: record.transcript }
         : {}),
-      ...(typeof record.error === 'string' && record.error.trim()
-        ? { error: record.error }
-        : {}),
+      ...(typeof record.error === 'string' && record.error.trim() ? { error: record.error } : {}),
     })
     if (result.length >= MAX_VOICE_RECENT_RECORDINGS) break
   }

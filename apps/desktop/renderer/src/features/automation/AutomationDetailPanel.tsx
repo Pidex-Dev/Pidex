@@ -8,10 +8,7 @@ import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
 import { Select } from '../../components/ui/Select.js'
 import { Textarea } from '../../components/ui/Textarea.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/IconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import type { AutomationController } from './UseAutomationController.js'
 import {
   automationScheduleSummary,
@@ -145,7 +142,12 @@ export function AutomationDetailPanel({
             {exitPending === 'close' ? (
               '再按一次退出'
             ) : (
-              <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <X
+                className="tw:size-icon-md"
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             )}
           </Button>
         </div>
@@ -162,9 +164,7 @@ export function AutomationDetailPanel({
           {watch && (
             <div className="tw:grid tw:gap-2 tw:rounded-control tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-3">
               <span className="tw:type-2 tw:weight-medium">PR 监控</span>
-              <span className="tw:type-1 tw:break-all tw:text-app-text-soft">
-                {watch.url}
-              </span>
+              <span className="tw:type-1 tw:break-all tw:text-app-text-soft">{watch.url}</span>
               {watch.reason && (
                 <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">{watch.reason}</p>
               )}
@@ -507,7 +507,9 @@ function FormField({
 }): React.ReactNode {
   return (
     <label className="automation-field tw:[&_.ui-select-trigger]:w-full tw:grid tw:min-w-0 tw:content-start tw:gap-1">
-      <span className="automation-field-label tw:type-2 tw:weight-medium tw:text-app-text">{label}</span>
+      <span className="automation-field-label tw:type-2 tw:weight-medium tw:text-app-text">
+        {label}
+      </span>
       {children}
       {hint ? (
         <span className="automation-field-hint tw:type-1 tw:text-app-text-meta">{hint}</span>
@@ -617,7 +619,10 @@ function RunHistory({
           <span className="automation-eyebrow tw:uppercase tw:tracking-[0.08em] tw:type-1 tw:text-app-text-meta">
             收件箱
           </span>
-          <h3 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text" id="automation-runs-title">
+          <h3
+            className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text"
+            id="automation-runs-title"
+          >
             运行记录
           </h3>
         </div>

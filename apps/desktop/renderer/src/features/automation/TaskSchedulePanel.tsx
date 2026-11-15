@@ -824,9 +824,7 @@ function TaskOccurrenceActions({
       <strong>
         {new Date(occurrence.scheduledFor).toLocaleString()} · {occurrenceLabels[occurrence.status]}
       </strong>
-      <p className="tw:type-1 tw:whitespace-pre-wrap">
-        {occurrence.result || occurrence.feedback}
-      </p>
+      <p className="tw:type-1 tw:whitespace-pre-wrap">{occurrence.result || occurrence.feedback}</p>
       {(occurrence.threadId ?? occurrence.snapshot.plan?.threadId) ? (
         <Button
           color="secondary"

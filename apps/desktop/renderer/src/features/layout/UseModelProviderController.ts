@@ -66,37 +66,37 @@ export function useModelProviderController({
     ) {
       providers.unshift(providerState.provider)
     }
-    return providers
-      .filter((provider) => isExecutableDesktopProvider(provider))
-      // 自定义供应商是用户亲手创建的：即使凭据未配置也要出现在选择器中，
-      // 否则刚配置完的供应商在聊天入口“消失”，用户无从继续。
-      .filter(
-        (provider) => provider.apiKeyConfigured || provider.providerKind === 'custom',
-      )
-      .map((provider) => {
-        const isSelected = provider.providerID === providerState?.selectedProviderID
-        const models = isSelected
-          ? (providerState?.models ?? provider.defaultModels)
-          : provider.defaultModels
-        const modelMetadata =
-          isSelected && providerState?.modelMetadata
-            ? { ...provider.modelMetadata, ...providerState.modelMetadata }
-            : provider.modelMetadata
-        return {
-          providerID: provider.providerID,
-          displayName: provider.displayName,
-          apiKeyConfigured: provider.apiKeyConfigured,
-          modelPresets: buildModelPresets(
-            models.filter(
-              (id) => !['embedding', 'rerank'].includes(modelMetadata?.[id]?.modelType ?? 'chat'),
+    return (
+      providers
+        .filter((provider) => isExecutableDesktopProvider(provider))
+        // 自定义供应商是用户亲手创建的：即使凭据未配置也要出现在选择器中，
+        // 否则刚配置完的供应商在聊天入口“消失”，用户无从继续。
+        .filter((provider) => provider.apiKeyConfigured || provider.providerKind === 'custom')
+        .map((provider) => {
+          const isSelected = provider.providerID === providerState?.selectedProviderID
+          const models = isSelected
+            ? (providerState?.models ?? provider.defaultModels)
+            : provider.defaultModels
+          const modelMetadata =
+            isSelected && providerState?.modelMetadata
+              ? { ...provider.modelMetadata, ...providerState.modelMetadata }
+              : provider.modelMetadata
+          return {
+            providerID: provider.providerID,
+            displayName: provider.displayName,
+            apiKeyConfigured: provider.apiKeyConfigured,
+            modelPresets: buildModelPresets(
+              models.filter(
+                (id) => !['embedding', 'rerank'].includes(modelMetadata?.[id]?.modelType ?? 'chat'),
+              ),
+              modelMetadata,
             ),
+            baseURL: provider.baseURL,
+            logoURL: provider.logoURL,
             modelMetadata,
-          ),
-          baseURL: provider.baseURL,
-          logoURL: provider.logoURL,
-          modelMetadata,
-        }
-      })
+          }
+        })
+    )
   }, [modelProviders, providerState])
   const selectedProviderID = providerID
   const selectedProviderModelPresets = useMemo(

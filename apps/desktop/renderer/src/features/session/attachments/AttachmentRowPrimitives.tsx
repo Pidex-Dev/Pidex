@@ -97,8 +97,7 @@ const COLLAPSE_PILL_CLASS = cx(
  * `attachment-item-remove` is an IconButton: its ghost surface, radius and
  * shadow come from the shared button contract; only corner placement is local.
  */
-const ATTACHMENT_REMOVE_CLASS =
-  'attachment-item-remove tw:absolute tw:z-1 tw:-top-1 tw:-right-1'
+const ATTACHMENT_REMOVE_CLASS = 'attachment-item-remove tw:absolute tw:z-1 tw:-top-1 tw:-right-1'
 
 type AttachmentHorizontalRowProps = {
   ariaLabel: string
@@ -295,7 +294,8 @@ export function AttachmentFileRow({
                 >
                   {isExpanded ? (
                     <>
-                      <ChevronUp className="tw:size-icon-sm"
+                      <ChevronUp
+                        className="tw:size-icon-sm"
                         aria-hidden="true"
                         size={APP_ICON_SIZES.sm}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -574,7 +574,12 @@ function AttachmentRemoveButton({
       size="iconMd"
       title={`移除 ${name}`}
     >
-      <X className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      <X
+        className="tw:size-icon-sm"
+        aria-hidden="true"
+        size={APP_ICON_SIZES.sm}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
     </Button>
   )
 }

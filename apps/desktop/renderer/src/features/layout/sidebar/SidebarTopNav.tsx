@@ -327,7 +327,9 @@ export function SidebarHeader({
                 >
                   <div className="tw:flex tw:flex-col tw:gap-2">
                     <div className="tw:flex tw:items-start tw:justify-between tw:gap-3">
-                      <span className="tw:type-2 tw:weight-medium tw:text-app-text">{t('查看活动')}</span>
+                      <span className="tw:type-2 tw:weight-medium tw:text-app-text">
+                        {t('查看活动')}
+                      </span>
                       <Button
                         isIconOnly
                         iconSize="sm"

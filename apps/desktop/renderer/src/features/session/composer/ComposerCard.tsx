@@ -1,14 +1,5 @@
 import type React from 'react'
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  useId,
-  useMemo,
-  useCallback,
-  useRef,
-  useState,
-} from 'react'
+import { lazy, Suspense, useEffect, useId, useMemo, useCallback, useRef, useState } from 'react'
 import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
 import { Dropdown as Select } from '../../../components/ui/floating/Dropdown.js'
 import {
@@ -169,13 +160,7 @@ type ProviderModelOption = {
 }
 
 type ComposerDropdown =
-  | 'context'
-  | 'permission'
-  | 'model'
-  | 'project'
-  | 'session-group'
-  | 'plugin'
-  | 'runtimeParams'
+  'context' | 'permission' | 'model' | 'project' | 'session-group' | 'plugin' | 'runtimeParams'
 
 /*
  * Permission chips are plain `chip-button` triggers whose colors come from
@@ -1055,16 +1040,19 @@ export function ComposerCard({
             onSelect: () => insertReference('plugin', plugin.name, `plugin://${plugin.id}`),
           })),
       )
-    const threadItems: ComposerMenuItem[] = contextTasks.filter((task) => task.id !== routedSessionId).slice(0, 5).map((task) => ({
-      key: `thread:${task.id}`,
-      section: '引用会话',
-      label: task.title,
-      description: task.workspaceName,
-      icon: <MessageSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />,
-      matchText: `${task.title} ${task.workspaceName ?? ''} task thread`,
-      onSelect: () =>
-        insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
-    }))
+    const threadItems: ComposerMenuItem[] = contextTasks
+      .filter((task) => task.id !== routedSessionId)
+      .slice(0, 5)
+      .map((task) => ({
+        key: `thread:${task.id}`,
+        section: '引用会话',
+        label: task.title,
+        description: task.workspaceName,
+        icon: <MessageSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />,
+        matchText: `${task.title} ${task.workspaceName ?? ''} task thread`,
+        onSelect: () =>
+          insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
+      }))
     items.push(...threadItems)
     if (browserContext && !buttonContextOpen) {
       items.push({
@@ -1357,12 +1345,36 @@ export function ComposerCard({
 
   function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
     if (value === 'default')
-      return <Hand className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      return (
+        <Hand
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      )
     if (value === 'full-access')
-      return <ShieldAlert className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      return (
+        <ShieldAlert
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      )
     if (value === 'custom')
-      return <Wrench className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-    return <ShieldCheck className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      return (
+        <Wrench
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      )
+    return (
+      <ShieldCheck
+        className="tw:size-icon-md"
+        size={APP_ICON_SIZE}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
+    )
   }
 
   function getPermissionClassName(value: DesktopPermissionMode): string {
@@ -1963,7 +1975,8 @@ export function ComposerCard({
                             </span>
                             {permissionMode === option.value && (
                               <span className={PERMISSION_ITEM_INDICATOR_CLASS}>
-                                <Check className="tw:size-icon-sm"
+                                <Check
+                                  className="tw:size-icon-sm"
                                   size={APP_ICON_SIZES.sm}
                                   strokeWidth={APP_ICON_STROKE_WIDTH}
                                 />
@@ -2427,7 +2440,11 @@ export function ComposerCard({
               ) : showStopAction ? (
                 <Square className="tw:size-icon-md" size={APP_ICON_SIZES.md} fill="currentColor" />
               ) : (
-                <ArrowUp className="tw:size-icon-md" size={APP_ICON_SIZES.md} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <ArrowUp
+                  className="tw:size-icon-md"
+                  size={APP_ICON_SIZES.md}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               )}
             </Button>
           </div>

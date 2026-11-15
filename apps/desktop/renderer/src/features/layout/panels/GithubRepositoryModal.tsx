@@ -160,9 +160,17 @@ export function GithubRepositoryModal({
                             )}
                           >
                             {repository.private ? (
-                              <Lock className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                              <Lock
+                                className="tw:size-icon-md"
+                                size={APP_ICON_SIZE}
+                                strokeWidth={APP_ICON_STROKE_WIDTH}
+                              />
                             ) : (
-                              <Unlock className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                              <Unlock
+                                className="tw:size-icon-md"
+                                size={APP_ICON_SIZE}
+                                strokeWidth={APP_ICON_STROKE_WIDTH}
+                              />
                             )}
                             <strong>{repository.fullName}</strong>
                             {repository.fork ? <span>Fork</span> : null}

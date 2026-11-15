@@ -31,10 +31,7 @@ import {
 } from './ProviderPanelActionButton.js'
 import { Dropdown } from '../../../components/ui/Dropdown.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_SIZES,
-} from '../../../components/ui/IconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { toUserErrorMessage } from '../../../utils/Errors.js'
 import {
@@ -317,7 +314,9 @@ export function ProviderConnectionSection({
         <section className="tw:grid tw:gap-3">
           <header className="model-center-detail-card-header tw:flex tw:items-center tw:justify-between tw:gap-3">
             <div>
-              <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">此 Provider 暂不可用</h3>
+              <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
+                此 Provider 暂不可用
+              </h3>
               <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
                 当前协议或 Endpoint 尚未适配，不能新增凭据或测试连接。
               </p>
@@ -434,7 +433,9 @@ export function ProviderConnectionSection({
       ) : null}
       {panel?.host && section && section !== 'model'
         ? createPortal(
-            <div className={`${PROVIDER_PANEL_CONTAINER_CLASS} tw:flex tw:min-h-0 tw:flex-1 tw:flex-col`}>
+            <div
+              className={`${PROVIDER_PANEL_CONTAINER_CLASS} tw:flex tw:min-h-0 tw:flex-1 tw:flex-col`}
+            >
               <div
                 ref={scrollRef}
                 className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-5 tw:overflow-y-auto tw:p-4 tw:[&_.model-center-oauth-flow]:p-0"
@@ -500,7 +501,13 @@ export function ProviderConnectionSection({
                         </div>
                         <ProviderPanelActionButton
                           disabled={busy || keyEditor !== null}
-                          icon={<Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
+                          icon={
+                            <Plus
+                              className="tw:size-icon-sm"
+                              aria-hidden
+                              size={APP_ICON_SIZES.sm}
+                            />
+                          }
                           label="新增 API Key"
                           onClick={() => setKeyEditor('new')}
                         />
@@ -651,7 +658,9 @@ export function ProviderConnectionSection({
                     <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
                       <div className="tw:grid tw:min-w-0 tw:gap-1">
                         <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-                          <h3 className="tw:m-0 tw:whitespace-nowrap tw:text-app-text tw:type-4 tw:weight-bold">用量与余额</h3>
+                          <h3 className="tw:m-0 tw:whitespace-nowrap tw:text-app-text tw:type-4 tw:weight-bold">
+                            用量与余额
+                          </h3>
                           {usageCheckedAt ? (
                             <span className="tw:text-app-text-meta tw:type-1 tw:tabular-nums">
                               {formatRefreshedAt(usageCheckedAt)}
@@ -664,7 +673,13 @@ export function ProviderConnectionSection({
                       </div>
                       {connectedQueryableSourceIds.length > 0 ? (
                         <ProviderPanelActionButton
-                          icon={<RefreshCw className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
+                          icon={
+                            <RefreshCw
+                              className="tw:size-icon-sm"
+                              aria-hidden
+                              size={APP_ICON_SIZES.sm}
+                            />
+                          }
                           label="刷新余额"
                           loading={refreshingUsage}
                           onClick={refreshUsageSources}
@@ -750,7 +765,11 @@ export function ProviderConnectionSection({
                                     void desktopClient.openExternalURL(method.consoleUrl)
                                   }
                                 >
-                                  <ExternalLink className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+                                  <ExternalLink
+                                    className="tw:size-icon-md"
+                                    aria-hidden
+                                    size={APP_ICON_SIZE}
+                                  />
                                   打开控制台
                                 </Button>
                               </div>
@@ -850,9 +869,7 @@ function ApiKeyRowItem({
       >
         <div className="tw:flex tw:items-center tw:gap-2">
           <strong className="tw:truncate tw:type-2 tw:weight-medium">{keyItem.label}</strong>
-          {keyItem.active ? (
-            <span className="tw:text-app-accent-fg tw:type-1">活动</span>
-          ) : null}
+          {keyItem.active ? <span className="tw:text-app-accent-fg tw:type-1">活动</span> : null}
         </div>
         <code className="tw:truncate tw:text-app-text-soft tw:type-code">
           {keyItem.maskedValue}

@@ -211,7 +211,11 @@ export const ModelSelectTrigger = React.forwardRef<HTMLElement, ModelSelectTrigg
         }}
       >
         {compact ? (
-          <Sparkles aria-hidden="true" className={`tw:size-icon-md ${COMPACT_ICON_CLASS}`} size={APP_ICON_SIZES.md} />
+          <Sparkles
+            aria-hidden="true"
+            className={`tw:size-icon-md ${COMPACT_ICON_CLASS}`}
+            size={APP_ICON_SIZES.md}
+          />
         ) : (
           <span className={NAME_CLASS}>
             {prefix ? (

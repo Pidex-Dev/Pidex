@@ -150,7 +150,12 @@ export function SessionGroupsView(): React.ReactNode {
         value: session.id,
         label: session.title,
         detail: session.workspaceLabel,
-        icon: <MessageSquare className="tw:size-icon-md session-group-select-icon tw:me-1" size={APP_ICON_SIZE} />,
+        icon: (
+          <MessageSquare
+            className="tw:size-icon-md session-group-select-icon tw:me-1"
+            size={APP_ICON_SIZE}
+          />
+        ),
       }))
   }, [availableSessions, memberThreadIds])
 
@@ -235,7 +240,12 @@ export function SessionGroupsView(): React.ReactNode {
       shape="pill"
       size="md"
     >
-      <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      <Plus
+        className="tw:size-icon-md"
+        aria-hidden="true"
+        size={APP_ICON_SIZE}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
       <span>新建工作组</span>
     </Button>
   )
@@ -318,7 +328,11 @@ export function SessionGroupsView(): React.ReactNode {
                 </div>
                 <div className="session-group-actions tw:flex tw:items-center tw:gap-2 tw:@max-[760px]:flex-wrap">
                   <Button color="secondary" size="compact" onClick={openEditDialog}>
-                    <Pencil className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Pencil
+                      className="tw:size-icon-sm"
+                      size={APP_ICON_SIZES.sm}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
                     <span>编辑</span>
                   </Button>
                   <Button
@@ -326,7 +340,11 @@ export function SessionGroupsView(): React.ReactNode {
                     size="compact"
                     onClick={() => setDeleteDialogOpen(true)}
                   >
-                    <Trash2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Trash2
+                      className="tw:size-icon-sm"
+                      size={APP_ICON_SIZES.sm}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
                     <span>删除组</span>
                   </Button>
                 </div>
@@ -334,7 +352,11 @@ export function SessionGroupsView(): React.ReactNode {
 
               <section className="session-group-section tw:border-b tw:border-b-app-border-subtle tw:py-5 tw:last:border-b-0">
                 <div className="session-group-section__title-row tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:[&>h3]:m-0 tw:[&>h3]:type-title-sm">
-                  <BookOpen className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <BookOpen
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                   <h3>当前摘要</h3>
                 </div>
                 <div className="session-group-digest-card tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-4">
@@ -393,7 +415,11 @@ export function SessionGroupsView(): React.ReactNode {
                     size="compact"
                     onClick={() => void addSession()}
                   >
-                    <Plus className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Plus
+                      className="tw:size-icon-sm"
+                      size={APP_ICON_SIZES.sm}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
                     <span>加入组</span>
                   </Button>
                 </div>
@@ -404,7 +430,11 @@ export function SessionGroupsView(): React.ReactNode {
                       key={member.threadId}
                     >
                       <div className="session-group-member-card__icon tw:flex tw:items-center tw:text-app-text-meta">
-                        <MessageSquare className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <MessageSquare
+                          className="tw:size-icon-md"
+                          size={APP_ICON_SIZE}
+                          strokeWidth={APP_ICON_STROKE_WIDTH}
+                        />
                       </div>
                       <Link
                         className="session-group-member-card__body"
@@ -429,7 +459,11 @@ export function SessionGroupsView(): React.ReactNode {
                           title="从该组移出"
                           onClick={() => void removeSession(member.threadId)}
                         >
-                          <UserMinus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                          <UserMinus
+                            className="tw:size-icon-md"
+                            size={APP_ICON_SIZE}
+                            strokeWidth={APP_ICON_STROKE_WIDTH}
+                          />
                         </Button>
                       </div>
                     </article>
@@ -548,7 +582,8 @@ export function SessionGroupsView(): React.ReactNode {
             ) : null}
             {!loading && !error && groups.length === 0 ? (
               <div className="session-groups-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-center tw:text-app-text-meta tw:type-1 tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0">
-                <MessagesSquare className="tw:size-icon-lg"
+                <MessagesSquare
+                  className="tw:size-icon-lg"
                   aria-hidden="true"
                   size={APP_ICON_SIZES.lg}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -562,7 +597,8 @@ export function SessionGroupsView(): React.ReactNode {
             ) : null}
             {!loading && !error && groups.length > 0 && filtered.length === 0 ? (
               <div className="session-groups-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-center tw:text-app-text-meta tw:type-1 tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0">
-                <MessagesSquare className="tw:size-icon-lg"
+                <MessagesSquare
+                  className="tw:size-icon-lg"
                   aria-hidden="true"
                   size={APP_ICON_SIZES.lg}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -666,11 +702,23 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
           )}
         >
           {isFailed ? (
-            <AlertCircle className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <AlertCircle
+              className="tw:size-icon-md"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           ) : isCompleted ? (
-            <CheckCircle2 className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <CheckCircle2
+              className="tw:size-icon-md"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           ) : (
-            <Sparkles className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Sparkles
+              className="tw:size-icon-md"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           )}
         </div>
         <span className="session-group-step__seq tw:hidden">{step.sequence}</span>
@@ -763,11 +811,20 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
               >
                 <div className="session-group-step__validation-header tw:flex tw:items-center tw:gap-1 tw:text-app-text tw:type-1 tw:weight-medium tw:[&>strong]:type-weight-label">
                   {validation.status === 'passed' ? (
-                    <Check className="tw:size-icon-sm tw:text-app-success" size={APP_ICON_SIZES.sm} />
+                    <Check
+                      className="tw:size-icon-sm tw:text-app-success"
+                      size={APP_ICON_SIZES.sm}
+                    />
                   ) : validation.status === 'failed' ? (
-                    <AlertCircle className="tw:size-icon-sm tw:text-app-danger" size={APP_ICON_SIZES.sm} />
+                    <AlertCircle
+                      className="tw:size-icon-sm tw:text-app-danger"
+                      size={APP_ICON_SIZES.sm}
+                    />
                   ) : (
-                    <History className="tw:size-icon-sm tw:text-app-text-meta" size={APP_ICON_SIZES.sm} />
+                    <History
+                      className="tw:size-icon-sm tw:text-app-text-meta"
+                      size={APP_ICON_SIZES.sm}
+                    />
                   )}
                   <strong>
                     {validation.status === 'passed'

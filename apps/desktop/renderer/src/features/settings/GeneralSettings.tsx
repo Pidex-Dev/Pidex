@@ -92,9 +92,7 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
   const subscribedRustSearchAndDiffKernels = useDesktopSettingsDraftValue(
     'rustSearchAndDiffKernels',
   )
-  const subscribedComposerPredictions = useDesktopSettingsDraftValue(
-    'desktop.composer_predictions',
-  )
+  const subscribedComposerPredictions = useDesktopSettingsDraftValue('desktop.composer_predictions')
   const subscribedEnableParetoCodeRouter = useDesktopSettingsDraftValue('enableParetoCodeRouter')
   const subscribedEnableFusionRouter = useDesktopSettingsDraftValue('enableFusionRouter')
   const subscribedDefaultModeRequestUserInput = useDesktopSettingsDraftValue(
@@ -373,7 +371,9 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
     <SettingsContentArea className="">
       <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">常规</h2>
+          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+            常规
+          </h2>
         </div>
 
         <SettingsSection title="权限">

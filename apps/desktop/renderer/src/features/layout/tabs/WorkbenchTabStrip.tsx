@@ -301,7 +301,11 @@ export function WorkbenchTabStrip({
                           onCloseTab(tab.id)
                         }}
                       >
-                        <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <X
+                          className="tw:size-icon-sm"
+                          size={APP_ICON_SIZES.sm}
+                          strokeWidth={APP_ICON_STROKE_WIDTH}
+                        />
                       </Button>
                     </div>
                   }
@@ -319,7 +323,11 @@ export function WorkbenchTabStrip({
               title="新建终端"
               onClick={onCreateTerminal}
             >
-              <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Plus
+                className="tw:size-icon-md"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           ) : state.tabIds.length > 0 && launchers.length > 1 ? (
             <PopoverMenu
@@ -339,16 +347,19 @@ export function WorkbenchTabStrip({
                   size="toolbar"
                   title="添加标签"
                 >
-                  <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Plus
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 </Button>
               }
               onOpenChange={setMenuOpen}
             >
               <PopoverRadioGroup
                 value={
-                  launchers.find(
-                    (definition) => definition.createTab()?.id === state.activeTabId,
-                  )?.id ?? ''
+                  launchers.find((definition) => definition.createTab()?.id === state.activeTabId)
+                    ?.id ?? ''
                 }
                 onValueChange={(id) => {
                   const definition = launchers.find((item) => item.id === id)

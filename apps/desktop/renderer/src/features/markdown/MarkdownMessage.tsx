@@ -749,7 +749,12 @@ function MarkdownTable({
             type="button"
             onClick={() => void downloadTable()}
           >
-            <Download className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Download
+              className="tw:size-icon-md"
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </Button>
         ) : null}
         <Button
@@ -762,9 +767,19 @@ function MarkdownTable({
           onClick={() => void copyTable()}
         >
           {copied ? (
-            <Check className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Check
+              className="tw:size-icon-md"
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           ) : (
-            <Copy className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Copy
+              className="tw:size-icon-md"
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           )}
         </Button>
         {context.allowWideBlocks || overflowing ? (
@@ -855,9 +870,15 @@ function renderLink(link: Tokens.Link, context: RenderContext, key: string): Rea
         <span aria-hidden="true" className="composer-inline-link-icon" data-link-kind={kind} />
         <span className="composer-inline-skill-token-label">{children}</span>
       </>
-    ) : children
+    ) : (
+      children
+    )
   if (tokenClass && isInlinePluginLink(link.href)) {
-    return <span className={tokenClass} key={key}>{label('plugin')}</span>
+    return (
+      <span className={tokenClass} key={key}>
+        {label('plugin')}
+      </span>
+    )
   }
   if (target.kind === 'thread') {
     return (
@@ -1302,7 +1323,8 @@ function FileReferenceButton({
               label: '打开方式',
               layout: 'grid',
               icon: (
-                <Code2 className="tw:size-icon-md"
+                <Code2
+                  className="tw:size-icon-md"
                   aria-hidden="true"
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -1330,7 +1352,14 @@ function FileReferenceButton({
     {
       kind: 'item',
       label: '复制路径',
-      icon: <Copy className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+      icon: (
+        <Copy
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      ),
       onSelect: () => {
         void desktopClipboard.writeText(absolutePath ?? reference.path).catch(() => undefined)
       },
@@ -1340,7 +1369,12 @@ function FileReferenceButton({
       label: '复制文件内容',
       disabled: !canCopyContents || !context.onCopyFileReferenceContents,
       icon: (
-        <FileText className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <FileText
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       ),
       onSelect: () => {
         try {
@@ -1358,7 +1392,12 @@ function FileReferenceButton({
       label: '在文件资源管理器中显示',
       disabled: !absolutePath,
       icon: (
-        <FolderOpen className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <FolderOpen
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       ),
       onSelect: () => {
         if (!absolutePath) return

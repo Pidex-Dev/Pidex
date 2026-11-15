@@ -209,7 +209,11 @@ export function ProjectEditDialog({
                 size="toolbar"
                 title="关闭编辑项目"
               >
-                <X className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <X
+                  className="tw:size-icon-md"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               </Button>
             </Dialog.Close>
           </header>

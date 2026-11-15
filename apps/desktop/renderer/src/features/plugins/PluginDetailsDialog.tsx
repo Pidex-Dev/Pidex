@@ -120,7 +120,12 @@ export function PluginDetailsDialog({
                   size="toolbar"
                   title="关闭插件详情"
                 >
-                  <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <X
+                    className="tw:size-icon-md"
+                    aria-hidden="true"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 </Button>
               </Dialog.Close>
             </header>

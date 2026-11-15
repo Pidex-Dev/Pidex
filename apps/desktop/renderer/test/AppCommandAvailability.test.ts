@@ -64,12 +64,16 @@ describe('命令可用条件', () => {
 
   test('缺工作区时只有文件面板不可用', () => {
     expect(canRunAppCommand('openFiles', context('/new', { hasWorkspace: false }))).toBe(false)
-    expect(canRunAppCommand('toggleBottomPanel', context('/new', { hasWorkspace: false }))).toBe(true)
+    expect(canRunAppCommand('toggleBottomPanel', context('/new', { hasWorkspace: false }))).toBe(
+      true,
+    )
     expect(canRunAppCommand('openReview', context('/new', { hasWorkspace: false }))).toBe(true)
   })
 
   test('浏览器能力与打开状态分别限制打开与刷新', () => {
-    expect(canRunAppCommand('openBrowser', context('/new', { browserAvailable: false }))).toBe(false)
+    expect(canRunAppCommand('openBrowser', context('/new', { browserAvailable: false }))).toBe(
+      false,
+    )
     expect(canRunAppCommand('openBrowser', context('/new', { browserOpen: false }))).toBe(true)
     expect(canRunAppCommand('reloadBrowser', context('/new', { browserOpen: false }))).toBe(false)
     expect(canRunAppCommand('reloadBrowser', context('/new', { browserAvailable: false }))).toBe(

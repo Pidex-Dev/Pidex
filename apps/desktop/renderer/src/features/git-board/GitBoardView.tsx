@@ -316,9 +316,7 @@ export function RepositoryColumn({
           </div>
         )}
         {actionCaption && (
-          <p className="tw:m-0 tw:mb-3 tw:px-1 tw:type-1 tw:text-app-text-meta">
-            {actionCaption}
-          </p>
+          <p className="tw:m-0 tw:mb-3 tw:px-1 tw:type-1 tw:text-app-text-meta">{actionCaption}</p>
         )}
         {repository?.refreshError && result?.ok && (
           // 刷新失败时保留上一份仓库数据，只在这里提供重试入口。
@@ -465,9 +463,7 @@ function ProjectBoard({ actionBusy, actionError }: { actionBusy?: boolean; actio
         inert={ready === false}
         className="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:items-center tw:justify-center tw:overflow-hidden"
       >
-        <p className="tw:m-auto tw:type-1 tw:text-app-text-meta">
-          {t('项目已移除或暂不可用')}
-        </p>
+        <p className="tw:m-auto tw:type-1 tw:text-app-text-meta">{t('项目已移除或暂不可用')}</p>
       </div>
     )
   }

@@ -90,7 +90,9 @@ export function SidebarPluginsPane({
     <div className="sidebar-plugins-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
       <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
         <SearchHeading
-          title={<h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('自定义')}</h2>}
+          title={
+            <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('自定义')}</h2>
+          }
           search={
             <SearchInput
               variant="outlined"
@@ -143,10 +145,7 @@ export function SidebarPluginsPane({
         {loading ? (
           <SidebarEmptyRow role="status">{t('正在加载插件…')}</SidebarEmptyRow>
         ) : error && visibleItems.length === 0 ? (
-          <div
-            className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-1"
-            role="status"
-          >
+          <div className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-1" role="status">
             {error}
             <Button color="secondary" size="toolbar" onClick={refresh}>
               {t('重试')}

@@ -455,7 +455,10 @@ try {
 
   // 新供应商保存前可从 /models 获取候选，并把上游基线随创建写入 modelSync。
   const presave = await mount('/providers?newProvider=1')
-  await presave.getByPlaceholder('https://example.com/v1').first().fill('https://pre-save.example/v1')
+  await presave
+    .getByPlaceholder('https://example.com/v1')
+    .first()
+    .fill('https://pre-save.example/v1')
   await presave.getByRole('button', { name: '同步模型', exact: true }).click()
   await expect(presave.getByText('发现 1 个候选模型')).toBeVisible()
   await expect(presave.getByRole('button', { name: '导入已选 (0)', exact: true })).toBeDisabled()
@@ -656,7 +659,7 @@ try {
   )
   await tests.getByRole('button', { name: '同步模型', exact: true }).click()
   await expect.poll(() => tests.evaluate(() => (window as any).__discoveries)).toBe(1)
-    assert.equal(await tests.evaluate(() => (window as any).__syncs ?? 0), 0)
+  assert.equal(await tests.evaluate(() => (window as any).__syncs ?? 0), 0)
   await expect(tests.getByRole('dialog')).toContainText('remote-only')
   await tests.getByRole('button', { name: '关闭模型发现' }).click()
   assert.equal(
@@ -747,23 +750,49 @@ try {
   )
   await modelPage.getByRole('button', { name: '显示右侧边栏', exact: true }).click()
   await modelPage.waitForTimeout(500)
-  console.log('DBG api count', await modelPage.getByRole('textbox', { name: 'API 地址', exact: true }).count())
+  console.log(
+    'DBG api count',
+    await modelPage.getByRole('textbox', { name: 'API 地址', exact: true }).count(),
+  )
   await modelPage
     .getByRole('complementary')
     .getByRole('textbox', { name: 'API 地址', exact: true })
     .fill('https://changed.example/v1')
   await modelPage.waitForTimeout(300)
-  console.log('DBG pre-nav loc', await modelPage.locator('#location').textContent(), 'dirty-api', await modelPage.getByRole('complementary').getByRole('textbox', { name: 'API 地址', exact: true }).inputValue().catch((e) => 'ERR ' + e.message.slice(0,80)))
+  console.log(
+    'DBG pre-nav loc',
+    await modelPage.locator('#location').textContent(),
+    'dirty-api',
+    await modelPage
+      .getByRole('complementary')
+      .getByRole('textbox', { name: 'API 地址', exact: true })
+      .inputValue()
+      .catch((e) => 'ERR ' + e.message.slice(0, 80)),
+  )
   await modelPage
     .getByRole('link', { name: '离开页面', exact: true })
     .evaluate((link: HTMLAnchorElement) => link.click())
   await modelPage.waitForTimeout(600)
-  console.log('DBG post-nav loc', await modelPage.locator('#location').textContent(), 'dialogs', await modelPage.locator('[role="dialog"],[role="alertdialog"]').count())
+  console.log(
+    'DBG post-nav loc',
+    await modelPage.locator('#location').textContent(),
+    'dialogs',
+    await modelPage.locator('[role="dialog"],[role="alertdialog"]').count(),
+  )
   await modelPage.waitForTimeout(800)
   console.log('DBG loc', await modelPage.locator('#location').textContent())
   console.log('DBG alertdialogs', await modelPage.locator('[role="alertdialog"]').count())
-  console.log('DBG api', await modelPage.getByRole('textbox', { name: 'API 地址', exact: true }).inputValue().catch(() => 'none'))
-  console.log('DBG cmps', (await modelPage.getByRole('complementary').allInnerTexts()).join(' ## ').slice(0, 400))
+  console.log(
+    'DBG api',
+    await modelPage
+      .getByRole('textbox', { name: 'API 地址', exact: true })
+      .inputValue()
+      .catch(() => 'none'),
+  )
+  console.log(
+    'DBG cmps',
+    (await modelPage.getByRole('complementary').allInnerTexts()).join(' ## ').slice(0, 400),
+  )
   await modelPage.getByRole('button', { name: '继续编辑', exact: true }).first().click()
   await expect(
     modelPage.getByRole('complementary').getByRole('textbox', { name: 'API 地址', exact: true }),
@@ -990,7 +1019,9 @@ try {
     .evaluate((link) => (link as HTMLAnchorElement).click())
   await navigationPage.getByRole('button', { name: '继续编辑', exact: true }).click()
   await expect(
-    navigationPage.getByRole('region', { name: '添加模型', exact: true }).getByPlaceholder('如：llama3.2 或 gpt-4o'),
+    navigationPage
+      .getByRole('region', { name: '添加模型', exact: true })
+      .getByPlaceholder('如：llama3.2 或 gpt-4o'),
   ).toHaveValue('navigation-model')
   await navigationPage
     .locator('nav a')
@@ -1149,7 +1180,9 @@ try {
       assert.deepEqual(buttonGeometry, { height: 24, width: 24, radius: '10px' })
     }
 
-    await scrollDialog.getByText('价格单位：USD／百万 Token', { exact: true }).scrollIntoViewIfNeeded()
+    await scrollDialog
+      .getByText('价格单位：USD／百万 Token', { exact: true })
+      .scrollIntoViewIfNeeded()
     const scrolling = await scrollDialog
       .locator('.settings-management-dialog-body')
       .evaluate((element) => ({

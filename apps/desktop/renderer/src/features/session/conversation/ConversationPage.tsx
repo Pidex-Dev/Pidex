@@ -272,9 +272,7 @@ export function ConversationPage(): React.ReactNode {
   const { threadId: routeThreadId } = useParams()
   const pendingSubmissions = useStore(pendingSubmissionStore.store, (state) => state.submissions)
   // 发送时就拿到会话 ID，路由、提交快照与首条消息的 inputId 全程是同一个值。
-  const pendingSubmission = routeThreadId
-    ? (pendingSubmissions[routeThreadId] ?? null)
-    : null
+  const pendingSubmission = routeThreadId ? (pendingSubmissions[routeThreadId] ?? null) : null
   const firstInputId = pendingSubmission?.submissionId ?? null
   const deferThreadLoading = shouldDeferThreadLoading({
     firstInputId,
@@ -1187,7 +1185,10 @@ export function ConversationPage(): React.ReactNode {
               在新聊天中继续
             </PopoverItem>
           </SessionSubmenu>
-          <PopoverItem icon={<Workflow className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={openAutomationView}>
+          <PopoverItem
+            icon={<Workflow className="tw:size-icon-md" size={APP_ICON_SIZE} />}
+            onClick={openAutomationView}
+          >
             添加自动化...
           </PopoverItem>
           <PopoverSeparator />
@@ -1297,7 +1298,11 @@ export function ConversationPage(): React.ReactNode {
         }
         size="toolbar"
       >
-        <LayoutList className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <LayoutList
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       </Button>
     )
 
@@ -1390,10 +1395,7 @@ export function ConversationPage(): React.ReactNode {
             </ComposerFooterPresence>
           ) : null}
         </AnimatePresence>
-        <div
-          className={approvalVisible ? 'tw:opacity-0' : undefined}
-          inert={approvalVisible}
-        >
+        <div className={approvalVisible ? 'tw:opacity-0' : undefined} inert={approvalVisible}>
           <ThreadComposerDock>
             <SessionBoundComposer
               {...composerPropsForPage}
@@ -1699,7 +1701,9 @@ function SessionSubmenu({
         asChild
         className="popover-item popover-sub-trigger"
         leading={<span className="popover-item-icon">{icon}</span>}
-        trailing={<ChevronRight className="tw:size-icon-sm popover-item-arrow" size={APP_ICON_SIZES.sm} />}
+        trailing={
+          <ChevronRight className="tw:size-icon-sm popover-item-arrow" size={APP_ICON_SIZES.sm} />
+        }
       >
         <DropdownMenu.SubTrigger disabled={disabled} tabIndex={-1}>
           <span className="popover-item-label">{label}</span>

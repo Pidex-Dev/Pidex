@@ -629,7 +629,9 @@ function QuestionAnswerFormInstance({
                         )}
                         aria-hidden="true"
                       >
-                        {selected ? <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} /> : null}
+                        {selected ? (
+                          <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+                        ) : null}
                       </span>
                     </span>
                   ) : selected ? (

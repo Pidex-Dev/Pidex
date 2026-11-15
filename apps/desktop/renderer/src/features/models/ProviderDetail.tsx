@@ -61,7 +61,15 @@ export function ProviderDetail({
                 foreground
                 className="tw:size-full"
                 imageClassName="tw:object-contain"
-                fallback={<Server className="tw:size-icon-sm" aria-hidden size={14} data-icon-kind="artwork" strokeWidth={2} />}
+                fallback={
+                  <Server
+                    className="tw:size-icon-sm"
+                    aria-hidden
+                    size={14}
+                    data-icon-kind="artwork"
+                    strokeWidth={2}
+                  />
+                }
                 logoURL={provider.logoURL}
                 providerID={provider.id}
               />

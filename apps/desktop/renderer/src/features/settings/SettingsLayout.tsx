@@ -90,7 +90,10 @@ export function SettingsLayout(): React.ReactNode {
     return <Navigate replace to={`/settings/environments?${query}`} />
   }
 
-  if (activeTab === 'worktrees' && new URLSearchParams(location.search).get('tab') === 'environments') {
+  if (
+    activeTab === 'worktrees' &&
+    new URLSearchParams(location.search).get('tab') === 'environments'
+  ) {
     const query = new URLSearchParams(location.search)
     query.delete('tab')
     if (projectId) query.set('projectId', projectId)

@@ -59,7 +59,13 @@ export function SidebarPetsPane(): ReactNode {
                 labelClassName="tw:min-w-0 tw:gap-3"
                 leadingMode="none"
                 trailing={
-                  selected ? <Check className="tw:size-icon-sm" aria-label={t('使用中')} size={APP_ICON_SIZES.sm} /> : undefined
+                  selected ? (
+                    <Check
+                      className="tw:size-icon-sm"
+                      aria-label={t('使用中')}
+                      size={APP_ICON_SIZES.sm}
+                    />
+                  ) : undefined
                 }
               >
                 <button
@@ -82,7 +88,9 @@ export function SidebarPetsPane(): ReactNode {
                     />
                   </span>
                   <span className="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1">
-                    <span className="tw:truncate tw:type-2 tw:weight-medium">{pet.displayName}</span>
+                    <span className="tw:truncate tw:type-2 tw:weight-medium">
+                      {pet.displayName}
+                    </span>
                     {pet.description ? (
                       <span className="tw:line-clamp-2 tw:text-app-text-meta tw:type-1">
                         {pet.description}

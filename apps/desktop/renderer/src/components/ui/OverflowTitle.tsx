@@ -21,10 +21,9 @@ const SIDEBAR_PRESENTATION_CLASS: Record<OverflowTitlePresentation, string> = {
 }
 
 function scrollSeconds(distance: number): string {
-  return `${Math.max(
-    TITLE_SCROLL_MIN_SECONDS,
-    distance / TITLE_SCROLL_PIXELS_PER_SECOND,
-  ).toFixed(2)}s`
+  return `${Math.max(TITLE_SCROLL_MIN_SECONDS, distance / TITLE_SCROLL_PIXELS_PER_SECOND).toFixed(
+    2,
+  )}s`
 }
 
 function overflowStyle(
@@ -97,11 +96,7 @@ export function OverflowTitle({
   }, [children, variant])
 
   if (variant === 'menu') {
-    return (
-      <span className={cx('menu-item-label', MENU_ROOT_CLASS, className)}>
-        {children}
-      </span>
-    )
+    return <span className={cx('menu-item-label', MENU_ROOT_CLASS, className)}>{children}</span>
   }
 
   const scrolling = active && overflowDistance !== null && !reducedMotion

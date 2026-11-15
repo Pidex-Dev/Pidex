@@ -1874,9 +1874,7 @@ function SidebarCustomSection({
               size="sm"
               onOpenChange={setMenuOpen}
             >
-              <PopoverLabel className="popover-sidebar-organize-heading">
-                排序方式
-              </PopoverLabel>
+              <PopoverLabel className="popover-sidebar-organize-heading">排序方式</PopoverLabel>
               <PopoverRadioGroup
                 value={section.sort}
                 onValueChange={(value) => onSetSort(section.id, value as 'manual' | 'updated')}
@@ -1894,7 +1892,10 @@ function SidebarCustomSection({
               >
                 重命名分组
               </PopoverItem>
-              <PopoverItem icon={<X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />} onClick={() => onDelete(section.id)}>
+              <PopoverItem
+                icon={<X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
+                onClick={() => onDelete(section.id)}
+              >
                 删除分组
               </PopoverItem>
             </PopoverMenu>

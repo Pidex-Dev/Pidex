@@ -156,7 +156,8 @@ function createHarness(initialThreads: ThreadListItem[]) {
       case 'thread/list':
         return rpc(body.id, { threads: listThreads(), nextCursor: null })
       case 'thread/read': {
-        const thread = listThreads().find((entry) => entry.id === params.threadId) ?? listThreads()[0]
+        const thread =
+          listThreads().find((entry) => entry.id === params.threadId) ?? listThreads()[0]
         return rpc(body.id, snapshotResult(snapshotFor(thread!)))
       }
       case 'interaction/listPending':
@@ -169,7 +170,10 @@ function createHarness(initialThreads: ThreadListItem[]) {
       case 'event/unsubscribe':
         return rpc(body.id, { ok: true })
       case 'event/ack':
-        return rpc(body.id, { subscriptionId: params.subscriptionId, acknowledged: params.positions })
+        return rpc(body.id, {
+          subscriptionId: params.subscriptionId,
+          acknowledged: params.positions,
+        })
       case 'thread/mark-read': {
         const call: RpcCall = {
           threadId: params.threadId,
@@ -185,15 +189,28 @@ function createHarness(initialThreads: ThreadListItem[]) {
         const current = unreadById.get(call.threadId) ?? null
         if (current != null && current <= call.readThroughAt) unreadById.set(call.threadId, null)
         return rpc(body.id, {
-          thread: { ...narrowItem(call.threadId, null), unreadAt: unreadById.get(call.threadId) ?? null },
+          thread: {
+            ...narrowItem(call.threadId, null),
+            unreadAt: unreadById.get(call.threadId) ?? null,
+          },
         })
       }
       case 'thread/update':
       case 'thread/title/regenerate': {
         const thread = initialThreads.find((entry) => entry.id === params.threadId)!
-        thread.title = method === 'thread/title/regenerate' ? '重新生成的标题' : (params.patch.title ?? thread.title)
-        if (typeof params.patch?.archived === 'boolean') thread.archivedAt = params.patch.archived ? now + 2000 : null
-        return rpc(body.id, { thread: { ...narrowItem(thread.id, unreadById.get(thread.id) ?? null), title: thread.title, archivedAt: thread.archivedAt } })
+        thread.title =
+          method === 'thread/title/regenerate'
+            ? '重新生成的标题'
+            : (params.patch.title ?? thread.title)
+        if (typeof params.patch?.archived === 'boolean')
+          thread.archivedAt = params.patch.archived ? now + 2000 : null
+        return rpc(body.id, {
+          thread: {
+            ...narrowItem(thread.id, unreadById.get(thread.id) ?? null),
+            title: thread.title,
+            archivedAt: thread.archivedAt,
+          },
+        })
       }
       case 'thread/mark-unread': {
         const call: UnreadCall = {
@@ -203,7 +220,9 @@ function createHarness(initialThreads: ThreadListItem[]) {
         }
         markUnreadCalls.push(call)
         unreadById.set(call.threadId, call.unreadAt)
-        return rpc(body.id, { thread: { ...narrowItem(call.threadId, null), unreadAt: call.unreadAt } })
+        return rpc(body.id, {
+          thread: { ...narrowItem(call.threadId, null), unreadAt: call.unreadAt },
+        })
       }
       default:
         throw new Error(`Unhandled RPC method: ${method}`)
@@ -540,14 +559,21 @@ describe('会话自动已读', () => {
   })
 
   test('重命名、归档和重新生成标题保留完整会话字段', async () => {
-    const harness = createHarness([sessionItem({
-      sessionGroupId: 'group-1', workflowId: 'group-1', pendingPlanApproval: true, goal,
-    })])
+    const harness = createHarness([
+      sessionItem({
+        sessionGroupId: 'group-1',
+        workflowId: 'group-1',
+        pendingPlanApproval: true,
+        goal,
+      }),
+    ])
     const client = createDesktopClient({ fetch: harness.fetch })
     await client.listSessions()
     const renamed = await client.renameSession('session-1', '新标题')
     expect(renamed.item.sessionName).toBe('新标题')
-    const archived = await client.updateSessionMetadata('session-1', { archivedAt: new Date(now + 2000).toISOString() })
+    const archived = await client.updateSessionMetadata('session-1', {
+      archivedAt: new Date(now + 2000).toISOString(),
+    })
     expect(archived.item.archivedAt).toBe(new Date(now + 2000).toISOString())
     const regenerated = await client.regenerateSessionTitle('session-1')
     expect(regenerated.item.sessionName).toBe('重新生成的标题')

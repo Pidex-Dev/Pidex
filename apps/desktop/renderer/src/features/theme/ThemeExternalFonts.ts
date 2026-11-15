@@ -87,7 +87,10 @@ export async function downloadExternalFont(
 
 export async function ensureExternalFontLoaded(fontId: string): Promise<boolean> {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false
-  if (loadedCssFontIds.has(fontId) && document.getElementById(`${EXTERNAL_FONT_STYLE_PREFIX}${fontId}`)) {
+  if (
+    loadedCssFontIds.has(fontId) &&
+    document.getElementById(`${EXTERNAL_FONT_STYLE_PREFIX}${fontId}`)
+  ) {
     return true
   }
 

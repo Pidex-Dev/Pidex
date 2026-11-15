@@ -76,7 +76,10 @@ export function generateExternalFontFaceCss(
   if (spec.isVariable) {
     return rawCss
       .replace(familyPattern, `font-family: "${escapedAlias}"`)
-      .replace(/(@font-face\s*\{[^}]*)(})/g, `$1\n  font-variation-settings: 'wght' ${selected.weight};\n$2`)
+      .replace(
+        /(@font-face\s*\{[^}]*)(})/g,
+        `$1\n  font-variation-settings: 'wght' ${selected.weight};\n$2`,
+      )
   }
 
   const targetSourceWeight = selected.sourceWeight ?? selected.weight

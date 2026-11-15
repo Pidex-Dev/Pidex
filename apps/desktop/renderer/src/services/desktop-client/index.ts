@@ -2,9 +2,7 @@ import { createAgentSessionDesktopClient } from './AgentSessionClient.js'
 import { createLazyBrowserMockClient } from './LazyBrowserMockClient.js'
 import { defaultDesktopClientEnvironment } from './Environment.js'
 import { createGithubAccountCache } from './GithubAccountCache.js'
-import type {
-  DesktopClientEnvironment,
-} from './Types.js'
+import type { DesktopClientEnvironment } from './Types.js'
 
 export {
   CONFIG_UPDATED_EVENT,

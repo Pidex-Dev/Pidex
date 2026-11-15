@@ -282,7 +282,9 @@ export function DesktopLayout(): React.ReactNode {
   const [providerManagementTab, setProviderManagementTab] = useState<ProviderManagementTab | null>(
     null,
   )
-  const [providerPanelTabs, setProviderPanelTabs] = useState<Record<string, ProviderManagementTab>>({})
+  const [providerPanelTabs, setProviderPanelTabs] = useState<Record<string, ProviderManagementTab>>(
+    {},
+  )
   const [providerPanelOpen, setProviderPanelOpen] = useState(false)
   const [providerManagementHost, setProviderManagementHost] = useState<HTMLElement | null>(null)
   const [providerManagementOwner, setProviderManagementOwner] = useState<string | null>(null)
@@ -308,9 +310,10 @@ export function DesktopLayout(): React.ReactNode {
       if (providerRouteId !== providerId || providerManagementOwner !== providerId) return false
       const allowed = await (providerBeforeChange.current?.() ?? Promise.resolve(true))
       if (allowed) {
-        const tab: ProviderManagementTab = section === 'model'
-          ? { id: 'provider-model', kind: 'provider-model', providerId, section }
-          : { id: 'provider-management', kind: 'provider-management', providerId, section }
+        const tab: ProviderManagementTab =
+          section === 'model'
+            ? { id: 'provider-model', kind: 'provider-model', providerId, section }
+            : { id: 'provider-management', kind: 'provider-management', providerId, section }
         setProviderPanelTabs((tabs) => ({ ...tabs, [tab.id]: tab }))
         setProviderManagementTab(tab)
         setProviderPanelOpen(true)
@@ -321,9 +324,13 @@ export function DesktopLayout(): React.ReactNode {
   )
   const retainProviderTabs = async (ids: readonly string[]) => {
     if (!(await (providerBeforeChange.current?.() ?? Promise.resolve(true)))) return
-    const tabs = Object.fromEntries(Object.entries(providerPanelTabs).filter(([id]) => ids.includes(id)))
+    const tabs = Object.fromEntries(
+      Object.entries(providerPanelTabs).filter(([id]) => ids.includes(id)),
+    )
     setProviderPanelTabs(tabs)
-    setProviderManagementTab((active) => active && tabs[active.id] ? active : Object.values(tabs).at(-1) ?? null)
+    setProviderManagementTab((active) =>
+      active && tabs[active.id] ? active : (Object.values(tabs).at(-1) ?? null),
+    )
     const launchers = providerRouteId
       ? getWorkbenchRouteLaunchers({ page: 'providers', providerId: providerRouteId })
       : []
@@ -332,7 +339,9 @@ export function DesktopLayout(): React.ReactNode {
     }
   }
   const closeProviderManagement = (tabId?: string) => {
-    void retainProviderTabs(Object.keys(providerPanelTabs).filter((id) => id !== (tabId ?? providerManagementTab?.id)))
+    void retainProviderTabs(
+      Object.keys(providerPanelTabs).filter((id) => id !== (tabId ?? providerManagementTab?.id)),
+    )
   }
   const hideProviderManagement = () => {
     void (providerBeforeChange.current?.() ?? Promise.resolve(true)).then((allowed) => {
@@ -409,9 +418,7 @@ export function DesktopLayout(): React.ReactNode {
   )
   const [titlebarTabSnapshotsById, setTitlebarTabSnapshotsById] = useState<
     Record<string, StoredTitlebarSessionTabSnapshot>
-  >(() =>
-    Object.fromEntries(initialTitlebarTabSnapshots.map((tab) => [tab.id, tab])),
-  )
+  >(() => Object.fromEntries(initialTitlebarTabSnapshots.map((tab) => [tab.id, tab])))
   const titlebarTabsSettingsHydratedRef = useRef(false)
   const browserState = useStore(desktopBrowserClient.tabsStore, (state) =>
     state.displayTabId ? (state.tabs.get(state.displayTabId) ?? null) : null,
@@ -701,10 +708,7 @@ export function DesktopLayout(): React.ReactNode {
         const next = routedSessionId
           ? openTitlebarSessionTab(storedTitlebarSessionTabIds, routedSessionId)
           : [...storedTitlebarSessionTabIds]
-        if (
-          next.length === current.length &&
-          next.every((id, index) => id === current[index])
-        ) {
+        if (next.length === current.length && next.every((id, index) => id === current[index])) {
           return current
         }
         return next
@@ -733,9 +737,7 @@ export function DesktopLayout(): React.ReactNode {
   // 当会话列表加载完毕且目录就绪后，清理已被归档或不存在的会话 ID（保护当前路由）
   useEffect(() => {
     if (!sessionsHydrated || catalogStatus.state !== 'ready') return
-    const valid = new Set(
-      sessions.filter((item) => !item.archivedAt).map((item) => item.id),
-    )
+    const valid = new Set(sessions.filter((item) => !item.archivedAt).map((item) => item.id))
     setTitlebarSessionTabIds((current) => pruneTitlebarSessionTabs(current, valid, routedSessionId))
   }, [catalogStatus.state, routedSessionId, sessions, sessionsHydrated])
 
@@ -2132,19 +2134,18 @@ export function DesktopLayout(): React.ReactNode {
     isConversationRoute &&
     (!sessionsHydrated || sessionId !== routedSessionId || gitDetection === 'loading')
   // 首条消息在会话建立前就已经在这条路由上，输入区要全程保持可用。
-  const pendingSubmissions = useStore(
-    pendingSubmissionStore.store,
-    (state) => state.submissions,
-  )
+  const pendingSubmissions = useStore(pendingSubmissionStore.store, (state) => state.submissions)
   const hasPendingSubmission = Boolean(routedSessionId && pendingSubmissions[routedSessionId])
   const branchName = getDesktopComposerBranchName(currentWorkspace)
   const composerContextTasks = useMemo(
     () =>
-      sessions.filter((item) => !item.archivedAt).map((item) => ({
-        id: item.id,
-        title: sessionDisplayTitle(item),
-        workspaceName: item.workspaceName,
-      })),
+      sessions
+        .filter((item) => !item.archivedAt)
+        .map((item) => ({
+          id: item.id,
+          title: sessionDisplayTitle(item),
+          workspaceName: item.workspaceName,
+        })),
     [sessions],
   )
   const composerBrowserContext = useMemo(() => {
@@ -2328,18 +2329,17 @@ export function DesktopLayout(): React.ReactNode {
       let subtitle: string | null = cached?.subtitle ?? null
 
       if (item) {
-        const fallback =
-          id === sessionId ? activeSessionFallbackTitle : sessionFallbackTitles[id]
+        const fallback = id === sessionId ? activeSessionFallbackTitle : sessionFallbackTitles[id]
         title = sessionDisplayTitle(item, fallback)
         const workspaceLabel =
           item.workspaceName ||
-          (item.workspacePath ? item.workspacePath.split(/[\\/]/).pop() ?? null : null)
+          (item.workspacePath ? (item.workspacePath.split(/[\\/]/).pop() ?? null) : null)
         subtitle = hasMultipleWorkspaces ? workspaceLabel : null
       } else if (id === sessionId && quickChatSessionTitle) {
         title = quickChatSessionTitle
         const workspaceLabel =
           currentWorkspace?.name ||
-          (currentWorkspace?.path ? currentWorkspace.path.split(/[\\/]/).pop() ?? null : null)
+          (currentWorkspace?.path ? (currentWorkspace.path.split(/[\\/]/).pop() ?? null) : null)
         subtitle = hasMultipleWorkspaces ? workspaceLabel : null
       }
 
@@ -3039,12 +3039,12 @@ export function DesktopLayout(): React.ReactNode {
         panelContext={auxiliaryPanelContext}
         target={target}
         state={state}
-        tabsById={
+        tabsById={providerMode ? providerPanelTabs : workbenchPanelState.tabsById}
+        panelRoute={
           providerMode
-            ? providerPanelTabs
-            : workbenchPanelState.tabsById
+            ? { page: 'providers', providerId: providerRouteId! }
+            : { page: 'conversation' }
         }
-        panelRoute={providerMode ? { page: 'providers', providerId: providerRouteId! } : { page: 'conversation' }}
         providerManagement={
           providerMode ? (
             <div
@@ -3103,7 +3103,10 @@ export function DesktopLayout(): React.ReactNode {
           })
         }}
         onCloseOtherTabs={(tabId) => {
-          if (providerMode) { void retainProviderTabs([tabId]); return }
+          if (providerMode) {
+            void retainProviderTabs([tabId])
+            return
+          }
           const closing = state.tabIds.filter((id) => id !== tabId)
           void saveTabsBeforeClose(closing).then(async (saved) => {
             if (!saved) return
@@ -3125,7 +3128,10 @@ export function DesktopLayout(): React.ReactNode {
           })
         }}
         onCloseTabsToRight={(tabId) => {
-          if (providerMode) { void retainProviderTabs(state.tabIds.slice(0, state.tabIds.indexOf(tabId) + 1)); return }
+          if (providerMode) {
+            void retainProviderTabs(state.tabIds.slice(0, state.tabIds.indexOf(tabId) + 1))
+            return
+          }
           const index = state.tabIds.indexOf(tabId)
           const closing = index < 0 ? [] : state.tabIds.slice(index + 1)
           void saveTabsBeforeClose(closing).then(async (saved) => {
@@ -3150,7 +3156,8 @@ export function DesktopLayout(): React.ReactNode {
         onFileLoadError={handleFileLoadError}
         onOpenTab={(tab) => {
           if (providerMode) {
-            if (tab.kind === 'provider-management') void openProviderManagement(tab.providerId, tab.section)
+            if (tab.kind === 'provider-management')
+              void openProviderManagement(tab.providerId, tab.section)
             return
           }
           if (tab.kind === 'browser') {
@@ -3560,12 +3567,7 @@ export function DesktopLayout(): React.ReactNode {
   const composerPredictionTurnId = useMemo(() => {
     if (!composerPredictionsEnabled || !routedSessionId) return null
     return selectLatestCompletedTurnId(events, activeSessionItem?.latestTurnStatus ?? null)
-  }, [
-    activeSessionItem?.latestTurnStatus,
-    composerPredictionsEnabled,
-    events,
-    routedSessionId,
-  ])
+  }, [activeSessionItem?.latestTurnStatus, composerPredictionsEnabled, events, routedSessionId])
 
   const composerProps = useMemo<SessionBoundComposerProps | null>(
     () =>

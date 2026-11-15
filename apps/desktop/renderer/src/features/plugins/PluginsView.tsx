@@ -20,10 +20,7 @@ import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SkeletonBlock, SkeletonRegion } from '../../components/ui/Skeleton.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/IconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type { DesktopSkillCatalogItem, DesktopSkillOwnerFilter } from '../../../shared/Types.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
@@ -437,7 +434,12 @@ export function PluginsView(): React.ReactNode {
         title={`刷新${tab === 'plugins' ? '插件' : '技能'}目录`}
         variant="ghost"
       >
-        <RefreshCw className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <RefreshCw
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       </Button>
       <Button
         isIconOnly
@@ -447,7 +449,12 @@ export function PluginsView(): React.ReactNode {
         title="管理插件设置"
         variant="ghost"
       >
-        <Settings className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <Settings
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       </Button>
       {tab === 'plugins' ? (
         <PopoverMenu
@@ -521,7 +528,8 @@ export function PluginsView(): React.ReactNode {
                   ref={backButtonRef}
                   size="toolbar"
                 >
-                  <ArrowLeft className="tw:size-icon-md"
+                  <ArrowLeft
+                    className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -726,7 +734,11 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
                       onClick={() => props.openSection(group.id)}
                     >
                       {group.label}
-                      <ChevronRight className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
+                      <ChevronRight
+                        className="tw:size-icon-md"
+                        aria-hidden="true"
+                        size={APP_ICON_SIZE}
+                      />
                     </button>
                   ) : (
                     group.label
@@ -799,9 +811,7 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
         <div className={cx('plugins-empty', PLUGINS_EMPTY_BASE)}>
           <AlertOctagon className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
           <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">技能目录暂不可用</h2>
-          <p className="tw:m-0 tw:text-app-text-meta tw:type-1 tw:wrap-anywhere">
-            {props.error}
-          </p>
+          <p className="tw:m-0 tw:text-app-text-meta tw:type-1 tw:wrap-anywhere">{props.error}</p>
           <ol className="plugins-empty-steps tw:m-0 tw:grid tw:list-decimal tw:gap-1 tw:pl-5 tw:text-left tw:type-1">
             <li>在 Vercel 项目中启用 OIDC Federation。</li>
             <li>用该项目提供的 VERCEL_OIDC_TOKEN 启动 Pidex。</li>

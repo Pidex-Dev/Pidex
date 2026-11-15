@@ -27,8 +27,7 @@ type CategorySegment = {
 }
 
 function isPathInside(parentPath: string, childPath: string): boolean {
-  const normalize = (value: string) =>
-    value.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+  const normalize = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
   const parent = normalize(parentPath)
   const child = normalize(childPath)
   return child === parent || child.startsWith(`${parent}/`)
@@ -219,10 +218,7 @@ export function StorageSettings({ onError, onNotice }: Props): React.ReactNode {
           <h2 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">存储空间</h2>
         </header>
 
-        <section
-          className="tw:min-w-0 tw:mb-6"
-          id={createSettingsTargetId('storage', '存储总览')}
-        >
+        <section className="tw:min-w-0 tw:mb-6" id={createSettingsTargetId('storage', '存储总览')}>
           <SettingsSection.Header
             title="此设备"
             description="管理存储在此电脑上的聊天、工作树和本地数据"
@@ -238,10 +234,7 @@ export function StorageSettings({ onError, onNotice }: Props): React.ReactNode {
               color="secondary"
               disabled={refreshing}
               leftIcon={
-                <RefreshCw
-                  size={14}
-                  className={refreshing ? 'tw:animate-spin' : undefined}
-                />
+                <RefreshCw size={14} className={refreshing ? 'tw:animate-spin' : undefined} />
               }
               size="sm"
               onClick={() => void loadSummary(true)}
@@ -306,11 +299,7 @@ export function StorageSettings({ onError, onNotice }: Props): React.ReactNode {
               type="button"
               onClick={() => setDetailsExpanded((prev) => !prev)}
             >
-              {detailsExpanded ? (
-                <ChevronDown size={14} />
-              ) : (
-                <ChevronRight size={14} />
-              )}
+              {detailsExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               <span>聊天存储占用明细</span>
             </button>
 

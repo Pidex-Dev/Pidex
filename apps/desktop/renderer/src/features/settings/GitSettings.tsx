@@ -197,7 +197,9 @@ export function GitSettings(): React.ReactNode {
         }}
       >
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">Git</h2>
+          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+            Git
+          </h2>
         </div>
 
         <SettingsSection>

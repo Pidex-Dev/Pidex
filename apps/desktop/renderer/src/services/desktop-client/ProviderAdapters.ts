@@ -26,9 +26,9 @@ export function catalogProviderToDesktop(
         cacheReadCost: cost?.cache.read,
         cacheWriteCost: cost?.cache.write,
         toolCall: model.capabilities.tools,
-        structuredOutput: model.catalog?.structuredOutput ?? model.capabilities.output.some(
-          (output) => output === 'json' || output === 'structured',
-        ),
+        structuredOutput:
+          model.catalog?.structuredOutput ??
+          model.capabilities.output.some((output) => output === 'json' || output === 'structured'),
         vision: model.capabilities.input.includes('image'),
         // 推理能力以目录返回的思考档位为准：有任意档位即视为支持推理。
         reasoning: model.variants.length > 0,

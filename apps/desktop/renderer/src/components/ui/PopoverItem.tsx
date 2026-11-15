@@ -327,11 +327,7 @@ export function PopoverLabel({
   className = 'popover-section-title',
 }: React.ComponentPropsWithoutRef<typeof DropdownMenu.Label>): React.ReactNode {
   return (
-    <DropdownMenu.Label
-      className={cx(className, 'popover-header')}
-    >
-      {children}
-    </DropdownMenu.Label>
+    <DropdownMenu.Label className={cx(className, 'popover-header')}>{children}</DropdownMenu.Label>
   )
 }
 

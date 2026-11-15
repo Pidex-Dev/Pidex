@@ -2040,7 +2040,9 @@ export type DesktopApi = {
   deleteProvider(providerId: ModelProviderID): Promise<void>
   modelRecommendations?: {
     documentsSupported(): Promise<boolean>
-    extractDocument(input: RpcParams<'model/document/extract'>): Promise<RpcResult<'model/document/extract'>>
+    extractDocument(
+      input: RpcParams<'model/document/extract'>,
+    ): Promise<RpcResult<'model/document/extract'>>
     cancelDocument(operationId: string): Promise<RpcResult<'model/document/cancel'>>
     refreshPricing(force?: boolean): Promise<RpcResult<'model/pricing/refresh'>>
 

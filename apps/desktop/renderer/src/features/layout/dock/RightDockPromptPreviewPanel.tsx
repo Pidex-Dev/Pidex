@@ -59,9 +59,7 @@ export function RightDockPromptPreviewPanel({
   }, [reloadVersion, sessionId])
 
   if (!sessionId) {
-    return (
-      <WorkbenchPanelEmpty title="提示词预览" description="请先打开一个任务，再预览提示词。" />
-    )
+    return <WorkbenchPanelEmpty title="提示词预览" description="请先打开一个任务，再预览提示词。" />
   }
   if (error) {
     return (
@@ -76,7 +74,8 @@ export function RightDockPromptPreviewPanel({
   if (loading || preview === null) {
     return <WorkbenchPanelLoading label="正在读取提示词预览…" />
   }
-  const previewKind = preview.previewKind === 'frozen' ? '冻结快照 (frozen)' : '预计内容 (estimated)'
+  const previewKind =
+    preview.previewKind === 'frozen' ? '冻结快照 (frozen)' : '预计内容 (estimated)'
   return (
     <ScrollArea
       aria-label="当前任务完整提示词"

@@ -221,9 +221,7 @@ export function SidebarNavigationRailBody({
   const destinationButton = (item: (typeof directItems)[number]): ReactNode => {
     const pane = RAIL_DESTINATION_PANES.get(item.view as SidebarRailDestinationId) ?? null
     // 有面板的入口按面板选中；工作组没有面板，回落到页面定义解析当前路径。
-    const selected = pane
-      ? activePane === pane
-      : currentPageId === pageIdForNavView(item.view)
+    const selected = pane ? activePane === pane : currentPageId === pageIdForNavView(item.view)
     return (
       <AppContextMenu
         key={item.view}

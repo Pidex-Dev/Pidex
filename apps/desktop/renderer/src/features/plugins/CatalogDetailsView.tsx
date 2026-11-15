@@ -59,10 +59,17 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
             FORCED_COLORS_SURFACE_CLASS,
           )}
         >
-          <Lightbulb className="tw:size-icon-md" data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
+          <Lightbulb
+            className="tw:size-icon-md"
+            data-icon-kind="artwork"
+            size={APP_ICON_SIZE}
+            strokeWidth={2}
+          />
         </span>
         <div className={cx('catalog-details-view__identity', DETAILS_IDENTITY_CLASS)}>
-          <h1 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold tw:wrap-anywhere">{item.name}</h1>
+          <h1 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold tw:wrap-anywhere">
+            {item.name}
+          </h1>
           <p className="tw:m-0 tw:text-app-text-soft tw:type-1">{props.item.source}</p>
         </div>
         <div className={cx('catalog-details-view__primary-action', DETAILS_ACTION_GROUP_CLASS)}>
@@ -88,7 +95,10 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
           aria-labelledby="catalog-details-overview"
           className={cx('catalog-details-section', DETAILS_SECTION_CLASS)}
         >
-          <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold" id="catalog-details-overview">
+          <h2
+            className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold"
+            id="catalog-details-overview"
+          >
             概览
           </h2>
           <SkillDetailsMetadata item={props.item} />
@@ -98,7 +108,10 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
           aria-labelledby="catalog-details-audit"
           className={cx('catalog-details-section', DETAILS_SECTION_CLASS)}
         >
-          <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold" id="catalog-details-audit">
+          <h2
+            className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold"
+            id="catalog-details-audit"
+          >
             安全审计
           </h2>
           {props.item.audit ? (
@@ -137,7 +150,8 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
           <div className={cx('catalog-details-view__secondary-action', DETAILS_ACTION_GROUP_CLASS)}>
             <Button color="secondary" onClick={() => props.onOpenSource(props.item)}>
               打开来源页面
-              <ExternalLink className="tw:size-icon-md"
+              <ExternalLink
+                className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}

@@ -412,7 +412,11 @@ export function RightDockPlanPanel({
         contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
       >
         <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
-          <ListChecks className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <ListChecks
+            className="tw:size-icon-lg"
+            size={APP_ICON_SIZES.lg}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
           <strong className="tw:text-app-text">暂无计划</strong>
           <span className="tw:max-w-full tw:text-app-text-soft">
             从主对话里的计划卡片打开计划书
@@ -528,13 +532,15 @@ export function RightDockFilesPanel({
                 onClick={handleCopyWorkspacePath}
               >
                 {copied ? (
-                  <Check className="tw:size-icon-md"
+                  <Check
+                    className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
                 ) : (
-                  <Copy className="tw:size-icon-md"
+                  <Copy
+                    className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -553,7 +559,8 @@ export function RightDockFilesPanel({
               type="button"
               onClick={() => setTreeVisible((current) => !current)}
             >
-              <FolderOpen className="tw:size-icon-md"
+              <FolderOpen
+                className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -778,7 +785,11 @@ export function RightDockFilePreviewPanel({
   if (document.status !== 'ready') {
     return (
       <div className="right-dock-empty-state">
-        <Folder className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <Folder
+          className="tw:size-icon-lg"
+          size={APP_ICON_SIZES.lg}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
         <strong>正在读取文件</strong>
         <span>{expectedPath}</span>
       </div>

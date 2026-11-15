@@ -141,14 +141,16 @@ export function PluginCatalogCard({
                   {action.kind === 'open-external' ? (
                     <>
                       {action.label}
-                      <ExternalLink className="tw:size-icon-md"
+                      <ExternalLink
+                        className="tw:size-icon-md"
                         aria-hidden="true"
                         size={APP_ICON_SIZE}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
                     </>
                   ) : (
-                    <Plus className="tw:size-icon-md"
+                    <Plus
+                      className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}

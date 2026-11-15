@@ -181,7 +181,9 @@ export function ProviderModelSpecRepairDialog({
                       className="tw:grid tw:gap-2 tw:rounded-4 tw:border tw:border-app-border-subtle tw:p-3"
                     >
                       <header className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-                        <strong className="tw:text-app-text tw:type-2 tw:weight-medium">{item.name}</strong>
+                        <strong className="tw:text-app-text tw:type-2 tw:weight-medium">
+                          {item.name}
+                        </strong>
                         <span className="tw:font-mono tw:text-app-text-meta tw:type-1">
                           {item.modelId}
                         </span>
@@ -228,9 +230,7 @@ export function ProviderModelSpecRepairDialog({
                               </span>
 
                               {field.noRepair ? (
-                                <span className="tw:type-1 tw:text-app-text-meta">
-                                  无须修复
-                                </span>
+                                <span className="tw:type-1 tw:text-app-text-meta">无须修复</span>
                               ) : null}
                             </label>
                           ))}

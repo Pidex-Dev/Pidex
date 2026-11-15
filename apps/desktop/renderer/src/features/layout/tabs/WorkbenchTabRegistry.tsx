@@ -43,10 +43,7 @@ import type {
   WorkbenchTabDescriptor,
   WorkbenchTabKind,
 } from '../dock/RightDockState.js'
-import {
-  WorkbenchPanelLoading,
-  WorkbenchPanelUnavailable,
-} from '../panels/WorkbenchPanelStates.js'
+import { WorkbenchPanelLoading, WorkbenchPanelUnavailable } from '../panels/WorkbenchPanelStates.js'
 import { desktopBrowserClient } from '../../../services/desktop-client/DesktopBrowserClient.js'
 import { WorkspaceReviewSidebar } from '../../review/workspace/WorkspaceReviewSidebar.js'
 import {
@@ -583,9 +580,13 @@ export function getWorkbenchTabDisplayTitle(
   return getWorkbenchTabDefinition(tab).getTitle(tab)
 }
 
-export function getWorkbenchLauncherDefinitions(page: WorkbenchPanelRoute['page'] = 'conversation'): readonly WorkbenchTabDefinition[] {
+export function getWorkbenchLauncherDefinitions(
+  page: WorkbenchPanelRoute['page'] = 'conversation',
+): readonly WorkbenchTabDefinition[] {
   return definitions
-    .filter((definition) => definition.launcher && (definition.routes ?? ['conversation']).includes(page))
+    .filter(
+      (definition) => definition.launcher && (definition.routes ?? ['conversation']).includes(page),
+    )
     .map((definition, index) => ({ definition, index }))
     .sort((left, right) => {
       const leftOrder = WORKBENCH_LAUNCHER_ORDER[left.definition.kind]
@@ -599,8 +600,7 @@ export function getWorkbenchLauncherDefinitions(page: WorkbenchPanelRoute['page'
 }
 
 export type WorkbenchPanelRoute =
-  | { page: 'conversation' }
-  | { page: 'providers'; providerId: string }
+  { page: 'conversation' } | { page: 'providers'; providerId: string }
 
 /** 空状态与添加标签菜单共用同一份路由可用面板定义。 */
 export function getWorkbenchRouteLaunchers(
@@ -610,12 +610,17 @@ export function getWorkbenchRouteLaunchers(
   return getWorkbenchLauncherDefinitions(route.page)
     .filter((definition) => definition.kind !== 'side-chat' || sideChatAvailable)
     .map((definition) => ({
-      ...definition, id: definition.kind, ...getWorkbenchLauncherPresentation(definition),
+      ...definition,
+      id: definition.kind,
+      ...getWorkbenchLauncherPresentation(definition),
       createTab: () => createLauncherTab(definition.kind, route),
     }))
 }
 
-export function createLauncherTab(kind: WorkbenchTabKind, route?: WorkbenchPanelRoute): WorkbenchTabDescriptor | null {
+export function createLauncherTab(
+  kind: WorkbenchTabKind,
+  route?: WorkbenchPanelRoute,
+): WorkbenchTabDescriptor | null {
   if (kind === 'provider-management' && route?.page === 'providers') {
     return { id: 'provider-management', kind, providerId: route.providerId, section: 'credentials' }
   }

@@ -273,9 +273,7 @@ function McpFormField({
       </label>
 
       {description ? (
-        <p className="mcp-form-field-desc tw:m-0 tw:text-app-text-meta tw:type-1">
-          {description}
-        </p>
+        <p className="mcp-form-field-desc tw:m-0 tw:text-app-text-meta tw:type-1">{description}</p>
       ) : null}
 
       <FieldInput name={name} schema={schema} value={value} onChange={onChange} />

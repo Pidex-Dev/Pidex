@@ -140,7 +140,12 @@ export function PluginDetailsPrimaryAction({
     >
       {action.label}
       {action.kind === 'open-external' ? (
-        <ExternalLink className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <ExternalLink
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       ) : null}
     </Button>
   )

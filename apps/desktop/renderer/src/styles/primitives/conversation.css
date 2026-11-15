@@ -72,7 +72,11 @@
   /* Session header title keeps its row rhythm inside the conversation shell. */
   .conversation-page .chat-session-title {
     gap: var(--cpx-sys-space-2);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   /*
@@ -204,7 +208,10 @@
     min-width: 0;
     margin-inline: auto;
     padding-block: var(--cpx-sys-space-4);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
   }
 
   .canonical-turn + .canonical-turn {
@@ -351,7 +358,10 @@
     border: 1px solid var(--cpx-sys-color-danger-subtle-border);
     border-radius: var(--cpx-sys-radius-4);
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .canonical-markdown-error button {
@@ -373,7 +383,10 @@
     margin-inline: auto;
     padding-block: var(--cpx-sys-space-4);
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-align: center;
   }
 
@@ -407,7 +420,10 @@
     margin-inline: auto;
     padding-block: var(--cpx-sys-space-4);
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-align: center;
   }
 
@@ -509,7 +525,10 @@
     border-radius: var(--user-message-bubble-radius);
     background: var(--cpx-sys-color-message-user-bg);
     color: var(--cpx-sys-color-fg-primary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
     text-align: left;
     overflow-wrap: anywhere;
   }
@@ -540,7 +559,10 @@
   .canonical-user-message__editor-error {
     margin: 0;
     color: var(--cpx-sys-color-danger);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   @supports (corner-shape: superellipse(1.5)) {
@@ -564,7 +586,10 @@
     overflow-y: auto;
     outline: none;
     color: var(--cpx-sys-color-fg-primary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
     overflow-wrap: anywhere;
     white-space: pre-wrap;
   }
@@ -700,7 +725,10 @@
     border-radius: var(--cpx-sys-radius-container);
     background: var(--cpx-sys-color-surface-recessed);
     overflow: auto;
-    font-family: var(--cpx-sys-font-family-mono); font-size: var(--cpx-sys-font-size-code); line-height: var(--cpx-sys-line-height-code); letter-spacing: var(--cpx-sys-letter-spacing-code);
+    font-family: var(--cpx-sys-font-family-mono);
+    font-size: var(--cpx-sys-font-size-code);
+    line-height: var(--cpx-sys-line-height-code);
+    letter-spacing: var(--cpx-sys-letter-spacing-code);
     white-space: pre-wrap;
   }
 
@@ -916,7 +944,9 @@
     border-radius: var(--cpx-sys-radius-3);
     background: transparent;
     color: inherit;
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
     letter-spacing: var(--cpx-sys-letter-spacing-code);
     text-align: left;
     cursor: pointer;
@@ -1121,7 +1151,10 @@
 
   .cpx-agent-activity__review-indicator > small {
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   /* ── Command shell ── */
@@ -1163,7 +1196,10 @@
   .canonical-command-card__command-viewport > pre {
     min-width: 0;
     margin: 0;
-    font-family: var(--cpx-sys-font-family-mono); font-size: var(--cpx-sys-font-size-code); line-height: var(--cpx-sys-line-height-code); letter-spacing: var(--cpx-sys-letter-spacing-code);
+    font-family: var(--cpx-sys-font-family-mono);
+    font-size: var(--cpx-sys-font-size-code);
+    line-height: var(--cpx-sys-line-height-code);
+    letter-spacing: var(--cpx-sys-letter-spacing-code);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     max-height: calc(var(--cpx-sys-line-height-code) * 2);
@@ -1189,7 +1225,10 @@
     border: 0;
     background: transparent;
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     cursor: pointer;
   }
   .canonical-command-card__command-toggle:hover {
@@ -1240,7 +1279,10 @@
     padding: var(--cpx-sys-space-2);
     padding-right: calc(var(--cpx-sys-space-8) * 2 + var(--cpx-sys-space-3));
     color: var(--cpx-sys-color-fg-secondary);
-    font-family: var(--cpx-sys-font-family-mono); font-size: var(--cpx-sys-font-size-code); line-height: var(--cpx-sys-line-height-code); letter-spacing: var(--cpx-sys-letter-spacing-code);
+    font-family: var(--cpx-sys-font-family-mono);
+    font-size: var(--cpx-sys-font-size-code);
+    line-height: var(--cpx-sys-line-height-code);
+    letter-spacing: var(--cpx-sys-letter-spacing-code);
     white-space: pre;
   }
   .canonical-command-card__output-text[data-wrapped='true'] {
@@ -1328,7 +1370,10 @@
     align-items: center;
     gap: var(--cpx-sys-space-1);
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .canonical-command-shell__status svg {
@@ -1415,21 +1460,32 @@
     margin: 0;
     overflow: hidden;
     color: var(--cpx-sys-color-fg-primary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .canonical-result-card__tone {
     color: var(--canonical-result-card-accent);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1); font-weight: var(--cpx-sys-font-weight-medium);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-weight: var(--cpx-sys-font-weight-medium);
     white-space: nowrap;
   }
 
   .canonical-result-card__summary {
     margin: 0;
     color: var(--cpx-sys-color-fg-secondary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     overflow-wrap: anywhere;
     white-space: pre-wrap;
   }
@@ -1446,7 +1502,11 @@
   .canonical-result-card__section-title {
     margin: 0;
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1); font-weight: var(--cpx-sys-font-weight-medium);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   .canonical-result-card__items {
@@ -1462,7 +1522,10 @@
     flex-direction: column;
     gap: var(--cpx-sys-space-1);
     min-width: 0;
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .canonical-result-card__item dt {
@@ -1499,7 +1562,11 @@
     border: 0;
     background: none;
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1); font-weight: var(--cpx-sys-font-weight-medium);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-weight: var(--cpx-sys-font-weight-medium);
     cursor: pointer;
   }
 
@@ -1528,7 +1595,10 @@
     gap: var(--cpx-sys-space-2);
     min-width: 0;
     color: var(--cpx-sys-color-fg-secondary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .canonical-result-card__reference a {
@@ -1672,7 +1742,10 @@
     display: flex;
     gap: var(--cpx-sys-space-1);
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .canonical-patch-card__actions {
@@ -1760,7 +1833,10 @@
     padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     border-top: 1px solid var(--cpx-sys-color-border-subtle);
     color: var(--cpx-sys-color-danger);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .canonical-diff-add {

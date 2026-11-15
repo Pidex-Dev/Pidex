@@ -39,5 +39,4 @@ describe('page zoom', () => {
     expect(nextPageZoomPercent(300, 'in')).toBe(300)
     expect(nextPageZoomPercent(170, 'reset')).toBe(100)
   })
-
 })

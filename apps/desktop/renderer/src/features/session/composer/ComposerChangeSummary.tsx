@@ -451,9 +451,19 @@ function ExecutionPlanStatusIcon({
       role="img"
     >
       {status === 'failed' ? (
-        <CircleX className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <CircleX
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       ) : status === 'completed' ? (
-        <Check className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <Check
+          className="tw:size-icon-sm"
+          aria-hidden="true"
+          size={APP_ICON_SIZES.sm}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       ) : (
         <svg
           aria-hidden="true"

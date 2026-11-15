@@ -158,7 +158,8 @@ export function AppDetailsDialog({
                 onOpenChange={setMoreOpen}
                 trigger={
                   <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多选项">
-                    <MoreHorizontal className="tw:size-icon-md"
+                    <MoreHorizontal
+                      className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -167,11 +168,17 @@ export function AppDetailsDialog({
                 }
               >
                 {app.pluginId && onViewPlugin ? (
-                  <PopoverItem icon={<Store className="tw:size-icon-sm" size={14} />} onClick={handleViewPlugin}>
+                  <PopoverItem
+                    icon={<Store className="tw:size-icon-sm" size={14} />}
+                    onClick={handleViewPlugin}
+                  >
                     查看关联插件
                   </PopoverItem>
                 ) : null}
-                <PopoverItem icon={<Copy className="tw:size-icon-sm" size={14} />} onClick={handleCopyId}>
+                <PopoverItem
+                  icon={<Copy className="tw:size-icon-sm" size={14} />}
+                  onClick={handleCopyId}
+                >
                   复制应用 ID
                 </PopoverItem>
               </PopoverMenu>
@@ -183,7 +190,8 @@ export function AppDetailsDialog({
                   size="toolbar"
                   title="关闭弹层"
                 >
-                  <X className="tw:size-icon-md"
+                  <X
+                    className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -198,9 +206,7 @@ export function AppDetailsDialog({
             <Dialog.Title className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text tw:truncate">
               {app.name}
             </Dialog.Title>
-            <span className="tw:type-section-title tw:text-app-text-soft tw:shrink-0">
-              App
-            </span>
+            <span className="tw:type-section-title tw:text-app-text-soft tw:shrink-0">App</span>
           </div>
 
           {/* 描述与工具计数 */}
@@ -256,7 +262,8 @@ export function AppDetailsDialog({
               disabled={!enabled || busy}
               onClick={handleTry}
             >
-              <Sparkles className="tw:size-icon-md"
+              <Sparkles
+                className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -291,12 +298,14 @@ function ToolModeSection({
       >
         <span className="tw:flex tw:items-center tw:gap-2 tw:type-2 tw:weight-medium tw:text-app-text">
           <span>{title}</span>
-          <span className="tw:type-1 tw:text-app-text-meta">
-            {tools.length}
-          </span>
+          <span className="tw:type-1 tw:text-app-text-meta">{tools.length}</span>
         </span>
         {expanded ? (
-          <ChevronDown size={16} className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
+          <ChevronDown
+            size={16}
+            className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0"
+            aria-hidden="true"
+          />
         ) : (
           <ChevronRight
             size={16}
@@ -315,9 +324,7 @@ function ToolModeSection({
               <code className="tw:font-mono tw:type-1 tw:text-app-text tw:pt-1 tw:break-all">
                 {tool.name}
               </code>
-              <span className="tw:type-1 tw:text-app-text-soft">
-                {tool.description}
-              </span>
+              <span className="tw:type-1 tw:text-app-text-soft">{tool.description}</span>
             </div>
           ))}
         </div>

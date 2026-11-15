@@ -455,9 +455,13 @@ describe('thread/pull-requests/updated 事件分发', () => {
 test('a poll cannot overwrite a newer association update for the same thread', async () => {
   const clock = fakeHost()
   let finish!: (lists: ThreadPullRequestList[]) => void
-  const scheduler = new ThreadPullRequestScheduler(clock.host, () => new Promise((resolve) => {
-    finish = resolve
-  }))
+  const scheduler = new ThreadPullRequestScheduler(
+    clock.host,
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+  )
   scheduler.syncSubscriptions(['a', 'b'])
   scheduler.request(['a', 'b'])
   await clock.advance(BATCH_DELAY_MS)

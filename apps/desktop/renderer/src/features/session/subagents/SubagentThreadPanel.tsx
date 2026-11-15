@@ -9,12 +9,7 @@ import {
   Square,
   X,
 } from 'lucide-react'
-import type {
-  Item,
-  SubagentRun,
-  SubagentTask,
-  ThreadSnapshot,
-} from '@pidex/shared/thread'
+import type { Item, SubagentRun, SubagentTask, ThreadSnapshot } from '@pidex/shared/thread'
 import {
   createCanonicalThreadState,
   pageFromThreadSnapshot,
@@ -205,7 +200,11 @@ export function SubagentThreadPanel({
               title="返回父对话"
               onClick={onBackToParent}
             >
-              <ArrowLeft className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <ArrowLeft
+                className="tw:size-icon-md"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           ) : null}
           <SubagentAvatar
@@ -234,7 +233,11 @@ export function SubagentThreadPanel({
               title="应用子智能体变更"
               onClick={() => callbacks.onApplyWorktree?.(task, run)}
             >
-              <Check className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Check
+                className="tw:size-icon-md"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           ) : null}
           {capabilities.canDiscardWorktree && callbacks.onDiscardWorktree ? (
@@ -246,7 +249,11 @@ export function SubagentThreadPanel({
               title="丢弃子智能体工作树"
               onClick={() => callbacks.onDiscardWorktree?.(task, run)}
             >
-              <X className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <X
+                className="tw:size-icon-md"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           ) : null}
           {capabilities.canRestoreWorkspace && callbacks.onRestoreWorkspace ? (
@@ -258,7 +265,11 @@ export function SubagentThreadPanel({
               title="恢复共享变更"
               onClick={() => callbacks.onRestoreWorkspace?.(task, run)}
             >
-              <RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <RotateCcw
+                className="tw:size-icon-md"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           ) : null}
           {canRetry ? (
@@ -270,7 +281,11 @@ export function SubagentThreadPanel({
               title="重试"
               onClick={() => callbacks.onRetry?.(task, run)}
             >
-              <RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <RotateCcw
+                className="tw:size-icon-md"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           ) : null}
           {canStop ? (
@@ -282,7 +297,11 @@ export function SubagentThreadPanel({
               title="停止此子智能体及全部后代"
               onClick={() => callbacks.onStop?.(task, run)}
             >
-              <Square className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Square
+                className="tw:size-icon-md"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           ) : null}
         </div>
@@ -293,10 +312,7 @@ export function SubagentThreadPanel({
         className="subagent-thread-panel__scroll-region thread-scroll-layout tw:min-h-0 tw:overflow-auto tw:[scrollbar-gutter:stable]"
       >
         <div className="subagent-thread-panel__transcript tw:mx-auto tw:grid tw:w-[min(760px,calc(100%-28px))] tw:min-w-0 tw:gap-4 tw:px-0 tw:pt-5 tw:pb-6">
-          <div
-            className="tw:text-app-text-meta tw:type-1 tw:[overflow-anchor:none]"
-            role="status"
-          >
+          <div className="tw:text-app-text-meta tw:type-1 tw:[overflow-anchor:none]" role="status">
             第 {task.depth ?? 1} 层{task.waitingForDescendants ? ' · 等待后代结算' : ''}
             {task.queuedFollowups ? ` · ${task.queuedFollowups} 条后续任务已接纳` : ''}
           </div>

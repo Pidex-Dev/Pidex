@@ -19,23 +19,11 @@ import type { AppView } from '../../UiTypes.js'
  */
 
 export type SidebarPane =
-  | 'git'
-  | 'chats'
-  | 'activity'
-  | 'scheduled'
-  | 'plugins'
-  | 'providers'
-  | 'pets'
-  | 'settings'
+  'git' | 'chats' | 'activity' | 'scheduled' | 'plugins' | 'providers' | 'pets' | 'settings'
 
 /** 导航轨目的地键：与 sidebarCustomization.destinationOrder 中的 id 一一对应。 */
 export type SidebarRailDestinationId =
-  | 'git'
-  | 'automations'
-  | 'plugins'
-  | 'providers'
-  | 'pets'
-  | 'sessionGroups'
+  'git' | 'automations' | 'plugins' | 'providers' | 'pets' | 'sessionGroups'
 
 export type AppPageId =
   | 'home'

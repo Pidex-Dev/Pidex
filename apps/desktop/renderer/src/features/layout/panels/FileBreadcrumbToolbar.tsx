@@ -131,7 +131,12 @@ export function FileBreadcrumbToolbar({
           type="button"
           onClick={onToggleTree}
         >
-          <FolderOpen className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <FolderOpen
+            className="tw:size-icon-md"
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
         </Button>
         <div className="file-breadcrumb-toolbar__open-group">
           <Button
@@ -174,7 +179,8 @@ export function FileBreadcrumbToolbar({
                 title="选择外部打开方式"
                 type="button"
               >
-                <ChevronDown className="tw:size-icon-sm"
+                <ChevronDown
+                  className="tw:size-icon-sm"
                   aria-hidden="true"
                   size={APP_ICON_SIZES.sm}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -211,7 +217,8 @@ export function FileBreadcrumbToolbar({
             <PopoverSeparator />
             <PopoverItem
               icon={
-                <FolderOpen className="tw:size-icon-md"
+                <FolderOpen
+                  className="tw:size-icon-md"
                   aria-hidden="true"
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}

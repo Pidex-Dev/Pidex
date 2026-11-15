@@ -50,7 +50,10 @@
   .toggle-switch[aria-checked='true'] .toggle-knob {
     /* 2px accounts for 1px border on left and right of .toggle-switch */
     transform: translate3d(
-      calc(var(--cpx-switch-width) - 2px - var(--cpx-switch-thumb-size) - var(--cpx-switch-thumb-gap) * 2),
+      calc(
+        var(--cpx-switch-width) - 2px - var(--cpx-switch-thumb-size) - var(--cpx-switch-thumb-gap) *
+          2
+      ),
       -50%,
       0
     );

@@ -169,7 +169,11 @@ function MenuSub({
           {label}
         </OverflowTitle>
         <span className="menubar-item-trailing tw:min-w-0 tw:justify-self-end tw:flex tw:items-center">
-          <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <ChevronRight
+            className="tw:size-icon-sm"
+            size={APP_ICON_SIZES.sm}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
         </span>
       </Menubar.SubTrigger>
       <Menubar.Portal>
@@ -731,7 +735,11 @@ export function MenuBar({
               size="toolbar"
               title="后退"
             >
-              <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <ChevronLeft
+                className="tw:size-icon-md"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           </Tooltip>
           <Tooltip content="前进" shortcut="Ctrl+]" side="bottom">
@@ -743,7 +751,11 @@ export function MenuBar({
               size="toolbar"
               title="前进"
             >
-              <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <ChevronRight
+                className="tw:size-icon-sm"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           </Tooltip>
           <Tooltip
@@ -760,9 +772,17 @@ export function MenuBar({
               title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
             >
               {sidebarCollapsed ? (
-                <PanelLeftOpen className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <PanelLeftOpen
+                  className="tw:size-icon-md"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               ) : (
-                <PanelLeftClose className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <PanelLeftClose
+                  className="tw:size-icon-md"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               )}
             </Button>
           </Tooltip>
@@ -809,7 +829,8 @@ export function MenuBar({
                       onKeyDown={(event) => {
                         if (event.key === 'ArrowLeft') {
                           event.preventDefault()
-                          const prev = sessionTabs[(index - 1 + sessionTabs.length) % sessionTabs.length]
+                          const prev =
+                            sessionTabs[(index - 1 + sessionTabs.length) % sessionTabs.length]
                           if (prev) {
                             onSelectSessionTab?.(prev.id)
                             tabButtonRefs.current.get(prev.id)?.focus()
@@ -894,7 +915,11 @@ export function MenuBar({
                         title={`关闭 ${tab.title}`}
                         variant="text"
                       >
-                        <X className="tw:size-icon-xs" size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <X
+                          className="tw:size-icon-xs"
+                          size={12}
+                          strokeWidth={APP_ICON_STROKE_WIDTH}
+                        />
                       </Button>
                     </div>
                   </div>
@@ -936,7 +961,11 @@ export function WindowControls({
           title="最小化"
           type="button"
         >
-          <Minus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Minus
+            className="tw:size-icon-md"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
         </button>
         <button
           aria-label={isMaximized ? '还原' : '最大化'}
@@ -952,7 +981,11 @@ export function WindowControls({
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
           ) : (
-            <Square className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Square
+              className="tw:size-icon-md"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           )}
         </button>
         <button
@@ -962,7 +995,11 @@ export function WindowControls({
           title="关闭"
           type="button"
         >
-          <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <X
+            className="tw:size-icon-sm"
+            size={APP_ICON_SIZES.sm}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
         </button>
       </div>
     </div>

@@ -138,9 +138,17 @@ export function WorkflowPlanCard({
                 onClick={handleCopy}
               >
                 {copied ? (
-                  <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Check
+                    className="tw:size-icon-sm"
+                    size={APP_ICON_SIZES.sm}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 ) : (
-                  <Copy className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Copy
+                    className="tw:size-icon-sm"
+                    size={APP_ICON_SIZES.sm}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 )}
               </button>
               <button
@@ -150,7 +158,11 @@ export function WorkflowPlanCard({
                 type="button"
                 onClick={handleExport}
               >
-                <Download className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Download
+                  className="tw:size-icon-sm"
+                  size={APP_ICON_SIZES.sm}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               </button>
             </>
           ) : null}
@@ -162,7 +174,11 @@ export function WorkflowPlanCard({
               type="button"
               onClick={() => onOpenInRightDock(plan)}
             >
-              <Maximize2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Maximize2
+                className="tw:size-icon-sm"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </button>
           ) : null}
         </div>
@@ -186,12 +202,20 @@ export function WorkflowPlanCard({
           >
             {expanded ? (
               <>
-                <ChevronUp className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <ChevronUp
+                  className="tw:size-icon-sm"
+                  size={APP_ICON_SIZES.sm}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
                 <span>收起计划</span>
               </>
             ) : (
               <>
-                <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <ChevronDown
+                  className="tw:size-icon-sm"
+                  size={APP_ICON_SIZES.sm}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
                 <span>展开计划</span>
               </>
             )}

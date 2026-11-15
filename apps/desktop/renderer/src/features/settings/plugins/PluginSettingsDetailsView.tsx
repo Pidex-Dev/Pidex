@@ -102,7 +102,8 @@ export function PluginSettingsDetailsView({
         if (cancelled) return
         setHasHooks(
           result.groups.some(
-            (group) => group.kind === 'plugin' && group.pluginId === item.id && group.hooks.length > 0,
+            (group) =>
+              group.kind === 'plugin' && group.pluginId === item.id && group.hooks.length > 0,
           ),
         )
       } catch {
@@ -136,7 +137,9 @@ export function PluginSettingsDetailsView({
   }
 
   // Account / OAuth status
-  const hasMcpAuth = Boolean(matchingMcpServer?.runtime?.auth && matchingMcpServer.runtime.auth.source !== 'none')
+  const hasMcpAuth = Boolean(
+    matchingMcpServer?.runtime?.auth && matchingMcpServer.runtime.auth.source !== 'none',
+  )
   const requiresLogin =
     hasMcpAuth ||
     item.capabilities.includes('auth') ||
@@ -150,11 +153,13 @@ export function PluginSettingsDetailsView({
 
   // Skills and components
   const usedApps = details?.apps ?? []
-  const skills = details?.skills ?? (item.skills ?? []).map((id) => ({ id, name: id, description: '' }))
+  const skills =
+    details?.skills ?? (item.skills ?? []).map((id) => ({ id, name: id, description: '' }))
   const nonSkillComponents = (details?.components ?? []).filter((comp) => comp.kind !== 'skill')
 
   // About metadata fields
-  const categoryText = item.category === 'manageable' ? '效率' : item.category === 'included' ? '系统' : '扩展'
+  const categoryText =
+    item.category === 'manageable' ? '效率' : item.category === 'included' ? '系统' : '扩展'
   const developerText = item.developerName || '官方'
   const versionText = item.version?.trim() || ''
   const websiteUrl = details?.websiteURL?.trim() || ''
@@ -167,7 +172,10 @@ export function PluginSettingsDetailsView({
   return (
     <div className="plugin-settings-details-view tw:w-full tw:min-w-0 tw:pb-8">
       {/* 顶部面包屑导航 */}
-      <nav aria-label="路径导航" className="tw:flex tw:items-center tw:gap-1 tw:type-1 tw:text-app-text-soft tw:mb-5">
+      <nav
+        aria-label="路径导航"
+        className="tw:flex tw:items-center tw:gap-1 tw:type-1 tw:text-app-text-soft tw:mb-5"
+      >
         <button
           type="button"
           onClick={onBack}
@@ -175,7 +183,11 @@ export function PluginSettingsDetailsView({
         >
           插件设置
         </button>
-        <ChevronRight size={14} className="tw:size-icon-sm tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
+        <ChevronRight
+          size={14}
+          className="tw:size-icon-sm tw:text-app-text-meta tw:shrink-0"
+          aria-hidden="true"
+        />
         <span className="tw:text-app-text tw:type-2 tw:weight-medium">{item.name}</span>
       </nav>
 
@@ -191,7 +203,9 @@ export function PluginSettingsDetailsView({
             />
           </span>
           <div className="tw:min-w-0">
-            <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text tw:truncate">{item.name}</h1>
+            <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text tw:truncate">
+              {item.name}
+            </h1>
             <p className="tw:m-0 tw:mt-1 tw:type-1 tw:text-app-text-soft tw:line-clamp-2">
               {item.description}
             </p>
@@ -230,7 +244,11 @@ export function PluginSettingsDetailsView({
         <section className="tw:mb-6" aria-label="账号与连接状态">
           <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-2 tw:flex tw:items-center tw:justify-between tw:gap-4">
             <div className="tw:flex tw:items-center tw:gap-3 tw:min-w-0">
-              <ShieldCheck size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} className="tw:size-icon-md tw:text-app-accent tw:shrink-0" />
+              <ShieldCheck
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+                className="tw:size-icon-md tw:text-app-accent tw:shrink-0"
+              />
               <div className="tw:min-w-0">
                 <span className="tw:type-2 tw:weight-medium tw:text-app-text tw:block tw:truncate">
                   {item.name}
@@ -247,17 +265,11 @@ export function PluginSettingsDetailsView({
                   等待授权
                 </Button>
               ) : isConnected && matchingMcpServer && onLogoutOAuth ? (
-                <Button
-                  color="danger"
-                  onClick={() => onLogoutOAuth(matchingMcpServer)}
-                >
+                <Button color="danger" onClick={() => onLogoutOAuth(matchingMcpServer)}>
                   退出登录
                 </Button>
               ) : matchingMcpServer && onStartOAuth ? (
-                <Button
-                  color="secondary"
-                  onClick={() => onStartOAuth(matchingMcpServer)}
-                >
+                <Button color="secondary" onClick={() => onStartOAuth(matchingMcpServer)}>
                   关联
                 </Button>
               ) : (
@@ -346,7 +358,9 @@ export function PluginSettingsDetailsView({
             {skills.map((skill) => {
               const matchedSkill = resolvePluginDetailSkill(item, skill, installedSkills)
               const skillEnabled = matchedSkill ? matchedSkill.enabled : item.enabled
-              const skillBusy = matchedSkill ? Boolean(busySkillPaths?.has(matchedSkill.path)) : false
+              const skillBusy = matchedSkill
+                ? Boolean(busySkillPaths?.has(matchedSkill.path))
+                : false
 
               return (
                 <div
@@ -361,16 +375,24 @@ export function PluginSettingsDetailsView({
                       onClick={(event) => onSelectSkill(skill, event.currentTarget)}
                       className="tw:flex-1 tw:min-w-0 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus tw:rounded-2"
                     >
-                      <div className="tw:type-2 tw:weight-medium tw:text-app-text">{skill.name}</div>
+                      <div className="tw:type-2 tw:weight-medium tw:text-app-text">
+                        {skill.name}
+                      </div>
                       {skill.description ? (
-                        <div className="tw:type-1 tw:text-app-text-soft tw:mt-1">{skill.description}</div>
+                        <div className="tw:type-1 tw:text-app-text-soft tw:mt-1">
+                          {skill.description}
+                        </div>
                       ) : null}
                     </button>
                   ) : (
                     <div className="tw:flex-1 tw:min-w-0">
-                      <div className="tw:type-2 tw:weight-medium tw:text-app-text">{skill.name}</div>
+                      <div className="tw:type-2 tw:weight-medium tw:text-app-text">
+                        {skill.name}
+                      </div>
                       {skill.description ? (
-                        <div className="tw:type-1 tw:text-app-text-soft tw:mt-1">{skill.description}</div>
+                        <div className="tw:type-1 tw:text-app-text-soft tw:mt-1">
+                          {skill.description}
+                        </div>
                       ) : null}
                     </div>
                   )}
@@ -415,12 +437,20 @@ export function PluginSettingsDetailsView({
                 className="tw:w-full tw:border-0 tw:bg-transparent tw:px-3 tw:py-2 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:text-left tw:hover:bg-app-panel-hover tw:transition-colors tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-[-2px] tw:focus-visible:outline-app-focus"
               >
                 <span className="tw:type-2 tw:weight-medium tw:text-app-text">在设置中管理</span>
-                <ChevronRight size={16} className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
+                <ChevronRight
+                  size={16}
+                  className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0"
+                  aria-hidden="true"
+                />
               </button>
             ) : (
               <div className="tw:px-3 tw:py-2 tw:flex tw:items-center tw:justify-between tw:gap-3">
                 <span className="tw:type-2 tw:weight-medium tw:text-app-text">在设置中管理</span>
-                <ChevronRight size={16} className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0" aria-hidden="true" />
+                <ChevronRight
+                  size={16}
+                  className="tw:size-icon-md tw:text-app-text-meta tw:shrink-0"
+                  aria-hidden="true"
+                />
               </div>
             )}
           </div>
@@ -434,11 +464,17 @@ export function PluginSettingsDetailsView({
           <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:divide-y tw:divide-app-border-subtle tw:overflow-hidden">
             {nonSkillComponents.map((comp) => (
               <div key={comp.id} className="tw:px-3 tw:py-2 tw:flex tw:items-start tw:gap-3">
-                <Server size={16} className="tw:size-icon-md tw:text-app-accent tw:mt-1 tw:shrink-0" aria-hidden="true" />
+                <Server
+                  size={16}
+                  className="tw:size-icon-md tw:text-app-accent tw:mt-1 tw:shrink-0"
+                  aria-hidden="true"
+                />
                 <div className="tw:min-w-0">
                   <div className="tw:type-2 tw:weight-medium tw:text-app-text">{comp.name}</div>
                   {comp.description ? (
-                    <div className="tw:type-1 tw:text-app-text-soft tw:mt-1">{comp.description}</div>
+                    <div className="tw:type-1 tw:text-app-text-soft tw:mt-1">
+                      {comp.description}
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -482,7 +518,11 @@ export function PluginSettingsDetailsView({
                   className="tw:border-0 tw:bg-transparent tw:p-0 tw:type-1 tw:text-app-accent tw:hover:underline tw:cursor-pointer tw:inline-flex tw:items-center tw:gap-1 tw:max-w-full tw:truncate"
                 >
                   <span className="tw:truncate">{websiteUrl}</span>
-                  <ExternalLink size={12} className="tw:size-icon-xs tw:shrink-0" aria-hidden="true" />
+                  <ExternalLink
+                    size={12}
+                    className="tw:size-icon-xs tw:shrink-0"
+                    aria-hidden="true"
+                  />
                 </button>
               </span>
             </div>
@@ -499,7 +539,11 @@ export function PluginSettingsDetailsView({
                   className="tw:border-0 tw:bg-transparent tw:p-0 tw:type-1 tw:text-app-accent tw:hover:underline tw:cursor-pointer tw:inline-flex tw:items-center tw:gap-1"
                 >
                   查看隐私政策
-                  <ExternalLink size={12} className="tw:size-icon-xs tw:shrink-0" aria-hidden="true" />
+                  <ExternalLink
+                    size={12}
+                    className="tw:size-icon-xs tw:shrink-0"
+                    aria-hidden="true"
+                  />
                 </button>
               </span>
             </div>
@@ -516,7 +560,11 @@ export function PluginSettingsDetailsView({
                   className="tw:border-0 tw:bg-transparent tw:p-0 tw:type-1 tw:text-app-accent tw:hover:underline tw:cursor-pointer tw:inline-flex tw:items-center tw:gap-1"
                 >
                   查看条款
-                  <ExternalLink size={12} className="tw:size-icon-xs tw:shrink-0" aria-hidden="true" />
+                  <ExternalLink
+                    size={12}
+                    className="tw:size-icon-xs tw:shrink-0"
+                    aria-hidden="true"
+                  />
                 </button>
               </span>
             </div>

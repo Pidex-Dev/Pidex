@@ -420,7 +420,8 @@ export function ProviderRequestSettingsForm({
         ...(isDraft
           ? {}
           : {
-              providerId: provider.providerID as RpcParams<'provider/protocol/detect'>['providerId'],
+              providerId:
+                provider.providerID as RpcParams<'provider/protocol/detect'>['providerId'],
             }),
       })
       if (result.models.some((row) => row.cells.some((cell) => cell.status === 'success'))) {
@@ -512,11 +513,19 @@ export function ProviderRequestSettingsForm({
         className="tw:m-0 tw:grid tw:min-h-0 tw:min-w-0 tw:content-start tw:gap-4 tw:border-0 tw:p-0"
       >
         <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-          <h3 className="tw:m-0 tw:shrink-0 tw:whitespace-nowrap tw:type-4 tw:weight-bold">请求配置</h3>
+          <h3 className="tw:m-0 tw:shrink-0 tw:whitespace-nowrap tw:type-4 tw:weight-bold">
+            请求配置
+          </h3>
           <div className="tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-2">
             {!oauthOnly ? (
               <ProviderPanelActionButton
-                icon={<Activity className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />}
+                icon={
+                  <Activity
+                    className="tw:size-icon-sm"
+                    aria-hidden="true"
+                    size={APP_ICON_SIZES.sm}
+                  />
+                }
                 label="检测协议"
                 disabled={saving || detecting}
                 loading={detecting}
@@ -525,7 +534,9 @@ export function ProviderRequestSettingsForm({
             ) : null}
             {!addingEndpoint ? (
               <ProviderPanelActionButton
-                icon={<Plus className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />}
+                icon={
+                  <Plus className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
+                }
                 label="添加端点"
                 disabled={!availableEndpoints.length}
                 onClick={() => {

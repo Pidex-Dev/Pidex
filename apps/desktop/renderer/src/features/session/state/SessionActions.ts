@@ -107,9 +107,7 @@ export function activateSession(context: SessionActionContext, nextSessionId: st
 export function markActiveSessionRead(context: SessionActionContext): void {
   const sessionId = context.activeSessionIdRef.current
   if (!sessionId) return
-  const unreadAt = context.sessionsRef.current.find(
-    (session) => session.id === sessionId,
-  )?.unreadAt
+  const unreadAt = context.sessionsRef.current.find((session) => session.id === sessionId)?.unreadAt
   if (!unreadAt) return
   markSessionReadThrough(context, sessionId, unreadAt)
 }

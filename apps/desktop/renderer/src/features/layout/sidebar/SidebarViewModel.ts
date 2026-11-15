@@ -580,7 +580,9 @@ export function sortSidebarPinnedItems(
   sort: DesktopSidebarPinnedSort,
 ): SidebarPinnedItem[] {
   if (sort === 'updated') {
-    return [...items].sort((left, right) => timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt))
+    return [...items].sort(
+      (left, right) => timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt),
+    )
   }
   if (sort === 'lastPrompt') {
     return [...items].sort(

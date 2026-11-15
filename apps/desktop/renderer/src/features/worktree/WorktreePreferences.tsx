@@ -25,7 +25,9 @@ export function WorktreePreferences({
   const subscribedGitAutoDeleteWorktreeLimit = useDesktopSettingsDraftValue(
     'gitAutoDeleteWorktreeLimit',
   )
-  const subscribedGitConfirmDeleteWorktree = useDesktopSettingsDraftValue('gitConfirmDeleteWorktree')
+  const subscribedGitConfirmDeleteWorktree = useDesktopSettingsDraftValue(
+    'gitConfirmDeleteWorktree',
+  )
   const subscribedDraftDirty = useDesktopSettingsDraftDirty()
   const subscribedDraftSaving = useDesktopSettingsDraftSaving()
 

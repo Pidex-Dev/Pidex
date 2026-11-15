@@ -93,9 +93,7 @@ export function GuardianReviewSummary({
           <span className="tw:text-app-text-meta tw:type-1">评分滞后 {review.scoreLag}</span>
         ) : null}
       </div>
-      <p className="tw:m-0 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
-        {review.rationale}
-      </p>
+      <p className="tw:m-0 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">{review.rationale}</p>
       {categories.length > 0 ? (
         <div className="tw:flex tw:min-w-0 tw:flex-wrap tw:gap-1">
           {categories.map((category) => (

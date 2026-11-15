@@ -106,7 +106,11 @@ export function ComposerGoalRow({
           title={goal.objective}
         >
           <span className="tw:inline-flex tw:shrink-0 tw:text-app-text-meta" aria-hidden="true">
-            <Target className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Target
+              className="tw:size-icon-sm"
+              size={APP_ICON_SIZES.sm}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </span>
           <span className="tw:shrink-0 tw:type-1 tw:weight-medium tw:text-app-text">
             {GOAL_STATUS_LABELS[goal.status]}
@@ -137,7 +141,11 @@ export function ComposerGoalRow({
             onClick={() => void run(onClear)}
             title="清除目标"
           >
-            <Trash2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Trash2
+              className="tw:size-icon-sm"
+              size={APP_ICON_SIZES.sm}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </Button>
           {goal.status === 'active' ? (
             <Button
@@ -149,7 +157,11 @@ export function ComposerGoalRow({
               onClick={() => void run(onPause)}
               title="暂停目标"
             >
-              <Pause className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Pause
+                className="tw:size-icon-sm"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           ) : canResume ? (
             <Button
@@ -161,7 +173,11 @@ export function ComposerGoalRow({
               onClick={() => void run(onResume)}
               title="恢复目标"
             >
-              <CirclePlay className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <CirclePlay
+                className="tw:size-icon-sm"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           ) : null}
           <Button
@@ -173,7 +189,11 @@ export function ComposerGoalRow({
             onClick={onOpenGoalPanel}
             title="编辑目标"
           >
-            <Maximize2 className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Maximize2
+              className="tw:size-icon-sm"
+              size={APP_ICON_SIZES.sm}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </Button>
         </div>
       </section>

@@ -60,7 +60,6 @@ const CONTENT_CLASS =
   'popover-surface popover popover-menu-spacing tw:z-popover tw:grid tw:max-h-none tw:overflow-hidden tw:text-app-text'
 const NOTE_CLASS = 'tw:m-0 tw:px-2 tw:pb-1 tw:text-app-text-meta tw:type-1'
 
-
 /**
  * 首页发起前的执行位置设置：新建工作树开关、待使用分支与项目环境。
  * 分支与开关只写入草稿，发送时才通过会话创建链路生效。
@@ -261,7 +260,9 @@ export function ComposerLaunchSettingsPopover({
                         ariaLabel="新建工作树"
                         checked={settings.createWorktree}
                         disabled={executionDisabled || !pendingBranch}
-                        onChange={(checked) => updateSettings({ ...settings, createWorktree: checked })}
+                        onChange={(checked) =>
+                          updateSettings({ ...settings, createWorktree: checked })
+                        }
                       />
                     }
                   >
@@ -307,7 +308,10 @@ export function ComposerLaunchSettingsPopover({
                   </SidebarRow>
                 </div>
               </Tooltip>
-              <Tooltip content={settings.createWorktree ? '选择项目环境' : '启用工作树后即可选择环境'} side="left">
+              <Tooltip
+                content={settings.createWorktree ? '选择项目环境' : '启用工作树后即可选择环境'}
+                side="left"
+              >
                 <div className="tw:grid tw:min-w-0">
                   <SidebarRow
                     asChild
@@ -328,7 +332,11 @@ export function ComposerLaunchSettingsPopover({
                   >
                     <button
                       type="button"
-                      disabled={!settings.createWorktree || !projectId || capabilities?.environments !== true}
+                      disabled={
+                        !settings.createWorktree ||
+                        !projectId ||
+                        capabilities?.environments !== true
+                      }
                       onClick={() => setView('environment')}
                     >
                       <span className="popover-item-label tw:flex tw:w-full tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
@@ -341,7 +349,6 @@ export function ComposerLaunchSettingsPopover({
                   </SidebarRow>
                 </div>
               </Tooltip>
-
             </>
           ) : null}
 

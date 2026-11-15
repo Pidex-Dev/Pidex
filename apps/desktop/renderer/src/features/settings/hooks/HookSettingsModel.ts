@@ -1,9 +1,6 @@
 import type { DiscoveredHook, HookEventName, HookSourceGroup } from '@pidex/agent-protocol'
 
-export const HOOK_EVENT_META: Record<
-  HookEventName,
-  { title: string; subtitle: string }
-> = {
+export const HOOK_EVENT_META: Record<HookEventName, { title: string; subtitle: string }> = {
   session_start: { title: 'SessionStart', subtitle: '当新会话开始时' },
   session_resume: { title: 'SessionResume', subtitle: '当恢复已有会话时' },
   user_prompt_submit: { title: 'UserPromptSubmit', subtitle: '当用户提交提示时' },

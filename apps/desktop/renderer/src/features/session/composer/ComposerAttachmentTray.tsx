@@ -86,7 +86,9 @@ function resolveFileCategory(name: string, kind: string): { bg: string; icon: Re
   if (['xlsx', 'xls', 'csv', 'tsv'].includes(ext)) {
     return {
       bg: '#1a73e8',
-      icon: <FileSpreadsheet className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
+      icon: (
+        <FileSpreadsheet className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />
+      ),
     }
   }
   if (['pptx', 'ppt', 'key'].includes(ext)) {
@@ -216,7 +218,11 @@ export function ComposerAttachmentTray({
                   title="移除附件"
                   type="button"
                 >
-                  <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <X
+                    className="tw:size-icon-sm"
+                    size={APP_ICON_SIZES.sm}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 </button>
               )}
             </div>
@@ -259,7 +265,11 @@ export function ComposerAttachmentTray({
                   title="移除附件"
                   type="button"
                 >
-                  <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <X
+                    className="tw:size-icon-sm"
+                    size={APP_ICON_SIZES.sm}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 </button>
               )}
             </div>

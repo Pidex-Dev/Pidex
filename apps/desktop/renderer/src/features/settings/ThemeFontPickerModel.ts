@@ -60,9 +60,7 @@ export function buildFamilyOptions({
   return options
 }
 
-export function buildWeightOptions(
-  spec: DesktopExternalFontSpec | undefined,
-): FontPickerOption[] {
+export function buildWeightOptions(spec: DesktopExternalFontSpec | undefined): FontPickerOption[] {
   if (!spec) return [{ value: DEFAULT_WEIGHT_VALUE, label: 'Regular' }]
   return spec.weights.map((option) => ({
     value: String(option.weight),
@@ -81,9 +79,7 @@ export function selectedWeightValue(
   const text = `${face.fullName} ${face.postscriptName}`.toLowerCase()
   const byLongestLabel = [...spec.weights].sort((a, b) => b.label.length - a.label.length)
   const matched = byLongestLabel.find(
-    (option) =>
-      text.includes(option.label.toLowerCase()) ||
-      text.includes(String(option.weight)),
+    (option) => text.includes(option.label.toLowerCase()) || text.includes(String(option.weight)),
   )
   return matched ? String(matched.weight) : DEFAULT_WEIGHT_VALUE
 }

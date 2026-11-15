@@ -45,9 +45,10 @@ export function ProviderModelPanel({
   const allowNavigation = useRef(false)
   const requestLeave = useRef<(() => Promise<boolean>) | null>(null)
   useEffect(() => {
-    const beforeChange = () => allowNavigation.current
-      ? Promise.resolve(true)
-      : (requestLeave.current?.() ?? Promise.resolve(true))
+    const beforeChange = () =>
+      allowNavigation.current
+        ? Promise.resolve(true)
+        : (requestLeave.current?.() ?? Promise.resolve(true))
     panel.beforeChange.current = beforeChange
     return () => {
       if (panel.beforeChange.current === beforeChange) panel.beforeChange.current = null
@@ -77,47 +78,50 @@ export function ProviderModelPanel({
   }
   return (
     <>
-      <section aria-label={creating ? '添加模型' : '编辑模型'} className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-hidden">
-      <div className="tw:flex-1 tw:p-4 tw:min-h-0 tw:overflow-y-auto">
-        <fieldset
-          disabled={busy}
-          className="tw:m-0 tw:grid tw:min-w-0 tw:gap-4 tw:border-0 tw:p-0"
-        >
-          <ModelEditor
-            providerId={providerId}
-            baseUrl={baseUrl}
-            model={draft}
-            lockId={!creating}
-            onChange={(next) => {
-              allowNavigation.current = false
-              setError(null)
-              setDraft(next)
-            }}
-            {...(nativeApi ? { nativeApi } : {})}
-          />
-        </fieldset>
-      </div>
-      {error ? (
-        <div className="tw:shrink-0 tw:px-5 tw:pb-2">
-          <p role="alert" className="tw:m-0 tw:w-full tw:text-app-danger tw:type-1">
-            {error}
-          </p>
+      <section
+        aria-label={creating ? '添加模型' : '编辑模型'}
+        className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-hidden"
+      >
+        <div className="tw:flex-1 tw:p-4 tw:min-h-0 tw:overflow-y-auto">
+          <fieldset
+            disabled={busy}
+            className="tw:m-0 tw:grid tw:min-w-0 tw:gap-4 tw:border-0 tw:p-0"
+          >
+            <ModelEditor
+              providerId={providerId}
+              baseUrl={baseUrl}
+              model={draft}
+              lockId={!creating}
+              onChange={(next) => {
+                allowNavigation.current = false
+                setError(null)
+                setDraft(next)
+              }}
+              {...(nativeApi ? { nativeApi } : {})}
+            />
+          </fieldset>
         </div>
-      ) : null}
-      <footer className="settings-management-dialog-footer tw:shrink-0">
-        <Button size="md" color="secondary" disabled={busy} onClick={close}>
-          取消
-        </Button>
-        <Button
-          size="md"
-          color="primary"
-          disabled={busy}
-          loading={busy}
-          onClick={() => void save()}
-        >
-          {creating ? '添加模型' : '保存模型'}
-        </Button>
-      </footer>
+        {error ? (
+          <div className="tw:shrink-0 tw:px-5 tw:pb-2">
+            <p role="alert" className="tw:m-0 tw:w-full tw:text-app-danger tw:type-1">
+              {error}
+            </p>
+          </div>
+        ) : null}
+        <footer className="settings-management-dialog-footer tw:shrink-0">
+          <Button size="md" color="secondary" disabled={busy} onClick={close}>
+            取消
+          </Button>
+          <Button
+            size="md"
+            color="primary"
+            disabled={busy}
+            loading={busy}
+            onClick={() => void save()}
+          >
+            {creating ? '添加模型' : '保存模型'}
+          </Button>
+        </footer>
       </section>
       <ProviderEditorNavigationGuard
         requestLeaveRef={requestLeave}

@@ -16,10 +16,7 @@ import { deriveThemeVariables } from './ThemeVariables.js'
 import { applyThemeFontFaceStyles } from './ThemeFontFaces.js'
 import { ensureExternalFontLoaded } from './ThemeExternalFonts.js'
 import { findExternalFontByFamily } from '@pidex/shared/desktop-external-fonts'
-import {
-  DESKTOP_UI_DENSITY_SCALING,
-  normalizeDesktopUiDensity,
-} from '@pidex/shared/desktop-theme'
+import { DESKTOP_UI_DENSITY_SCALING, normalizeDesktopUiDensity } from '@pidex/shared/desktop-theme'
 import {
   resolveStartupThemeSettings,
   withStartupThemeSeed,
@@ -196,9 +193,7 @@ export function DesktopThemeProvider({ children }: { children: React.ReactNode }
       const current = draftSettingsRef.current
       const nextFonts = {
         ...current.fonts,
-        ...(missingUi && current.fonts.ui === uiExternal?.family
-          ? { ui: null, uiFace: null }
-          : {}),
+        ...(missingUi && current.fonts.ui === uiExternal?.family ? { ui: null, uiFace: null } : {}),
         ...(missingCode && current.fonts.code === codeExternal?.family
           ? { code: null, codeFace: null }
           : {}),

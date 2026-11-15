@@ -23,8 +23,7 @@ function createContext(sessions: SessionListItem[], activeId: string | null): Se
     onErrorRef: { current: () => {} },
     viewSetters: {} as SessionActionContext['viewSetters'],
     setSessions: (next) => {
-      sessionsRef.current =
-        typeof next === 'function' ? next(sessionsRef.current) : next
+      sessionsRef.current = typeof next === 'function' ? next(sessionsRef.current) : next
     },
     setSessionId: () => {},
     setSessionStatus: () => {},

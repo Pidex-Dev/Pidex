@@ -657,7 +657,9 @@ function Field({
 }): React.ReactNode {
   return (
     <label className="automation-field tw:[&_.ui-select-trigger]:w-full tw:grid tw:min-w-0 tw:content-start tw:gap-1">
-      <span className="automation-field-label tw:type-2 tw:weight-medium tw:text-app-text">{label}</span>
+      <span className="automation-field-label tw:type-2 tw:weight-medium tw:text-app-text">
+        {label}
+      </span>
       {children}
       {hint ? (
         <span className="automation-field-hint tw:type-1 tw:text-app-text-meta">{hint}</span>

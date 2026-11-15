@@ -411,7 +411,10 @@
     border-radius: var(--cpx-sys-radius-compact);
     background: transparent;
     color: var(--cpx-sys-color-fg-primary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-align: start;
   }
 

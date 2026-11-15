@@ -1,14 +1,8 @@
-import {
-  defaultDesktopStoredSettings,
-} from '../../../shared/SettingsSchema.js'
-import {
-  collaborationModeFromPlanModeActive,
-} from '../../shims/core/agent/SessionContract.js'
+import { defaultDesktopStoredSettings } from '../../../shared/SettingsSchema.js'
+import { collaborationModeFromPlanModeActive } from '../../shims/core/agent/SessionContract.js'
 import type { ModelRef } from '@pidex/shared'
 import { threadGoalBudgetViolation } from '@pidex/shared/thread'
-import type {
-  PermissionRule,
-} from '@pidex/shared/thread'
+import type { PermissionRule } from '@pidex/shared/thread'
 import {
   type JsonValue,
   type PluginSummary,
@@ -36,9 +30,7 @@ import type {
   DesktopProviderModelDefinition,
   ModelProviderID,
 } from '../../../shared/Types.js'
-import {
-  desktopPermissionModeToPermissionConfig,
-} from '../AgentThreadAdapter.js'
+import { desktopPermissionModeToPermissionConfig } from '../AgentThreadAdapter.js'
 import {
   cleanGitStatus,
   createBrowserPerformanceFixture,
@@ -658,7 +650,11 @@ export function createBrowserMockDesktopClient(
     listMemoryUsage: async () => [],
     listMemoryTasks: async () => ({ tasks: [], autoOrganize: true }),
     organizeMemory: async () => ({ taskId: null, queued: false }),
-    readMemorySettings: async () => ({ autoOrganize: true, memoryDir: 'mock/memories/', namedAgents: [] }),
+    readMemorySettings: async () => ({
+      autoOrganize: true,
+      memoryDir: 'mock/memories/',
+      namedAgents: [],
+    }),
     saveMemorySettings: async (input) => ({
       autoOrganize: input.autoOrganize,
       memoryDir: 'mock/memories/',

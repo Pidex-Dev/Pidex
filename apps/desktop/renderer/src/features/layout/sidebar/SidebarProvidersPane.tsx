@@ -70,7 +70,9 @@ export function SidebarProvidersPane(): React.ReactNode {
     <div className="sidebar-providers-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
       <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
         <SearchHeading
-          title={<h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('供应商')}</h2>}
+          title={
+            <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('供应商')}</h2>
+          }
           search={
             <SearchInput
               variant="outlined"
@@ -119,10 +121,7 @@ export function SidebarProvidersPane(): React.ReactNode {
         {loading ? (
           <SidebarEmptyRow role="status">{t('正在加载供应商…')}</SidebarEmptyRow>
         ) : error ? (
-          <div
-            className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-1"
-            role="status"
-          >
+          <div className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-1" role="status">
             {error}
           </div>
         ) : items.length === 0 ? (
@@ -149,7 +148,13 @@ export function SidebarProvidersPane(): React.ReactNode {
                         <span className="tw:flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center">
                           <ProviderIcon
                             className="tw:size-4 tw:shrink-0"
-                            fallback={<BrainCircuit className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
+                            fallback={
+                              <BrainCircuit
+                                className="tw:size-icon-sm"
+                                aria-hidden
+                                size={APP_ICON_SIZES.sm}
+                              />
+                            }
                             imageClassName="tw:object-contain tw:[.dark-theme_&]:invert tw:[.dark-theme_&]:hue-rotate-180"
                             logoURL={provider.logoURL}
                             providerID={provider.providerID}

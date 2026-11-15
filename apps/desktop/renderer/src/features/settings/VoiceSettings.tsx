@@ -480,10 +480,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
             </SettingsSection.Content>
 
             <SettingsSection.Content surface="card">
-              <SettingsRow
-                title="最近录音"
-                description="你最近的 20 段录音会保存在此设备上"
-              />
+              <SettingsRow title="最近录音" description="你最近的 20 段录音会保存在此设备上" />
               {recentRecordings.length === 0 ? (
                 <div className="settings-row tw:min-w-0 tw:bg-transparent tw:px-3 tw:py-3 tw:text-app-text-soft tw:type-1">
                   {t('暂无最近录音')}

@@ -206,13 +206,9 @@ export function SkillDetailsDialog({
                   open={moreOpen}
                   onOpenChange={setMoreOpen}
                   trigger={
-                    <Button
-                      isIconOnly
-                      color="ghostSecondary"
-                      size="toolbar"
-                      title="更多选项"
-                    >
-                      <MoreHorizontal className="tw:size-icon-md"
+                    <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多选项">
+                      <MoreHorizontal
+                        className="tw:size-icon-md"
                         aria-hidden="true"
                         size={APP_ICON_SIZE}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -243,7 +239,8 @@ export function SkillDetailsDialog({
                     size="toolbar"
                     title="关闭弹层"
                   >
-                    <X className="tw:size-icon-md"
+                    <X
+                      className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -258,9 +255,7 @@ export function SkillDetailsDialog({
               <Dialog.Title className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text tw:truncate">
                 {skill.name}
               </Dialog.Title>
-              <span className="tw:type-3 tw:text-app-text-soft tw:shrink-0">
-                Skill
-              </span>
+              <span className="tw:type-3 tw:text-app-text-soft tw:shrink-0">Skill</span>
             </div>
 
             {/* 下方：描述 */}
@@ -296,7 +291,8 @@ export function SkillDetailsDialog({
                   disabled={uninstallBusy}
                   onClick={() => setConfirmUninstall(true)}
                 >
-                  <Trash2 className="tw:size-icon-md"
+                  <Trash2
+                    className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -313,7 +309,8 @@ export function SkillDetailsDialog({
                 disabled={!enabled}
                 onClick={handleUse}
               >
-                <Sparkles className="tw:size-icon-md"
+                <Sparkles
+                  className="tw:size-icon-md"
                   aria-hidden="true"
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}

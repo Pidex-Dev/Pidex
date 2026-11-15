@@ -84,7 +84,13 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                 {
                   kind: 'item',
                   label: '关闭',
-                  icon: <X className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+                  icon: (
+                    <X
+                      className="tw:size-icon-md"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  ),
                   onSelect: () => onCloseTab(tab.id),
                 },
                 ...getAvailableMoveTargets('sidebar', tab.kind).map((destTarget) => ({
@@ -127,16 +133,23 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                   <div className="tw:flex tw:items-center tw:gap-1 tw:min-w-0">
                     <span className="tw:text-app-text-meta tw:shrink-0">
                       {active ? (
-                        <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <ChevronDown
+                          className="tw:size-icon-sm"
+                          size={APP_ICON_SIZES.sm}
+                          strokeWidth={APP_ICON_STROKE_WIDTH}
+                        />
                       ) : (
-                        <ChevronRight className="tw:size-icon-sm"
+                        <ChevronRight
+                          className="tw:size-icon-sm"
                           size={APP_ICON_SIZES.sm}
                           strokeWidth={APP_ICON_STROKE_WIDTH}
                         />
                       )}
                     </span>
                     <span className="tw:shrink-0">{tabIcon}</span>
-                    <span className="tw:truncate tw:type-2 tw:weight-medium tw:text-app-text">{tabTitle}</span>
+                    <span className="tw:truncate tw:type-2 tw:weight-medium tw:text-app-text">
+                      {tabTitle}
+                    </span>
                   </div>
                   <div
                     className="tw:flex tw:items-center tw:gap-1"
@@ -150,7 +163,11 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       title="移到右侧栏"
                       onClick={() => onMoveTab('sidebar', 'right', tab.id)}
                     >
-                      <MoveRight className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <MoveRight
+                        className="tw:size-icon-md"
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
                     </Button>
                     <Button
                       isIconOnly
@@ -160,7 +177,11 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       title="移到底部面板"
                       onClick={() => onMoveTab('sidebar', 'bottom', tab.id)}
                     >
-                      <MoveDown className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <MoveDown
+                        className="tw:size-icon-md"
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
                     </Button>
                     <Button
                       isIconOnly
@@ -170,7 +191,11 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       title="关闭视图"
                       onClick={() => onCloseTab(tab.id)}
                     >
-                      <X className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <X
+                        className="tw:size-icon-md"
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
                     </Button>
                   </div>
                 </div>

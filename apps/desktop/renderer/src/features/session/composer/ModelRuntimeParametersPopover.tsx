@@ -81,7 +81,11 @@ export function ModelRuntimeParametersSummary({
       {maxContextTokens != null ? (
         <Chip variant="info">{formatContextLimitLabel(maxContextTokens)}</Chip>
       ) : !showThinkingOptions ? (
-        <SlidersHorizontal className="tw:size-icon-md" size={APP_ICON_SIZES.md} aria-hidden="true" />
+        <SlidersHorizontal
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZES.md}
+          aria-hidden="true"
+        />
       ) : null}
     </span>
   )
@@ -319,9 +323,7 @@ export function ModelRuntimeParametersContent({
             }}
           />
         ) : (
-          <span className="tw:type-1 tw:text-app-text-meta">
-            当前模型不支持配置推理思考强度
-          </span>
+          <span className="tw:type-1 tw:text-app-text-meta">当前模型不支持配置推理思考强度</span>
         )}
       </div>
 
@@ -482,12 +484,7 @@ export function ModelRuntimeParametersPopover({
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>{customTrigger ?? defaultTrigger}</Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content
-          asChild
-          side={side}
-          align={align}
-          sideOffset={sideOffset}
-        >
+        <Popover.Content asChild side={side} align={align} sideOffset={sideOffset}>
           <div className="composer-runtime-params-popover-content tw:w-[16.25rem] tw:p-2">
             <ModelRuntimeParametersContent
               physicalWindow={physicalWindow}

@@ -79,7 +79,9 @@ export function SidebarScheduledPane(): ReactNode {
     <div className="sidebar-scheduled-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
       <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
         <SearchHeading
-          title={<h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('已安排')}</h2>}
+          title={
+            <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('已安排')}</h2>
+          }
           search={
             <SearchInput
               variant="outlined"
@@ -147,10 +149,7 @@ export function SidebarScheduledPane(): ReactNode {
         ) : controller.loading ? (
           <SidebarEmptyRow role="status">{t('正在加载任务…')}</SidebarEmptyRow>
         ) : controller.error ? (
-          <div
-            className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-1"
-            role="alert"
-          >
+          <div className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-1" role="alert">
             <p>{controller.error}</p>
             <Button size="compact" onClick={() => void controller.refresh()}>
               {t('重试')}

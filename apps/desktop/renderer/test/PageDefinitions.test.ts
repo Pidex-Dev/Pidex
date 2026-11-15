@@ -77,16 +77,17 @@ describe('页面定义', () => {
       'providers',
       'pets',
     ])
-    expect(TOP_NAV_ITEMS.map((item) => ({ view: item.view, label: item.label, path: item.path })))
-      .toEqual([
-        { view: 'new', label: '新建任务', path: '/new' },
-        { view: 'sessionGroups', label: '工作组', path: '/workflows' },
-        { view: 'automations', label: '已安排', path: '/automations' },
-        { view: 'git', label: 'Git 看板', path: '/git' },
-        { view: 'plugins', label: '插件', path: '/plugins' },
-        { view: 'providers', label: '供应商', path: '/providers' },
-        { view: 'pets', label: '宠物市场', path: '/pets' },
-      ])
+    expect(
+      TOP_NAV_ITEMS.map((item) => ({ view: item.view, label: item.label, path: item.path })),
+    ).toEqual([
+      { view: 'new', label: '新建任务', path: '/new' },
+      { view: 'sessionGroups', label: '工作组', path: '/workflows' },
+      { view: 'automations', label: '已安排', path: '/automations' },
+      { view: 'git', label: 'Git 看板', path: '/git' },
+      { view: 'plugins', label: '插件', path: '/plugins' },
+      { view: 'providers', label: '供应商', path: '/providers' },
+      { view: 'pets', label: '宠物市场', path: '/pets' },
+    ])
     expect(pageIdForNavView('projects')).toBe('projects')
     expect(pageIdForNavView('search')).toBeNull()
   })

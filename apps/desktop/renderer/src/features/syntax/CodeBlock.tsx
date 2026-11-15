@@ -269,7 +269,8 @@ export function CodeBlock({
             aria-pressed={wrapped}
             onClick={() => setWrapPreference(!wrapPreference)}
           >
-            <WrapText className="tw:size-icon-sm"
+            <WrapText
+              className="tw:size-icon-sm"
               aria-hidden="true"
               size={APP_ICON_SIZES.sm}
               strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -288,7 +289,8 @@ export function CodeBlock({
               setIsEditingCode(true)
             }}
           >
-            <Pencil className="tw:size-icon-sm"
+            <Pencil
+              className="tw:size-icon-sm"
               aria-hidden="true"
               size={APP_ICON_SIZES.sm}
               strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -307,13 +309,15 @@ export function CodeBlock({
             onClick={() => void handleCopy()}
           >
             {copied ? (
-              <Check className="tw:size-icon-sm"
+              <Check
+                className="tw:size-icon-sm"
                 aria-hidden="true"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             ) : (
-              <Copy className="tw:size-icon-sm"
+              <Copy
+                className="tw:size-icon-sm"
                 aria-hidden="true"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}

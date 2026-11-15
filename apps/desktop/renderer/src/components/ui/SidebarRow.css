@@ -1,7 +1,8 @@
 @layer primitives {
   .sidebar-row {
     --inline-icon-size: var(--cpx-sys-icon-size-sm);
-    --sidebar-row-columns: var(--sidebar-leading-width, var(--cpx-sys-space-5, 24px)) minmax(0, 1fr) auto;
+    --sidebar-row-columns: var(--sidebar-leading-width, var(--cpx-sys-space-5, 24px)) minmax(0, 1fr)
+      auto;
     --sidebar-row-height: 30px;
     --sidebar-row-radius: var(--cpx-sys-radius-3);
     column-gap: var(--popover-menu-row-gap, 2px);

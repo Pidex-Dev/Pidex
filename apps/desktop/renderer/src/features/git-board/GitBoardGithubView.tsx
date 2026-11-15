@@ -2,14 +2,7 @@ import { useShallow } from 'zustand/react/shallow'
 import type React from 'react'
 import type { DesktopGithubRepository } from '../../../shared/Types.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  CheckCircle2,
-  GitBranch,
-  GitFork,
-  Lock,
-  SquareArrowOutUpRight,
-  Unlock,
-} from 'lucide-react'
+import { CheckCircle2, GitBranch, GitFork, Lock, SquareArrowOutUpRight, Unlock } from 'lucide-react'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { errorMessageOf } from '@pidex/shared/errors'
 import { notifyProjectCatalogChanged } from '../projects/ProjectCatalogEvents.js'
@@ -179,7 +172,8 @@ export function GitBoardGithubView({
           role="status"
           className="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:rounded-3 tw:border tw:border-app-success-border tw:bg-app-success-subtle tw:px-3 tw:py-2 tw:text-app-success-fg tw:type-1"
         >
-          <CheckCircle2 className="tw:size-icon-md"
+          <CheckCircle2
+            className="tw:size-icon-md"
             aria-hidden="true"
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -275,9 +269,17 @@ function RepositoryRow({
           <Tooltip content={t(repository.private ? '私有仓库' : '公开仓库')}>
             <span aria-hidden="true" className="tw:inline-flex tw:shrink-0 tw:text-app-text-meta">
               {repository.private ? (
-                <Lock className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Lock
+                  className="tw:size-icon-md"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               ) : (
-                <Unlock className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Unlock
+                  className="tw:size-icon-md"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               )}
             </span>
           </Tooltip>
@@ -316,7 +318,8 @@ function RepositoryRow({
       </div>
       <span className="tw:flex tw:shrink-0 tw:items-center tw:gap-2">
         <Button variant="secondary" size="md" onClick={onOpen}>
-          <SquareArrowOutUpRight className="tw:size-icon-md"
+          <SquareArrowOutUpRight
+            className="tw:size-icon-md"
             aria-hidden="true"
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}

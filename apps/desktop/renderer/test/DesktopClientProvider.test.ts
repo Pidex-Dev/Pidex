@@ -1270,16 +1270,17 @@ function initializedResult(capabilities: string[] = ['rpc.typed.v1']) {
   }
 }
 
-
 test('目录摘要与元数据都排除停用模型', () => {
   const summary = catalogProviderToDesktop({
     ...provider,
-    models: [...provider.models, { ...provider.models[0]!, id: 'hidden-model', name: 'Hidden', enabled: false }],
+    models: [
+      ...provider.models,
+      { ...provider.models[0]!, id: 'hidden-model', name: 'Hidden', enabled: false },
+    ],
   } as never)
   expect(summary.defaultModels).toEqual(['MiniMax-M3'])
   expect(summary.modelMetadata?.['hidden-model']).toBeUndefined()
 })
-
 
 test('更新模型选择或删除供应商成功后，无需 SSE 也会通知选择器刷新', async () => {
   const events = new EventTarget()
@@ -1287,10 +1288,13 @@ test('更新模型选择或删除供应商成功后，无需 SSE 也会通知选
   events.addEventListener('desktop:model-provider-changed', () => changes++)
   const fetcher = async (_path: string, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body))
-    if (body.method === 'initialize') return rpc(body.id, initializedResult(['rpc.typed.v1', 'provider.config.pi.v1']))
+    if (body.method === 'initialize')
+      return rpc(body.id, initializedResult(['rpc.typed.v1', 'provider.config.pi.v1']))
     if (body.method === 'initialized') return new Response(null, { status: 204 })
-    if (body.method === 'provider/update') return rpc(body.id, { providerId: provider.provider.id, catalogVersion: 2 })
-    if (body.method === 'provider/delete') return rpc(body.id, { providerId: provider.provider.id, deleted: true, catalogVersion: 3 })
+    if (body.method === 'provider/update')
+      return rpc(body.id, { providerId: provider.provider.id, catalogVersion: 2 })
+    if (body.method === 'provider/delete')
+      return rpc(body.id, { providerId: provider.provider.id, deleted: true, catalogVersion: 3 })
     throw new Error('Unexpected RPC method')
   }
   const client = createDesktopClient({ fetch: fetcher, window: events as Window })
@@ -1300,31 +1304,66 @@ test('更新模型选择或删除供应商成功后，无需 SSE 也会通知选
   expect(changes).toBe(2)
 })
 
-
-for (const paged of [false, true]) test(`保存模型选择后，旧目录请求晚到也不能恢复已移除模型（分页=${paged}）`, async () => {
-  let version = 1
-  let release: (() => void) | undefined
-  let started: (() => void) | undefined
-  const requested = new Promise<void>((resolve) => { started = resolve })
-  const held = new Promise<void>((resolve) => { release = resolve })
-  const fetcher = async (_path: string, init?: RequestInit) => {
-    const body = JSON.parse(String(init?.body))
-    if (body.method === 'initialize') return rpc(body.id, initializedResult(['rpc.typed.v1', 'provider.config.pi.v1', ...(paged ? ['model.catalog.paged.v1'] : [])]))
-    if (body.method === 'initialized') return new Response(null, { status: 204 })
-    if (body.method === 'provider/update') { version = 2; return rpc(body.id, { providerId: provider.provider.id, catalogVersion: version }) }
-    if (body.method === 'provider/list') return rpc(body.id, { providers: [provider.provider], issues: [], defaultModel: null, reviewerModel: null, catalogVersion: version })
-    if (body.method === 'model/list') {
-      const requestedVersion = version
-      if (requestedVersion === 1) { started!(); await held }
-      return rpc(body.id, { providers: [{ ...provider, models: requestedVersion === 1 ? provider.models : [] }], defaultModel: null, reviewerModel: null, catalogVersion: requestedVersion })
+for (const paged of [false, true])
+  test(`保存模型选择后，旧目录请求晚到也不能恢复已移除模型（分页=${paged}）`, async () => {
+    let version = 1
+    let release: (() => void) | undefined
+    let started: (() => void) | undefined
+    const requested = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const fetcher = async (_path: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body))
+      if (body.method === 'initialize')
+        return rpc(
+          body.id,
+          initializedResult([
+            'rpc.typed.v1',
+            'provider.config.pi.v1',
+            ...(paged ? ['model.catalog.paged.v1'] : []),
+          ]),
+        )
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'provider/update') {
+        version = 2
+        return rpc(body.id, { providerId: provider.provider.id, catalogVersion: version })
+      }
+      if (body.method === 'provider/list')
+        return rpc(body.id, {
+          providers: [provider.provider],
+          issues: [],
+          defaultModel: null,
+          reviewerModel: null,
+          catalogVersion: version,
+        })
+      if (body.method === 'model/list') {
+        const requestedVersion = version
+        if (requestedVersion === 1) {
+          started!()
+          await held
+        }
+        return rpc(body.id, {
+          providers: [{ ...provider, models: requestedVersion === 1 ? provider.models : [] }],
+          defaultModel: null,
+          reviewerModel: null,
+          catalogVersion: requestedVersion,
+        })
+      }
+      throw new Error('Unexpected RPC method')
     }
-    throw new Error('Unexpected RPC method')
-  }
-  const client = createDesktopClient({ fetch: fetcher })
-  const old = client.fetchProviderModels({ providerID: provider.provider.id, all: true })
-  await requested
-  await client.updateProvider(provider.provider.id, { ...provider.provider.config, models: [] } as never)
-  release!()
-  await old
-  expect((await client.fetchProviderModels({ providerID: provider.provider.id, all: true })).models).toEqual([])
-})
+    const client = createDesktopClient({ fetch: fetcher })
+    const old = client.fetchProviderModels({ providerID: provider.provider.id, all: true })
+    await requested
+    await client.updateProvider(provider.provider.id, {
+      ...provider.provider.config,
+      models: [],
+    } as never)
+    release!()
+    await old
+    expect(
+      (await client.fetchProviderModels({ providerID: provider.provider.id, all: true })).models,
+    ).toEqual([])
+  })

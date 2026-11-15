@@ -41,15 +41,32 @@ describe('插件设置与详情弹窗契约', () => {
       workbenchTabs,
       sidebarPlugins,
     ] = await Promise.all([
-      Bun.file(new URL('../src/features/plugins/BuiltinSkillPresentation.tsx', import.meta.url)).text(),
-      Bun.file(new URL('../src/features/settings/plugins/PluginsSettingsPage.tsx', import.meta.url)).text(),
-      Bun.file(new URL('../src/features/settings/plugins/SkillDetailsDialog.tsx', import.meta.url)).text(),
-      Bun.file(new URL('../src/features/plugins/PluginProductDetailsView.tsx', import.meta.url)).text(),
+      Bun.file(
+        new URL('../src/features/plugins/BuiltinSkillPresentation.tsx', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/settings/plugins/PluginsSettingsPage.tsx', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/settings/plugins/SkillDetailsDialog.tsx', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/plugins/PluginProductDetailsView.tsx', import.meta.url),
+      ).text(),
       Bun.file(new URL('../src/features/plugins/SkillCatalogCard.tsx', import.meta.url)).text(),
       Bun.file(new URL('../src/features/plugins/CatalogDetailsView.tsx', import.meta.url)).text(),
-      Bun.file(new URL('../src/features/session/timeline/CanonicalUserMessageContent.tsx', import.meta.url)).text(),
-      Bun.file(new URL('../src/features/layout/tabs/WorkbenchTabRegistry.tsx', import.meta.url)).text(),
-      Bun.file(new URL('../src/features/layout/sidebar/SidebarPluginsPane.tsx', import.meta.url)).text(),
+      Bun.file(
+        new URL(
+          '../src/features/session/timeline/CanonicalUserMessageContent.tsx',
+          import.meta.url,
+        ),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/layout/tabs/WorkbenchTabRegistry.tsx', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/layout/sidebar/SidebarPluginsPane.tsx', import.meta.url),
+      ).text(),
     ])
 
     for (const source of [

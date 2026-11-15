@@ -517,7 +517,11 @@ export function ModelPickerPopover({
                     )}
                     title="模型中心：发现并配置服务商"
                   >
-                    <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Plus
+                      className="tw:size-icon-md"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
                   </button>
                 </div>
               </div>
@@ -535,7 +539,11 @@ export function ModelPickerPopover({
                           className={HUB_BACK_CLASS}
                           title="返回模型列表"
                         >
-                          <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                          <ChevronLeft
+                            className="tw:size-icon-md"
+                            size={APP_ICON_SIZE}
+                            strokeWidth={APP_ICON_STROKE_WIDTH}
+                          />
                         </button>
                         <span className={MODELS_TITLE_CLASS}>模型中心</span>
                       </div>
@@ -648,7 +656,11 @@ export function ModelPickerPopover({
                               className={SEARCH_CLEAR_CLASS}
                               title="清除并关闭"
                             >
-                              <X className="tw:size-icon-xs" size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                              <X
+                                className="tw:size-icon-xs"
+                                size={12}
+                                strokeWidth={APP_ICON_STROKE_WIDTH}
+                              />
                             </button>
                           </div>
                         ) : (
@@ -737,12 +749,14 @@ export function ModelPickerPopover({
                                           title={badge.title}
                                         >
                                           {badge.kind === 'vision' ? (
-                                            <Eye className="tw:size-icon-sm"
+                                            <Eye
+                                              className="tw:size-icon-sm"
                                               size={APP_ICON_SIZES.sm}
                                               strokeWidth={APP_ICON_STROKE_WIDTH}
                                             />
                                           ) : (
-                                            <Brain className="tw:size-icon-sm"
+                                            <Brain
+                                              className="tw:size-icon-sm"
                                               size={APP_ICON_SIZES.sm}
                                               strokeWidth={APP_ICON_STROKE_WIDTH}
                                             />
@@ -763,7 +777,8 @@ export function ModelPickerPopover({
                                         : undefined,
                                     )}
                                   >
-                                    <Check className="tw:size-icon-md"
+                                    <Check
+                                      className="tw:size-icon-md"
                                       size={APP_ICON_SIZE}
                                       strokeWidth={APP_ICON_STROKE_WIDTH}
                                     />
@@ -774,7 +789,12 @@ export function ModelPickerPopover({
                           )
                         })
                       ) : (
-                        <div className={cx(MODELS_EMPTY_CLASS, 'tw:grid tw:justify-items-center tw:gap-2')}>
+                        <div
+                          className={cx(
+                            MODELS_EMPTY_CLASS,
+                            'tw:grid tw:justify-items-center tw:gap-2',
+                          )}
+                        >
                           {currentProvider.apiKeyConfigured === false ? (
                             <>
                               <span>该供应商尚未配置 API Key，配置后即可选择模型。</span>
@@ -791,7 +811,11 @@ export function ModelPickerPopover({
                                 </Button>
                               ) : null}
                             </>
-                          ) : filterText ? '没有匹配的模型' : '暂无可用的预设模型'}
+                          ) : filterText ? (
+                            '没有匹配的模型'
+                          ) : (
+                            '暂无可用的预设模型'
+                          )}
                         </div>
                       )}
                     </div>

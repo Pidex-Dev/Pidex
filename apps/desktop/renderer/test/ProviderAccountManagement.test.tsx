@@ -23,7 +23,6 @@ import type {
 
 describe('model center account management', () => {
   test('configured catalog cards link to accounts', () => {
-
     const html = renderToStaticMarkup(
       <ProviderCatalog
         providers={[
@@ -178,10 +177,7 @@ describe('provider connection environment and balance', () => {
   test('ProviderPanelActionButton 在容器窄态下先淡出文字再收拢为纯图标并保留无障碍提示', () => {
     const html = renderToStaticMarkup(
       <div className={PROVIDER_PANEL_CONTAINER_CLASS}>
-        <ProviderPanelActionButton
-          icon={<Plus aria-hidden="true" />}
-          label="新增 API Key"
-        />
+        <ProviderPanelActionButton icon={<Plus aria-hidden="true" />} label="新增 API Key" />
         <ProviderPanelActionButton
           icon={<Plus aria-hidden="true" />}
           label="恢复默认图标"
@@ -203,7 +199,9 @@ describe('provider connection environment and balance', () => {
     expect(html).toContain(
       'tw:@max-[380px]/provider-panel:[transition-delay:var(--cpx-sys-motion-feedback),var(--cpx-sys-motion-instant)]',
     )
-    expect(html).toContain('<span class="tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">新增 API Key</span>')
+    expect(html).toContain(
+      '<span class="tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">新增 API Key</span>',
+    )
     expect(html).toContain('data-variant="secondary"')
     expect(html).toContain('data-shape="round"')
     expect(html).toContain('data-size="sm"')

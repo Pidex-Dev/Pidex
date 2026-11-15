@@ -156,10 +156,7 @@ export function mergeTitlebarSessionTabIdsFromSettings(
   }
 }
 
-export function openTitlebarSessionTab(
-  tabIds: readonly string[],
-  sessionId: string,
-): string[] {
+export function openTitlebarSessionTab(tabIds: readonly string[], sessionId: string): string[] {
   const normalized = sessionId.trim()
   if (!normalized) return [...tabIds]
   if (tabIds.includes(normalized)) return [...tabIds]
@@ -212,7 +209,8 @@ export function pruneTitlebarSessionTabs(
   activePendingSessionId?: string | null,
 ): string[] {
   const next = tabIds.filter(
-    (id) => validSessionIds.has(id) || (activePendingSessionId != null && id === activePendingSessionId),
+    (id) =>
+      validSessionIds.has(id) || (activePendingSessionId != null && id === activePendingSessionId),
   )
   if (next.length === tabIds.length && next.every((id, index) => id === tabIds[index])) {
     return tabIds as string[]

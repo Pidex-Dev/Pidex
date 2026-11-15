@@ -555,7 +555,9 @@ export function useDesktopComposerController({
       : sourceDraftKey
     // 新建会话的输入在登记时已移走，成功后无需再比对；已有会话沿用原逻辑。
     const clearContent =
-      isNewSession || !onDraftAccepted ? true : onDraftAccepted(acceptedDraftKey, snapshot) !== false
+      isNewSession || !onDraftAccepted
+        ? true
+        : onDraftAccepted(acceptedDraftKey, snapshot) !== false
     const nextDraft = composerDraftStore.completeSubmission(acceptedDraftKey, draft.clientId, {
       clearContent,
       browserAnnotations: draft.browserAnnotations,

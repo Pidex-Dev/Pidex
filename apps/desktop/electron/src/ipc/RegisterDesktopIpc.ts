@@ -23,7 +23,10 @@ import {
   normalizeDesktopOpenWindowInput,
 } from '@pidex/shared/desktop-window-ipc'
 import { DESKTOP_WORKSPACE_IPC_CHANNELS } from '@pidex/shared/desktop-workspace-ipc'
-import { DESKTOP_SHELL_IPC_CHANNELS, type DesktopUserDataDownloadedResource } from '@pidex/shared/desktop-shell-ipc'
+import {
+  DESKTOP_SHELL_IPC_CHANNELS,
+  type DesktopUserDataDownloadedResource,
+} from '@pidex/shared/desktop-shell-ipc'
 import {
   DESKTOP_CLIPBOARD_IPC_CHANNELS,
   requireDesktopClipboardRichTextInput,

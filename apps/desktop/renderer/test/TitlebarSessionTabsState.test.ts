@@ -131,9 +131,7 @@ describe('TitlebarSessionTabsState', () => {
     })
 
     // Backend non-empty + active routed session not yet in backend
-    expect(
-      mergeTitlebarSessionTabIdsFromSettings(['local-1'], ['remote-1'], 'remote-2'),
-    ).toEqual({
+    expect(mergeTitlebarSessionTabIdsFromSettings(['local-1'], ['remote-1'], 'remote-2')).toEqual({
       nextIds: ['remote-1', 'remote-2'],
       shouldWriteBackToSettings: true,
     })

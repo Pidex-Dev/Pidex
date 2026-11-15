@@ -1,7 +1,10 @@
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { DiscoveredModelCard } from '../src/features/models/provider-management/ProviderModelsSection.js'
-import { ModelCatalogDetails, modelPrice } from '../src/features/models/provider-management/ModelCatalogDetails.js'
+import {
+  ModelCatalogDetails,
+  modelPrice,
+} from '../src/features/models/provider-management/ModelCatalogDetails.js'
 import { describe, expect, it } from 'bun:test'
 import type {
   DesktopModelProviderSummary,
@@ -145,9 +148,7 @@ describe('DiscoveredModelCard helpers', () => {
     })
 
     it('does not infer context length from the model id', () => {
-      expect(
-        resolveModelContextWindow({ id: 'model-128k', api: 'openai-completions' }),
-      ).toBeNull()
+      expect(resolveModelContextWindow({ id: 'model-128k', api: 'openai-completions' })).toBeNull()
       expect(resolveModelContextWindow({ id: 'model-1m', api: 'openai-completions' })).toBeNull()
     })
 
@@ -161,18 +162,32 @@ describe('DiscoveredModelCard helpers', () => {
   })
 })
 
-
 it('摘要价格区分未知与免费，展开按钮与添加按钮互不触发', () => {
   expect(modelPrice(undefined)).toBe('未知')
   expect(modelPrice(0)).toBe('免费')
   let toggles = 0
   let expands = 0
   const card = DiscoveredModelCard({
-    model: { id: 'example', api: 'openai-completions', cost: { input: 0 },
-      catalog: { input: ['text', 'pdf'], output: ['text'], priceSource: { kind: 'reference', providerId: 'maker' } } },
+    model: {
+      id: 'example',
+      api: 'openai-completions',
+      cost: { input: 0 },
+      catalog: {
+        input: ['text', 'pdf'],
+        output: ['text'],
+        priceSource: { kind: 'reference', providerId: 'maker' },
+      },
+    },
     provider: { providerID: 'gateway', kind: 'custom', defaultModels: [], apiKeyConfigured: true },
-    isSelected: false, isToggling: false, expanded: true,
-    onToggle: () => { toggles++ }, onExpand: () => { expands++ },
+    isSelected: false,
+    isToggling: false,
+    expanded: true,
+    onToggle: () => {
+      toggles++
+    },
+    onExpand: () => {
+      expands++
+    },
   }) as React.ReactElement<{ children: React.ReactElement[] }>
   const [selection, disclosure] = card.props.children
   ;(disclosure!.props as { onClick: () => void }).onClick()
@@ -189,11 +204,18 @@ it('摘要价格区分未知与免费，展开按钮与添加按钮互不触发'
 })
 
 it('模型资料只渲染安全链接，独立音频单价明确标注估算限制', () => {
-  const html = renderToStaticMarkup(React.createElement(ModelCatalogDetails, { model: {
-    id: 'example', api: 'openai-completions', catalog: {
-      inputAudioCost: 5, links: [{ url: 'javascript:alert(1)', label: 'unsafe' }],
-    },
-  } }))
+  const html = renderToStaticMarkup(
+    React.createElement(ModelCatalogDetails, {
+      model: {
+        id: 'example',
+        api: 'openai-completions',
+        catalog: {
+          inputAudioCost: 5,
+          links: [{ url: 'javascript:alert(1)', label: 'unsafe' }],
+        },
+      },
+    }),
+  )
   expect(html).not.toContain('href="javascript:')
   expect(html).toContain('未作为额外分项加入当前费用估算')
 })

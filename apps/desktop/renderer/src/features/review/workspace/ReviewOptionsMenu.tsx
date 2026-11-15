@@ -74,7 +74,10 @@ export function ReviewOptionsMenu({
       onOpenChange={onOpenChange}
     >
       <div className="tw:contents tw:@min-[625px]:hidden">
-        <PopoverItem icon={<RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={() => run(onRefresh)}>
+        <PopoverItem
+          icon={<RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} />}
+          onClick={() => run(onRefresh)}
+        >
           刷新变更
         </PopoverItem>
         <PopoverCheckboxItem
@@ -84,7 +87,10 @@ export function ReviewOptionsMenu({
         >
           自动换行
         </PopoverCheckboxItem>
-        <PopoverItem icon={<Columns2 className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={() => run(onToggleView)}>
+        <PopoverItem
+          icon={<Columns2 className="tw:size-icon-md" size={APP_ICON_SIZE} />}
+          onClick={() => run(onToggleView)}
+        >
           切换差异布局
         </PopoverItem>
         <PopoverItem
@@ -131,7 +137,10 @@ export function ReviewOptionsMenu({
       >
         隐藏导入内容
       </PopoverCheckboxItem>
-      <PopoverItem icon={<Clipboard className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={() => run(onCopyPatch)}>
+      <PopoverItem
+        icon={<Clipboard className="tw:size-icon-md" size={APP_ICON_SIZE} />}
+        onClick={() => run(onCopyPatch)}
+      >
         复制 git apply 命令
       </PopoverItem>
       <PopoverItem
@@ -146,7 +155,10 @@ export function ReviewOptionsMenu({
       >
         创建拉取请求
       </PopoverItem>
-      <PopoverItem icon={<GitFork className="tw:size-icon-md" size={APP_ICON_SIZE} />} onClick={() => run(onCreateBranch)}>
+      <PopoverItem
+        icon={<GitFork className="tw:size-icon-md" size={APP_ICON_SIZE} />}
+        onClick={() => run(onCreateBranch)}
+      >
         创建分支
       </PopoverItem>
       <PopoverItem

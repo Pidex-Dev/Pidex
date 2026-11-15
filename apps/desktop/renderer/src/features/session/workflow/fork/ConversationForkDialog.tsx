@@ -64,7 +64,12 @@ export function ConversationForkDialog({
                 size="toolbar"
                 title="关闭对话框"
               >
-                <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <X
+                  className="tw:size-icon-md"
+                  aria-hidden="true"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               </Button>
             </Dialog.Close>
           </header>
@@ -172,7 +177,12 @@ function ForkProgress({
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : (
-          <Split className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Split
+            className="tw:size-icon-md"
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
         )}
         <span>{forkProgressLabel(operation)}</span>
       </div>

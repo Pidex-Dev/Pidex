@@ -81,7 +81,8 @@ export function ProviderCatalog({
                         <span className="provider-card-logo settings-management-row-icon">
                           <ProviderIcon
                             fallback={
-                              <Server className="tw:size-icon-md"
+                              <Server
+                                className="tw:size-icon-md"
                                 aria-hidden
                                 size={APP_ICON_SIZE}
                                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -120,13 +121,15 @@ export function ProviderCatalog({
                             }
                           >
                             {provider.canAddConnection ? (
-                              <Link2 className="tw:size-icon-md"
+                              <Link2
+                                className="tw:size-icon-md"
                                 aria-hidden
                                 size={APP_ICON_SIZE}
                                 strokeWidth={APP_ICON_STROKE_WIDTH}
                               />
                             ) : (
-                              <Settings className="tw:size-icon-md"
+                              <Settings
+                                className="tw:size-icon-md"
                                 aria-hidden
                                 size={APP_ICON_SIZE}
                                 strokeWidth={APP_ICON_STROKE_WIDTH}

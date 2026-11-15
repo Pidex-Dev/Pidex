@@ -172,7 +172,10 @@ export function PlanApprovalCard({
         )}
         {editingFeedback ? (
           <div className="plan-approval-feedback tw:grid tw:gap-2 tw:px-1 tw:pt-2">
-            <label className="tw:text-app-text-soft tw:type-1 tw:weight-medium" htmlFor={feedbackId}>
+            <label
+              className="tw:text-app-text-soft tw:type-1 tw:weight-medium"
+              htmlFor={feedbackId}
+            >
               你希望怎样调整？
             </label>
             <textarea

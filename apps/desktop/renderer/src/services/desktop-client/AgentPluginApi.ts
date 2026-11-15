@@ -12,7 +12,10 @@ type Dependencies = {
     >,
   ) => boolean
   requireAgentCapability: (
-    name: Extract<ProtocolCapability, 'plugins.manage.v1' | 'plugins.lifecycle.v1' | 'apps.manage.v1'>,
+    name: Extract<
+      ProtocolCapability,
+      'plugins.manage.v1' | 'plugins.lifecycle.v1' | 'apps.manage.v1'
+    >,
   ) => void
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call' | 'subscribeEnvelope'>
   withAgentOrMock: <T>(

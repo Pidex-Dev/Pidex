@@ -88,7 +88,9 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
       setDeletingTarget({ id: entry.worktree.id, path: entry.path })
       setDontAskAgain(false)
     } else {
-      void mutate((operationId) => client.deleteWorktreeFromSettings(entry.worktree.id, operationId))
+      void mutate((operationId) =>
+        client.deleteWorktreeFromSettings(entry.worktree.id, operationId),
+      )
     }
   }
 
@@ -151,7 +153,10 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                 aria-label="刷新工作树列表"
                 onClick={() => void refresh().catch((cause) => onError(message(cause)))}
               >
-                <RefreshCw size={APP_ICON_SIZE} className={`tw:size-icon-md ${busy ? 'tw:animate-spin' : ''}`} />
+                <RefreshCw
+                  size={APP_ICON_SIZE}
+                  className={`tw:size-icon-md ${busy ? 'tw:animate-spin' : ''}`}
+                />
               </Button>
             </Tooltip>
           </div>
@@ -181,7 +186,11 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                       </span>
                       <span className="tw:flex tw:items-center tw:gap-1 tw:type-1 tw:text-app-text-soft">
                         {groupEntries.length} 个工作树
-                        {isCollapsed ? <ChevronRight className="tw:size-icon-md" size={16} /> : <ChevronDown className="tw:size-icon-md" size={16} />}
+                        {isCollapsed ? (
+                          <ChevronRight className="tw:size-icon-md" size={16} />
+                        ) : (
+                          <ChevronDown className="tw:size-icon-md" size={16} />
+                        )}
                       </span>
                     </button>
 
@@ -299,7 +308,10 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                                         })
                                     }}
                                   >
-                                    <MessageSquarePlus className="tw:size-icon-md" size={APP_ICON_SIZE} />
+                                    <MessageSquarePlus
+                                      className="tw:size-icon-md"
+                                      size={APP_ICON_SIZE}
+                                    />
                                   </Button>
                                 </Tooltip>
                                 <Tooltip content="删除工作树" side="top">
@@ -329,9 +341,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                 )
               })
             ) : (
-              <p className="settings-empty-copy tw:text-app-text-soft tw:py-4">
-                暂无托管工作树。
-              </p>
+              <p className="settings-empty-copy tw:text-app-text-soft tw:py-4">暂无托管工作树。</p>
             )}
           </div>
         </div>

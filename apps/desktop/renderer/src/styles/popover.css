@@ -55,7 +55,12 @@
    * Specificity is 0,2,0 and equal to the preset block above, so this rule must
    * stay after it: same-specificity widths resolve by source order.
    */
-  :is([data-theme-component='dropdown-surface'], .popover-menu-spacing, .popover-panel-spacing, .sidebar-hover-card-surface):not(.chat-input__dropdown) {
+  :is(
+    [data-theme-component='dropdown-surface'],
+    .popover-menu-spacing,
+    .popover-panel-spacing,
+    .sidebar-hover-card-surface
+  ):not(.chat-input__dropdown) {
     --popover-surface-inset: var(--cpx-sys-space-1);
     padding: var(--popover-surface-inset);
     row-gap: var(--cpx-comp-row-gap-y);
@@ -63,7 +68,7 @@
 
   /* Hover cards render unpadded layout rows directly inside the surface, so use 8px block / 4px inline padding. */
   .sidebar-hover-card-surface:not(.chat-input__dropdown) {
-    padding:var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   }
 
   :is([data-theme-component='dropdown-surface'], .popover-menu-spacing):not(.chat-input__dropdown) {
@@ -281,7 +286,11 @@
     border-radius: var(--cpx-comp-dropdown-menu-radius);
     corner-shape: var(--cpx-sys-corner-shape);
     color: var(--cpx-sys-color-fg-primary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
     outline: none;
     user-select: none;
     -webkit-user-select: none;
@@ -345,7 +354,11 @@
     backdrop-filter: none;
     box-shadow: none;
     color: var(--cpx-sys-color-fg-primary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
     outline: none;
     user-select: none;
     -webkit-user-select: none;
@@ -399,7 +412,10 @@
 
   .sidebar-context-menu-shortcut {
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     white-space: nowrap;
   }
 
@@ -424,7 +440,10 @@
   .popover-header {
     padding: var(--cpx-comp-menu-surface-padding) var(--cpx-comp-row-padding-inline);
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); font-weight: var(--cpx-sys-font-weight-medium);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    font-weight: var(--cpx-sys-font-weight-medium);
     letter-spacing: normal;
   }
 
@@ -440,7 +459,10 @@
   .popover-empty {
     padding: 8px;
     color: var(--cpx-comp-input-placeholder-fg);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-align: center;
   }
 
@@ -489,7 +511,11 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
     white-space: nowrap;
   }
 
@@ -503,7 +529,11 @@
 
   .popover-item-title {
     color: currentColor;
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-2); line-height: var(--cpx-sys-line-height-2); letter-spacing: var(--cpx-sys-letter-spacing-2); font-weight: var(--cpx-sys-font-weight-medium);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -511,7 +541,10 @@
 
   .popover-item-description {
     color: var(--cpx-sys-color-fg-secondary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     white-space: normal;
     overflow-wrap: anywhere;
   }
@@ -528,7 +561,10 @@
 
   .popover-item-shortcut {
     color: var(--cpx-sys-color-fg-tertiary);
-    font-family: var(--cpx-sys-font-family-sans); font-size: var(--cpx-sys-font-size-1); line-height: var(--cpx-sys-line-height-1); letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     letter-spacing: normal;
     white-space: nowrap;
   }
@@ -572,18 +608,42 @@
 
 @layer overrides {
   /* Nested list and scroll wrappers share the surface's column tracks. */
-  :is([data-theme-component='dropdown-surface'], .popover-menu-spacing):not(.chat-input__dropdown, .ui-select-content):has(
+  :is([data-theme-component='dropdown-surface'], .popover-menu-spacing):not(
+      .chat-input__dropdown,
+      .ui-select-content
+    ):has(
       :is(.sidebar-row-main, .sidebar-context-menu-label, .menubar-item-label, .menu-column-label)
     ) {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr) max-content;
 
     & > *,
-    & :where(:has(:is(.sidebar-row-main, .sidebar-context-menu-label, .menubar-item-label, .menu-column-label))) > * {
+    &
+      :where(
+        :has(
+          :is(
+            .sidebar-row-main,
+            .sidebar-context-menu-label,
+            .menubar-item-label,
+            .menu-column-label
+          )
+        )
+      )
+      > * {
       grid-column: 1 / -1;
     }
 
-    & :where(:has(:is(.sidebar-row-main, .sidebar-context-menu-label, .menubar-item-label, .menu-column-label))):not([hidden]) {
+    &
+      :where(
+        :has(
+          :is(
+            .sidebar-row-main,
+            .sidebar-context-menu-label,
+            .menubar-item-label,
+            .menu-column-label
+          )
+        )
+      ):not([hidden]) {
       display: grid;
       grid-template-columns: subgrid;
       align-items: center;
@@ -607,7 +667,13 @@
       padding-inline-end: 30px;
     }
 
-    & :is(.sidebar-row-trailing, .sidebar-context-menu-trailing, .menubar-item-trailing, .menu-column-trailing) {
+    &
+      :is(
+        .sidebar-row-trailing,
+        .sidebar-context-menu-trailing,
+        .menubar-item-trailing,
+        .menu-column-trailing
+      ) {
       grid-column: 3;
       justify-self: end;
     }

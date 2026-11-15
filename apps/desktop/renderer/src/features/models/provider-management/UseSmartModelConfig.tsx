@@ -42,7 +42,11 @@ export function useSmartModelConfig(
   const sequence = useRef(0)
   const latest = useRef({ model, onChange })
   latest.current = { model, onChange }
-  const enabled = supported && model.smartConfig !== undefined && model.smartConfig.pinned.length === 0 && model.smartConfig.enabled !== false
+  const enabled =
+    supported &&
+    model.smartConfig !== undefined &&
+    model.smartConfig.pinned.length === 0 &&
+    model.smartConfig.enabled !== false
 
   async function load(fill: boolean) {
     if (!supported) return
@@ -65,8 +69,14 @@ export function useSmartModelConfig(
       if (fill) {
         const current = latest.current
         const config = current.model.smartConfig ?? { pinned: [] }
-        const base = result.status === 'matched' ? fillModelDraft(current.model, result.recommended) : current.model
-        const filled = config.source === 'document' && config.document ? fillModelDraft(base, config.document.data) : base
+        const base =
+          result.status === 'matched'
+            ? fillModelDraft(current.model, result.recommended)
+            : current.model
+        const filled =
+          config.source === 'document' && config.document
+            ? fillModelDraft(base, config.document.data)
+            : base
         current.onChange({ ...filled, smartConfig: { ...config, pinned: [], enabled: true } })
       }
     } catch (cause) {
@@ -89,7 +99,17 @@ export function useSmartModelConfig(
     }
     // 只在身份或目录更新时重新匹配；手动编辑不触发重新填充。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supported, providerId, baseUrl, model.id, model.modelType, model.api, catalogRevision, model.smartConfig?.source, model.smartConfig?.document?.extractedAt])
+  }, [
+    supported,
+    providerId,
+    baseUrl,
+    model.id,
+    model.modelType,
+    model.api,
+    catalogRevision,
+    model.smartConfig?.source,
+    model.smartConfig?.document?.extractedAt,
+  ])
 
   const setEnabled = (next: boolean) => {
     if (next) {
@@ -97,13 +117,25 @@ export function useSmartModelConfig(
         setError('请先填写模型 ID，再开启智能配置。')
         return
       }
-      latest.current.onChange({ ...latest.current.model, smartConfig: { ...latest.current.model.smartConfig, pinned: [], enabled: true } })
+      latest.current.onChange({
+        ...latest.current.model,
+        smartConfig: { ...latest.current.model.smartConfig, pinned: [], enabled: true },
+      })
       void load(true)
     } else {
       sequence.current++
       setBusy(false)
       setError(null)
-      latest.current.onChange({ ...latest.current.model, smartConfig: latest.current.model.smartConfig ? { ...latest.current.model.smartConfig, enabled: false, pinned: [...SmartConfigPinnedFields] } : undefined })
+      latest.current.onChange({
+        ...latest.current.model,
+        smartConfig: latest.current.model.smartConfig
+          ? {
+              ...latest.current.model.smartConfig,
+              enabled: false,
+              pinned: [...SmartConfigPinnedFields],
+            }
+          : undefined,
+      })
     }
   }
 
@@ -145,13 +177,21 @@ export function useSmartModelConfig(
               size="xs"
               disabled={busy}
               onClick={() => {
-                void desktopClient.modelRecommendations?.refresh().finally(() => void load(latest.current.model.smartConfig?.pinned.length === 0 && latest.current.model.smartConfig.enabled !== false))
+                void desktopClient.modelRecommendations
+                  ?.refresh()
+                  .finally(
+                    () =>
+                      void load(
+                        latest.current.model.smartConfig?.pinned.length === 0 &&
+                          latest.current.model.smartConfig.enabled !== false,
+                      ),
+                  )
               }}
             >
               立即刷新推荐数据
             </Button>
-      ) : null}
-      </p>
+          ) : null}
+        </p>
       ) : null}
     </div>
   ) : null
@@ -166,7 +206,12 @@ export function useSmartModelConfig(
       sequence.current++
       setBusy(false)
       setError(null)
-      onChange({ ...next, smartConfig: next.smartConfig ? { ...next.smartConfig, enabled: false, pinned: [...SmartConfigPinnedFields] } : undefined })
+      onChange({
+        ...next,
+        smartConfig: next.smartConfig
+          ? { ...next.smartConfig, enabled: false, pinned: [...SmartConfigPinnedFields] }
+          : undefined,
+      })
     },
   }
 }

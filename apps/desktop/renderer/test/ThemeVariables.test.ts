@@ -99,7 +99,9 @@ describe('fixed Codex UI themes', () => {
     })
 
     expect(variables['--cpx-sys-font-family-sans']).toBe(DEFAULT_UI_FONT)
-    expect(customVariables['--cpx-sys-font-family-sans']).toBe(`"${customFont}", ${DEFAULT_UI_FONT}`)
+    expect(customVariables['--cpx-sys-font-family-sans']).toBe(
+      `"${customFont}", ${DEFAULT_UI_FONT}`,
+    )
     expect(unknownVariables['--cpx-sys-font-family-sans']).toBe(DEFAULT_UI_FONT)
 
     const stylesheet = await Bun.file(
@@ -119,12 +121,8 @@ describe('fixed Codex UI themes', () => {
 
     const tailwind = await Bun.file(new URL('../src/styles/tailwind.css', import.meta.url)).text()
     const normalizedTailwind = tailwind.replace(/\s+/g, ' ')
-    expect(normalizedTailwind).toContain(
-      '--text-base--line-height: var(--cpx-sys-line-height-2);',
-    )
-    expect(normalizedTailwind).toContain(
-      '--text-sm--line-height: var(--cpx-sys-line-height-1);',
-    )
+    expect(normalizedTailwind).toContain('--text-base--line-height: var(--cpx-sys-line-height-2);')
+    expect(normalizedTailwind).toContain('--text-sm--line-height: var(--cpx-sys-line-height-1);')
     expect(normalizedTailwind).toContain('--text-code: var(--cpx-sys-font-size-code);')
     expect(normalizedTailwind).toContain(
       '--text-code--line-height: var(--cpx-sys-line-height-code);',

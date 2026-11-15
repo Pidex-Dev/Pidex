@@ -236,7 +236,11 @@ export function GithubLoginPanel({
 
   return (
     <div className="github-login-panel tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:items-center tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-control tw:p-4">
-      <GitFork aria-hidden="true" size={APP_ICON_SIZE} className="tw:size-icon-md tw:text-app-text-soft" />
+      <GitFork
+        aria-hidden="true"
+        size={APP_ICON_SIZE}
+        className="tw:size-icon-md tw:text-app-text-soft"
+      />
       <div className="tw:min-w-0">
         <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">{t(heading)}</h3>
         <p

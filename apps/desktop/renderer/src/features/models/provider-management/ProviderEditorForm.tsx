@@ -549,8 +549,7 @@ export function ProviderEditorForm({
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean)
-    const draftEndpoints =
-      Object.keys(endpoints).length > 0 ? endpoints : { [defaultApi]: baseUrl }
+    const draftEndpoints = Object.keys(endpoints).length > 0 ? endpoints : { [defaultApi]: baseUrl }
     const customConfig = {
       kind: 'custom',
       id: id as ModelProviderID,
@@ -713,7 +712,6 @@ export function ProviderEditorForm({
     }
   }
 
-
   /**
    * 新建供应商保存前从上游 /models 读取目录：使用当前表单草稿与可选临时
    * API Key，只记录候选与待提交的同步基线，不写入任何配置。
@@ -777,7 +775,10 @@ export function ProviderEditorForm({
         isImportableCandidate(model, candidateMatches[String(model.id)]),
     )
     const importedIds = new Set(imported.map((model) => String(model.id)))
-    setModels((current) => [...current, ...imported.map((model) => editableModel({ ...model, enabled: true }))])
+    setModels((current) => [
+      ...current,
+      ...imported.map((model) => editableModel({ ...model, enabled: true })),
+    ])
     // 未匹配/歧义候选保留在列表里，供继续手动补齐。
     setCandidates((current) => current.filter((model) => !importedIds.has(String(model.id))))
     setSelectedCandidates((current) => {
@@ -819,10 +820,7 @@ export function ProviderEditorForm({
   const credentialFields = (
     <>
       <label
-        className={cx(
-          embedded ? undefined : 'settings-management-dialog-row',
-          activeFieldClass,
-        )}
+        className={cx(embedded ? undefined : 'settings-management-dialog-row', activeFieldClass)}
       >
         <span>认证方式</span>
         <SettingsDropdown
@@ -871,9 +869,7 @@ export function ProviderEditorForm({
         onChange={(value) => {
           if (value === 'per-model') return
           setDefaultApi(value as Api)
-          setModels((current) =>
-            current.map((model) => ({ ...model, api: value as Api })),
-          )
+          setModels((current) => current.map((model) => ({ ...model, api: value as Api })))
         }}
       />
     </label>
@@ -977,14 +973,15 @@ export function ProviderEditorForm({
           })}
         </div>
         {candidates.some(
-          (candidate) =>
-            !isImportableCandidate(candidate, candidateMatches[String(candidate.id)]),
+          (candidate) => !isImportableCandidate(candidate, candidateMatches[String(candidate.id)]),
         ) ? (
           <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
-            {candidates.filter(
-              (candidate) =>
-                !isImportableCandidate(candidate, candidateMatches[String(candidate.id)]),
-            ).length}{' '}
+            {
+              candidates.filter(
+                (candidate) =>
+                  !isImportableCandidate(candidate, candidateMatches[String(candidate.id)]),
+              ).length
+            }{' '}
             个候选未匹配、歧义或缺少额度，不会默认导入；请点击“手动补齐”填写上下文与最大输出。
           </p>
         ) : null}
@@ -1041,7 +1038,12 @@ export function ProviderEditorForm({
       >
         <div className="settings-management-dialog-heading provider-editor-heading tw:flex tw:min-w-0 tw:items-start tw:gap-3">
           <div className="provider-editor-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:bg-app-accent-subtle tw:text-app-accent-fg tw:[&_svg]:size-icon-lg">
-            <Server className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Server
+              className="tw:size-icon-md"
+              aria-hidden
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </div>
           <div>
             <Title id={titleId} className="tw:m-0 tw:text-app-text tw:type-6 tw:weight-bold">
@@ -1195,7 +1197,9 @@ export function ProviderEditorForm({
               {!embedded && !managed && !editing && !createdProviderId.current ? (
                 <section className="provider-editor-presets-section tw:grid tw:gap-2 tw:rounded-4 tw:border tw:border-dashed tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3">
                   <div className="provider-editor-presets-header tw:flex tw:items-center tw:justify-between tw:gap-2">
-                    <span className="tw:text-app-text-meta tw:type-1 tw:weight-medium">快速套用常用预设</span>
+                    <span className="tw:text-app-text-meta tw:type-1 tw:weight-medium">
+                      快速套用常用预设
+                    </span>
                     <Sparkles
                       aria-hidden
                       size="var(--inline-icon-size, 1em)"
@@ -1338,7 +1342,9 @@ export function ProviderEditorForm({
                   )}
                 >
                   <header className="tw:grid tw:gap-1">
-                    <strong className="tw:text-app-text tw:type-2 tw:weight-medium">保存前获取模型</strong>
+                    <strong className="tw:text-app-text tw:type-2 tw:weight-medium">
+                      保存前获取模型
+                    </strong>
                     <span className="tw:text-app-text-soft tw:type-1">
                       使用当前 Base URL、认证与请求头读取上游目录；候选模型保存后可再导入。
                     </span>
@@ -1360,7 +1366,8 @@ export function ProviderEditorForm({
                       loading={discovering}
                       onClick={() => void discover()}
                     >
-                      <RefreshCw className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />从 /models 获取
+                      <RefreshCw className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />从
+                      /models 获取
                     </Button>
                   </div>
                   {pendingModelSync ? (
@@ -1381,13 +1388,15 @@ export function ProviderEditorForm({
                       size="md"
                       color="secondary"
                       onClick={() =>
-                        setSelectedCandidates(new Set(
-                          filteredCandidates
-                            .filter((model) =>
-                              isImportableCandidate(model, candidateMatches[String(model.id)]),
-                            )
-                            .map((model) => String(model.id)),
-                        ))
+                        setSelectedCandidates(
+                          new Set(
+                            filteredCandidates
+                              .filter((model) =>
+                                isImportableCandidate(model, candidateMatches[String(model.id)]),
+                              )
+                              .map((model) => String(model.id)),
+                          ),
+                        )
                       }
                     >
                       全选
@@ -1474,13 +1483,15 @@ export function ProviderEditorForm({
                       !isImportableCandidate(candidate, candidateMatches[String(candidate.id)]),
                   ) ? (
                     <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
-                      {candidates.filter(
-                        (candidate) =>
-                          !isImportableCandidate(
-                            candidate,
-                            candidateMatches[String(candidate.id)],
-                          ),
-                      ).length}{' '}
+                      {
+                        candidates.filter(
+                          (candidate) =>
+                            !isImportableCandidate(
+                              candidate,
+                              candidateMatches[String(candidate.id)],
+                            ),
+                        ).length
+                      }{' '}
                       个候选未匹配、歧义或缺少额度，不会默认导入；请点击“手动补齐”填写上下文与最大输出。
                     </p>
                   ) : null}
@@ -1600,8 +1611,8 @@ export function ProviderEditorForm({
                       <div>
                         <strong>检测到非本地明文 HTTP 端点</strong>
                         <p>
-                          当前 Base URL 使用明文 HTTP 且不是本机回环地址，建议开启“允许非 loopback 明文
-                          HTTP”或使用 HTTPS。
+                          当前 Base URL 使用明文 HTTP 且不是本机回环地址，建议开启“允许非 loopback
+                          明文 HTTP”或使用 HTTPS。
                         </p>
                       </div>
                     </div>
@@ -1636,11 +1647,7 @@ export function ProviderEditorForm({
                       在模型选择菜单与 Agent 会话中允许调用此 Provider
                     </span>
                   </div>
-                  <ToggleSwitch
-                    ariaLabel="启用 Provider"
-                    checked={enabled}
-                    onChange={setEnabled}
-                  />
+                  <ToggleSwitch ariaLabel="启用 Provider" checked={enabled} onChange={setEnabled} />
                 </div>
                 <div className="settings-management-dialog-row provider-editor-switch-card tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3">
                   <div className="provider-editor-switch-info tw:grid tw:min-w-0 tw:gap-1">
@@ -1742,7 +1749,10 @@ export function ProviderEditorForm({
 
   if (isNewEmbeddedDraft)
     return (
-      <section className="model-center-provider-detail tw:grid tw:min-w-0 tw:gap-3" aria-label="新建供应商">
+      <section
+        className="model-center-provider-detail tw:grid tw:min-w-0 tw:gap-3"
+        aria-label="新建供应商"
+      >
         <WorkspaceHeaderItem id="provider-detail" slot="left">
           <div className="model-center-provider-detail-header tw:flex tw:min-w-0 tw:items-center tw:gap-2">
             <div className="model-center-provider-identity tw:flex tw:min-w-0 tw:items-center tw:gap-2">
@@ -1789,7 +1799,11 @@ export function ProviderEditorForm({
             className="provider-editor-alert tw:flex tw:items-start tw:gap-3 tw:rounded-3 tw:px-4 tw:py-3 tw:type-1 tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:text-app-danger"
             role="status"
           >
-            <AlertTriangle className="tw:size-icon-md tw:mt-0.5 tw:shrink-0" size={APP_ICON_SIZE} aria-hidden />
+            <AlertTriangle
+              className="tw:size-icon-md tw:mt-0.5 tw:shrink-0"
+              size={APP_ICON_SIZE}
+              aria-hidden
+            />
             <span className="tw:min-w-0 tw:break-words">{error}</span>
           </div>
         ) : null}
@@ -1878,7 +1892,9 @@ export function ProviderEditorForm({
 
         {panel?.host && panel.tab?.providerId === NEW_PROVIDER_PANEL_ID && draftProviderSummary
           ? createPortal(
-              <div className={`${PROVIDER_PANEL_CONTAINER_CLASS} tw:flex tw:min-h-0 tw:flex-1 tw:flex-col`}>
+              <div
+                className={`${PROVIDER_PANEL_CONTAINER_CLASS} tw:flex tw:min-h-0 tw:flex-1 tw:flex-col`}
+              >
                 <div className="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-5 tw:overflow-y-auto tw:p-4 tw:[&_.model-center-oauth-flow]:p-0">
                   <section className="tw:grid tw:gap-4" aria-label="供应商信息">
                     <h3 className="tw:m-0 tw:type-4 tw:weight-bold">供应商信息</h3>
@@ -1912,7 +1928,13 @@ export function ProviderEditorForm({
                           </p>
                         </div>
                         <ProviderPanelActionButton
-                          icon={<Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
+                          icon={
+                            <Plus
+                              className="tw:size-icon-sm"
+                              aria-hidden
+                              size={APP_ICON_SIZES.sm}
+                            />
+                          }
                           label="新增 API Key"
                           className="tw:shrink-0"
                           disabled={busy || draftKeyEditorOpen || auth === 'none'}
@@ -1966,9 +1988,7 @@ export function ProviderEditorForm({
                         ) : (
                           <div className="model-center-section-empty-hint tw:flex tw:items-center tw:gap-2 tw:py-2 tw:text-app-text-soft tw:type-1 tw:[&_svg]:shrink-0 tw:[&_svg]:text-app-text-meta">
                             <KeyRound aria-hidden size="var(--inline-icon-size, 1em)" />
-                            <span>
-                              尚未保存此供应商的 API Key，点击「新增 API Key」进行配置。
-                            </span>
+                            <span>尚未保存此供应商的 API Key，点击「新增 API Key」进行配置。</span>
                           </div>
                         )}
                       </div>
@@ -2335,14 +2355,29 @@ export function ModelEditor({
   return (
     <div className="provider-editor-tab-panel tw:grid tw:gap-5">
       {smart.controls}
-      {smart.recommended?.catalog && <details>
-        <summary>模型目录资料</summary>
-        <ModelCatalogDetails model={{ id: model.id, api: model.api, ...smart.recommended }}
-          current={{ id: model.id, api: model.api, contextWindow: model.contextWindow,
-            ...(model.maxInputTokens !== undefined ? { maxInputTokens: model.maxInputTokens } : {}),
-            maxTokens: model.maxTokens,
-            cost: { input: model.inputCost, output: model.outputCost, cacheRead: model.cacheReadCost, cacheWrite: model.cacheWriteCost } }} />
-      </details>}
+      {smart.recommended?.catalog && (
+        <details>
+          <summary>模型目录资料</summary>
+          <ModelCatalogDetails
+            model={{ id: model.id, api: model.api, ...smart.recommended }}
+            current={{
+              id: model.id,
+              api: model.api,
+              contextWindow: model.contextWindow,
+              ...(model.maxInputTokens !== undefined
+                ? { maxInputTokens: model.maxInputTokens }
+                : {}),
+              maxTokens: model.maxTokens,
+              cost: {
+                input: model.inputCost,
+                output: model.outputCost,
+                cacheRead: model.cacheReadCost,
+                cacheWrite: model.cacheWriteCost,
+              },
+            }}
+          />
+        </details>
+      )}
       <section aria-label="模型基础信息" className="tw:grid tw:gap-4">
         <h3 className="tw:m-0 tw:type-4 tw:weight-bold">模型基础信息</h3>
         <label className={MODEL_EDITOR_ROW_CLASS}>
@@ -2364,7 +2399,10 @@ export function ModelEditor({
           />
         </label>
       </section>
-      <section aria-label="模型能力与状态" className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5">
+      <section
+        aria-label="模型能力与状态"
+        className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5"
+      >
         <div className="tw:flex tw:items-center tw:justify-between tw:gap-2">
           <h3 className="tw:m-0 tw:type-4 tw:weight-bold">模型能力与状态</h3>
           <div className="tw:flex tw:items-center tw:gap-1">
@@ -2454,7 +2492,10 @@ export function ModelEditor({
           </div>
         </div>
       </section>
-      <section aria-label="上下文与输出" className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5">
+      <section
+        aria-label="上下文与输出"
+        className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5"
+      >
         <h3 className="tw:m-0 tw:type-4 tw:weight-bold">上下文与输出</h3>
         {tokenField(
           'contextWindow',
@@ -2463,9 +2504,12 @@ export function ModelEditor({
           [32768, 128000, 200000, 256000, 400000, 512000, 1000000],
         )}
         {!model.modelType || model.modelType === 'chat'
-          ? tokenField('maxTokens', '最大输出', '最大输出', [
-              8192, 16000, 32000, 64000, 128000, 256000,
-            ])
+          ? tokenField(
+              'maxTokens',
+              '最大输出',
+              '最大输出',
+              [8192, 16000, 32000, 64000, 128000, 256000],
+            )
           : null}
         {tokenField(
           'maxInputTokens',
@@ -2475,9 +2519,16 @@ export function ModelEditor({
           '可选限制。留空时按上下文窗口与输出预留自动计算预算',
         )}
       </section>
-      <section aria-label="模型价格" className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5">
+      <section
+        aria-label="模型价格"
+        className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5"
+      >
         <h3 className="tw:m-0 tw:type-4 tw:weight-bold">模型价格</h3>
-        <ModelPricingEditor rowClassName={MODEL_EDITOR_ROW_CLASS} value={model.pricing} onChange={(pricing) => onChange({ ...model, pricing })} />
+        <ModelPricingEditor
+          rowClassName={MODEL_EDITOR_ROW_CLASS}
+          value={model.pricing}
+          onChange={(pricing) => onChange({ ...model, pricing })}
+        />
         <div className={MODEL_EDITOR_ROW_CLASS}>
           <span>输入价格</span>
           <Input
@@ -2701,7 +2752,9 @@ export function normalizeEditableModel(
       return new Error(`模型 ${model.id || '(未命名)'}：Max Output Tokens 必须是正整数。`)
     }
     if (rawMax > Number.MAX_SAFE_INTEGER) {
-      return new Error(`模型 ${model.id || '(未命名)'}：Max Output Tokens 超出可精确表示的整数范围。`)
+      return new Error(
+        `模型 ${model.id || '(未命名)'}：Max Output Tokens 超出可精确表示的整数范围。`,
+      )
     }
   }
   const maxOutputTokensMax = rawMax !== undefined && rawMax > 0 ? rawMax : undefined

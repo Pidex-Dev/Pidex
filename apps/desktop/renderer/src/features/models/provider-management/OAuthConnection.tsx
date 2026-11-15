@@ -156,7 +156,11 @@ export function OAuthConnection({
             className="model-center-oauth-status tw:flex tw:items-start tw:gap-3 tw:text-app-text tw:[&>.ui-spinner]:mt-1 tw:[&>.ui-spinner]:shrink-0 tw:[&>svg]:mt-1 tw:[&>svg]:shrink-0"
             role="status"
           >
-            {active || auth.busy ? <Spinner /> : <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden />}
+            {active || auth.busy ? (
+              <Spinner />
+            ) : (
+              <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden />
+            )}
             <div>
               <strong className="tw:type-2 tw:weight-medium">{t(status)}</strong>
               {active && authUrlNotice && !completing ? (
@@ -205,10 +209,7 @@ export function OAuthConnection({
                   ? t('自动回调不可用，可展开下方入口手动完成登录。')
                   : notice.message
               return (
-                <p
-                  className="tw:m-0 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere"
-                  key={index}
-                >
+                <p className="tw:m-0 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere" key={index}>
                   {message}
                 </p>
               )
@@ -259,7 +260,11 @@ export function OAuthConnection({
                   {expanded ? (
                     <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden />
                   ) : (
-                    <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden />
+                    <ChevronRight
+                      className="tw:size-icon-sm"
+                      size={APP_ICON_SIZES.sm}
+                      aria-hidden
+                    />
                   )}
                   {t('无法自动完成？')}
                 </Button>

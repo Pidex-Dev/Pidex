@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { EditorState } from 'prosemirror-state'
-import { defaultDesktopStoredSettings, normalizeDesktopStoredSettings } from '../shared/SettingsSchema.js'
+import {
+  defaultDesktopStoredSettings,
+  normalizeDesktopStoredSettings,
+} from '../shared/SettingsSchema.js'
 import {
   ComposerPredictionController,
   resolveComposerPredictionKeyAction,
@@ -32,9 +35,7 @@ const emptyState = () =>
 describe('composer 输入预测设置', () => {
   test('默认关闭，缺失或非布尔值都归一化为 false', () => {
     expect(defaultDesktopStoredSettings()['desktop.composer_predictions']).toBe(false)
-    expect(
-      normalizeDesktopStoredSettings({})['desktop.composer_predictions'],
-    ).toBe(false)
+    expect(normalizeDesktopStoredSettings({})['desktop.composer_predictions']).toBe(false)
     expect(
       normalizeDesktopStoredSettings({ 'desktop.composer_predictions': 'yes' })[
         'desktop.composer_predictions'

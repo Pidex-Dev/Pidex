@@ -38,8 +38,7 @@ const composerPredictionPlugin = new Plugin<{ prediction: string | null }>({
     init: () => ({ prediction: null }),
     apply(transaction, value) {
       const next = transaction.getMeta(composerPredictionPluginKey) as
-        | { prediction: string | null }
-        | undefined
+        { prediction: string | null } | undefined
       return next === undefined ? value : { prediction: next.prediction }
     },
   },
@@ -354,7 +353,9 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
             event.clipboardData?.getData('text/plain') ?? '',
           )
           if (!token) return false
-          view.dispatch(view.state.tr.replaceSelectionWith(composerTokenNode(token)).scrollIntoView())
+          view.dispatch(
+            view.state.tr.replaceSelectionWith(composerTokenNode(token)).scrollIntoView(),
+          )
           return true
         },
         handleDOMEvents: {

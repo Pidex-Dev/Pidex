@@ -2,9 +2,7 @@ import { resolveSessionCreationExecution } from '../../features/session/TaskExec
 import { reconcileQuestionDrafts } from '../../features/session/approvals/AskUserQuestionModel.js'
 import { arePathsEqual } from '../../utils/PathUtils.js'
 import { toUserErrorMessage } from '../../utils/Errors.js'
-import {
-  normalizeDesktopStoredSettings,
-} from '../../../shared/SettingsSchema.js'
+import { normalizeDesktopStoredSettings } from '../../../shared/SettingsSchema.js'
 import {
   collaborationModeFromPlanModeActive,
   planModeActiveFromCollaborationMode,
@@ -261,7 +259,8 @@ function createDefaultForegroundController(
 ): import('./Types.js').DesktopForegroundController {
   const doc = typeof document !== 'undefined' ? document : undefined
   const win =
-    environment.window ?? (typeof window !== 'undefined' ? (window as unknown as typeof environment.window) : undefined)
+    environment.window ??
+    (typeof window !== 'undefined' ? (window as unknown as typeof environment.window) : undefined)
   return {
     isForeground() {
       if (doc) {
@@ -383,7 +382,8 @@ export function createAgentSessionDesktopClient(
   let sessionStoreReconcile: Promise<void> | null = null
   let backgroundReconcileFailed = false
   const reconciliationErrorListeners = new Set<(error: unknown) => void>()
-  const foregroundController = environment.foreground ?? createDefaultForegroundController(environment)
+  const foregroundController =
+    environment.foreground ?? createDefaultForegroundController(environment)
   const isForeground = (): boolean => foregroundController.isForeground()
   foregroundController.addChangeListener?.(() => {
     if (isForeground()) retryPendingAutomaticReads()
@@ -654,7 +654,10 @@ export function createAgentSessionDesktopClient(
       providerModelRequests.set(requestKey, pending)
     }
     const result = await pending
-    if (generation !== modelCatalogGeneration || result.catalogVersion !== directory.catalogVersion) {
+    if (
+      generation !== modelCatalogGeneration ||
+      result.catalogVersion !== directory.catalogVersion
+    ) {
       invalidateModelCatalog()
       if (options.cursor || options.retryCatalogChange === false) {
         throw new Error('模型目录已更新，请重新查询。')
@@ -2487,8 +2490,7 @@ export function createAgentSessionDesktopClient(
       loadAgentPluginApi().then((api) => api.uninstallPlugin(pluginId)),
     setPluginEnabled: (pluginId, enabled) =>
       loadAgentPluginApi().then((api) => api.setPluginEnabled(pluginId, enabled)),
-    listApps: (workspacePath) =>
-      loadAgentPluginApi().then((api) => api.listApps(workspacePath)),
+    listApps: (workspacePath) => loadAgentPluginApi().then((api) => api.listApps(workspacePath)),
     setAppEnabled: (appId, enabled) =>
       loadAgentPluginApi().then((api) => api.setAppEnabled(appId, enabled)),
     onPluginsUpdated: (callback) => {
@@ -3154,12 +3156,10 @@ export function createAgentSessionDesktopClient(
       }),
     writeConfigBatch: (params) =>
       loadAgentConfigSettingsApi().then((api) => api.writeConfigBatch(params)),
-    listConfigProfiles: () =>
-      loadAgentConfigSettingsApi().then((api) => api.listConfigProfiles()),
+    listConfigProfiles: () => loadAgentConfigSettingsApi().then((api) => api.listConfigProfiles()),
     selectConfigProfile: (profileId) =>
       loadAgentConfigSettingsApi().then((api) => api.selectConfigProfile(profileId)),
-    getDesktopSettings: () =>
-      loadAgentConfigSettingsApi().then((api) => api.getDesktopSettings()),
+    getDesktopSettings: () => loadAgentConfigSettingsApi().then((api) => api.getDesktopSettings()),
     getThemeSettings: () => loadAgentConfigSettingsApi().then((api) => api.getThemeSettings()),
     saveThemeSettings: (settings) =>
       loadAgentConfigSettingsApi().then((api) => api.saveThemeSettings(settings)),
@@ -3177,8 +3177,7 @@ export function createAgentSessionDesktopClient(
       loadAgentMemoryApi().then((api) =>
         api.readProjectMemory(workspacePath, relativePath, namespace),
       ),
-    saveProjectMemory: (input) =>
-      loadAgentMemoryApi().then((api) => api.saveProjectMemory(input)),
+    saveProjectMemory: (input) => loadAgentMemoryApi().then((api) => api.saveProjectMemory(input)),
     deleteProjectMemory: (input) =>
       loadAgentMemoryApi().then((api) => api.deleteProjectMemory(input)),
     resetProjectMemory: (input) =>
@@ -3196,8 +3195,7 @@ export function createAgentSessionDesktopClient(
     readUserMemory: (relativePath) =>
       loadAgentMemoryApi().then((api) => api.readUserMemory(relativePath)),
     saveUserMemory: (input) => loadAgentMemoryApi().then((api) => api.saveUserMemory(input)),
-    deleteUserMemory: (input) =>
-      loadAgentMemoryApi().then((api) => api.deleteUserMemory(input)),
+    deleteUserMemory: (input) => loadAgentMemoryApi().then((api) => api.deleteUserMemory(input)),
     resetUserMemory: (input) => loadAgentMemoryApi().then((api) => api.resetUserMemory(input)),
 
     generateTaskSuggestions: (input: GenerateDesktopTaskSuggestionsInput) =>
@@ -3501,10 +3499,15 @@ export function createAgentSessionDesktopClient(
       notifyModelProviderChanged()
     },
     modelRecommendations: {
-      documentsSupported: async () => (await isAgentAvailable()) && agentCapabilities.has('model.documents.v1'),
-      extractDocument: async (input) => { requireAgentCapability('model.documents.v1'); return rpc.call('model/document/extract', input) },
+      documentsSupported: async () =>
+        (await isAgentAvailable()) && agentCapabilities.has('model.documents.v1'),
+      extractDocument: async (input) => {
+        requireAgentCapability('model.documents.v1')
+        return rpc.call('model/document/extract', input)
+      },
       cancelDocument: async (operationId) => rpc.call('model/document/cancel', { operationId }),
-      refreshPricing: async (force = true) => rpc.call('model/pricing/refresh', { operationId: crypto.randomUUID(), force }),
+      refreshPricing: async (force = true) =>
+        rpc.call('model/pricing/refresh', { operationId: crypto.randomUUID(), force }),
 
       supported: async () =>
         (await isAgentAvailable()) && agentCapabilities.has('model.recommendations.v1'),
@@ -3669,8 +3672,7 @@ export function createAgentSessionDesktopClient(
       loadAgentGoalSubagentApi().then((api) => api.listSubagents(threadId)),
     readSubagent: (taskId) => loadAgentGoalSubagentApi().then((api) => api.readSubagent(taskId)),
     stopSubagent: (taskId) => loadAgentGoalSubagentApi().then((api) => api.stopSubagent(taskId)),
-    retrySubagent: (taskId) =>
-      loadAgentGoalSubagentApi().then((api) => api.retrySubagent(taskId)),
+    retrySubagent: (taskId) => loadAgentGoalSubagentApi().then((api) => api.retrySubagent(taskId)),
     sendSubagent: (taskId, message) =>
       loadAgentGoalSubagentApi().then((api) => api.sendSubagent(taskId, message)),
     followupSubagent: (taskId, message) =>
@@ -3740,9 +3742,7 @@ export function createAgentSessionDesktopClient(
             const requestId = crypto.randomUUID()
             const cached = sessionSnapshots.get(sessionId)
             if (cached) {
-              const currentTimestamp = cached.item.unreadAt
-                ? Date.parse(cached.item.unreadAt)
-                : 0
+              const currentTimestamp = cached.item.unreadAt ? Date.parse(cached.item.unreadAt) : 0
               cached.item = {
                 ...cached.item,
                 unreadAt: new Date(Math.max(currentTimestamp, unreadTimestamp)).toISOString(),

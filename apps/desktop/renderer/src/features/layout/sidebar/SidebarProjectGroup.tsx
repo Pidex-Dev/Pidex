@@ -201,7 +201,11 @@ function SidebarProjectGroupComponent({
       {
         kind: 'item',
         label: isPinned ? '取消置顶' : '置顶',
-        icon: isPinned ? <PinOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} /> : <Pin className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
+        icon: isPinned ? (
+          <PinOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+        ) : (
+          <Pin className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+        ),
         onSelect: togglePinned,
       },
       {

@@ -19,10 +19,7 @@ import type {
 import { Button } from '../../components/ui/Button.js'
 
 import { SearchInput } from '../../components/ui/SearchInput.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/IconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { arrayBufferToBase64 } from '../../utils/BinaryEncoding.js'
 import { cx } from '../../utils/Cx.js'
@@ -189,7 +186,12 @@ function EnvironmentList({
             shape="pill"
             size="md"
           >
-            <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Plus
+              className="tw:size-icon-md"
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
             <span>添加项目</span>
           </Button>
         }
@@ -267,7 +269,11 @@ function EnvironmentList({
         <SettingsSection
           actions={
             <Button color="primary" loading={adding} onClick={() => void addProject()}>
-              <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Plus
+                className="tw:size-icon-md"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
               添加项目
             </Button>
           }

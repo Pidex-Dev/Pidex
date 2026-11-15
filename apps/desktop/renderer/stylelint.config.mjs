@@ -53,10 +53,7 @@ export default {
       },
     },
     {
-      files: [
-        '**/design-system/tokens.css',
-        '**/primitives/settings.css',
-      ],
+      files: ['**/design-system/tokens.css', '**/primitives/settings.css'],
       rules: {
         'color-no-hex': null,
         'custom-property-pattern': null,

@@ -276,7 +276,9 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
     <SettingsContentArea className="memory-settings-page">
       <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">记忆</h2>
+          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+            记忆
+          </h2>
           <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
             Markdown 文件是唯一正文来源。模型维护索引、按需读取正文，后台负责增量提取与低频整理。
           </p>

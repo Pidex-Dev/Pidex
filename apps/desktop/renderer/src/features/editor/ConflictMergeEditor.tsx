@@ -192,9 +192,7 @@ export function ConflictMergeEditor({
       <header className="conflict-merge-editor-header tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-x-4 tw:gap-y-2 tw:border-b tw:border-app-border tw:bg-app-panel tw:p-3 tw:shadow-none">
         <div className="tw:grid tw:min-w-0 tw:gap-1">
           <strong className="tw:type-1 tw:weight-medium">文件已在外部更改</strong>
-          <span className="tw:type-1 tw:text-app-text-meta">
-            左侧为磁盘版本，右侧为本地草稿。
-          </span>
+          <span className="tw:type-1 tw:text-app-text-meta">左侧为磁盘版本，右侧为本地草稿。</span>
         </div>
         <div className="conflict-merge-editor-actions tw:flex tw:flex-wrap tw:gap-2">
           <Button color="secondary" disabled={saving} onClick={onUseDisk}>

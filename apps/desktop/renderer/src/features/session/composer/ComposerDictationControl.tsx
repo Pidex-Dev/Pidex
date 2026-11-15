@@ -88,7 +88,11 @@ export function ComposerDictationControl({
                 onClick={dictation.cancel}
                 title="取消听写 · Esc"
               >
-                <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <X
+                  className="tw:size-icon-sm"
+                  size={APP_ICON_SIZES.sm}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               </Button>
             </Tooltip>
             <Tooltip content="停止听写 · Ctrl+Shift+D" side="top">
@@ -136,7 +140,11 @@ export function ComposerDictationControl({
               onClick={dictation.cancel}
               title="取消听写 · Esc"
             >
-              <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <X
+                className="tw:size-icon-sm"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           </Tooltip>
         </div>
@@ -164,7 +172,11 @@ export function ComposerDictationControl({
               onClick={dictation.start}
               title="重新录音 · Ctrl+Shift+D"
             >
-              <Mic className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Mic
+                className="tw:size-icon-sm"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
               <span>重新录音</span>
             </Button>
           </Tooltip>
@@ -178,7 +190,11 @@ export function ComposerDictationControl({
               onClick={dictation.cancel}
               title="关闭 · Esc"
             >
-              <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <X
+                className="tw:size-icon-sm"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           </Tooltip>
         </div>
@@ -222,7 +238,11 @@ export function ComposerDictationControl({
           onClick={dictation.toggle}
           size="composer"
         >
-          <Mic className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Mic
+            className="tw:size-icon-md"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
         </Button>
       </Tooltip>
     )

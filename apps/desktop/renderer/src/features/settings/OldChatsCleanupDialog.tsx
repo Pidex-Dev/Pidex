@@ -14,10 +14,7 @@ import { formatStorageBytes } from './StorageFormatting.js'
 type Props = {
   open: boolean
   onClose: () => void
-  onDeleted: (summary: {
-    deletedCount: number
-    reclaimedBytes: number
-  }) => void
+  onDeleted: (summary: { deletedCount: number; reclaimedBytes: number }) => void
   onError: (message: string) => void
 }
 

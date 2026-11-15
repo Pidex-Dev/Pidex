@@ -145,9 +145,13 @@ export type WorkbenchTabId = WorkbenchTabDescriptor['id']
 
 export type ProviderManagementSection = 'credentials' | 'request' | 'model'
 export type ProviderManagementTab =
-  | { id: 'provider-management'; kind: 'provider-management'; providerId: string; section: 'credentials' | 'request' }
+  | {
+      id: 'provider-management'
+      kind: 'provider-management'
+      providerId: string
+      section: 'credentials' | 'request'
+    }
   | { id: 'provider-model'; kind: 'provider-model'; providerId: string; section: 'model' }
-
 
 export function createSkillPreviewTab(input: {
   name: string

@@ -94,25 +94,27 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
     if (busyIdentities.has(hook.identity)) return
     setActionError('')
     setBusyIdentities((current) => new Set(current).add(hook.identity))
-    setGroups((current) =>
-      current?.map((group) => ({
-        ...group,
-        hooks: group.hooks.map((item) =>
-          item.identity === hook.identity ? { ...item, enabled } : item,
-        ),
-      })) ?? null,
+    setGroups(
+      (current) =>
+        current?.map((group) => ({
+          ...group,
+          hooks: group.hooks.map((item) =>
+            item.identity === hook.identity ? { ...item, enabled } : item,
+          ),
+        })) ?? null,
     )
     try {
       await desktopClient.setHookEnabled({ identity: hook.identity, enabled })
     } catch (error) {
       if (!mounted.current) return
-      setGroups((current) =>
-        current?.map((group) => ({
-          ...group,
-          hooks: group.hooks.map((item) =>
-            item.identity === hook.identity ? { ...item, enabled: !enabled } : item,
-          ),
-        })) ?? null,
+      setGroups(
+        (current) =>
+          current?.map((group) => ({
+            ...group,
+            hooks: group.hooks.map((item) =>
+              item.identity === hook.identity ? { ...item, enabled: !enabled } : item,
+            ),
+          })) ?? null,
       )
       setActionError(hookErrorMessage(error, '切换 Hook 状态失败。'))
     } finally {
@@ -175,9 +177,21 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
           </span>
         )
       }
-      return <FishingHook className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      return (
+        <FishingHook
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      )
     }
-    return <Settings className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    return (
+      <Settings
+        className="tw:size-icon-md"
+        size={APP_ICON_SIZE}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
+    )
   }
 
   return (
@@ -380,7 +394,8 @@ function HookGroupDialog({
                     title="关闭"
                     aria-label="关闭"
                   >
-                    <X className="tw:size-icon-md"
+                    <X
+                      className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -467,7 +482,8 @@ function HookGroupDialog({
                                       void desktopClient.openPathWithDefaultTarget(hook.filePath)
                                     }
                                   >
-                                    <ExternalLink className="tw:size-icon-sm"
+                                    <ExternalLink
+                                      className="tw:size-icon-sm"
                                       aria-hidden="true"
                                       size={14}
                                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -484,13 +500,15 @@ function HookGroupDialog({
                                     onClick={() => onToggleExpand(hook.identity)}
                                   >
                                     {expanded ? (
-                                      <ChevronUp className="tw:size-icon-sm"
+                                      <ChevronUp
+                                        className="tw:size-icon-sm"
                                         aria-hidden="true"
                                         size={14}
                                         strokeWidth={APP_ICON_STROKE_WIDTH}
                                       />
                                     ) : (
-                                      <ChevronDown className="tw:size-icon-sm"
+                                      <ChevronDown
+                                        className="tw:size-icon-sm"
                                         aria-hidden="true"
                                         size={14}
                                         strokeWidth={APP_ICON_STROKE_WIDTH}

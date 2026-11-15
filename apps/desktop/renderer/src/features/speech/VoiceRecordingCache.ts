@@ -33,7 +33,10 @@ export function prependVoiceRecording(
   list: readonly DesktopVoiceRecordingEntry[],
   entry: DesktopVoiceRecordingEntry,
 ): DesktopVoiceRecordingEntry[] {
-  return [entry, ...list.filter((item) => item.id !== entry.id)].slice(0, MAX_VOICE_RECENT_RECORDINGS)
+  return [entry, ...list.filter((item) => item.id !== entry.id)].slice(
+    0,
+    MAX_VOICE_RECENT_RECORDINGS,
+  )
 }
 
 export async function appendVoiceRecordingToSettings(
@@ -100,7 +103,10 @@ export function matchesVoiceShortcut(
   if (event.isComposing || event.keyCode === 229) return false
   const trimmed = shortcut.trim()
   if (!trimmed || trimmed === '关闭') return false
-  const tokens = trimmed.split('+').map((part) => part.trim()).filter(Boolean)
+  const tokens = trimmed
+    .split('+')
+    .map((part) => part.trim())
+    .filter(Boolean)
   if (tokens.length === 0) return false
 
   let expectCtrl = false

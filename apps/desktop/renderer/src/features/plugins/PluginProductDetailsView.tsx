@@ -114,9 +114,7 @@ export function PluginProductDetailsView({
             {item.installed ? (
               <Button
                 color="secondary"
-                onClick={() =>
-                  navigate(`/settings/plugins?plugin=${encodeURIComponent(item.id)}`)
-                }
+                onClick={() => navigate(`/settings/plugins?plugin=${encodeURIComponent(item.id)}`)}
                 title="前往设置管理此插件"
               >
                 管理
@@ -130,7 +128,8 @@ export function PluginProductDetailsView({
                 size="sm"
                 trigger={
                   <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多插件操作">
-                    <MoreHorizontal className="tw:size-icon-md"
+                    <MoreHorizontal
+                      className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -141,7 +140,8 @@ export function PluginProductDetailsView({
                 <PopoverItem
                   disabled={busy}
                   icon={
-                    <Trash2 className="tw:size-icon-md"
+                    <Trash2
+                      className="tw:size-icon-md"
                       aria-hidden="true"
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -155,7 +155,8 @@ export function PluginProductDetailsView({
             ) : null}
             {canTry ? (
               <Button color="primary" disabled={busy} onClick={() => onTryPrompt(prompts[0]!)}>
-                <MessageCircle className="tw:size-icon-md"
+                <MessageCircle
+                  className="tw:size-icon-md"
                   aria-hidden="true"
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -205,14 +206,13 @@ export function PluginProductDetailsView({
                     name={item.iconName}
                   />
                   <span>
-                    <strong className="tw:text-app-accent-fg tw:weight-medium">
-                      {item.name}
-                    </strong>{' '}
+                    <strong className="tw:text-app-accent-fg tw:weight-medium">{item.name}</strong>{' '}
                     {prompt}
                   </span>
                 </span>
                 <span className="catalog-plugin-prompts__arrow tw:inline-flex tw:size-6 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-text/10 tw:forced-colors:border">
-                  <ArrowRight className="tw:size-icon-md"
+                  <ArrowRight
+                    className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -273,9 +273,7 @@ export function PluginProductDetailsView({
                       {skills.length === 1 && skill.id === item.id ? item.name : skill.name}
                     </h3>
                     {skill.description ? (
-                      <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
-                        {skill.description}
-                      </p>
+                      <p className="tw:m-0 tw:text-app-text-soft tw:type-1">{skill.description}</p>
                     ) : null}
                   </div>
                   <ToggleSwitch
@@ -320,7 +318,9 @@ export function PluginProductDetailsView({
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
                   <div className="tw:grid tw:min-w-0 tw:gap-1">
-                    <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">{component.name}</h3>
+                    <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">
+                      {component.name}
+                    </h3>
                     <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
                       {component.description ||
                         (component.managedBy === 'host' ? '由 Pidex 宿主管理' : '插件提供')}

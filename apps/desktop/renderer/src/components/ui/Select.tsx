@@ -158,7 +158,9 @@ export function Select<T extends string>({
               >
                 <div
                   className="ui-select-item settings-dropdown-item"
-                  title={option.title ?? (typeof option.label === 'string' ? option.label : undefined)}
+                  title={
+                    option.title ?? (typeof option.label === 'string' ? option.label : undefined)
+                  }
                 >
                   <OptionContent
                     option={option}

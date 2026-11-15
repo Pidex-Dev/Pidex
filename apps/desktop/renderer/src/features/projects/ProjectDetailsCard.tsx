@@ -102,7 +102,11 @@ export function ProjectDetailsCard({
             }}
           >
             {pinIcon ??
-              (isPinned ? <PinOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} /> : <Pin className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />)}
+              (isPinned ? (
+                <PinOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+              ) : (
+                <Pin className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+              ))}
           </Button>
         </Tooltip>
       </SidebarHoverCardHeader>

@@ -1,7 +1,4 @@
-import type {
-  DesktopStoredSettings,
-  DesktopThemeSettings,
-} from '../shared/Types.js'
+import type { DesktopStoredSettings, DesktopThemeSettings } from '../shared/Types.js'
 import type { DesktopPetOverlayBridge } from '@pidex/shared/desktop-pet-overlay'
 import type { DesktopDataLocationIpcBridge } from '@pidex/shared/desktop-data-location-ipc'
 import type { DesktopEditIpcBridge } from '@pidex/shared/desktop-edit-ipc'

@@ -78,7 +78,12 @@ export function PetCatalogCard({
                 aria-label={`限制使用：${petLicenseLabel(pet.licenseKind)}`}
                 className="tw:inline-flex tw:shrink-0 tw:text-amber-500 dark:tw:text-amber-400"
               >
-                <AlertTriangle className="tw:size-icon-sm" aria-hidden="true" size={14} strokeWidth={2.2} />
+                <AlertTriangle
+                  className="tw:size-icon-sm"
+                  aria-hidden="true"
+                  size={14}
+                  strokeWidth={2.2}
+                />
               </span>
             </Tooltip>
           ) : null}
@@ -111,7 +116,8 @@ export function PetCatalogCard({
                   size="toolbar"
                   title={`管理 ${pet.displayName}`}
                 >
-                  <MoreHorizontal className="tw:size-icon-md"
+                  <MoreHorizontal
+                    className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -121,7 +127,11 @@ export function PetCatalogCard({
             >
               <PopoverItem
                 disabled={isSelected}
-                icon={isSelected ? <Check className="tw:size-icon-md" size={APP_ICON_SIZE} /> : undefined}
+                icon={
+                  isSelected ? (
+                    <Check className="tw:size-icon-md" size={APP_ICON_SIZE} />
+                  ) : undefined
+                }
                 onClick={() => {
                   setMenuOpen(false)
                   onSelect(pet.id)
@@ -130,7 +140,9 @@ export function PetCatalogCard({
                 {isSelected ? '当前使用中' : '设为当前伙伴'}
               </PopoverItem>
               <PopoverItem
-                icon={<Trash2 className="tw:size-icon-md tw:text-app-danger" size={APP_ICON_SIZE} />}
+                icon={
+                  <Trash2 className="tw:size-icon-md tw:text-app-danger" size={APP_ICON_SIZE} />
+                }
                 onClick={() => {
                   setMenuOpen(false)
                   onUninstall(pet)
@@ -153,7 +165,12 @@ export function PetCatalogCard({
                 size="toolbar"
                 title={`安装 ${pet.displayName}`}
               >
-                <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Plus
+                  className="tw:size-icon-md"
+                  aria-hidden="true"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               </Button>
             </span>
           </Tooltip>

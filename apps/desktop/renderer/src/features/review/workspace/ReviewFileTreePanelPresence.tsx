@@ -1,11 +1,5 @@
 import type React from 'react'
-import {
-  AnimatePresence,
-  motion,
-  useTransform,
-  usePresence,
-  type MotionValue,
-} from 'motion/react'
+import { AnimatePresence, motion, useTransform, usePresence, type MotionValue } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
 import {

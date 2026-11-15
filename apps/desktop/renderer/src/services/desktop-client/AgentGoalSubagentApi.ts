@@ -137,8 +137,7 @@ export function createAgentGoalSubagentApi({
           runGoalMutation(
             sessionId,
             async () => {
-              if (!hasGoalCapability())
-                unsupportedAgentOperation('setSessionGoal (thread.goal.v1)')
+              if (!hasGoalCapability()) unsupportedAgentOperation('setSessionGoal (thread.goal.v1)')
               const current = (await rpc.call('thread/goal/get', { threadId: sessionId })).goal
               if (
                 originalGoal !== undefined &&

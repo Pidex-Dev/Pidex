@@ -168,7 +168,11 @@ export function DesktopBrowserPanel({
             title="后退"
             onClick={() => void runBrowserAction(client.goBackBrowser)}
           >
-            <ArrowLeft className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <ArrowLeft
+              className="tw:size-icon-md"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </Button>
           <Button
             isIconOnly
@@ -178,7 +182,11 @@ export function DesktopBrowserPanel({
             title="前进"
             onClick={() => void runBrowserAction(client.goForwardBrowser)}
           >
-            <ArrowRight className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <ArrowRight
+              className="tw:size-icon-md"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </Button>
           <Button
             isIconOnly
@@ -194,7 +202,11 @@ export function DesktopBrowserPanel({
               {state.loading ? (
                 <Square className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
               ) : (
-                <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <RefreshCw
+                  className="tw:size-icon-md"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               )}
             </span>
           </Button>
@@ -271,7 +283,11 @@ export function DesktopBrowserPanel({
             aria-pressed={annotation.active}
             onClick={annotation.toggle}
           >
-            <MessageSquarePlus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <MessageSquarePlus
+              className="tw:size-icon-md"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </Button>
           <Button
             isIconOnly
@@ -281,7 +297,11 @@ export function DesktopBrowserPanel({
             title="新标签页"
             onClick={onNewTab}
           >
-            <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Plus
+              className="tw:size-icon-md"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </Button>
           <BrowserManagementControls
             client={client}
@@ -363,7 +383,11 @@ export function DesktopBrowserPanel({
       >
         {!state.url ? (
           <div className="browser-empty-state tw:grid tw:size-full tw:min-h-0 tw:min-w-0 tw:content-center tw:items-center tw:justify-center tw:justify-items-center tw:gap-[clamp(var(--cpx-sys-space-2),2vh,var(--cpx-sys-space-5))] tw:p-[clamp(var(--cpx-sys-space-3),4vh,var(--cpx-sys-space-6))] tw:text-center tw:text-app-text-meta">
-            <Globe2 className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Globe2
+              className="tw:size-icon-lg"
+              size={APP_ICON_SIZES.lg}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
             <strong className="tw:type-4 tw:weight-bold tw:text-app-text">开始浏览</strong>
             <span className="tw:type-1 tw:text-app-text-soft">输入 URL 以打开页面</span>
           </div>

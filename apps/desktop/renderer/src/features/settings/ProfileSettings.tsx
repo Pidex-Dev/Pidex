@@ -154,7 +154,9 @@ export function ProfileSettings(): React.ReactNode {
                     {user?.avatarUrl ? (
                       <RemoteImage
                         alt=""
-                        fallback={<User className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />}
+                        fallback={
+                          <User className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />
+                        }
                         src={user.avatarUrl}
                       />
                     ) : (

@@ -48,10 +48,7 @@ import { AppDetailsDialog, resolveAppIconName } from './AppDetailsDialog.js'
 import { SkillDetailsDialog } from './SkillDetailsDialog.js'
 import { listRuntimeSkills, setRuntimeSkillEnabled } from './SkillClientAdapter.js'
 import { errorMessageOr as errorMessageOf } from '@pidex/shared/errors'
-import {
-  PluginSettingsDetailsView,
-  resolvePluginDetailSkill,
-} from './PluginSettingsDetailsView.js'
+import { PluginSettingsDetailsView, resolvePluginDetailSkill } from './PluginSettingsDetailsView.js'
 
 export type PluginsSettingsPageProps = {
   workspacePath: string | null
@@ -477,9 +474,7 @@ export function PluginsSettingsPage({
     if (busyAppIds.has(app.id)) return
     const previous = apps
     setBusyAppIds((current) => new Set(current).add(app.id))
-    setApps((current) =>
-      current?.map((item) => (item.id === app.id ? { ...item, enabled } : item)),
-    )
+    setApps((current) => current?.map((item) => (item.id === app.id ? { ...item, enabled } : item)))
     setSelectedApp((current) => (current?.id === app.id ? { ...current, enabled } : current))
     try {
       const updated = await desktopClient.setAppEnabled(app.id, enabled)
@@ -489,7 +484,9 @@ export function PluginsSettingsPage({
     } catch (error) {
       setApps(previous)
       setSelectedApp((current) =>
-        current?.id === app.id ? (previous?.find((item) => item.id === app.id) ?? current) : current,
+        current?.id === app.id
+          ? (previous?.find((item) => item.id === app.id) ?? current)
+          : current,
       )
       const message = errorMessageOf(error, `${app.name} 状态更新失败。`)
       onError(message)
@@ -829,7 +826,11 @@ export function PluginsSettingsPage({
         s.name.toLowerCase() === requestedPlugin.id.toLowerCase() ||
         s.name.toLowerCase() === requestedPlugin.name.toLowerCase(),
     )
-    const fallbackSkill = (skill: { id: string; name: string; description?: string }): DesktopInstalledSkill =>
+    const fallbackSkill = (skill: {
+      id: string
+      name: string
+      description?: string
+    }): DesktopInstalledSkill =>
       resolvePluginDetailSkill(requestedPlugin, skill, skills) ?? {
         name: skill.name,
         description: skill.description || '',
@@ -913,16 +914,15 @@ export function PluginsSettingsPage({
       <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
         <header className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-4">
           <div className="tw:grid tw:gap-2">
-            <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">插件</h2>
+            <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+              插件
+            </h2>
             <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
               管理插件、技能和 MCP
             </p>
           </div>
           <div className="tw:flex tw:items-center tw:gap-3 tw:shrink-0">
-            <Button
-              color="secondary"
-              onClick={() => navigate('/plugins')}
-            >
+            <Button color="secondary" onClick={() => navigate('/plugins')}>
               浏览目录
             </Button>
             <PopoverMenu
@@ -933,7 +933,11 @@ export function PluginsSettingsPage({
               trigger={
                 <Button color="primary">
                   添加
-                  <ChevronDown className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
+                  <ChevronDown
+                    className="tw:size-icon-md"
+                    aria-hidden="true"
+                    size={APP_ICON_SIZE}
+                  />
                 </Button>
               }
             >
@@ -941,13 +945,17 @@ export function PluginsSettingsPage({
                 icon={<Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
                 onClick={() => {
                   setAddMenuOpen(false)
-                  void desktopClient.openExternalURL('https://github.com/codepilotx-dev/Pidex-Plugins#创建插件')
+                  void desktopClient.openExternalURL(
+                    'https://github.com/codepilotx-dev/Pidex-Plugins#创建插件',
+                  )
                 }}
               >
                 创建插件
               </PopoverItem>
               <PopoverItem
-                icon={<Server className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
+                icon={
+                  <Server className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
+                }
                 onClick={() => {
                   setAddMenuOpen(false)
                   setSelectedServer(null)
@@ -986,7 +994,8 @@ export function PluginsSettingsPage({
               title={`刷新${tabLabel(tab)}`}
               onClick={() => void refreshCurrentTab()}
             >
-              <RefreshCw className="tw:size-icon-md"
+              <RefreshCw
+                className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -1001,7 +1010,12 @@ export function PluginsSettingsPage({
                   setMcpDialogOpen(true)
                 }}
               >
-                <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Plus
+                  className="tw:size-icon-md"
+                  aria-hidden="true"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
                 新增
               </Button>
             ) : null}
@@ -1131,7 +1145,13 @@ export function PluginsSettingsPage({
                   key={market.id}
                   title={market.name}
                   description={market.description}
-                  icon={<Globe className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+                  icon={
+                    <Globe
+                      className="tw:size-icon-md"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  }
                   metadata={market.official ? '官方源' : '社区源'}
                   actions={
                     <Button
@@ -1157,7 +1177,11 @@ export function PluginsSettingsPage({
                     getBuiltinSkillPresentation(skill) ? (
                       <BuiltinSkillIcon size={14} skill={skill} />
                     ) : (
-                      <Lightbulb className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <Lightbulb
+                        className="tw:size-icon-md"
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
                     )
                   }
                   metadata={skillScopeLabel(skill.scope)}
@@ -1187,7 +1211,13 @@ export function PluginsSettingsPage({
                   key={`host:${status.name}`}
                   title={status.name}
                   description="由插件提供的运行时入口。"
-                  icon={<Server className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+                  icon={
+                    <Server
+                      className="tw:size-icon-md"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  }
                   metadata={
                     <HostManagedMcpBadge state={status.state} toolCount={status.toolCount} />
                   }
@@ -1201,7 +1231,13 @@ export function PluginsSettingsPage({
                   description={
                     server.runtime?.error?.message || server.summary || '未提供命令或 URL。'
                   }
-                  icon={<Server className="tw:size-icon-md" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+                  icon={
+                    <Server
+                      className="tw:size-icon-md"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  }
                   metadata={mcpMetadata(server)}
                   dimmed={!server.enabled || !server.effective}
                   onActivate={(trigger) => {
@@ -1320,7 +1356,12 @@ function EmptyState({ label }: { label: string }): React.ReactNode {
   return (
     <div className="settings-management-empty">
       <span className="tw:grid tw:justify-items-center tw:gap-3">
-        <Package className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <Package
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
         {label}
       </span>
     </div>

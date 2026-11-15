@@ -1,11 +1,4 @@
-import {
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  stat,
-  writeFile,
-} from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, posix } from 'node:path'
 import {
   DESKTOP_EXTERNAL_FONTS,
@@ -56,9 +49,7 @@ export class ExternalFontService {
   }
 
   async listStates(): Promise<DesktopExternalFontState[]> {
-    return Promise.all(
-      DESKTOP_EXTERNAL_FONTS.map(async (spec) => this.#getStateForSpec(spec)),
-    )
+    return Promise.all(DESKTOP_EXTERNAL_FONTS.map(async (spec) => this.#getStateForSpec(spec)))
   }
 
   async getFontCss(fontId: string): Promise<string | null> {
@@ -198,7 +189,10 @@ export class ExternalFontService {
       }
       this.#cssCache.set(spec.id, css)
 
-      this.#logger?.info('external-font.downloaded', { fontId: spec.id, files: relativeFiles.length })
+      this.#logger?.info('external-font.downloaded', {
+        fontId: spec.id,
+        files: relativeFiles.length,
+      })
       return {
         ok: true,
         state: {
@@ -275,10 +269,7 @@ export class ExternalFontService {
       }
 
       const escapedSourceFamily = spec.sourceFamilyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const familyPattern = new RegExp(
-        `font-family:\\s*['"]?${escapedSourceFamily}['"]?`,
-        'g',
-      )
+      const familyPattern = new RegExp(`font-family:\\s*['"]?${escapedSourceFamily}['"]?`, 'g')
 
       return rawCss
         .replace(familyPattern, `font-family: '${spec.family}'`)
@@ -320,10 +311,16 @@ export function normalizeCssWoff2Urls(rawCss: string, cssEntryFile: string): str
   const entryDir = posix.dirname(cssEntryFile)
   return rawCss.replace(RAW_WOFF2_URL_PATTERN, (fullMatch, rawRelPath: string) => {
     const trimmed = rawRelPath.trim()
-    if (!trimmed || trimmed.startsWith('/') || trimmed.includes('..') || /^[a-z]+:/i.test(trimmed)) {
+    if (
+      !trimmed ||
+      trimmed.startsWith('/') ||
+      trimmed.includes('..') ||
+      /^[a-z]+:/i.test(trimmed)
+    ) {
       return fullMatch
     }
-    const joined = entryDir === '.' ? posix.normalize(trimmed) : posix.normalize(posix.join(entryDir, trimmed))
+    const joined =
+      entryDir === '.' ? posix.normalize(trimmed) : posix.normalize(posix.join(entryDir, trimmed))
     if (!SAFE_WOFF2_REL_PATH.test(joined)) {
       return fullMatch
     }

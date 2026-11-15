@@ -1,7 +1,4 @@
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/IconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { desktopClipboard } from '../../services/desktop-client/index.js'
 import React, { useEffect, useMemo, useState } from 'react'
 import type {
@@ -33,7 +30,10 @@ import {
   updateModelCenterSearchParams,
 } from './ModelCenterState.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
-import { NEW_PROVIDER_PANEL_ID, ProviderEditorForm } from './provider-management/ProviderEditorForm.js'
+import {
+  NEW_PROVIDER_PANEL_ID,
+  ProviderEditorForm,
+} from './provider-management/ProviderEditorForm.js'
 import { ProviderConnectionSection } from './provider-management/ProviderConnectionSection.js'
 import { ProviderModelsSection } from './provider-management/ProviderModelsSection.js'
 import { type ApiKeyEditorValue } from './ApiKeyEditorDialog.js'
@@ -536,7 +536,12 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
           shape="pill"
           size="md"
         >
-          <Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus
+            className="tw:size-icon-md"
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
           <span>新增自定义 Provider</span>
         </Button>
       </div>

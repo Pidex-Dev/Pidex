@@ -1325,9 +1325,7 @@ export function ReviewProjectEmptyState({
         />
         <div className="review-project-empty-state__copy tw:flex tw:flex-col tw:items-center tw:gap-2">
           <strong className="tw:text-app-text tw:type-4 tw:weight-bold">尚无文件更改</strong>
-          <span className="tw:text-app-text-soft tw:type-1">
-            此项目中的更改将显示在此处。
-          </span>
+          <span className="tw:text-app-text-soft tw:type-1">此项目中的更改将显示在此处。</span>
         </div>
       </div>
     </div>

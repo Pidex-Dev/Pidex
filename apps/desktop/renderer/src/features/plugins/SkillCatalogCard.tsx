@@ -1,10 +1,7 @@
 import type React from 'react'
 import { Check, Lightbulb, Plus, ShieldAlert, ShieldCheck, ShieldX } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/IconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import type { DesktopSkillAuditStatus, DesktopSkillCatalogItem } from '../../../shared/Types.js'
 import { cx } from '../../utils/Cx.js'
 import {
@@ -64,7 +61,12 @@ export function SkillCatalogCard({
               FORCED_COLORS_SURFACE_CLASS,
             )}
           >
-            <Lightbulb className="tw:size-icon-md" data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
+            <Lightbulb
+              className="tw:size-icon-md"
+              data-icon-kind="artwork"
+              size={APP_ICON_SIZE}
+              strokeWidth={2}
+            />
           </span>
           <span className={cx('skill-catalog-card__copy', STACKED_COPY_CLASS)}>
             <span className="skill-catalog-card__title-line tw:flex tw:min-w-0 tw:items-center tw:gap-2">
@@ -120,13 +122,30 @@ export function SkillCatalogCard({
 function renderAuditIcon(status: DesktopSkillAuditStatus): React.ReactNode {
   if (status === 'pass') {
     return (
-      <ShieldCheck className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      <ShieldCheck
+        className="tw:size-icon-md"
+        aria-hidden="true"
+        size={APP_ICON_SIZE}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
     )
   }
   if (status === 'warn') {
     return (
-      <ShieldAlert className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      <ShieldAlert
+        className="tw:size-icon-md"
+        aria-hidden="true"
+        size={APP_ICON_SIZE}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
     )
   }
-  return <ShieldX className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+  return (
+    <ShieldX
+      className="tw:size-icon-md"
+      aria-hidden="true"
+      size={APP_ICON_SIZE}
+      strokeWidth={APP_ICON_STROKE_WIDTH}
+    />
+  )
 }

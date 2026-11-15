@@ -138,8 +138,14 @@ describe('ComposerDraftStore.resetSessionModes', () => {
 
 // Wiring regression: clearing the workspace on /new must reset without a route change.
 test('清除工作区入口直接复位模式，不依赖路由变化', () => {
-  const source = readFileSync(new URL('../src/features/layout/shell/DesktopLayout.tsx', import.meta.url), 'utf8')
-  const handler = source.slice(source.indexOf('const handleClearWorkspace ='), source.indexOf('const handleGithubWorkspaceCloned ='))
+  const source = readFileSync(
+    new URL('../src/features/layout/shell/DesktopLayout.tsx', import.meta.url),
+    'utf8',
+  )
+  const handler = source.slice(
+    source.indexOf('const handleClearWorkspace ='),
+    source.indexOf('const handleGithubWorkspaceCloned ='),
+  )
   expect(handler).toContain('resetHomeComposerModes()')
   expect(handler).toContain('resetHomeComposerModes,')
 })

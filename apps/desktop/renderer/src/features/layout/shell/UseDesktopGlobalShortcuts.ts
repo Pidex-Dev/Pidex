@@ -113,20 +113,10 @@ export function useDesktopGlobalShortcuts({
         event.preventDefault()
         setCommandMenuOpen(false)
         handleOpenFilesDock()
-      } else if (
-        event.shiftKey &&
-        !event.altKey &&
-        key === 'g' &&
-        canRunCommand('openReview')
-      ) {
+      } else if (event.shiftKey && !event.altKey && key === 'g' && canRunCommand('openReview')) {
         event.preventDefault()
         handleOpenReview()
-      } else if (
-        !event.shiftKey &&
-        event.altKey &&
-        key === 's' &&
-        canRunCommand('openSideChat')
-      ) {
+      } else if (!event.shiftKey && event.altKey && key === 's' && canRunCommand('openSideChat')) {
         event.preventDefault()
         handleOpenSideChat()
       } else if (

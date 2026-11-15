@@ -38,14 +38,15 @@ export function toUserErrorMessage(error: unknown, context?: ErrorContext): stri
   // Safe domain conflicts carry actionable messages; do not collapse them into internal errors.
   if (errorCode === 'CONFLICT' && message && message !== 'CONFLICT') return message
 
-  if (errorCode === 'MODEL_UNAVAILABLE' && message === '未配置可用的会话标题生成模型') return message
+  if (errorCode === 'MODEL_UNAVAILABLE' && message === '未配置可用的会话标题生成模型')
+    return message
   if (errorCode && providerMessages[errorCode]) return providerMessages[errorCode]
   if (errorCode === 'PROVIDER_CATALOG_REFRESH_FAILED') {
     const data = error as { details?: unknown; data?: { details?: unknown } }
     try {
       const details = decodeProviderErrorDetails(data.details ?? data.data?.details)
       const failures = details.failures ?? []
-      return `${details.totalFailures ?? failures.length} 个供应商刷新失败：${failures.map(failure => `${failure.providerId ?? '供应商'}：${providerMessages[failure.code] ?? '请求失败'}`).join('；')}`
+      return `${details.totalFailures ?? failures.length} 个供应商刷新失败：${failures.map((failure) => `${failure.providerId ?? '供应商'}：${providerMessages[failure.code] ?? '请求失败'}`).join('；')}`
     } catch {
       return '多个供应商模型目录刷新失败，请检查供应商配置和连接。'
     }
