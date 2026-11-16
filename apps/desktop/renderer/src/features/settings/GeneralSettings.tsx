@@ -15,7 +15,6 @@ import {
   useDesktopSettingsDraftSaving,
 } from './UseDesktopSettings.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
-import { permissionPresetViewForConfig } from './PermissionPresetView.js'
 import type {
   DesktopOpenTarget,
   DesktopReviewDelivery,
@@ -76,13 +75,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
   const subscribedDraftActions = useDesktopSettingsDraftActions()
   const subscribedLanguage = useDesktopSettingsDraftValue('language')
   const subscribedNotifications = useDesktopSettingsDraftValue('notifications')
-  const subscribedPermissionConfig = useDesktopSettingsDraftValue('permissionConfig')
-  const subscribedEnableAutoReviewPermissionMode = useDesktopSettingsDraftValue(
-    'enableAutoReviewPermissionMode',
-  )
-  const subscribedEnableFullAccessPermissionMode = useDesktopSettingsDraftValue(
-    'enableFullAccessPermissionMode',
-  )
   const contextUsageView = useDesktopSettingsDraftValue('contextUsageView')
   const subscribedShowContextUsage = useDesktopSettingsDraftValue('showContextUsage')
   const subscribedDefaultOpenTargetId = useDesktopSettingsDraftValue('defaultOpenTargetId')
@@ -107,9 +99,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
         values: {
           language: subscribedLanguage,
           notifications: subscribedNotifications,
-          permissionConfig: subscribedPermissionConfig,
-          enableAutoReviewPermissionMode: subscribedEnableAutoReviewPermissionMode,
-          enableFullAccessPermissionMode: subscribedEnableFullAccessPermissionMode,
           showContextUsage: subscribedShowContextUsage,
           defaultOpenTargetId: subscribedDefaultOpenTargetId,
           terminalProfileId: subscribedTerminalProfileId,
@@ -129,9 +118,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
       subscribedDraftActions,
       subscribedLanguage,
       subscribedNotifications,
-      subscribedPermissionConfig,
-      subscribedEnableAutoReviewPermissionMode,
-      subscribedEnableFullAccessPermissionMode,
       subscribedShowContextUsage,
       subscribedDefaultOpenTargetId,
       subscribedTerminalProfileId,
@@ -147,9 +133,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
     ],
   )
   const {
-    permissionConfig,
-    enableAutoReviewPermissionMode,
-    enableFullAccessPermissionMode,
     showContextUsage,
     defaultOpenTargetId,
     terminalProfileId,
@@ -160,10 +143,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
     defaultModeRequestUserInput,
     notifications,
   } = draft.values
-  const permissionView = permissionPresetViewForConfig(permissionConfig, {
-    enableAutoReviewPermissionMode,
-    enableFullAccessPermissionMode,
-  })
 
   const [openTargets, setOpenTargets] = useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS)
   const [openTargetsLoaded, setOpenTargetsLoaded] = useState(false)
@@ -280,17 +259,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
     [draft],
   )
 
-  const handleAutoApprove = (checked: boolean) => {
-    // Availability is a feature flag only; the stored permission config is never rewritten.
-    draft.setValue('enableAutoReviewPermissionMode', checked)
-    draft.autoSave()
-  }
-  const handleFullAccess = (checked: boolean) => {
-    // Availability is a feature flag only; the stored permission config is never rewritten.
-    draft.setValue('enableFullAccessPermissionMode', checked)
-    draft.autoSave()
-  }
-
   useEffect(() => {
     let mounted = true
     void desktopClient
@@ -375,59 +343,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             常规
           </h2>
         </div>
-
-        <SettingsSection title="权限">
-          <SettingsRow
-            title="当前权限"
-            description={
-              <>
-                当前为「{permissionView.label}」：{permissionView.detail}
-                {permissionView.unavailableReason ? (
-                  <>
-                    <br />
-                    {permissionView.unavailableReason}
-                    请在「配置」页重新选择权限预设，或重新开启该模式。
-                  </>
-                ) : null}
-              </>
-            }
-            control={
-              <span className="settings-row-status">
-                {permissionView.hidden ? '已隐藏' : '可用'}
-              </span>
-            }
-          />
-          <SettingsRow
-            title="允许「帮我批准」预设"
-            autoSave
-            description="启用后可在权限菜单与「配置」页选择「帮我批准」：内建文件访问范围限当前工作区；宿主 Shell 经安全规则和项目 Hook 执行；工作区外访问、破坏性动作和命中规则时由 Guardian 审查。关闭只隐藏该预设，不会改写已保存的权限配置。"
-            control={(aria) => (
-              <ToggleSwitch
-                checked={enableAutoReviewPermissionMode ?? false}
-                onChange={handleAutoApprove}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-          <SettingsRow
-            title="允许「完全访问」预设"
-            autoSave
-            description="启用后可在权限菜单与「配置」页选择「完全访问」：允许访问本机文件、互联网、执行命令及调用工具和 MCP，无需权限审批；Plan 模式独立生效。关闭只隐藏该预设，不会改写已保存的权限配置。"
-            control={(aria) => (
-              <ToggleSwitch
-                checked={enableFullAccessPermissionMode ?? false}
-                onChange={handleFullAccess}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-          <SettingsRow
-            title="权限说明"
-            description="内建文件访问范围与审批策略在「配置」页调整。宿主 Shell 始终在本机执行；工作区外访问、破坏性动作（如删除远程仓库或分支）和命中规则时由你确认或由 Guardian 审查。Pidex 不承诺 OS 沙箱或网络隔离。"
-          />
-        </SettingsSection>
 
         <SettingsSection title="常规">
           <SettingsRow

@@ -1,10 +1,10 @@
 import { permissionConfigForPreset } from '@pidex/shared/thread'
-export type ApprovalsReviewer = 'user' | 'auto_review'
+export type ApprovalsReviewer = 'auto_review'
 export type SandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access'
 
 export type AgentPermissionProfile = ':read-only' | ':workspace' | ':danger-full-access' | string
 
-export type AgentApprovalMode = 'on-request' | 'on-failure' | 'never' | 'untrusted'
+export type AgentApprovalMode = 'auto_review' | 'never'
 
 export type AgentPermissionAction = 'read' | 'write' | 'shell' | 'network' | 'mcp'
 export type AgentPermissionEffect = 'allow' | 'ask' | 'deny'
@@ -64,32 +64,20 @@ export type AgentPermissionRequest = {
   guardian?: AgentGuardianReview
 }
 
-export type DesktopAgentPermissionMode = 'default' | 'auto-review' | 'full-access' | 'custom'
+export type DesktopAgentPermissionMode = 'auto-review' | 'full-access'
 
 export const DESKTOP_AGENT_PERMISSION_MODES = [
-  'default',
   'auto-review',
   'full-access',
-  'custom',
 ] as const satisfies readonly DesktopAgentPermissionMode[]
 
 export function normalizeDesktopAgentPermissionMode(mode: unknown): DesktopAgentPermissionMode {
   switch (mode) {
-    case 'auto':
-    case 'acceptEdits':
-      return 'auto-review'
     case 'bypassPermissions':
-      return 'full-access'
-    case 'customConfig':
-    case 'dontAsk':
-      return 'custom'
-    case 'auto-review':
     case 'full-access':
-    case 'custom':
-    case 'default':
-      return mode
+      return 'full-access'
     default:
-      return 'default'
+      return 'auto-review'
   }
 }
 
@@ -104,17 +92,13 @@ export function permissionPolicyForDesktopMode(
   mode: DesktopAgentPermissionMode | string | undefined,
 ): AgentPermissionPolicy {
   const normalized = normalizeDesktopAgentPermissionMode(mode)
-  // Preset configs come from the shared catalog; custom keeps the default config.
   const config = permissionConfigForPreset(normalized)
   const profile = config.sandboxMode === 'danger-full-access' ? ':danger-full-access' : ':workspace'
-  // Preset configs never use granular policies; the fallback keeps the type explicit.
-  const approvalMode: AgentApprovalMode =
-    typeof config.approvalPolicy === 'string' ? config.approvalPolicy : 'on-request'
   return {
     profile,
     sandboxPolicy: profile,
     sandboxMode: config.sandboxMode,
-    approvalMode,
+    approvalMode: config.approvalPolicy,
     approvalsReviewer: config.approvalsReviewer,
   }
 }

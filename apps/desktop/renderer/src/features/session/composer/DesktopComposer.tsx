@@ -91,8 +91,6 @@ export type DesktopComposerProps = {
   permissionMode: DesktopPermissionMode
   planModeActive: boolean
   grillModeActive?: boolean
-  enableAutoReviewPermissionMode: boolean
-  enableFullAccessPermissionMode: boolean
   codingModel?: string
   modelVariant?: string
   modelVariantOptions?: { value: string; label: string }[]
@@ -217,8 +215,6 @@ export function DesktopComposer({
   permissionMode,
   planModeActive,
   grillModeActive = false,
-  enableAutoReviewPermissionMode,
-  enableFullAccessPermissionMode,
   codingModel,
   thinkingMode,
   modelVariant,
@@ -361,8 +357,6 @@ export function DesktopComposer({
     draftKey,
     routedSessionId,
     permissionMode,
-    enableAutoReviewPermissionMode,
-    enableFullAccessPermissionMode,
     planModeActive,
     grillModeActive,
     sessionBusy: sessionStatus === 'running' || sessionStatus === 'waiting',

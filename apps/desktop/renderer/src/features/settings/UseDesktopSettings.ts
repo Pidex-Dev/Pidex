@@ -51,8 +51,6 @@ export type DesktopSettingsAccess = 'read-write' | 'read-only'
 export type UseDesktopSettingsResult = {
   enableParetoCodeRouter: boolean
   enableFusionRouter: boolean
-  enableAutoReviewPermissionMode: boolean
-  enableFullAccessPermissionMode: boolean
   permissionMode: DesktopPermissionMode
   model: string
   generationModel: string
@@ -120,8 +118,6 @@ export type UseDesktopSettingsResult = {
   browserSitePermissions: DesktopBrowserSitePermission[]
   settingsLoaded: boolean
   setPermissionMode: (value: DesktopPermissionMode) => void
-  setEnableAutoReviewPermissionMode: (value: boolean) => void
-  setEnableFullAccessPermissionMode: (value: boolean) => void
   setModel: (value: string) => void
   setGenerationModel: (value: string) => void
   setOrganizationModel: (value: string) => void
@@ -449,8 +445,6 @@ function useDesktopSettingsState(
     createStore(() => ({
       enableParetoCodeRouter: (initial.enableParetoCodeRouter ?? false) as boolean,
       enableFusionRouter: (initial.enableFusionRouter ?? false) as boolean,
-      enableAutoReviewPermissionMode: (initial.enableAutoReviewPermissionMode ?? false) as boolean,
-      enableFullAccessPermissionMode: (initial.enableFullAccessPermissionMode ?? false) as boolean,
       model: initial.model,
       generationModel: initial.generationModel,
       organizationModel: initial.organizationModel,
@@ -534,14 +528,6 @@ function useDesktopSettingsState(
   const [enableFusionRouter, setEnableFusionRouter] = useFieldState(
     stateStore,
     'enableFusionRouter',
-  )
-  const [enableAutoReviewPermissionMode, setEnableAutoReviewPermissionMode] = useFieldState(
-    stateStore,
-    'enableAutoReviewPermissionMode',
-  )
-  const [enableFullAccessPermissionMode, setEnableFullAccessPermissionMode] = useFieldState(
-    stateStore,
-    'enableFullAccessPermissionMode',
   )
   const [model, setModel] = useFieldState(stateStore, 'model')
   const [generationModel, setGenerationModel] = useFieldState(stateStore, 'generationModel')
@@ -797,8 +783,6 @@ function useDesktopSettingsState(
         }
         setEnableParetoCodeRouter(settings.enableParetoCodeRouter ?? false)
         setEnableFusionRouter(settings.enableFusionRouter ?? false)
-        setEnableAutoReviewPermissionMode(settings.enableAutoReviewPermissionMode ?? false)
-        setEnableFullAccessPermissionMode(settings.enableFullAccessPermissionMode ?? false)
         setModel(settings.model)
         setGenerationModel(settings.generationModel)
         setOrganizationModel(settings.organizationModel)
@@ -893,8 +877,6 @@ function useDesktopSettingsState(
       prWatchInstructions: committedDraftValues.prWatchInstructions,
       enableParetoCodeRouter,
       enableFusionRouter,
-      enableAutoReviewPermissionMode,
-      enableFullAccessPermissionMode,
       permissionConfig: committedDraftValues.permissionConfig,
       shellSecurityLevel: committedDraftValues.shellSecurityLevel,
       terminalProfileId: committedDraftValues.terminalProfileId,
@@ -991,8 +973,6 @@ function useDesktopSettingsState(
       committedDraftValues.prWatchInstructions,
       enableParetoCodeRouter,
       enableFusionRouter,
-      enableAutoReviewPermissionMode,
-      enableFullAccessPermissionMode,
       committedDraftValues.permissionConfig,
       committedDraftValues.shellSecurityLevel,
       committedDraftValues.terminalProfileId,
@@ -1126,8 +1106,6 @@ function useDesktopSettingsState(
     snapshot = shareDesktopSettingsValues(effectiveSettingsRef.current, snapshot)
     setEnableParetoCodeRouter(snapshot.enableParetoCodeRouter ?? false)
     setEnableFusionRouter(snapshot.enableFusionRouter ?? false)
-    setEnableAutoReviewPermissionMode(snapshot.enableAutoReviewPermissionMode ?? false)
-    setEnableFullAccessPermissionMode(snapshot.enableFullAccessPermissionMode ?? false)
     setModel(snapshot.model)
     setGenerationModel(snapshot.generationModel)
     setOrganizationModel(snapshot.organizationModel)
@@ -1384,8 +1362,6 @@ function useDesktopSettingsState(
   const settings: UseDesktopSettingsResult = {
     enableParetoCodeRouter,
     enableFusionRouter,
-    enableAutoReviewPermissionMode,
-    enableFullAccessPermissionMode,
     permissionMode,
     model,
     generationModel,
@@ -1453,8 +1429,6 @@ function useDesktopSettingsState(
     browserSitePermissions,
     settingsLoaded,
     setPermissionMode,
-    setEnableAutoReviewPermissionMode,
-    setEnableFullAccessPermissionMode,
     setModel,
     setGenerationModel,
     setOrganizationModel,

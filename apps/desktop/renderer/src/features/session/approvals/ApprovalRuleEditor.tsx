@@ -32,6 +32,7 @@ export function ApprovalRuleEditor({
   mode,
   values,
   isProjectChat,
+  allowChatScope = true,
   workspaceRoots,
   busy,
   error,
@@ -42,6 +43,7 @@ export function ApprovalRuleEditor({
   mode: 'create' | 'edit'
   values: ApprovalRuleEditorValues
   isProjectChat: boolean
+  allowChatScope?: boolean
   workspaceRoots: readonly string[]
   busy: boolean
   error: string | null
@@ -50,7 +52,10 @@ export function ApprovalRuleEditor({
   onCancel: () => void
 }): React.ReactNode {
   const set = (patch: Partial<ApprovalRuleEditorValues>): void => onChange({ ...values, ...patch })
-  const scopeOptions: ApprovalRuleScopeOption[] = approvalRuleScopeOptions(isProjectChat)
+  const scopeOptions: ApprovalRuleScopeOption[] = approvalRuleScopeOptions(
+    isProjectChat,
+    allowChatScope,
+  )
   const filePathOptions = React.useMemo(() => {
     const roots = workspaceRoots.filter((root) => root.trim())
     const candidates =

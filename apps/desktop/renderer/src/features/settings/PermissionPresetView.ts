@@ -1,5 +1,5 @@
 import {
-  CUSTOM_PERMISSION_PRESET,
+  DEFAULT_PERMISSION_CONFIG,
   PERMISSION_PRESETS,
   PERMISSION_PRESET_OPTIONS,
   matchPermissionPreset,
@@ -13,15 +13,9 @@ import type { DesktopPermissionConfig, DesktopPermissionMode } from '../../../sh
  * Renderer view over the shared permission preset catalog.
  *
  * The preset identity (`sandboxMode`, `approvalPolicy`, `approvalsReviewer`)
- * and every generated config come from `@pidex/shared/thread`; this module only
- * adapts them to the desktop mode vocabulary and to the feature flags that
- * control whether a preset is offered. A preset hidden by a feature flag is
- * still displayed as the actual stored configuration — never rewritten.
+ * and every generated config come from `@pidex/shared/thread`.
  */
-export type PermissionPresetVisibility = {
-  enableAutoReviewPermissionMode?: boolean
-  enableFullAccessPermissionMode?: boolean
-}
+export type PermissionPresetVisibility = Record<string, never>
 
 export type PermissionPresetOptionView = {
   value: DesktopPermissionMode
@@ -34,16 +28,22 @@ export type PermissionPresetView = {
   selection: PermissionPresetSelection
   label: string
   detail: string
-  /** True when the stored selection is one of the presets hidden by feature flags. */
+  /** Presets are always visible in the two-mode model. */
   hidden: boolean
-  /** Human-readable availability note; null when the selection is available. */
+  /** Always null in the two-mode model. */
   unavailableReason: string | null
-  /** Visible options for menus. The hidden current selection is appended disabled. */
+  /** Visible options for menus. */
   options: PermissionPresetOptionView[]
 }
 
-const presetFor = (selection: PermissionPresetSelection): PermissionPreset | null =>
-  PERMISSION_PRESETS.find((preset) => preset.id === selection) ?? null
+const presetFor = (selection: PermissionPresetSelection): PermissionPreset =>
+  PERMISSION_PRESETS.find((preset) => preset.id === selection) ??
+  PERMISSION_PRESETS[0] ?? {
+    id: 'auto-review',
+    label: '帮我批准',
+    description: '',
+    config: DEFAULT_PERMISSION_CONFIG,
+  }
 
 export function permissionPresetSelection(
   config: DesktopPermissionConfig,
@@ -51,7 +51,7 @@ export function permissionPresetSelection(
   return matchPermissionPreset(config)
 }
 
-/** Always returns the stored config for the preset; custom keeps the current config. */
+/** Always returns the stored config for the preset. */
 export function permissionConfigForSelection(
   selection: PermissionPresetSelection,
   current?: DesktopPermissionConfig,
@@ -60,32 +60,24 @@ export function permissionConfigForSelection(
 }
 
 export function permissionPresetLabel(selection: PermissionPresetSelection): string {
-  return presetFor(selection)?.label ?? CUSTOM_PERMISSION_PRESET.label
+  return presetFor(selection).label
 }
 
 export function permissionPresetDescription(selection: PermissionPresetSelection): string {
-  return presetFor(selection)?.description ?? CUSTOM_PERMISSION_PRESET.description
+  return presetFor(selection).description
 }
 
 export function permissionPresetUnavailableReason(
-  selection: PermissionPresetSelection,
-  visibility: PermissionPresetVisibility,
+  _selection: PermissionPresetSelection,
+  _visibility?: PermissionPresetVisibility,
 ): string | null {
-  if (selection === 'auto-review' && !visibility.enableAutoReviewPermissionMode)
-    return '“帮我批准”预设已在设置中关闭；当前配置保持不变。'
-  if (selection === 'full-access' && !visibility.enableFullAccessPermissionMode)
-    return '“完全访问”预设已在设置中关闭；当前配置保持不变。'
   return null
 }
 
 export function visiblePermissionPresetOptions(
-  visibility: PermissionPresetVisibility,
+  _visibility?: PermissionPresetVisibility,
 ): PermissionPresetOptionView[] {
-  return PERMISSION_PRESET_OPTIONS.filter((option) => {
-    if (option.id === 'auto-review') return Boolean(visibility.enableAutoReviewPermissionMode)
-    if (option.id === 'full-access') return Boolean(visibility.enableFullAccessPermissionMode)
-    return true
-  }).map((option) => ({
+  return PERMISSION_PRESET_OPTIONS.map((option) => ({
     value: option.id,
     label: option.label,
     detail: option.description,
@@ -95,31 +87,21 @@ export function visiblePermissionPresetOptions(
 /** Resolves the actual stored selection plus the options a permission menu may show. */
 export function permissionPresetView(
   selection: PermissionPresetSelection,
-  visibility: PermissionPresetVisibility,
+  _visibility?: PermissionPresetVisibility,
 ): PermissionPresetView {
-  const unavailableReason = permissionPresetUnavailableReason(selection, visibility)
-  const options = visiblePermissionPresetOptions(visibility)
-  if (unavailableReason) {
-    options.push({
-      value: selection,
-      label: permissionPresetLabel(selection),
-      detail: unavailableReason,
-      disabled: true,
-    })
-  }
   return {
     selection,
     label: permissionPresetLabel(selection),
     detail: permissionPresetDescription(selection),
-    hidden: unavailableReason !== null,
-    unavailableReason,
-    options,
+    hidden: false,
+    unavailableReason: null,
+    options: visiblePermissionPresetOptions(),
   }
 }
 
 export function permissionPresetViewForConfig(
   config: DesktopPermissionConfig,
-  visibility: PermissionPresetVisibility,
+  _visibility?: PermissionPresetVisibility,
 ): PermissionPresetView {
-  return permissionPresetView(matchPermissionPreset(config), visibility)
+  return permissionPresetView(matchPermissionPreset(config))
 }

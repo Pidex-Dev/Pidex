@@ -231,7 +231,7 @@ export function mockSessionSnapshot(
   const planModeActive = planModeActiveFromCollaborationMode(collaborationMode)
   const grillModeActive = options.grillModeActive === true && !planModeActive
   const permissionConfig =
-    options.permissionConfig ?? desktopPermissionModeToPermissionConfig('default')
+    options.permissionConfig ?? desktopPermissionModeToPermissionConfig('auto-review')
   const permissionMode = permissionModeFromDesktopConfig(permissionConfig)
   return {
     item: {

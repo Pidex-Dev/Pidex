@@ -395,13 +395,13 @@ export function createBrowserMockDesktopClient(
     getRuntimeCapabilities: async () =>
       (await import('@pidex/agent-protocol/capabilities')).Capabilities,
     pauseQuestion: async () => {},
-    approvalReviewState: async () => ({ manualAllows: 0, denials: [], reviews: [] }),
-    retryApproval: async () => {},
-    listApprovalRules: async (threadId) => ({
-      rules: [...(approvalRules.get(threadId) ?? [])],
-    }),
-    upsertApprovalRule: async ({ threadId, expectedVersion, rule }) => {
-      const current = approvalRules.get(threadId) ?? []
+    listApprovalRules: async (params) => {
+      const key = params?.threadId ?? params?.cwd ?? '__global__'
+      return { rules: [...(approvalRules.get(key) ?? [])] }
+    },
+    upsertApprovalRule: async ({ threadId, cwd, expectedVersion, rule }) => {
+      const key = threadId ?? cwd ?? '__global__'
+      const current = approvalRules.get(key) ?? []
       const existing = rule.id ? current.find((entry) => entry.id === rule.id) : undefined
       if (rule.id && !existing) throw new Error('CONFLICT: 规则已被删除，请刷新后重试')
       if (expectedVersion && existing?.version && expectedVersion !== existing.version)
@@ -417,19 +417,20 @@ export function createBrowserMockDesktopClient(
         version: String(mockApprovalRuleVersion++),
       }
       approvalRules.set(
-        threadId,
+        key,
         existing ? current.map((entry) => (entry.id === id ? next : entry)) : [next, ...current],
       )
       return { rule: next }
     },
-    revokeApprovalRule: async (threadId, ruleId, expectedVersion) => {
-      const current = approvalRules.get(threadId) ?? []
+    revokeApprovalRule: async ({ threadId, cwd, ruleId, expectedVersion }) => {
+      const key = threadId ?? cwd ?? '__global__'
+      const current = approvalRules.get(key) ?? []
       const existing = current.find((entry) => entry.id === ruleId)
       if (!existing) return { revoked: false }
       if (expectedVersion && existing.version && expectedVersion !== existing.version)
         throw new Error('CONFLICT: 规则版本已变化，请刷新后重试')
       approvalRules.set(
-        threadId,
+        key,
         current.filter((entry) => entry.id !== ruleId),
       )
       return { revoked: true }

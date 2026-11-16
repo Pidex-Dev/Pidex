@@ -1,4 +1,9 @@
-import { DEFAULT_PERMISSION_CONFIG } from '@pidex/shared/thread'
+import {
+  AUTO_REVIEW_PERMISSION_CONFIG,
+  DEFAULT_PERMISSION_CONFIG,
+  FULL_ACCESS_PERMISSION_CONFIG,
+  isFullAccessPermissionConfig,
+} from '@pidex/shared/thread'
 import {
   DESKTOP_AGENT_PERMISSION_MODES,
   isDesktopAgentPermissionMode,
@@ -179,8 +184,6 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     language: 'system',
     enableParetoCodeRouter: false,
     enableFusionRouter: false,
-    enableAutoReviewPermissionMode: false,
-    enableFullAccessPermissionMode: false,
     permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
     shellSecurityLevel: 'balanced',
     terminalProfileId: null,
@@ -284,7 +287,6 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
 export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSettings {
   const parsed = value && typeof value === 'object' ? (value as Partial<DesktopStoredSettings>) : {}
   const defaults = defaultDesktopStoredSettings()
-  const permissionMode = normalizeDesktopPermissionMode(parsed.permissionMode)
   const legacyPermissionProfile = normalizeDesktopPermissionProfile(
     parsed.permissionProfile,
     ':workspace',
@@ -307,25 +309,37 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
     parsed.permissionConfig && typeof parsed.permissionConfig === 'object'
       ? parsed.permissionConfig
       : null
-  const permissionConfig = rawPermissionConfig
+  const candidateConfig = rawPermissionConfig
     ? {
         sandboxMode: isDesktopSandboxMode(rawPermissionConfig.sandboxMode)
           ? rawPermissionConfig.sandboxMode
           : sandboxMode,
         approvalPolicy: normalizeDesktopApprovalPolicy(
           rawPermissionConfig.approvalPolicy,
-          normalizeDesktopApprovalPolicy(parsed.approvalPolicy, 'on-request'),
+          normalizeDesktopApprovalPolicy(parsed.approvalPolicy, 'auto_review'),
         ),
         approvalsReviewer: normalizeDesktopApprovalsReviewer(
           rawPermissionConfig.approvalsReviewer,
-          normalizeDesktopApprovalsReviewer(parsed.approvalsReviewer, 'user'),
+          normalizeDesktopApprovalsReviewer(parsed.approvalsReviewer, 'auto_review'),
         ),
       }
     : {
-        sandboxMode,
-        approvalPolicy: normalizeDesktopApprovalPolicy(parsed.approvalPolicy, 'on-request'),
-        approvalsReviewer: normalizeDesktopApprovalsReviewer(parsed.approvalsReviewer, 'user'),
+        sandboxMode:
+          parsed.permissionMode === 'full-access' && !parsed.sandboxMode
+            ? 'danger-full-access'
+            : sandboxMode,
+        approvalPolicy: normalizeDesktopApprovalPolicy(
+          parsed.approvalPolicy,
+          parsed.permissionMode === 'full-access' ? 'never' : 'auto_review',
+        ),
+        approvalsReviewer: normalizeDesktopApprovalsReviewer(
+          parsed.approvalsReviewer,
+          'auto_review',
+        ),
       }
+  const permissionConfig = isFullAccessPermissionConfig(candidateConfig)
+    ? { ...FULL_ACCESS_PERMISSION_CONFIG }
+    : { ...AUTO_REVIEW_PERMISSION_CONFIG }
   return {
     language:
       parsed.language === 'zh-CN' || parsed.language === 'en-US' ? parsed.language : 'system',
@@ -337,18 +351,6 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
       typeof parsed.enableFusionRouter === 'boolean'
         ? parsed.enableFusionRouter
         : defaults.enableFusionRouter,
-    enableAutoReviewPermissionMode:
-      typeof parsed.enableAutoReviewPermissionMode === 'boolean'
-        ? parsed.enableAutoReviewPermissionMode
-        : permissionMode === 'auto-review'
-          ? true
-          : defaults.enableAutoReviewPermissionMode,
-    enableFullAccessPermissionMode:
-      typeof parsed.enableFullAccessPermissionMode === 'boolean'
-        ? parsed.enableFullAccessPermissionMode
-        : permissionMode === 'full-access'
-          ? true
-          : defaults.enableFullAccessPermissionMode,
     permissionConfig,
     shellSecurityLevel: DESKTOP_SHELL_SECURITY_LEVELS.has(
       parsed.shellSecurityLevel as DesktopShellSecurityLevel,
@@ -778,40 +780,30 @@ export function normalizeDesktopPermissionProfile(value: unknown, fallback = ':w
 
 export function normalizeDesktopApprovalPolicy(
   value: unknown,
-  fallback: DesktopStoredSettings['approvalPolicy'] = 'on-request',
+  fallback: DesktopStoredSettings['approvalPolicy'] = 'auto_review',
 ): DesktopStoredSettings['approvalPolicy'] {
-  if (value === 'on-failure') return 'on-request'
+  if (value === 'never') return 'never'
+  if (
+    value === 'auto_review' ||
+    value === 'auto-review' ||
+    value === 'on-request' ||
+    value === 'untrusted' ||
+    value === 'on-failure'
+  ) {
+    return 'auto_review'
+  }
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     const policy = value as Record<string, unknown>
-    const keys = [
-      'sandboxApproval',
-      'rules',
-      'skillApproval',
-      'requestPermissions',
-      'mcpTools',
-      'mcpElicitations',
-    ] as const
-    if (policy.type === 'granular' && keys.every((key) => typeof policy[key] === 'boolean')) {
-      return {
-        type: 'granular',
-        sandboxApproval: policy.sandboxApproval as boolean,
-        rules: policy.rules as boolean,
-        skillApproval: policy.skillApproval as boolean,
-        requestPermissions: policy.requestPermissions as boolean,
-        mcpTools: policy.mcpTools as boolean,
-        mcpElicitations: policy.mcpElicitations as boolean,
-      }
-    }
+    if (policy.type === 'granular') return 'auto_review'
   }
-  return value === 'untrusted' || value === 'on-request' || value === 'never' ? value : fallback
+  return fallback
 }
 
 export function normalizeDesktopApprovalsReviewer(
-  value: unknown,
-  fallback: DesktopStoredSettings['approvalsReviewer'] = 'user',
+  _value: unknown,
+  _fallback: DesktopStoredSettings['approvalsReviewer'] = 'auto_review',
 ): DesktopStoredSettings['approvalsReviewer'] {
-  if (value === 'auto') return 'auto_review'
-  return value === 'user' || value === 'auto_review' ? value : fallback
+  return 'auto_review'
 }
 
 export function normalizeDesktopWorkspaces(value: unknown): DesktopWorkspace[] {

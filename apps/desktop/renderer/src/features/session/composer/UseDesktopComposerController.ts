@@ -70,8 +70,6 @@ type ControllerOptions = {
   draftKey: ComposerDraftKey
   routedSessionId: string | null
   permissionMode: DesktopPermissionMode
-  enableAutoReviewPermissionMode: boolean
-  enableFullAccessPermissionMode: boolean
   planModeActive: boolean
   grillModeActive: boolean
   confirmGoalSubmission?: (objective: string, hasAttachments: boolean) => Promise<boolean>
@@ -161,8 +159,6 @@ export function useDesktopComposerController({
   draftKey,
   routedSessionId,
   permissionMode,
-  enableAutoReviewPermissionMode,
-  enableFullAccessPermissionMode,
   planModeActive,
   grillModeActive,
   confirmGoalSubmission,
@@ -273,15 +269,9 @@ export function useDesktopComposerController({
   )
   const branchName = getDesktopComposerBranchName(workspace)
   const permissionView = useMemo(
-    () =>
-      permissionPresetView(permissionMode, {
-        enableAutoReviewPermissionMode,
-        enableFullAccessPermissionMode,
-      }),
-    [permissionMode, enableAutoReviewPermissionMode, enableFullAccessPermissionMode],
+    () => permissionPresetView(permissionMode),
+    [permissionMode],
   )
-  // The configured preset is always shown as-is. A preset hidden by a feature
-  // toggle is surfaced with its unavailable reason and never rewritten here.
   const permissionOptions = permissionView.options
   const effectivePermissionMode = permissionView.selection
   const hasConversationMessages =

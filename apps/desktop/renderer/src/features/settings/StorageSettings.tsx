@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
 import type { StorageSummaryResult } from '@pidex/agent-protocol'
 import type { DesktopUserDataStorageSummary } from '@pidex/shared/desktop-shell-ipc'
+import type { DesktopDataLocationState } from '../../../shared/Types.js'
 import { errorMessageOf } from '@pidex/shared/errors'
+import { useMountEffect } from '../../hooks/UseMountEffect.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { Button } from '../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
@@ -119,6 +121,8 @@ export function StorageSettings({ onError, onNotice }: Props): React.ReactNode {
   const [oldChatsOpen, setOldChatsOpen] = useState(false)
   const [deletingResource, setDeletingResource] = useState<DownloadedResourceEntry | null>(null)
   const [deletingResourceBusy, setDeletingResourceBusy] = useState(false)
+  const [dataLocation, setDataLocation] = useState<DesktopDataLocationState | null>(null)
+  const [changingLocation, setChangingLocation] = useState(false)
 
   const loadSummary = useCallback(
     async (forceRefresh = false) => {
@@ -154,6 +158,21 @@ export function StorageSettings({ onError, onNotice }: Props): React.ReactNode {
     void loadSummary(false)
   }, [loadSummary])
 
+  useMountEffect(() => {
+    let mounted = true
+    void desktopClient
+      .getDataLocation()
+      .then((state) => {
+        if (mounted) setDataLocation(state)
+      })
+      .catch(() => {
+        if (mounted) setDataLocation(null)
+      })
+    return () => {
+      mounted = false
+    }
+  })
+
   const segments = useMemo<CategorySegment[]>(() => {
     const chatBytes = summary?.breakdown.chatBytes ?? 0
     const worktreeBytes = summary?.breakdown.worktreeBytes ?? 0
@@ -182,6 +201,22 @@ export function StorageSettings({ onError, onNotice }: Props): React.ReactNode {
       await desktopClient.openStorageDirectory(targetPath)
     } catch (cause) {
       onError(errorMessageOf(cause))
+    }
+  }
+
+  async function handleChooseDataLocation() {
+    if (changingLocation) return
+    setChangingLocation(true)
+    try {
+      const result = await desktopClient.chooseDataLocation()
+      if (result) {
+        const newState = await desktopClient.getDataLocation()
+        setDataLocation(newState)
+      }
+    } catch (cause) {
+      onError(`更改数据位置失败：${errorMessageOf(cause)}`)
+    } finally {
+      setChangingLocation(false)
     }
   }
 
@@ -424,6 +459,77 @@ export function StorageSettings({ onError, onNotice }: Props): React.ReactNode {
             </SettingsSection>
           </div>
 
+          <div id={createSettingsTargetId('storage', '数据位置')}>
+            <SettingsSection
+              title="数据位置"
+              description="Pidex 的全局配置、会话、宠物和托管工具存储位置。"
+            >
+              <SettingsRow
+                title="当前数据目录"
+                description={dataLocation ? dataLocation.currentDataDir : '加载中…'}
+                control={
+                  <span className="settings-row-status">
+                    {dataLocation
+                      ? dataLocation.isEnvControlled
+                        ? '环境变量控制'
+                        : dataLocation.controlSource === 'bootstrap'
+                          ? '自定义位置'
+                          : '默认位置'
+                      : '—'}
+                  </span>
+                }
+              />
+              <SettingsRow
+                title="配置文件"
+                description={
+                  dataLocation
+                    ? appendDataFile(dataLocation.currentDataDir, 'config.json')
+                    : '加载中…'
+                }
+                control={<span className="settings-row-status">建议备份</span>}
+              />
+              <SettingsRow
+                title="Provider 凭据文件（可选）"
+                description={
+                  dataLocation
+                    ? appendDataFile(dataLocation.currentDataDir, 'auth.json')
+                    : '加载中…'
+                }
+                control={<span className="settings-row-status">使用 auth.json 仓库时</span>}
+              />
+              <SettingsRow
+                title="快速恢复"
+                description="手动复制 config.json，以及启用 auth.json 仓库时的 auth.json。Skill 内容不包含在这两个文件中，需另行处理。"
+              />
+              {dataLocation?.pendingDataDir ? (
+                <SettingsRow
+                  title="待生效目录"
+                  description={`重启后将使用：${dataLocation.pendingDataDir}`}
+                  control={<span className="settings-row-status">等待重启</span>}
+                />
+              ) : null}
+              <SettingsRow
+                title="更改位置"
+                description={
+                  dataLocation?.isEnvControlled
+                    ? '当前由 PIDEX_DATA_DIR 控制；移除环境变量后才能通过桌面设置迁移。'
+                    : '选择父目录后会创建 .pidex，并立即重启完成安全迁移。旧目录不会删除。'
+                }
+                control={
+                  <Button
+                    color="primary"
+                    disabled={changingLocation || dataLocation?.isEnvControlled}
+                    size="sm"
+                    type="button"
+                    onClick={() => void handleChooseDataLocation()}
+                  >
+                    {changingLocation ? '处理中…' : '选择目录'}
+                  </Button>
+                }
+              />
+            </SettingsSection>
+          </div>
+
           <div>
             <SettingsSection>
               <SettingsRow
@@ -558,4 +664,9 @@ export function StorageSettings({ onError, onNotice }: Props): React.ReactNode {
       </div>
     </SettingsContentArea>
   )
+}
+
+function appendDataFile(directory: string, fileName: string): string {
+  const separator = directory.includes('\\') ? '\\' : '/'
+  return `${directory.replace(/[\\/]+$/, '')}${separator}${fileName}`
 }

@@ -25,6 +25,7 @@ export type ButtonVariant =
   | 'danger'
   | 'danger-outline'
   | 'subtle-accent'
+  | 'subtle-danger'
   | 'accent'
 
 export type ButtonColor =
@@ -32,6 +33,7 @@ export type ButtonColor =
   | 'accentSubtle'
   | 'danger'
   | 'dangerSolid'
+  | 'dangerSubtle'
   | 'ghost'
   | 'ghostSecondary'
   | 'outlineActive'
@@ -145,6 +147,7 @@ function resolveVariant(variant?: ButtonVariant, color?: ButtonColor): ButtonVar
   if (color === 'primary') return 'primary'
   if (color === 'accent') return 'accent'
   if (color === 'accentSubtle') return 'subtle-accent'
+  if (color === 'dangerSubtle') return 'subtle-danger'
   if (color === 'dangerSolid') return 'danger'
   if (color === 'danger') return 'danger-outline'
   if (color === 'outline' || color === 'outlineActive') return 'outline'
@@ -773,6 +776,17 @@ const BUTTON_STYLES = String.raw`
     background: var(--cpx-sys-color-accent-subtle-hover-bg);
   }
 
+  :is(button, a)[data-size][data-variant][data-variant='subtle-danger'] {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--cpx-sys-color-danger) 16%, transparent);
+    color: var(--cpx-sys-color-danger-fg);
+  }
+
+  :is(button, a)[data-size][data-variant][data-variant='subtle-danger']:hover:not(:disabled, [aria-disabled='true']),
+  :is(button, a)[data-size][data-variant][data-variant='subtle-danger']:is([data-state='open'], [data-active]) {
+    background: color-mix(in srgb, var(--cpx-sys-color-danger) 24%, transparent);
+  }
+
   /* Ghost aliases keep the tertiary ink used by sidebar and summary actions. */
   :is(button, a)[data-size][data-variant][data-color='ghost'],
   :is(button, a)[data-size][data-variant][data-color='ghostTertiary'] {
@@ -794,9 +808,11 @@ const BUTTON_STYLES = String.raw`
       color: ButtonText;
     }
 
-    :is(button, a)[data-size][data-variant][data-variant='secondary'] {
+    :is(button, a)[data-size][data-variant][data-variant='secondary'],
+    :is(button, a)[data-size][data-variant][data-variant='subtle-danger'] {
       border-color: ButtonText;
       background: transparent;
+      color: ButtonText;
     }
 
     :is(button, a)[data-size][data-variant][data-variant='text'] {

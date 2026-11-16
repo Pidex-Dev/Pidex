@@ -41,12 +41,12 @@ export function agentQuestionIdFromRequestId(requestId: string): string | null {
     : null
 }
 
-/** Generates the stored config from the shared preset catalog; custom keeps `current`. */
+/** Generates the stored config from the shared preset catalog. */
 export function desktopPermissionModeToPermissionConfig(
   mode: DesktopPermissionMode | undefined,
   current?: PermissionConfig,
 ): PermissionConfig {
-  return permissionConfigForPreset(mode ?? 'default', current)
+  return permissionConfigForPreset(mode ?? 'auto-review', current)
 }
 
 export function agentTurnStatusToDesktopStatus(
@@ -1253,8 +1253,7 @@ function eventTime(params: Record<string, unknown>): number {
 export function permissionModeFromPermissionConfig(
   config: PermissionConfig | undefined,
 ): DesktopPermissionMode {
-  // Unknown configs stay custom; preset identity always comes from the shared catalog.
-  return config ? matchPermissionPreset(config) : 'custom'
+  return config ? matchPermissionPreset(config) : 'auto-review'
 }
 
 export function projectToDesktopWorkspace(

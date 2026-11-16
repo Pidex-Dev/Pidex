@@ -297,6 +297,16 @@
 
   /* ConfirmationDialog surface typography lives as Tailwind utilities in
    * components/ui/ConfirmationDialog.tsx. */
+
+  .full-access-capability-list {
+    border: 1px solid var(--cpx-sys-color-border-subtle);
+    border-radius: var(--cpx-sys-radius-5);
+    background: color-mix(
+      in srgb,
+      var(--cpx-sys-color-fg-primary) 4%,
+      var(--cpx-comp-modal-bg, var(--cpx-comp-surface-floating))
+    );
+  }
 }
 
 /* ══ Toast stack ══════════════════════════════════════════

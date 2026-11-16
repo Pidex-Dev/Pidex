@@ -583,22 +583,9 @@ export type DesktopPermissionMode = DesktopAgentPermissionMode
 
 export type DesktopPermissionProfile = string
 
-export type DesktopApprovalPolicy =
-  | 'untrusted'
-  | 'on-request'
-  | 'on-failure'
-  | 'never'
-  | {
-      type: 'granular'
-      sandboxApproval: boolean
-      rules: boolean
-      skillApproval: boolean
-      requestPermissions: boolean
-      mcpTools: boolean
-      mcpElicitations: boolean
-    }
+export type DesktopApprovalPolicy = 'auto_review' | 'never'
 
-export type DesktopApprovalsReviewer = 'user' | 'auto_review'
+export type DesktopApprovalsReviewer = 'auto_review'
 
 export type DesktopPermissionConfig = {
   sandboxMode: Exclude<DesktopSandboxMode, 'full-access'>
@@ -1009,8 +996,6 @@ export type DesktopStoredSettings = {
   language: 'system' | 'zh-CN' | 'en-US'
   enableParetoCodeRouter?: boolean
   enableFusionRouter?: boolean
-  enableAutoReviewPermissionMode?: boolean
-  enableFullAccessPermissionMode?: boolean
   permissionConfig: DesktopPermissionConfig
   shellSecurityLevel: DesktopShellSecurityLevel
   terminalProfileId: string | null
@@ -1855,16 +1840,14 @@ export type DesktopApi = {
   deleteDesktopToolchain(): Promise<DesktopToolchainInstallResult>
   readConfig(params?: RpcParams<'config/read'>): Promise<DesktopConfigReadResult>
   pauseQuestion(interactionId: string, expectedVersion: number): Promise<void>
-  approvalReviewState(threadId: string): Promise<RpcResult<'approval/reviewState'>>
-  retryApproval(threadId: string, reviewId: string): Promise<void>
-  listApprovalRules(threadId: string): Promise<RpcResult<'approval/rules/list'>>
+  listApprovalRules(
+    params?: RpcParams<'approval/rules/list'>,
+  ): Promise<RpcResult<'approval/rules/list'>>
   upsertApprovalRule(
     params: RpcParams<'approval/rules/upsert'>,
   ): Promise<RpcResult<'approval/rules/upsert'>>
   revokeApprovalRule(
-    threadId: string,
-    ruleId: string,
-    expectedVersion?: string,
+    params: RpcParams<'approval/rules/revoke'>,
   ): Promise<RpcResult<'approval/rules/revoke'>>
   writeConfigBatch(params: DesktopConfigBatchWriteParams): Promise<DesktopConfigWriteResult>
   listConfigProfiles(): Promise<DesktopConfigProfileListResult>

@@ -104,7 +104,6 @@ export const RENDERER_CAPABILITIES = [
   'model.preferences.v1',
   'interaction.questionPause.v1',
   'mcp.elicitation.v1',
-  'approval.retry.v1',
   'turn.admission.v1',
   'thread.editUserMessage.v1',
   'skills.invocation.v1',
@@ -378,7 +377,6 @@ export function createAgentSessionDesktopClient(
   // automatic clear is invalidated and cannot wipe the fresh manual unread.
   const automaticReadGenerationBySessionId = new Map<string, number>()
   const pendingSettingsUpdates = new Map<string, Promise<void>>()
-  const approvalRetryOperations = new Map<string, string>()
   let sessionStoreReconcile: Promise<void> | null = null
   let backgroundReconcileFailed = false
   const reconciliationErrorListeners = new Set<(error: unknown) => void>()
@@ -3116,43 +3114,20 @@ export function createAgentSessionDesktopClient(
         requireAgentCapability('interaction.questionPause.v1')
         await rpc.call('interaction/questionPause', { interactionId, expectedVersion })
       }),
-    approvalReviewState: (threadId) =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('approval.retry.v1')
-        return rpc.call('approval/reviewState', { threadId })
-      }),
-    retryApproval: (threadId, reviewId) =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('approval.retry.v1')
-        const key = `${threadId}:${reviewId}`
-        const state = await rpc.call('approval/reviewState', { threadId })
-        const operationId =
-          state.denials.find((denial) => denial.id === reviewId)?.retryOperationId ??
-          approvalRetryOperations.get(key) ??
-          crypto.randomUUID()
-        approvalRetryOperations.set(key, operationId)
-        const { input } = await rpc.call('approval/retry', { threadId, reviewId, operationId })
-        await turnQueueClient.submitMessage(threadId, { text: input }, 'start', {})
-        approvalRetryOperations.delete(key)
-      }),
-    listApprovalRules: (threadId) =>
+    listApprovalRules: (params = {}) =>
       withRequiredAgent(async () => {
         requireAgentCapability('permission.rules.v1')
-        return rpc.call('approval/rules/list', { threadId })
+        return rpc.call('approval/rules/list', params)
       }),
     upsertApprovalRule: (params) =>
       withRequiredAgent(async () => {
         requireAgentCapability('permission.rules.v1')
         return rpc.call('approval/rules/upsert', params)
       }),
-    revokeApprovalRule: (threadId, ruleId, expectedVersion) =>
+    revokeApprovalRule: (params) =>
       withRequiredAgent(async () => {
         requireAgentCapability('permission.rules.v1')
-        return rpc.call('approval/rules/revoke', {
-          threadId,
-          ruleId,
-          ...(expectedVersion ? { expectedVersion } : {}),
-        })
+        return rpc.call('approval/rules/revoke', params)
       }),
     writeConfigBatch: (params) =>
       loadAgentConfigSettingsApi().then((api) => api.writeConfigBatch(params)),
@@ -4092,7 +4067,7 @@ export function createAgentSessionDesktopClient(
               : 'workspace-write'
           const permissionConfig: PermissionConfig = {
             sandboxMode,
-            approvalPolicy: approvalPolicy ?? 'on-request',
+            approvalPolicy: approvalPolicy ?? 'auto_review',
             approvalsReviewer: current.settings.permissionConfig.approvalsReviewer,
           }
           const response = await rpc.call('thread/settings/update', {

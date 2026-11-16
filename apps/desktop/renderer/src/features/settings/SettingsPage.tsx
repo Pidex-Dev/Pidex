@@ -22,6 +22,9 @@ type SettingsPanel = React.ComponentType<SettingsPanelProps>
 
 const SETTINGS_PANELS: Record<SettingsTabId, SettingsPanel> = {
   general: lazy(() => import('./GeneralSettings.js').then((m) => ({ default: m.GeneralSettings }))),
+  permissions: lazy(() =>
+    import('./PermissionsSettings.js').then((m) => ({ default: m.PermissionsSettings })),
+  ),
   voice: lazy(() => import('./VoiceSettings.js').then((m) => ({ default: m.VoiceSettings }))),
   profile: lazy(() => import('./ProfileSettings.js').then((m) => ({ default: m.ProfileSettings }))),
   appearance: lazy(() =>

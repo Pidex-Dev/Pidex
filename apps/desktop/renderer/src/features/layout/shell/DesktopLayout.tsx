@@ -369,8 +369,6 @@ export function DesktopLayout(): React.ReactNode {
       enableMemory,
       rustSearchAndDiffKernels,
       'desktop.composer_predictions': composerPredictionsEnabled,
-      enableAutoReviewPermissionMode,
-      enableFullAccessPermissionMode,
       recentWorkspaces,
       providerID: defaultProviderID,
       providerBaseURL,
@@ -2558,8 +2556,6 @@ export function DesktopLayout(): React.ReactNode {
         sessionStatus={sideChatContext.status}
         permissionMode={sideSettings.permissionMode}
         planModeActive={sideChatContext.planModeActive ?? sideSettings.planModeActive}
-        enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
-        enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
         codingModel={codingModel}
         modelSelectionError={sideModelError}
         onError={handleErrorMessage}
@@ -3588,8 +3584,6 @@ export function DesktopLayout(): React.ReactNode {
             permissionMode: effectivePermissionMode,
             planModeActive,
             grillModeActive,
-            enableAutoReviewPermissionMode: enableAutoReviewPermissionMode ?? false,
-            enableFullAccessPermissionMode: enableFullAccessPermissionMode ?? false,
             codingModel,
             thinkingMode: session.modelSelection?.thinkingMode ?? 'default',
             modelVariant: selectedVariant,
@@ -3679,8 +3673,6 @@ export function DesktopLayout(): React.ReactNode {
       effectivePermissionMode,
       planModeActive,
       grillModeActive,
-      enableAutoReviewPermissionMode,
-      enableFullAccessPermissionMode,
       codingModel,
       session.modelSelection?.thinkingMode,
       selectedVariant,

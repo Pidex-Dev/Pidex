@@ -40,12 +40,6 @@ export function useDesktopLayoutSettings() {
   const subscribedComposerPredictions = useDesktopRuntimeSettingsField(
     (s) => s.values['desktop.composer_predictions'],
   )
-  const subscribedEnableAutoReviewPermissionMode = useDesktopRuntimeSettingsField(
-    (s) => s.values.enableAutoReviewPermissionMode,
-  )
-  const subscribedEnableFullAccessPermissionMode = useDesktopRuntimeSettingsField(
-    (s) => s.values.enableFullAccessPermissionMode,
-  )
   const subscribedRecentWorkspaces = useDesktopRuntimeSettingsField(
     (s) => s.values.recentWorkspaces,
   )
@@ -116,8 +110,6 @@ export function useDesktopLayoutSettings() {
         enableMemory: subscribedEnableMemory,
         rustSearchAndDiffKernels: subscribedRustSearchAndDiffKernels,
         'desktop.composer_predictions': subscribedComposerPredictions,
-        enableAutoReviewPermissionMode: subscribedEnableAutoReviewPermissionMode,
-        enableFullAccessPermissionMode: subscribedEnableFullAccessPermissionMode,
         recentWorkspaces: subscribedRecentWorkspaces,
         providerID: subscribedProviderID,
         providerBaseURL: subscribedProviderBaseURL,
@@ -163,8 +155,6 @@ export function useDesktopLayoutSettings() {
       subscribedEnableMemory,
       subscribedRustSearchAndDiffKernels,
       subscribedComposerPredictions,
-      subscribedEnableAutoReviewPermissionMode,
-      subscribedEnableFullAccessPermissionMode,
       subscribedRecentWorkspaces,
       subscribedProviderID,
       subscribedProviderBaseURL,

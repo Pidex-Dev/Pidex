@@ -162,8 +162,7 @@ export const enUS: Record<string, string> = {
   '账户身份、头像和个人信息': 'Account identity, avatar, and personal details',
   '主题、颜色、字体、动效和差异标记': 'Themes, colors, fonts, motion, and diff markers',
   让桌面伙伴管理任务并提醒需要你处理的事项: 'Manage tasks and reminders with a desktop companion',
-  '智能体默认设置、诊断、专用模型与数据设置':
-    'Agent defaults, diagnostics, specialized models, and data',
+  '智能体默认设置、诊断与专用模型': 'Agent defaults, diagnostics, and specialized models',
   回复个性和自定义指令: 'Response personality and custom instructions',
   '自动记忆、当前工作区和召回时间线': 'Automatic memory, current workspace, and recall timeline',
   '查看应用、聊天、导航和面板快捷键': 'View app, chat, navigation, and panel shortcuts',

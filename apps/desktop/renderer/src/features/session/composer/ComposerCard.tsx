@@ -15,7 +15,6 @@ import {
   Split,
   GitBranch,
   Globe2,
-  Hand,
   ListChecks,
   MessageSquare,
   MonitorSmartphone,
@@ -28,7 +27,6 @@ import {
   ShieldCheck,
   Square,
   Target,
-  Wrench,
   X,
   Zap,
 } from 'lucide-react'
@@ -110,18 +108,11 @@ import { useComposerSlashCommands } from './UseComposerSlashCommands.js'
 import { isDictationShortcut } from './UseComposerDictation.js'
 import { useOptionalDesktopSettingsDraftValue } from '../../settings/UseDesktopSettings.js'
 import { isComposerInputEmpty, parseGoalTokenBudget } from './ComposerTypes.js'
-import {
-  ApprovalRulesDialog,
-  ApprovalRetryDialog,
-  AutoReviewNudge,
-  useApprovalReviewState,
-} from '../approvals/ApprovalManagement.js'
 import { BuiltinSkillIcon, skillScopeLabel } from '../../plugins/BuiltinSkillPresentation.js'
 import { SHARED_SLASH_COMMANDS } from '@pidex/shared/slash-commands'
 import { buildThreadDeepLink } from '@pidex/shared/thread-reference'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
-import { useApprovalCapability } from '../approvals/UseQuestionSkipCapability.js'
+import { FullAccessConfirmationDialog } from '../approvals/FullAccessConfirmationDialog.js'
 import {
   ComposerCommandMenu,
   composerMenuItemId,
@@ -169,10 +160,8 @@ type ComposerDropdown =
  * query hooks for the permission-menu Select and its tests.
  */
 const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
-  default: 'permission-chip permission-chip-default tw:text-app-text',
   'auto-review': 'permission-chip permission-chip-auto tw:text-app-text',
   'full-access': 'permission-chip permission-chip-bypassPermissions tw:text-app-warning',
-  custom: 'permission-chip permission-chip-customConfig tw:text-app-text',
 }
 
 /*
@@ -570,8 +559,6 @@ export function ComposerCard({
   const [fullAccessConfirmationOpen, setFullAccessConfirmationOpen] = useState(false)
   const [fullAccessSaving, setFullAccessSaving] = useState(false)
   const [fullAccessError, setFullAccessError] = useState('')
-  const [approvalRulesOpen, setApprovalRulesOpen] = useState(false)
-  const [approvalRetryOpen, setApprovalRetryOpen] = useState(false)
   const [selectedSessionGroup, setSelectedSessionGroup] = useState<DesktopSessionGroup | null>(null)
   const [sessionGroupEditorOpen, setSessionGroupEditorOpen] = useState(false)
   const [sessionGroupDraftName, setSessionGroupDraftName] = useState('')
@@ -807,12 +794,6 @@ export function ComposerCard({
     predictionControllerRef.current?.dismiss()
     setComposerPrediction(null)
   }
-  const approvalReview = useApprovalReviewState(routedSessionId, sessionBusy)
-  const approvalRulesSupported = useApprovalCapability(
-    routedSessionId ?? '',
-    Boolean(routedSessionId),
-    'permission.rules.v1',
-  )
   const {
     commands: builtinSlashCommands,
     executeCommand,
@@ -836,7 +817,6 @@ export function ComposerCard({
       setStatusPanelOpen(true)
     },
     onOpenMcp: onOpenMcpSettings,
-    onApprove: approvalReview.supported ? () => setApprovalRetryOpen(true) : undefined,
     onPlanModeChange,
     onGrillModeChange,
     onGoalModeChange,
@@ -1344,25 +1324,9 @@ export function ComposerCard({
   }
 
   function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
-    if (value === 'default')
-      return (
-        <Hand
-          className="tw:size-icon-md"
-          size={APP_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
-      )
     if (value === 'full-access')
       return (
         <ShieldAlert
-          className="tw:size-icon-md"
-          size={APP_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
-      )
-    if (value === 'custom')
-      return (
-        <Wrench
           className="tw:size-icon-md"
           size={APP_ICON_SIZE}
           strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -1486,18 +1450,6 @@ export function ComposerCard({
         >
           松开以添加文件
         </div>
-      ) : null}
-      {routedSessionId ? (
-        <AutoReviewNudge
-          key={routedSessionId}
-          threadId={routedSessionId}
-          enabled={
-            approvalReview.state.manualAllows >= 3 &&
-            permissionMode !== 'auto-review' &&
-            permissionMode !== 'full-access'
-          }
-          onEnable={() => onPermissionChange('auto-review')}
-        />
       ) : null}
       {showUtilityBar ? (
         <div
@@ -1880,9 +1832,7 @@ export function ComposerCard({
               value={permissionMode as string}
               onOpenChange={(open) => setOpenDropdown(open ? 'permission' : null)}
               onValueChange={(value) => {
-                if (value === 'approval-rules') setApprovalRulesOpen(true)
-                else if (value === 'recent-denials') setApprovalRetryOpen(true)
-                else if (value === 'full-access' && permissionMode !== 'full-access') {
+                if (value === 'full-access' && permissionMode !== 'full-access') {
                   setFullAccessError('')
                   setFullAccessConfirmationOpen(true)
                 } else
@@ -1910,7 +1860,7 @@ export function ComposerCard({
                 >
                   {getPermissionIcon(permissionMode)}
                   <span className={PERMISSION_TRIGGER_LABEL_CLASS}>
-                    {selectedPermission?.label ?? '请求批准'}
+                    {selectedPermission?.label ?? '帮我批准'}
                   </span>
                 </Select.Trigger>
               </Tooltip>
@@ -1934,16 +1884,6 @@ export function ComposerCard({
                           {permissionUnavailableReason}
                         </p>
                       ) : null}
-                      {routedSessionId && approvalRulesSupported ? (
-                        <Select.Item className="permission-select-item" value="approval-rules">
-                          <span>审批规则</span>
-                        </Select.Item>
-                      ) : null}
-                      {routedSessionId && approvalReview.supported ? (
-                        <Select.Item className="permission-select-item" value="recent-denials">
-                          <span>最近拒绝</span>
-                        </Select.Item>
-                      ) : null}
                       {permissionOptions.map((option) => (
                         <Select.Item
                           asChild
@@ -1960,16 +1900,7 @@ export function ComposerCard({
                               <span>{option.label}</span>
                               {option.detail ? (
                                 <span className={PERMISSION_ITEM_DETAIL_CLASS}>
-                                  {option.value === 'auto-review' ? (
-                                    <>
-                                      <span>{option.detail.replace(/了解更多.*$/, '')}</span>
-                                      <span className="permission-select-item-detail-more tw:block tw:underline">
-                                        了解更多
-                                      </span>
-                                    </>
-                                  ) : (
-                                    option.detail
-                                  )}
+                                  {option.detail}
                                 </span>
                               ) : null}
                             </span>
@@ -2466,20 +2397,12 @@ export function ComposerCard({
         onNameChange={setSessionGroupDraftName}
         onSubmit={() => void createSessionGroup()}
       />
-      <ConfirmationDialog
+      <FullAccessConfirmationDialog
         open={fullAccessConfirmationOpen}
         title="启用 Full Access？"
-        description={
-          <>
-            <p>
-              允许 Agent 访问本机文件、互联网、执行命令及调用工具和 MCP，无需权限审批。Plan
-              独立生效，不提供 OS 沙箱或网络隔离。
-            </p>
-            {fullAccessError ? <p role="alert">{fullAccessError}</p> : null}
-          </>
-        }
-        actionLabel="启用 Full Access"
+        actionLabel="确认"
         actionDisabled={fullAccessSaving}
+        error={fullAccessError}
         onCancel={() => {
           if (!fullAccessSaving) setFullAccessConfirmationOpen(false)
         }}
@@ -2494,22 +2417,6 @@ export function ComposerCard({
             .finally(() => setFullAccessSaving(false))
         }}
       />
-      {routedSessionId ? (
-        <>
-          <ApprovalRulesDialog
-            key={`rules:${routedSessionId}`}
-            threadId={routedSessionId}
-            open={approvalRulesOpen}
-            onClose={() => setApprovalRulesOpen(false)}
-          />
-          <ApprovalRetryDialog
-            key={`retry:${routedSessionId}`}
-            threadId={routedSessionId}
-            open={approvalRetryOpen}
-            onClose={() => setApprovalRetryOpen(false)}
-          />
-        </>
-      ) : null}
     </div>
   )
 }

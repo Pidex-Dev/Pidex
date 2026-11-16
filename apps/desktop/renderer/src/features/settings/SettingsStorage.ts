@@ -29,10 +29,7 @@ export const PERMISSION_MODE_OPTIONS: Array<{
   value: DesktopPermissionMode
   label: string
   detail: string
-}> = visiblePermissionPresetOptions({
-  enableAutoReviewPermissionMode: true,
-  enableFullAccessPermissionMode: true,
-})
+}> = visiblePermissionPresetOptions()
 
 export const THINKING_MODE_OPTIONS: Array<{
   value: DesktopThinkingMode
