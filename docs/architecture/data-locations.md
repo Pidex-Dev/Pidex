@@ -4,7 +4,7 @@ Pidex 将持久化内容分为用户数据、工作区配置、Electron 状态�
 
 ## 用户数据根
 
-默认位置是 `%USERPROFILE%\.pidex`。用户可在“设置 → 配置 → 数据位置”选择新的父目录，桌面端会使用该父目录下的 `.pidex`。选择后应用立即重启，在 SQLite 打开前把当前用户数据复制到同盘 staging，再原子发布目标目录；旧目录不会删除。
+默认位置是 `%USERPROFILE%\.pidex`。用户可在“设置 → 存储空间 → 数据位置”选择新的父目录，桌面端会使用该父目录下的 `.pidex`。选择后应用立即重启，在 SQLite 打开前把当前用户数据复制到同盘 staging，再原子发布目标目录；旧目录不会删除。
 
 默认历史数据库的完整位置是 `%USERPROFILE%\.pidex\history.sqlite`，其 WAL/SHM 位于同一目录；自定义数据根下位于所选父目录的 `.pidex\history.sqlite`。
 
