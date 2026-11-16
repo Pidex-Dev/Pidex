@@ -43,7 +43,7 @@ import { resolveRendererApplicationOrigin } from './security/RendererApplication
 import { readStartupAppearanceConfig } from './settings/StartupAppearanceConfig.js'
 import { AppearanceSettingsStore } from './settings/AppearanceSettingsStore.js'
 import { DataLocationStore, type DataLocationLaunch } from './settings/DataLocationStore.js'
-import { SidecarSupervisor } from './sidecar/Supervisor.js'
+import { DEFAULT_MAX_CONNECT_ATTEMPTS, SidecarSupervisor } from './sidecar/Supervisor.js'
 import { LocalBackgroundRuntime } from './sidecar/BackgroundRuntime.js'
 import { DesktopAgentConnectionCoordinator } from './sidecar/ConnectionCoordinator.js'
 import { orchestrateDesktopQuit } from './sidecar/DesktopQuitOrchestrator.js'
@@ -500,6 +500,7 @@ async function startDesktop(): Promise<void> {
     },
     isRelocating: () => Boolean(dataLocationLaunch?.relocation),
     onTerminalFailure: (error, kind) => {
+      const generation = connectionCoordinator?.generation
       if (kind === 'installation') {
         activeLogger.error('desktop.startup-failed', {
           code: 'SIDECAR_INSTALLATION_INCOMPLETE',
@@ -508,6 +509,7 @@ async function startDesktop(): Promise<void> {
           '安装不完整，请重新安装',
           'Pidex Agent 文件缺失',
           'terminal-error',
+          generation,
         )
         return
       }
@@ -519,6 +521,7 @@ async function startDesktop(): Promise<void> {
           '用户数据迁移失败',
           '可以重试迁移，或恢复原数据位置后重新启动。',
           'terminal-error',
+          generation,
         )
         return
       }
@@ -530,11 +533,17 @@ async function startDesktop(): Promise<void> {
           '残留 Agent 未退出',
           '请结束残留 Agent 进程后重新启动 Pidex。',
           'terminal-error',
+          generation,
         )
         return
       }
       activeLogger.error('desktop.connection-cycle-failed', { error })
-      activeWindows.showStartupStatus('Agent 连接失败，请重试或查看日志', '', 'terminal-error')
+      activeWindows.showStartupStatus(
+        'Agent 连接失败，请重试或查看日志',
+        '',
+        'terminal-error',
+        generation,
+      )
     },
   })
   connectionCoordinator.onStateChange((status) => {
@@ -550,12 +559,13 @@ async function startDesktop(): Promise<void> {
       status.lifecycle === 'connected'
     )
       return
-    windows?.showStartupStatus(
-      status.phase === 'reconnecting' ? 'Agent 连接中断，正在重试' : '正在连接 Agent',
-      '',
-      'progress',
-      connectionCoordinator!.generation,
-    )
+    const label =
+      status.phase === 'reconnecting'
+        ? status.attempt > 0
+          ? `Agent 连接中断，正在重试（${status.attempt}/${DEFAULT_MAX_CONNECT_ATTEMPTS}）`
+          : 'Agent 连接中断，正在重试'
+        : '正在连接 Agent'
+    windows?.showStartupStatus(label, '', 'progress', connectionCoordinator!.generation)
   })
   await connectionCoordinator.start()
 }

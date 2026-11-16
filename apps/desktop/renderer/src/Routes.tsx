@@ -6,6 +6,10 @@ import { createHashRouter, Navigate, useLocation } from 'react-router-dom'
 import { DesktopSettingsProvider } from './features/settings/UseDesktopSettings.js'
 import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
+import {
+  ConnectionLostPage,
+  RequireAgentConnection,
+} from './features/routing/ConnectionLostPage.js'
 import { NotFoundPage } from './features/routing/NotFoundPage.js'
 import { RouteErrorPage } from './features/routing/RouteErrorPage.js'
 import { RequireConfiguredModel } from './features/models/setup/RequireConfiguredModel.js'
@@ -70,23 +74,31 @@ const router = createHashRouter([
     ),
   },
   {
-    path: '/setup',
+    path: '/connection-lost',
     errorElement: routeErrorElement,
-    element: (
-      <DesktopSettingsProvider access="read-write">
-        <ModelSetupPage />
-      </DesktopSettingsProvider>
-    ),
+    element: <ConnectionLostPage />,
   },
   {
-    path: '/',
-    errorElement: routeErrorElement,
-    element: (
-      <DesktopSettingsProvider access="read-write">
-        <RequireConfiguredModel />
-      </DesktopSettingsProvider>
-    ),
+    element: <RequireAgentConnection />,
     children: [
+      {
+        path: '/setup',
+        errorElement: routeErrorElement,
+        element: (
+          <DesktopSettingsProvider access="read-write">
+            <ModelSetupPage />
+          </DesktopSettingsProvider>
+        ),
+      },
+      {
+        path: '/',
+        errorElement: routeErrorElement,
+        element: (
+          <DesktopSettingsProvider access="read-write">
+            <RequireConfiguredModel />
+          </DesktopSettingsProvider>
+        ),
+        children: [
       {
         element: (
           <PetCatalogProvider>
@@ -136,6 +148,8 @@ const router = createHashRouter([
           },
           { path: 'settings/:tab', element: <SettingsLayout /> },
           { path: '*', element: <NotFoundPage /> },
+        ],
+      },
         ],
       },
     ],
