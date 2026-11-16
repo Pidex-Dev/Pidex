@@ -537,6 +537,47 @@ describe('设置导航', () => {
     expect(dependencies?.rows.map((row) => row.title)).toEqual(['Node.js', 'Python'])
     expect(config?.rows.some((row) => row.title === '工作空间依赖项')).toBeFalse()
   })
+
+  test('数据位置已从配置迁移到存储空间设置页', () => {
+    const storage = SETTINGS_ITEMS.find((item) => item.routeId === 'storage')
+    const config = SETTINGS_ITEMS.find((item) => item.routeId === 'config')
+
+    expect(storage?.label).toBe('存储空间')
+    expect(storage?.rows.some((row) => row.title === '数据位置')).toBeTrue()
+    expect(config?.rows.some((row) => row.title === '数据位置')).toBeFalse()
+    expect(
+      SETTINGS_SEARCH_DOCUMENTS.some(
+        (doc) => doc.tabId === 'storage' && doc.rowTitle === '数据位置',
+      ),
+    ).toBeTrue()
+    expect(
+      SETTINGS_SEARCH_DOCUMENTS.some(
+        (doc) => doc.tabId === 'config' && doc.rowTitle === '数据位置',
+      ),
+    ).toBeFalse()
+  })
+
+  test('权限相关设置已从常规与配置迁移到权限设置页', () => {
+    const personalGroup = SETTINGS_GROUPS.find((group) => group.id === 'personal')
+    const permissions = SETTINGS_ITEMS.find((item) => item.routeId === 'permissions')
+    const general = SETTINGS_ITEMS.find((item) => item.routeId === 'general')
+    const config = SETTINGS_ITEMS.find((item) => item.routeId === 'config')
+
+    expect(personalGroup?.items.some((item) => item.routeId === 'permissions')).toBeTrue()
+    expect(permissions?.label).toBe('权限')
+    expect(permissions?.rows.map((row) => row.title)).toEqual([
+      '权限预设',
+      '权限说明',
+      'Shell 安全级别',
+      '安全模型（实验）',
+      '审批规则',
+    ])
+    expect(general?.rows.some((row) => row.title === '当前权限')).toBeFalse()
+    expect(config?.rows.some((row) => row.title === '权限预设')).toBeFalse()
+    expect(config?.rows.some((row) => row.title === '审批规则')).toBeFalse()
+    expect(config?.rows.some((row) => row.title === 'Shell 安全级别')).toBeFalse()
+    expect(config?.rows.some((row) => row.title === '安全模型（实验）')).toBeFalse()
+  })
 })
 
 describe('sidebar shell modes', () => {

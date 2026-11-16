@@ -123,8 +123,8 @@ describe('核心工具面', () => {
         authorizationOnly: true,
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
       },
     )
@@ -143,8 +143,8 @@ describe('核心工具面', () => {
         authorizationOnly: true,
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
       },
     )
@@ -159,7 +159,7 @@ describe('核心工具面', () => {
           permissionConfig: {
             sandboxMode: 'workspace-write',
             approvalPolicy: 'never',
-            approvalsReviewer: 'user',
+            approvalsReviewer: 'auto_review',
           },
         },
       ),
@@ -186,8 +186,8 @@ describe('核心工具面', () => {
         authorizationOnly: true,
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
       },
     )
@@ -207,8 +207,8 @@ describe('核心工具面', () => {
         authorizationOnly: true,
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
       },
     )
@@ -223,7 +223,7 @@ describe('核心工具面', () => {
     const plan = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       profile: 'main',
       allowedTools: ['Read', 'workspace_search'],
     })
@@ -276,7 +276,7 @@ describe('核心工具面', () => {
     const defaultPlan = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       profile: 'main',
     })
     expect(defaultPlan.eager).toContain('Read')
@@ -292,7 +292,7 @@ describe('核心工具面', () => {
     const sideChatPlan = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       profile: 'main',
       delegationEnabled: false,
     })
@@ -303,7 +303,7 @@ describe('核心工具面', () => {
     const editSkillPlan = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       profile: 'main',
       allowedTools: ['Edit'],
     })
@@ -425,7 +425,7 @@ describe('核心工具面', () => {
     const input = {
       taskMode: 'chat' as const,
       sandboxMode: 'workspace-write' as const,
-      approvalPolicy: 'on-request' as const,
+      approvalPolicy: 'auto_review' as const,
       profile: 'main' as const,
     }
     const section = runtime.capabilityCatalog(input)
@@ -465,8 +465,8 @@ describe('核心工具面', () => {
     models.setProvider(faux.provider)
     const permissionConfig = {
       sandboxMode: 'workspace-write' as const,
-      approvalPolicy: 'on-request' as const,
-      approvalsReviewer: 'user' as const,
+      approvalPolicy: 'auto_review' as const,
+      approvalsReviewer: 'auto_review' as const,
     }
     const model = { providerID: faux.getModel().provider, id: 'test' } as never
     const thread = db.createThread()
@@ -884,8 +884,8 @@ describe('核心工具面', () => {
         authorizationOnly: true,
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
       },
     )
@@ -979,7 +979,7 @@ describe('核心工具面', () => {
           permissionConfig: {
             sandboxMode: 'read-only',
             approvalPolicy: 'never',
-            approvalsReviewer: 'user',
+            approvalsReviewer: 'auto_review',
           },
         },
       ),

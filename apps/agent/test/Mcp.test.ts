@@ -1273,8 +1273,8 @@ describe('MCP turn catalog', () => {
       model: { providerID: 'openai', id: 'gpt-5' },
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       state: 'completed',
       createdAt: index,
@@ -1310,8 +1310,8 @@ describe('MCP turn catalog', () => {
               taskMode: 'chat',
               permissionConfig: {
                 sandboxMode: 'workspace-write',
-                approvalPolicy: 'on-request',
-                approvalsReviewer: 'user',
+                approvalPolicy: 'auto_review',
+                approvalsReviewer: 'auto_review',
               },
             },
             createdAt: 0,
@@ -1396,8 +1396,8 @@ describe('MCP turn catalog', () => {
         workspace: { rootPath: workspaceRoot } as never,
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
         model: { providerID: 'openai', id: 'gpt-5' } as never,
         invocation: {
@@ -1464,8 +1464,8 @@ describe('MCP turn catalog', () => {
       workspace: { rootPath: 'C:\\workspace' } as never,
       permissionConfig: {
         sandboxMode: 'workspace-write' as const,
-        approvalPolicy: 'on-request' as const,
-        approvalsReviewer: 'user' as const,
+        approvalPolicy: 'auto_review' as const,
+        approvalsReviewer: 'auto_review' as const,
       },
       model: { providerID: 'openai', id: 'gpt-5' } as never,
       invocation: {

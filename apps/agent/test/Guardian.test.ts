@@ -35,7 +35,7 @@ const invocation = (overrides: Record<string, unknown> = {}) =>
     input: { command: 'npm test' },
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       approvalsReviewer: 'auto_review',
     },
     taskMode: 'chat',
@@ -172,17 +172,6 @@ describe('Guardian action identity', () => {
     ).toBe(false)
     expect(guardianFastPathEligible(invocation({ input: { command: 'git status' } }))).toBe(true)
     expect(guardianFastPathEligible(invocation())).toBe(false)
-    expect(
-      guardianFastPathEligible(
-        invocation({
-          permissionConfig: {
-            sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
-            approvalsReviewer: 'user',
-          },
-        }),
-      ),
-    ).toBe(false)
     expect(shouldScoreGuardianAction(invocation({ input: { command: 'git status' } }))).toBe(
       guardianFastPathEligible(invocation({ input: { command: 'git status' } })),
     )
@@ -208,7 +197,6 @@ describe('Guardian action identity', () => {
       { skillScript: true },
       { ruleRequiresApproval: true },
       { denyReason: 'hard deny' },
-      { approvalCategories: ['rules'] as const },
       { forcedApproval: true },
       { ruleEffect: 'ask' as const },
       { ruleEffect: 'deny' as const },
@@ -259,27 +247,25 @@ describe('Guardian action identity', () => {
         invocation({ retryAuthorization: { reviewId: 'review-1', fingerprint: 'fp' } }),
       ),
     ).toBe(false)
-    // Stricter approval policies keep the synchronous decision path.
-    for (const approvalPolicy of ['never', 'untrusted', { type: 'granular' } as const]) {
-      expect(
-        guardianFastPathEligible(
-          invocation({
-            permissionConfig: {
-              sandboxMode: 'workspace-write',
-              approvalPolicy,
-              approvalsReviewer: 'auto_review',
-            },
-          }),
-        ),
-      ).toBe(false)
-    }
+    // never policy keeps the synchronous decision path.
+    expect(
+      guardianFastPathEligible(
+        invocation({
+          permissionConfig: {
+            sandboxMode: 'workspace-write',
+            approvalPolicy: 'never',
+            approvalsReviewer: 'auto_review',
+          },
+        }),
+      ),
+    ).toBe(false)
     // Full access and request_permissions are never auto-approved.
     expect(
       guardianFastPathEligible(
         invocation({
           permissionConfig: {
             sandboxMode: 'danger-full-access',
-            approvalPolicy: 'on-request',
+            approvalPolicy: 'auto_review',
             approvalsReviewer: 'auto_review',
           },
         }),
@@ -289,7 +275,6 @@ describe('Guardian action identity', () => {
       guardianFastPathEligible(
         invocation({
           name: 'request_permissions',
-          permissionFacts: { approvalCategories: ['requestPermissions'] },
         }),
       ),
     ).toBe(false)
@@ -338,11 +323,11 @@ describe('Guardian fallback policy', () => {
       risk: 'high',
       status: 'unavailable',
       reason: 'Guardian 不可用',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       ...overrides,
     })
 
-  test('on-request degrades to a human question, never to an allow', () => {
+  test('auto_review degrades to a human question, never to an allow', () => {
     expect(fallback()).toMatchObject({
       decision: 'ask',
       fallbackReason: 'Guardian 不可用',
@@ -350,37 +335,15 @@ describe('Guardian fallback policy', () => {
     })
   })
 
-  test('never and untrusted deny instead of waiting for approval', () => {
+  test('never denies instead of waiting for approval', () => {
     expect(fallback({ approvalPolicy: 'never' })).toMatchObject({ decision: 'deny' })
-    expect(fallback({ approvalPolicy: 'untrusted' })).toMatchObject({ decision: 'deny' })
   })
 
-  test('an open circuit denies even under on-request', () => {
+  test('an open circuit denies even under auto_review', () => {
     expect(fallback({ status: 'circuit_open', reason: '本轮已中断' })).toMatchObject({
       decision: 'deny',
       reason: '本轮已中断',
     })
-  })
-
-  test('granular policies deny disabled approval categories and ask otherwise', () => {
-    const policy = {
-      type: 'granular' as const,
-      sandboxApproval: true,
-      rules: false,
-      skillApproval: true,
-      requestPermissions: true,
-      mcpTools: true,
-      mcpElicitations: true,
-    }
-    expect(
-      fallback({ approvalPolicy: policy, approvalCategories: ['sandboxApproval'] }),
-    ).toMatchObject({ decision: 'ask' })
-    expect(fallback({ approvalPolicy: policy, approvalCategories: ['rules'] })).toMatchObject({
-      decision: 'deny',
-    })
-    // Without host-derived categories we cannot prove the category is enabled,
-    // so we fail closed to a human question instead of denying outright.
-    expect(fallback({ approvalPolicy: policy })).toMatchObject({ decision: 'ask' })
   })
 })
 

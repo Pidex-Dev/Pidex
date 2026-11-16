@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { DEFAULT_PERMISSION_CONFIG, FULL_ACCESS_PERMISSION_CONFIG } from '@pidex/shared/thread'
-import type { ApprovalPolicy, GranularApprovalConfig, PermissionConfig } from '@pidex/shared/thread'
+import type { ApprovalPolicy, PermissionConfig } from '@pidex/shared/thread'
 import { removeFixturePaths } from './FixtureCleanup'
 import { createLifecycleTools } from '../src/orchestration/pi/PiToolAdapter'
 import { createToolExposurePlan } from '../src/tool/ToolExposurePlan'
@@ -15,17 +15,6 @@ const paths: string[] = []
 afterEach(async () => removeFixturePaths(paths.splice(0)))
 
 type ExecutionContext = Parameters<ToolExecutor['execute']>[2]
-
-const granular = (overrides: Partial<GranularApprovalConfig> = {}): ApprovalPolicy => ({
-  type: 'granular',
-  sandboxApproval: false,
-  rules: false,
-  skillApproval: false,
-  requestPermissions: false,
-  mcpTools: false,
-  mcpElicitations: false,
-  ...overrides,
-})
 
 /** Fixture whose external directory deliberately contains a space. */
 const fixture = async () => {
@@ -300,14 +289,9 @@ describe('权限申请工具的暴露与审批', () => {
       profile: 'main',
     })
 
-  test('never 与细粒度禁止时不暴露权限申请工具', () => {
+  test('never 时不暴露权限申请工具', () => {
     expect(exposure('never').allows('request_permissions')).toBe(false)
-    expect(exposure(granular()).allows('request_permissions')).toBe(false)
-    expect(exposure('on-request').allows('request_permissions')).toBe(true)
-    expect(exposure('untrusted').allows('request_permissions')).toBe(true)
-    expect(exposure(granular({ requestPermissions: true })).allows('request_permissions')).toBe(
-      true,
-    )
+    expect(exposure('auto_review').allows('request_permissions')).toBe(true)
     // 进度工具不受审批策略影响，主 Agent 不再暴露结构化收尾工具。
     expect(exposure('never').allows('update_plan')).toBe(true)
     expect(exposure('never').allows('finalize_result')).toBe(false)
@@ -336,11 +320,16 @@ describe('权限申请工具的暴露与审批', () => {
   })
 
   test('禁止审批的权限申请在执行端仍被拒绝，允许时进入既有审批流程', async () => {
-    const { root, executor, approvals, context } = await fixture()
+    const { root, outside, executor, approvals, context } = await fixture()
     const request = {
       scope: 'turn',
       readPaths: [root],
       justification: '需要读取工作区外的计划文件',
+    }
+    const deniedWriteRequest = {
+      scope: 'turn',
+      writePaths: [outside],
+      justification: '需要写入工作区外文件',
     }
 
     await expect(
@@ -349,11 +338,11 @@ describe('权限申请工具的暴露与审批', () => {
     await expect(
       executor.execute(
         'request_permissions',
-        request,
+        deniedWriteRequest,
         context({
           sandboxMode: 'workspace-write',
-          approvalPolicy: granular(),
-          approvalsReviewer: 'user',
+          approvalPolicy: 'never',
+          approvalsReviewer: 'auto_review',
         }),
       ),
     ).rejects.toMatchObject({ code: 'TOOL_PERMISSION_DENIED' })

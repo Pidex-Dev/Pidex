@@ -108,7 +108,7 @@ describe('BrowserService', () => {
       permissionConfig: {
         sandboxMode: 'workspace-write' as const,
         approvalPolicy: 'never' as const,
-        approvalsReviewer: 'user' as const,
+        approvalsReviewer: 'auto_review' as const,
       },
     }
     const tab = await browser.create({ sourceThreadId: null })

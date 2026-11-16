@@ -132,8 +132,8 @@ test('可视化预览按 revision 收敛，完成与历史结果独立于折叠�
 })
 const permissionConfig = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 
 const thread: Thread = {

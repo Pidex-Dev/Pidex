@@ -29,7 +29,7 @@ function harness(status?: string, interruptGate?: Promise<void>) {
     resolveModelRef: async () => ({ providerID: 'openai', modelID: 'gpt-test' }),
     permissionConfigForSession: () => ({
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
     }),
     taskModeForSession: () => 'chat',
     queueVersionForSession: () => 1,

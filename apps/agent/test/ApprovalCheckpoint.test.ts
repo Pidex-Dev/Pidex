@@ -59,8 +59,8 @@ const setup = (db: AgentDatabase, projectID?: string, taskMode: 'chat' | 'plan' 
     model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'untrusted',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     },
     strategy: 'queue',
     taskMode,
@@ -521,7 +521,7 @@ describe('审批范围与外部交互', () => {
       model: invocation.model,
       permissionConfig: {
         ...invocation.permissionConfig,
-        approvalPolicy: 'on-request' as const,
+        approvalPolicy: 'auto_review' as const,
         approvalsReviewer: 'auto_review' as const,
       },
     }
@@ -537,9 +537,13 @@ describe('审批范围与外部交互', () => {
     await service.attachRunState('real-timeout', '{"engine":"pi"}', { toolCallID: 'real-timeout' })
     const checkpoint = db.approvalCheckpointForToolCall('real-timeout')!
     expect(checkpoint.status).toBe('pending')
-    expect(db.repositories.interactions.approvalReviewState(thread.id).reviews[0]).toMatchObject({
+    expect(
+      db.sqlite
+        .query('SELECT decision, review_status FROM approval_reviews WHERE thread_id = ?')
+        .get(thread.id),
+    ).toEqual({
       decision: 'ask',
-      guardian: { status: 'timeout' },
+      review_status: 'timeout',
     })
     await service.respond(checkpoint.approvalID, 'allow')
     const output = await executor.execute('exec_command', input, {
@@ -574,7 +578,7 @@ describe('审批范围与外部交互', () => {
         input: { ...invocation.input, command: 'curl.exe -I https://example.com' },
         permissionConfig: {
           ...invocation.permissionConfig,
-          approvalPolicy: 'on-request' as const,
+          approvalPolicy: 'auto_review' as const,
           approvalsReviewer: 'auto_review' as const,
         },
         permissionFacts: { risk: 'medium' as const, networkAccess: true },
@@ -654,7 +658,7 @@ describe('审批范围与外部交互', () => {
           fallbackModel: invocation.model,
           permissionConfig: {
             ...invocation.permissionConfig,
-            approvalPolicy: 'on-request' as const,
+            approvalPolicy: 'auto_review' as const,
           },
           signal: new AbortController().signal,
           workspace,
@@ -837,7 +841,7 @@ describe('审批范围与外部交互', () => {
         content: 'batch approval',
         taskMode: 'chat' as const,
         fallbackModel: invocation.model,
-        permissionConfig: { ...invocation.permissionConfig, approvalPolicy: 'on-request' as const },
+        permissionConfig: { ...invocation.permissionConfig, approvalPolicy: 'auto_review' as const },
         signal: controller.signal,
         workspace,
         promptSections: [],
@@ -1087,20 +1091,24 @@ describe('审批范围与外部交互', () => {
 
   test('聊天命令授权可恢复且隔离 cwd、聊天、额外范围和硬拒绝', async () => {
     const { db, hub, tools, config, project, invocation, workspace } = await scopedFixture()
+    const risky = {
+      ...invocation,
+      permissionFacts: { risk: 'high' as const, ruleRequiresApproval: true },
+    }
     const service = new ApprovalService(db, hub, tools, null, config)
-    expect((await service.authorize(invocation, new AbortController().signal)).decision).toBe('ask')
-    await service.attachRunState(invocation.id, '{"version":1}', {
-      name: invocation.name,
-      callId: invocation.id,
+    expect((await service.authorize(risky, new AbortController().signal)).decision).toBe('ask')
+    await service.attachRunState(risky.id, '{"version":1}', {
+      name: risky.name,
+      callId: risky.id,
     })
-    const stored = db.approvalCheckpointForToolCall(invocation.id)!
-    const grant = service.rules.options(invocation)[0]!
+    const stored = db.approvalCheckpointForToolCall(risky.id)!
+    const grant = service.rules.options(risky)[0]!
     await service.respond(stored.approvalID, 'allow', undefined, undefined, undefined, grant.id)
     const recovered = new ApprovalService(db, hub, tools, null, config)
     expect(
       (
         await recovered.authorize(
-          { ...invocation, id: 'next', input: { command: 'git status', cwd: workspace } },
+          { ...risky, id: 'next', input: { command: 'git status', cwd: workspace } },
           new AbortController().signal,
         )
       ).decision,
@@ -1196,7 +1204,7 @@ describe('审批范围与外部交互', () => {
     expect(
       await rules.matches({
         ...network,
-        permissionConfig: { ...network.permissionConfig, approvalPolicy: 'on-request' },
+        permissionConfig: { ...network.permissionConfig, approvalPolicy: 'auto_review' },
       }),
     ).toBe(false)
     expect(
@@ -1212,60 +1220,6 @@ describe('审批范围与外部交互', () => {
     expect(
       await rules.matches({ ...network, threadID: db.createThread('其他项目', other.id).id }),
     ).toBe(false)
-  })
-
-  test('自动审查重试仅消费原参数一次，并继续调用 Guardian', async () => {
-    const { db, hub, tools, config, invocation } = await scopedFixture()
-    const reviewed: ToolInvocation[] = []
-    const service = new ApprovalService(
-      db,
-      hub,
-      tools,
-      async (value) => {
-        reviewed.push(value)
-        return { decision: 'deny', risk: 'high', reason: '人工请求重试也需审查' }
-      },
-      config,
-    )
-    const automatic = {
-      ...invocation,
-      permissionConfig: {
-        ...invocation.permissionConfig,
-        approvalsReviewer: 'auto_review' as const,
-      },
-    }
-    await service.authorize(automatic, new AbortController().signal)
-    const denial = db.repositories.interactions.approvalReviewState(invocation.threadID).denials[0]!
-    expect(service.requestRetry(invocation.threadID, denial.id, 'retry:1').input).toContain(
-      'git status',
-    )
-    expect(service.requestRetry(invocation.threadID, denial.id, 'retry:1').input).toContain(
-      'Guardian',
-    )
-    expect(
-      db.repositories.interactions.approvalReviewState(invocation.threadID).denials[0]
-        ?.retryOperationId,
-    ).toBe('retry:1')
-    expect(
-      new ApprovalService(db, hub, tools, null, config).requestRetry(
-        invocation.threadID,
-        denial.id,
-        'retry:1',
-      ).input,
-    ).toContain('git status')
-    await service.authorize(
-      { ...automatic, id: 'different', input: { command: 'git diff' } },
-      new AbortController().signal,
-    )
-    expect(reviewed[1]?.retryAuthorization).toBeUndefined()
-    expect(
-      (await service.authorize({ ...automatic, id: 'retry' }, new AbortController().signal))
-        .decision,
-    ).toBe('deny')
-    expect(reviewed[2]?.retryAuthorization?.reviewId).toBe(denial.id)
-    await service.authorize({ ...automatic, id: 'again' }, new AbortController().signal)
-    expect(reviewed[3]?.retryAuthorization).toBeUndefined()
-    expect(() => service.requestRetry(invocation.threadID, denial.id, 'retry:1')).toThrow('失效')
   })
 
   test('自动审查连续拒绝后熔断并中断本轮，不再调用 Guardian', async () => {
@@ -1288,7 +1242,7 @@ describe('审批范围与外部交互', () => {
       permissionFacts: { ruleRequiresApproval: true },
       permissionConfig: {
         ...invocation.permissionConfig,
-        approvalPolicy: 'on-request' as const,
+        approvalPolicy: 'auto_review' as const,
         approvalsReviewer: 'auto_review' as const,
       },
     }
@@ -1308,8 +1262,13 @@ describe('审批范围与外部交互', () => {
     expect(reopened.guardian?.status).toBe('circuit_open')
     expect(reviewed).toHaveLength(3)
     expect(interrupted).toHaveLength(1)
-    const state = db.repositories.interactions.approvalReviewState(invocation.threadID)
-    expect(state.reviews[0]?.guardian.status).toBe('circuit_open')
+    expect(
+      db.sqlite
+        .query(
+          'SELECT review_status FROM approval_reviews WHERE thread_id = ? ORDER BY created_at DESC LIMIT 1',
+        )
+        .get(invocation.threadID),
+    ).toEqual({ review_status: 'circuit_open' })
   })
 
   test('MCP 表单校验、过期回复、拒绝、断连取消和重启取消分别保留语义', async () => {
@@ -1404,13 +1363,7 @@ describe('审批范围与外部交互', () => {
     db.sqlite.exec('DROP TABLE approval_reviews')
     db.sqlite.exec('PRAGMA user_version = 999')
     expect(filterAdvertisedCapabilities(db)).not.toContain('mcp.elicitation.v1')
-    expect(filterAdvertisedCapabilities(db)).not.toContain('approval.retry.v1')
     expect(db.repositories.interactions.pendingMcpElicitations()).toEqual([])
-    expect(db.repositories.interactions.approvalReviewState(db.createThread().id)).toEqual({
-      manualAllows: 0,
-      denials: [],
-      reviews: [],
-    })
     expect(db.sqlite.query('PRAGMA user_version').get()).toEqual({ user_version: 999 })
   })
 })
@@ -1439,6 +1392,7 @@ describe('可恢复审批 checkpoint', () => {
         agentID: turn.agentID,
         name: 'exec_command',
         input: { command: 'npm publish' },
+        permissionFacts: { risk: 'high', ruleRequiresApproval: true },
         permissionConfig: input.permissionConfig,
         model: input.model,
         taskMode: 'chat',
@@ -1942,7 +1896,7 @@ describe('可恢复审批 checkpoint', () => {
       agentID: turn.agentID,
       name: 'exec_command',
       input: { command: 'Write-Output once', cwd: tmpdir() },
-      permissionConfig: { ...input.permissionConfig, approvalPolicy: 'on-failure' },
+      permissionConfig: { ...input.permissionConfig, approvalPolicy: 'auto_review' },
       model: input.model,
       taskMode: 'chat',
     }
@@ -2018,7 +1972,7 @@ describe('可恢复审批 checkpoint', () => {
       agentID: turn.agentID,
       name: 'exec_command',
       input: { command: 'Write-Output safe', cwd: tmpdir() },
-      permissionConfig: { ...input.permissionConfig, approvalPolicy: 'on-failure' },
+      permissionConfig: { ...input.permissionConfig, approvalPolicy: 'auto_review' },
       model: input.model,
       taskMode: 'chat',
     }
@@ -2290,7 +2244,7 @@ describe('可恢复审批 checkpoint', () => {
       permissionConfig: {
         sandboxMode: 'danger-full-access' as const,
         approvalPolicy: 'never' as const,
-        approvalsReviewer: 'user' as const,
+        approvalsReviewer: 'auto_review' as const,
       },
       signal: new AbortController().signal,
       workspace,

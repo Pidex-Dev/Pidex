@@ -54,7 +54,7 @@ const seedTurn = (
       model: modelRef,
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       strategy: 'start',

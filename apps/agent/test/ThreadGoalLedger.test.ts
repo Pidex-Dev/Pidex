@@ -66,8 +66,8 @@ const submit = (content: string) => ({
   model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
-    approvalsReviewer: 'user' as const,
+    approvalPolicy: 'auto_review' as const,
+    approvalsReviewer: 'auto_review' as const,
   },
   strategy: 'queue' as const,
   taskMode: 'chat' as const,

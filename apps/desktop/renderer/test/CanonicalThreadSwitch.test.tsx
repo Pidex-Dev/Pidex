@@ -230,8 +230,8 @@ describe('canonical thread switch', () => {
       model: { providerID: 'openai', id: 'gpt-5' },
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       state: 'completed',
       createdAt: 1,
@@ -261,8 +261,8 @@ describe('canonical thread switch', () => {
       model: { providerID: 'openai', id: 'gpt-5' },
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       state: 'completed',
       createdAt: 1,
@@ -466,8 +466,8 @@ describe('canonical thread switch', () => {
       model: { providerID: 'openai', id: 'gpt-5' },
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       state: 'active',
       createdAt: 10,
@@ -1428,8 +1428,8 @@ test.each(['idle-manual', 'active-manual', 'automatic', 'reactive'] as const)(
     const manual = scenario === 'idle-manual' || scenario === 'active-manual'
     const config = {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     } as const
     const turn = {
       id: 'compression-turn',

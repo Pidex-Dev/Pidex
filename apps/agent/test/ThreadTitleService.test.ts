@@ -62,7 +62,7 @@ const addUserMessage = (db: AgentDatabase, threadID: string, content: string) =>
     model: { providerID: 'provider:test', id: 'fast' } as Model.Ref,
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       approvalsReviewer: 'auto_review',
     },
     strategy: 'queue',

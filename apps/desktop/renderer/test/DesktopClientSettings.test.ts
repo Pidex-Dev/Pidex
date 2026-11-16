@@ -23,8 +23,8 @@ const defaultSettings: ThreadSettings = {
   taskMode: 'chat',
   permissionConfig: {
     sandboxMode: 'workspace-write',
-    approvalPolicy: 'on-request',
-    approvalsReviewer: 'user',
+    approvalPolicy: 'auto_review',
+    approvalsReviewer: 'auto_review',
   },
 }
 const project: Project = {
@@ -629,7 +629,7 @@ describe('desktop thread settings client', () => {
       taskMode: 'plan',
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'untrusted',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
     }
@@ -724,7 +724,7 @@ describe('desktop thread settings client', () => {
       permissionConfig: {
         sandboxMode: 'danger-full-access',
         approvalPolicy: 'never',
-        approvalsReviewer: 'user',
+        approvalsReviewer: 'auto_review',
       },
       taskMode: 'chat',
     })
@@ -801,7 +801,7 @@ describe('desktop thread settings client', () => {
           permissionConfig: {
             sandboxMode: 'read-only',
             approvalPolicy: 'never',
-            approvalsReviewer: 'user',
+            approvalsReviewer: 'auto_review',
           },
         },
       },

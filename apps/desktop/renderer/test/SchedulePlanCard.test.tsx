@@ -33,7 +33,7 @@ const proposal = {
     permissionConfig: {
       sandboxMode: 'workspace-write',
       approvalPolicy: 'never',
-      approvalsReviewer: 'user',
+      approvalsReviewer: 'auto_review',
     },
     timeZone: 'Asia/Shanghai',
     notificationPolicy: 'failures',

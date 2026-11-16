@@ -71,8 +71,8 @@ describe('ForkOriginDivider', () => {
         model: { providerID: 'openai', id: 'gpt-4o' },
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
         rootAgentId: 'agent-1',
         sourceInputID: `input-${id}`,
@@ -154,8 +154,8 @@ describe('ForkOriginDivider', () => {
         model: { providerID: 'openai', id: 'gpt-4o' },
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
         rootAgentId: 'agent-1',
         sourceInputID: `input-${id}`,

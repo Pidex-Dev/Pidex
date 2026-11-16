@@ -108,8 +108,8 @@ for (const action of ['pause', 'stop', 'clear'] as const) {
           model: { providerID: 'test', id: 'test' } as never,
           permissionConfig: {
             sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
-            approvalsReviewer: 'user',
+            approvalPolicy: 'auto_review',
+            approvalsReviewer: 'auto_review',
           },
           strategy: 'queue',
           taskMode: 'chat',

@@ -42,7 +42,7 @@ function composerCardProps(overrides: Partial<ComposerCardProps> = {}): Composer
     input: '',
     canSubmit: true,
     sessionStatus: 'idle',
-    permissionMode: 'default',
+    permissionMode: 'auto-review',
     thinkingMode: 'default',
     showThinkingOptions: false,
     deepSeekThinkingControls: false,
@@ -52,10 +52,8 @@ function composerCardProps(overrides: Partial<ComposerCardProps> = {}): Composer
     modelPresets: [],
     providerOptions: [],
     permissionOptions: [
-      { value: 'default', label: '默认权限' },
-      { value: 'auto-review', label: '自动审查' },
+      { value: 'auto-review', label: '帮我批准' },
       { value: 'full-access', label: '完全访问' },
-      { value: 'custom', label: '自定义' },
     ],
     thinkingOptions: [{ value: 'default', label: '默认' }],
     branchName: 'feature/working-surface',
@@ -728,29 +726,20 @@ describe('composer surface variant', () => {
     expect(html).not.toContain('选择分支')
   })
 
-  test('隐藏的已配置预设显示实际标签与不可用原因', () => {
-    const reason = '“帮我批准”预设已在设置中关闭；当前配置保持不变。'
+  test('权限菜单仅保留帮我批准与完全访问两个选项', () => {
     const html = renderToStaticMarkup(
       <ComposerCard
         {...composerCardProps({
           permissionMode: 'auto-review',
           permissionOptions: [
-            { value: 'default', label: '请求批准' },
-            {
-              value: 'auto-review',
-              label: '帮我批准',
-              detail: reason,
-              disabled: true,
-            },
-            { value: 'custom', label: '自定义' },
+            { value: 'auto-review', label: '帮我批准' },
+            { value: 'full-access', label: '完全访问' },
           ],
-          permissionUnavailableReason: reason,
         })}
       />,
     )
     expect(html).toContain('帮我批准')
     expect(html).toContain('aria-label="更改权限"')
-    expect(html).toContain(reason)
   })
 
   test('Composer 发送门禁不依赖 Git/Review 状态，非 Git 项目仍可提交', () => {

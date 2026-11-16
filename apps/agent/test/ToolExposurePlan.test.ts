@@ -26,7 +26,7 @@ test('运行时重建 Goal 工具暴露后仍可调用 complete/blocked，普通
     permissionConfig: {
       sandboxMode: 'workspace-write',
       approvalPolicy: 'never',
-      approvalsReviewer: 'user',
+      approvalsReviewer: 'auto_review',
     },
     updateGoal: async () => {},
   }
@@ -61,7 +61,7 @@ const exposure = (input: {
   createToolExposurePlan(new ToolCatalog(), {
     taskMode: input.taskMode,
     sandboxMode: input.sandboxMode ?? 'workspace-write',
-    approvalPolicy: input.approvalPolicy ?? 'on-request',
+    approvalPolicy: input.approvalPolicy ?? 'auto_review',
     ...(input.profile ? { profile: input.profile } : {}),
     ...(input.allowedTools ? { allowedTools: input.allowedTools } : {}),
   })
@@ -190,7 +190,7 @@ describe('ToolExposurePlan finalize_result exposure', () => {
       profile: 'worker',
       depth: 3,
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
     })
     expect(plan.allows('spawn_agents')).toBe(false)
     expect(plan.allows('report_agent')).toBe(true)

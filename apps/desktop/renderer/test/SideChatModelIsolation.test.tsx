@@ -39,7 +39,7 @@ function controller() {
         activeTab: null,
         sourceThreadId: 'source',
         initialSettings: {
-          permissionMode: 'default',
+          permissionMode: 'auto-review',
           planModeActive: false,
           providerID: 'source-provider',
           providerBaseURL: 'https://source.example',

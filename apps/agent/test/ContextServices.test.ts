@@ -35,26 +35,35 @@ const fixture = async () => {
 }
 
 describe('v8 上下文存储', () => {
-  test('创建新表并持久化 granular approval JSON', async () => {
+  test('兼容读取历史 granular approval JSON 并归一化为 auto_review', async () => {
     const { db } = await fixture()
-    const policy = {
-      type: 'granular' as const,
+    const thread = db.createThread('auto-review', undefined, {
+      taskMode: 'chat',
+      permissionConfig: {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
+      },
+    })
+    const legacyGranular = JSON.stringify({
+      type: 'granular',
       sandboxApproval: true,
       rules: false,
       skillApproval: true,
       requestPermissions: false,
       mcpTools: true,
       mcpElicitations: true,
-    }
-    const thread = db.createThread('granular', undefined, {
-      taskMode: 'chat',
-      permissionConfig: {
-        sandboxMode: 'workspace-write',
-        approvalPolicy: policy,
-        approvalsReviewer: 'user',
-      },
     })
-    expect(db.getThreadSettings(thread.id)?.permissionConfig.approvalPolicy).toEqual(policy)
+    db.sqlite.query('UPDATE threads SET approval_policy = ?, approvals_reviewer = ? WHERE id = ?').run(
+      legacyGranular,
+      'user',
+      thread.id,
+    )
+    expect(db.getThreadSettings(thread.id)?.permissionConfig).toEqual({
+      sandboxMode: 'workspace-write',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
+    })
     expect(db.sqlite.query('PRAGMA user_version').get()).toEqual({ user_version: SCHEMA_VERSION })
     const tables = new Set(
       (
@@ -419,8 +428,8 @@ describe('Hooks 与记忆', () => {
       model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'chat',

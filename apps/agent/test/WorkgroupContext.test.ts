@@ -31,8 +31,8 @@ const submit = (content: string) => ({
   model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
-    approvalsReviewer: 'user' as const,
+    approvalPolicy: 'auto_review' as const,
+    approvalsReviewer: 'auto_review' as const,
   },
   strategy: 'queue' as const,
   taskMode: 'chat' as const,
@@ -98,7 +98,7 @@ const contextFor = (fixture: Fixture, threadID: string) => ({
   workspace: fixture.workspace,
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
+    approvalPolicy: 'auto_review' as const,
     approvalsReviewer: 'auto_review' as const,
   },
 })
@@ -290,7 +290,7 @@ describe('workgroup_read 工具', () => {
       const plan = fixture.executor.exposurePlan({
         taskMode,
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         profile: 'main',
       })
       expect(plan.exposed).toContain('workgroup_read')

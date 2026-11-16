@@ -141,7 +141,7 @@ const reviewInvocation = (overrides: Record<string, unknown> = {}): ToolInvocati
     input: { file_path: 'src/a.ts' },
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       approvalsReviewer: 'auto_review',
     },
     taskMode: 'chat',
@@ -176,7 +176,7 @@ describe('Shell ReviewerService', () => {
       input: { command: 'npm test' },
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       taskMode: 'chat',
@@ -186,7 +186,7 @@ describe('Shell ReviewerService', () => {
     })
   })
 
-  test('on-request 对基础 sandbox Shell 直接执行，仅权限提升进入审核', () => {
+  test('auto_review 对基础 sandbox Shell 直接执行，仅权限提升进入审核', () => {
     const tools = new ToolRegistry()
     const engine = new PermissionDecisionEngine()
     const base = {
@@ -199,8 +199,8 @@ describe('Shell ReviewerService', () => {
       input: { command: 'npm test' },
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       taskMode: 'chat',
     } as unknown as ToolInvocation
@@ -213,10 +213,10 @@ describe('Shell ReviewerService', () => {
         },
         tools.get('exec_command'),
       ),
-    ).toMatchObject({ action: 'review', reviewer: 'user' })
+    ).toMatchObject({ action: 'review', reviewer: 'auto_review' })
   })
 
-  test('on-request 下宿主动作事实标记为破坏性时必须审批', () => {
+  test('auto_review 下宿主动作事实标记为破坏性时必须审批', () => {
     const tools = new ToolRegistry()
     const engine = new PermissionDecisionEngine()
     const base = {
@@ -228,8 +228,8 @@ describe('Shell ReviewerService', () => {
       input: { command: 'gh repo delete owner/name --yes' },
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       taskMode: 'chat',
     } as unknown as ToolInvocation
@@ -241,7 +241,7 @@ describe('Shell ReviewerService', () => {
         },
         tools.get('exec_command'),
       ),
-    ).toMatchObject({ action: 'review', reviewer: 'user' })
+    ).toMatchObject({ action: 'review', reviewer: 'auto_review' })
     // 完全访问不进入风险审批
     expect(
       engine.evaluate(
@@ -250,7 +250,7 @@ describe('Shell ReviewerService', () => {
           permissionConfig: {
             sandboxMode: 'danger-full-access',
             approvalPolicy: 'never',
-            approvalsReviewer: 'user',
+            approvalsReviewer: 'auto_review',
           },
           permissionFacts: { destructive: true },
         },
@@ -507,7 +507,7 @@ describe('Shell ReviewerService', () => {
       input: { file_path: 'src/a.ts' },
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       taskMode: 'chat',

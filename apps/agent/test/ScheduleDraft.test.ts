@@ -20,7 +20,7 @@ const model = { providerID: 'openai', id: 'codex' } as unknown as ModelRef
 const permissionConfig = {
   sandboxMode: 'workspace-write',
   approvalPolicy: 'never',
-  approvalsReviewer: 'user',
+  approvalsReviewer: 'auto_review',
 } as unknown as PermissionConfig
 
 const structuredPlan = {

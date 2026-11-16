@@ -10,8 +10,8 @@ const defaultThreadSettings = {
   taskMode: 'chat' as const,
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
-    approvalsReviewer: 'user' as const,
+    approvalPolicy: 'auto_review' as const,
+    approvalsReviewer: 'auto_review' as const,
   },
 }
 

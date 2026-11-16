@@ -128,8 +128,8 @@ const defaultTurnInput = {
   model: { providerID: 'test', id: 'test' } as never,
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
-    approvalsReviewer: 'user' as const,
+    approvalPolicy: 'auto_review' as const,
+    approvalsReviewer: 'auto_review' as const,
   },
   strategy: 'queue' as const,
   taskMode: 'chat' as const,

@@ -43,8 +43,8 @@ function TestProviders({ children }: { children: React.ReactNode }): React.React
 
 const permissionConfig = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 
 const modelRef = { providerID: 'deepseek', id: 'deepseek-chat' } as const
@@ -104,8 +104,8 @@ function snapshot({
       parentThreadId: task.parentThreadId,
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
       createdAt: 1,
       updatedAt: 2,
     },

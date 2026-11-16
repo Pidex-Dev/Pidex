@@ -47,8 +47,8 @@ const snapshot = (turnID: string): RuntimeCompositionSnapshotV1 => ({
   },
   permissions: {
     sandboxMode: 'workspace-write',
-    approvalPolicy: 'on-request',
-    approvalsReviewer: 'user',
+    approvalPolicy: 'auto_review',
+    approvalsReviewer: 'auto_review',
   },
   skills: { skills: [] },
   mcp: { workspaceKey: 'C:/workspace', bindingHash: 'mcp', serverInstructions: [] },
@@ -91,8 +91,8 @@ const setup = () => {
     model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     },
     strategy: 'queue',
     taskMode: 'chat',

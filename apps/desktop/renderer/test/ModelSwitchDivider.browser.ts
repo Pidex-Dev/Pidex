@@ -20,7 +20,7 @@ import { deriveThemeVariables } from ${source('features/theme/ThemeVariables.ts'
 import { DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME } from ${source('../shared/Theme.ts')};
 const a = { providerID: 'minimax', id: 'MiniMax-M3' };
 const b = { providerID: 'deepseek', id: 'deepseek-v4-pro' };
-const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' };
+const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'auto_review', approvalsReviewer: 'auto_review' };
 const noop = () => {};
 const context = { modelProviderNames: { minimax: 'MiniMax', deepseek: 'DeepSeek' }, canCopyFileReferenceContents: () => false,
   onCopyFileReferenceContents: noop, onOpenFileReference: noop, onSubmitEditedUserMessage: async () => {}, sessionStatus: 'idle', workspacePath: null };

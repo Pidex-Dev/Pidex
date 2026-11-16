@@ -227,7 +227,7 @@ test.describe('真实 Agent/Electron 并发 Review', () => {
           permissionConfig: {
             sandboxMode: 'danger-full-access',
             approvalPolicy: 'never',
-            approvalsReviewer: 'user',
+            approvalsReviewer: 'auto_review',
           },
           taskMode: 'chat',
         }),

@@ -24,14 +24,14 @@ afterEach(async () => removeFixturePaths(tempPaths.splice(0)))
 
 const workspaceWrite: PermissionConfig = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 }
 
 const readOnly: PermissionConfig = {
   sandboxMode: 'read-only',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 }
 
 async function executionContext(

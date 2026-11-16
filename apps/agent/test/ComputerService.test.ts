@@ -311,7 +311,7 @@ describe('ComputerUseService', () => {
       permissionConfig: {
         sandboxMode: 'danger-full-access',
         approvalPolicy: 'never',
-        approvalsReviewer: 'user',
+        approvalsReviewer: 'auto_review',
       },
       taskMode: 'chat',
       model: {} as ToolInvocation['model'],
@@ -323,7 +323,7 @@ describe('ComputerUseService', () => {
       engine.evaluate(
         {
           ...invocation,
-          permissionConfig: { ...invocation.permissionConfig, approvalPolicy: 'on-request' },
+          permissionConfig: { ...invocation.permissionConfig, approvalPolicy: 'auto_review' },
         },
         tool,
       ).action,
@@ -663,7 +663,7 @@ describe('ComputerUseService', () => {
 const FULL_ACCESS = {
   sandboxMode: 'danger-full-access',
   approvalPolicy: 'never',
-  approvalsReviewer: 'user',
+  approvalsReviewer: 'auto_review',
 } as const
 
 describe('聊天电脑授权', () => {
@@ -702,14 +702,13 @@ describe('聊天电脑授权', () => {
     )
   })
 
-  for (const reviewer of ['user', 'auto_review'] as const) {
-    test(`${reviewer} 首次使用走人工 checkpoint，应用授权恢复不打断读取和动作`, async () => {
+  for (const grant of ['chat', 'persistent'] as const) {
+    test(`${grant} 首次使用走人工 checkpoint，应用授权恢复不打断读取和动作`, async () => {
       const { computer, db, root, hub } = await fixture()
-      const grant = reviewer === 'user' ? 'chat' : 'persistent'
       const permissions = {
         sandboxMode: 'workspace-write',
-        approvalPolicy: reviewer === 'user' ? 'on-request' : 'untrusted',
-        approvalsReviewer: reviewer,
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       } as const
       const model = Model.Ref.make({
         providerID: Provider.ID.make('openai'),
@@ -794,7 +793,7 @@ describe('聊天电脑授权', () => {
       ).rejects.toThrow('记忆规则')
       await interactions.respond({
         interactionId: stored.approvalID,
-        operationId: `allow:${reviewer}`,
+        operationId: `allow:${grant}`,
         expectedVersion: stored.version,
         response: {
           kind: 'approval',
@@ -805,7 +804,7 @@ describe('聊天电脑授权', () => {
       const lease = new ResumeCheckpointResolver(db, approvals).acquire(
         turn.turnID,
         'main',
-        `lease:${reviewer}`,
+        `lease:${grant}`,
       )!
       expect(lease.checkpoint).toMatchObject({ computerGrant: grant })
       const resumed = executor.execute<ComputerResult>(
@@ -858,7 +857,7 @@ describe('聊天电脑授权', () => {
     await policy.refresh()
     const signal = new AbortController().signal
     await discover(computer, identity, signal)
-    const permissions = { ...FULL_ACCESS, approvalPolicy: 'on-request' } as const
+    const permissions = { ...FULL_ACCESS, approvalPolicy: 'auto_review' } as const
     const scope = computer.inspect(identity, REF, false, undefined, permissions)
     expect(() =>
       computer.validateGrant(identity, REF, scope.fingerprint, true, false, permissions),

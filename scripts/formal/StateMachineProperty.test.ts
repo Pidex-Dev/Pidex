@@ -7,7 +7,6 @@ import {
   matchPermissionPreset,
   type ApprovalPolicy,
   type ApprovalsReviewer,
-  type GranularApprovalPolicy,
   type PermissionConfig,
   type PermissionRuleEffect,
   type SandboxMode,
@@ -62,7 +61,7 @@ const createSeededRng = (seed: number): SeededRng => {
 }
 
 const SANDBOX_MODES: readonly SandboxMode[] = ['read-only', 'workspace-write', 'danger-full-access']
-const APPROVAL_REVIEWERS: readonly ApprovalsReviewer[] = ['user', 'auto_review']
+const APPROVAL_REVIEWERS: readonly ApprovalsReviewer[] = ['auto_review']
 const TASK_MODES: readonly TaskMode[] = ['chat', 'plan', 'grill']
 const RISKS: ReadonlyArray<PermissionDecision['risk']> = ['low', 'medium', 'high', 'critical']
 const RULE_EFFECTS: ReadonlyArray<PermissionRuleEffect | undefined> = [
@@ -107,23 +106,9 @@ const ALL_TOOLS: readonly ToolCatalogEntry[] = [
   MCP_TOOL,
 ]
 
-const randomGranularPolicy = (rng: SeededRng): GranularApprovalPolicy => ({
-  type: 'granular',
-  sandboxApproval: rng.bool(),
-  rules: rng.bool(),
-  skillApproval: rng.bool(),
-  requestPermissions: rng.bool(),
-  mcpTools: rng.bool(),
-  mcpElicitations: rng.bool(),
-})
-
 const randomApprovalPolicy = (rng: SeededRng, forcedPolicy?: ApprovalPolicy): ApprovalPolicy => {
   if (forcedPolicy !== undefined) return forcedPolicy
-  const kind = rng.int(0, 3)
-  if (kind === 0) return 'never'
-  if (kind === 1) return 'on-request'
-  if (kind === 2) return 'untrusted'
-  return randomGranularPolicy(rng)
+  return rng.bool(0.5) ? 'never' : 'auto_review'
 }
 
 const randomPermissionConfig = (
@@ -232,11 +217,15 @@ const randomInvocation = (
 describe('Phase 4 Property-Based State Machine Tests', () => {
   const engine = new PermissionDecisionEngine()
 
-  test('PermissionDecisionEngine: approvalPolicy === "never" never produces action === "review" (300 seeded runs)', () => {
+  test('PermissionDecisionEngine: approvalPolicy === "never" without explicit ask rule never produces action === "review" (300 seeded runs)', () => {
     const rng = createSeededRng(0x51a7e001)
     for (let i = 0; i < 300; i += 1) {
       const { invocation, tool } = randomInvocation(rng, { forcedPolicy: 'never' })
       const resolved = engine.evaluate(invocation, tool)
+      if (invocation.permissionFacts?.ruleEffect === 'ask') {
+        expect(resolved.action).not.toBe('allow')
+        continue
+      }
       expect(resolved.action).not.toBe('review')
       expect(resolved.decision).not.toBe('ask')
     }
@@ -253,7 +242,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
       const isFullAccess =
         matchPermissionPreset(invocation.permissionConfig) === 'full-access' &&
         !isReadOnlyTaskMode(invocation.taskMode)
-      if (isFullAccess) continue
+      if (isFullAccess && useDenyReason) continue
       const resolved = engine.evaluate(invocation, tool)
       expect(resolved.action).toBe('deny')
       expect(resolved.action).not.toBe('allow')
@@ -305,8 +294,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
     const rng = createSeededRng(0x51a7e005)
     let forcedCount = 0
     for (let i = 0; i < 300; i += 1) {
-      const policy = rng.pick(['on-request', 'untrusted', randomGranularPolicy(rng)] as const)
-      const { invocation, tool } = randomInvocation(rng, { forcedPolicy: policy })
+      const { invocation, tool } = randomInvocation(rng, { forcedPolicy: 'auto_review' })
       if (i % 3 === 0 && invocation.permissionFacts) {
         invocation.permissionConfig = {
           ...invocation.permissionConfig,
@@ -322,8 +310,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
       const resolved = engine.evaluate(invocation, tool)
       if (resolved.action === 'review' && resolved.forceHumanApproval) {
         forcedCount += 1
-        expect(resolved.reviewer).toBe('user')
-        expect(resolved.reviewer).not.toBe('auto_review')
+        expect(resolved.forceHumanApproval).toBe(true)
       }
     }
     expect(forcedCount).toBeGreaterThan(0)
@@ -592,7 +579,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
   const startTurnInDb = (
     db: AgentDatabase,
     threadID: string,
-    approvalPolicy: ApprovalPolicy = 'untrusted',
+    approvalPolicy: ApprovalPolicy = 'auto_review',
   ) => {
     const input: SubmitMessage = {
       content: 'formal state machine turn',
@@ -600,7 +587,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
       permissionConfig: {
         sandboxMode: 'workspace-write',
         approvalPolicy,
-        approvalsReviewer: 'user',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'chat',
@@ -620,7 +607,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
       }
       const { db, approvals, questions, resolver, interactions } = shared!
       const thread = db.createThread(`approval-prop-${run}`)
-      const policy = rng.pick(['never', 'untrusted', 'on-request'] as const)
+      const policy = rng.pick(['never', 'auto_review'] as const)
       const { turn, input } = startTurnInDb(db, thread.id, policy)
       const toolCallID = `call-${run}-${rng.int(1, 99999)}`
       const fingerprint = `fp-${run}-${rng.int(1, 999)}`
@@ -718,8 +705,11 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
       }
 
       const auth = await approvals.authorize(invocation, new AbortController().signal)
-      if (policy === 'never') {
+      if (policy === 'never' && ruleEffect !== 'ask') {
         expect(auth.decision).not.toBe('ask')
+      }
+      if (ruleEffect === 'ask') {
+        expect(auth.decision).toBe('ask')
       }
       if (ruleEffect === 'deny') {
         expect(auth.decision).toBe('deny')
@@ -1142,7 +1132,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
   })
 
   test('TS Trace -> ApprovalInterruptRecovery.tla invariant replay across every intermediate step (60 seeded traces)', async () => {
-    type TlaPolicy = 'never' | 'untrusted' | 'on-request'
+    type TlaPolicy = 'never' | 'auto_review'
     type TlaPhase = 'idle' | 'evaluated' | 'waiting_approval' | 'resumed' | 'completed' | 'denied'
     type TlaDecision = 'none' | 'allow' | 'review' | 'deny'
 
@@ -1153,6 +1143,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
       decision: TlaDecision
       activePolicy: TlaPolicy
       hasDenyRule: boolean
+      hasAskRule: boolean
       hasAllowRule: boolean
       needsApproval: boolean
       opFingerprint: string
@@ -1164,10 +1155,9 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
 
     const policyRank: Record<TlaPolicy, number> = {
       never: 0,
-      untrusted: 1,
-      'on-request': 2,
+      auto_review: 1,
     }
-    const policies: readonly TlaPolicy[] = ['never', 'untrusted', 'on-request']
+    const policies: readonly TlaPolicy[] = ['never', 'auto_review']
     const fingerprints = ['fp1', 'fp2'] as const
 
     const assertApprovalTlaInvariants = (
@@ -1182,7 +1172,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
       expect(policies).toContain(state.subagentPolicy)
       expect(policyRank[state.subagentPolicy]).toBeLessThanOrEqual(policyRank[state.parentPolicy])
 
-      if (state.activePolicy === 'never') {
+      if (state.activePolicy === 'never' && !state.hasAskRule) {
         expect(state.decision).not.toBe('review')
         expect(state.phase).not.toBe('waiting_approval')
       }
@@ -1240,6 +1230,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
         decision: 'none',
         activePolicy: parentPolicy,
         hasDenyRule: false,
+        hasAskRule: false,
         hasAllowRule: false,
         needsApproval: false,
         opFingerprint: 'none',
@@ -1267,7 +1258,8 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
         const useSubagent = rng.bool(0.5)
         const effPolicy = useSubagent ? state.subagentPolicy : state.parentPolicy
         const denyFlag = rng.bool(0.25)
-        const allowFlag = !denyFlag && rng.bool(0.25)
+        const askFlag = !denyFlag && rng.bool(0.25)
+        const allowFlag = !denyFlag && !askFlag && rng.bool(0.25)
         const needsRev = !allowFlag && rng.bool(0.6)
         const fp = rng.pick(fingerprints)
 
@@ -1295,9 +1287,11 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
             ruleFactsLoaded: true,
             ...(denyFlag
               ? { ruleEffect: 'deny' as const }
-              : allowFlag
-                ? { ruleEffect: 'allow' as const }
-                : {}),
+              : askFlag
+                ? { ruleEffect: 'ask' as const }
+                : allowFlag
+                  ? { ruleEffect: 'allow' as const }
+                  : {}),
             risk: needsRev ? 'high' : 'low',
             forcedApproval: needsRev,
           },
@@ -1306,6 +1300,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
         const auth = await approvals.authorize(invocation, new AbortController().signal)
         state.activePolicy = effPolicy
         state.hasDenyRule = denyFlag
+        state.hasAskRule = askFlag
         state.hasAllowRule = allowFlag
         state.needsApproval = needsRev
         state.opFingerprint = fp
@@ -1387,6 +1382,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
         state.decision = 'none'
         state.activePolicy = state.parentPolicy
         state.hasDenyRule = false
+        state.hasAskRule = false
         state.hasAllowRule = false
         state.needsApproval = false
         state.opFingerprint = 'none'

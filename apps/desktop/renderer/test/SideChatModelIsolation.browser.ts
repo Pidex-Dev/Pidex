@@ -38,7 +38,7 @@ function Harness() {
   window.setSource = setSource;
   const api = useSideChatController({
     activeTab:tab,sourceThreadId:source,
-    initialSettings:{permissionMode:'default',planModeActive:false,providerID:source==='a'?'':'provider-b',
+    initialSettings:{permissionMode:'auto-review',planModeActive:false,providerID:source==='a'?'':'provider-b',
       model:source==='a'?'':'draft-b',providerBaseURL:'https://WRONG-source.example',
       selectedModelPreset:'',thinkingMode:'default'},
     openRightDockTab:setTab,removeWorkbenchTab:()=>setTab(null),replaceWorkbenchTab:(_,next)=>setTab(next),onError,

@@ -69,8 +69,8 @@ const semanticSubmit = (content: string) => ({
   model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt-4o') }),
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
-    approvalsReviewer: 'user' as const,
+    approvalPolicy: 'auto_review' as const,
+    approvalsReviewer: 'auto_review' as const,
   },
   strategy: 'queue' as const,
   taskMode: 'chat' as const,
@@ -828,14 +828,14 @@ describe('数据库兼容与迁移', () => {
     reopened.close()
   })
 
-  test('读取旧 on-failure 审批策略时迁移为 on-request', async () => {
+  test('读取旧 on-failure 审批策略时迁移为 auto_review', async () => {
     const root = await mkdtemp(join(tmpdir(), 'pidex-on-failure-'))
     paths.push(root)
     const db = new AgentDatabase(join(root, 'agent.sqlite'))
     const thread = db.createThread('旧审批策略')
     db.sqlite.query("UPDATE threads SET approval_policy = 'on-failure' WHERE id = ?").run(thread.id)
 
-    expect(db.getThread(thread.id)?.settings.permissionConfig.approvalPolicy).toBe('on-request')
+    expect(db.getThread(thread.id)?.settings.permissionConfig.approvalPolicy).toBe('auto_review')
     db.close()
   })
 

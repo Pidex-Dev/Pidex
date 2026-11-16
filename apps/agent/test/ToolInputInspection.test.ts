@@ -159,8 +159,8 @@ describe('工具输入检查与范围绑定', () => {
       workspace,
       permissionConfig: {
         sandboxMode: 'workspace-write' as const,
-        approvalPolicy: 'on-request' as const,
-        approvalsReviewer: 'user' as const,
+        approvalPolicy: 'auto_review' as const,
+        approvalsReviewer: 'auto_review' as const,
       },
     }
     await executor.execute('seed_snapshot', { path: 'target.txt' }, context)

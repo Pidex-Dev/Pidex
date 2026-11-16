@@ -30,8 +30,8 @@ const model = Model.Ref.make({
 })
 const permission = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 const completed: AgentRuntimeResult = {
   status: 'completed',

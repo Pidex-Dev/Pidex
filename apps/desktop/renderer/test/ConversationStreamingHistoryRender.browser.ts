@@ -31,7 +31,7 @@ const THREAD_ID = 'streaming-history-thread';
 const HISTORY_TURN_ID = 'turn-history';
 const CURRENT_TURN_ID = 'turn-current';
 const DELTA_ITEM_ID = 'item-current-text';
-const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' };
+const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'auto_review', approvalsReviewer: 'auto_review' };
 
 const thread = {
   id: THREAD_ID,

@@ -66,7 +66,7 @@ const contextFor = (fixture: Fixture) => ({
   workspace: fixture.workspace,
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
+    approvalPolicy: 'auto_review' as const,
     approvalsReviewer: 'auto_review' as const,
   },
 })
@@ -76,7 +76,7 @@ const submitInput = (content: string) => ({
   model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt') }),
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
+    approvalPolicy: 'auto_review' as const,
     approvalsReviewer: 'auto_review' as const,
   },
   strategy: 'start' as const,

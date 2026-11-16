@@ -59,7 +59,7 @@ async function fixture() {
     permissionConfig: {
       sandboxMode: 'workspace-write',
       approvalPolicy: 'never',
-      approvalsReviewer: 'user',
+      approvalsReviewer: 'auto_review',
     },
   }
   const coordinator = new ScheduledTaskCoordinator(

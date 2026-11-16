@@ -57,7 +57,7 @@ const fixture = () => {
     permissionConfig: {
       sandboxMode: 'workspace-write',
       approvalPolicy: 'never',
-      approvalsReviewer: 'user',
+      approvalsReviewer: 'auto_review',
     },
   }
   const automation = { ...work, id: 'automation', status: 'active', revision: 1 }
@@ -169,7 +169,7 @@ test('最终判权拒绝时监控暂停，不启动修复；内部工具也受�
     permissionConfig: {
       sandboxMode: 'read-only',
       approvalPolicy: 'never',
-      approvalsReviewer: 'user',
+      approvalsReviewer: 'auto_review',
     },
   }
   expect(engine.evaluate(invocation as never, definition).decision).toBe('deny')

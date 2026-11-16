@@ -17,7 +17,7 @@ describe('工作区工具', () => {
     const plan = executor.exposurePlan({
       taskMode: 'plan',
       sandboxMode: 'danger-full-access',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
 
       profile: 'main',
     })
@@ -49,7 +49,7 @@ describe('工作区工具', () => {
     const chat = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
 
       profile: 'main',
     })
@@ -59,7 +59,7 @@ describe('工作区工具', () => {
       executor.exposurePlan({
         taskMode: 'chat',
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
 
         profile: 'main',
         defaultModeRequestUserInput: true,
@@ -69,7 +69,7 @@ describe('工作区工具', () => {
       executor.exposurePlan({
         taskMode: 'chat',
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
 
         profile: 'worker',
       }).exposed,
@@ -78,7 +78,7 @@ describe('工作区工具', () => {
       executor.exposurePlan({
         taskMode: 'chat',
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
 
         profile: 'worker',
         defaultModeRequestUserInput: true,
@@ -119,7 +119,7 @@ describe('工作区工具', () => {
         permissionConfig: {
           sandboxMode: 'danger-full-access' as const,
           approvalPolicy: 'never' as const,
-          approvalsReviewer: 'user' as const,
+          approvalsReviewer: 'auto_review' as const,
         },
       }
       await expect(
@@ -260,7 +260,7 @@ describe('工作区工具', () => {
           permissionConfig: {
             sandboxMode: 'read-only',
             approvalPolicy: 'never',
-            approvalsReviewer: 'user',
+            approvalsReviewer: 'auto_review',
           },
         },
       ),
@@ -316,7 +316,7 @@ describe('工作区工具', () => {
       permissionConfig: {
         sandboxMode: 'read-only' as const,
         approvalPolicy: 'never' as const,
-        approvalsReviewer: 'user' as const,
+        approvalsReviewer: 'auto_review' as const,
       },
     }
     await executor.execute('exec_command', { command: 'Get-ChildItem' }, context)

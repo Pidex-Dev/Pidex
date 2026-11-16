@@ -52,7 +52,7 @@ const input = (content: string) =>
     model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt') }),
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       approvalsReviewer: 'auto_review',
     },
     strategy: 'queue',
@@ -395,7 +395,7 @@ describe('Thread 历史', () => {
       taskMode: 'plan',
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
     } as const
@@ -408,7 +408,14 @@ describe('Thread 历史', () => {
   test('创建 Turn 原子同步 Thread 设置并保持已有 Turn 快照不变', async () => {
     const { db, projection } = await makeHistory()
     const thread = db.createThread('不可变快照')
-    const firstInput = input('第一轮')
+    const firstInput = {
+      ...input('第一轮'),
+      permissionConfig: {
+        sandboxMode: 'danger-full-access' as const,
+        approvalPolicy: 'never' as const,
+        approvalsReviewer: 'auto_review' as const,
+      },
+    }
     const first = db.createTurn(thread.id, firstInput)
     expect(first.settingsEvent?.id).toBeLessThan(first.event.id)
     db.claimTurnExecution(first.turnID)
@@ -689,7 +696,7 @@ describe('历史 task_mode 读取兼容', () => {
     db.sqlite.query("UPDATE inputs SET status = 'mailbox' WHERE id = ?").run(turn.inputID)
     expect(db.guideMailbox(turn.turnID)[0]?.taskMode).toBe('chat')
     db.updateThreadSettings(thread.id, {
-      permissionConfig: { ...input('').permissionConfig, approvalsReviewer: 'user' },
+      permissionConfig: { ...input('').permissionConfig, approvalsReviewer: 'auto_review' },
     })
     expect(db.sqlite.query('SELECT task_mode FROM threads WHERE id = ?').get(thread.id)).toEqual({
       task_mode: 'legacy-mode',
@@ -874,5 +881,71 @@ describe('侧边栏展示轮次与错误投影', () => {
     const quotedList = projection.list().find((item) => item.id === quotedPathThread.id)!
     expect(quotedList.latestTurnStatus).toBe('failed')
     expect(quotedList.latestTurnError).toBeNull()
+  })
+
+  test('旧数据库 approval_policy 与 approvals_reviewer=user 在列表、详情、历史读取和 RPC 编码中自动兼容', async () => {
+    const { db, projection, history } = await makeHistory()
+    const thread = db.createThread('旧权限兼容')
+    const turn = db.createTurn(thread.id, input('历史消息'), 'running')
+    db.finalizeTurn({
+      threadID: thread.id,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      status: 'completed',
+      message: '完成',
+    })
+    const legacyGranular = JSON.stringify({
+      type: 'granular',
+      sandboxApproval: true,
+      rules: true,
+      skillApproval: false,
+      requestPermissions: true,
+      mcpTools: true,
+      mcpElicitations: true,
+    })
+    db.sqlite
+      .query('UPDATE threads SET approval_policy = ?, approvals_reviewer = ? WHERE id = ?')
+      .run('on-request', 'user', thread.id)
+    db.sqlite
+      .query('UPDATE turns SET approval_policy = ?, approvals_reviewer = ? WHERE id = ?')
+      .run('untrusted', 'user', turn.turnID)
+    db.sqlite
+      .query('UPDATE inputs SET approval_policy = ?, approvals_reviewer = ? WHERE turn_id = ?')
+      .run(legacyGranular, 'user', turn.turnID)
+
+    const page = projection.listPage({ limit: 10 })
+    expect(() => Schema.encodeSync(RpcMethods['thread/list'].result)(page)).not.toThrow()
+    expect(page.threads.find((item) => item.id === thread.id)?.settings.permissionConfig).toEqual({
+      sandboxMode: 'workspace-write',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
+    })
+    expect(history.getListItem(thread.id)?.settings.permissionConfig).toEqual({
+      sandboxMode: 'workspace-write',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
+    })
+
+    const streamPosition = { streamId: 'global', sequence: 0 }
+    const snap = projection.snapshot(thread.id)!
+    expect(() =>
+      Schema.encodeSync(RpcMethods['thread/read'].result)({ snapshot: snap, streamPosition }),
+    ).not.toThrow()
+    expect(snap.thread.settings.permissionConfig.approvalsReviewer).toBe('auto_review')
+    expect(snap.turns[0]?.permissionConfig.approvalPolicy).toBe('auto_review')
+    expect(snap.turns[0]?.permissionConfig.approvalsReviewer).toBe('auto_review')
+    expect(snap.inputs[0]?.permissionConfig.approvalPolicy).toBe('auto_review')
+    expect(snap.inputs[0]?.permissionConfig.approvalsReviewer).toBe('auto_review')
+
+    const hist = projection.historyPage(thread.id, { limit: 10 })!
+    expect(() =>
+      Schema.encodeSync(RpcMethods['thread/history/read'].result)({
+        ...hist,
+        streamPosition,
+      }),
+    ).not.toThrow()
+    expect(hist.thread.settings.permissionConfig.approvalsReviewer).toBe('auto_review')
+    expect(hist.turns[0]?.turn.permissionConfig.approvalsReviewer).toBe('auto_review')
+    expect(hist.turns[0]?.inputs[0]?.permissionConfig.approvalsReviewer).toBe('auto_review')
   })
 })

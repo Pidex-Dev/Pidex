@@ -64,6 +64,12 @@ describe('loading interaction primitives', () => {
       </Button>,
     ],
     [
+      'dangerSubtle',
+      <Button key="dangerSubtle" color="dangerSubtle" shape="pill">
+        确认
+      </Button>,
+    ],
+    [
       'pill',
       <Button key="pill" shape="pill">
         圆角

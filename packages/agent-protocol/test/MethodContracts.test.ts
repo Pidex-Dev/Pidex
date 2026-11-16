@@ -24,8 +24,8 @@ const modelRef = {
 
 const permissionConfig = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 
 const threadSettings = {
@@ -1150,16 +1150,6 @@ const fixtures = {
         version: '4',
       },
     },
-  ),
-  'approval/reviewState': methodFixture(
-    'approval/reviewState',
-    { threadId: 'thread:1' },
-    { manualAllows: 3, denials: [], reviews: [] },
-  ),
-  'approval/retry': methodFixture(
-    'approval/retry',
-    { threadId: 'thread:1', reviewId: 'review:1', operationId: 'operation:1' },
-    { input: '重试这个操作' },
   ),
   'browser/history/list': methodFixture(
     'browser/history/list',
@@ -6633,7 +6623,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(371)
+    expect(methods).toHaveLength(369)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -7001,7 +6991,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(350)
+    expect(Object.keys(RpcMethods)).toHaveLength(348)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })

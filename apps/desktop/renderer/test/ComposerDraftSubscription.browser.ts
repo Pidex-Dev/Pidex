@@ -28,8 +28,7 @@ function Composer({id, initialKey, placement}) {
   const controller = useDesktopComposerController({
     input, messages: [], placement, draftKey,
     routedSessionId: placement === 'new-session' ? null : draftKey.split(':').slice(1).join(':'),
-    permissionMode: 'default', enableAutoReviewPermissionMode: false,
-    enableFullAccessPermissionMode: false, planModeActive, sessionBusy: false,
+    permissionMode: 'auto-review', planModeActive, sessionBusy: false,
     modelConfigured: true, workspace: null,
     // Parent projections can return fresh arrays with equal attachment values.
     attachments: attachments.map(item => ({...item})), subagentMode: false,

@@ -12,7 +12,7 @@ const invocation = (overrides: Record<string, unknown> = {}): ToolInvocation =>
     input: { file_path: 'src/a.ts' },
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       approvalsReviewer: 'auto_review',
     },
     taskMode: 'chat',

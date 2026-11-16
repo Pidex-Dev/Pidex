@@ -69,7 +69,7 @@ describe('Terminal Agent integration', () => {
       permissionEngine.evaluate(
         {
           ...invocation,
-          permissionConfig: { ...DEFAULT_PERMISSION_CONFIG, approvalPolicy: 'untrusted' },
+          permissionFacts: { risk: 'high' },
         } as never,
         definition as never,
       ).action,

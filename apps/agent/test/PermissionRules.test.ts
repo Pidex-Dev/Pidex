@@ -30,8 +30,8 @@ afterEach(async () => {
 const model = Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') })
 const permissionConfig = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 
 async function fixture(options: { project?: boolean; trusted?: boolean } = {}) {
@@ -146,7 +146,7 @@ describe('权限规则匹配', () => {
     ).toBe('allow')
   })
 
-  test('Ask 规则始终要求人工，never 与 granular 禁止时直接拒绝', () => {
+  test('Ask 规则始终要求人工，包括 never 与完全访问模式', () => {
     const engine = new PermissionDecisionEngine()
     const tools = new ToolRegistry()
     const tool = tools.get('Write')
@@ -172,7 +172,7 @@ describe('权限规则匹配', () => {
     )
     expect(autoReview).toMatchObject({
       action: 'review',
-      reviewer: 'user',
+      reviewer: 'auto_review',
       forceHumanApproval: true,
     })
     expect(
@@ -180,27 +180,11 @@ describe('权限规则匹配', () => {
         { ...invocation, permissionConfig: { ...permissionConfig, approvalPolicy: 'never' } },
         tool,
       ),
-    ).toMatchObject({ action: 'deny' })
-    expect(
-      engine.evaluate(
-        {
-          ...invocation,
-          permissionConfig: {
-            ...permissionConfig,
-            approvalPolicy: {
-              type: 'granular',
-              sandboxApproval: true,
-              rules: false,
-              skillApproval: true,
-              requestPermissions: true,
-              mcpTools: true,
-              mcpElicitations: true,
-            },
-          },
-        },
-        tool,
-      ),
-    ).toMatchObject({ action: 'deny' })
+    ).toMatchObject({
+      action: 'review',
+      reviewer: 'auto_review',
+      forceHumanApproval: true,
+    })
   })
 
   test('Allow 可免除默认风险审批，Deny 规则优先于已有授权', () => {
@@ -399,7 +383,7 @@ describe('ToolExecutor 规则最终门禁', () => {
     const service = new ApprovalService(db, hub, tools, null, config)
     const shell: ToolInvocation = {
       ...invocation,
-      permissionConfig: { ...permissionConfig, approvalPolicy: 'untrusted' },
+      permissionConfig: { ...permissionConfig, approvalPolicy: 'auto_review' },
     }
     await service.rules.upsert(thread.id, {
       effect: 'allow',
@@ -436,7 +420,7 @@ describe('ToolExecutor 规则最终门禁', () => {
       ...invocation,
       permissionConfig: {
         ...permissionConfig,
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
     }
@@ -556,7 +540,8 @@ describe('权限规则存储', () => {
     const service = new ApprovalService(db, hub, tools, null, config)
     const approved: ToolInvocation = {
       ...invocation,
-      permissionConfig: { ...permissionConfig, approvalPolicy: 'untrusted' },
+      permissionConfig: { ...permissionConfig, approvalPolicy: 'auto_review' },
+      permissionFacts: { risk: 'high', ruleRequiresApproval: true },
     }
     await service.authorize(approved, new AbortController().signal)
     await service.attachRunState(approved.id, '{"version":1}', {
@@ -711,4 +696,75 @@ test('多文件批准逐个覆盖目标，任一目标的 Deny 不被其他允�
     match: { kind: 'file', access: 'write', path: second },
   })
   expect((await rules.evaluate(operation)).effect).toBe('deny')
+})
+
+test('审批规则无需会话标识即可按 cwd 管理用户与项目规则，且完全访问下仍受询问/拒绝规则约束', async () => {
+  const f = await fixture({ project: true })
+  const rules = new ApprovalRules(f.db, f.tools, f.config)
+  const askRule = await rules.upsert(
+    undefined,
+    {
+      effect: 'ask',
+      scope: 'user',
+      match: { kind: 'command', command: 'git status', argv: ['git', 'status'] },
+    },
+    undefined,
+    f.workspace,
+  )
+  const denyRule = await rules.upsert(
+    undefined,
+    {
+      effect: 'deny',
+      scope: 'project',
+      match: { kind: 'network', domain: 'blocked.test' },
+    },
+    undefined,
+    f.workspace,
+  )
+  const listed = await rules.list(undefined, f.workspace)
+  expect(listed.rules.map((r) => r.id)).toContain(askRule.id)
+  expect(listed.rules.map((r) => r.id)).toContain(denyRule.id)
+
+  const service = new ApprovalService(f.db, f.hub, f.tools, null, f.config)
+  const fullAccess = {
+    sandboxMode: 'danger-full-access' as const,
+    approvalPolicy: 'never' as const,
+    approvalsReviewer: 'auto_review' as const,
+  }
+  const askDecision = await service.authorize(
+    { ...f.invocation, id: 'full-ask', permissionConfig: fullAccess },
+    new AbortController().signal,
+  )
+  expect(askDecision.decision).toBe('ask')
+
+  const denyDecision = await service.authorize(
+    {
+      ...f.invocation,
+      id: 'full-deny',
+      name: 'exec_command',
+      input: { command: 'curl https://blocked.test' },
+      permissionConfig: fullAccess,
+      permissionFacts: { ruleTargets: { networkDomains: ['blocked.test'] } },
+    },
+    new AbortController().signal,
+  )
+  expect(denyDecision.decision).toBe('deny')
+
+  const normalDecision = await service.authorize(
+    {
+      ...f.invocation,
+      id: 'full-allow',
+      input: { command: 'git diff' },
+      permissionConfig: fullAccess,
+    },
+    new AbortController().signal,
+  )
+  expect(normalDecision.decision).toBe('allow')
+
+  expect(await rules.revoke(undefined, askRule.id, askRule.version, f.workspace)).toEqual({
+    revoked: true,
+  })
+  expect(await rules.revoke(undefined, denyRule.id, denyRule.version, f.workspace)).toEqual({
+    revoked: true,
+  })
 })

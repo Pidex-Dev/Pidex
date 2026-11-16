@@ -6,11 +6,11 @@ import { chromium, expect } from '@playwright/test'
 
 const rendererRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const clientMock = `
-const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' };
+const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'auto_review', approvalsReviewer: 'auto_review' };
 const workspace = { id: 'project', name: 'Test', path: '/test' };
 function snapshot(id, full = false) {
   return { item: { id, sessionName: id, workspaceName: 'Test', workspacePath: '/test', standalone: false,
-    permissionMode: 'default', planModeActive: false, localRouterMode: 'off', model: null, thinkingMode: 'default',
+    permissionMode: 'auto-review', planModeActive: false, localRouterMode: 'off', model: null, thinkingMode: 'default',
     hasSystemPrompt: false, hasAppendSystemPrompt: false, additionalDirectoryCount: 0, status: 'idle',
     createdAt: '2026-01-01', lastMessageAt: '2026-01-01' }, workspace,
     settings: { permissionConfig, additionalDirectories: [], thinkingMode: id === 'a' ? 'enabled' : 'adaptive',
@@ -63,7 +63,7 @@ import { sessionModelSelections } from ${JSON.stringify(resolve(rendererRoot, 's
 window.store = sessionModelSelections;
 function Harness() {
   const state = useSessionState({
-    permissionMode: 'default', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
+    permissionMode: 'auto-review', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'auto_review', approvalsReviewer: 'auto_review' },
     planModeActive: false, localRouterMode: 'off', providerID: 'WRONG-GLOBAL', providerBaseURL: 'https://wrong.example', model: 'WRONG-MODEL',
     thinkingMode: 'disabled', sessionName: '', systemPrompt: '', appendSystemPrompt: '', additionalDirectories: '',
     installPidexDependencies: false, enableMemory: false, rustSearchAndDiffKernels: false,
