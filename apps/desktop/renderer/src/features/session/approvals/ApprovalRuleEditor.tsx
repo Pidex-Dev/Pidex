@@ -16,7 +16,7 @@ const MATCH_KIND_OPTIONS: ReadonlyArray<{
   label: string
   detail: string
 }> = [
-  { value: 'tool', label: '工具', detail: '按宿主工具名匹配，例如 Bash 或 apply_patch' },
+  { value: 'tool', label: '工具', detail: '按宿主工具名匹配，例如 exec_command 或 Edit' },
   { value: 'file', label: '文件', detail: '按内建文件工具的读/写目标目录匹配' },
   { value: 'command', label: '命令', detail: '精确命令，或同参数前缀的命令' },
   { value: 'network', label: '网络', detail: '精确域名，不支持通配符或子域' },
@@ -106,7 +106,7 @@ export function ApprovalRuleEditor({
           <span className="tw:text-app-text-soft tw:type-1 tw:weight-medium">工具名称</span>
           <Input
             aria-label="工具名称"
-            placeholder="例如 Bash"
+            placeholder="例如 exec_command"
             value={values.tool}
             onChange={(event) => set({ tool: event.currentTarget.value })}
           />

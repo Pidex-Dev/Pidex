@@ -1181,6 +1181,9 @@
   .canonical-command-card.canonical-command-shell--embedded {
     margin-block: var(--cpx-sys-space-1);
   }
+  .request-card .canonical-command-card {
+    margin-block: 0;
+  }
   .canonical-command-card__command {
     position: relative;
     min-width: 0;
@@ -1202,13 +1205,13 @@
     letter-spacing: var(--cpx-sys-letter-spacing-code);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    max-height: calc(var(--cpx-sys-line-height-code) * 2);
+    max-height: calc(var(--cpx-sys-line-height-code) * 2em);
     overflow: hidden;
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
   }
   .canonical-command-card__command-viewport > pre[data-expanded='true'] {
-    max-height: calc(var(--cpx-sys-line-height-code) * 10);
+    max-height: calc(var(--cpx-sys-line-height-code) * 10em);
     overflow-y: auto;
   }
   .canonical-command-card__command-viewport > pre[data-expanded='true']:hover {
@@ -1230,6 +1233,9 @@
     line-height: var(--cpx-sys-line-height-1);
     letter-spacing: var(--cpx-sys-letter-spacing-1);
     cursor: pointer;
+  }
+  .canonical-command-card__command-toggle[data-prompt='false'] {
+    margin-left: var(--cpx-sys-space-2);
   }
   .canonical-command-card__command-toggle:hover {
     color: var(--cpx-sys-color-fg-secondary);
@@ -1866,7 +1872,225 @@
     min-width: 0;
     display: grid;
     gap: var(--cpx-sys-space-2);
-    padding: var(--cpx-sys-space-2);
+    padding: 0;
+  }
+
+  .ask-user-question-nav-btn {
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: var(--cpx-sys-radius-item);
+    background: transparent;
+    color: var(--cpx-sys-color-fg-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+      background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+      color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+      opacity var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
+  }
+
+  .ask-user-question-nav-btn:hover:not(:disabled) {
+    background-color: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
+  .ask-user-question-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .ask-user-question-nav-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--cpx-sys-focus-ring);
+  }
+
+  .ask-user-question-close-btn {
+    margin-inline-start: 2px;
+  }
+
+  .ask-user-question-counter {
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-none);
+    color: var(--cpx-sys-color-fg-secondary);
+    padding: 0 2px;
+    user-select: none;
+  }
+
+  .ask-user-question-stage {
+    animation: ask-question-stage-in var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
+  }
+
+  @keyframes ask-question-stage-in {
+    from {
+      opacity: 0;
+      transform: translateY(2px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .ask-user-question-option-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-inline: calc(var(--cpx-sys-space-2) * -1);
+    width: calc(100% + var(--cpx-sys-space-2) * 2);
+    padding: 7px var(--cpx-sys-space-2);
+    border-radius: var(--cpx-sys-radius-container);
+    border: 1px solid transparent;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    transition:
+      background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+      border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
+  }
+
+  .ask-user-question-option-row:hover:not(:disabled) {
+    background-color: var(--cpx-sys-color-hover);
+  }
+
+  .ask-user-question-option-row.is-selected {
+    background-color: var(--cpx-sys-color-selected);
+    border-color: var(--cpx-sys-color-border-subtle);
+  }
+
+  .ask-user-question-option-row:focus-visible {
+    outline: none;
+    box-shadow: var(--cpx-sys-focus-ring);
+  }
+
+  .ask-user-question-option-row:disabled {
+    cursor: default;
+    opacity: 0.65;
+  }
+
+  .ask-user-question-option-num,
+  .ask-user-question-pill-badge {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--cpx-sys-radius-full);
+    border: 1px solid transparent;
+    font-size: var(--cpx-sys-font-size-1);
+  }
+
+  .ask-user-question-option-num {
+    background-color: var(--cpx-sys-color-surface-secondary);
+    border-color: transparent;
+    color: var(--cpx-sys-color-fg-secondary);
+    font-weight: var(--cpx-sys-font-weight-medium);
+    transition:
+      background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+      color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
+  }
+
+  .ask-user-question-option-row.is-selected .ask-user-question-option-num {
+    background-color: var(--cpx-comp-button-primary-bg);
+    color: var(--cpx-comp-button-primary-fg);
+    font-weight: var(--cpx-sys-font-weight-bold);
+  }
+
+  .ask-user-question-pill-badge {
+    background-color: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
+    border-color: var(--cpx-sys-color-border-subtle);
+    color: var(--cpx-sys-color-fg-secondary);
+  }
+
+  .ask-user-question-recommendation {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: var(--cpx-sys-radius-2);
+    background-color: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 8%, transparent);
+    color: var(--cpx-sys-color-fg-secondary);
+    font-size: 11px;
+    font-weight: var(--cpx-sys-font-weight-medium);
+    line-height: var(--cpx-sys-line-height-none);
+  }
+
+  .ask-user-question-row-arrow {
+    color: var(--cpx-sys-color-fg-secondary);
+    opacity: 0;
+    transform: translateX(-3px);
+    transition:
+      opacity var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+      transform var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
+  }
+
+  .ask-user-question-option-row:hover .ask-user-question-row-arrow,
+  .ask-user-question-option-row.is-selected .ask-user-question-row-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .ask-user-question-pill-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-inline: calc(var(--cpx-sys-space-2) * -1);
+    width: calc(100% + var(--cpx-sys-space-2) * 2);
+    padding: var(--cpx-sys-space-1) 5px var(--cpx-sys-space-1) var(--cpx-sys-space-2);
+    border-radius: var(--cpx-sys-radius-pill);
+    border: 1px solid transparent;
+    transition:
+      background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+      border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
+  }
+
+  .ask-user-question-pill-row:focus-within {
+    background-color: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 4%, transparent);
+    border-color: var(--cpx-sys-color-border-default);
+  }
+
+  .ask-user-question-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--cpx-sys-space-3);
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--cpx-sys-color-border-subtle);
+    background-color: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 2.5%, transparent);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+      border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
+  }
+
+  .ask-user-question-summary-row:hover:not(:disabled) {
+    background-color: var(--cpx-sys-color-hover);
+    border-color: var(--cpx-sys-color-border-default);
+  }
+
+  .ask-user-question-summary-row:focus-visible {
+    outline: none;
+    box-shadow: var(--cpx-sys-focus-ring);
+  }
+
+  .ask-user-question-summary-row:disabled {
+    cursor: default;
+    opacity: 0.65;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ask-user-question-stage {
+      animation: none;
+    }
   }
 
   /* color-mix() edge on the permission list. */

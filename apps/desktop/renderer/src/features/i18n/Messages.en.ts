@@ -176,8 +176,7 @@ export const enUS: Record<string, string> = {
   '管理项目上下文、指令和共享来源': 'Manage project context, instructions, and shared sources',
   '管理 setup、cleanup、Actions 与脚本执行信任': 'Manage setup, cleanup, Actions, and script trust',
   '创建、恢复、保留和清理 Pidex 工作树': 'Create, restore, retain, and clean up Pidex worktrees',
-  '管理 Node.js、Python、Git Bash 和 ripgrep 运行环境':
-    'Manage Node.js, Python, Git Bash, and ripgrep runtimes',
+  '管理 Node.js 和 Python 运行环境': 'Manage Node.js and Python runtimes',
   '分支、拉取请求、工作树和 GitHub 账户': 'Branches, pull requests, worktrees, and GitHub accounts',
   '查看、恢复或管理已归档的对话': 'View, restore, or manage archived conversations',
   权限: 'Permissions',

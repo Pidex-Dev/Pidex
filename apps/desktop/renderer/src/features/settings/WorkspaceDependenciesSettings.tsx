@@ -22,20 +22,16 @@ type Props = {
   onNotice?: (message: string) => void
 }
 
-const TOOL_IDS: readonly ToolingID[] = ['nodejs', 'python', 'git-bash', 'ripgrep']
+const TOOL_IDS: readonly ToolingID[] = ['nodejs', 'python']
 
 const TOOL_LABELS: Record<ToolingID, string> = {
   nodejs: 'Node.js',
   python: 'Python',
-  'git-bash': 'Git Bash',
-  ripgrep: 'ripgrep',
 }
 
 const TOOL_DESCRIPTIONS: Record<ToolingID, string> = {
   nodejs: '提供 node、npm、npx 和 corepack。',
   python: '提供 python 和 pip。',
-  'git-bash': '用于执行 Bash 命令，仅识别 Git for Windows 的 Git Bash。',
-  ripgrep: '用于 Glob 和 Grep 文件搜索。',
 }
 
 const PHASE_LABELS: Record<ToolingStatus['phase'], string> = {
@@ -287,7 +283,7 @@ function WorkspaceDependenciesHeader({
         </Button>
       </div>
       <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
-        四项运行环境彼此独立；内置版只在首次使用或手动安装时下载，不会打包进应用。
+        两项运行环境彼此独立；内置版只在首次使用或手动安装时下载，不会打包进应用。
       </p>
     </div>
   )

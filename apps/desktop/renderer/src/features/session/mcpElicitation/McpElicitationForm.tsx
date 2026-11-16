@@ -126,13 +126,13 @@ export function McpElicitationForm({
       error={error}
     >
       {message ? (
-        <p className="mcp-form-message tw:m-0 tw:px-3 tw:text-app-text-soft tw:type-2 tw:break-words">
+        <p className="mcp-form-message tw:m-0 tw:text-app-text-soft tw:type-2 tw:break-words">
           {message}
         </p>
       ) : null}
       {details}
 
-      <div className="mcp-form-fields tw:flex tw:flex-col tw:gap-2 tw:px-3">
+      <div className="mcp-form-fields tw:flex tw:flex-col tw:gap-2">
         {fieldNames.map((name) => {
           const fieldSchema = schema.properties[name]
           if (!fieldSchema) return null
@@ -152,20 +152,20 @@ export function McpElicitationForm({
       </div>
 
       {hasErrors && submitted ? (
-        <p className="mcp-form-error-summary tw:m-0 tw:px-3 tw:text-app-danger tw:type-1">
+        <p className="mcp-form-error-summary tw:m-0 tw:text-app-danger tw:type-1">
           请修正标红的字段后再提交
         </p>
       ) : null}
 
-      <div className="mcp-form-actions tw:flex tw:items-center tw:gap-1 tw:px-3 tw:pb-1">
-        <Button color="danger" onClick={onDecline}>
+      <div className="mcp-form-actions tw:flex tw:items-center tw:gap-1">
+        <Button shape="pill" size="sm" color="danger" onClick={onDecline}>
           拒绝
         </Button>
-        <Button color="secondary" onClick={onCancel}>
+        <Button shape="pill" size="sm" color="secondary" onClick={onCancel}>
           <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
           取消
         </Button>
-        <Button color="primary" onClick={handleSubmit}>
+        <Button shape="pill" size="sm" color="primary" onClick={handleSubmit}>
           提交
           <CornerDownLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
         </Button>
@@ -201,12 +201,12 @@ export function McpElicitationUnsupported({
       error={error}
     >
       {message ? (
-        <p className="mcp-form-message tw:m-0 tw:px-3 tw:text-app-text-soft tw:type-2 tw:break-words">
+        <p className="mcp-form-message tw:m-0 tw:text-app-text-soft tw:type-2 tw:break-words">
           {message}
         </p>
       ) : null}
 
-      <div className="mcp-form-unsupported tw:flex tw:items-start tw:gap-2 tw:px-3 tw:text-app-text-soft tw:type-1">
+      <div className="mcp-form-unsupported tw:flex tw:items-start tw:gap-2 tw:text-app-text-soft tw:type-1">
         <span
           className="mcp-form-unsupported-icon tw:mt-1 tw:shrink-0 tw:text-[var(--cpx-sys-space-4)]"
           aria-hidden="true"
@@ -216,11 +216,11 @@ export function McpElicitationUnsupported({
         <p className="tw:m-0">当前版本不支持此输入方式。</p>
       </div>
 
-      <div className="mcp-form-actions tw:flex tw:items-center tw:gap-1 tw:px-3 tw:pb-1">
-        <Button color="danger" onClick={onDecline}>
+      <div className="mcp-form-actions tw:flex tw:items-center tw:gap-1">
+        <Button shape="pill" size="sm" color="danger" onClick={onDecline}>
           拒绝
         </Button>
-        <Button color="secondary" onClick={onCancel}>
+        <Button shape="pill" size="sm" color="secondary" onClick={onCancel}>
           <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
           取消
         </Button>

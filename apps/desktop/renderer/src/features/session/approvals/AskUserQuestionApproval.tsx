@@ -4,18 +4,14 @@ import {
   ArrowRight,
   Check,
   ChevronLeft,
-  Circle,
-  CircleDot,
+  ChevronRight,
   CornerDownLeft,
   PenLine,
+  X,
 } from 'lucide-react'
 import type { DesktopPermissionRequest } from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
-import {
-  ASK_USER_QUESTION_PAGINATION_NAV_BUTTON_CLASS,
-  RequestCard,
-  RequestMarker,
-} from './RequestCard.js'
+import { RequestCard } from './RequestCard.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { cx } from '../../../utils/Cx.js'
 import { useApprovalCapability } from './UseQuestionSkipCapability.js'
@@ -23,16 +19,15 @@ import {
   CUSTOM_OPTION_ID,
   answerStateForConfirmation,
   buildAskUserQuestionUpdatedInput,
-  enterQuestionAction,
+  findNextPendingQuestionIndex,
   firstUnansweredQuestionIndex,
-  hasQuestionAnswer,
   initialPlanQuestionState,
   initialQuestionState,
-  questionKey,
-  questionOptionId,
-  questionDrafts,
   nextQuestionIndex,
   parseAskUserQuestions,
+  questionDrafts,
+  questionKey,
+  questionOptionId,
   selectQuestionOption,
   shouldDeferAskUserQuestionShortcutToTextEntry,
   type AskUserQuestion,
@@ -47,11 +42,13 @@ export {
   buildAskUserQuestionUpdatedInput,
   canSubmitFromCurrentQuestion,
   enterQuestionAction,
+  findNextPendingQuestionIndex,
   firstUnansweredQuestionIndex,
   footerControls,
   hasQuestionAnswer,
   initialQuestionState,
   initialPlanQuestionState,
+  isQuestionComplete,
   nextOptionLabel,
   nextQuestionIndex,
   nextQuestionOptionId,
@@ -131,10 +128,14 @@ function QuestionAnswerFormInstance({
   const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(
     () => questionDrafts.get(draftKey)?.index ?? 0,
   )
+  const [isSummary, setIsSummary] = React.useState(
+    () => Boolean(questionDrafts.get(draftKey)?.isSummary) && (questions?.length ?? 0) > 1,
+  )
   const [error, setError] = React.useState<string | null>(null)
   const customInputRef = React.useRef<HTMLTextAreaElement | null>(null)
   const approvalRef = React.useRef<HTMLDivElement | null>(null)
   const focusFirstOptionRef = React.useRef(false)
+  const advanceTimerRef = React.useRef<number | null>(null)
   const submittedRef = React.useRef(false)
   const mountedRef = React.useRef(true)
   const pauseAttemptedRef = React.useRef(false)
@@ -153,22 +154,36 @@ function QuestionAnswerFormInstance({
     [questionStates],
   )
 
-  React.useEffect(() => {
-    mountedRef.current = true
-    return () => {
-      mountedRef.current = false
+  const clearAdvanceTimer = React.useCallback((): void => {
+    if (advanceTimerRef.current !== null && typeof window !== 'undefined') {
+      window.clearTimeout(advanceTimerRef.current)
+      advanceTimerRef.current = null
     }
   }, [])
 
   React.useEffect(() => {
-    if (!submittedRef.current)
-      questionDrafts.set(draftKey, { states: questionStates, index: currentQuestionIndex })
-  }, [draftKey, questionStates, currentQuestionIndex])
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      clearAdvanceTimer()
+    }
+  }, [clearAdvanceTimer])
+
+  React.useEffect(() => {
+    if (!submittedRef.current) {
+      questionDrafts.set(draftKey, {
+        states: questionStates,
+        index: currentQuestionIndex,
+        isSummary,
+      })
+    }
+  }, [draftKey, questionStates, currentQuestionIndex, isSummary])
 
   React.useEffect(() => {
     setCurrentQuestionIndex((current) =>
       questionCount > 0 ? Math.min(current, questionCount - 1) : 0,
     )
+    if (questionCount <= 1) setIsSummary(false)
   }, [questionCount])
 
   React.useLayoutEffect(() => {
@@ -177,7 +192,7 @@ function QuestionAnswerFormInstance({
     approvalRef.current
       ?.querySelector<HTMLButtonElement>('button[role="radio"], button[role="checkbox"]')
       ?.focus()
-  }, [currentQuestionIndex])
+  }, [currentQuestionIndex, isSummary])
 
   React.useLayoutEffect(() => {
     if (typeof window === 'undefined') return
@@ -200,7 +215,7 @@ function QuestionAnswerFormInstance({
       if ((event.target as HTMLElement).closest('[role="dialog"], [role="menu"]')) return
       if (event.key === 'Escape') {
         event.preventDefault()
-        // 访谈类问题只退出当前编辑焦点；结束等待必须点击“停止本轮”。
+        // INVARIANT: 访谈类问题只退出当前编辑焦点；结束等待必须点击关闭/停止按钮。
         if (isStructured) blurCurrentFocus()
         else void reject()
         return
@@ -212,15 +227,50 @@ function QuestionAnswerFormInstance({
         return
       if (shouldDeferAskUserQuestionShortcutToTextEntry(event.key, isTextEntryTarget(event.target)))
         return
+      if (event.key === 'ArrowLeft') {
+        if (isSummary && questionCount > 1) {
+          event.preventDefault()
+          exitSummaryToQuestion(questionCount - 1)
+        } else if (!isSummary && questionCount > 1 && currentQuestionIndex > 0) {
+          event.preventDefault()
+          goToQuestion(-1)
+        }
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        if (!isSummary && questionCount > 1 && currentQuestionIndex < questionCount - 1) {
+          event.preventDefault()
+          goToQuestion(1)
+        }
+        return
+      }
+      if (isSummary) {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          submitAnswers()
+        }
+        return
+      }
       const currentQuestion = questions[currentQuestionIndex] ?? questions[0]
       if (!currentQuestion) return
-      // 方向键只移动焦点，Space 由按钮原生激活选择，Enter 确认当前题。
       if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault()
         movePlanFocus(event.key === 'ArrowUp' ? -1 : 1)
+      } else if (
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        /^[1-9]$/u.test(event.key)
+      ) {
+        const optionIndex = Number(event.key) - 1
+        const option = currentQuestion.options[optionIndex]
+        if (option) {
+          event.preventDefault()
+          handleOptionClick(currentQuestion, questionOptionId(option))
+        }
       } else if (event.key === 'Enter') {
         event.preventDefault()
-        confirmCurrentQuestionAndAdvance(currentQuestion)
+        confirmOrAdvanceFromPill(currentQuestion)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -228,6 +278,7 @@ function QuestionAnswerFormInstance({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentQuestionIndex,
+    isSummary,
     onReject,
     questionCount,
     questionStates,
@@ -282,8 +333,26 @@ function QuestionAnswerFormInstance({
     setError(null)
   }
 
+  function advanceAfterAction(statesSnapshot: Record<string, QuestionState>): void {
+    if (!questions || submittedRef.current) return
+    const nextPending = findNextPendingQuestionIndex(
+      questions,
+      statesSnapshot,
+      currentQuestionIndex,
+    )
+    if (nextPending !== -1) {
+      setIsSummary(false)
+      setCurrentQuestionIndex(nextPending)
+      setError(null)
+    } else if (questionCount > 1) {
+      setIsSummary(true)
+      setError(null)
+    }
+  }
+
   function submitAnswers(override?: { question: AskUserQuestion; state: QuestionState }): void {
     if (!questions || submittedRef.current || disabledReason) return
+    clearAdvanceTimer()
     const drafts = override
       ? { ...questionStates, [questionKey(override.question)]: override.state }
       : questionStates
@@ -295,13 +364,14 @@ function QuestionAnswerFormInstance({
     )
     const firstUnanswered = firstUnansweredQuestionIndex(questions, effectiveStates)
     if (firstUnanswered !== -1) {
+      setIsSummary(false)
       setCurrentQuestionIndex(firstUnanswered)
-      // 先聚焦再设置错误：聚焦会触发 onFocus 的 updateQuestion，它清空既有错误。
+      // INVARIANT: 先聚焦再设置错误，避免 onFocus 触发 updateQuestion 时把错误提示清空。
       customInputRef.current?.focus()
       setError('请回答必答问题后再提交。')
       return
     }
-    questionDrafts.set(draftKey, { states: drafts, index: currentQuestionIndex })
+    questionDrafts.set(draftKey, { states: drafts, index: currentQuestionIndex, isSummary })
     submittedRef.current = true
     setBusy(true)
     try {
@@ -329,39 +399,42 @@ function QuestionAnswerFormInstance({
     }
   }
 
-  function confirmCurrentQuestionAndAdvance(
-    question: AskUserQuestion,
-    draft = draftFor(question),
-  ): void {
+  function confirmOrAdvanceFromPill(question: AskUserQuestion): void {
     if (submittedRef.current || disabledReason) return
+    clearAdvanceTimer()
+    const draft = draftFor(question)
     const blankState = initialQuestionState(question)
     const confirmedState = answerStateForConfirmation(draft.skipped ? blankState : draft)
     if (!confirmedState.answered) {
-      // 先聚焦再设置错误：聚焦会触发 onFocus 的 updateQuestion，它清空既有错误。
       customInputRef.current?.focus()
       setError('请输入回答后再继续。')
       return
     }
-    updateQuestion(questionKey(question), () => confirmedState)
-    if (enterQuestionAction(currentQuestionIndex, questionCount) === 'confirm-and-submit') {
+    const qKey = questionKey(question)
+    const nextStates = { ...questionStates, [qKey]: confirmedState }
+    updateQuestion(qKey, () => confirmedState)
+    if (questionCount <= 1) {
       submitAnswers({ question, state: confirmedState })
       return
     }
-    goToQuestion(1)
+    advanceAfterAction(nextStates)
   }
 
   function skipCurrentQuestion(question: AskUserQuestion): void {
     if (submittedRef.current || disabledReason || !supportsQuestionSkip) return
+    clearAdvanceTimer()
     const state: QuestionState = { selected: [], custom: '', answered: false, skipped: true }
-    updateQuestion(questionKey(question), () => state)
-    if (currentQuestionIndex === questionCount - 1) submitAnswers({ question, state })
-    else {
-      focusFirstOptionRef.current = true
-      goToQuestion(1)
+    const qKey = questionKey(question)
+    const nextStates = { ...questionStates, [qKey]: state }
+    updateQuestion(qKey, () => state)
+    if (questionCount <= 1) {
+      submitAnswers({ question, state })
+      return
     }
+    focusFirstOptionRef.current = true
+    advanceAfterAction(nextStates)
   }
 
-  /** 方向键只移动真实键盘焦点，不改变答案。 */
   function movePlanFocus(delta: -1 | 1): void {
     const container = approvalRef.current
     if (!container) return
@@ -389,26 +462,58 @@ function QuestionAnswerFormInstance({
 
   function goToQuestion(delta: -1 | 1): void {
     if (submittedRef.current) return
+    clearAdvanceTimer()
+    setIsSummary(false)
     setCurrentQuestionIndex((current) => nextQuestionIndex(current, delta, questionCount))
     setError(null)
   }
 
-  function goToQuestionIndex(index: number): void {
+  function exitSummaryToQuestion(index: number): void {
     if (submittedRef.current) return
+    clearAdvanceTimer()
+    setIsSummary(false)
     setCurrentQuestionIndex(Math.max(0, Math.min(questionCount - 1, index)))
     setError(null)
   }
 
-  function chooseOption(question: AskUserQuestion, id: string): void {
-    updateQuestion(questionKey(question), (current) => ({
-      ...selectQuestionOption(current, id, question.multiSelect, 'toggle'),
+  function resetAllQuestions(): void {
+    if (!questions || submittedRef.current || disabledReason) return
+    clearAdvanceTimer()
+    const blankStates = Object.fromEntries(
+      questions.map((question) => [
+        questionKey(question),
+        { selected: [], custom: '', answered: false, skipped: false },
+      ]),
+    )
+    setQuestionStates(blankStates)
+    setIsSummary(false)
+    setCurrentQuestionIndex(0)
+    setError(null)
+  }
+
+  function handleOptionClick(question: AskUserQuestion, optionId: string): void {
+    if (submittedRef.current || disabledReason) return
+    clearAdvanceTimer()
+    const current = draftFor(question)
+    const nextState: QuestionState = {
+      ...selectQuestionOption(current, optionId, question.multiSelect, 'toggle'),
       touched: true,
       skipped: false,
-    }))
+    }
+    const qKey = questionKey(question)
+    const nextStates = { ...questionStates, [qKey]: nextState }
+    updateQuestion(qKey, () => nextState)
+    if (!question.multiSelect && questionCount > 1 && typeof window !== 'undefined') {
+      advanceTimerRef.current = window.setTimeout(() => {
+        advanceTimerRef.current = null
+        advanceAfterAction(nextStates)
+      }, 150)
+    }
   }
 
   async function interrupt(): Promise<void> {
     if (!onInterrupt || submittedRef.current || disabledReason) return
+    clearAdvanceTimer()
     submittedRef.current = true
     setBusy(true)
     setError(null)
@@ -424,6 +529,7 @@ function QuestionAnswerFormInstance({
 
   async function reject(): Promise<void> {
     if (submittedRef.current || disabledReason) return
+    clearAdvanceTimer()
     submittedRef.current = true
     setBusy(true)
     setError(null)
@@ -440,76 +546,9 @@ function QuestionAnswerFormInstance({
   const currentQuestion = questions[currentQuestionIndex] ?? questions[0]
   const state = draftFor(currentQuestion)
   const isLastQuestion = currentQuestionIndex === questionCount - 1
-  const currentAnswered = hasQuestionAnswer(state)
   const planHasChoices = currentQuestion.options.length > 0
-  const choiceOptions = currentQuestion.options.map((option) => ({ option }))
-  const customFocused = state.focused === CUSTOM_OPTION_ID
-
-  const customRow = (
-    <div
-      className={cx(
-        'inline-approval-option custom tw:mt-1 tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:gap-2 tw:rounded-4 tw:border tw:bg-app-control tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:cursor-text',
-        // 「自己回答」多一行标题，标记随之顶部对齐。
-        planHasChoices ? 'tw:items-start' : 'tw:items-center',
-        planHasChoices && 'tw:col-start-1',
-        'tw:focus-within:border-app-accent',
-        customFocused ? 'tw:border-app-accent' : 'tw:border-transparent',
-        customFocused ? 'focused' : undefined,
-        state.custom.trim() ? 'filled' : undefined,
-      )}
-      key={CUSTOM_OPTION_ID}
-    >
-      <RequestMarker>
-        <PenLine className="tw:size-icon-md" size={APP_ICON_SIZE} />
-      </RequestMarker>
-      <span className="ask-user-question-option-copy tw:grid tw:min-w-0 tw:gap-1 tw:text-left">
-        {planHasChoices ? (
-          <span className="inline-approval-option-label tw:block tw:min-w-0 tw:type-2 tw:weight-medium">
-            自己回答
-          </span>
-        ) : null}
-        <textarea
-          ref={customInputRef}
-          className="ask-user-question-custom-input tw:block tw:w-full tw:min-w-0 tw:field-sizing-content tw:min-h-[1.5em] tw:max-h-[120px] tw:resize-none tw:overflow-y-auto tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:type-2 tw:wrap-anywhere tw:outline-none tw:placeholder:text-app-text-meta"
-          aria-label="自定义回答"
-          placeholder="输入你的回答"
-          rows={1}
-          disabled={disabled}
-          value={state.custom}
-          onKeyDown={(event) => {
-            const confirmKey =
-              event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.altKey
-            if (!confirmKey) return
-            if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || event.repeat)
-              return
-            event.preventDefault()
-            if (state.custom.trim()) confirmCurrentQuestionAndAdvance(currentQuestion)
-          }}
-          onFocus={() => {
-            // 聚焦只是焦点，清除选择只由真实输入触发。
-            updateQuestion(questionKey(currentQuestion), (current) => ({
-              ...current,
-              focused: CUSTOM_OPTION_ID,
-              skipped: false,
-            }))
-          }}
-          onChange={(event) => {
-            const custom = event.target.value
-            updateQuestion(questionKey(currentQuestion), (current) => ({
-              ...current,
-              custom,
-              focused: CUSTOM_OPTION_ID,
-              selected: currentQuestion.multiSelect ? current.selected : [],
-              answered:
-                Boolean(custom.trim()) ||
-                (currentQuestion.multiSelect && current.selected.length > 0),
-              skipped: false,
-            }))
-          }}
-        />
-      </span>
-    </div>
-  )
+  const hasCustomOrSelection = Boolean(state.custom.trim()) || state.selected.length > 0
+  const cardTitle = isSummary ? '已收集全部确认，是否提交？' : currentQuestion.question
 
   return (
     <div
@@ -519,12 +558,12 @@ function QuestionAnswerFormInstance({
     >
       <RequestCard
         variant="question"
-        title={currentQuestion.question}
-        identity={identity ?? '需要你确认'}
+        title={cardTitle}
+        identity={identity}
         disabledReason={disabledReason}
         error={error}
         navigation={
-          <div className="ask-user-question-navigation tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1">
+          <div className="ask-user-question-navigation tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:text-app-text-soft tw:type-1">
             {questionCount > 1 ? (
               <div
                 className="ask-user-question-pagination tw:inline-flex tw:items-center tw:gap-1 tw:whitespace-nowrap"
@@ -533,170 +572,299 @@ function QuestionAnswerFormInstance({
               >
                 <button
                   type="button"
-                  className={ASK_USER_QUESTION_PAGINATION_NAV_BUTTON_CLASS}
+                  className="ask-user-question-nav-btn"
                   aria-label="上一题"
-                  disabled={disabled || currentQuestionIndex === 0}
-                  onClick={() => goToQuestion(-1)}
+                  title="上一题 (←)"
+                  disabled={disabled || (!isSummary && currentQuestionIndex === 0)}
+                  onClick={() => {
+                    if (isSummary) {
+                      exitSummaryToQuestion(questionCount - 1)
+                      return
+                    }
+                    goToQuestion(-1)
+                  }}
                 >
-                  <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
+                  <ChevronLeft className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </button>
-                {questions.map((question, index) => {
-                  const answered = hasQuestionAnswer(draftFor(question))
-                  return (
-                    <button
-                      key={questionKey(question)}
-                      type="button"
-                      className={cx(
-                        ASK_USER_QUESTION_PAGINATION_NAV_BUTTON_CLASS,
-                        'ask-user-question-step',
-                        index === currentQuestionIndex && 'current',
-                        answered && 'answered',
-                      )}
-                      aria-current={index === currentQuestionIndex ? 'step' : undefined}
-                      aria-label={`第 ${index + 1} 题${answered ? '（已答）' : '（待答）'}`}
-                      data-answered={answered ? 'true' : 'false'}
-                      disabled={disabled}
-                      onClick={() => goToQuestionIndex(index)}
-                    >
-                      {index + 1}
-                    </button>
-                  )
-                })}
-                <span aria-live="polite">
-                  {currentQuestionIndex + 1} / {questionCount}
+                <span className="ask-user-question-counter tw:tabular-nums" aria-live="polite">
+                  {isSummary ? questionCount : currentQuestionIndex + 1} of {questionCount}
                 </span>
+                <button
+                  type="button"
+                  className="ask-user-question-nav-btn"
+                  aria-label="下一题"
+                  title="下一题 (→)"
+                  disabled={disabled || isSummary || currentQuestionIndex >= questionCount - 1}
+                  onClick={() => goToQuestion(1)}
+                >
+                  <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+                </button>
               </div>
             ) : null}
+            {isStructured ? (
+              <button
+                type="button"
+                className="ask-user-question-nav-btn ask-user-question-close-btn"
+                aria-label="停止本轮"
+                title="停止本轮"
+                disabled={disabled || !onInterrupt}
+                onClick={() => void interrupt()}
+              >
+                <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="ask-user-question-nav-btn ask-user-question-close-btn"
+                aria-label="关闭"
+                title="关闭"
+                disabled={disabled}
+                onClick={() => void reject()}
+              >
+                <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+              </button>
+            )}
           </div>
         }
       >
-        {planHasChoices ? (
-          <div
-            className="inline-approval-options tw:grid tw:grid-cols-[minmax(0,1fr)] tw:items-end tw:gap-x-3 tw:gap-y-1"
-            role={currentQuestion.multiSelect ? 'group' : 'radiogroup'}
-          >
-            {choiceOptions.map(({ option }) => {
-              const selected = state.selected.includes(questionOptionId(option))
-              const focused = state.focused === questionOptionId(option)
-              return (
-                <button
-                  aria-checked={selected}
-                  className={cx(
-                    'inline-approval-option tw:col-span-full tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-4 tw:border tw:border-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:focus-visible:shadow-[var(--cpx-sys-focus-ring)] tw:focus-visible:outline-none',
-                    !selected && 'tw:hover:bg-app-hover',
-                    selected ? 'selected tw:bg-app-selected' : 'tw:bg-transparent',
-                    focused ? 'focused' : undefined,
-                  )}
-                  key={questionOptionId(option)}
-                  role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => {
-                    if (submittedRef.current || disabledReason) return
-                    chooseOption(currentQuestion, questionOptionId(option))
-                  }}
-                >
-                  <RequestMarker>
-                    {selected ? (
-                      <CircleDot className="tw:size-icon-md" size={APP_ICON_SIZE} />
-                    ) : (
-                      <Circle className="tw:size-icon-md" size={APP_ICON_SIZE} />
-                    )}
-                  </RequestMarker>
-                  <span className="ask-user-question-option-copy tw:grid tw:min-w-0 tw:gap-1 tw:text-left">
-                    <span className="inline-approval-option-label tw:block tw:min-w-0 tw:type-2 tw:weight-medium tw:wrap-anywhere">
-                      {option.label}
-                      {option.recommended ? (
-                        <span className="inline-approval-option-hint ask-user-question-recommendation tw:type-1 tw:text-app-text-soft">
-                          推荐
-                        </span>
-                      ) : null}
-                    </span>
-                    {option.description ? (
-                      <span className="ask-user-question-option-description tw:block tw:text-app-text-soft tw:type-1 tw:whitespace-normal tw:wrap-anywhere">
-                        {option.description}
+        {isSummary && questionCount > 1 ? (
+          <div key="summary" className="ask-user-question-stage tw:flex tw:flex-col tw:gap-2">
+            <div className="ask-user-question-summary-list tw:flex tw:flex-col tw:gap-1">
+              {questions.map((question, index) => {
+                const summaryAnswer = formatSummaryAnswer(question, draftFor(question))
+                return (
+                  <button
+                    key={questionKey(question)}
+                    type="button"
+                    disabled={disabled}
+                    className="ask-user-question-summary-row"
+                    onClick={() => exitSummaryToQuestion(index)}
+                  >
+                    <span className="tw:min-w-0 tw:flex-1">
+                      <span className="ask-user-question-summary-q tw:block tw:type-1 tw:text-app-text-soft">
+                        {index + 1}. {question.question}
                       </span>
-                    ) : null}
-                  </span>
-                  {currentQuestion.multiSelect ? (
-                    <span className="inline-approval-option-trailing tw:inline-flex tw:flex-none tw:items-center tw:gap-2">
                       <span
                         className={cx(
-                          'inline-approval-option-checkbox tw:inline-flex tw:size-4 tw:items-center tw:justify-center tw:rounded-3 tw:border tw:border-app-border tw:text-app-canvas',
-                          selected
-                            ? 'selected tw:border-app-text tw:bg-app-text'
-                            : 'tw:bg-transparent',
+                          'ask-user-question-summary-a tw:block tw:type-2 tw:wrap-anywhere',
+                          summaryAnswer.isMuted
+                            ? 'tw:weight-regular tw:text-app-text-meta'
+                            : 'tw:weight-medium tw:text-app-text',
                         )}
-                        aria-hidden="true"
                       >
-                        {selected ? (
-                          <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
-                        ) : null}
+                        {summaryAnswer.text}
                       </span>
                     </span>
-                  ) : selected ? (
-                    <span className="inline-approval-option-trailing tw:inline-flex tw:flex-none tw:items-center tw:gap-2">
-                      <span
-                        className="inline-approval-option-arrows tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text-meta"
-                        aria-hidden="true"
-                      >
-                        <ArrowRight className="tw:size-icon-md" size={APP_ICON_SIZE} />
-                      </span>
+                    <span className="ask-user-question-summary-edit tw:shrink-0 tw:type-1 tw:text-app-text-soft">
+                      修改
                     </span>
-                  ) : null}
-                </button>
-              )
-            })}
-            {customRow}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="ask-user-question-summary-footer tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:pt-1">
+              <span className="tw:type-1 tw:text-app-text-meta">点击任意项可返回修改</span>
+              <div className="tw:flex tw:items-center tw:gap-2">
+                <Button
+                  type="button"
+                  shape="pill"
+                  size="sm"
+                  color="secondary"
+                  disabled={disabled}
+                  onClick={resetAllQuestions}
+                >
+                  重置
+                </Button>
+                <Button
+                  type="button"
+                  shape="pill"
+                  size="sm"
+                  color="primary"
+                  disabled={disabled}
+                  loading={busy}
+                  loadingText="提交中…"
+                  onClick={() => submitAnswers()}
+                >
+                  确认提交
+                </Button>
+              </div>
+            </div>
           </div>
         ) : (
-          customRow
-        )}
-        <div className="ask-user-question-footer tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:px-1 tw:pt-2">
-          <Button
-            color={isStructured ? 'secondary' : 'danger'}
-            disabled={disabled || (isStructured ? !onInterrupt : false)}
-            onClick={() => (isStructured ? void interrupt() : void reject())}
+          <div
+            key={currentQuestionIndex}
+            className="ask-user-question-stage tw:flex tw:flex-col tw:gap-1"
           >
-            {isStructured ? '停止本轮' : '拒绝'}
-          </Button>
-          <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-            <Button
-              color="secondary"
-              aria-label="跳过当前问题"
-              title="跳过只是暂定假设，不是已确认决策"
-              disabled={disabled || !supportsQuestionSkip}
-              onClick={() => skipCurrentQuestion(currentQuestion)}
+            {planHasChoices ? (
+              <div
+                className="ask-user-question-options tw:flex tw:flex-col tw:gap-1"
+                role={currentQuestion.multiSelect ? 'group' : 'radiogroup'}
+                aria-label={currentQuestion.question}
+              >
+                {currentQuestion.options.map((option, index) => {
+                  const optionId = questionOptionId(option)
+                  const selected = state.selected.includes(optionId)
+                  return (
+                    <button
+                      key={optionId}
+                      type="button"
+                      role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
+                      aria-checked={selected}
+                      disabled={disabled}
+                      className={cx('ask-user-question-option-row', selected && 'is-selected')}
+                      onClick={() => handleOptionClick(currentQuestion, optionId)}
+                    >
+                      <span
+                        className="request-card-marker ask-user-question-option-num"
+                        aria-hidden="true"
+                      >
+                        {index + 1}
+                      </span>
+                      <span className="ask-user-question-option-inline tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1">
+                        <span className="ask-user-question-option-head tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+                          <span className="ask-user-question-option-title tw:type-2 tw:weight-medium tw:text-app-text tw:wrap-anywhere">
+                            {option.label}
+                          </span>
+                          {option.recommended ? (
+                            <span className="ask-user-question-recommendation">推荐</span>
+                          ) : null}
+                        </span>
+                        {option.description ? (
+                          <span className="ask-user-question-option-desc tw:type-1 tw:weight-regular tw:text-app-text-soft tw:whitespace-normal tw:wrap-anywhere">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </span>
+                      {currentQuestion.multiSelect ? (
+                        <span
+                          className={cx(
+                            'ask-user-question-checkbox tw:inline-flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:border tw:border-app-border tw:text-app-canvas',
+                            selected
+                              ? 'is-selected tw:border-app-text tw:bg-app-text'
+                              : 'tw:bg-transparent',
+                          )}
+                          aria-hidden="true"
+                        >
+                          {selected ? (
+                            <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+                          ) : null}
+                        </span>
+                      ) : (
+                        <ArrowRight
+                          className="ask-user-question-row-arrow tw:size-icon-sm tw:shrink-0"
+                          size={APP_ICON_SIZES.sm}
+                          aria-hidden="true"
+                        />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : null}
+            <div
+              className={cx('ask-user-question-pill-row', planHasChoices ? 'tw:mt-1' : undefined)}
             >
-              跳过
-            </Button>
-            <Button
-              color="primary"
-              disabled={disabled || (!isLastQuestion && !currentAnswered)}
-              onClick={() => {
-                if (!isLastQuestion) {
-                  goToQuestion(1)
-                  return
-                }
-                submitAnswers()
-              }}
-            >
-              {isLastQuestion ? '提交回答' : '下一题'}
-              <CornerDownLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
-            </Button>
+              <span className="request-card-marker ask-user-question-pill-badge" aria-hidden="true">
+                <PenLine className="tw:size-icon-xs" size={APP_ICON_SIZES.sm} />
+              </span>
+              <textarea
+                ref={customInputRef}
+                className="ask-user-question-custom-input tw:block tw:w-full tw:min-w-0 tw:flex-1 tw:field-sizing-content tw:min-h-[1.5em] tw:max-h-[120px] tw:resize-none tw:overflow-y-auto tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:type-2 tw:weight-regular tw:wrap-anywhere tw:outline-none tw:placeholder:text-app-text-meta"
+                aria-label="自定义回答"
+                placeholder={planHasChoices ? '否，并告诉助手应该如何做得不同' : '输入你的回答'}
+                rows={1}
+                disabled={disabled}
+                value={state.custom}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') return
+                  if (event.shiftKey && !event.ctrlKey && !event.metaKey) return
+                  if (event.altKey) return
+                  if (
+                    event.nativeEvent.isComposing ||
+                    event.nativeEvent.keyCode === 229 ||
+                    event.repeat
+                  )
+                    return
+                  event.preventDefault()
+                  if (state.custom.trim()) confirmOrAdvanceFromPill(currentQuestion)
+                }}
+                onFocus={() => {
+                  // INVARIANT: 聚焦只是焦点，清除选择只由真实输入触发。
+                  updateQuestion(questionKey(currentQuestion), (current) => ({
+                    ...current,
+                    focused: CUSTOM_OPTION_ID,
+                    skipped: false,
+                  }))
+                }}
+                onChange={(event) => {
+                  clearAdvanceTimer()
+                  const custom = event.target.value
+                  updateQuestion(questionKey(currentQuestion), (current) => ({
+                    ...current,
+                    custom,
+                    focused: CUSTOM_OPTION_ID,
+                    selected: currentQuestion.multiSelect ? current.selected : [],
+                    answered:
+                      Boolean(custom.trim()) ||
+                      (currentQuestion.multiSelect && current.selected.length > 0),
+                    skipped: false,
+                  }))
+                }}
+              />
+              <div className="ask-user-question-pill-actions tw:flex tw:shrink-0 tw:items-center tw:gap-1">
+                {hasCustomOrSelection ? (
+                  <Button
+                    type="button"
+                    shape="pill"
+                    size="sm"
+                    color="primary"
+                    disabled={disabled}
+                    loading={busy}
+                    loadingText="提交中…"
+                    onClick={() => confirmOrAdvanceFromPill(currentQuestion)}
+                  >
+                    {questionCount > 1 && !isLastQuestion ? '下一题' : '提交'}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    shape="pill"
+                    size="sm"
+                    color="secondary"
+                    aria-label="跳过当前问题"
+                    title={
+                      supportsQuestionSkip
+                        ? '跳过只是暂定假设，不是已确认决策'
+                        : '当前 Agent 尚未提供逐题跳过能力，请升级并重启 Agent。'
+                    }
+                    disabled={disabled || !supportsQuestionSkip}
+                    onClick={() => skipCurrentQuestion(currentQuestion)}
+                  >
+                    跳过
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-        {!supportsQuestionSkip ? (
-          <p
-            className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-4 tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-1"
-            role="status"
-          >
-            当前 Agent 尚未提供逐题跳过能力，请升级并重启 Agent。
-          </p>
-        ) : null}
+        )}
       </RequestCard>
     </div>
   )
+}
+
+function formatSummaryAnswer(
+  question: AskUserQuestion,
+  state: QuestionState,
+): { text: string; isMuted: boolean } {
+  if (state.skipped) return { text: '已跳过', isMuted: true }
+  const parts = [
+    ...state.selected.map(
+      (id) => question.options.find((option) => questionOptionId(option) === id)?.label ?? id,
+    ),
+    ...(state.custom.trim() ? [state.custom.trim()] : []),
+  ]
+  if (parts.length > 0) return { text: parts.join(', '), isMuted: false }
+  return { text: '未选择', isMuted: true }
 }
 
 function isTextEntryTarget(target: EventTarget | null): boolean {

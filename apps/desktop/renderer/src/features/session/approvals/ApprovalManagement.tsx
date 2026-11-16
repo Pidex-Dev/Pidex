@@ -101,7 +101,7 @@ export function AutoReviewNudge({
       variant="permission"
       description={
         <>
-          <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
+          <p className="inline-approval-target tw:m-0 tw:text-app-text-soft tw:type-1 tw:wrap-anywhere">
             你已成功允许三次操作。可以由 Guardian 审查后续操作；关闭此提示会保留人工审批。
           </p>
           {error ? <p role="alert">{error}</p> : null}
@@ -109,10 +109,12 @@ export function AutoReviewNudge({
       }
       actions={
         <div className="inline-approval-actions tw:ml-auto tw:flex tw:shrink-0 tw:flex-wrap tw:items-center tw:gap-2">
-          <Button color="secondary" disabled={busy} onClick={close}>
+          <Button shape="pill" size="sm" color="secondary" disabled={busy} onClick={close}>
             保持人工审批
           </Button>
           <Button
+            shape="pill"
+            size="sm"
             color="primary"
             disabled={busy}
             onClick={() => {

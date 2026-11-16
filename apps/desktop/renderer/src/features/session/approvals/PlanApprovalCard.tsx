@@ -1,10 +1,9 @@
 import React from 'react'
 import type { PlanApproval } from '@pidex/shared/thread'
-import { ChevronDown } from 'lucide-react'
+import { ArrowRight, PenLine } from 'lucide-react'
 import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import { Dropdown } from '../../../components/ui/Dropdown.js'
-import { PopoverItem } from '../../../components/ui/PopoverItem.js'
+import { cx } from '../../../utils/Cx.js'
 import { RequestCard } from './RequestCard.js'
 import type { OpenPlanInDockRequest } from '../workflow/WorkflowPlanCard.js'
 
@@ -19,43 +18,38 @@ export type PlanApprovalCardProps = {
   identity?: string
   disabledReason?: string
   onRespond: (response: PlanApprovalResponse) => Promise<void>
-  /** 在右栏打开待审阅计划正文；缺省时不显示“查看全文”。 */
   onOpenPlan?: (plan: OpenPlanInDockRequest) => void
   freshAvailable?: boolean
 }
 
-const FEEDBACK_PLACEHOLDER = '例如：先完成提问交互，计划侧栏放到下一阶段……'
+const FEEDBACK_PLACEHOLDER = '否，请告知 Pidex 如何调整'
 
 /**
- * 计划审阅动作与澄清选择题分开：这里只呈现阅读入口和四个真实动作，
- * 不再复用 Plan 专用的选择题答案映射。
+ * 计划审阅卡片：复用确认卡片的统一视觉结构，提供实施确认选项、自定义调整意见与忽略动作。
  */
 export function PlanApprovalCard({
   approval,
   identity,
   disabledReason,
   onRespond,
-  onOpenPlan,
-  freshAvailable = false,
 }: PlanApprovalCardProps): React.ReactNode {
-  const [editingFeedback, setEditingFeedback] = React.useState(false)
+  const [implementSelected, setImplementSelected] = React.useState(true)
   const [feedback, setFeedback] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState<PlanApprovalResponse['action'] | null>(null)
-  const feedbackId = React.useId()
+  const cardRef = React.useRef<HTMLDivElement | null>(null)
   const feedbackRef = React.useRef<HTMLTextAreaElement | null>(null)
   const disabled = busy !== null || Boolean(disabledReason)
+  const trimmedFeedback = feedback.trim()
+  const isCustomFeedback = trimmedFeedback.length > 0
+  const selected = !isCustomFeedback && implementSelected
 
-  // 计划版本变化代表旧审批已失效：清掉提示与提交态，避免把旧动作带到新计划上。
   React.useEffect(() => {
     setBusy(null)
     setError(null)
-    setEditingFeedback(false)
+    setImplementSelected(true)
+    setFeedback('')
   }, [approval.id, approval.version])
-
-  React.useEffect(() => {
-    if (editingFeedback) feedbackRef.current?.focus()
-  }, [editingFeedback])
 
   async function act(build: () => PlanApprovalResponse): Promise<void> {
     if (disabled) return
@@ -65,148 +59,160 @@ export function PlanApprovalCard({
     try {
       await onRespond(response)
     } catch {
-      // 失败保留反馈草稿与阅读位置，只就地提示。
       setError('操作失败，请重试。')
       setBusy(null)
     }
   }
 
-  // Escape 只退出反馈编辑，不关闭计划、不切模式、不发送。
-  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
-    if (!editingFeedback || event.key !== 'Escape') return
-    event.preventDefault()
-    event.stopPropagation()
-    setEditingFeedback(false)
+  function submitSelectionOrFeedback(): void {
+    if (isCustomFeedback) {
+      void act(() => ({ action: 'feedback', feedback: trimmedFeedback }))
+      return
+    }
+    void act(() => ({ action: 'implement' }))
   }
 
-  const plan: OpenPlanInDockRequest = {
-    planItemId: approval.planItemId,
-    threadId: approval.threadId,
-    title: approval.title,
-    content: approval.markdown,
-    openable: true,
+  function handleOptionClick(): void {
+    if (disabled) return
+    if (selected) {
+      void act(() => ({ action: 'implement' }))
+      return
+    }
+    setImplementSelected(true)
+    setFeedback('')
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
+    if (disabled) return
+    if (
+      event.nativeEvent.isComposing ||
+      event.nativeEvent.keyCode === 229 ||
+      event.repeat
+    ) {
+      return
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
+      void act(() => ({ action: 'close' }))
+      return
+    }
+    if (event.target instanceof HTMLTextAreaElement) return
+    if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key === '1') {
+      event.preventDefault()
+      handleOptionClick()
+      return
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      submitSelectionOrFeedback()
+    }
   }
 
   return (
-    <div className="plan-approval-card tw:w-full" onKeyDown={handleKeyDown}>
+    <div
+      ref={cardRef}
+      className="plan-approval-card tw:w-full tw:outline-none"
+      tabIndex={-1}
+      onKeyDown={handleKeyDown}
+    >
       <RequestCard
         variant="plan"
-        title="计划已准备好"
+        title="实施此计划？"
         identity={identity}
         disabledReason={disabledReason}
         error={error}
-        navigation={
-          onOpenPlan ? (
-            <Button
-              variant="text"
-              color="text"
-              disabled={disabled}
-              onClick={() => onOpenPlan(plan)}
-            >
-              查看全文
-            </Button>
-          ) : undefined
-        }
       >
-        <p className="plan-approval-title tw:m-0 tw:px-1 tw:type-2 tw:weight-medium tw:wrap-anywhere">
-          {approval.title}
-        </p>
-        {editingFeedback ? null : (
-          <div className="plan-approval-actions tw:flex tw:flex-col tw:items-stretch tw:gap-2 tw:px-1 tw:pt-2">
-            <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-              <Button
-                color="secondary"
-                disabled={disabled}
-                onClick={() => setEditingFeedback(true)}
-              >
-                修改计划
-              </Button>
-              <div className="tw:ml-auto tw:inline-flex tw:items-center">
-                <Button
-                  color="primary"
-                  disabled={disabled}
-                  loading={busy === 'implement'}
-                  loadingText="正在开始实施…"
-                  onClick={() => void act(() => ({ action: 'implement' }))}
-                >
-                  开始实施
-                </Button>
-                {freshAvailable ? (
-                  <Dropdown
-                    size="md"
-                    align="end"
-                    trigger={
-                      <Button
-                        color="primary"
-                        isIconOnly
-                        aria-label="更多实施方式"
-                        disabled={disabled}
-                      >
-                        <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
-                      </Button>
-                    }
-                  >
-                    <PopoverItem
-                      disabled={disabled}
-                      onClick={() => void act(() => ({ action: 'implementFresh' }))}
-                    >
-                      在新聊天中实施
-                    </PopoverItem>
-                  </Dropdown>
-                ) : null}
-              </div>
-            </div>
-            <div className="tw:flex tw:items-center">
-              <Button
-                variant="text"
-                color="text"
-                disabled={disabled}
-                loading={busy === 'close'}
-                loadingText="正在退出 Plan…"
-                onClick={() => void act(() => ({ action: 'close' }))}
-              >
-                退出 Plan
-              </Button>
-            </div>
-          </div>
-        )}
-        {editingFeedback ? (
-          <div className="plan-approval-feedback tw:grid tw:gap-2 tw:px-1 tw:pt-2">
-            <label
-              className="tw:text-app-text-soft tw:type-1 tw:weight-medium"
-              htmlFor={feedbackId}
-            >
-              你希望怎样调整？
-            </label>
-            <textarea
-              id={feedbackId}
-              ref={feedbackRef}
-              className="plan-approval-feedback-input tw:block tw:w-full tw:min-w-0 tw:field-sizing-content tw:min-h-[4.5em] tw:max-h-[12rem] tw:resize-none tw:overflow-y-auto tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-control tw:p-2 tw:text-app-text tw:type-2 tw:outline-none tw:placeholder:text-app-text-meta tw:focus-visible:border-app-accent"
+        <div className="ask-user-question-stage tw:flex tw:flex-col tw:gap-1">
+          <div
+            className="ask-user-question-options tw:flex tw:flex-col tw:gap-1"
+            role="radiogroup"
+            aria-label="实施此计划？"
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selected}
               disabled={disabled}
+              className={cx('ask-user-question-option-row', selected && 'is-selected')}
+              onClick={handleOptionClick}
+            >
+              <span
+                className="request-card-marker ask-user-question-option-num"
+                aria-hidden="true"
+              >
+                1
+              </span>
+              <span className="ask-user-question-option-inline tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1">
+                <span className="ask-user-question-option-head tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+                  <span className="ask-user-question-option-title tw:type-2 tw:weight-medium tw:text-app-text tw:wrap-anywhere">
+                    是，实施此计划
+                  </span>
+                </span>
+              </span>
+              <ArrowRight
+                className="ask-user-question-row-arrow tw:size-icon-sm tw:shrink-0"
+                size={APP_ICON_SIZES.sm}
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+          <div className="ask-user-question-pill-row tw:mt-1">
+            <span className="request-card-marker ask-user-question-pill-badge" aria-hidden="true">
+              <PenLine className="tw:size-icon-xs" size={APP_ICON_SIZES.sm} />
+            </span>
+            <textarea
+              ref={feedbackRef}
+              className="ask-user-question-custom-input tw:block tw:w-full tw:min-w-0 tw:flex-1 tw:field-sizing-content tw:min-h-[1.5em] tw:max-h-[120px] tw:resize-none tw:overflow-y-auto tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:type-2 tw:weight-regular tw:wrap-anywhere tw:outline-none tw:placeholder:text-app-text-meta"
+              aria-label="调整计划意见"
               placeholder={FEEDBACK_PLACEHOLDER}
+              rows={1}
+              disabled={disabled}
               value={feedback}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return
+                if (event.shiftKey && !event.ctrlKey && !event.metaKey) return
+                if (event.altKey) return
+                if (
+                  event.nativeEvent.isComposing ||
+                  event.nativeEvent.keyCode === 229 ||
+                  event.repeat
+                ) {
+                  return
+                }
+                event.preventDefault()
+                if (feedback.trim()) submitSelectionOrFeedback()
+              }}
               onChange={(event) => setFeedback(event.target.value)}
             />
-            <div className="tw:flex tw:items-center tw:justify-end tw:gap-2">
+            <div className="ask-user-question-pill-actions tw:flex tw:shrink-0 tw:items-center tw:gap-1">
               <Button
+                type="button"
+                shape="pill"
+                size="sm"
                 color="secondary"
                 disabled={disabled}
-                onClick={() => setEditingFeedback(false)}
+                loading={busy === 'close'}
+                loadingText="忽略中…"
+                onClick={() => void act(() => ({ action: 'close' }))}
               >
-                取消修改
+                忽略
               </Button>
               <Button
+                type="button"
+                shape="pill"
+                size="sm"
                 color="primary"
-                disabled={disabled || !feedback.trim()}
-                loading={busy === 'feedback'}
-                loadingText="正在提交修改意见…"
-                onClick={() => void act(() => ({ action: 'feedback', feedback: feedback.trim() }))}
+                disabled={disabled}
+                loading={busy === 'implement' || busy === 'feedback'}
+                loadingText="提交中…"
+                onClick={submitSelectionOrFeedback}
               >
-                发送修改意见
+                提交
               </Button>
             </div>
           </div>
-        ) : null}
+        </div>
       </RequestCard>
     </div>
   )
