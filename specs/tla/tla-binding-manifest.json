@@ -5,16 +5,16 @@
     "RpcOutboxSseReplay": {
       "files": {
         "apps/agent/src/storage/events/EventPublisher.ts": "699d26990531304377b737623403c81c166b304ed617ccb8c6ad65a4794ff23e",
-        "apps/agent/src/storage/repositories/ExecutionRepository.ts": "8a524e8a97c7a954677ab1ca43e3ac5c85345c252dcfae0cae9e927eaefa12d7",
+        "apps/agent/src/storage/repositories/ExecutionRepository.ts": "a12f823c44be80ce57a76daadb1a2326b7f3a4b0734b811abf9bc90fd8250de4",
         "apps/agent/src/transport/EventSubscriptionRegistry.ts": "82ac0423f4e1c5c1c7a2dcc707026ed7e6dd79d2f72f06541c9bdb9d752f2da4"
       }
     },
     "ApprovalInterruptRecovery": {
       "files": {
         "apps/agent/src/interaction/InteractionService.ts": "aee066c0a58255e0bb3a90728f28ad5373e7dee1dcf05c39bf4dd26755b0e91c",
-        "apps/agent/src/interaction/ResumeCheckpointResolver.ts": "6aaa43fb17e1ff5c8e2a969c763ff1de193705f580ed562d7bff6b3ff88e0bc2",
-        "apps/agent/src/permission/ApprovalService.ts": "710010effd04c3f692c435b23a745afc2d6dd41d8856abe98e3235ffd2be3d01",
-        "apps/agent/src/permission/PermissionDecisionEngine.ts": "3f130ec3c4010f1d73edf05579f23bbeaee6646c43136cc023d4924c6d2e1035"
+        "apps/agent/src/interaction/ResumeCheckpointResolver.ts": "85bb422377ed254733aebfe869be11c8e0b3380869167d3ea5208bddfdfaffd3",
+        "apps/agent/src/permission/ApprovalService.ts": "232d1e0066d591bfadb4bbbeb1c05dbd3280faf052877c7523a7bf09a56f4a83",
+        "apps/agent/src/permission/PermissionDecisionEngine.ts": "b35354987dda358620ecd1008f54124d8b898fffc3caade47a47a23cfa0b1fd1"
       }
     }
   }

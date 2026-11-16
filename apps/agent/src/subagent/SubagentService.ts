@@ -1557,39 +1557,7 @@ export class SubagentService {
     }
     const ceilingPolicy = ceiling.approvalPolicy
     const requestedPolicy = requested.approvalPolicy
-    if (typeof ceilingPolicy === 'object') {
-      if (typeof requestedPolicy === 'object') {
-        const keys = [
-          'sandboxApproval',
-          'rules',
-          'skillApproval',
-          'requestPermissions',
-          'mcpTools',
-          'mcpElicitations',
-        ] as const
-        if (keys.some((key) => requestedPolicy[key] && !ceilingPolicy[key])) {
-          throw new AgentError(
-            'PERMISSION_CEILING_EXCEEDED',
-            '子 Agent granular 审批能力超过任务上限',
-            403,
-          )
-        }
-      } else if (requestedPolicy !== 'never') {
-        throw new AgentError(
-          'PERMISSION_CEILING_EXCEEDED',
-          '子 Agent 不能扩大 granular 审批策略',
-          403,
-        )
-      }
-      return
-    }
-    const allowed: Record<string, ReadonlySet<string>> = {
-      untrusted: new Set(['untrusted', 'never']),
-      'on-failure': new Set(['on-failure', 'untrusted', 'never']),
-      'on-request': new Set(['on-request', 'untrusted', 'never']),
-      never: new Set(['never']),
-    }
-    if (typeof requestedPolicy === 'object' || !allowed[ceilingPolicy]?.has(requestedPolicy)) {
+    if (ceilingPolicy === 'never' && requestedPolicy !== 'never') {
       throw new AgentError('PERMISSION_CEILING_EXCEEDED', '子 Agent 审批能力超过任务上限', 403)
     }
   }

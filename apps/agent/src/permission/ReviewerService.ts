@@ -546,7 +546,7 @@ ${entries.join('\n')}
         signal,
         invocation.model,
         this.db.threadProjectID(invocation.threadID) ?? undefined,
-        !!invocation.retryAuthorization,
+        false,
         `${prior}${user}${root}`,
         evidenceText,
         { threadId: invocation.threadID, turnId: invocation.turnID, toolCallId: invocation.id },
@@ -583,7 +583,7 @@ ${entries.join('\n')}
     )
     if (!selected) throw new AgentError('REVIEWER_NOT_CONFIGURED', '未配置独立审查模型', 409)
     try {
-      const prompt = `${reviewerInput.retryAuthorization ? 'The user authorized one retry of this exact operation. Still review safety; do not expand scope or bypass hard denials.\n' : ''}${prior}${user}${root}${evidenceText ? `\n${evidenceText}` : ''}\n<untrusted_evidence>${JSON.stringify(
+      const prompt = `${prior}${user}${root}${evidenceText ? `\n${evidenceText}` : ''}\n<untrusted_evidence>${JSON.stringify(
         secretScrubber.scrub({
           tool: reviewerInput.name,
           input: reviewerInput.input,
@@ -618,7 +618,7 @@ ${entries.join('\n')}
           ...(reviewerInput.permissionFacts?.destructive ? ['destructive' as const] : []),
           ...(reviewerInput.permissionFacts?.networkAccess ? ['network_access' as const] : []),
         ],
-        retryAuthorized: !!reviewerInput.retryAuthorization,
+        retryAuthorized: false,
       })
       const decision: PermissionDecision = {
         decision: policy.decision,

@@ -235,7 +235,6 @@ export interface ToolPermissionFacts {
   risk?: PermissionDecision['risk']
   denyReason?: string
   approvalReason?: string
-  approvalCategories?: readonly (keyof import('@pidex/shared/thread').GranularApprovalConfig)[]
   /** Host rule facts loaded immediately before final permission evaluation. */
   ruleEffect?: import('@pidex/shared/thread').PermissionRuleEffect
   ruleIDs?: readonly string[]
@@ -255,7 +254,6 @@ export interface ToolPermissionFacts {
 
 export interface ToolInvocation {
   fileDiffs?: readonly import('@pidex/agent-protocol').RpcResult<'thread/patch/diff'>[]
-  retryAuthorization?: { reviewId: string; fingerprint: string }
   toolPolicy?: Pick<
     import('./tool/ToolRegistry').ToolCatalogEntry,
     'sdkName' | 'capabilities' | 'allowedModes' | 'approvalStrategy' | 'origin'

@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 import {
-  decodeApprovalPolicy,
+  decodePermissionConfig,
   type ThreadListItem,
   type ThreadSettingsPatch,
 } from '@pidex/shared/thread'
@@ -34,9 +34,9 @@ type ThreadRow = {
   is_scheduled_session: number
   is_fork: number
   task_mode: string
-  sandbox_mode: ThreadListItem['settings']['permissionConfig']['sandboxMode']
+  sandbox_mode: string
   approval_policy: string
-  approvals_reviewer: ThreadListItem['settings']['permissionConfig']['approvalsReviewer']
+  approvals_reviewer: string
   max_context_tokens?: number | null
   last_user_message_at: number | null
   created_at: number
@@ -120,11 +120,11 @@ export class ThreadHistoryService {
       unreadAt: row.unread_at,
       settings: {
         taskMode: decodeStoredTaskMode(row.task_mode),
-        permissionConfig: {
+        permissionConfig: decodePermissionConfig({
           sandboxMode: row.sandbox_mode,
-          approvalPolicy: decodeApprovalPolicy(row.approval_policy),
+          approvalPolicy: row.approval_policy,
           approvalsReviewer: row.approvals_reviewer,
-        },
+        }),
         ...(row.max_context_tokens != null
           ? { maxContextTokens: Number(row.max_context_tokens) }
           : {}),

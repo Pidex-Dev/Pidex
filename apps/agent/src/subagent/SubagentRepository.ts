@@ -10,7 +10,7 @@ import type {
   SubagentStatus,
   SubagentTask,
 } from '@pidex/shared/thread'
-import { encodeApprovalPolicy } from '@pidex/shared/thread'
+import { decodePermissionConfig, encodeApprovalPolicy } from '@pidex/shared/thread'
 import { AgentError, type AgentExecution, type EventEnvelope, type TaskMode } from '../Domain'
 import { subagentCollaborationAvailable } from './SubagentCollaborationRepository'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
@@ -383,7 +383,7 @@ export class SubagentRepository {
       ...(isSubagentRole(row.role) ? { role: row.role } : {}),
       ...(row.memory_key ? { memoryKey: String(row.memory_key) } : {}),
       task: String(row.task),
-      permissionCeiling: parse(String(row.permission_ceiling)),
+      permissionCeiling: decodePermissionConfig(parse<unknown>(String(row.permission_ceiling))),
       workspace,
       currentRun: row.current_run_id ? this.run(String(row.current_run_id)) : null,
       createdAt: Number(row.created_at),
@@ -408,7 +408,7 @@ export class SubagentRepository {
           ? null
           : (String(row.queue_reason).replaceAll('_', '-') as SubagentRun['queueReason']),
       model: parse(String(row.model_ref)),
-      permissionConfig: parse(String(row.permission_config)),
+      permissionConfig: decodePermissionConfig(parse<unknown>(String(row.permission_config))),
       result: row.result == null ? null : parse(String(row.result)),
       error: row.error == null ? null : String(row.error),
       createdAt: Number(row.created_at),

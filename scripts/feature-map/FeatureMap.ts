@@ -73,7 +73,7 @@ export const FEATURE_MAP: readonly FeatureEntry[] = [
       'event/unsubscribe',
       'system/shrinkMemory',
     ],
-    routes: [],
+    routes: ['/connection-lost'],
     scenarios: [
       {
         id: 'rpc-protocol-handshake',
@@ -187,8 +187,6 @@ export const FEATURE_MAP: readonly FeatureEntry[] = [
       'interaction/respond',
       'interaction/questionPause',
       'approval/rules/list',
-      'approval/reviewState',
-      'approval/retry',
       'approval/rules/revoke',
       'approval/rules/upsert',
     ],

@@ -1,6 +1,6 @@
 import type { SubagentProfile, TaskMode } from '../Domain'
 import { MAX_SUBAGENT_DEPTH, isReadOnlyTaskMode, type SandboxMode } from '@pidex/shared/thread'
-import { isGranularApprovalPolicy, type PermissionConfig } from '@pidex/shared/thread'
+import { type PermissionConfig } from '@pidex/shared/thread'
 import type { ToolCatalog } from './ToolRegistry'
 
 export const PI_LIFECYCLE_TOOLS = [
@@ -52,11 +52,10 @@ export interface ToolExposureInput {
 
 /**
  * `request_permissions` can only ever be answered when the policy permits
- * approvals: `never` forbids waiting, and a granular policy that switches the
- * capability off is a hard denial rather than a review.
+ * approvals: `never` forbids waiting.
  */
 export const approvalAllowsPermissionRequests = (policy: PermissionConfig['approvalPolicy']) =>
-  policy !== 'never' && !(isGranularApprovalPolicy(policy) && !policy.requestPermissions)
+  policy !== 'never'
 
 export interface ToolExposurePlan {
   eager: readonly string[]

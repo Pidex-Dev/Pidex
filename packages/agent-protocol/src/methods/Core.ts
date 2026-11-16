@@ -1,7 +1,6 @@
 import { Model } from '@pidex/model-schema'
 import { AgentThread } from '@pidex/shared'
 import {
-  GuardianReviewSchema,
   PermissionRuleInputSchema,
   PermissionRuleSchema,
 } from '@pidex/shared/thread'
@@ -1518,7 +1517,10 @@ export const CoreRpcMethods = {
     mutation: true,
   }),
   'approval/rules/list': defineMethod({
-    params: Schema.Struct({ threadId: OpaqueIDSchema }),
+    params: Schema.Struct({
+      threadId: Schema.optional(OpaqueIDSchema),
+      cwd: Schema.optional(NonEmptyStringSchema),
+    }),
     result: Schema.Struct({
       rules: Schema.Array(PermissionRuleSchema),
     }),
@@ -1526,55 +1528,10 @@ export const CoreRpcMethods = {
     capability: 'permission.rules.v1',
     mutation: false,
   }),
-  'approval/reviewState': defineMethod({
-    params: Schema.Struct({ threadId: OpaqueIDSchema }),
-    result: Schema.Struct({
-      manualAllows: NonNegativeIntSchema,
-      denials: Schema.Array(
-        Schema.Struct({
-          id: OpaqueIDSchema,
-          tool: Schema.String,
-          reason: Schema.String,
-          input: Schema.optional(Schema.Record(Schema.String, JsonValueSchema)),
-          decision: Schema.Literals(['allow', 'ask', 'deny']),
-          risk: Schema.Literals(['low', 'medium', 'high', 'critical']),
-          guardian: GuardianReviewSchema,
-          retryOperationId: Schema.optional(OpaqueIDSchema),
-          createdAt: TimestampSchema,
-        }),
-      ),
-      reviews: Schema.Array(
-        Schema.Struct({
-          id: OpaqueIDSchema,
-          tool: Schema.String,
-          reason: Schema.String,
-          input: Schema.optional(Schema.Record(Schema.String, JsonValueSchema)),
-          decision: Schema.Literals(['allow', 'ask', 'deny']),
-          risk: Schema.Literals(['low', 'medium', 'high', 'critical']),
-          guardian: GuardianReviewSchema,
-          retryOperationId: Schema.optional(OpaqueIDSchema),
-          createdAt: TimestampSchema,
-        }),
-      ),
-    }),
-    errors: InteractionErrors,
-    capability: 'approval.retry.v1',
-    mutation: false,
-  }),
-  'approval/retry': defineMethod({
-    params: Schema.Struct({
-      threadId: OpaqueIDSchema,
-      reviewId: OpaqueIDSchema,
-      operationId: OpaqueIDSchema,
-    }),
-    result: Schema.Struct({ input: NonEmptyStringSchema }),
-    errors: InteractionErrors,
-    capability: 'approval.retry.v1',
-    mutation: true,
-  }),
   'approval/rules/revoke': defineMethod({
     params: Schema.Struct({
-      threadId: OpaqueIDSchema,
+      threadId: Schema.optional(OpaqueIDSchema),
+      cwd: Schema.optional(NonEmptyStringSchema),
       ruleId: NonEmptyStringSchema,
       expectedVersion: Schema.optional(NonEmptyStringSchema),
     }),
@@ -1585,7 +1542,8 @@ export const CoreRpcMethods = {
   }),
   'approval/rules/upsert': defineMethod({
     params: Schema.Struct({
-      threadId: OpaqueIDSchema,
+      threadId: Schema.optional(OpaqueIDSchema),
+      cwd: Schema.optional(NonEmptyStringSchema),
       expectedVersion: Schema.optional(NonEmptyStringSchema),
       rule: PermissionRuleInputSchema,
     }),

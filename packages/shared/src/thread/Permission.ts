@@ -7,72 +7,53 @@ export const SandboxModeSchema = Schema.Literals([
 ])
 export type SandboxMode = typeof SandboxModeSchema.Type
 
-export const GranularApprovalConfigSchema = Schema.Struct({
-  sandboxApproval: Schema.Boolean,
-  rules: Schema.Boolean,
-  skillApproval: Schema.Boolean,
-  requestPermissions: Schema.Boolean,
-  mcpTools: Schema.Boolean,
-  mcpElicitations: Schema.Boolean,
-})
-export type GranularApprovalConfig = typeof GranularApprovalConfigSchema.Type
-
-export const GranularApprovalPolicySchema = Schema.Struct({
-  type: Schema.Literal('granular'),
-  sandboxApproval: Schema.Boolean,
-  rules: Schema.Boolean,
-  skillApproval: Schema.Boolean,
-  requestPermissions: Schema.Boolean,
-  mcpTools: Schema.Boolean,
-  mcpElicitations: Schema.Boolean,
-})
-export type GranularApprovalPolicy = typeof GranularApprovalPolicySchema.Type
-
-export const ApprovalPolicySchema = Schema.Union([
-  Schema.Literals(['untrusted', 'on-failure', 'on-request', 'never']),
-  GranularApprovalPolicySchema,
-])
+export const ApprovalPolicySchema = Schema.Literals(['auto_review', 'never'])
 export type ApprovalPolicy = typeof ApprovalPolicySchema.Type
 
-export const isGranularApprovalPolicy = (
-  policy: ApprovalPolicy,
-): policy is GranularApprovalPolicy => typeof policy === 'object' && policy.type === 'granular'
-
-/** Stable TEXT representation used by SQLite and other string-only transports. */
+/**
+ * Stable TEXT representation used by SQLite and other string-only transports.
+ */
+// INVARIANT: SQLite schema 21 stores 'on-request' for non-never policy so older schema-21 readers remain compatible.
 export const encodeApprovalPolicy = (policy: ApprovalPolicy) =>
-  typeof policy === 'string' ? policy : JSON.stringify(policy)
+  policy === 'never' ? 'never' : 'on-request'
+
+const LEGACY_GRANULAR_KEYS = [
+  'sandboxApproval',
+  'rules',
+  'skillApproval',
+  'requestPermissions',
+  'mcpTools',
+  'mcpElicitations',
+] as const
 
 export const decodeApprovalPolicy = (value: unknown): ApprovalPolicy => {
-  if (value === 'on-failure') return 'on-request'
-  if (value === 'untrusted' || value === 'on-request' || value === 'never') return value
+  if (value === 'never') return 'never'
+  if (
+    value === 'auto_review' ||
+    value === 'auto-review' ||
+    value === 'on-request' ||
+    value === 'untrusted' ||
+    value === 'on-failure'
+  )
+    return 'auto_review'
   const candidate = typeof value === 'string' ? (JSON.parse(value) as unknown) : value
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
     throw new Error('approvalPolicy 无效')
   const config = candidate as Record<string, unknown>
   if (config.type !== 'granular') throw new Error('granular approvalPolicy 无效')
-  const keys = [
-    'sandboxApproval',
-    'rules',
-    'skillApproval',
-    'requestPermissions',
-    'mcpTools',
-    'mcpElicitations',
-  ] as const
-  if (keys.some((key) => typeof config[key] !== 'boolean'))
+  if (LEGACY_GRANULAR_KEYS.some((key) => typeof config[key] !== 'boolean'))
     throw new Error('granular approvalPolicy 缺少布尔配置')
-  return {
-    type: 'granular',
-    sandboxApproval: config.sandboxApproval as boolean,
-    rules: config.rules as boolean,
-    skillApproval: config.skillApproval as boolean,
-    requestPermissions: config.requestPermissions as boolean,
-    mcpTools: config.mcpTools as boolean,
-    mcpElicitations: config.mcpElicitations as boolean,
-  }
+  return 'auto_review'
 }
 
-export const ApprovalsReviewerSchema = Schema.Literals(['user', 'auto_review'])
+export const ApprovalsReviewerSchema = Schema.Literals(['auto_review'])
 export type ApprovalsReviewer = typeof ApprovalsReviewerSchema.Type
+
+/** Maps persisted reviewer values, including legacy `'user'`, to `'auto_review'`. */
+export const decodeApprovalsReviewer = (value: unknown): ApprovalsReviewer => {
+  if (value === 'auto_review' || value === 'auto' || value === 'user') return 'auto_review'
+  throw new Error('approvalsReviewer 无效')
+}
 
 export const PermissionConfigSchema = Schema.Struct({
   sandboxMode: SandboxModeSchema,
@@ -81,35 +62,48 @@ export const PermissionConfigSchema = Schema.Struct({
 })
 export type PermissionConfig = typeof PermissionConfigSchema.Type
 
-export const DEFAULT_PERMISSION_CONFIG = {
-  sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
-} as const satisfies PermissionConfig
+/** Normalizes persisted PermissionConfig objects, including legacy policy and reviewer values. */
+export const decodePermissionConfig = (value: unknown): PermissionConfig => {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new Error('permissionConfig 无效')
+  const raw = value as Record<string, unknown>
+  const sandboxMode =
+    raw.sandboxMode === 'read-only' ||
+    raw.sandboxMode === 'workspace-write' ||
+    raw.sandboxMode === 'danger-full-access'
+      ? raw.sandboxMode
+      : 'workspace-write'
+  return {
+    sandboxMode,
+    approvalPolicy: decodeApprovalPolicy(raw.approvalPolicy),
+    approvalsReviewer:
+      raw.approvalsReviewer === undefined
+        ? 'auto_review'
+        : decodeApprovalsReviewer(raw.approvalsReviewer),
+  }
+}
 
 export const AUTO_REVIEW_PERMISSION_CONFIG = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
+  approvalPolicy: 'auto_review',
   approvalsReviewer: 'auto_review',
 } as const satisfies PermissionConfig
+
+export const DEFAULT_PERMISSION_CONFIG = AUTO_REVIEW_PERMISSION_CONFIG
 
 export const FULL_ACCESS_PERMISSION_CONFIG = {
   sandboxMode: 'danger-full-access',
   approvalPolicy: 'never',
-  approvalsReviewer: 'user',
+  approvalsReviewer: 'auto_review',
 } as const satisfies PermissionConfig
 
 /**
  * Shared permission preset catalog. Every client must derive its labels,
  * selection state and generated config from this single source instead of
  * re-identifying permission combinations locally.
- *
- * The three stored fields (`sandboxMode`, `approvalPolicy`, `approvalsReviewer`)
- * form one preset identity. A configuration that differs in any of them is
- * custom, including full access combined with an automatic reviewer.
  */
-export type PermissionPresetId = 'default' | 'auto-review' | 'full-access'
-export type PermissionPresetSelection = PermissionPresetId | 'custom'
+export type PermissionPresetId = 'auto-review' | 'full-access'
+export type PermissionPresetSelection = PermissionPresetId
 
 export type PermissionPreset = {
   id: PermissionPresetId
@@ -120,70 +114,41 @@ export type PermissionPreset = {
 
 export const PERMISSION_PRESETS: readonly PermissionPreset[] = [
   {
-    id: 'default',
-    label: '请求批准',
-    description: '工作区内安全操作直接执行，外部与风险操作由你批准。',
-    config: DEFAULT_PERMISSION_CONFIG,
-  },
-  {
     id: 'auto-review',
     label: '帮我批准',
-    description: '低风险操作自动执行，联网与风险操作由 Guardian 把关。',
+    description: '仅对检测到的风险操作请求批准',
     config: AUTO_REVIEW_PERMISSION_CONFIG,
   },
   {
     id: 'full-access',
     label: '完全访问',
-    description: '直接执行所有操作且不经审批；不提供沙箱或网络隔离。',
+    description: '直接执行所有操作，无需请求批准',
     config: FULL_ACCESS_PERMISSION_CONFIG,
   },
 ]
-
-export const CUSTOM_PERMISSION_PRESET = {
-  id: 'custom',
-  label: '自定义',
-  description: '手动配置文件访问范围、审批策略与审批者。',
-} as const
 
 export const PERMISSION_PRESET_OPTIONS: ReadonlyArray<{
   id: PermissionPresetSelection
   label: string
   description: string
-}> = [
-  ...PERMISSION_PRESETS.map(({ id, label, description }) => ({ id, label, description })),
-  CUSTOM_PERMISSION_PRESET,
-]
+}> = PERMISSION_PRESETS.map(({ id, label, description }) => ({ id, label, description }))
 
-const approvalPolicyIsEqual = (left: ApprovalPolicy, right: ApprovalPolicy): boolean => {
-  if (typeof left === 'string' || typeof right === 'string')
-    return typeof left === 'string' && typeof right === 'string' && left === right
-  return encodeApprovalPolicy(left) === encodeApprovalPolicy(right)
-}
-
-/** Exact three-field preset matching. Anything else is custom. */
-export const matchPermissionPreset = (config: PermissionConfig): PermissionPresetSelection => {
-  const preset = PERMISSION_PRESETS.find(
-    (candidate) =>
-      candidate.config.sandboxMode === config.sandboxMode &&
-      candidate.config.approvalsReviewer === config.approvalsReviewer &&
-      approvalPolicyIsEqual(candidate.config.approvalPolicy, config.approvalPolicy),
-  )
-  return preset?.id ?? 'custom'
-}
-
-/** Full access is one complete preset, not a file-scope flag. */
+/** Full access requires both danger-full-access file scope and never approval policy. */
 export const isFullAccessPermissionConfig = (config: PermissionConfig): boolean =>
-  matchPermissionPreset(config) === 'full-access'
+  config.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'never'
 
-/** Generates the stored config for a preset; custom keeps the current config. */
+/** Matches stored config to one of the two active presets. */
+export const matchPermissionPreset = (config: PermissionConfig): PermissionPresetSelection =>
+  isFullAccessPermissionConfig(config) ? 'full-access' : 'auto-review'
+
+/** Generates the stored config for a preset. */
 export const permissionConfigForPreset = (
   preset: PermissionPresetSelection,
-  current?: PermissionConfig,
-): PermissionConfig => {
-  if (preset === 'custom') return { ...(current ?? DEFAULT_PERMISSION_CONFIG) }
-  const selected = PERMISSION_PRESETS.find((candidate) => candidate.id === preset)
-  return { ...(selected?.config ?? DEFAULT_PERMISSION_CONFIG) }
-}
+  _current?: PermissionConfig,
+): PermissionConfig =>
+  preset === 'full-access'
+    ? { ...FULL_ACCESS_PERMISSION_CONFIG }
+    : { ...AUTO_REVIEW_PERMISSION_CONFIG }
 
 /**
  * Permission rules are additive user intent layered on top of the preset.

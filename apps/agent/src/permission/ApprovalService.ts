@@ -1,4 +1,3 @@
-import { isFullAccessPermissionConfig, isReadOnlyTaskMode } from '@pidex/shared/thread'
 import { Effect } from 'effect'
 import { createHash } from 'node:crypto'
 import { AgentError, type PermissionDecision, type ToolInvocation } from '../Domain'
@@ -12,7 +11,6 @@ import type { InteractionOperationInput } from '../storage/repositories/Interact
 import type { ToolRegistry } from '../tool/ToolRegistry'
 import {
   PermissionDecisionEngine,
-  hasRequestedPermissions,
   requestedPermissions,
   type ResolvedPermissionDecision,
 } from './PermissionDecisionEngine'
@@ -185,13 +183,6 @@ export class ApprovalService {
     if (signal.aborted) return { decision: 'deny', risk: 'low', reason: '操作已取消' }
     const tool = (invocation.toolPolicy ??
       this.tools.get(invocation.name)) as import('../tool/ToolRegistry').ToolCatalogEntry
-    if (
-      !isReadOnlyTaskMode(invocation.taskMode) &&
-      isFullAccessPermissionConfig(invocation.permissionConfig)
-    ) {
-      const decision = this.decisions.evaluate(invocation, tool)
-      return { decision: decision.decision, risk: decision.risk, reason: decision.reason }
-    }
     if (typeof invocation.input.command === 'string' && !invocation.permissionFacts?.risk) {
       const workspaceRoot = this.rules.workspace(invocation)?.root
       const analysis = analyzeShellRisk({
@@ -241,15 +232,8 @@ export class ApprovalService {
     const forceHumanApproval = resolved.forceHumanApproval
     if (resolved.reviewer === 'auto_review' && !forceHumanApproval && this.reviewer) {
       const fingerprint = this.retryFingerprint(invocation)
-      const retryAuthorization = this.db.repositories.interactions.claimApprovalRetry(
-        invocation.threadID,
-        fingerprint,
-      )
       const reviewed = await this.reviewWithGuardian(
-        reviewerInvocation({
-          ...safeInvocation,
-          ...(retryAuthorization ? { retryAuthorization } : {}),
-        }),
+        reviewerInvocation(safeInvocation),
         resolved,
         signal,
       )
@@ -273,6 +257,7 @@ export class ApprovalService {
     }
     if (
       resolved.reviewer === 'auto_review' &&
+      !forceHumanApproval &&
       invocation.permissionConfig.approvalPolicy === 'never'
     ) {
       this.guardianScores?.invalidateAction(invocation)
@@ -338,48 +323,20 @@ export class ApprovalService {
     }
   }
   /**
-   * Guardian failure policy: on-request falls back to a human, while never,
-   * untrusted and a granular policy that disables the required category denies.
+   * Guardian failure policy: auto_review falls back to a human, while never denies.
    */
   private guardianFailureDecision(
-    invocation: ToolInvocation,
+    _invocation: ToolInvocation,
     resolved: Extract<ResolvedPermissionDecision, { action: 'review' }>,
     status: 'unavailable' | 'timeout' | 'circuit_open',
     reason: string,
   ): PermissionDecision {
-    const fallback = guardianFallbackDecision({
+    return guardianFallbackDecision({
       risk: resolved.risk,
       status,
       reason,
-      approvalPolicy: invocation.permissionConfig.approvalPolicy,
-      approvalCategories: this.guardianApprovalCategories(invocation),
+      approvalPolicy: _invocation.permissionConfig.approvalPolicy,
     })
-    return fallback
-  }
-
-  private guardianApprovalCategories(
-    invocation: ToolInvocation,
-  ): Array<keyof import('@pidex/shared/thread').GranularApprovalConfig> {
-    const tool = invocation.toolPolicy ?? this.tools.get(invocation.name)
-    const categories = new Set(invocation.permissionFacts?.approvalCategories ?? [])
-    if (
-      invocation.permissionFacts?.ruleRequiresApproval ||
-      invocation.permissionFacts?.destructive ||
-      invocation.permissionFacts?.hookRequiresApproval ||
-      invocation.authorizationScope?.ruleRequiresApproval
-    )
-      categories.add('rules')
-    if (tool.sdkName === 'request_permissions') categories.add('requestPermissions')
-    if (invocation.permissionFacts?.skillScript === true) categories.add('skillApproval')
-    if (tool.origin?.kind === 'mcp') categories.add('mcpTools')
-    if (
-      tool.capabilities.readOnly !== true &&
-      (tool.capabilities.process || tool.capabilities.filesystem === 'host-write')
-    )
-      categories.add('sandboxApproval')
-    if (hasRequestedPermissions(invocation.input) && tool.sdkName !== 'request_permissions')
-      categories.add('sandboxApproval')
-    return [...categories]
   }
 
   private async reviewWithGuardian(
@@ -400,9 +357,7 @@ export class ApprovalService {
       )
     }
 
-    const cached = invocation.retryAuthorization
-      ? null
-      : this.guardianScores?.cachedAllow(invocation, signal)
+    const cached = this.guardianScores?.cachedAllow(invocation, signal)
     if (cached) return this.finishGuardianReview(invocation, cached)
     if (!this.reviewer) {
       return this.finishGuardianReview(
@@ -443,7 +398,7 @@ export class ApprovalService {
     )
 
     try {
-      if (!this.guardianScores || invocation.retryAuthorization)
+      if (!this.guardianScores)
         return await this.finishGuardianReview(invocation, await reviewPromise)
       const winner = await Promise.race([
         reviewPromise.then((decision) => ({ kind: 'review' as const, decision })),
@@ -550,9 +505,6 @@ export class ApprovalService {
         }),
       )
       .digest('hex')
-  }
-  requestRetry(threadID: string, reviewID: string, operationID: string) {
-    return this.db.repositories.interactions.authorizeApprovalRetry(threadID, reviewID, operationID)
   }
 
   prepare(

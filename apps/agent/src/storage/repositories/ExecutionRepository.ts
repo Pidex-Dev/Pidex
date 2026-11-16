@@ -1,6 +1,10 @@
 import { QueuedGoalRepository } from './QueuedGoalRepository'
 import { Effect } from 'effect'
-import { encodeApprovalPolicy } from '@pidex/shared/thread'
+import {
+  decodeApprovalPolicy,
+  decodeApprovalsReviewer,
+  encodeApprovalPolicy,
+} from '@pidex/shared/thread'
 import { AgentError, decodeStoredTaskMode } from '../../Domain'
 import type {
   AgentExecution,
@@ -601,7 +605,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       model_ref: string
       sandbox_mode: PermissionConfig['sandboxMode']
       approval_policy: string
-      approvals_reviewer: PermissionConfig['approvalsReviewer']
+      approvals_reviewer: string
       task_mode: string
       created_at: number
     }>
@@ -629,8 +633,8 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
             nextAgentID,
             decodeStoredTaskMode(mailbox.task_mode),
             mailbox.sandbox_mode,
-            mailbox.approval_policy,
-            mailbox.approvals_reviewer,
+            encodeApprovalPolicy(decodeApprovalPolicy(mailbox.approval_policy)),
+            decodeApprovalsReviewer(mailbox.approvals_reviewer),
             mailbox.model_ref,
             index + 1,
             mailbox.created_at,

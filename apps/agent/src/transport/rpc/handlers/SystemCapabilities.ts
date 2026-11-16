@@ -63,8 +63,6 @@ export function filterAdvertisedCapabilities(
       (capability !== 'browser.data.v1' || new BrowserDataRepository(db).available()) &&
       (capability !== 'mcp.elicitation.v1' ||
         db.repositories.interactions.interactionTableAvailable('mcp_elicitations')) &&
-      (capability !== 'approval.retry.v1' ||
-        db.repositories.interactions.interactionTableAvailable('approval_reviews')) &&
       ((capability !== 'project.edit.v1' && capability !== 'project.restore.v1') ||
         db.projectMembershipAvailable()) &&
       (capability !== 'thread.creation-surface.v1' || creationSurface) &&

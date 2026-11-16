@@ -21,6 +21,7 @@ import type {
   Input,
   Item,
   Message,
+  PermissionConfig,
   SubagentProjection,
   Thread,
   ThreadExecutionEnvironment,
@@ -35,7 +36,7 @@ import { resolve } from 'node:path'
 import {
   ContextUsageBreakdownSourceSchema,
   readMessagePhase,
-  decodeApprovalPolicy,
+  decodePermissionConfig,
   decodeStructuredPlan,
   InteractionQuestionSchema,
   InteractionQuestionAnswerSchema,
@@ -53,6 +54,14 @@ import { SubagentRepository } from '../subagent/SubagentRepository'
 import { classifyToolActivity, storedToolActivity } from '../tool/ToolActivityClassifier'
 
 const parse = <T>(value: string): T => JSON.parse(value) as T
+const projectPermissionConfig = (
+  row: Record<string, string | number | null>,
+): PermissionConfig =>
+  decodePermissionConfig({
+    sandboxMode: row.sandbox_mode,
+    approvalPolicy: row.approval_policy,
+    approvalsReviewer: row.approvals_reviewer ?? undefined,
+  })
 const isQuestionGroup = Schema.is(Schema.Array(InteractionQuestionSchema))
 const isSubagentRoleValue = Schema.is(SubagentRoleSchema)
 const isQuestionAnswers = Schema.is(Schema.Array(InteractionQuestionAnswerSchema))
@@ -488,15 +497,7 @@ export class ThreadProjection {
       ...(workspace ? { workspace } : {}),
       settings: {
         taskMode: decodeStoredTaskMode(row.task_mode),
-        permissionConfig: {
-          sandboxMode: String(
-            row.sandbox_mode,
-          ) as Thread['settings']['permissionConfig']['sandboxMode'],
-          approvalPolicy: decodeApprovalPolicy(String(row.approval_policy)),
-          approvalsReviewer: String(
-            row.approvals_reviewer,
-          ) as Thread['settings']['permissionConfig']['approvalsReviewer'],
-        },
+        permissionConfig: projectPermissionConfig(row),
         ...(row.max_context_tokens != null
           ? { maxContextTokens: Number(row.max_context_tokens) }
           : {}),
@@ -563,13 +564,7 @@ export class ThreadProjection {
       ...(row.origin ? { origin: String(row.origin) as Input['origin'] } : {}),
       mode: decodeStoredTaskMode(row.task_mode),
       model: parse(String(row.model_ref)),
-      permissionConfig: {
-        sandboxMode: String(row.sandbox_mode) as Input['permissionConfig']['sandboxMode'],
-        approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-        approvalsReviewer: String(
-          row.approvals_reviewer,
-        ) as Input['permissionConfig']['approvalsReviewer'],
-      },
+      permissionConfig: projectPermissionConfig(row),
       attachmentIds,
       contextReferenceIds,
       state: inputState(String(row.status)),
@@ -592,13 +587,7 @@ export class ThreadProjection {
       status: turnStatus(status),
       mode: decodeStoredTaskMode(row.mode),
       model: parse(String(row.model_ref)),
-      permissionConfig: {
-        sandboxMode: String(row.sandbox_mode) as Turn['permissionConfig']['sandboxMode'],
-        approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-        approvalsReviewer: String(
-          row.approvals_reviewer,
-        ) as Turn['permissionConfig']['approvalsReviewer'],
-      },
+      permissionConfig: projectPermissionConfig(row),
       rootAgentId: String(row.root_agent_id),
       mergedInputIDs: inputs.slice(1).map((input) => input.id),
       queuePosition: row.queue_position == null ? null : Number(row.queue_position),
@@ -805,13 +794,7 @@ export class ThreadProjection {
       ...(row.origin ? { origin: String(row.origin) as Input['origin'] } : {}),
       mode: decodeStoredTaskMode(row.task_mode),
       model: parse(String(row.model_ref)),
-      permissionConfig: {
-        sandboxMode: String(row.sandbox_mode) as Input['permissionConfig']['sandboxMode'],
-        approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-        approvalsReviewer: String(
-          row.approvals_reviewer,
-        ) as Input['permissionConfig']['approvalsReviewer'],
-      },
+      permissionConfig: projectPermissionConfig(row),
       attachmentIds: attachmentIDsByInput.get(String(row.id)) ?? [],
       contextReferenceIds: contextIDsByInput.get(String(row.id)) ?? [],
       state: inputState(String(row.status)),
@@ -836,13 +819,7 @@ export class ThreadProjection {
         status: turnStatus(turnStatusStr),
         mode: decodeStoredTaskMode(row.mode),
         model: parse(String(row.model_ref)),
-        permissionConfig: {
-          sandboxMode: String(row.sandbox_mode) as Turn['permissionConfig']['sandboxMode'],
-          approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-          approvalsReviewer: String(
-            row.approvals_reviewer,
-          ) as Turn['permissionConfig']['approvalsReviewer'],
-        },
+        permissionConfig: projectPermissionConfig(row),
         rootAgentId: String(row.root_agent_id),
         mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
         queuePosition: row.queue_position == null ? null : Number(row.queue_position),
@@ -1086,13 +1063,7 @@ export class ThreadProjection {
       ...(row.origin ? { origin: String(row.origin) as Input['origin'] } : {}),
       mode: decodeStoredTaskMode(row.task_mode),
       model: parse(String(row.model_ref)),
-      permissionConfig: {
-        sandboxMode: String(row.sandbox_mode) as Input['permissionConfig']['sandboxMode'],
-        approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-        approvalsReviewer: String(
-          row.approvals_reviewer,
-        ) as Input['permissionConfig']['approvalsReviewer'],
-      },
+      permissionConfig: projectPermissionConfig(row),
       attachmentIds: attachmentIDsByInput.get(String(row.id)) ?? [],
       contextReferenceIds: contextIDsByInput.get(String(row.id)) ?? [],
       state: inputState(String(row.status)),
@@ -1116,13 +1087,7 @@ export class ThreadProjection {
         status: turnStatus(turnStatusStr),
         mode: decodeStoredTaskMode(row.mode),
         model: parse(String(row.model_ref)),
-        permissionConfig: {
-          sandboxMode: String(row.sandbox_mode) as Turn['permissionConfig']['sandboxMode'],
-          approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-          approvalsReviewer: String(
-            row.approvals_reviewer,
-          ) as Turn['permissionConfig']['approvalsReviewer'],
-        },
+        permissionConfig: projectPermissionConfig(row),
         rootAgentId: String(row.root_agent_id),
         mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
         queuePosition: row.queue_position == null ? null : Number(row.queue_position),
@@ -1363,15 +1328,7 @@ export class ThreadProjection {
         goal: this.db.repositories.threadGoals.get(id),
         settings: {
           taskMode: decodeStoredTaskMode(row.task_mode),
-          permissionConfig: {
-            sandboxMode: String(
-              row.sandbox_mode,
-            ) as ThreadListItem['settings']['permissionConfig']['sandboxMode'],
-            approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-            approvalsReviewer: String(
-              row.approvals_reviewer,
-            ) as ThreadListItem['settings']['permissionConfig']['approvalsReviewer'],
-          },
+          permissionConfig: projectPermissionConfig(row),
           ...(row.max_context_tokens != null
             ? { maxContextTokens: Number(row.max_context_tokens) }
             : {}),
@@ -1831,7 +1788,20 @@ export class ThreadProjection {
     }
     if (event.method === 'thread/settings/updated') {
       const thread = threadId ? this.projectThread(threadId) : null
-      return thread ? { threadId, settings: source.settings, version: thread.updatedAt } : null
+      if (!thread) return null
+      const rawSettings = source.settings
+      const settings =
+        rawSettings && typeof rawSettings === 'object' && !Array.isArray(rawSettings)
+          ? {
+              ...(rawSettings as Record<string, unknown>),
+              ...('permissionConfig' in rawSettings &&
+              rawSettings.permissionConfig &&
+              typeof rawSettings.permissionConfig === 'object'
+                ? { permissionConfig: decodePermissionConfig(rawSettings.permissionConfig) }
+                : {}),
+            }
+          : rawSettings
+      return { threadId, settings, version: thread.updatedAt }
     }
     if (event.method === 'agent/upserted') {
       const agent =

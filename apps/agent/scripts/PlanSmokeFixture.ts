@@ -19,12 +19,11 @@ export function initializePlanSmokeDatabase(db: {
     id: 'faux-1',
   })
   db.setSetting('desktop.settings.v1', {
-    enableFullAccessPermissionMode: true,
     firstUseSetupCompleted: 1,
     permissionConfig: {
       sandboxMode: 'danger-full-access',
       approvalPolicy: 'never',
-      approvalsReviewer: 'user',
+      approvalsReviewer: 'auto_review',
     },
   })
 }

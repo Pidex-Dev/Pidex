@@ -83,7 +83,7 @@ try {
               permissionConfig: {
                 sandboxMode: 'danger-full-access',
                 approvalPolicy: 'never',
-                approvalsReviewer: 'user',
+                approvalsReviewer: 'auto_review',
               },
               strategy: 'queue',
               taskMode: 'chat',

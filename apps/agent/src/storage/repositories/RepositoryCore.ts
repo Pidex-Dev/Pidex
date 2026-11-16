@@ -4,6 +4,7 @@ import { isAbsolute, relative } from 'node:path'
 import {
   DEFAULT_PERMISSION_CONFIG,
   decodeApprovalPolicy,
+  decodeApprovalsReviewer,
   type ProjectExecutionEnvironment,
   type ThreadSettings,
 } from '@pidex/shared/thread'
@@ -227,7 +228,7 @@ export type CreatedThreadRecord = {
 export type PermissionColumns = {
   sandbox_mode: PermissionConfig['sandboxMode']
   approval_policy: string
-  approvals_reviewer: PermissionConfig['approvalsReviewer']
+  approvals_reviewer: string
 }
 
 export type ThreadSettingsColumns = PermissionColumns & {
@@ -238,7 +239,7 @@ export type ThreadSettingsColumns = PermissionColumns & {
 export const permissionConfigFromRow = (row: PermissionColumns): PermissionConfig => ({
   sandboxMode: row.sandbox_mode,
   approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-  approvalsReviewer: row.approvals_reviewer,
+  approvalsReviewer: decodeApprovalsReviewer(row.approvals_reviewer),
 })
 
 export const threadSettingsFromRow = (row: ThreadSettingsColumns): ThreadSettings => ({

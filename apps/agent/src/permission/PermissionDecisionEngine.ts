@@ -1,7 +1,6 @@
 import {
-  isGranularApprovalPolicy,
+  isFullAccessPermissionConfig,
   isReadOnlyTaskMode,
-  matchPermissionPreset,
 } from '@pidex/shared/thread'
 import type { PermissionDecision, ToolInvocation } from '../Domain'
 import type { ToolCatalogEntry } from '../tool/ToolRegistry'
@@ -28,7 +27,7 @@ export type ResolvedPermissionDecision =
     }
   | {
       action: 'review'
-      reviewer: 'user' | 'auto_review'
+      reviewer: 'auto_review'
       sandbox: ResolvedExecutionPolicy
       decision: 'ask'
       risk: PermissionDecision['risk']
@@ -77,24 +76,6 @@ export const riskFor = (
   return 'low'
 }
 
-const approvalCapability = (invocation: ToolInvocation, tool: ToolCatalogEntry) => {
-  if (tool.sdkName === 'request_permissions') return 'requestPermissions' as const
-  if (invocation.permissionFacts?.skillScript === true) return 'skillApproval' as const
-  if (tool.origin?.kind === 'mcp') return 'mcpTools' as const
-  if (tool.capabilities.readOnly === true) return 'rules' as const
-  if (invocation.permissionFacts?.ruleRequiresApproval === true) return 'rules' as const
-  if (tool.capabilities.process || tool.capabilities.filesystem === 'host-write')
-    return 'sandboxApproval' as const
-  return 'rules' as const
-}
-
-const hardGatedCapability = (invocation: ToolInvocation, tool: ToolCatalogEntry) => {
-  if (tool.sdkName === 'request_permissions') return 'requestPermissions' as const
-  if (invocation.permissionFacts?.skillScript === true) return 'skillApproval' as const
-  if (tool.origin?.kind === 'mcp') return 'mcpTools' as const
-  return null
-}
-
 /**
  * Pure permission truth source used by prompting, exposure, approval and
  * execution. Host facts (rules, protected resources, hook asks) are loaded
@@ -118,11 +99,12 @@ export class PermissionDecisionEngine {
       risk,
       reason,
     })
-    const preset = matchPermissionPreset(invocation.permissionConfig)
     // Collaboration modes constrain behavior, not the approval policy: Plan and
     // Grill keep the stored preset but do not get the full-access shortcut, so
     // explicit deny rules, protected resources, hooks and hard denials still run.
-    const fullAccess = preset === 'full-access' && !isReadOnlyTaskMode(invocation.taskMode)
+    const fullAccess =
+      isFullAccessPermissionConfig(invocation.permissionConfig) &&
+      !isReadOnlyTaskMode(invocation.taskMode)
     if (!fullAccess && invocation.permissionFacts?.denyReason)
       return deny(invocation.permissionFacts.denyReason)
     if (!toolAllowedInTaskMode(tool, invocation.taskMode))
@@ -155,39 +137,27 @@ export class PermissionDecisionEngine {
     const review = (
       reason: string,
       forceHumanApproval: boolean,
-      reviewer?: 'user' | 'auto_review',
     ): ResolvedPermissionDecision => ({
       action: 'review',
-      reviewer: forceHumanApproval
-        ? 'user'
-        : (reviewer ?? invocation.permissionConfig.approvalsReviewer),
+      reviewer: 'auto_review',
       sandbox,
       decision: 'ask',
       risk,
       reason,
       forceHumanApproval,
     })
-    if (fullAccess) return allow('完全访问权限')
-    const policy = invocation.permissionConfig.approvalPolicy
-    // Capability switches are hard gates, not merely instructions about who
-    // reviews a request. They must run before rules or always-review can create
-    // a request.
-    const hardCapability = hardGatedCapability(invocation, tool)
-    if (isGranularApprovalPolicy(policy) && hardCapability) {
-      if (!policy[hardCapability]) return deny(`granular 策略禁止 ${hardCapability} capability`)
-    }
 
-    // 1. Explicit Deny rules always win over ask/allow and over every reviewer.
+    // 1. Explicit Deny rules always win over allow and over full-access.
     const ruleEffect = invocation.permissionFacts?.ruleEffect
     if (ruleEffect === 'deny') return deny('权限规则拒绝此操作')
 
-    // 2. Explicit Ask rules always require a human. Guardian, persistent allow
-    // rules and temporary grants can never answer them.
+    // 2. Explicit Ask rules always require human approval, even under full-access / never.
     if (ruleEffect === 'ask') {
-      if (policy === 'never') return deny('never 策略禁止等待人工审批')
-      if (isGranularApprovalPolicy(policy) && !policy.rules) return deny('细粒度策略禁止规则审批')
       return review(invocation.permissionFacts?.approvalReason ?? '权限规则要求人工批准', true)
     }
+
+    if (fullAccess) return allow('完全访问权限')
+    const policy = invocation.permissionConfig.approvalPolicy
 
     // A not-yet-granted application is an elevation like any other. It routes
     // through the same policy gates, but the prompt must say what the grant
@@ -195,8 +165,6 @@ export class PermissionDecisionEngine {
     const computerApp = invocation.authorizationScope?.computerApp
     if (computerApp && invocation.authorizationScope?.ruleRequiresApproval) {
       if (policy === 'never') return deny(`never 策略禁止新的电脑应用授权：${computerApp.name}`)
-      if (isGranularApprovalPolicy(policy) && !policy[approvalCapability(invocation, tool)])
-        return deny(`细粒度策略禁止新的电脑应用授权：${computerApp.name}`)
       return review(
         `允许在此聊天中读取和操作应用：${computerApp.name}。截图会进入聊天，必要时会短暂切到前台。`,
         true,
@@ -241,26 +209,16 @@ export class PermissionDecisionEngine {
       facts?.forcedApproval === true ||
       facts?.ruleRequiresApproval === true ||
       facts?.destructive === true ||
-      (preset !== 'auto-review' &&
-        (externalWrite ||
-          externalCommand ||
-          (hasRequestedPermissions(invocation.input) && !readOnlyRequest))) ||
+      externalWrite ||
+      externalCommand ||
+      (hasRequestedPermissions(invocation.input) && !readOnlyRequest) ||
       (tool.sdkName === 'request_permissions' && !readOnlyRequest)
     if (needsReview) {
       if (policy === 'never') return deny('never 策略禁止等待审批或新增授权')
-      if (isGranularApprovalPolicy(policy) && !policy[approvalCapability(invocation, tool)])
-        return deny('细粒度策略禁止此审批类别')
       return review(facts?.approvalReason ?? '检测到风险或工作区外操作，需要批准', false)
     }
 
     if (tool.approvalStrategy === 'never-review') return allow('工具声明为无需审批')
-    if (isGranularApprovalPolicy(policy)) return allow('当前权限范围内执行')
-    if (policy === 'untrusted')
-      return (tool.capabilities.filesystem === 'read' && !tool.capabilities.process) ||
-        ((tool.capabilities.readOnly === true || invocation.permissionFacts?.readOnlyShell === true) &&
-          tool.capabilities.process)
-        ? allow('可信纯读取操作')
-        : review('untrusted 策略要求审批非纯读取操作', false)
     return allow('当前权限范围内执行')
   }
 }

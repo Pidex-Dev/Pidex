@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { EventManifest, type EventType, type ProtocolCapability } from '@pidex/agent-protocol'
 import { AllRpcMethods } from '@pidex/agent-protocol/host'
+import { decodeApprovalPolicy, decodeApprovalsReviewer } from '@pidex/shared/thread'
 import { relative, resolve, sep } from 'node:path'
 import type { AgentModelCatalog } from '../provider/AgentModelCatalog'
 import type { AgentConfig } from '../config/Config'
@@ -312,6 +313,25 @@ const desktopProjection = (config: Record<string, unknown>) => {
   if (typeof config.approvals_reviewer === 'string')
     permissionConfig.approvalsReviewer = config.approvals_reviewer
   if (typeof config.sandbox_mode === 'string') permissionConfig.sandboxMode = config.sandbox_mode
+  if (
+    typeof permissionConfig.approvalPolicy === 'string' ||
+    isPlainObject(permissionConfig.approvalPolicy)
+  ) {
+    try {
+      permissionConfig.approvalPolicy = decodeApprovalPolicy(permissionConfig.approvalPolicy)
+    } catch {
+      permissionConfig.approvalPolicy = 'auto_review'
+    }
+  }
+  if (permissionConfig.approvalsReviewer !== undefined) {
+    try {
+      permissionConfig.approvalsReviewer = decodeApprovalsReviewer(
+        permissionConfig.approvalsReviewer,
+      )
+    } catch {
+      permissionConfig.approvalsReviewer = 'auto_review'
+    }
+  }
   return {
     ...desktop,
     ...(Object.keys(permissionConfig).length ? { permissionConfig } : {}),

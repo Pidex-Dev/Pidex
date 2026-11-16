@@ -10,6 +10,7 @@ VARIABLES
   decision,
   activePolicy,
   hasDenyRule,
+  hasAskRule,
   hasAllowRule,
   needsApproval,
   opFingerprint,
@@ -25,6 +26,7 @@ vars == <<
   decision,
   activePolicy,
   hasDenyRule,
+  hasAskRule,
   hasAllowRule,
   needsApproval,
   opFingerprint,
@@ -34,15 +36,14 @@ vars == <<
   resumeAccepted
 >>
 
-Policies == {"never", "untrusted", "on-request"}
+Policies == {"never", "auto_review"}
 Phases == {"idle", "evaluated", "waiting_approval", "resumed", "completed", "denied"}
 Decisions == {"none", "allow", "review", "deny"}
 MaybeFingerprints == {"none"} \cup Fingerprints
 
 PolicyRank(p) ==
   CASE p = "never" -> 0
-    [] p = "untrusted" -> 1
-    [] p = "on-request" -> 2
+    [] p = "auto_review" -> 1
 
 Init ==
   /\ parentPolicy \in Policies
@@ -51,6 +52,7 @@ Init ==
   /\ decision = "none"
   /\ activePolicy = parentPolicy
   /\ hasDenyRule = FALSE
+  /\ hasAskRule = FALSE
   /\ hasAllowRule = FALSE
   /\ needsApproval = FALSE
   /\ opFingerprint = "none"
@@ -66,21 +68,23 @@ ConfigureSubagentPolicy(p) ==
        THEN subagentPolicy' = p
        ELSE UNCHANGED subagentPolicy
   /\ UNCHANGED <<
-       parentPolicy, phase, decision, activePolicy, hasDenyRule,
+       parentPolicy, phase, decision, activePolicy, hasDenyRule, hasAskRule,
        hasAllowRule, needsApproval, opFingerprint, checkpointActive,
        checkpointFingerprint, resumedWithFingerprint, resumeAccepted
      >>
 
-EvaluateInvocation(useSubagent, denyFlag, allowFlag, needsRev, fp) ==
+EvaluateInvocation(useSubagent, denyFlag, askFlag, allowFlag, needsRev, fp) ==
   /\ phase = "idle"
   /\ useSubagent \in BOOLEAN
   /\ denyFlag \in BOOLEAN
+  /\ askFlag \in BOOLEAN
   /\ allowFlag \in BOOLEAN
   /\ needsRev \in BOOLEAN
   /\ fp \in Fingerprints
   /\ LET effPolicy == IF useSubagent THEN subagentPolicy ELSE parentPolicy IN
        /\ activePolicy' = effPolicy
        /\ hasDenyRule' = denyFlag
+       /\ hasAskRule' = askFlag
        /\ hasAllowRule' = allowFlag
        /\ needsApproval' = needsRev
        /\ opFingerprint' = fp
@@ -91,26 +95,28 @@ EvaluateInvocation(useSubagent, denyFlag, allowFlag, needsRev, fp) ==
        /\ IF denyFlag
             THEN /\ decision' = "deny"
                  /\ phase' = "denied"
-            ELSE IF needsRev \/ (effPolicy = "untrusted" /\ ~allowFlag)
-                   THEN IF effPolicy = "never"
-                          THEN /\ decision' = "deny"
-                               /\ phase' = "denied"
-                          ELSE /\ decision' = "review"
-                               /\ phase' = "evaluated"
-                   ELSE /\ decision' = "allow"
-                        /\ phase' = "completed"
+            ELSE IF askFlag
+                   THEN /\ decision' = "review"
+                        /\ phase' = "evaluated"
+                   ELSE IF needsRev
+                          THEN IF effPolicy = "never"
+                                 THEN /\ decision' = "deny"
+                                      /\ phase' = "denied"
+                                 ELSE /\ decision' = "review"
+                                      /\ phase' = "evaluated"
+                          ELSE /\ decision' = "allow"
+                               /\ phase' = "completed"
   /\ UNCHANGED <<parentPolicy, subagentPolicy>>
 
 CreateCheckpointAndInterrupt ==
   /\ phase = "evaluated"
   /\ decision = "review"
-  /\ activePolicy /= "never"
   /\ checkpointActive' = TRUE
   /\ checkpointFingerprint' = opFingerprint
   /\ phase' = "waiting_approval"
   /\ UNCHANGED <<
        parentPolicy, subagentPolicy, decision, activePolicy,
-       hasDenyRule, hasAllowRule, needsApproval, opFingerprint,
+       hasDenyRule, hasAskRule, hasAllowRule, needsApproval, opFingerprint,
        resumedWithFingerprint, resumeAccepted
      >>
 
@@ -133,7 +139,7 @@ ResumeFromCheckpoint(candidateDecision, candidateFp) ==
                    /\ decision' = "deny"
                    /\ phase' = "denied"
   /\ UNCHANGED <<
-       parentPolicy, subagentPolicy, activePolicy, hasDenyRule,
+       parentPolicy, subagentPolicy, activePolicy, hasDenyRule, hasAskRule,
        hasAllowRule, needsApproval, opFingerprint, checkpointFingerprint
      >>
 
@@ -143,6 +149,7 @@ ResetToIdle ==
   /\ decision' = "none"
   /\ activePolicy' = parentPolicy
   /\ hasDenyRule' = FALSE
+  /\ hasAskRule' = FALSE
   /\ hasAllowRule' = FALSE
   /\ needsApproval' = FALSE
   /\ opFingerprint' = "none"
@@ -154,9 +161,9 @@ ResetToIdle ==
 
 Next ==
   \/ \E p \in Policies : ConfigureSubagentPolicy(p)
-  \/ \E useSubagent \in BOOLEAN, denyFlag \in BOOLEAN, allowFlag \in BOOLEAN,
-        needsRev \in BOOLEAN, fp \in Fingerprints :
-       EvaluateInvocation(useSubagent, denyFlag, allowFlag, needsRev, fp)
+  \/ \E useSubagent \in BOOLEAN, denyFlag \in BOOLEAN, askFlag \in BOOLEAN,
+        allowFlag \in BOOLEAN, needsRev \in BOOLEAN, fp \in Fingerprints :
+       EvaluateInvocation(useSubagent, denyFlag, askFlag, allowFlag, needsRev, fp)
   \/ CreateCheckpointAndInterrupt
   \/ \E candidateDecision \in {"allow", "deny"}, candidateFp \in Fingerprints :
        ResumeFromCheckpoint(candidateDecision, candidateFp)
@@ -171,6 +178,7 @@ TypeOK ==
   /\ decision \in Decisions
   /\ activePolicy \in Policies
   /\ hasDenyRule \in BOOLEAN
+  /\ hasAskRule \in BOOLEAN
   /\ hasAllowRule \in BOOLEAN
   /\ needsApproval \in BOOLEAN
   /\ opFingerprint \in MaybeFingerprints
@@ -179,8 +187,8 @@ TypeOK ==
   /\ resumedWithFingerprint \in MaybeFingerprints
   /\ resumeAccepted \in BOOLEAN
 
-NeverPolicyNeverWaitsForApproval ==
-  (activePolicy = "never") => (decision /= "review" /\ phase /= "waiting_approval")
+NeverWithoutAskRuleNeverWaitsForApproval ==
+  (activePolicy = "never" /\ ~hasAskRule) => (decision /= "review" /\ phase /= "waiting_approval")
 
 DenyOverridesAllow ==
   (phase /= "idle" /\ hasDenyRule) => (decision = "deny" /\ phase = "denied")

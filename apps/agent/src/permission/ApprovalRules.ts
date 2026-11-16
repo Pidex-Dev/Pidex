@@ -311,7 +311,9 @@ export class ApprovalRules {
     return project?.rootPath ? { root: workspacePath(project.rootPath), project: true } : null
   }
 
-  private projectRoot(threadID: string): string | null {
+  private projectRoot(threadID?: string, cwd?: string): string | null {
+    if (cwd?.trim()) return resolve(cwd)
+    if (!threadID) return null
     const descriptor = this.db.threadWorkspace(threadID)
     const project = descriptor?.kind === 'project' ? this.db.getProject(descriptor.projectID) : null
     return project?.rootPath ? resolve(project.rootPath) : null
@@ -584,13 +586,15 @@ export class ApprovalRules {
   }
 
   /** Full rule catalog shown by every client: user, project, chat and legacy. */
-  async list(threadID: string): Promise<{ rules: PermissionRule[] }> {
-    const root = this.projectRoot(threadID)
+  async list(threadID?: string, cwd?: string): Promise<{ rules: PermissionRule[] }> {
+    const root = this.projectRoot(threadID, cwd)
     const layers = await this.layers(root)
-    const threadWorkspace = this.workspace({
-      threadID,
-      permissionConfig: {},
-    } as unknown as ToolInvocation)
+    const threadWorkspace = threadID
+      ? this.workspace({
+          threadID,
+          permissionConfig: {},
+        } as unknown as ToolInvocation)
+      : null
     const rules: PermissionRule[] = [
       ...layerRules(
         layers?.user?.config.permission_rules,
@@ -608,18 +612,20 @@ export class ApprovalRules {
         : []),
     ]
     const repositories = this.db.repositories.permissionRules
-    for (const rule of repositories.listChatRules(threadID)) {
-      rules.push({
-        id: rule.id,
-        effect: rule.effect,
-        scope: 'chat',
-        source: 'chat',
-        match: rule.match,
-        editable: true,
-        version: String(rule.version),
-        createdAt: rule.createdAt,
-        ...(rule.workspace ? { workspace: rule.workspace } : {}),
-      })
+    if (threadID) {
+      for (const rule of repositories.listChatRules(threadID)) {
+        rules.push({
+          id: rule.id,
+          effect: rule.effect,
+          scope: 'chat',
+          source: 'chat',
+          match: rule.match,
+          editable: true,
+          version: String(rule.version),
+          createdAt: rule.createdAt,
+          ...(rule.workspace ? { workspace: rule.workspace } : {}),
+        })
+      }
     }
     if (root && layers?.project?.trusted) {
       for (const value of await this.projectRules(root)) {
@@ -645,21 +651,23 @@ export class ApprovalRules {
         })
       }
     }
-    const revoked = repositories.revokedLegacyGrantIDs(threadID)
-    for (const value of this.db.repositories.interactions.resolvedApprovalGrantRules(threadID)) {
-      if (!value || typeof value !== 'object') continue
-      const rule = value as ApprovalRule
-      if (revoked.has(rule.id)) continue
-      const match = legacyGrantMatch(rule, threadWorkspace?.root ?? '')
-      if (!match) continue
-      rules.push({
-        id: rule.id,
-        effect: 'allow',
-        scope: 'chat',
-        source: 'legacy',
-        match,
-        editable: true,
-      })
+    if (threadID) {
+      const revoked = repositories.revokedLegacyGrantIDs(threadID)
+      for (const value of this.db.repositories.interactions.resolvedApprovalGrantRules(threadID)) {
+        if (!value || typeof value !== 'object') continue
+        const rule = value as ApprovalRule
+        if (revoked.has(rule.id)) continue
+        const match = legacyGrantMatch(rule, threadWorkspace?.root ?? '')
+        if (!match) continue
+        rules.push({
+          id: rule.id,
+          effect: 'allow',
+          scope: 'chat',
+          source: 'legacy',
+          match,
+          editable: true,
+        })
+      }
     }
     return { rules }
   }
@@ -726,13 +734,15 @@ export class ApprovalRules {
   }
 
   async upsert(
-    threadID: string,
+    threadID: string | undefined,
     input: PermissionRuleInput,
     expectedVersion?: string,
+    cwd?: string,
   ): Promise<PermissionRule> {
     const match = this.normalizeMatch(input.match)
-    const root = this.projectRoot(threadID)
+    const root = this.projectRoot(threadID, cwd)
     if (input.scope === 'chat') {
+      if (!threadID) throw new AgentError('INVALID_REQUEST', '保存会话级规则需要会话标识', 400)
       const rule = this.db.repositories.permissionRules.upsertChatRule({
         threadID,
         ...(input.id ? { id: input.id } : {}),
@@ -834,13 +844,15 @@ export class ApprovalRules {
   }
 
   async revoke(
-    threadID: string,
+    threadID: string | undefined,
     ruleId: string,
     expectedVersion?: string,
+    cwd?: string,
   ): Promise<{ revoked: boolean }> {
     const repositories = this.db.repositories.permissionRules
-    if (repositories.revokeChatRule(threadID, ruleId, expectedVersion)) return { revoked: true }
-    const root = this.projectRoot(threadID)
+    if (threadID && repositories.revokeChatRule(threadID, ruleId, expectedVersion))
+      return { revoked: true }
+    const root = this.projectRoot(threadID, cwd)
     const layers = await this.layers(root)
     for (const scope of ['user', 'project'] as const) {
       const layer = scope === 'user' ? layers?.user : layers?.project
@@ -870,6 +882,7 @@ export class ApprovalRules {
         return { revoked: true }
       }
     }
+    if (!threadID) return { revoked: false }
     const sessionRule = this.db.repositories.interactions
       .resolvedApprovalGrantRules(threadID)
       .find((value) => value && typeof value === 'object' && (value as ApprovalRule).id === ruleId)

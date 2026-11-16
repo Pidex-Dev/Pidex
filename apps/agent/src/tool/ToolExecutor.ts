@@ -1756,19 +1756,6 @@ export class ToolExecutor {
         'externalWrite',
         'externalCommand',
       ].some((key) => key in facts && typeof facts[key as keyof typeof facts] !== 'boolean') ||
-        (facts.approvalCategories !== undefined &&
-          (!Array.isArray(facts.approvalCategories) ||
-            facts.approvalCategories.some(
-              (category) =>
-                ![
-                  'sandboxApproval',
-                  'rules',
-                  'skillApproval',
-                  'requestPermissions',
-                  'mcpTools',
-                  'mcpElicitations',
-                ].includes(category),
-            ))) ||
         (facts.risk !== undefined && !['low', 'medium', 'high', 'critical'].includes(facts.risk)) ||
         (facts.denyReason !== undefined && typeof facts.denyReason !== 'string') ||
         (facts.approvalReason !== undefined && typeof facts.approvalReason !== 'string'))
