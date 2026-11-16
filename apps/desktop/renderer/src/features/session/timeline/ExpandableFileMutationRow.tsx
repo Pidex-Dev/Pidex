@@ -66,6 +66,7 @@ export function createThreadPatchDiffLoader(
 
 export function ExpandableFileMutationRow({
   diffMarkerStyle,
+  diffPath,
   disclosure,
   file,
   item,
@@ -73,6 +74,7 @@ export function ExpandableFileMutationRow({
   threadId,
 }: {
   diffMarkerStyle: DesktopDiffMarkerStyle
+  diffPath?: string
   disclosure: CanonicalItemDisclosure
   file: FileChangeDisplay
   item: ToolItem
@@ -89,17 +91,18 @@ export function ExpandableFileMutationRow({
     () => createThreadPatchDiffLoader(readThreadPatchDiff),
     [readThreadPatchDiff],
   )
-  const requestKey = `${threadId}:${item.callID}:${file.path}`
+  const targetDiffPath = diffPath ?? file.path
+  const requestKey = `${threadId}:${item.callID}:${targetDiffPath}`
   const contentId = React.useId()
 
   React.useEffect(() => {
     if (!expanded) return
     return loader.request(
       requestKey,
-      { threadId, toolCallId: item.callID, path: file.path },
+      { threadId, toolCallId: item.callID, path: targetDiffPath },
       setLoadState,
     )
-  }, [attempt, expanded, file.path, item.callID, loader, requestKey, threadId])
+  }, [attempt, expanded, item.callID, loader, requestKey, targetDiffPath, threadId])
 
   return (
     <div

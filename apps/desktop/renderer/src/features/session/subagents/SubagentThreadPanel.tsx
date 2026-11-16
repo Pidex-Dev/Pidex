@@ -363,6 +363,7 @@ export function SubagentThreadPanel({
                 key={pendingRequest.requestId}
                 request={pendingRequest}
                 identity={task.displayName}
+                workspacePath={task.workspace.rootPath}
                 disabledReason={
                   canRespond ? undefined : '此子智能体当前不可操作，请通过父任务继续。'
                 }

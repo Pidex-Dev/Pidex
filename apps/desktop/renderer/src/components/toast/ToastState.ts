@@ -163,11 +163,33 @@ export function createToastStore(options?: {
     toasts: [],
     isHovered: false,
   }))
+  let dismissTimer: ReturnType<typeof setTimeout> | null = null
 
   const getState = (): ToastStoreState => store.getState()
 
   function clearTimer(): void {
-    // 自动消失计时器已移除，所有通知改为用户手动逐条关闭；保留空实现以兼容调用方
+    if (dismissTimer !== null) {
+      clearTimeout(dismissTimer)
+      dismissTimer = null
+    }
+  }
+
+  function syncTimer(): void {
+    clearTimer()
+    const { toasts, isHovered } = getState()
+    // INVARIANT: 仅在存活 1 条且未悬停/聚焦时启动 5 秒自动消失倒计时，多条共存或悬停时取消。
+    if (toasts.length > 1) {
+      return
+    }
+
+    if (toasts.length === 1 && !isHovered) {
+      const singleToast = toasts[0]
+      if (!singleToast) return
+      const duration = singleToast.duration || defaultDuration
+      dismissTimer = setTimeout(() => {
+        dismiss(singleToast.id)
+      }, duration)
+    }
   }
 
   function show(toastOptions: ShowToastOptions): string {
@@ -196,7 +218,7 @@ export function createToastStore(options?: {
     const now = Date.now()
     const state = getState()
 
-    // 规则 1：相同内容去重（短时间窗口内更新现有条目，不重复入栈）
+    // 规则 3：相同内容去重（短时间窗口内更新现有条目，不重复入栈）
     if (textKey) {
       const existingIndex = state.toasts.findIndex(
         (t) => t.tone === tone && t.textKey === textKey && now - t.timestamp < dedupeWindow,
@@ -220,6 +242,7 @@ export function createToastStore(options?: {
           showCloseButton: toastOptions.showCloseButton ?? existing.showCloseButton,
         }
         store.setState({ toasts: updated })
+        syncTimer()
         return existing.id
       }
     }
@@ -253,7 +276,7 @@ export function createToastStore(options?: {
       nextToasts[existingByIdIndex] = newItem
     } else {
       nextToasts = [newItem, ...state.toasts]
-      // 规则 2：最多保留 maxToasts 条（默认 5 条），超出上限时淘汰最旧的一条
+      // 规则 4：最多保留 maxToasts 条（默认 5 条），超出上限时淘汰最旧的一条
       while (nextToasts.length > maxToasts) {
         const removed = nextToasts.pop()
         if (removed) removedList.push(removed)
@@ -261,6 +284,7 @@ export function createToastStore(options?: {
     }
 
     store.setState({ toasts: nextToasts })
+    syncTimer()
     for (const removed of removedList) {
       removed.onDismiss?.()
     }
@@ -272,6 +296,7 @@ export function createToastStore(options?: {
     const item = state.toasts.find((t) => t.id === id)
     if (!item) return
     store.setState({ toasts: state.toasts.filter((t) => t.id !== id) })
+    syncTimer()
     item.onDismiss?.()
   }
 
@@ -291,6 +316,7 @@ export function createToastStore(options?: {
     const state = getState()
     const current = [...state.toasts]
     store.setState({ toasts: [] })
+    syncTimer()
     for (const item of current) {
       item.onDismiss?.()
     }
@@ -299,6 +325,7 @@ export function createToastStore(options?: {
   function setHovered(hovered: boolean): void {
     if (getState().isHovered === hovered) return
     store.setState({ isHovered: hovered })
+    syncTimer()
   }
 
   return {

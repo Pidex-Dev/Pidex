@@ -91,6 +91,88 @@ export function commandOutputFollowing(
   return expanded && !wasExpanded ? active : following
 }
 
+export function CanonicalCommandBlock({
+  command,
+  showPrompt = true,
+  ariaLabel = '执行内容',
+  codeClassName,
+}: {
+  command: string
+  showPrompt?: boolean
+  ariaLabel?: string
+  codeClassName?: string
+}): React.ReactNode {
+  const commandRef = React.useRef<HTMLPreElement | null>(null)
+  const commandContentId = React.useId()
+  const [commandExpanded, setCommandExpanded] = React.useState(false)
+  const [commandOverflowing, setCommandOverflowing] = React.useState(false)
+
+  React.useLayoutEffect(() => {
+    // 收起态先限高再实测换行结果；窗口变窄或字号变化会改写换行，所以用 ResizeObserver 持续重测。
+    // 只有真实溢出才给出折叠入口，避免短命令也长出一个无意义的按钮和悬停态。
+    const element = commandRef.current
+    if (!element || commandExpanded) return
+    const measure = (): void =>
+      setCommandOverflowing(element.scrollHeight > element.clientHeight + 1)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [command, commandExpanded])
+
+  return (
+    <>
+      <div className="canonical-command-card__command">
+        <div className="canonical-command-card__command-viewport">
+          <pre
+            ref={commandRef}
+            id={commandContentId}
+            className={codeClassName}
+            aria-label={ariaLabel}
+            aria-expanded={commandExpanded}
+            data-expanded={commandExpanded}
+          >
+            {showPrompt ? (
+              <>
+                <span className="canonical-command-shell__prompt" aria-hidden="true">
+                  $
+                </span>{' '}
+              </>
+            ) : null}
+            {command}
+          </pre>
+        </div>
+        <CopyButton
+          ariaLabel="复制执行内容"
+          text={command}
+          className="canonical-command-card__copy"
+        />
+      </div>
+      {commandOverflowing || commandExpanded ? (
+        <button
+          aria-controls={commandContentId}
+          aria-expanded={commandExpanded}
+          className="canonical-command-card__command-toggle"
+          data-prompt={showPrompt}
+          type="button"
+          onClick={() => {
+            // 展开后从头开始读，而不是停在收起态的旧滚动位置。
+            if (commandRef.current) commandRef.current.scrollTop = 0
+            setCommandExpanded((current) => !current)
+          }}
+        >
+          {commandExpanded ? (showPrompt ? '收起命令' : '收起') : showPrompt ? '展开命令' : '展开'}
+          <ChevronDown
+            aria-hidden="true"
+            className={`tw:size-icon-sm canonical-command-card__chevron${commandExpanded ? ' is-expanded' : ''}`}
+            size={APP_ICON_SIZES.sm}
+          />
+        </button>
+      ) : null}
+    </>
+  )
+}
+
 export function ToolCommandCard({
   item,
   command,
@@ -113,10 +195,6 @@ export function ToolCommandCard({
   const [wrapped, setWrapped] = useCodeWrapPreference()
   const scrollerRef = React.useRef<HTMLDivElement | null>(null)
   const contentRef = React.useRef<HTMLPreElement | null>(null)
-  const commandRef = React.useRef<HTMLPreElement | null>(null)
-  const commandContentId = React.useId()
-  const [commandExpanded, setCommandExpanded] = React.useState(false)
-  const [commandOverflowing, setCommandOverflowing] = React.useState(false)
   const followingRef = React.useRef(active)
   const pinRef = React.useRef<HTMLDivElement | null>(null)
   const wasExpandedRef = React.useRef(false)
@@ -135,19 +213,6 @@ export function ToolCommandCard({
         : active
           ? LoaderCircle
           : Check
-
-  React.useLayoutEffect(() => {
-    // 收起态先限高再实测换行结果；窗口变窄或字号变化会改写换行，所以用 ResizeObserver 持续重测。
-    // 只有真实溢出才给出折叠入口，避免短命令也长出一个无意义的按钮和悬停态。
-    const element = commandRef.current
-    if (!element || commandExpanded) return
-    const measure = (): void =>
-      setCommandOverflowing(element.scrollHeight > element.clientHeight + 1)
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [command, commandExpanded])
 
   React.useLayoutEffect(() => {
     // 手动上滚只停止吸底，不冻结数据；重新展开运行中的工具恢复跟随。
@@ -180,47 +245,7 @@ export function ToolCommandCard({
       className={`canonical-command-shell canonical-command-card${grouped ? ' canonical-command-shell--embedded' : ''}`}
       data-state={item.state}
     >
-      <div className="canonical-command-card__command">
-        <div className="canonical-command-card__command-viewport">
-          <pre
-            ref={commandRef}
-            id={commandContentId}
-            aria-label="执行内容"
-            aria-expanded={commandExpanded}
-            data-expanded={commandExpanded}
-          >
-            <span className="canonical-command-shell__prompt" aria-hidden="true">
-              $
-            </span>{' '}
-            {command}
-          </pre>
-        </div>
-        <CopyButton
-          ariaLabel="复制执行内容"
-          text={command}
-          className="canonical-command-card__copy"
-        />
-      </div>
-      {commandOverflowing || commandExpanded ? (
-        <button
-          aria-controls={commandContentId}
-          aria-expanded={commandExpanded}
-          className="canonical-command-card__command-toggle"
-          type="button"
-          onClick={() => {
-            // 展开后从头开始读，而不是停在收起态的旧滚动位置。
-            if (commandRef.current) commandRef.current.scrollTop = 0
-            setCommandExpanded((current) => !current)
-          }}
-        >
-          {commandExpanded ? '收起命令' : '展开命令'}
-          <ChevronDown
-            aria-hidden="true"
-            className={`tw:size-icon-sm canonical-command-card__chevron${commandExpanded ? ' is-expanded' : ''}`}
-            size={APP_ICON_SIZES.sm}
-          />
-        </button>
-      ) : null}
+      <CanonicalCommandBlock command={command} />
       <div className="canonical-command-card__output">
         <div
           className="canonical-command-shell__edge-fade"

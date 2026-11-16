@@ -1001,6 +1001,7 @@ export function approvalToRequest(approval: ApprovalRequest): DesktopPermissionR
       ...(approval.input ?? {}),
       threadId: approval.threadId,
       command: approval.command,
+      ...(approval.cwd && !approval.input?.cwd ? { cwd: approval.cwd } : {}),
       paths: approval.paths,
       risk: approval.risk,
       ...(approval.affectedPaths ? { affectedPaths: approval.affectedPaths } : {}),

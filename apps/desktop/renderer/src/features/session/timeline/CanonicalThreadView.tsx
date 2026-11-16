@@ -897,6 +897,7 @@ function CanonicalConversationTurnComponent({
     } = {},
   ) => (
     <CanonicalItemRenderer
+      diffMarkerStyle={diffMarkerStyle}
       disclosure={
         options.disclosureId
           ? disclosure(options.disclosureId)
@@ -904,6 +905,7 @@ function CanonicalConversationTurnComponent({
             ? disclosure(`question:${item.id}`)
             : undefined
       }
+      disclosureStore={disclosureState}
       item={item}
       key={item.id}
       onApplyPatch={onApplyPatch}
@@ -911,6 +913,7 @@ function CanonicalConversationTurnComponent({
       onOpenPlanInRightDock={onOpenPlanInRightDock}
       onOpenSubagent={onOpenSubagent}
       presentation={options.presentation}
+      readThreadPatchDiff={readThreadPatchDiff}
       dockedPlanItemId={dockedPlanItemId}
       latestPlanItemId={latestPlanItemId}
       pendingPlanItemId={pendingPlanItemId}

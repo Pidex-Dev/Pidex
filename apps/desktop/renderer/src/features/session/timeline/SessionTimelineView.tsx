@@ -247,7 +247,7 @@ export function SessionTimelineView<T>({
       <div
         aria-hidden="true"
         className={cx(
-          'session-timeline-bottom-sentinel tw:relative tw:w-full tw:flex-none tw:h-[calc(var(--thread-scroll-footer-height)+var(--thread-scroll-footer-fade-height)+var(--thread-scroll-content-bottom-gap))] tw:pointer-events-none',
+          'session-timeline-bottom-sentinel tw:relative tw:w-full tw:flex-none tw:h-[calc(var(--thread-scroll-footer-fade-height)+var(--thread-scroll-content-bottom-gap))] tw:pointer-events-none',
           scrollController.mode === 'static'
             ? 'tw:[overflow-anchor:none]'
             : 'tw:[overflow-anchor:auto]',

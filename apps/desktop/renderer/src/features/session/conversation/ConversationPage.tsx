@@ -1395,51 +1395,61 @@ export function ConversationPage(): React.ReactNode {
             </ComposerFooterPresence>
           ) : null}
         </AnimatePresence>
-        <div className={approvalVisible ? 'tw:opacity-0' : undefined} inert={approvalVisible}>
-          <ThreadComposerDock>
-            <SessionBoundComposer
-              {...composerPropsForPage}
-              canForkConversation={Boolean(
-                conversationFork.onForkFromMessage && latestConversationForkPoint,
-              )}
-              onArchiveConversation={archiveCurrentSession}
-              onForkConversation={continueInNewConversation}
-              sessionStatus={effectiveSessionStatus}
-              contextUsage={canonicalAuxiliary.contextUsage}
-              queuedFollowUps={canonicalAuxiliary.queuedFollowUps}
-              queuePauseReason={canonicalAuxiliary.queuePauseReason}
-              hasConversationMessages={canonicalAuxiliary.hasConversationMessages}
-              messages={[]}
-            />
-          </ThreadComposerDock>
-        </div>
-        <div className="workflow-page__composer-inner tw:pointer-events-none tw:absolute tw:inset-x-0 tw:bottom-0 tw:z-composer tw:[container-type:inline-size] tw:[&_.inline-approval-card]:w-full tw:[&_.inline-approval-card]:max-w-none">
-          <AnimatePresence initial={false}>
-            {activePermissionRequest ? (
-              <ComposerFooterPresence
-                key={activePermissionRequest.requestId}
-                reducedMotion={reduceMotion}
-              >
-                <InlineApprovalCard
-                  request={activePermissionRequest}
-                  currentPermissionMode={permissionMode}
-                  taskMode={taskMode}
-                  onDecide={onDecidePermission}
-                  onInterrupt={composerProps.onInterrupt}
-                />
-              </ComposerFooterPresence>
-            ) : pendingPlanApproval ? (
-              <ComposerFooterPresence key={pendingPlanApproval.id} reducedMotion={reduceMotion}>
-                <PlanApprovalCard
-                  approval={pendingPlanApproval}
-                  disabledReason={planApproval.disabledReason}
-                  onRespond={planApproval.respond}
-                  onOpenPlan={onOpenPlanInRightDock}
-                  freshAvailable={planApproval.freshAvailable}
-                />
-              </ComposerFooterPresence>
-            ) : null}
-          </AnimatePresence>
+        <div className="tw:grid tw:w-full tw:items-end tw:[&>*]:col-start-1 tw:[&>*]:row-start-1">
+          <div
+            className={
+              approvalVisible
+                ? 'tw:h-0 tw:overflow-hidden tw:pointer-events-none tw:opacity-0'
+                : undefined
+            }
+            inert={approvalVisible}
+          >
+            <ThreadComposerDock>
+              <SessionBoundComposer
+                {...composerPropsForPage}
+                canForkConversation={Boolean(
+                  conversationFork.onForkFromMessage && latestConversationForkPoint,
+                )}
+                onArchiveConversation={archiveCurrentSession}
+                onForkConversation={continueInNewConversation}
+                sessionStatus={effectiveSessionStatus}
+                contextUsage={canonicalAuxiliary.contextUsage}
+                queuedFollowUps={canonicalAuxiliary.queuedFollowUps}
+                queuePauseReason={canonicalAuxiliary.queuePauseReason}
+                hasConversationMessages={canonicalAuxiliary.hasConversationMessages}
+                messages={[]}
+              />
+            </ThreadComposerDock>
+          </div>
+          <div className="workflow-page__composer-inner tw:pointer-events-none tw:z-composer tw:[container-type:inline-size] tw:[&_.inline-approval-card]:w-full tw:[&_.inline-approval-card]:max-w-none">
+            <AnimatePresence initial={false}>
+              {activePermissionRequest ? (
+                <ComposerFooterPresence
+                  key={activePermissionRequest.requestId}
+                  reducedMotion={reduceMotion}
+                >
+                  <InlineApprovalCard
+                    request={activePermissionRequest}
+                    currentPermissionMode={permissionMode}
+                    taskMode={taskMode}
+                    workspacePath={workspacePath}
+                    onDecide={onDecidePermission}
+                    onInterrupt={composerProps.onInterrupt}
+                  />
+                </ComposerFooterPresence>
+              ) : pendingPlanApproval ? (
+                <ComposerFooterPresence key={pendingPlanApproval.id} reducedMotion={reduceMotion}>
+                  <PlanApprovalCard
+                    approval={pendingPlanApproval}
+                    disabledReason={planApproval.disabledReason}
+                    onRespond={planApproval.respond}
+                    onOpenPlan={onOpenPlanInRightDock}
+                    freshAvailable={planApproval.freshAvailable}
+                  />
+                </ComposerFooterPresence>
+              ) : null}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     ) : null

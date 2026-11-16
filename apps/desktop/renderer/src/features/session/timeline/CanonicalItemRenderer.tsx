@@ -207,12 +207,15 @@ export type ReadThreadPatchDiff = (
 ) => Promise<RpcResult<'thread/patch/diff'>>
 
 export type CanonicalItemRendererProps = {
+  diffMarkerStyle?: DesktopDiffMarkerStyle
   disclosure?: CanonicalItemDisclosure
+  disclosureStore?: KeyedDisclosureStore
   item: Item
   onApplyPatch?: (itemId: string, action: PatchAction, expectedVersion: number) => Promise<void>
   onOpenPatchReview?: (path?: string) => void
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void
   onOpenSubagent: (taskId: string) => void
+  readThreadPatchDiff?: ReadThreadPatchDiff
   dockedPlanItemId: string | null
   /** 该聊天最新的计划项；只有它提供右栏打开入口。 */
   latestPlanItemId?: string | null
@@ -502,6 +505,9 @@ function areCanonicalItemRendererPropsEqual(
     previous.item === next.item &&
     previous.threadId === next.threadId &&
     previous.presentation === next.presentation &&
+    previous.diffMarkerStyle === next.diffMarkerStyle &&
+    previous.disclosureStore === next.disclosureStore &&
+    previous.readThreadPatchDiff === next.readThreadPatchDiff &&
     previous.dockedPlanItemId === next.dockedPlanItemId &&
     previous.latestPlanItemId === next.latestPlanItemId &&
     previous.pendingPlanItemId === next.pendingPlanItemId &&
@@ -534,12 +540,15 @@ function SubscribedCanonicalItemRenderer({
 }
 
 function CanonicalItemRendererContentComponent({
+  diffMarkerStyle,
   disclosure,
+  disclosureStore,
   item,
   onApplyPatch,
   onOpenPatchReview,
   onOpenPlanInRightDock,
   onOpenSubagent,
+  readThreadPatchDiff,
   dockedPlanItemId,
   latestPlanItemId = null,
   pendingPlanItemId = null,
@@ -572,6 +581,17 @@ function CanonicalItemRendererContentComponent({
       const scheduleDraft = scheduleDraftFromTool(item)
       if (scheduleDraft) return <ScheduleDraftCard initial={scheduleDraft} />
       if (isSchedulePlanTool(item)) return <SchedulePlanCard item={item} />
+      if (isFileMutationTool(item) && (disclosureStore || readThreadPatchDiff)) {
+        return (
+          <FileMutationItemView
+            diffMarkerStyle={diffMarkerStyle}
+            disclosureStore={disclosureStore}
+            item={item}
+            readThreadPatchDiff={readThreadPatchDiff}
+            threadId={threadId}
+          />
+        )
+      }
       return (
         <ToolItemView
           disclosure={disclosure}
@@ -1610,12 +1630,17 @@ export function FileMutationItemView({
     >
       {mutation.files.map((file, fileIndex) => {
         const disclosureId = `file-mutation:${item.id}:${fileIndex}`
+        const matchedDiffPath = item.mutationDiffPaths?.find(
+          (path) =>
+            sameMutationPath(path, file.path) ||
+            (file.sourcePath !== undefined && sameMutationPath(path, file.sourcePath)),
+        )
         const canExpand =
           item.state === 'completed' &&
           Boolean(disclosureStore) &&
           Boolean(threadId) &&
           Boolean(readThreadPatchDiff) &&
-          item.mutationDiffPaths?.some((path) => sameMutationPath(path, file.path)) === true
+          matchedDiffPath !== undefined
         if (!canExpand || !readThreadPatchDiff || !threadId) {
           return (
             <div
@@ -1688,6 +1713,7 @@ export function FileMutationItemView({
           >
             <LazyExpandableFileMutationRow
               diffMarkerStyle={diffMarkerStyle}
+              diffPath={matchedDiffPath}
               disclosure={{ id: disclosureId, store: disclosureStore }}
               file={file}
               item={item}
