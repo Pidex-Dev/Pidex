@@ -13,6 +13,7 @@ import { decodeResultCardEnvelope } from '@pidex/shared/thread-result-card'
 
 import {
   buildLifecycleToolDisplay,
+  CanonicalItemRenderer,
   buildStructuredToolDetail,
   buildToolItemDisplay,
   buildToolSemanticSummary,
@@ -1162,6 +1163,60 @@ describe('canonical tool item display', () => {
     expect(legacyMarkup).not.toContain('lucide-chevron')
     expect(runningMarkup).not.toContain('<details')
     expect(runningMarkup).not.toContain('lucide-chevron')
+  })
+
+  test('renders apply_patch ToolUse via FileMutationItemView and expandable row', () => {
+    const item = toolItem({
+      command: null,
+      input: {
+        files: [
+          {
+            operation: 'update',
+            path: 'src\\renamed.ts',
+            additions: 3,
+            deletions: 1,
+          },
+        ],
+      },
+      mutationDiffPaths: ['src/renamed.ts'],
+      output: null,
+      tool: 'apply_patch',
+    })
+    const rendererMarkup = renderToStaticMarkup(
+      <CanonicalItemRenderer
+        disclosureStore={disclosureStore('file-mutation:tool-1:0')}
+        item={item}
+        readThreadPatchDiff={async () => {
+          throw new Error('not called during server render')
+        }}
+        threadId="thread-1"
+      />,
+    )
+    const rowMarkup = renderToStaticMarkup(
+      <ExpandableFileMutationRow
+        diffMarkerStyle="color"
+        diffPath="src/renamed.ts"
+        disclosure={{
+          id: 'file-mutation:tool-1:0',
+          store: disclosureStore('file-mutation:tool-1:0'),
+        }}
+        file={{ additions: 3, deletions: 1, path: 'src/renamed.ts', sourcePath: 'src\\renamed.ts' }}
+        item={item}
+        readThreadPatchDiff={async () => {
+          throw new Error('not called during server render')
+        }}
+        threadId="thread-1"
+      />,
+    )
+
+    expect(rendererMarkup).toContain('cpx-agent-activity__file-changes')
+    expect(rendererMarkup).toContain('已编辑 renamed.ts')
+    expect(rendererMarkup).toContain('+3')
+    expect(rendererMarkup).toContain('-1')
+    expect(rendererMarkup).not.toContain('运行 apply_patch')
+    expect(rowMarkup).toContain('data-expandable="true"')
+    expect(rowMarkup).toContain('lucide-chevron-right')
+    expect(rowMarkup).toContain('正在加载差异')
   })
 
   test('loads a thread patch with exact params and reuses a successful result', async () => {

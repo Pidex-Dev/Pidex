@@ -204,14 +204,14 @@ describe('Shell ReviewerService', () => {
       },
       taskMode: 'chat',
     } as unknown as ToolInvocation
-    expect(engine.evaluate(base, tools.get('PowerShell'))).toMatchObject({ action: 'allow' })
+    expect(engine.evaluate(base, tools.get('exec_command'))).toMatchObject({ action: 'allow' })
     expect(
       engine.evaluate(
         {
           ...base,
           input: { command: 'npm test', additionalPermissions: { networkDomains: ['npmjs.org'] } },
         },
-        tools.get('PowerShell'),
+        tools.get('exec_command'),
       ),
     ).toMatchObject({ action: 'review', reviewer: 'user' })
   })
@@ -239,7 +239,7 @@ describe('Shell ReviewerService', () => {
           ...base,
           permissionFacts: { destructive: true, risk: 'critical' },
         },
-        tools.get('PowerShell'),
+        tools.get('exec_command'),
       ),
     ).toMatchObject({ action: 'review', reviewer: 'user' })
     // 完全访问不进入风险审批
@@ -254,7 +254,7 @@ describe('Shell ReviewerService', () => {
           },
           permissionFacts: { destructive: true },
         },
-        tools.get('PowerShell'),
+        tools.get('exec_command'),
       ),
     ).toMatchObject({ action: 'allow' })
   })

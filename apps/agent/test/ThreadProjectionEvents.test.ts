@@ -161,7 +161,7 @@ describe('v4 会话事件投影契约', () => {
         threadID: thread.id,
         turnID: turn.turnID,
         agentID: turn.agentID,
-        name: 'PowerShell',
+        name: 'exec_command',
         input: {
           command: 'Write-Output "api_key=projection-secret"',
           cwd: root,
@@ -208,7 +208,7 @@ describe('v4 会话事件投影契约', () => {
         createdAt: row.created_at,
       } as EventEnvelope
       const live = decodeFromStorage(stored, projection).payload as Record<string, unknown>
-      expect(live).toMatchObject({ tool: 'PowerShell', cwd: root })
+      expect(live).toMatchObject({ tool: 'exec_command', cwd: root })
       expect(live.command).not.toContain('projection-secret')
       const before = projection
         .snapshot(thread.id)!

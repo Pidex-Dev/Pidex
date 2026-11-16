@@ -92,7 +92,7 @@ async function scopedFixture(taskMode: 'chat' | 'plan' = 'chat') {
     threadID: thread.id,
     turnID: turn.turnID,
     agentID: turn.agentID,
-    name: 'PowerShell',
+    name: 'exec_command',
     input: { command: 'git status', cwd: workspace },
     permissionConfig: input.permissionConfig,
     model: input.model,
@@ -198,7 +198,7 @@ describe('harness ready 与审批恢复期间的 steer', () => {
         for (const guide of db.guideMailbox(turn.turnID))
           await runtime.steer(thread.id, guide.content, [], guide.id)
       }
-      const call = fauxToolCall('PowerShell', {
+      const call = fauxToolCall('exec_command', {
         command: 'curl.exe -I https://example.com',
         cwd: root,
       })
@@ -222,7 +222,7 @@ describe('harness ready 与审批恢复期间的 steer', () => {
           await approvals.rules.upsert(thread.id, {
             effect: 'allow',
             scope: 'chat',
-            match: { kind: 'tool', tool: 'PowerShell' },
+            match: { kind: 'tool', tool: 'exec_command' },
           })
         faux.setResponses([
           ...(mode === 'live-tool' ? [fauxAssistantMessage(call, { stopReason: 'toolUse' })] : []),
@@ -526,7 +526,7 @@ describe('审批范围与外部交互', () => {
       },
     }
     const input = { command: 'curl.exe -I https://example.com', cwd: root }
-    const decision = await executor.previewApproval('PowerShell', input, context, 'real-timeout')
+    const decision = await executor.previewApproval('exec_command', input, context, 'real-timeout')
     expect(reviewCalls).toBe(1)
     expect(reviewAborted).toBe(true)
     expect(executions).toBe(0)
@@ -542,7 +542,7 @@ describe('审批范围与外部交互', () => {
       guardian: { status: 'timeout' },
     })
     await service.respond(checkpoint.approvalID, 'allow')
-    const output = await executor.execute('PowerShell', input, {
+    const output = await executor.execute('exec_command', input, {
       ...context,
       toolCallID: 'real-timeout',
       approvedToolCallID: 'real-timeout',
@@ -591,7 +591,7 @@ describe('审批范围与外部交互', () => {
     })
   }
 
-  for (const name of ['Write', 'PowerShell'] as const) {
+  for (const name of ['Write', 'exec_command'] as const) {
     for (const scope of ['once', 'session', 'project'] as const) {
       test(`${name} ${scope} 审批暂停后只执行一次，等待结果不能冒充完成结果`, async () => {
         const {
@@ -611,7 +611,7 @@ describe('审批范围与外部交互', () => {
         const call = fauxToolCall(
           name,
           name === 'Write'
-            ? { file_path: target, content: 'approved' }
+            ? { file_path: target, content: 'approved\n' }
             : { command: 'curl.exe -I https://example.com', cwd: root },
         )
         let executions = 0
@@ -692,7 +692,7 @@ describe('审批范围与外部交互', () => {
             .options(checkpoint.payload.invocation)
             .find((value) => value.scope === scope)
           if (scope !== 'once') expect(option).toBeDefined()
-          if (name === 'PowerShell')
+          if (name === 'exec_command')
             expect(
               checkpoint.payload.invocation.permissionFacts?.ruleTargets?.networkDomains,
             ).toEqual(['example.com'])
@@ -734,7 +734,7 @@ describe('审批范围与外部交互', () => {
             db.sqlite.query('SELECT status, error FROM tool_calls WHERE id = ?').get(call.id),
           ).toMatchObject({ status: 'completed', error: null })
           expect(db.hasPersistedToolResult(turn.turnID, call.id)).toBe(true)
-          if (name === 'Write') expect(await readFile(target, 'utf8')).toBe('approved')
+          if (name === 'Write') expect(await readFile(target, 'utf8')).toBe('approved\n')
           else
             expect(db.completedToolCall(call.id)?.output).toMatchObject({
               stdout: 'HTTP/1.1 200 OK',
@@ -775,11 +775,24 @@ describe('审批范围与外部交互', () => {
       let resolver = new ResumeCheckpointResolver(db, service)
       const workspace = await WorkspaceService.open(root)
       const calls = [
-        fauxToolCall('Write', { file_path: join(root, '..', 'first.txt'), content: 'first' }),
-        fauxToolCall('Write', { file_path: join(root, '..', 'second.txt'), content: 'second' }),
-        fauxToolCall('Read', { file_path: join(root, 'safe.txt') }),
+        fauxToolCall('Write', {
+          file_path: join(root, '..', 'first.txt'),
+          content: 'first\n',
+        }),
+        fauxToolCall('Write', {
+          file_path: join(root, '..', 'second.txt'),
+          content: 'second\n',
+        }),
+        fauxToolCall('Read', { path: join(root, 'SAFE-SIBLING.png') }),
       ]
-      await writeFile(join(root, 'safe.txt'), 'SAFE-SIBLING', 'utf8')
+      await writeFile(
+        join(root, 'SAFE-SIBLING.png'),
+        Buffer.from([
+          137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8,
+          6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 96, 0, 0, 0, 2,
+          0, 1, 226, 33, 188, 51, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+        ]),
+      )
       const executions: string[] = []
       const controller = new AbortController()
       const createExecutor = () =>
@@ -986,11 +999,15 @@ describe('审批范围与外部交互', () => {
           [first, firstDecision],
           [second, secondDecision],
         ] as const) {
-          const file = Bun.file(checkpoint.payload.invocation.input.file_path as string)
+          const targetPath =
+            checkpoint.toolCallID === calls[0]!.id
+              ? join(root, '..', 'first.txt')
+              : join(root, '..', 'second.txt')
+          const file = Bun.file(targetPath)
           expect(await file.exists()).toBe(decision === 'allow')
           if (decision === 'allow')
             expect(await file.text()).toBe(
-              checkpoint.toolCallID === calls[0]!.id ? 'first' : 'second',
+              checkpoint.toolCallID === calls[0]!.id ? 'first\n' : 'second\n',
             )
         }
         faux.setResponses([fauxAssistantMessage('recovered')])
@@ -1017,7 +1034,7 @@ describe('审批范围与外部交互', () => {
       input: { value: 'data' },
       toolPolicy: {
         sdkName: 'mcp_tool',
-        capabilities: tools.get('PowerShell').capabilities,
+        capabilities: tools.get('exec_command').capabilities,
         allowedModes: ['chat'],
         approvalStrategy: 'always-review',
         origin: { kind: 'mcp', serverName: 'fixture', rawToolName: 'save', generation: 1 },
@@ -1112,7 +1129,7 @@ describe('审批范围与外部交互', () => {
       name: 'mcp_tool',
       input: { value: 'data' },
       toolPolicy: {
-        ...tools.get('PowerShell'),
+        ...tools.get('exec_command'),
         origin: { kind: 'mcp' as const, serverName: 'fixture', rawToolName: 'save', generation: 1 },
       },
     }
@@ -1420,7 +1437,7 @@ describe('可恢复审批 checkpoint', () => {
         threadID: thread.id,
         turnID: turn.turnID,
         agentID: turn.agentID,
-        name: 'PowerShell',
+        name: 'exec_command',
         input: { command: 'npm publish' },
         permissionConfig: input.permissionConfig,
         model: input.model,
@@ -1525,14 +1542,17 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'npm test' },
       permissionConfig: input.permissionConfig,
       model: input.model,
       taskMode: 'chat',
       durableApproval: true,
     }
-    const resolution = new PermissionDecisionEngine().evaluate(invocation, tools.get('PowerShell'))
+    const resolution = new PermissionDecisionEngine().evaluate(
+      invocation,
+      tools.get('exec_command'),
+    )
     if (resolution.action !== 'review') throw new Error('测试需要 review 决策')
     const service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
     const prepared = service.prepare(
@@ -1564,13 +1584,13 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'api_key=super-secret; npm test' },
       permissionConfig: input.permissionConfig,
       model: input.model,
       taskMode: 'chat',
     }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('PowerShell'))
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('exec_command'))
     if (resolved.action !== 'review') throw new Error('测试需要 review 决策')
     let service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
     const prepared = service.prepare(
@@ -1589,7 +1609,7 @@ describe('可恢复审批 checkpoint', () => {
       code: 'APPROVAL_NOT_READY',
     })
     await service.attachRunState('tool-1', JSON.stringify({ version: 1, command: 'npm test' }), {
-      name: 'PowerShell',
+      name: 'exec_command',
       callId: 'tool-1',
     })
     expect(
@@ -1737,14 +1757,14 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'npm publish' },
       permissionConfig: input.permissionConfig,
       model: input.model,
       taskMode: 'chat',
       durableApproval: true,
     }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('PowerShell'))
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('exec_command'))
     if (resolved.action !== 'review') throw new Error('测试需要 review 决策')
     let service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
     const prepared = service.prepare(
@@ -1754,7 +1774,7 @@ describe('可恢复审批 checkpoint', () => {
     )
     service.persist(prepared)
     await service.attachRunState('tool-deny', JSON.stringify({ version: 1 }), {
-      name: 'PowerShell',
+      name: 'exec_command',
       callId: 'tool-deny',
     })
     db.close()
@@ -1791,13 +1811,13 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'npm test' },
       permissionConfig: input.permissionConfig,
       model: input.model,
       taskMode: 'chat',
     }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('PowerShell'))
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('exec_command'))
     if (resolved.action !== 'review') throw new Error('测试需要 review 决策')
     const prepared = service.prepare(
       invocation,
@@ -1920,7 +1940,7 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'Write-Output once', cwd: tmpdir() },
       permissionConfig: { ...input.permissionConfig, approvalPolicy: 'on-failure' },
       model: input.model,
@@ -1996,7 +2016,7 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'Write-Output safe', cwd: tmpdir() },
       permissionConfig: { ...input.permissionConfig, approvalPolicy: 'on-failure' },
       model: input.model,
@@ -2137,14 +2157,14 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'npm publish' },
       permissionConfig: input.permissionConfig,
       model: input.model,
       taskMode: 'chat',
       durableApproval: true,
     }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('PowerShell'))
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('exec_command'))
     if (resolved.action !== 'review') throw new Error('测试需要 review 决策')
     const prepared = service.prepare(
       invocation,
@@ -2195,5 +2215,147 @@ describe('可恢复审批 checkpoint', () => {
     expect(db.sqlite.query('SELECT status FROM turns WHERE id = ?').get(turn.turnID)).toEqual({
       status: 'queued',
     })
+  })
+
+  test('提问恢复向模型提供 selectedChoices、不重复首轮输入且恢复后 exec_command 指纹一致', async () => {
+    const {
+      db,
+      hub,
+      tools,
+      config,
+      workspace: root,
+      thread,
+      turn,
+      invocation,
+    } = await scopedFixture()
+    const workspace = await WorkspaceService.open(root)
+    const approvals = new ApprovalService(db, hub, tools, null, config)
+    const questions = new QuestionService(db, hub)
+    const resolver = new ResumeCheckpointResolver(db, approvals)
+    const shellRuns: string[] = []
+    const executor = new ToolExecutor(tools, {
+      dataDir: join(root, '..', 'agent-data'),
+      authorizeShell: (input, signal) => approvals.authorize(input, signal),
+      resolvePermissionRules: (input) => approvals.rules.evaluate(input),
+      runHost: async (command) => {
+        shellRuns.push(command)
+        return {
+          stdout: 'OK-AFTER-RESUME',
+          stderr: '',
+          exitCode: 0,
+          signal: null,
+          timedOut: false,
+          truncated: false,
+        }
+      },
+    })
+    const faux = fauxProvider({
+      models: [{ id: 'question-shell-resume', input: ['text'], contextWindow: 64_000 }],
+    })
+    const models = createModels()
+    models.setProvider(faux.provider)
+    const runtime = new AgentRuntimeService({
+      db,
+      hub,
+      models,
+      toolExecutor: executor,
+      contextCompaction: new ContextCompactionService(db),
+    })
+    const questionCall = fauxToolCall('request_user_input', {
+      questions: [
+        {
+          id: 'form',
+          header: '产品形态',
+          question: '选择哪个方案？',
+          options: [
+            { label: '每次对话选人格', description: '方案 A' },
+            { label: '独立 Bot 实体', description: '方案 B' },
+          ],
+        },
+      ],
+    })
+    const shellCall = fauxToolCall('exec_command', {
+      command: 'git status --short',
+      cwd: root,
+    })
+    const request = {
+      threadID: thread.id,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      sessionID: db.getAgentExecution(turn.agentID)!.sessionID,
+      content: 'INITIAL_USER_PROMPT_MARKER',
+      taskMode: 'chat' as const,
+      defaultModeRequestUserInput: true,
+      fallbackModel: invocation.model,
+      permissionConfig: {
+        sandboxMode: 'danger-full-access' as const,
+        approvalPolicy: 'never' as const,
+        approvalsReviewer: 'user' as const,
+      },
+      signal: new AbortController().signal,
+      workspace,
+      promptSections: [],
+      resolveModel: async () => ({ ref: invocation.model, model: faux.getModel() }),
+      pause: async (pending: import('../src/orchestration/AgentRuntimeTypes').PendingApproval) => {
+        await questions.checkpoint(thread.id, turn.turnID, turn.agentID, pending)
+      },
+    }
+    try {
+      faux.setResponses([fauxAssistantMessage([questionCall])])
+      expect(await runtime.run(request)).toMatchObject({ status: 'paused' })
+
+      const pending = db.pendingQuestions(thread.id)[0]!
+      await questions.reply(
+        pending.id,
+        [{ questionId: 'form', choiceIds: ['form:1'] }],
+        false,
+        'user',
+        false,
+      )
+      const acquired = resolver.acquire(turn.turnID, 'main', crypto.randomUUID())!
+      if (acquired.checkpoint.kind !== 'question') throw new Error('expected question checkpoint')
+      const resume = toPlanCheckpoint({
+        leaseID: acquired.leaseID,
+        checkpoint: acquired.checkpoint,
+      })
+
+      faux.setResponses([
+        (context) => {
+          const initialUserOccurrences = context.messages.filter(
+            (message) =>
+              message.role === 'user' &&
+              JSON.stringify(message.content).includes('INITIAL_USER_PROMPT_MARKER'),
+          )
+          expect(initialUserOccurrences).toHaveLength(1)
+          const resolutionUsers = context.messages.filter(
+            (message) =>
+              message.role === 'user' &&
+              JSON.stringify(message.content).includes('<interaction_resolution'),
+          )
+          expect(resolutionUsers).toHaveLength(1)
+          const results = context.messages.filter(
+            (message) => message.role === 'toolResult' && message.toolCallId === questionCall.id,
+          )
+          expect(results).toHaveLength(1)
+          expect(JSON.stringify(results[0])).toContain('独立 Bot 实体')
+          expect(JSON.stringify(results[0])).toContain('选择哪个方案？')
+          return fauxAssistantMessage([shellCall])
+        },
+        (context) => {
+          const shellResult = context.messages.find(
+            (message) => message.role === 'toolResult' && message.toolCallId === shellCall.id,
+          )
+          expect(JSON.stringify(shellResult)).toContain('OK-AFTER-RESUME')
+          return fauxAssistantMessage('done')
+        },
+      ])
+
+      const completed = await runtime.run({ ...request, resume })
+      expect(completed).toMatchObject({ status: 'completed', output: 'done' })
+      expect(shellRuns).toEqual(['git status --short'])
+    } finally {
+      questions.dispose()
+      await runtime.dispose()
+    }
   })
 })

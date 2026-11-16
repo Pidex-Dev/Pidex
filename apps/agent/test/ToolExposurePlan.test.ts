@@ -113,11 +113,13 @@ describe('ToolExposurePlan finalize_result exposure', () => {
     expect(plan.allows('request_permissions')).toBe(false)
     expect(plan.allows('submit_plan')).toBe(true)
     expect(plan.exposed).toContain('submit_plan')
-    expect(plan.exposed).toContain('PowerShell')
-    expect(plan.exposed).toContain('Bash')
-    expect(plan.exposed).toContain('Grep')
+    expect(plan.exposed).toContain('exec_command')
+    expect(plan.exposed).toContain('write_stdin')
+    expect(plan.exposed).toContain('Read')
     expect(plan.exposed).not.toContain('Write')
     expect(plan.exposed).not.toContain('Edit')
+    expect(plan.exposed).not.toContain('apply_patch')
+    expect(plan.exposed).not.toContain('view_image')
   })
 
   test('Grill 主 Agent 使用调查权限、可提问与派发 Explorer，但不暴露计划提交', () => {
@@ -130,10 +132,12 @@ describe('ToolExposurePlan finalize_result exposure', () => {
     expect(plan.allows('update_goal')).toBe(false)
     expect(plan.allows('request_permissions')).toBe(false)
     expect(plan.exposed).toContain('Read')
-    expect(plan.exposed).toContain('Grep')
-    expect(plan.exposed).toContain('PowerShell')
+    expect(plan.exposed).toContain('exec_command')
+    expect(plan.exposed).toContain('write_stdin')
     expect(plan.exposed).not.toContain('Write')
     expect(plan.exposed).not.toContain('Edit')
+    expect(plan.exposed).not.toContain('apply_patch')
+    expect(plan.exposed).not.toContain('view_image')
   })
 
   test('Plan、Grill 与 Explorer 暴露同一调查工具集，写工具仍不可见', () => {
@@ -144,19 +148,21 @@ describe('ToolExposurePlan finalize_result exposure', () => {
       ['plan', 'explorer'],
     ] as const) {
       const plan = exposure({ taskMode, profile })
-      for (const name of ['Read', 'Glob', 'Grep', 'Bash', 'PowerShell'])
+      for (const name of ['Read', 'exec_command', 'write_stdin'])
         expect(plan.exposed).toContain(name)
-      for (const name of ['Write', 'Edit', 'apply_patch']) expect(plan.exposed).not.toContain(name)
+      for (const name of ['Write', 'Edit', 'apply_patch', 'view_image'])
+        expect(plan.exposed).not.toContain(name)
     }
   })
 
   test('暴露计划沿用配置的文件访问范围，不再改写为 read-only', () => {
     const full = exposure({ taskMode: 'plan', sandboxMode: 'danger-full-access' })
-    expect(full.exposed).toContain('PowerShell')
+    expect(full.exposed).toContain('exec_command')
     const readOnly = exposure({ taskMode: 'plan', sandboxMode: 'read-only' })
-    expect(readOnly.exposed).toContain('PowerShell')
+    expect(readOnly.exposed).toContain('exec_command')
     expect(readOnly.exposed).toContain('Read')
     expect(readOnly.exposed).not.toContain('Write')
+    expect(readOnly.exposed).not.toContain('apply_patch')
   })
 
   test('submit_plan 只属于 Plan 主 Agent', () => {

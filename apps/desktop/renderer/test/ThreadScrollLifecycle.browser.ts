@@ -27,21 +27,30 @@ function App() {
   const [loaded, setLoaded] = React.useState(true);
   const [active, setActive] = React.useState(true);
   const [canReturn, setCanReturn] = React.useState(false);
+  const [overlayHeight, setOverlayHeight] = React.useState(0);
   const scrollRef = React.useRef(null);
   const footerRef = React.useRef(null);
   const navigationRef = React.useRef(null);
   fixture.switchSession = (id, ready = true) => { setSession(id); setLoaded(ready); };
   fixture.load = () => setLoaded(true);
   fixture.idle = () => setActive(false);
+  fixture.active = () => setActive(true);
   fixture.bottom = () => navigationRef.current.returnToBottom();
+  fixture.setOverlay = (height) => setOverlayHeight(height);
   const items = React.useMemo(() => loaded ? Array.from({length:80}, (_, i) => i) : [], [loaded]);
+  const approvalVisible = overlayHeight > 0;
   return <div className="conversation-page" style={{height:400, display:'flex', flexDirection:'column'}}>
-    <ThreadScrollLayout scrollRef={scrollRef} footerRef={footerRef} footer={<div>
+    <ThreadScrollLayout scrollRef={scrollRef} footerRef={footerRef} footer={<div className="tw:flex tw:w-full tw:flex-col tw:gap-2">
       {canReturn ? <ComposerChangeSummary executionPlan={null} changedFiles={[]} active={active}
         failed={false} additions={null} deletions={null} canReturnToBottom
         onOpenReview={() => {}} onOpenReviewFile={() => {}}
         onReturnToBottom={() => navigationRef.current.returnToBottom()}/> : null}
-      <div style={{height:100}}>composer</div></div>}>
+      <div className="tw:grid tw:w-full tw:items-end tw:[&>*]:col-start-1 tw:[&>*]:row-start-1">
+        <div className={approvalVisible ? 'tw:h-0 tw:overflow-hidden tw:pointer-events-none tw:opacity-0' : undefined}>
+          <div style={{height:100}}>composer</div>
+        </div>
+        {approvalVisible ? <div data-testid="approval-overlay" style={{height:overlayHeight}}>overlay</div> : null}
+      </div></div>}>
     <SessionTimelineView key={session} sessionKey={session} scrollRef={scrollRef}
       navigationRef={navigationRef} items={items} count={items.length} scrollToBottom={active}
       onCanReturnToBottomChange={setCanReturn}
@@ -202,10 +211,64 @@ async function checkFixture(url: string) {
     await button.focus({ timeout: 2500 })
     await controls.keyboard.press('Enter')
     await bottomReached()
+
+    await controls.evaluate(() => {
+      document.querySelector<HTMLElement>('.conversation-page')!.style.height = '700px'
+      ;(window as any).fixture.active()
+    })
+    await controls.waitForTimeout(100)
+    await controls.evaluate(() => {
+      ;(window as any).fixture.bottom()
+    })
+    await controls.waitForTimeout(100)
+    await bottomReached()
+    await controls.evaluate(() => {
+      ;(window as any).fixture.setOverlay(380)
+    })
+    await controls.waitForFunction(
+      () => {
+        const lastRow = document.querySelector<HTMLElement>('[data-turn-navigation-id="turn-79"]')
+        const overlay = document.querySelector<HTMLElement>('[data-testid="approval-overlay"]')
+        if (!lastRow || !overlay) return false
+        const rowRect = lastRow.getBoundingClientRect()
+        const overlayRect = overlay.getBoundingClientRect()
+        return rowRect.bottom > 0 && rowRect.bottom <= overlayRect.top
+      },
+      {},
+      { timeout: 2500 },
+    )
+    await controls.evaluate(() => {
+      const e = document.querySelector('.thread-scroll-layout')! as HTMLElement
+      e.scrollTop = Math.max(0, e.scrollHeight - e.clientHeight - 150)
+    })
+    await button.waitFor({ state: 'visible', timeout: 2500 })
+    const box = await button.boundingBox()
+    assert.ok(box, 'expected return button bounding box')
+    await controls.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await bottomReached()
+    await controls.evaluate(() => {
+      ;(window as any).fixture.setOverlay(0)
+      ;(window as any).fixture.idle()
+      document.querySelector('.thread-scroll-layout')!.scrollTop = 1200
+    })
+    await controls.waitForTimeout(100)
+    await controls.evaluate(() => {
+      ;(window as any).fixture.setOverlay(380)
+    })
+    await controls.waitForTimeout(100)
+    const staticWithOverlay = await controls.evaluate(
+      () => document.querySelector('.thread-scroll-layout')!.scrollTop,
+    )
+    assert.ok(
+      Math.abs(staticWithOverlay - 1200) <= 24,
+      `overlay stole static reader position: ${staticWithOverlay}`,
+    )
+
     console.log('Thread scroll following, static resize and delayed-history restoration passed')
     console.log(
       'Return button is accessible and works by pointer and keyboard without entry animation',
     )
+    console.log('Tall footer overlay keeps last row scrollable above the overlay')
   } finally {
     await browser.close()
   }

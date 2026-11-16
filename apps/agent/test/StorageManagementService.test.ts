@@ -125,14 +125,23 @@ describe('StorageManagementService', () => {
     // 测试已下载资源的列表与删除
     await mkdir(join(root, 'speech', 'sensevoice-llamacpp'), { recursive: true })
     await writeFile(join(root, 'speech', 'sensevoice-llamacpp', 'model.gguf'), 'm'.repeat(4096))
+    await mkdir(join(root, 'tooling', 'git-bash'), { recursive: true })
+    await writeFile(join(root, 'tooling', 'git-bash', 'bash.exe'), 'g'.repeat(1024))
     await mkdir(join(root, 'tooling', 'ripgrep'), { recursive: true })
     await writeFile(join(root, 'tooling', 'ripgrep', 'rg.exe'), 'r'.repeat(2048))
 
     const resources = await service.listDownloadedResources()
-    expect(resources.items.map((item) => item.id)).toEqual(['speech:sensevoice', 'tooling:ripgrep'])
+    expect(resources.items.map((item) => item.id)).toEqual([
+      'speech:sensevoice',
+      'tooling:git-bash',
+      'tooling:ripgrep',
+    ])
 
     const deleteSpeech = await service.deleteDownloadedResource('speech:sensevoice')
     expect(deleteSpeech.reclaimedBytes).toBe(4096)
+
+    const deleteGitBash = await service.deleteDownloadedResource('tooling:git-bash')
+    expect(deleteGitBash.reclaimedBytes).toBe(1024)
 
     const resourcesAfter = await service.listDownloadedResources()
     expect(resourcesAfter.items.map((item) => item.id)).toEqual(['tooling:ripgrep'])

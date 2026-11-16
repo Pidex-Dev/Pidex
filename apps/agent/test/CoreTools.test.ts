@@ -11,7 +11,6 @@ import { AgentError } from '../src/Domain'
 import { ToolExecutor, type ToolExecutorOptions } from '../src/tool/ToolExecutor'
 import { lineChangeSummary, ToolRegistry, type ToolOrigin } from '../src/tool/ToolRegistry'
 import { WorkspaceService } from '../src/workspace/WorkspaceService'
-import type { ToolingResolver, ToolProcessRunner } from '../src/tool/ToolingRuntime'
 import { adaptToolDefinition } from '../src/orchestration/pi/PiToolAdapter'
 import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
 import { Effect } from 'effect'
@@ -34,8 +33,6 @@ afterEach(async () => removeFixturePaths(temporary.splice(0)))
 
 const fixture = async (
   runtime: {
-    resolveTooling?: ToolingResolver
-    runToolProcess?: ToolProcessRunner
     authorizeShell?: ToolExecutorOptions['authorizeShell']
     validateConfigDocument?: ToolExecutorOptions['validateConfigDocument']
     hooks?: ToolExecutorOptions['hooks']
@@ -45,7 +42,6 @@ const fixture = async (
   const root = await mkdtemp(join(tmpdir(), 'pidex-core-tools-'))
   temporary.push(root)
   const workspace = await WorkspaceService.open(root)
-  const toolingCalls: string[][] = []
   const executor = new ToolExecutor(new ToolRegistry(), {
     dataDir: join(root, '.agent-data'),
     userConfigPath: join(root, 'config.json'),
@@ -56,30 +52,6 @@ const fixture = async (
     ...(runtime.logger ? { logger: runtime.logger } : {}),
     authorizeShell:
       runtime.authorizeShell ?? (async () => ({ decision: 'allow', risk: 'low', reason: 'test' })),
-    resolveTooling:
-      runtime.resolveTooling ??
-      (async (id) => ({ available: true, path: `${id}.exe`, source: 'system', version: 'test' })),
-    runToolProcess:
-      runtime.runToolProcess ??
-      (async ({ args }) => {
-        toolingCalls.push([...args])
-        if (args.includes('--files'))
-          return { exitCode: 0, stdout: Buffer.from('alpha.ts\0beta.ts\0'), stderr: '' }
-        const pattern = args.at(-2)
-        if (pattern === 'needle' || pattern === 'NEE.*') {
-          const line = JSON.stringify({
-            type: 'match',
-            data: {
-              path: { text: 'alpha.ts' },
-              lines: { text: 'export const needle = true\n' },
-              line_number: 1,
-              submatches: [{}],
-            },
-          })
-          return { exitCode: 0, stdout: Buffer.from(`${line}\n`), stderr: '' }
-        }
-        return { exitCode: 1, stdout: Buffer.alloc(0), stderr: '' }
-      }),
   })
   const context = {
     threadID: 'thread',
@@ -88,7 +60,7 @@ const fixture = async (
     signal: new AbortController().signal,
     workspace,
   }
-  return { root, workspace, executor, context, toolingCalls }
+  return { root, workspace, executor, context }
 }
 
 const registerDeferredTool = (
@@ -224,18 +196,11 @@ describe('核心工具面', () => {
       scope: 'user',
     })
 
-    await executor.execute('Read', { file_path: '@pidex/config.json' }, context)
     await executor.execute(
-      'apply_patch',
+      'Write',
       {
-        patch: [
-          '*** Begin Patch',
-          '*** Update File: @pidex/config.json',
-          '@@',
-          '-  "model": "old",',
-          '+  "model": "patched",',
-          '*** End Patch',
-        ].join('\n'),
+        file_path: '@pidex/config.json',
+        content: '{\r\n  "model": "written",\r\n  "reasoning": "high"\r\n}\r\n',
       },
       {
         ...context,
@@ -248,7 +213,7 @@ describe('核心工具面', () => {
       },
     )
     expect(validated.at(-1)).toEqual({
-      text: '{\r\n  "model": "patched",\r\n  "reasoning": "high"\r\n}\r\n',
+      text: '{\r\n  "model": "written",\r\n  "reasoning": "high"\r\n}\r\n',
       scope: 'user',
     })
   })
@@ -271,45 +236,59 @@ describe('核心工具面', () => {
         executor.definition(name).inputSchema.properties as Record<string, { description?: string }>
       )[key]
     expect(properties('Read')).toEqual(['file_path', 'offset', 'limit'])
-    expect(properties('apply_patch')).toEqual(['patch'])
     expect(properties('Write')).toEqual(['file_path', 'content'])
     expect(properties('Edit')).toEqual(['path', 'edits'])
-    expect(properties('PowerShell')).toEqual([
+    expect(properties('exec_command')).toEqual([
       'command',
       'cwd',
+      'shell',
+      'tty',
+      'yield_time_ms',
+      'max_output_tokens',
       'timeout',
       'description',
       'additionalPermissions',
     ])
+    expect(properties('write_stdin')).toEqual([
+      'session_id',
+      'chars',
+      'yield_time_ms',
+      'kill',
+      'max_output_tokens',
+    ])
     expect(properties('ToolSearch')).toEqual(['query', 'max_results', 'offset'])
-    expect(property('Read', 'file_path')?.description).toContain('Files only')
-    expect(property('Write', 'file_path')?.description).toContain('require a successful Read')
-    expect(property('Edit', 'path')?.description).toContain('previously read with Read')
-    expect(property('Glob', 'path')?.description).toContain('not a file')
-    expect(property('Grep', 'path')?.description).toContain('Restrict filenames with glob')
-    expect(property('apply_patch', 'patch')?.description).toContain('*** Begin Patch')
-    expect(property('apply_patch', 'patch')?.description).toContain('*** End Patch')
-    expect(property('apply_patch', 'patch')?.description).toContain(
-      'Do not use Markdown code fences',
-    )
-    await Bun.write(join(context.workspace.rootPath, 'internal.txt'), 'internal')
-    await expect(
-      executor
-        .execute<any>('workspace.read', { file_path: 'internal.txt' }, context)
-        .then((result) => result.content),
-    ).resolves.toBe('internal')
-    expect(() => executor.definition('workspace_read')).toThrow()
-    expect(() => executor.definition('shell')).toThrow()
+    expect(property('Read', 'file_path')?.description).toContain('PDF')
+    expect(property('Write', 'file_path')?.description).toContain('Target file path.')
+    expect(executor.definition('Write').description).toContain('Create or fully overwrite')
+    expect(property('Edit', 'path')?.description).toContain('Existing file path')
+    for (const removed of [
+      'apply_patch',
+      'view_image',
+      'Glob',
+      'Grep',
+      'PowerShell',
+      'Bash',
+      'workspace_read',
+      'shell',
+    ]) {
+      expect(() => executor.definition(removed)).toThrow()
+    }
     const defaultPlan = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
       approvalPolicy: 'on-request',
       profile: 'main',
     })
+    expect(defaultPlan.eager).toContain('Read')
+    expect(defaultPlan.eager).toContain('Write')
     expect(defaultPlan.eager).toContain('Edit')
+    expect(defaultPlan.eager).toContain('exec_command')
+    expect(defaultPlan.eager).toContain('write_stdin')
+    expect(defaultPlan.eager).not.toContain('apply_patch')
+    expect(defaultPlan.eager).not.toContain('view_image')
+    expect(defaultPlan.deferred).not.toContain('Edit')
+    expect(defaultPlan.deferred).not.toContain('Write')
     expect(defaultPlan.exposed).toContain('spawn_agents')
-    expect(defaultPlan.eager).toContain('apply_patch')
-    expect(defaultPlan.deferred).not.toContain('apply_patch')
     const sideChatPlan = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
@@ -329,7 +308,7 @@ describe('核心工具面', () => {
       allowedTools: ['Edit'],
     })
     expect(editSkillPlan.exposed).toContain('Edit')
-    expect(editSkillPlan.exposed).not.toContain('apply_patch')
+    expect(editSkillPlan.exposed).not.toContain('Write')
     await expect(
       executor.execute(
         'Edit',
@@ -411,13 +390,20 @@ describe('核心工具面', () => {
     ).resolves.toMatchObject({ addedToolNames: ['new_deferred_example'] })
 
     const progress: unknown[] = []
-    await Bun.write(join(context.workspace.rootPath, 'progress.txt'), 'ok')
+    await writeFile(
+      join(context.workspace.rootPath, 'progress.png'),
+      Buffer.from([
+        137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6,
+        0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 96, 0, 0, 0, 2, 0, 1,
+        226, 33, 188, 51, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+      ]),
+    )
     await executor.execute(
       'Read',
-      { file_path: 'progress.txt' },
+      { file_path: 'progress.png' },
       { ...context, onProgress: (item) => progress.push(item) },
     )
-    expect(progress).toEqual([{ message: '正在读取 progress.txt' }])
+    expect(progress).toEqual([{ message: '正在读取 progress.png' }])
   })
 
   test('能力目录把延迟工具名称、描述与 MCP 来源写入冻结提示词', async () => {
@@ -658,7 +644,7 @@ describe('核心工具面', () => {
       db.close()
     }
   })
-  test('Pi 工具适配器归一化批量 Edit 参数并透传 apply_patch grammar', async () => {
+  test('Pi 工具适配器归一化批量 Edit 与 Read 路径参数', async () => {
     const { executor } = await fixture()
     const options = { executor, request: {} as never }
     const edit = adaptToolDefinition(executor.definition('Edit'), options)
@@ -672,22 +658,22 @@ describe('核心工具面', () => {
       edits: [{ oldText: 'before', newText: 'after' }],
     })
 
-    const patch = adaptToolDefinition(executor.definition('apply_patch'), options)
-    expect(patch.constrainedSampling).toMatchObject({
-      type: 'grammar',
-      variants: {
-        openai_lark: expect.stringContaining('begin_patch: "*** Begin Patch" LF'),
-      },
+    const read = adaptToolDefinition(executor.definition('Read'), options)
+    expect(read.prepareArguments?.({ path: 'notes.txt', limit: 20 })).toEqual({
+      file_path: 'notes.txt',
+      limit: 20,
     })
   })
 
-  test('Read 返回快照，Write 和 Edit 拒绝陈旧快照', async () => {
-    const { root, executor, context } = await fixture()
-    await writeFile(join(root, 'source.txt'), 'before', 'utf8')
-    const read = await executor.execute<any>('Read', { file_path: 'source.txt' }, context)
-    expect(read).toMatchObject({ content: 'before', snapshot: { sha256: expect.any(String) } })
-
-    await writeFile(join(root, 'source.txt'), 'changed elsewhere', 'utf8')
+  test('Write 和 Edit 无需预读即可写入，但在并发冲突时拒绝陈旧修订', async () => {
+    const { root, workspace, executor, context } = await fixture()
+    const path = join(root, 'source.txt')
+    await writeFile(path, 'before', 'utf8')
+    const saveEditorFile = workspace.saveEditorFile.bind(workspace)
+    workspace.saveEditorFile = async (targetPath, content, expectedRevision) => {
+      await writeFile(path, 'changed elsewhere', 'utf8')
+      return saveEditorFile(targetPath, content, expectedRevision)
+    }
     await expect(
       executor.execute('Write', { file_path: 'source.txt', content: 'overwrite' }, context),
     ).rejects.toMatchObject({ code: 'WORKSPACE_FILE_STALE' })
@@ -696,7 +682,7 @@ describe('核心工具面', () => {
         'Edit',
         {
           path: 'source.txt',
-          edits: [{ oldText: 'changed', newText: 'edited' }],
+          edits: [{ oldText: 'changed elsewhere', newText: 'edited' }],
         },
         context,
       ),
@@ -708,7 +694,6 @@ describe('核心工具面', () => {
     const bom = Buffer.from([0xef, 0xbb, 0xbf])
     const path = join(root, 'batch.txt')
     await writeFile(path, Buffer.concat([bom, Buffer.from('first middle last', 'utf8')]))
-    await executor.execute('Read', { file_path: 'batch.txt' }, context)
     await executor.execute(
       'Edit',
       {
@@ -730,7 +715,6 @@ describe('核心工具面', () => {
   test('Write 和 Edit 返回准确的逐行增删统计及安全 Pi 摘要', async () => {
     const { root, executor, context } = await fixture()
     await writeFile(join(root, 'source.txt'), 'first\nbefore\nlast\n', 'utf8')
-    await executor.execute('Read', { file_path: 'source.txt' }, context)
     const write = await executor.execute<{
       additions: number
       deletions: number
@@ -744,7 +728,6 @@ describe('核心工具面', () => {
     )
     expect(write).toMatchObject({ additions: 2, deletions: 1 })
 
-    await executor.execute('Read', { file_path: 'source.txt' }, context)
     const edit = await executor.execute<{
       additions: number
       deletions: number
@@ -785,7 +768,6 @@ describe('核心工具面', () => {
     const { root, executor, context } = await fixture()
     const ambiguousPath = join(root, 'ambiguous.txt')
     await writeFile(ambiguousPath, 'same middle same', 'utf8')
-    await executor.execute('Read', { file_path: 'ambiguous.txt' }, context)
     await expect(
       executor.execute(
         'Edit',
@@ -800,7 +782,6 @@ describe('核心工具面', () => {
 
     const overlapPath = join(root, 'overlap.txt')
     await writeFile(overlapPath, 'abcdef', 'utf8')
-    await executor.execute('Read', { file_path: 'overlap.txt' }, context)
     await expect(
       executor.execute(
         'Edit',
@@ -817,11 +798,10 @@ describe('核心工具面', () => {
     expect(await Bun.file(overlapPath).text()).toBe('abcdef')
   })
 
-  test('Edit 将 Read 返回的换行上下文应用到 CRLF 文件并保持原换行', async () => {
+  test('Edit 将 LF 上下文应用到 CRLF 文件并保持原换行', async () => {
     const { root, executor, context } = await fixture()
     const path = join(root, 'crlf.txt')
     await writeFile(path, 'first\r\nalpha\r\nbeta\r\n--\r\nsecond\r\nalpha\r\nbeta\r\n', 'utf8')
-    await executor.execute('Read', { file_path: 'crlf.txt' }, context)
     await executor.execute(
       'Edit',
       {
@@ -842,7 +822,6 @@ describe('核心工具面', () => {
     const { root, executor, context } = await fixture()
     const path = join(root, 'crlf-boundary.txt')
     await writeFile(path, 'a\r\nb\r\n', 'utf8')
-    await executor.execute('Read', { file_path: 'crlf-boundary.txt' }, context)
     await executor.execute(
       'Edit',
       { path: 'crlf-boundary.txt', edits: [{ oldText: '\nb', newText: '\nc' }] },
@@ -851,121 +830,37 @@ describe('核心工具面', () => {
     expect(await Bun.file(path).text()).toBe('a\r\nc\r\n')
   })
 
-  test('Read 与 Edit 使用同一文件的绝对和相对路径时共享快照', async () => {
+  test('Edit 使用同一文件的绝对和相对路径均可连续修改', async () => {
     const { root, executor, context } = await fixture()
     const path = join(root, 'source.txt')
     await writeFile(path, 'before', 'utf8')
-    await executor.execute('Read', { file_path: path }, context)
+    await executor.execute(
+      'Edit',
+      {
+        path,
+        edits: [{ oldText: 'before', newText: 'middle' }],
+      },
+      context,
+    )
     await executor.execute(
       'Edit',
       {
         path: 'source.txt',
-        edits: [{ oldText: 'before', newText: 'after' }],
+        edits: [{ oldText: 'middle', newText: 'after' }],
       },
       context,
     )
     expect(await Bun.file(path).text()).toBe('after')
   })
 
-  test('apply_patch 在一次调用中新增并更新文件，保留 BOM/CRLF 并刷新多文件快照', async () => {
-    const { root, executor, context } = await fixture()
-    const bom = Buffer.from([0xef, 0xbb, 0xbf])
-    const source = join(root, 'source.txt')
-    await writeFile(
-      source,
-      Buffer.concat([bom, Buffer.from('alpha\r\nbefore\r\nomega\r\n', 'utf8')]),
-    )
-    await executor.execute('Read', { file_path: 'source.txt' }, context)
-
-    const result = await executor.execute<any>(
-      'apply_patch',
-      {
-        patch: [
-          '*** Begin Patch',
-          '*** Update File: source.txt',
-          '@@',
-          '-before',
-          '+after',
-          '*** Add File: created.txt',
-          '+created',
-          '*** End Patch',
-        ].join('\n'),
+  test('Write 自动创建缺失父目录，写入受保护的 .git/hooks 目标触发高风险审批且 authorizationOnly 不落盘', async () => {
+    const reviewed: any[] = []
+    const { root, executor, context } = await fixture({
+      authorizeShell: async (invocation) => {
+        reviewed.push(invocation)
+        return { decision: 'allow', risk: 'high', reason: 'approved' }
       },
-      context,
-    )
-
-    expect(result).toMatchObject({
-      operation: 'apply_patch',
-      files: [
-        { operation: 'update', path: 'source.txt', additions: 1, deletions: 1 },
-        { operation: 'create', path: 'created.txt', additions: 1, deletions: 0 },
-      ],
-      summary: { fileCount: 2, hunkCount: 1, additions: 2, deletions: 1 },
     })
-    expect(
-      await Bun.file(source)
-        .arrayBuffer()
-        .then((value) => Buffer.from(value)),
-    ).toEqual(Buffer.concat([bom, Buffer.from('alpha\r\nafter\r\nomega\r\n', 'utf8')]))
-    expect(await Bun.file(join(root, 'created.txt')).text()).toBe('created\n')
-
-    await executor.execute(
-      'apply_patch',
-      {
-        patch: [
-          '*** Begin Patch',
-          '*** Update File: source.txt',
-          '@@',
-          '-after',
-          '+again',
-          '*** End Patch',
-        ].join('\n'),
-      },
-      context,
-    )
-    expect(
-      await Bun.file(source)
-        .arrayBuffer()
-        .then((value) => Buffer.from(value)),
-    ).toEqual(Buffer.concat([bom, Buffer.from('alpha\r\nagain\r\nomega\r\n', 'utf8')]))
-  })
-
-  test('apply_patch 任一 Update 缺少 Read 快照时整批零写入', async () => {
-    const { root, executor, context } = await fixture()
-    await writeFile(join(root, 'first.txt'), 'first\n', 'utf8')
-    await writeFile(join(root, 'second.txt'), 'second\n', 'utf8')
-    await executor.execute('Read', { file_path: 'first.txt' }, context)
-
-    await expect(
-      executor.execute(
-        'apply_patch',
-        {
-          patch: [
-            '*** Begin Patch',
-            '*** Update File: first.txt',
-            '@@',
-            '-first',
-            '+changed-first',
-            '*** Update File: second.txt',
-            '@@',
-            '-second',
-            '+changed-second',
-            '*** End Patch',
-          ].join('\n'),
-        },
-        context,
-      ),
-    ).rejects.toMatchObject({ code: 'WORKSPACE_FILE_STALE' })
-
-    expect(await Bun.file(join(root, 'first.txt')).text()).toBe('first\n')
-    expect(await Bun.file(join(root, 'second.txt')).text()).toBe('second\n')
-  })
-
-  test('Write 与 apply_patch 为新建和移动目标自动创建缺失父目录，预检失败时不落盘空目录', async () => {
-    const { root, executor, context } = await fixture()
-    await writeFile(join(root, 'legacy.ts'), 'export const legacy = 1\n', 'utf8')
-    await executor.execute('Read', { file_path: 'legacy.ts' }, context)
-
     const written = await executor.execute<any>(
       'Write',
       { file_path: 'src/core/writer.ts', content: 'export const written = 1\n' },
@@ -980,90 +875,10 @@ describe('核心工具面', () => {
       'export const written = 1\n',
     )
 
-    await writeFile(join(root, 'unready.ts'), 'unready\n', 'utf8')
-    await expect(
-      executor.execute(
-        'apply_patch',
-        {
-          patch: [
-            '*** Begin Patch',
-            '*** Add File: rollback/dir/new.ts',
-            '+export const n = 1',
-            '*** Update File: unready.ts',
-            '@@',
-            '-unready',
-            '+ready',
-            '*** End Patch',
-          ].join('\n'),
-        },
-        context,
-      ),
-    ).rejects.toMatchObject({ code: 'WORKSPACE_FILE_STALE' })
-    await expect(lstat(join(root, 'rollback'))).rejects.toMatchObject({ code: 'ENOENT' })
-
-    const patched = await executor.execute<any>(
-      'apply_patch',
-      {
-        patch: [
-          '*** Begin Patch',
-          '*** Add File: pkg/deep/added.ts',
-          '+export const added = 1',
-          '*** Update File: legacy.ts',
-          '*** Move to: pkg/moved/next.ts',
-          '@@',
-          '-export const legacy = 1',
-          '+export const next = 2',
-          '*** End Patch',
-        ].join('\n'),
-      },
-      context,
-    )
-    expect(patched).toMatchObject({
-      operation: 'apply_patch',
-      files: [
-        { operation: 'create', path: 'pkg/deep/added.ts' },
-        {
-          operation: 'create',
-          path: 'pkg/moved/next.ts',
-          movedFrom: 'legacy.ts',
-        },
-        {
-          operation: 'delete',
-          path: 'legacy.ts',
-          movedTo: 'pkg/moved/next.ts',
-        },
-      ],
-    })
-    expect(await Bun.file(join(root, 'pkg/deep/added.ts')).text()).toBe('export const added = 1\n')
-    expect(await Bun.file(join(root, 'pkg/moved/next.ts')).text()).toBe('export const next = 2\n')
-    await expect(lstat(join(root, 'legacy.ts'))).rejects.toMatchObject({ code: 'ENOENT' })
-  })
-
-  test('apply_patch 任一受保护目标会让整批进入审批并投影全部安全路径', async () => {
-    const reviewed: any[] = []
-    const { root, executor, context } = await fixture({
-      authorizeShell: async (invocation) => {
-        reviewed.push(invocation)
-        return { decision: 'allow', risk: 'high', reason: 'approved' }
-      },
-    })
     await mkdir(join(root, '.git', 'hooks'), { recursive: true })
-    await mkdir(join(root, 'vendor', 'repo', '.git', 'hooks'), { recursive: true })
-
-    const result = await executor.execute<any>(
-      'apply_patch',
-      {
-        patch: [
-          '*** Begin Patch',
-          '*** Add File: normal.txt',
-          '+normal',
-          '*** Add File: .git/hooks/pre-commit',
-          '+hook',
-          '*** Add File: vendor/repo/.git/hooks/pre-push',
-          '+nested-hook',
-          '*** End Patch',
-        ].join('\n'),
-      },
+    const decision = await executor.execute<any>(
+      'Write',
+      { file_path: '.git/hooks/pre-commit', content: 'hook\n' },
       {
         ...context,
         authorizationOnly: true,
@@ -1074,325 +889,55 @@ describe('核心工具面', () => {
         },
       },
     )
-
-    expect(result).toMatchObject({
+    expect(decision).toMatchObject({
       decision: 'allow',
       authorizationFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
-    })
-    expect(reviewed.at(-1)?.authorizationScope).toMatchObject({
-      ruleRequiresApproval: true,
-      affectedPaths: [
-        { operation: 'create', path: 'normal.txt' },
-        { operation: 'create', path: '.git/hooks/pre-commit' },
-        { operation: 'create', path: 'vendor/repo/.git/hooks/pre-push' },
-      ],
     })
     expect(reviewed.at(-1)?.permissionFacts).toMatchObject({
       risk: 'high',
       ruleRequiresApproval: true,
     })
-    expect(reviewed.at(-1)?.fileDiffs).toEqual([
-      expect.objectContaining({
-        path: 'normal.txt',
-        operation: 'create',
-        renderable: true,
-        patch: expect.stringContaining('+normal'),
-      }),
-    ])
-    expect(await Bun.file(join(root, 'normal.txt')).exists()).toBe(false)
     expect(await Bun.file(join(root, '.git', 'hooks', 'pre-commit')).exists()).toBe(false)
-    expect(await Bun.file(join(root, 'vendor', 'repo', '.git', 'hooks', 'pre-push')).exists()).toBe(
-      false,
-    )
   })
 
-  test('apply_patch 在 .git 目录被用作工作区根时仍强制整批审批', async () => {
-    const reviewed: any[] = []
-    const { root, executor, context } = await fixture({
-      authorizeShell: async (invocation) => {
-        reviewed.push(invocation)
-        return { decision: 'allow', risk: 'high', reason: 'approved' }
-      },
-    })
-    const gitRoot = join(root, '.git')
-    const hooksRoot = join(gitRoot, 'hooks')
-    await mkdir(hooksRoot, { recursive: true })
-    const permissionConfig = {
-      sandboxMode: 'workspace-write' as const,
-      approvalPolicy: 'on-request' as const,
-      approvalsReviewer: 'user' as const,
-    }
-
-    const gitWorkspace = await WorkspaceService.open(gitRoot)
-    await executor.execute(
-      'apply_patch',
-      {
-        patch: [
-          '*** Begin Patch',
-          '*** Add File: normal.txt',
-          '+normal',
-          '*** Add File: hooks/pre-commit',
-          '+hook',
-          '*** End Patch',
-        ].join('\n'),
-      },
-      {
-        ...context,
-        workspace: gitWorkspace,
-        authorizationOnly: true,
-        permissionConfig,
-      },
-    )
-    expect(reviewed.at(-1)?.authorizationScope).toMatchObject({
-      ruleRequiresApproval: true,
-      affectedPaths: [
-        { operation: 'create', path: 'normal.txt' },
-        { operation: 'create', path: 'hooks/pre-commit' },
-      ],
-    })
-
-    const multiRootWorkspace = await WorkspaceService.openRoots({
-      primaryRoot: root,
-      roots: [
-        { path: root, role: 'primary' },
-        { folderId: 'git-hooks', path: hooksRoot, role: 'secondary' },
-      ],
-    })
-    await executor.execute(
-      'apply_patch',
-      {
-        patch: [
-          '*** Begin Patch',
-          '*** Add File: workspace-normal.txt',
-          '+normal',
-          `*** Add File: ${join(hooksRoot, 'pre-push')}`,
-          '+hook',
-          '*** End Patch',
-        ].join('\n'),
-      },
-      {
-        ...context,
-        workspace: multiRootWorkspace,
-        authorizationOnly: true,
-        permissionConfig,
-      },
-    )
-    expect(reviewed.at(-1)?.authorizationScope).toMatchObject({
-      ruleRequiresApproval: true,
-      affectedPaths: [
-        { operation: 'create', path: 'workspace-normal.txt' },
-        { operation: 'create', path: '@workspace/git-hooks/pre-push' },
-      ],
-    })
-  })
-
-  test('apply_patch 快照失效失败不会遮蔽原始部分提交错误', async () => {
-    const { root, workspace, executor, context } = await fixture()
-    const target = join(root, 'source.txt')
-    await writeFile(target, 'before\n', 'utf8')
-    await executor.execute('Read', { file_path: 'source.txt' }, context)
-    workspace.commitEditorMutations = async () => {
-      await rm(target, { force: true })
-      await mkdir(target)
-      throw new AgentError('PATCH_PARTIAL_COMMIT', '内部部分提交错误', 500, {
-        committed: ['source.txt'],
-        pending: [],
-      })
-    }
-
-    const error = await executor
-      .execute(
-        'apply_patch',
-        {
-          patch: [
-            '*** Begin Patch',
-            '*** Update File: source.txt',
-            '@@',
-            '-before',
-            '+after',
-            '*** End Patch',
-          ].join('\n'),
-        },
+  test('exec_command schema 禁止旧后台/沙箱绕过字段，且不暴露已移除搜索与读文件工具', async () => {
+    const { executor, context } = await fixture()
+    await expect(
+      executor.execute('exec_command', { command: 'Get-Date', run_in_background: true }, context),
+    ).rejects.toMatchObject({ code: 'INVALID_TOOL_INPUT' })
+    await expect(
+      executor.execute(
+        'exec_command',
+        { command: 'pwd', shell: 'bash', dangerouslyDisableSandbox: true },
         context,
-      )
-      .catch((cause) => cause)
-
-    expect(error).toBeInstanceOf(AgentError)
-    if (!(error instanceof AgentError)) throw error
-    expect(error.code).toBe('PATCH_PARTIAL_COMMIT')
-    expect(error.details).toEqual({ committed: ['source.txt'], pending: [] })
-    expect(error.message).not.toContain(root)
-  })
-
-  test('Glob 与 Grep 有界返回，Shell schema 禁止后台和绕过参数', async () => {
-    const { root, executor, context, toolingCalls } = await fixture()
-    await Bun.write(join(root, 'alpha.ts'), 'export const needle = true')
-    await Bun.write(join(root, 'beta.ts'), 'export const other = true')
-    const glob = await executor.execute<any>('Glob', { pattern: '*.ts', limit: 1 }, context)
-    expect(glob.matches).toHaveLength(1)
-    expect(glob.truncated).toBe(true)
-    expect(glob.engine).toBe('ripgrep')
-    const grep = await executor.execute<any>('Grep', { pattern: 'needle', head_limit: 1 }, context)
-    expect(grep.matches).toHaveLength(1)
-    expect(grep.engine).toBe('ripgrep')
-    const regex = await executor.execute<any>(
-      'Grep',
-      { pattern: 'NEE.*', '-i': true, output_mode: 'files_with_matches', glob: '*.ts' },
-      context,
-    )
-    expect(regex.files).toEqual(['alpha.ts'])
-    expect(toolingCalls[0]).toEqual([
-      '--files',
-      '--null',
-      '--color',
-      'never',
-      '--sort',
-      'path',
-      '--glob',
-      '*.ts',
-      '--',
-      '.',
-    ])
-    expect(toolingCalls[2]).toContain('--ignore-case')
-    expect(toolingCalls[2]).toContain('--glob')
-    await expect(
-      executor.execute('PowerShell', { command: 'Get-Date', run_in_background: true }, context),
-    ).rejects.toMatchObject({ code: 'INVALID_TOOL_INPUT' })
-    await expect(
-      executor.execute('Bash', { command: 'pwd', dangerouslyDisableSandbox: true }, context),
-    ).rejects.toMatchObject({ code: 'INVALID_TOOL_INPUT' })
-  })
-
-  test('Glob/Grep 接受绝对读取路径并拒绝未规范化的相对越界', async () => {
-    const { root, executor, context, toolingCalls } = await fixture()
-    await Bun.write(join(root, 'alpha.ts'), 'export const needle = true')
-    await executor.execute('Glob', { pattern: '*.ts', path: root }, context)
-    expect(toolingCalls.at(-1)?.at(-1)).toBe('.')
-
-    const outside = await mkdtemp(join(tmpdir(), 'pidex-core-tools-outside-'))
-    temporary.push(outside)
-    await expect(
-      executor.execute('Glob', { pattern: '*.ts', path: outside }, context),
-    ).resolves.toHaveProperty('matches')
-    await expect(
-      executor.execute('Glob', { pattern: '*.ts', path: '../outside' }, context),
-    ).rejects.toMatchObject({ code: 'WORKSPACE_PATH_DENIED' })
-  })
-
-  test('未指定路径时 Glob/Grep 搜索所有项目根并区分附加目录结果', async () => {
-    const resolveTooling: ToolingResolver = async () => ({
-      available: false,
-      code: 'SYSTEM_TOOL_NOT_FOUND',
-      reason: '未找到 ripgrep',
-    })
-    const { root, executor, context } = await fixture({ resolveTooling })
-    const secondary = await mkdtemp(join(tmpdir(), 'pidex-core-tools-secondary-'))
-    temporary.push(secondary)
-    await Bun.write(join(root, 'primary.ts'), "export const needle = 'primary'")
-    await Bun.write(join(secondary, 'secondary.ts'), "export const needle = 'secondary'")
-    const workspace = await WorkspaceService.openRoots({
-      primaryRoot: root,
-      roots: [
-        { path: root, role: 'primary' },
-        { path: secondary, role: 'secondary' },
-      ],
-    })
-
-    const glob = await executor.execute<any>('Glob', { pattern: '*.ts' }, { ...context, workspace })
-    expect(glob.matches).toEqual(
-      ['primary.ts', join(secondary, 'secondary.ts')].sort((left, right) =>
-        left.localeCompare(right),
       ),
-    )
-    const grep = await executor.execute<any>(
-      'Grep',
-      { pattern: 'needle', output_mode: 'files_with_matches' },
-      { ...context, workspace },
-    )
-    expect(grep.files).toEqual(['primary.ts', join(secondary, 'secondary.ts')])
+    ).rejects.toMatchObject({ code: 'INVALID_TOOL_INPUT' })
+    await expect(
+      executor.execute('Glob', { pattern: '*.ts' }, context),
+    ).rejects.toMatchObject({ code: 'TOOL_NOT_FOUND' })
+    await expect(
+      executor.execute('Grep', { pattern: 'needle' }, context),
+    ).rejects.toMatchObject({ code: 'TOOL_NOT_FOUND' })
+    await expect(
+      executor.execute('apply_patch', { patch: '*** Begin Patch\n*** End Patch' }, context),
+    ).rejects.toMatchObject({ code: 'TOOL_NOT_FOUND' })
+    await expect(
+      executor.execute('view_image', { path: 'sample.png' }, context),
+    ).rejects.toMatchObject({ code: 'TOOL_NOT_FOUND' })
   })
 
-  test('ripgrep 不可用时 Glob/Grep 使用有界原生降级', async () => {
-    const resolveTooling: ToolingResolver = async () => ({
-      available: false,
-      code: 'SYSTEM_TOOL_NOT_FOUND',
-      reason: '未找到 ripgrep',
-    })
-    const runToolProcess: ToolProcessRunner = async () => {
-      throw new Error('原生降级不得启动 ripgrep')
-    }
-    const { root, executor, context } = await fixture({ resolveTooling, runToolProcess })
-    await mkdir(join(root, 'src'))
-    await Bun.write(join(root, 'Main.java'), 'class Main {\n  String value = "needle";\n}\n')
-    await Bun.write(join(root, 'other.txt'), 'needle\n')
-    await Bun.write(join(root, 'src', 'Nested.java'), 'class Nested {}\n')
-
-    const glob = await executor.execute<any>('Glob', { pattern: '**/*.{java,txt}' }, context)
-    expect(glob).toMatchObject({
-      matches: ['Main.java', 'other.txt', 'src/Nested.java'],
-      engine: 'native-fallback',
-    })
-
-    const grep = await executor.execute<any>(
-      'Grep',
-      {
-        pattern: 'NEE.*',
-        '-i': true,
-        type: 'java',
-        context: 1,
-      },
-      context,
-    )
-    expect(grep.engine).toBe('native-fallback')
-    expect(grep.matches).toEqual([
-      {
-        path: 'Main.java',
-        line: 2,
-        text: '  String value = "needle";',
-        before: ['class Main {'],
-        after: ['}'],
-      },
-    ])
-  })
-
-  test('原生 Grep 对未知 ripgrep type 明确拒绝', async () => {
-    const resolveTooling: ToolingResolver = async () => ({
-      available: false,
-      code: 'TOOLING_UNAVAILABLE',
-      reason: '下载失败',
-    })
-    const { executor, context } = await fixture({ resolveTooling })
+  test('commitEditorMutations 在审批预检后磁盘变更时拒绝删除且不破坏原文件', async () => {
+    const { root, context } = await fixture()
+    await writeFile(join(root, 'old.txt'), 'one\n', 'utf8')
+    const inspection = await context.workspace.inspectMutationPath('old.txt', 'existing-file')
+    if (inspection.expectation !== 'existing-file') throw new Error('expected existing-file')
+    await writeFile(join(root, 'old.txt'), 'changed elsewhere\n', 'utf8')
     await expect(
-      executor.execute('Grep', { pattern: 'needle', type: 'unknown-language' }, context),
-    ).rejects.toMatchObject({
-      code: 'WORKSPACE_SEARCH_FALLBACK_UNSUPPORTED',
-    })
-  })
-
-  test('ripgrep 解析取消和进程启动后的错误均不触发原生降级', async () => {
-    const abortedResolver: ToolingResolver = async () => ({
-      available: false,
-      code: 'TOOLING_ABORTED',
-      reason: '已取消',
-    })
-    const aborted = await fixture({ resolveTooling: abortedResolver })
-    await expect(
-      aborted.executor.execute('Glob', { pattern: '*.ts' }, aborted.context),
-    ).rejects.toMatchObject({ code: 'RUN_ABORTED' })
-
-    let processCalls = 0
-    const runToolProcess: ToolProcessRunner = async () => {
-      processCalls += 1
-      throw new AgentError('WORKSPACE_SEARCH_TIMEOUT', 'ripgrep 超时', 408)
-    }
-    const started = await fixture({ runToolProcess })
-    await Bun.write(join(started.root, 'would-match.ts'), 'needle')
-    await expect(
-      started.executor.execute('Grep', { pattern: 'needle' }, started.context),
-    ).rejects.toMatchObject({
-      code: 'WORKSPACE_SEARCH_TIMEOUT',
-    })
-    expect(processCalls).toBe(1)
+      context.workspace.commitEditorMutations([
+        { operation: 'delete', path: 'old.txt', expectedRevision: inspection.revision },
+      ]),
+    ).rejects.toMatchObject({ code: 'WORKSPACE_FILE_STALE' })
+    expect(await Bun.file(join(root, 'old.txt')).text()).toBe('changed elsewhere\n')
   })
 
   test('文件修改失败日志记录安全阶段和统计且不包含路径或正文', async () => {
@@ -1443,10 +988,10 @@ describe('核心工具面', () => {
     await writeFile(join(root, 'existing.txt'), 'old', 'utf8')
     await expect(
       executor.execute(
-        'Write',
+        'Edit',
         {
-          file_path: 'existing.txt',
-          content: 'execute-secret',
+          path: 'existing.txt',
+          edits: [{ oldText: 'execute-secret', newText: 'updated' }],
         },
         context,
       ),
@@ -1477,19 +1022,28 @@ describe('核心工具面', () => {
     expect(serialized).toContain('"inputBytes":')
   })
 
-  test('Read 支持读取本地图片并返回图像块，同时脱敏审计并跳过文本编辑快照', async () => {
+  test('Read 支持文本、图片、PDF、音频、视频与二进制文件并脱敏审计与拒绝损坏图片', async () => {
     const { executor, context, root } = await fixture()
     const pngBytes = Buffer.from([
       137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0,
       0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 96, 0, 0, 0, 2, 0, 1, 226,
       33, 188, 51, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
     ])
-    const imagePath = join(root, 'sample.png')
-    await writeFile(imagePath, pngBytes)
+    const pdfBytes = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Page >>\nendobj\n%%EOF\n', 'utf8')
+    const mp3Bytes = Buffer.from([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00])
+    const mp4Bytes = Buffer.from([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x70, 0x34, 0x32])
+    const binBytes = Buffer.from([0x00, 0x01, 0xfe, 0xff, 0x10, 0x20])
+
+    await writeFile(join(root, 'sample.png'), pngBytes)
     await writeFile(join(root, 'broken.png'), 'not-a-png', 'utf8')
+    await writeFile(join(root, 'notes.txt'), 'line-1\nline-2\nline-3', 'utf8')
+    await writeFile(join(root, 'doc.pdf'), pdfBytes)
+    await writeFile(join(root, 'audio.mp3'), mp3Bytes)
+    await writeFile(join(root, 'clip.mp4'), mp4Bytes)
+    await writeFile(join(root, 'blob.bin'), binBytes)
 
     let skillReadCount = 0
-    const result = await executor.execute<any>(
+    const imageResult = await executor.execute<any>(
       'Read',
       { file_path: 'sample.png' },
       {
@@ -1501,7 +1055,7 @@ describe('核心工具面', () => {
       },
     )
     expect(skillReadCount).toBe(0)
-    expect(result).toMatchObject({
+    expect(imageResult).toMatchObject({
       kind: 'image',
       path: 'sample.png',
       mimeType: 'image/png',
@@ -1510,13 +1064,13 @@ describe('核心工具面', () => {
     })
 
     const definition = executor.definition('Read')
-    expect(definition.auditResult?.(result)).toEqual({
+    expect(definition.auditResult?.(imageResult)).toEqual({
       kind: 'image',
       path: 'sample.png',
       mimeType: 'image/png',
       sizeBytes: pngBytes.byteLength,
     })
-    expect(definition.formatResult?.(result, context as never)).toEqual({
+    expect(definition.formatResult?.(imageResult, context as never)).toEqual({
       content: JSON.stringify(
         {
           path: 'sample.png',
@@ -1535,6 +1089,48 @@ describe('核心工具面', () => {
       },
       images: [{ type: 'image', data: pngBytes.toString('base64'), mimeType: 'image/png' }],
       structuredContent: false,
+    })
+
+    const textResult = await executor.execute<any>(
+      'Read',
+      { path: 'notes.txt', offset: 1, limit: 1 },
+      context,
+    )
+    expect(textResult).toMatchObject({
+      path: 'notes.txt',
+      content: 'line-2',
+      offset: 1,
+      lineCount: 3,
+      truncated: true,
+    })
+
+    const pdfResult = await executor.execute<any>('Read', { file_path: 'doc.pdf' }, context)
+    expect(pdfResult).toMatchObject({
+      kind: 'pdf',
+      path: 'doc.pdf',
+      mimeType: 'application/pdf',
+      pageCount: 1,
+      encoding: 'base64',
+      truncated: false,
+      base64: pdfBytes.toString('base64'),
+    })
+    expect(definition.auditResult?.(pdfResult)).not.toHaveProperty('base64')
+
+    expect(await executor.execute<any>('Read', { file_path: 'audio.mp3' }, context)).toMatchObject({
+      kind: 'audio',
+      mimeType: 'audio/mpeg',
+      encoding: 'base64',
+    })
+    expect(await executor.execute<any>('Read', { file_path: 'clip.mp4' }, context)).toMatchObject({
+      kind: 'video',
+      mimeType: 'video/mp4',
+      encoding: 'base64',
+    })
+    expect(await executor.execute<any>('Read', { file_path: 'blob.bin' }, context)).toMatchObject({
+      kind: 'binary',
+      mimeType: 'application/octet-stream',
+      encoding: 'base64',
+      base64: binBytes.toString('base64'),
     })
 
     await expect(

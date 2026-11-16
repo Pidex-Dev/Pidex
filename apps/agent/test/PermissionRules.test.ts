@@ -68,7 +68,7 @@ async function fixture(options: { project?: boolean; trusted?: boolean } = {}) {
     threadID: thread.id,
     turnID: turn.turnID,
     agentID: turn.agentID,
-    name: 'PowerShell',
+    name: 'exec_command',
     input: { command: 'git status', cwd: workspace },
     permissionConfig,
     model,
@@ -246,13 +246,23 @@ describe('权限规则匹配', () => {
         networkDomains: ['sub.example.test'],
       }),
     ).toBe(false)
+    expect(
+      permissionRuleMatches({ kind: 'tool', tool: 'PowerShell' }, invocation, undefined),
+    ).toBe(process.platform === 'win32')
+    expect(
+      permissionRuleMatches(
+        { kind: 'tool', tool: 'Bash' },
+        { ...invocation, input: { ...invocation.input, shell: 'bash' } },
+        undefined,
+      ),
+    ).toBe(true)
     const mcpInvocation: ToolInvocation = {
       ...invocation,
       name: 'mcp_tool',
       input: { value: 1 },
       toolPolicy: {
         sdkName: 'mcp_tool',
-        capabilities: tools.get('PowerShell').capabilities,
+        capabilities: tools.get('exec_command').capabilities,
         allowedModes: ['chat'],
         approvalStrategy: 'always-review',
         origin: { kind: 'mcp', serverName: 'fixture', rawToolName: 'save', generation: 1 },
@@ -299,7 +309,7 @@ describe('权限规则匹配', () => {
       threadID: 'thread-1',
       turnID: 'turn-1',
       agentID: 'agent-1',
-      name: 'apply_patch',
+      name: 'Edit',
       input: {},
       permissionConfig,
       model,
@@ -359,8 +369,8 @@ describe('ToolExecutor 规则最终门禁', () => {
     paths.push(parent)
     const root = join(parent, 'workspace')
     await mkdir(root)
-    const target = join(root, 'a.txt')
-    await writeFile(target, 'content', 'utf8')
+    const target = join(root, 'a.png')
+    await writeFile(target, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
     let approvals = 0
     const executor = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(parent, 'data'),
@@ -378,7 +388,7 @@ describe('ToolExecutor 规则最终门禁', () => {
       signal: new AbortController().signal,
       workspace: await WorkspaceService.open(root),
     }
-    await expect(executor.execute('Read', { file_path: target }, context)).rejects.toThrow(
+    await expect(executor.execute('Read', { path: target }, context)).rejects.toThrow(
       '权限规则拒绝',
     )
     expect(approvals).toBe(0)
@@ -485,7 +495,7 @@ describe('权限规则存储', () => {
     const projectRule = await rules.upsert(thread.id, {
       effect: 'ask',
       scope: 'project',
-      match: { kind: 'tool', tool: 'Bash' },
+      match: { kind: 'tool', tool: 'exec_command' },
     })
     expect(projectRule.source).toBe('project')
     const projectJson = JSON.parse(await readFile(projectFile, 'utf8'))
@@ -681,8 +691,8 @@ test('多文件批准逐个覆盖目标，任一目标的 Deny 不被其他允�
   const second = join(f.root, 'second.txt')
   const operation: ToolInvocation = {
     ...f.invocation,
-    name: 'apply_patch',
-    input: { patch: 'fixture' },
+    name: 'Edit',
+    input: {},
     permissionFacts: { ruleTargets: { writePaths: [first, second] } },
   }
   await rules.persistGrant(

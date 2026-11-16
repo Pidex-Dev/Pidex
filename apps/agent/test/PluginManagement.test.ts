@@ -8,10 +8,6 @@ import { Schema } from 'effect'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { PluginManagementService } from '../src/plugin/PluginManagementService'
 import { SkillService } from '../src/prompt/SkillService'
-import { ToolExecutor } from '../src/tool/ToolExecutor'
-import { ToolRegistry } from '../src/tool/ToolRegistry'
-import { WorkspaceService } from '../src/workspace/WorkspaceService'
-import { DEFAULT_PERMISSION_CONFIG } from '@pidex/shared/thread'
 import { extractPluginReferences, pluginReferenceData } from '../src/plugin/PluginReferences'
 import type { RpcRouter } from '../src/transport/rpc/RpcRouter'
 import { pluginHandlers } from '../src/transport/rpc/handlers/Plugins'
@@ -343,30 +339,8 @@ describe('PluginManagementService', () => {
     await expect(projectSkills.read('project-task-planning')).rejects.toThrow(
       '插件技能已禁用或移除',
     )
-    const executor = new ToolExecutor(new ToolRegistry(), {
-      dataDir: root,
-      authorizeShell: async () => {
-        throw new Error('unexpected shell')
-      },
-    })
     await expect(
-      executor.execute(
-        'Read',
-        { file_path: projectChat.skills[0]!.documentPath },
-        {
-          threadID: 'thread',
-          turnID: 'turn',
-          agentID: 'agent',
-          taskMode: 'chat',
-          signal: new AbortController().signal,
-          permissionConfig: DEFAULT_PERMISSION_CONFIG,
-          workspace: await WorkspaceService.open(workspace),
-          onSkillDocumentRead: async (path) => {
-            const skill = await projectSkills.documentSkill(resolve(workspace, path))
-            return skill ? { name: skill.name } : undefined
-          },
-        },
-      ),
+      projectSkills.documentSkill(resolve(workspace, projectChat.skills[0]!.documentPath)),
     ).rejects.toThrow('插件技能已禁用或移除')
   })
 

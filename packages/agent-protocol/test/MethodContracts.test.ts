@@ -139,12 +139,12 @@ const sandboxStatus = {
 } as const
 
 const toolingStatus = {
-  id: 'git-bash',
+  id: 'nodejs',
   preference: 'managed',
   phase: 'ready',
   activeSource: 'managed',
-  pinnedVersion: '2.55.0.3',
-  managed: { installed: true, version: '2.55.0.3' },
+  pinnedVersion: '24.18.0',
+  managed: { installed: true, version: '24.18.0' },
   system: { available: false, version: null, path: null },
 } as const
 
@@ -2541,7 +2541,7 @@ const fixtures = {
   'tooling/setPreference': methodFixture(
     'tooling/setPreference',
     {
-      id: 'git-bash',
+      id: 'nodejs',
       preference: 'managed',
       operationId: 'operation:tooling-preference',
     },
@@ -2550,7 +2550,7 @@ const fixtures = {
   'tooling/install': methodFixture(
     'tooling/install',
     {
-      id: 'git-bash',
+      id: 'nodejs',
       force: false,
       operationId: 'operation:tooling-install',
     },

@@ -534,12 +534,7 @@ describe('设置导航', () => {
 
     expect(codingGroup?.items.some((item) => item.routeId === 'dependencies')).toBeTrue()
     expect(dependencies?.label).toBe('工作空间依赖项')
-    expect(dependencies?.rows.map((row) => row.title)).toEqual([
-      'Node.js',
-      'Python',
-      'Git Bash',
-      'ripgrep',
-    ])
+    expect(dependencies?.rows.map((row) => row.title)).toEqual(['Node.js', 'Python'])
     expect(config?.rows.some((row) => row.title === '工作空间依赖项')).toBeFalse()
   })
 })

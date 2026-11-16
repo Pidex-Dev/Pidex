@@ -76,7 +76,7 @@ const registry = new ToolRegistry()
 const READ_TOOL = registry.get('Read')
 const WRITE_TOOL = registry.get('Write')
 const EDIT_TOOL = registry.get('Edit')
-const SHELL_TOOL = registry.get('PowerShell')
+const SHELL_TOOL = registry.get('exec_command')
 const REQUEST_PERMISSIONS_TOOL = registry.get('request_permissions')
 const MCP_TOOL: ToolCatalogEntry = {
   ...READ_TOOL,
@@ -158,7 +158,7 @@ const randomInvocation = (
   const hasAdditional = readPaths.length > 0 || writePaths.length > 0 || networkDomains.length > 0
 
   const input: Record<string, unknown> =
-    tool.sdkName === 'PowerShell'
+    tool.sdkName === 'exec_command'
       ? {
           command: 'Get-ChildItem',
           ...(hasAdditional
@@ -698,7 +698,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
         threadID: thread.id,
         turnID: turn.turnID,
         agentID: turn.agentID,
-        name: 'PowerShell',
+        name: 'exec_command',
         input: { command: 'Get-ChildItem' },
         permissionConfig: input.permissionConfig,
         taskMode: 'chat',
@@ -760,7 +760,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
           response: {
             kind: 'approval',
             decision: 'allow-once',
-            remember: { scope: 'tool', value: 'PowerShell' },
+            remember: { scope: 'tool', value: 'exec_command' },
           },
         }),
       ).rejects.toThrow()
@@ -1280,7 +1280,7 @@ describe('Phase 4 Property-Based State Machine Tests', () => {
           threadID: thread.id,
           turnID: turn.turnID,
           agentID: turn.agentID,
-          name: 'PowerShell',
+          name: 'exec_command',
           input: { command: 'Get-ChildItem' },
           permissionConfig: input.permissionConfig,
           taskMode: 'chat',

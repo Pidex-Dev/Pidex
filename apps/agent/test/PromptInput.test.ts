@@ -32,6 +32,16 @@ test('current user input is emitted once after attachments without interpreting 
   expect(
     promptContext({ content } as never, [{ role: 'user', content: [{ text: 'legacy' }] }]),
   ).toBe('legacy\n\n' + content)
+  expect(
+    promptContext(
+      {
+        content,
+        resumedContent: '<interaction_resolution toolCallId="c1"/>',
+        attachments: [{ kind: 'text', name: 'fixture', text: 'ATTACHMENT' }],
+      } as never,
+      bundle.contextItems,
+    ),
+  ).toBe('<interaction_resolution toolCallId="c1"/>')
 })
 
 test('resolved permission guidance retains host facts and child ceiling', () => {
@@ -78,11 +88,11 @@ test('first-party instruction and tool fixtures are English while reference cont
         threadID: 'test',
         mode,
         profile,
-        exposedTools: ['Read'],
+        exposedTools: ['Read', 'exec_command'],
         sections,
       })
       expect(bundle.instructions).toContain('Use Read for file contents')
-      expect(bundle.instructions).not.toContain('Use Glob to discover')
+      expect(bundle.instructions).not.toContain('Use view_image')
       expect(
         bundle.contextItems.filter((item) => item.content[0]?.text.includes(external)),
       ).toHaveLength(3)

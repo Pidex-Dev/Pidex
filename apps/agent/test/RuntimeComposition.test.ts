@@ -18,8 +18,6 @@ import type {
 } from '../src/runtime-composition/Types'
 import { SkillService } from '../src/prompt/SkillService'
 import { WorkspaceService } from '../src/workspace/WorkspaceService'
-import { ToolRegistry } from '../src/tool/ToolRegistry'
-import { ToolExecutor } from '../src/tool/ToolExecutor'
 import { removeFixturePaths } from './FixtureCleanup'
 
 const paths: string[] = []
@@ -543,7 +541,7 @@ describe('RuntimeCompositionSnapshotV2 引用证据持久化与组合身份', ()
     await expect(ok.bindings.skills.read('beta')).resolves.toMatchObject({ name: 'beta' })
   })
 
-  test('普通 Read 记录冻结 Skill 引用，正文变化与引用持久化失败不能报告加载成功', async () => {
+  test('documentRead 记录冻结 Skill 引用，正文变化与引用持久化失败不能报告加载成功', async () => {
     const root = await mkdtemp(join(tmpdir(), 'pidex-skill-read-'))
     paths.push(root)
     await writeSkill(root, 'alpha', 'alpha body')
@@ -558,36 +556,8 @@ describe('RuntimeCompositionSnapshotV2 引用证据持久化与组合身份', ()
         recorded.push(name)
       },
     })
-    const toolRecords: Array<{ status: string; output: unknown }> = []
-    const executor = new ToolExecutor(new ToolRegistry(), {
-      dataDir: root,
-      authorizeShell: async () => {
-        throw new Error('unexpected shell')
-      },
-      recordToolCall: (_invocation, status, output) => {
-        toolRecords.push({ status, output })
-      },
-    })
-    const context = {
-      threadID: input.threadID,
-      turnID: input.turnID,
-      agentID: 'agent-test',
-      taskMode: 'chat' as const,
-      signal: new AbortController().signal,
-      permissionConfig: DEFAULT_PERMISSION_CONFIG,
-      workspace,
-      onSkillDocumentRead: composition.bindings.skills.documentRead,
-    }
-    const result = await executor.execute<{ skill: { name: string; status: string } }>(
-      'Read',
-      { file_path: skill.documentPath },
-      context,
-    )
-    expect(result.skill).toEqual({ name: 'alpha', status: 'loaded' })
-    expect(toolRecords.at(-1)).toMatchObject({
-      status: 'completed',
-      output: { skill: { name: 'alpha' } },
-    })
+    const result = await composition.bindings.skills.documentRead(skill.documentPath, skill.hash)
+    expect(result).toEqual({ name: 'alpha' })
     expect(recorded).toEqual(['alpha'])
     const failing = composeRuntimeComposition({
       ...input,
@@ -597,16 +567,11 @@ describe('RuntimeCompositionSnapshotV2 引用证据持久化与组合身份', ()
       },
     })
     await expect(
-      executor.execute(
-        'Read',
-        { file_path: skill.documentPath },
-        { ...context, onSkillDocumentRead: failing.bindings.skills.documentRead },
-      ),
+      failing.bindings.skills.documentRead(skill.documentPath, skill.hash),
     ).rejects.toThrow('durable write failed')
-    expect(toolRecords.at(-1)?.status).toBe('error')
     await writeFile(skill.documentPath, 'changed', 'utf8')
     await expect(
-      executor.execute('Read', { file_path: skill.documentPath }, context),
+      composition.bindings.skills.documentRead(skill.documentPath, 'stale-hash'),
     ).rejects.toThrow('Skill snapshot is stale')
   })
 

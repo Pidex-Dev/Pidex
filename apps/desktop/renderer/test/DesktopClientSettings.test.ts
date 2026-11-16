@@ -509,12 +509,12 @@ describe('desktop thread settings client', () => {
       close: () => {},
     }
     const toolingStatus = {
-      id: 'ripgrep' as const,
+      id: 'nodejs' as const,
       preference: 'managed' as const,
       phase: 'ready' as const,
       activeSource: 'managed' as const,
-      pinnedVersion: '15.2.0',
-      managed: { installed: true, version: '15.2.0' },
+      pinnedVersion: '24.18.0',
+      managed: { installed: true, version: '24.18.0' },
       system: { available: false, version: null, path: null },
     }
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
@@ -531,7 +531,7 @@ describe('desktop thread settings client', () => {
       }
       if (body?.method === 'tooling/setPreference') {
         expect(body.params).toMatchObject({
-          id: 'ripgrep',
+          id: 'nodejs',
           preference: 'system',
           operationId: expect.any(String),
         })
@@ -541,7 +541,7 @@ describe('desktop thread settings client', () => {
       }
       if (body?.method === 'tooling/install') {
         expect(body.params).toMatchObject({
-          id: 'ripgrep',
+          id: 'nodejs',
           force: true,
           operationId: expect.any(String),
         })
@@ -572,8 +572,8 @@ describe('desktop thread settings client', () => {
 
     expect(await client.listTooling()).toEqual([toolingStatus])
     expect(await client.refreshTooling()).toEqual([toolingStatus])
-    expect((await client.setToolingPreference('ripgrep', 'system')).preference).toBe('system')
-    expect(await client.installTooling('ripgrep', true)).toEqual(toolingStatus)
+    expect((await client.setToolingPreference('nodejs', 'system')).preference).toBe('system')
+    expect(await client.installTooling('nodejs', true)).toEqual(toolingStatus)
 
     const updates: unknown[] = []
     const unsubscribe = client.onToolingUpdated((status) => updates.push(status))

@@ -144,7 +144,7 @@ describe('Skills catalog', () => {
       skills,
       userMessage: 'hello',
     }).find((section) => section.id === 'skills.catalog')!.content
-    expect(catalog).toContain('use Read')
+    expect(catalog).toContain('use skill_read')
     expect(catalog).toContain(
       skills.find((skill) => skill.name === 'review')!.documentPath.replaceAll('\\', '\\\\'),
     )
@@ -765,8 +765,8 @@ describe('电脑控制提示', () => {
     expect(instructions).toContain('Computer control is ready')
     expect(instructions).toContain('ToolSearch')
     expect(instructions).toContain('mcp__node_repl__js')
-    expect(instructions).toContain('Read')
-    expect(instructions).toContain('computer-use SKILL.md')
+    expect(instructions).toContain('skill_read')
+    expect(instructions).toContain('computer-use skill')
     expect(instructions).toContain(
       'Enabling a plugin does not grant application access or tool permissions',
     )
