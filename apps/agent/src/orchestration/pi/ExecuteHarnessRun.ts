@@ -36,6 +36,7 @@ import {
 import { AgentHarnessError } from '../harness/Types'
 
 export const promptContext = (request: HarnessRuntimeRequest, contextItems: readonly unknown[]) => {
+  if (typeof request.resumedContent === 'string') return request.resumedContent
   const attachments =
     request.attachments?.flatMap((attachment) =>
       attachment.kind === 'text'
@@ -519,17 +520,25 @@ export async function executeHarnessRun(
         ...restored.filter((name) => deferredToolCatalog.has(name)),
       ]),
     ])
-    const images = promptImages(request)
+    const isResumed = typeof request.resumedContent === 'string'
+    const images = isResumed ? [] : promptImages(request)
     let message: AssistantMessage = await harness.prompt(
       promptContext(request, bundle.contextItems),
       {
         images,
-        media:
-          request.attachments?.flatMap((attachment) =>
-            attachment.kind === 'audio' || attachment.kind === 'video'
-              ? [{ kind: attachment.kind, data: attachment.base64, mimeType: attachment.mediaType }]
-              : [],
-          ) ?? [],
+        media: isResumed
+          ? []
+          : (request.attachments?.flatMap((attachment) =>
+              attachment.kind === 'audio' || attachment.kind === 'video'
+                ? [
+                    {
+                      kind: attachment.kind,
+                      data: attachment.base64,
+                      mimeType: attachment.mediaType,
+                    },
+                  ]
+                : [],
+            ) ?? []),
       },
     )
     if (message.stopReason === 'error' && isProviderContextOverflow(message.errorMessage)) {

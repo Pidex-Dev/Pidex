@@ -39,6 +39,8 @@ export interface HarnessRuntimeRequest {
   sessionID: string
   profile?: SubagentProfile
   content: string
+  /** Resume continuation prompt emitted instead of re-sending the initial turn bundle. */
+  resumedContent?: string
   taskMode: TaskMode
   permissionConfig: PermissionConfig
   signal: AbortSignal

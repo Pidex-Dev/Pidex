@@ -408,7 +408,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         ? (desktopSettings.tooling as Record<string, unknown>)
         : {}
     const configuredToolingPreferences = Object.fromEntries(
-      ['nodejs', 'python', 'git-bash', 'ripgrep'].flatMap((id) => {
+      ['nodejs', 'python'].flatMap((id) => {
         const preference = configuredTooling[id]
         return preference === 'managed' || preference === 'system' ? [[id, preference]] : []
       }),

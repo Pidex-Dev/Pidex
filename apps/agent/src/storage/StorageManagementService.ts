@@ -62,14 +62,20 @@ async function computeSqliteFilesSize(dbPath: string): Promise<number> {
 }
 
 const MANAGED_TOOLING_SPECS: ReadonlyArray<{
-  id: ManagedToolID
+  id: ManagedToolID | 'git-bash' | 'ripgrep'
+  active: boolean
   name: string
   description: string
 }> = [
-  { id: 'nodejs', name: 'Node.js 运行时', description: '内置工作空间 Node.js 工具链' },
-  { id: 'python', name: 'Python 运行时', description: '内置工作空间 Python 工具链' },
-  { id: 'git-bash', name: 'Git Bash 运行时', description: '内置 Windows Git Bash 环境' },
-  { id: 'ripgrep', name: 'ripgrep 搜索工具', description: '内置高速代码检索工具' },
+  { id: 'nodejs', active: true, name: 'Node.js 运行时', description: '内置工作空间 Node.js 工具链' },
+  { id: 'python', active: true, name: 'Python 运行时', description: '内置工作空间 Python 工具链' },
+  {
+    id: 'git-bash',
+    active: false,
+    name: 'Git Bash 运行时',
+    description: '已停用的内置 Windows Git Bash 环境',
+  },
+  { id: 'ripgrep', active: false, name: 'ripgrep 搜索工具', description: '已停用的内置高速代码检索工具' },
 ]
 
 export class StorageManagementService {
@@ -510,11 +516,11 @@ export class StorageManagementService {
       if (beforeBytes === 0) {
         throw new AgentError('NOT_FOUND', `${spec.name}未安装`, 404)
       }
-      if (this.deps?.tooling) {
-        await this.deps.tooling.setPreference(spec.id, 'system')
+      if (this.deps?.tooling && spec.active) {
+        await this.deps.tooling.setPreference(spec.id as ManagedToolID, 'system')
       }
       await rm(toolDir, { recursive: true, force: true })
-      if (this.deps?.tooling) {
+      if (this.deps?.tooling && spec.active) {
         await this.deps.tooling.refreshStatuses()
       }
       return { resourceId, reclaimedBytes: beforeBytes }

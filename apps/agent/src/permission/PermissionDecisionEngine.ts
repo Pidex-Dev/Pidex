@@ -257,7 +257,8 @@ export class PermissionDecisionEngine {
     if (isGranularApprovalPolicy(policy)) return allow('当前权限范围内执行')
     if (policy === 'untrusted')
       return (tool.capabilities.filesystem === 'read' && !tool.capabilities.process) ||
-        (tool.capabilities.readOnly === true && tool.capabilities.process)
+        ((tool.capabilities.readOnly === true || invocation.permissionFacts?.readOnlyShell === true) &&
+          tool.capabilities.process)
         ? allow('可信纯读取操作')
         : review('untrusted 策略要求审批非纯读取操作', false)
     return allow('当前权限范围内执行')

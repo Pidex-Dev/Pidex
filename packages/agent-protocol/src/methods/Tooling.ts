@@ -2,7 +2,7 @@ import { Schema } from 'effect'
 import { defineMethod, type MethodMap } from '../wire/Definition'
 import { EmptyParamsSchema, NonNegativeIntSchema, OperationParamsSchema } from '../wire/Primitives'
 
-export const ToolingIDSchema = Schema.Literals(['nodejs', 'python', 'git-bash', 'ripgrep'])
+export const ToolingIDSchema = Schema.Literals(['nodejs', 'python'])
 export const ToolingPreferenceSchema = Schema.Literals(['managed', 'system'])
 export const ToolingSourceSchema = Schema.Literals(['managed', 'system'])
 export const ToolingPhaseSchema = Schema.Literals([

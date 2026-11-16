@@ -14,7 +14,7 @@
         "apps/agent/src/interaction/InteractionService.ts": "aee066c0a58255e0bb3a90728f28ad5373e7dee1dcf05c39bf4dd26755b0e91c",
         "apps/agent/src/interaction/ResumeCheckpointResolver.ts": "6aaa43fb17e1ff5c8e2a969c763ff1de193705f580ed562d7bff6b3ff88e0bc2",
         "apps/agent/src/permission/ApprovalService.ts": "710010effd04c3f692c435b23a745afc2d6dd41d8856abe98e3235ffd2be3d01",
-        "apps/agent/src/permission/PermissionDecisionEngine.ts": "27a106e9803ddf153049de60e02bda3bb1aeabc4572677dc559fde9209dbc113"
+        "apps/agent/src/permission/PermissionDecisionEngine.ts": "3f130ec3c4010f1d73edf05579f23bbeaee6646c43136cc023d4924c6d2e1035"
       }
     }
   }

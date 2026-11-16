@@ -2,7 +2,7 @@ import type { PromptSection } from './Types'
 
 /**
  * Capability summary budget. The model only needs the exact names and a one-line
- * hint to decide what to search for;完整说明与参数按需通过 ToolSearch / Read 加载。
+ * hint to decide what to search for;完整说明与参数按需通过 ToolSearch / skill_read 加载。
  */
 export const CAPABILITY_CATALOG_MAX_CHARS = 8_000
 export const CAPABILITY_DESCRIPTION_MAX_CHARS = 160
@@ -22,7 +22,7 @@ const GUIDANCE = [
   'Discover and activate deferred tools before calling them. Ordinary tools directly declared in this request do not require a search.',
   'This catalog lists deferred tools only, not all tools for this turn. An absent name does not imply unavailability: consult the current tool declarations, not historical claims about missing tools.',
   'Use ToolSearch: query matches names, descriptions and MCP server names. query="*" browses the catalog; use offset for pagination and max_results up to 20. Matches become callable on the next request. select:<exact-name> activates an exact tool with its full schema.',
-  'See skills.catalog for Skill names, descriptions and locations. Use Read to load the full SKILL.md when needed, then follow its steps. Skill bodies are not preloaded here.',
+  'See skills.catalog for Skill names, descriptions and locations. Use skill_read to load the full SKILL.md by name when needed, then follow its steps. Skill bodies are not preloaded here.',
 ].join('\n')
 
 const toolLine = (tool: CapabilityToolSummary) => {

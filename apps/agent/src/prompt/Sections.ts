@@ -40,7 +40,7 @@ const section = (value: PromptSection): PromptSection => value
  */
 const computerControlContent = (state: { enabled(): boolean; available(): boolean }): string =>
   state.available()
-    ? 'Computer control is ready. Read the computer-use SKILL.md or discover mcp__node_repl__js with ToolSearch. Enabling a plugin does not grant application access or tool permissions.'
+    ? 'Computer control is ready. Load the computer-use skill with skill_read or discover mcp__node_repl__js with ToolSearch. Enabling a plugin does not grant application access or tool permissions.'
     : state.enabled()
       ? 'Computer control is enabled, but the Windows runtime is disconnected. Explain that the user needs to restart Pidex Desktop before operating graphical applications.'
       : 'This computer supports computer control, but the plugin is disabled. You can help enable it with pidex_plugin (or the user can enable it in Plugins or Settings > Integrations > Computer control). Enabling a plugin does not grant application access or tool permissions. Do not claim the capability does not exist.'
@@ -136,26 +136,27 @@ export const defaultToolGuidance: readonly ToolPromptGuidance[] = [
   {
     name: 'Read',
     content:
-      'Use Read for file contents. It accepts files, not directories. Continue paging when the task needs text beyond the returned range; the host maintains the full editing snapshot.',
-  },
-  {
-    name: 'Glob',
-    content:
-      'Use Glob to discover file paths. Its path is a directory; filter filenames with pattern.',
-  },
-  {
-    name: 'Grep',
-    content: 'Use Grep to search contents. Its path is a directory; restrict files with glob.',
+      'Use Read for file contents (UTF-8 text, local images, PDF, audio, video, or binary). It accepts files, not directories. Continue paging text files when the task needs lines beyond the returned range; the host maintains the editing snapshot.',
   },
   {
     name: 'Edit',
     content:
-      'Read an existing file before editing it. Prefer Edit for precise atomic replacements based on the same original text. On stale or ambiguous context, Read again and rebuild the edit.',
+      'Inspect an existing file with Read before editing it. Each oldText must match uniquely in the current file text. On stale or ambiguous context, Read again and rebuild the edit.',
   },
   {
     name: 'Write',
     content:
-      'Use Write for new files or necessary complete rewrites. Do not bypass Read snapshots, workspace restrictions or approvals using shell scripts.',
+      'Create a new file or completely overwrite an existing file. Do not bypass workspace restrictions or approvals.',
+  },
+  {
+    name: 'exec_command',
+    content:
+      'Use exec_command to search code (e.g. rg, Select-String, git), run commands, or run interactive programs. Defaults to Windows PowerShell; pass shell="bash" when Git Bash / POSIX semantics are requested or required, or invoke Python/other interpreters when specified. Set tty=true for interactive TUIs or REPLs and follow up with write_stdin. Use Read to inspect files.',
+  },
+  {
+    name: 'write_stdin',
+    content:
+      'Use write_stdin with a live session_id returned by exec_command to send stdin characters or poll ongoing process output.',
   },
 ]
 
@@ -322,7 +323,7 @@ export const createPromptSections = (input: PromptSectionSetInput): PromptSectio
         'project',
         { type: 'runtime', name: 'skills-catalog' },
         [
-          'Skills provide task guidance. When a task matches, use Read to load the full SKILL.md before following it; continue reading if truncated. Resolve relative references from the skill directory. Load supporting files only as needed and execute scripts through the normal Shell permission policy.',
+          'Skills provide task guidance. When a task matches, use skill_read with its exact name (or exec_command on workspace skill files) to load the full SKILL.md before following it. Resolve relative references from the skill directory. Load supporting files only as needed and execute scripts through the normal Shell permission policy.',
           'Explicitly selected Skills apply to the current task. Continue using them for follow-ups on that task; reassess when the task changes. allowed-tools is guidance only and never changes authorization.',
           ...input.skills
             .filter((skill) => skill.metadata['disable-model-invocation'] !== true)

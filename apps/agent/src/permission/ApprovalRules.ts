@@ -141,6 +141,23 @@ const isStoredRule = (
 const canonicalToolName = (invocation: ToolInvocation) =>
   invocation.toolPolicy?.sdkName ?? invocation.name
 
+const toolRuleMatches = (ruleTool: string, invocation: ToolInvocation): boolean => {
+  const canonical = canonicalToolName(invocation)
+  if (canonical === ruleTool) return true
+  if (canonical !== 'exec_command') return false
+  const requestedShell =
+    typeof invocation.input.shell === 'string'
+      ? invocation.input.shell.trim().toLowerCase()
+      : undefined
+  const usesBash =
+    requestedShell === 'bash' ||
+    requestedShell === 'git-bash' ||
+    requestedShell === 'bash.exe' ||
+    requestedShell === 'sh' ||
+    (requestedShell === undefined && process.platform !== 'win32')
+  return usesBash ? ruleTool === 'Bash' : ruleTool === 'PowerShell'
+}
+
 const originTargets = (invocation: ToolInvocation) => {
   const origin = invocation.toolPolicy?.origin
   return origin?.kind === 'mcp'
@@ -160,7 +177,7 @@ export function permissionRuleMatches(
 ): boolean {
   switch (match.kind) {
     case 'tool':
-      return canonicalToolName(invocation) === match.tool
+      return toolRuleMatches(match.tool, invocation)
     case 'file': {
       const paths = match.access === 'read' ? targets?.readPaths : targets?.writePaths
       if (!paths?.length) return false
@@ -415,7 +432,7 @@ export class ApprovalRules {
       id: rule.id,
       kind: rule.kind,
       scope: rule.scope,
-      label: rule.scope === 'project' ? '始终允许（当前项目）' : '在此会话中允许（当前项目）',
+      label: rule.scope === 'project' ? '是，且当前项目不再询问' : '是，且本次会话不再询问',
     }))
   }
 

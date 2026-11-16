@@ -6,20 +6,12 @@ import {
   type ToolAuthorizationScope,
   type ToolInvocation,
 } from '../Domain'
-import {
-  WorkspaceService,
-  isSupportedImagePath,
-  type SupportedImageMimeType,
-  type WorkspaceFileRevision,
-} from '../workspace/WorkspaceService'
+import { type WorkspaceFileRevision, type WorkspaceService } from '../workspace/WorkspaceService'
 import { isReadOnlyTaskMode, type PermissionConfig, type SandboxMode } from '@pidex/shared/thread'
 import type { Model } from '@pidex/model-schema'
 import type { ToolExecutionMode as PiToolExecutionMode } from '../orchestration/harness/AgentTypes'
 import type { Tool as PiAiTool } from '@earendil-works/pi-ai'
-import { isAbsolute, resolve } from 'node:path'
 import type { ToolingResolver, ToolProcessRunner } from './ToolingRuntime'
-import { nativeGlobWorkspace } from './NativeWorkspaceSearch'
-import { grepWorkspace, resolveRipgrep, ripgrep, searchPaths } from './Grep/GrepEngine'
 import {
   requestPermissionsDefinition,
   type RequestPermissionsInput,
@@ -27,7 +19,6 @@ import {
 import { toolCatalogSummary, toolSearchDefinition } from './ToolSearch/Definition'
 import { applyEditsText } from './Edit/ApplyEditText'
 import { subagentToolDefinitions } from './Delegation/Definitions'
-import { applyPatchDefinition } from './ApplyPatch/Definition'
 import type { TurnPatchMutationFile } from '../patch/TurnPatchTypes'
 import { diffLines } from 'diff'
 import type { FileAccessProfile } from '../permission/ExecutionPolicy'
@@ -214,18 +205,28 @@ const editInputSchema = z
   .strict()
 const normalizePiEditInput = (input: unknown) => {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return input
-  const edits = (input as Record<string, unknown>).edits
-  if (typeof edits !== 'string') return input
-  try {
-    return { ...input, edits: JSON.parse(edits) }
-  } catch {
-    return input
+  const raw = { ...(input as Record<string, unknown>) }
+  if (raw.path === undefined && typeof raw.file_path === 'string') {
+    raw.path = raw.file_path
+    delete raw.file_path
   }
+  if (typeof raw.edits === 'string') {
+    try {
+      raw.edits = JSON.parse(raw.edits)
+    } catch {
+      return raw
+    }
+  }
+  return raw
 }
-const shellSchema = z
+const execCommandSchema = z
   .object({
     command: z.string().min(1).max(32_000),
     cwd: z.string().min(1).optional(),
+    shell: z.string().min(1).max(64).optional(),
+    tty: z.boolean().optional(),
+    yield_time_ms: z.number().int().min(50).max(600_000).optional(),
+    max_output_tokens: z.number().int().min(64).max(100_000).optional(),
     timeout: z.number().positive().max(600_000).optional(),
     description: z.string().max(2_000).optional(),
     additionalPermissions: z
@@ -238,10 +239,39 @@ const shellSchema = z
       .optional(),
   })
   .strict()
-const shellInputSchema = jsonObject(
+const normalizeExecCommandInput = (input: unknown) => {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return input
+  const raw = { ...(input as Record<string, unknown>) }
+  if (raw.command === undefined && typeof raw.cmd === 'string') {
+    raw.command = raw.cmd
+    delete raw.cmd
+  }
+  if (raw.cwd === undefined && typeof raw.workdir === 'string') {
+    raw.cwd = raw.workdir
+    delete raw.workdir
+  }
+  return raw
+}
+const execCommandInputSchema = jsonObject(
   {
     command: { type: 'string', maxLength: 32_000 },
     cwd: { type: 'string' },
+    shell: {
+      type: 'string',
+      description:
+        'Optional target shell: "powershell" (Windows default), "bash" (Git Bash / POSIX), or "cmd". Omit for default.',
+    },
+    tty: {
+      type: 'boolean',
+      description: 'Use ConPTY pseudo-terminal for interactive REPLs or TUIs; defaults to false.',
+    },
+    yield_time_ms: {
+      type: 'integer',
+      minimum: 50,
+      maximum: 600_000,
+      description: 'Max wait before yielding a running session_id for write_stdin.',
+    },
+    max_output_tokens: { type: 'integer', minimum: 64, maximum: 100_000 },
     timeout: { type: 'number', maximum: 600_000 },
     description: { type: 'string', maxLength: 2_000 },
     additionalPermissions: {
@@ -256,6 +286,71 @@ const shellInputSchema = jsonObject(
   },
   ['command'],
 )
+const writeStdinSchema = z
+  .object({
+    session_id: z.number().int().positive(),
+    chars: z.string().max(32_000).optional(),
+    yield_time_ms: z.number().int().min(50).max(60_000).optional(),
+    kill: z.boolean().optional(),
+    max_output_tokens: z.number().int().min(64).max(100_000).optional(),
+  })
+  .strict()
+const writeStdinInputSchema = jsonObject(
+  {
+    session_id: {
+      type: 'integer',
+      minimum: 1,
+      description: 'Session ID returned by exec_command when the process is still running.',
+    },
+    chars: {
+      type: 'string',
+      description: 'Characters to write to stdin; omit or pass empty string to poll output.',
+    },
+    yield_time_ms: { type: 'integer', minimum: 50, maximum: 60_000 },
+    kill: { type: 'boolean', description: 'Terminate the running session and return trailing output.' },
+    max_output_tokens: { type: 'integer', minimum: 64, maximum: 100_000 },
+  },
+  ['session_id'],
+)
+const normalizeFilePathInput = (input: unknown) => {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return input
+  const raw = { ...(input as Record<string, unknown>) }
+  if (raw.file_path === undefined && typeof raw.path === 'string') {
+    raw.file_path = raw.path
+    delete raw.path
+  }
+  return raw
+}
+
+type ReadToolOutput =
+  | {
+      kind?: undefined
+      path: string
+      content: string
+      offset: number
+      lineCount: number
+      truncated: boolean
+      sizeBytes: number
+      snapshot: WorkspaceFileRevision
+    }
+  | {
+      kind: 'image'
+      path: string
+      mimeType: string
+      sizeBytes: number
+      base64: string
+    }
+  | {
+      kind: 'pdf' | 'audio' | 'video' | 'binary'
+      path: string
+      mimeType: string
+      sizeBytes: number
+      sha256: string
+      encoding: 'base64'
+      truncated: boolean
+      pageCount?: number
+      base64: string
+    }
 
 export const lineChangeSummary = (before: string, after: string) => {
   let additions = 0
@@ -269,31 +364,12 @@ export const lineChangeSummary = (before: string, after: string) => {
 
 export { requestPermissionsDefinition, type RequestPermissionsInput, toolCatalogSummary }
 
-type ReadToolOutput =
-  | {
-      kind?: 'text'
-      path: string
-      content: string
-      offset: number
-      lineCount: number
-      truncated: boolean
-      sizeBytes: number
-      snapshot: WorkspaceFileRevision
-    }
-  | {
-      kind: 'image'
-      path: string
-      mimeType: SupportedImageMimeType
-      sizeBytes: number
-      base64: string
-    }
-
 const builtinTools = (): ToolDefinition<any, any>[] => [
   {
     sdkName: 'Read',
     name: 'workspace.read',
     description:
-      'Read a UTF-8 text file or local image file (PNG, JPEG, GIF, WebP). Text files retain their full snapshot for subsequent edits and are paginated; continue reading when needed. For outside-workspace files, call with an absolute path and let the host authorize access.',
+      'Read a file of any format (UTF-8 text, local images, PDF, audio, video, or binary). Text files retain their full snapshot for subsequent edits and are paginated; continue reading when needed. For outside-workspace files, call with an absolute path and let the host authorize access.',
     schema: z
       .object({
         file_path: z.string().min(1),
@@ -306,13 +382,14 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
         file_path: {
           type: 'string',
           description:
-            'An observed existing UTF-8 text or supported image file path (.png, .jpg, .jpeg, .gif, .webp), relative to the workspace or absolute where host policy permits. Files only, not directories or guessed paths.',
+            'An observed existing file path (text, image, PDF, audio, video, or binary), relative to the workspace or absolute where host policy permits. Files only, not directories or guessed paths.',
         },
         offset: { type: 'number', minimum: 0 },
         limit: { type: 'number', minimum: 1, maximum: 10_000 },
       },
       ['file_path'],
     ),
+    prepareArguments: normalizeFilePathInput,
     capabilities: { ...noCapabilities(), filesystem: 'read', readOnly: true },
     allowedModes: allModes,
     allowedProfiles: allProfiles,
@@ -321,17 +398,29 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     executionMode: 'parallel',
     progress: (input) => ({ message: `正在读取 ${input.file_path}` }),
     execute: async (input, context): Promise<ReadToolOutput> => {
-      if (isSupportedImagePath(input.file_path)) {
-        const image = await context.workspace.readImageFile(input.file_path)
+      const file = await context.workspace.readToolFile(input.file_path)
+      if (file.kind === 'image') {
         return {
           kind: 'image',
-          path: image.path,
-          mimeType: image.mimeType,
-          sizeBytes: image.sizeBytes,
-          base64: image.base64,
+          path: file.path,
+          mimeType: file.mimeType,
+          sizeBytes: file.sizeBytes,
+          base64: file.base64,
         }
       }
-      const file = await context.workspace.readEditorFile(input.file_path)
+      if (file.kind !== 'text') {
+        return {
+          kind: file.kind,
+          path: file.path,
+          mimeType: file.mimeType,
+          sizeBytes: file.sizeBytes,
+          sha256: file.sha256,
+          encoding: file.encoding,
+          truncated: file.truncated,
+          ...(file.pageCount !== undefined ? { pageCount: file.pageCount } : {}),
+          base64: file.base64,
+        }
+      }
       const offset = input.offset ?? 0
       const limit = input.limit ?? 400
       const lines = file.content.split(/\r?\n/)
@@ -346,7 +435,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
       }
     },
     auditResult: (output: ReadToolOutput) => {
-      if (output.kind === 'image') {
+      if (output.kind) {
         const { base64: _, ...metadata } = output
         return metadata
       }
@@ -367,6 +456,31 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
           structuredContent: false,
         }
       }
+      if (output.kind) {
+        const metadata = {
+          path: output.path,
+          kind: output.kind,
+          mimeType: output.mimeType,
+          sizeBytes: output.sizeBytes,
+          sha256: output.sha256,
+          encoding: output.encoding,
+          truncated: output.truncated,
+          ...(output.pageCount !== undefined ? { pageCount: output.pageCount } : {}),
+        }
+        return {
+          content: JSON.stringify(
+            {
+              ...metadata,
+              base64Bytes: output.base64.length,
+              note: '已读取非文本文件元数据与原始内容；当前消息通道仅原生内联文本与常见图片块。',
+            },
+            null,
+            2,
+          ),
+          details: metadata,
+          structuredContent: false,
+        }
+      }
       return {
         content: JSON.stringify(output, null, 2),
         details: output,
@@ -374,24 +488,23 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
       }
     },
   },
-  applyPatchDefinition,
   {
     sdkName: 'Write',
     name: 'workspace.write',
     description:
-      'Create or fully overwrite a file. Read existing files first; the executor maintains snapshots. For outside-workspace files, use absolute paths and let the host authorize access.',
+      'Create or fully overwrite a file. For outside-workspace files, use absolute paths and let the host authorize access.',
     schema: z.object({ file_path: z.string().min(1), content: z.string() }).strict(),
     inputSchema: jsonObject(
       {
         file_path: {
           type: 'string',
-          description:
-            'Target file path. Existing files require a successful Read of the same path; new files can be written directly.',
+          description: 'Target file path.',
         },
         content: { type: 'string' },
       },
       ['file_path', 'content'],
     ),
+    prepareArguments: normalizeFilePathInput,
     capabilities: { ...noCapabilities(), filesystem: 'workspace-write', externalState: true },
     allowedModes: ['chat'],
     allowedProfiles: ['main', 'default', 'worker'],
@@ -437,21 +550,10 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
           afterSha256: created.afterSha256,
         }
       }
-      if (
-        !context.readSnapshot ||
-        context.readSnapshot.sha256 !== current.revision.sha256 ||
-        context.readSnapshot.mtimeMs !== current.revision.mtimeMs
-      )
-        throw new AgentError(
-          'WORKSPACE_FILE_STALE',
-          '文件内容已变化或缺少完整 Read 快照，拒绝覆写',
-          409,
-          { currentRevision: current.revision },
-        )
       const saved = await context.workspace.saveEditorFile(
         input.file_path,
         input.content,
-        context.readSnapshot,
+        context.readSnapshot ?? current.revision,
       )
       if (saved.outcome === 'conflict')
         throw new AgentError('WORKSPACE_FILE_STALE', '文件在写入前发生变化，拒绝覆写', 409, {
@@ -498,20 +600,19 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     sdkName: 'Edit',
     name: 'workspace.edit',
     description:
-      'Apply precise atomic edits to a previously read file. Each oldText must match uniquely, and all edits refer to the same original text. Absolute outside-workspace paths are subject to host authorization. On stale or ambiguous context, Read again and rebuild the edits.',
+      'Apply precise atomic text replacements to an existing file. Each oldText must match uniquely, and all edits refer to the same original text. Absolute outside-workspace paths are subject to host authorization. On stale or ambiguous context, Read again and rebuild the edits.',
     schema: editInputSchema,
     inputSchema: jsonObject(
       {
         path: {
           type: 'string',
-          description:
-            'Existing file path previously read with Read. Base edits on the latest complete original snapshot.',
+          description: 'Existing file path to edit.',
         },
         edits: {
           type: 'array',
           minItems: 1,
           description:
-            'Atomic edits against the same original text. Include enough oldText context for a unique match.',
+            'Atomic edits against the current file text. Include enough oldText context for a unique match.',
           items: jsonObject(
             {
               oldText: {
@@ -544,22 +645,11 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     }),
     execute: async (input, context) => {
       const current = await context.workspace.readEditorFile(input.path)
-      if (
-        !context.readSnapshot ||
-        context.readSnapshot.sha256 !== current.revision.sha256 ||
-        context.readSnapshot.mtimeMs !== current.revision.mtimeMs
-      )
-        throw new AgentError(
-          'WORKSPACE_FILE_STALE',
-          '文件内容已变化或缺少完整 Read 快照，拒绝编辑',
-          409,
-          { currentRevision: current.revision },
-        )
       const content = applyEditsText(current.content, input.edits)
       const saved = await context.workspace.saveEditorFile(
         input.path,
         content,
-        context.readSnapshot,
+        context.readSnapshot ?? current.revision,
       )
       if (saved.outcome === 'conflict')
         throw new AgentError('WORKSPACE_FILE_STALE', '文件在编辑前发生变化，拒绝写入', 409, {
@@ -599,171 +689,13 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     }),
   },
   {
-    sdkName: 'Glob',
-    name: 'workspace.glob',
+    sdkName: 'exec_command',
+    name: 'exec_command',
     description:
-      'Find files by glob using managed or local ripgrep, with bounded native search as fallback. path defaults to .; prefer workspace-relative directories. Absolute directories are subject to host policy, including outside-workspace access.',
-    schema: z
-      .object({
-        pattern: z.string().min(1).max(1_000),
-        path: z.string().optional(),
-        limit: z.number().int().min(1).max(500).optional(),
-      })
-      .strict(),
-    inputSchema: jsonObject(
-      {
-        pattern: {
-          type: 'string',
-          maxLength: 1_000,
-          description: 'Glob pattern matching filenames or relative paths.',
-        },
-        path: {
-          type: 'string',
-          description: 'Optional existing directory, not a file. Filter filenames with pattern.',
-        },
-        limit: { type: 'number', minimum: 1, maximum: 500 },
-      },
-      ['pattern'],
-    ),
-    capabilities: { ...noCapabilities(), filesystem: 'read', process: true, readOnly: true },
-    allowedModes: allModes,
-    allowedProfiles: allProfiles,
-    approvalStrategy: 'policy',
-    visibility: 'eager',
-    executionMode: 'parallel',
-    progress: (input) => ({ message: `正在匹配 ${input.pattern}` }),
-    execute: async (input, context) => {
-      const targets = await searchPaths(context, input.path)
-      const limit = input.limit ?? 200
-      const resolution = await resolveRipgrep(context)
-      if (!resolution.available) {
-        const results = await Promise.all(
-          targets.map((target) =>
-            nativeGlobWorkspace({ ...input, limit: 500 }, context, target.nativeTarget),
-          ),
-        )
-        const all = results
-          .flatMap((result) => result.matches)
-          .sort((left, right) => left.localeCompare(right))
-        return {
-          matches: all.slice(0, limit),
-          truncated: results.some((result) => result.truncated) || all.length > limit,
-          visited: results.reduce((sum, result) => sum + result.visited, 0),
-          engine: 'native-fallback' as const,
-        }
-      }
-      const all: string[] = []
-      const searches = await Promise.all(
-        targets.map(async (target) => ({
-          target,
-          result: await ripgrep(
-            context,
-            resolution.path,
-            [
-              '--files',
-              '--null',
-              '--color',
-              'never',
-              '--sort',
-              'path',
-              '--glob',
-              input.pattern,
-              '--',
-              target.target,
-            ],
-            target.root,
-          ),
-        })),
-      )
-      for (const { target, result } of searches) {
-        all.push(
-          ...result.stdout
-            .toString('utf8')
-            .split('\0')
-            .filter(Boolean)
-            .map((path) =>
-              context.workspace.displayPath(
-                isAbsolute(path) ? resolve(path) : resolve(target.root, path),
-              ),
-            ),
-        )
-      }
-      all.sort((left, right) => left.localeCompare(right))
-      return {
-        matches: all.slice(0, limit),
-        truncated: all.length > limit,
-        visited: all.length,
-        engine: 'ripgrep' as const,
-      }
-    },
-  },
-  {
-    sdkName: 'Grep',
-    name: 'workspace.grep',
-    description:
-      'Perform bounded regular-expression content search using managed or local ripgrep, with bounded native search as fallback. path defaults to .; prefer workspace-relative directories. Supports file filtering, context and output modes. Absolute directories are subject to host policy.',
-    schema: z
-      .object({
-        pattern: z.string().min(1).max(10_000),
-        path: z.string().optional(),
-        glob: z.string().max(1_000).optional(),
-        output_mode: z.enum(['content', 'files_with_matches', 'count']).default('content'),
-        '-A': z.number().int().min(0).max(100).optional(),
-        '-B': z.number().int().min(0).max(100).optional(),
-        '-C': z.number().int().min(0).max(100).optional(),
-        context: z.number().int().min(0).max(100).optional(),
-        '-n': z.boolean().optional(),
-        '-i': z.boolean().optional(),
-        type: z.string().max(100).optional(),
-        head_limit: z.number().int().min(1).max(1_000).default(200),
-        offset: z.number().int().min(0).default(0),
-        multiline: z.boolean().default(false),
-      })
-      .strict(),
-    inputSchema: jsonObject(
-      {
-        pattern: { type: 'string', maxLength: 10_000 },
-        path: {
-          type: 'string',
-          description: 'Optional existing directory, not a file. Restrict filenames with glob.',
-        },
-        glob: {
-          type: 'string',
-          maxLength: 1_000,
-          description: 'Optional file glob filter. Do not pass a file as path.',
-        },
-        output_mode: { enum: ['content', 'files_with_matches', 'count'], default: 'content' },
-        '-A': { type: 'integer', minimum: 0, maximum: 100 },
-        '-B': { type: 'integer', minimum: 0, maximum: 100 },
-        '-C': { type: 'integer', minimum: 0, maximum: 100 },
-        context: { type: 'integer', minimum: 0, maximum: 100 },
-        '-n': { type: 'boolean' },
-        '-i': { type: 'boolean' },
-        type: { type: 'string', maxLength: 100 },
-        head_limit: { type: 'integer', minimum: 1, maximum: 1_000, default: 200 },
-        offset: { type: 'integer', minimum: 0, default: 0 },
-        multiline: { type: 'boolean', default: false },
-      },
-      ['pattern'],
-    ),
-    capabilities: { ...noCapabilities(), filesystem: 'read', process: true, readOnly: true },
-    allowedModes: allModes,
-    allowedProfiles: allProfiles,
-    approvalStrategy: 'policy',
-    visibility: 'eager',
-    executionMode: 'parallel',
-    progress: (input) => ({ message: `正在搜索 ${input.pattern}` }),
-    execute: grepWorkspace,
-  },
-  ...(['Bash', 'PowerShell'] as const).map((sdkName): ToolDefinition<any, any> => ({
-    sdkName,
-    name: sdkName,
-    description:
-      sdkName === 'Bash'
-        ? 'Execute Bash commands on the host as the current user, with workspace cwd by default and normal host authorization. No OS filesystem or network isolation. In Plan and Grill, investigate only; do not implement changes.'
-        : 'Execute PowerShell commands on the host as the current user, with workspace cwd by default and normal host authorization. No OS filesystem or network isolation. In Plan and Grill, investigate only; do not implement changes.',
-    schema: shellSchema,
-    inputSchema: shellInputSchema,
+      'Execute a shell command on the host as the current user (Windows PowerShell by default; pass shell="bash" for Git Bash / POSIX semantics, or invoke Python/other interpreters when requested). Use it to search code, inspect git state, run tests, or launch interactive PTY sessions via tty=true / yield_time_ms; use Read to read files. No OS filesystem or network isolation. In Plan and Grill, investigate only; do not implement changes.',
+    schema: execCommandSchema,
+    inputSchema: execCommandInputSchema,
+    prepareArguments: normalizeExecCommandInput,
     capabilities: {
       filesystem: 'host-write',
       network: 'declared',
@@ -776,11 +708,35 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     approvalStrategy: 'policy',
     visibility: 'eager',
     executionMode: 'sequential',
-    progress: () => ({ message: `正在执行 ${sdkName}` }),
+    progress: () => ({ message: '正在执行命令' }),
     execute: async () => {
-      throw new AgentError('SHELL_EXECUTOR_REQUIRED', `${sdkName} 必须经过统一执行器`, 500)
+      throw new AgentError('SHELL_EXECUTOR_REQUIRED', 'exec_command 必须经过统一执行器', 500)
     },
-  })),
+  },
+  {
+    sdkName: 'write_stdin',
+    name: 'write_stdin',
+    description:
+      'Write characters to a running exec_command session or poll its latest output using session_id.',
+    schema: writeStdinSchema,
+    inputSchema: writeStdinInputSchema,
+    capabilities: {
+      filesystem: 'none',
+      network: 'none',
+      process: true,
+      externalState: true,
+      userInteraction: false,
+    },
+    allowedModes: allModes,
+    allowedProfiles: ['main', 'default', 'explorer', 'worker'],
+    approvalStrategy: 'never-review',
+    visibility: 'eager',
+    executionMode: 'sequential',
+    progress: (input) => ({ message: `正在交互终端会话 #${input.session_id}` }),
+    execute: async () => {
+      throw new AgentError('SHELL_EXECUTOR_REQUIRED', 'write_stdin 必须经过统一执行器', 500)
+    },
+  },
   toolSearchDefinition,
   requestPermissionsDefinition,
   ...subagentToolDefinitions,
@@ -791,7 +747,8 @@ export const toolMayMutate = (tool: ToolCatalogEntry) =>
   (tool.capabilities.filesystem === 'workspace-write' ||
     tool.capabilities.filesystem === 'host-write' ||
     tool.capabilities.externalState)
-const isShell = (tool: ToolCatalogEntry) => tool.sdkName === 'Bash' || tool.sdkName === 'PowerShell'
+const isShell = (tool: ToolCatalogEntry) =>
+  tool.sdkName === 'exec_command' || tool.sdkName === 'write_stdin'
 export const toolAllowedInTaskMode = (tool: ToolCatalogEntry, mode: TaskMode) =>
   // Grill mirrors Plan's investigation surface; mutating tools stay out even if
   // a definition forgets to narrow its allowedModes. Shell stays available so

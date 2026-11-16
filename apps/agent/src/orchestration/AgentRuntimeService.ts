@@ -1887,8 +1887,8 @@ export class AgentRuntimeService implements AgentRuntime {
       let paused = false
       const preapprovedToolCalls = new Map<string, string | undefined>()
       const pause = async (approval: PendingApproval) => {
-        paused = true
         await request.pause(approval)
+        paused = true
       }
       const executionContext = {
         threadID: request.threadID,
@@ -2217,7 +2217,7 @@ export class AgentRuntimeService implements AgentRuntime {
       }
       const resumedContent = request.resume
         ? `<interaction_resolution toolCallId=${JSON.stringify(request.resume.toolCallID ?? 'unknown')}>${JSON.stringify({ answer: request.resume.answer, decision: request.resume.decision ?? null })}</interaction_resolution>\nContinue the restored Pi session using the result for that toolCallId. Do not repeat that ID or bypass denial with another tool or equivalent command. A later explicit user request to rerun the command is a new call requiring a new toolCallId and fresh authorization; it cannot reuse a one-time approval. Apply user-requested adjustments.`
-        : request.content
+        : undefined
       const threadLimit = this.options.db.repositories.threads.getThreadSettings(
         request.threadID,
       )?.maxContextTokens
@@ -2233,7 +2233,8 @@ export class AgentRuntimeService implements AgentRuntime {
           agentID: request.agentID,
           sessionID: request.sessionID,
           ...(request.profile ? { profile: request.profile } : {}),
-          content: resumedContent,
+          content: request.content,
+          ...(resumedContent ? { resumedContent } : {}),
           taskMode: request.taskMode,
           permissionConfig: effectivePermissionConfig,
           signal: request.signal,

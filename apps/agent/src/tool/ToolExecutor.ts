@@ -32,6 +32,15 @@ import {
 } from '@pidex/shared/thread'
 import { Model, Provider } from '@pidex/model-schema'
 import { runHostCommand, type ProcessResult } from './Shell/HostProcess'
+import {
+  defaultUnifiedExecManager,
+  normalizeExecShellKind,
+  resolveExecShell,
+  type ExecShellKind,
+  type SystemBashResolver,
+  type UnifiedExecManager,
+  type UnifiedExecResult,
+} from './Shell/UnifiedExecManager'
 import { shellCommandSegments } from './Shell/CommandSyntax'
 import { realpath } from 'node:fs/promises'
 import { isAbsolute, normalize, relative, resolve } from 'node:path'
@@ -51,7 +60,11 @@ import { filePathProtection, resolveProtectionPath } from '../permission/FilePat
 import { PermissionGrantStore } from '../permission/PermissionGrantStore'
 import { simpleCommandArgv, type PermissionRuleFacts } from '../permission/ApprovalRules'
 import { pathContains } from '../permission/PathPermissions'
-import { analyzeShellRisk, type ShellSecurityLevel } from '../security/ShellRiskClassifier'
+import {
+  analyzeShellRisk,
+  isKnownSafeReadOnlyCommand,
+  type ShellSecurityLevel,
+} from '../security/ShellRiskClassifier'
 import { secretScrubber } from '../security/SecretScrubber'
 import {
   resolveManagedTool,
@@ -65,13 +78,11 @@ import {
 import type { ManagedToolID, ToolingResolution } from './ToolingManager'
 import { applyEditsText, type EditOperation } from './Edit/ApplyEditText'
 import type { AgentLogger } from '../observability/AgentLogger'
-import { parseApplyPatch } from './ApplyPatch/ParseApplyPatch'
 import type { TurnPatchMutationBatch } from '../patch/TurnPatchTypes'
 
 type FileToolFailurePhase = 'normalize' | 'authorization' | 'execute' | 'post-hook'
 
-const isFileMutationTool = (name: string) =>
-  name === 'Write' || name === 'Edit' || name === 'apply_patch'
+const isFileMutationTool = (name: string) => name === 'Write' || name === 'Edit'
 
 const RUNTIME_COMMANDS: Readonly<Record<string, ManagedToolID>> = {
   node: 'nodejs',
@@ -197,6 +208,8 @@ export interface ToolExecutorOptions {
     >
   }
   runHost?: typeof runHostCommand
+  unifiedExec?: UnifiedExecManager
+  resolveSystemBash?: SystemBashResolver
   resolveTooling?: ToolingResolver
   resolveToolingEnvironment?: ToolingEnvironmentResolver
   resolveShellSecurityLevel?: () => ShellSecurityLevel
@@ -324,13 +337,18 @@ export class ToolExecutor {
         `当前 Skill 不允许使用工具 ${definition.sdkName}`,
         403,
       )
-    const parsed = definition.schema.safeParse(input)
+    const preparedInput = definition.prepareArguments ? definition.prepareArguments(input) : input
+    const parsed = definition.schema.safeParse(preparedInput)
     if (!parsed.success) {
       const error = new AgentError('INVALID_TOOL_INPUT', parsed.error.message, 400)
       if (isFileMutationTool(definition.sdkName)) {
+        const failureInput =
+          preparedInput && typeof preparedInput === 'object' && !Array.isArray(preparedInput)
+            ? (preparedInput as Record<string, unknown>)
+            : input
         this.logFileToolFailure(
           definition.sdkName,
-          input,
+          failureInput,
           context,
           'normalize',
           error,
@@ -342,10 +360,18 @@ export class ToolExecutor {
     const canonicalName = definition.sdkName
     const parsedInput = parsed.data as Record<string, unknown>
     const normalized =
-      canonicalName === 'Bash' || canonicalName === 'PowerShell'
+      canonicalName === 'exec_command'
         ? {
             command: parsedInput.command,
             ...(parsedInput.cwd === undefined ? {} : { cwd: parsedInput.cwd }),
+            ...(parsedInput.shell === undefined ? {} : { shell: parsedInput.shell }),
+            ...(parsedInput.tty === undefined ? {} : { tty: parsedInput.tty }),
+            ...(parsedInput.yield_time_ms === undefined
+              ? {}
+              : { yieldTimeMs: parsedInput.yield_time_ms }),
+            ...(parsedInput.max_output_tokens === undefined
+              ? {}
+              : { maxOutputTokens: parsedInput.max_output_tokens }),
             ...(parsedInput.timeout === undefined ? {} : { timeoutMs: parsedInput.timeout }),
             ...(parsedInput.description === undefined
               ? {}
@@ -389,7 +415,7 @@ export class ToolExecutor {
         `工具 ${canonicalName} 不允许 ${profile} profile 使用`,
         403,
       )
-    if (canonicalName === 'Bash' || canonicalName === 'PowerShell') {
+    if (canonicalName === 'exec_command' || canonicalName === 'write_stdin') {
       const progress = definition.progress?.(parsed.data, {
         signal: context.signal,
         taskMode: context.taskMode,
@@ -401,8 +427,11 @@ export class ToolExecutor {
           Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt-5') }),
         ...(context.onProgress ? { onProgress: context.onProgress } : {}),
       })
-      if (progress) context.onProgress?.(progress)
-      return (await this.executeShell(canonicalName, normalized, context, catalog)) as T
+      if (progress && !context.authorizationOnly) context.onProgress?.(progress)
+      if (canonicalName === 'write_stdin') {
+        return (await this.executeWriteStdin(normalized, context, catalog)) as T
+      }
+      return (await this.executeShell(normalized, context, catalog)) as T
     }
     return this.executeRegistered<T>(canonicalName, normalized, context, catalog)
   }
@@ -449,17 +478,11 @@ export class ToolExecutor {
     }
     const definition = catalog.get(name)
     const rawPaths =
-      name === 'apply_patch' && typeof input.patch === 'string'
-        ? parseApplyPatch(input.patch).flatMap((operation) =>
-            operation.type === 'update' && operation.moveTo
-              ? [operation.path, operation.moveTo]
-              : [operation.path],
+      definition.capabilities.filesystem !== 'none'
+        ? [input.file_path ?? input.path].filter(
+            (path): path is string => typeof path === 'string' && !path.startsWith('@'),
           )
-        : definition.capabilities.filesystem !== 'none'
-          ? [input.file_path ?? input.path].filter(
-              (path): path is string => typeof path === 'string' && !path.startsWith('@'),
-            )
-          : []
+        : []
     const canonicalPaths = await Promise.all(
       rawPaths.map((path) => resolveProtectionPath(resolve(workspace.rootPath, path))),
     )
@@ -569,7 +592,7 @@ export class ToolExecutor {
       },
       ...(inspection?.grantsForbidden ? { grantsForbidden: true } : {}),
       permissionFacts: {
-        ...(fileTool || name === 'apply_patch'
+        ...(fileTool
           ? {
               risk:
                 sensitiveEnvironment ||
@@ -881,7 +904,7 @@ export class ToolExecutor {
       if (
         filePath &&
         ['Read', 'Write', 'Edit'].includes(name) &&
-        (output as { kind?: unknown } | null)?.kind !== 'image'
+        !(output as { kind?: unknown } | null)?.kind
       ) {
         const savedSnapshotKey = await this.snapshotKey(context, workspace, filePath)
         const revision =
@@ -992,49 +1015,6 @@ export class ToolExecutor {
       const path = safePath(input.file_path ?? input.path)
       details.fileCount = path ? 1 : 0
       if (path) details.path = path
-    } else if (name === 'apply_patch') {
-      const patch = typeof input.patch === 'string' ? input.patch : ''
-      details.patchBytes = Buffer.byteLength(patch, 'utf8')
-      try {
-        const operations = parseApplyPatch(patch)
-        details.fileCount = operations.reduce(
-          (sum, operation) => sum + (operation.type === 'update' && operation.moveTo ? 2 : 1),
-          0,
-        )
-        details.affectedPaths = operations.flatMap((operation) => {
-          const primary = safePath(operation.path) ?? '[outside-workspace]'
-          return operation.type === 'update' && operation.moveTo
-            ? [primary, safePath(operation.moveTo) ?? '[outside-workspace]']
-            : [primary]
-        })
-        details.hunkCount = operations.reduce(
-          (sum, operation) => sum + (operation.type === 'update' ? operation.chunks.length : 0),
-          0,
-        )
-        details.additions = operations.reduce((sum, operation) => {
-          if (operation.type === 'add') {
-            if (!operation.content) return sum
-            return (
-              sum +
-              (operation.content.endsWith('\n')
-                ? operation.content.slice(0, -1).split('\n').length
-                : operation.content.split('\n').length)
-            )
-          }
-          if (operation.type === 'delete') return sum
-          return sum + operation.chunks.reduce((chunkSum, chunk) => chunkSum + chunk.additions, 0)
-        }, 0)
-        details.deletions = operations.reduce(
-          (sum, operation) =>
-            sum +
-            (operation.type === 'update'
-              ? operation.chunks.reduce((chunkSum, chunk) => chunkSum + chunk.deletions, 0)
-              : 0),
-          0,
-        )
-      } catch {
-        details.fileCount = 0
-      }
     }
     this.options?.logger?.warn('file-tool.execution.failed', {
       context: {
@@ -1048,11 +1028,11 @@ export class ToolExecutor {
   }
 
   private async executeShell(
-    shellTool: 'Bash' | 'PowerShell',
     input: Record<string, unknown>,
     context: ToolExecutionContext,
     catalog: ToolCatalog,
-  ): Promise<ProcessResult | PermissionDecision> {
+  ): Promise<UnifiedExecResult | ProcessResult | PermissionDecision> {
+    const shellTool = 'exec_command' as const
     const options = this.options
     if (!options) throw new AgentError('SHELL_EXECUTOR_REQUIRED', 'Shell 执行器未配置', 500)
     const logContext = {
@@ -1075,6 +1055,9 @@ export class ToolExecutor {
       context.model ??
       Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt-5') })
     const parsedShell = this.parseShellInput(input)
+    const targetShell = normalizeExecShellKind(parsedShell.shell)
+    const maxOutputTokens =
+      input.maxOutputTokens === undefined ? undefined : Number(input.maxOutputTokens)
     const workspaceRoot = await realpath(context.workspace.rootPath)
     const additionalPermissions = parsedShell.additionalPermissions
       ? {
@@ -1167,9 +1150,16 @@ export class ToolExecutor {
       if (!staticRisk.requestedScopeValid)
         throw new AgentError('INVALID_TOOL_INPUT', '申请的额外权限范围无效', 400)
 
+      const readOnlyShell =
+        !staticRisk.hardDenied &&
+        !staticRisk.requiresApproval &&
+        staticRisk.categories.length === 0 &&
+        isKnownSafeReadOnlyCommand(shell.command)
+
       invocation.permissionFacts = {
         workspaceRoot: context.workspace.rootPath,
         riskCategories: staticRisk.categories,
+        ...(readOnlyShell ? { readOnlyShell: true } : {}),
         ruleRequiresApproval:
           staticRisk.hardDenied ||
           (staticRisk.requiresApproval &&
@@ -1269,14 +1259,22 @@ export class ToolExecutor {
         if ((context.hookDepth ?? 0) >= 2)
           throw new AgentError('HOOK_REWRITE_LIMIT', 'Hook 重写 Shell 输入次数过多', 409)
         const rewritten = { ...input, ...narrowed }
-        const { timeoutMs, justification, ...argumentsInput } = rewritten
+        const {
+          timeoutMs,
+          justification,
+          yieldTimeMs,
+          maxOutputTokens: rewrittenMaxOutputTokens,
+          ...argumentsInput
+        } = rewritten
         return this.execute(
           shellTool,
           {
             ...argumentsInput,
-            ...(rewritten.timeoutMs !== undefined ? { timeout: rewritten.timeoutMs } : {}),
-            ...(rewritten.justification !== undefined
-              ? { description: rewritten.justification }
+            ...(timeoutMs !== undefined ? { timeout: timeoutMs } : {}),
+            ...(justification !== undefined ? { description: justification } : {}),
+            ...(yieldTimeMs !== undefined ? { yield_time_ms: yieldTimeMs } : {}),
+            ...(rewrittenMaxOutputTokens !== undefined
+              ? { max_output_tokens: rewrittenMaxOutputTokens }
               : {}),
           },
           { ...context, hookDepth: (context.hookDepth ?? 0) + 1 },
@@ -1354,27 +1352,48 @@ export class ToolExecutor {
       if (decision.decision !== 'allow')
         throw new AgentError('SHELL_PERMISSION_DENIED', decision.reason, 403, decision)
       phase = 'runtime'
-      const runtime = await this.commandForShell(shellTool, parsedShell.command, context.signal)
+      const runtime = await this.commandForShell(targetShell, parsedShell.command, context.signal)
       const auditInvocation = secretScrubber.scrub(invocation)
       this.options.recordToolCall?.(auditInvocation, 'running', null, null, toolStartedAt)
       options.logger?.info('shell.execution.started', {
         context: logContext,
         details: {
           shellTool,
-          backend: 'host-hook',
+          shell: targetShell,
+          tty: Boolean(parsedShell.tty),
+          backend: parsedShell.tty ? 'node-pty' : 'unified-exec',
           timeoutMs: shell.timeoutMs ?? 120_000,
           managedRuntimeCount: runtime.managedRuntimeCount,
         },
       })
       phase = 'execution'
       const executionStartedAt = Date.now()
-      const result = await (this.options.runHost ?? runHostCommand)(
-        runtime.command,
-        cwd,
-        shell.timeoutMs,
-        context.signal,
-        runtime.env,
-      )
+      const useInjectedHost =
+        Boolean(this.options.runHost) &&
+        !parsedShell.tty &&
+        parsedShell.yieldTimeMs === undefined
+      const result = useInjectedHost
+        ? await this.options.runHost!(
+            runtime.mockCommand,
+            cwd,
+            shell.timeoutMs,
+            context.signal,
+            runtime.env,
+          )
+        : await (this.options.unifiedExec ?? defaultUnifiedExecManager).exec({
+            threadID: context.threadID,
+            command: parsedShell.command,
+            cwd,
+            shell: runtime.shell.kind,
+            executable: runtime.shell.executable,
+            args: runtime.shell.argsForCommand(parsedShell.command, Boolean(parsedShell.tty)),
+            tty: Boolean(parsedShell.tty),
+            ...(parsedShell.yieldTimeMs !== undefined ? { yieldTimeMs: parsedShell.yieldTimeMs } : {}),
+            ...(shell.timeoutMs !== undefined ? { timeoutMs: shell.timeoutMs } : {}),
+            ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
+            env: runtime.env,
+            signal: context.signal,
+          })
       const safeResult = secretScrubber.scrub(result)
       this.options.recordToolCall?.(auditInvocation, 'completed', safeResult, null, toolStartedAt)
       options.logger?.info('shell.execution.completed', {
@@ -1457,6 +1476,110 @@ export class ToolExecutor {
     }
   }
 
+  private async executeWriteStdin(
+    input: Record<string, unknown>,
+    context: ToolExecutionContext,
+    catalog: ToolCatalog,
+  ): Promise<UnifiedExecResult | PermissionDecision> {
+    const options = this.options
+    if (!options) throw new AgentError('SHELL_EXECUTOR_REQUIRED', 'Shell 执行器未配置', 500)
+    const tool = catalog.get('write_stdin')
+    if (!toolAllowedInTaskMode(tool, context.taskMode)) {
+      throw new AgentError(
+        'TOOL_NOT_ALLOWED_IN_MODE',
+        `工具 write_stdin 不允许在 ${context.taskMode} 模式执行`,
+        403,
+      )
+    }
+    const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
+    const model =
+      context.model ??
+      Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt-5') })
+    const invocation: ToolInvocation = {
+      id: context.toolCallID ?? crypto.randomUUID(),
+      threadID: context.threadID,
+      turnID: context.turnID,
+      agentID: context.agentID ?? context.turnID,
+      name: 'write_stdin',
+      input,
+      permissionConfig,
+      model,
+      taskMode: context.taskMode,
+      toolPolicy: {
+        sdkName: tool.sdkName,
+        capabilities: tool.capabilities,
+        allowedModes: tool.allowedModes,
+        approvalStrategy: tool.approvalStrategy,
+      },
+    }
+    await this.loadPermissionRules(invocation, context.signal)
+    const finalDecision = this.decisions.evaluate(invocation, tool)
+    if (finalDecision.action === 'deny') {
+      if (!context.authorizationOnly) this.options?.onPermissionDenied?.(invocation)
+      throw new AgentError('TOOL_PERMISSION_DENIED', finalDecision.reason, 403, finalDecision)
+    }
+    const resumedApproval =
+      Boolean(context.approvedToolCallID) && context.approvedToolCallID === invocation.id
+    const hookAsked = invocation.permissionFacts?.hookRequiresApproval === true
+    const needsReview =
+      !resumedApproval && (hookAsked || finalDecision.action === 'review')
+    const decision: PermissionDecision = needsReview
+      ? await this.options.authorizeShell(invocation, context.signal)
+      : {
+          decision: 'allow',
+          risk: finalDecision.risk,
+          reason: resumedApproval ? '已恢复并校验一次性审批' : finalDecision.reason,
+        }
+    if (context.authorizationOnly) return decision
+    if (decision.decision !== 'allow') {
+      throw new AgentError('TOOL_PERMISSION_DENIED', decision.reason, 403, decision)
+    }
+    const startedAt = Date.now()
+    const auditInvocation = secretScrubber.scrub(invocation)
+    this.options?.observeToolStart?.(invocation)
+    this.options?.recordToolCall?.(auditInvocation, 'running', null, null, startedAt)
+    try {
+      const result = await (this.options.unifiedExec ?? defaultUnifiedExecManager).writeStdin({
+        threadID: context.threadID,
+        sessionId: Number(input.session_id),
+        ...(typeof input.chars === 'string' ? { chars: input.chars } : {}),
+        ...(typeof input.yield_time_ms === 'number' ? { yieldTimeMs: input.yield_time_ms } : {}),
+        ...(typeof input.kill === 'boolean' ? { kill: input.kill } : {}),
+        ...(typeof input.max_output_tokens === 'number'
+          ? { maxOutputTokens: input.max_output_tokens }
+          : {}),
+        signal: context.signal,
+      })
+      const safeResult = secretScrubber.scrub(result)
+      this.options?.recordToolCall?.(auditInvocation, 'completed', safeResult, null, startedAt)
+      if (!context.skipHooks) {
+        await this.options?.hooks
+          ?.run(
+            'post_tool_use',
+            { input: invocation.input, output: safeResult },
+            {
+              threadID: context.threadID,
+              turnID: context.turnID,
+              toolCallID: invocation.id,
+              toolName: 'write_stdin',
+              workspaceRoot: context.workspace.rootPath,
+            },
+          )
+          .catch(() => undefined)
+      }
+      return result
+    } catch (cause) {
+      this.options?.recordToolCall?.(
+        auditInvocation,
+        context.signal.aborted ? 'interrupted' : 'error',
+        null,
+        secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)),
+        startedAt,
+      )
+      throw cause
+    }
+  }
+
   async applyPermissionGrant(
     input: {
       scope: unknown
@@ -1492,6 +1615,7 @@ export class ToolExecutor {
 
   clearThreadPermissionGrants(threadID: string) {
     this.permissionGrants.clearThread(threadID)
+    ;(this.options?.unifiedExec ?? defaultUnifiedExecManager).closeThreadSessions(threadID)
   }
 
   private async snapshotKey(
@@ -1700,9 +1824,18 @@ export class ToolExecutor {
       (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 600_000)
     )
       throw new AgentError('INVALID_TIMEOUT', 'Shell 超时时间必须在 1 到 600000 毫秒之间', 400)
+    const yieldTimeMs = input.yieldTimeMs === undefined ? undefined : Number(input.yieldTimeMs)
+    if (
+      yieldTimeMs !== undefined &&
+      (!Number.isFinite(yieldTimeMs) || yieldTimeMs < 50 || yieldTimeMs > 600_000)
+    )
+      throw new AgentError('INVALID_TIMEOUT', 'yield_time_ms 必须在 50 到 600000 毫秒之间', 400)
     return {
       command: input.command,
       ...(typeof input.cwd === 'string' ? { cwd: input.cwd } : {}),
+      ...(typeof input.shell === 'string' ? { shell: input.shell } : {}),
+      ...(typeof input.tty === 'boolean' ? { tty: input.tty } : {}),
+      ...(yieldTimeMs === undefined ? {} : { yieldTimeMs }),
       ...(timeoutMs === undefined ? {} : { timeoutMs }),
       ...(value
         ? {
@@ -1748,7 +1881,7 @@ export class ToolExecutor {
   }
 
   private async commandForShell(
-    shellTool: 'Bash' | 'PowerShell',
+    shellKind: ExecShellKind,
     command: string,
     signal: AbortSignal,
   ) {
@@ -1777,29 +1910,18 @@ export class ToolExecutor {
       }
     }
     const env = toolingPathOverride(environment.pathEntries)
-    if (process.platform === 'win32' && shellTool === 'Bash') {
-      const resolution = await (this.options?.resolveTooling ?? resolveManagedTool)('git-bash', {
-        signal,
-      })
-      if (!resolution.available)
-        throw new AgentError('BASH_RUNTIME_UNAVAILABLE', resolution.reason, 503, {
-          toolingID: 'git-bash',
-          reason: resolution.code,
-        })
-      const executable = resolution.path.replaceAll("'", "''")
-      return {
-        command: `& '${executable}' -lc '${command.replaceAll("'", "''")}'`,
-        env,
-        managedRuntimeCount: required.length + 1,
-      }
+    const shell = await resolveExecShell(shellKind, signal, this.options?.resolveSystemBash)
+    const mockCommand =
+      process.platform === 'win32' && shell.kind === 'bash'
+        ? `& '${shell.executable.replaceAll("'", "''")}' -lc '${command.replaceAll("'", "''")}'`
+        : process.platform !== 'win32' && shell.kind === 'powershell'
+          ? `pwsh -NoProfile -NonInteractive -Command '${command.replaceAll("'", "'\\''")}'`
+          : command
+    return {
+      shell,
+      mockCommand,
+      env,
+      managedRuntimeCount: required.length + shell.managedRuntimeCount,
     }
-    if (process.platform !== 'win32' && shellTool === 'PowerShell') {
-      return {
-        command: `pwsh -NoProfile -NonInteractive -Command '${command.replaceAll("'", "'\\''")}'`,
-        env,
-        managedRuntimeCount: required.length,
-      }
-    }
-    return { command, env, managedRuntimeCount: required.length }
   }
 }

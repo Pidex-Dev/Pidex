@@ -228,6 +228,7 @@ export interface ToolPermissionFacts {
   networkAccess?: boolean
   externalWrite?: boolean
   externalCommand?: boolean
+  readOnlyShell?: boolean
   ruleRequiresApproval?: boolean
   hookRequiresApproval?: boolean
   skillScript?: boolean

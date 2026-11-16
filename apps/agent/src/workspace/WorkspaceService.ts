@@ -5,6 +5,7 @@ import {
   link,
   lstat,
   mkdir,
+  open,
   readdir,
   readFile,
   realpath,
@@ -33,6 +34,8 @@ const MAX_FILE_BYTES = 1_000_000
 const EDITOR_READ_MAX_BYTES = 20 * 1024 * 1024
 const EDITOR_WRITE_MAX_BYTES = 10 * 1024 * 1024
 const IMAGE_READ_MAX_BYTES = 10 * 1024 * 1024
+const BINARY_READ_MAX_BYTES = 20 * 1024 * 1024
+const BINARY_HEAD_SLICE_BYTES = 1024 * 1024
 const LIST_LIMIT = 2_000
 const WINDOWS_REPLACE_BLOCKED_CODES = new Set(['EPERM', 'EACCES', 'EBUSY'])
 const decoder = new TextDecoder('utf-8', { fatal: true })
@@ -113,6 +116,117 @@ export interface WorkspaceImageFile {
   mimeType: SupportedImageMimeType
   base64: string
   sizeBytes: number
+}
+
+export type WorkspaceToolFile =
+  | {
+      kind: 'text'
+      path: string
+      content: string
+      sizeBytes: number
+      revision: WorkspaceFileRevision
+    }
+  | {
+      kind: 'image'
+      path: string
+      mimeType: SupportedImageMimeType
+      base64: string
+      sizeBytes: number
+    }
+  | {
+      kind: 'pdf' | 'audio' | 'video' | 'binary'
+      path: string
+      mimeType: string
+      base64: string
+      sizeBytes: number
+      sha256: string
+      encoding: 'base64'
+      truncated: boolean
+      pageCount?: number
+    }
+
+const AUDIO_EXTENSION_MIME_TYPES: Readonly<Record<string, string>> = {
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.oga': 'audio/ogg',
+  '.opus': 'audio/opus',
+  '.flac': 'audio/flac',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.wma': 'audio/x-ms-wma',
+  '.weba': 'audio/webm',
+}
+
+const VIDEO_EXTENSION_MIME_TYPES: Readonly<Record<string, string>> = {
+  '.mp4': 'video/mp4',
+  '.m4v': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.webm': 'video/webm',
+  '.mkv': 'video/x-matroska',
+  '.avi': 'video/x-msvideo',
+  '.wmv': 'video/x-ms-wmv',
+  '.flv': 'video/x-flv',
+}
+
+const OTHER_BINARY_MIME_TYPES: Readonly<Record<string, string>> = {
+  '.pdf': 'application/pdf',
+  '.zip': 'application/zip',
+  '.gz': 'application/gzip',
+  '.tar': 'application/x-tar',
+  '.7z': 'application/x-7z-compressed',
+  '.rar': 'application/vnd.rar',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.bmp': 'image/bmp',
+  '.ico': 'image/x-icon',
+  '.avif': 'image/avif',
+  '.tiff': 'image/tiff',
+  '.tif': 'image/tiff',
+  '.wasm': 'application/wasm',
+  '.sqlite': 'application/vnd.sqlite3',
+  '.db': 'application/vnd.sqlite3',
+}
+
+const isPdfBytes = (data: Uint8Array): boolean =>
+  data.length >= 5 && new TextDecoder().decode(data.subarray(0, 5)) === '%PDF-'
+
+const estimatePdfPageCount = (data: Uint8Array): number | undefined => {
+  const text = new TextDecoder('latin1').decode(data)
+  const matches = text.match(/\/Type\s*\/Page\b(?!s)/g)
+  return matches && matches.length > 0 ? matches.length : undefined
+}
+
+const detectNonTextFileKind = (
+  filePath: string,
+  data: Uint8Array,
+): { kind: 'pdf' | 'audio' | 'video' | 'binary'; mimeType: string } | null => {
+  const ext = extname(filePath).toLowerCase()
+  if (ext === '.pdf' || isPdfBytes(data)) {
+    return { kind: 'pdf', mimeType: 'application/pdf' }
+  }
+  const audioMime = AUDIO_EXTENSION_MIME_TYPES[ext]
+  if (audioMime) return { kind: 'audio', mimeType: audioMime }
+  const videoMime = VIDEO_EXTENSION_MIME_TYPES[ext]
+  if (videoMime) return { kind: 'video', mimeType: videoMime }
+  const knownBinaryMime = OTHER_BINARY_MIME_TYPES[ext]
+  if (knownBinaryMime) return { kind: 'binary', mimeType: knownBinaryMime }
+  if (data.length >= 4) {
+    const head4 = new TextDecoder('latin1').decode(data.subarray(0, 4))
+    if (head4 === 'fLaC') return { kind: 'audio', mimeType: 'audio/flac' }
+    if (head4 === 'OggS') return { kind: 'audio', mimeType: 'audio/ogg' }
+    if (head4 === 'RIFF' && data.length >= 12) {
+      const sub4 = new TextDecoder('latin1').decode(data.subarray(8, 12))
+      if (sub4 === 'WAVE') return { kind: 'audio', mimeType: 'audio/wav' }
+      if (sub4 === 'AVI ') return { kind: 'video', mimeType: 'video/x-msvideo' }
+    }
+    if (head4.startsWith('ID3')) return { kind: 'audio', mimeType: 'audio/mpeg' }
+    if (data.length >= 12 && new TextDecoder('latin1').decode(data.subarray(4, 8)) === 'ftyp') {
+      return { kind: 'video', mimeType: 'video/mp4' }
+    }
+  }
+  return null
 }
 
 export type WorkspaceReadOnlyPath = {
@@ -993,6 +1107,94 @@ export class WorkspaceService {
       mimeType,
       base64: bytes.toString('base64'),
       sizeBytes: bytes.byteLength,
+    }
+  }
+
+  /** Reads any file format (UTF-8 text, image, PDF, audio, video, or binary) within authorized scope. */
+  async readToolFile(path: string): Promise<WorkspaceToolFile> {
+    if (isSupportedImagePath(path)) {
+      const image = await this.readImageFile(path)
+      return { kind: 'image', ...image }
+    }
+    const canonical = await this.existingPath(path)
+    const metadata = await stat(canonical)
+    if (!metadata.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是文件', 400)
+    const displayPath = this.displayPath(canonical)
+    const oversized = metadata.size > BINARY_READ_MAX_BYTES
+    let bytes: Buffer
+    if (oversized) {
+      const handle = await open(canonical, 'r')
+      try {
+        const buffer = Buffer.alloc(BINARY_HEAD_SLICE_BYTES)
+        const { bytesRead } = await handle.read(buffer, 0, BINARY_HEAD_SLICE_BYTES, 0)
+        bytes = buffer.subarray(0, bytesRead)
+      } finally {
+        await handle.close()
+      }
+    } else {
+      bytes = await readFile(canonical)
+    }
+
+    if (!oversized && metadata.size <= IMAGE_READ_MAX_BYTES) {
+      const detectedImage = detectImageMimeType(bytes)
+      if (detectedImage) {
+        return {
+          kind: 'image',
+          path: displayPath,
+          mimeType: detectedImage,
+          base64: bytes.toString('base64'),
+          sizeBytes: bytes.byteLength,
+        }
+      }
+    }
+
+    const detectedMedia = detectNonTextFileKind(canonical, bytes)
+    if (detectedMedia) {
+      return {
+        kind: detectedMedia.kind,
+        path: displayPath,
+        mimeType: detectedMedia.mimeType,
+        base64: bytes.toString('base64'),
+        sizeBytes: metadata.size,
+        sha256: sha256Bytes(bytes),
+        encoding: 'base64',
+        truncated: oversized,
+        ...(detectedMedia.kind === 'pdf'
+          ? (() => {
+              const pageCount = estimatePdfPageCount(bytes)
+              return pageCount !== undefined ? { pageCount } : {}
+            })()
+          : {}),
+      }
+    }
+
+    if (!oversized && !bytes.includes(0)) {
+      try {
+        const content = decoder.decode(bytes)
+        return {
+          kind: 'text',
+          path: displayPath,
+          content,
+          sizeBytes: Buffer.byteLength(content, 'utf8'),
+          revision: {
+            mtimeMs: metadata.mtimeMs,
+            sha256: sha256(content),
+            rawSha256: sha256Bytes(bytes),
+            utf8Bom: hasUtf8Bom(bytes),
+          },
+        }
+      } catch {}
+    }
+
+    return {
+      kind: 'binary',
+      path: displayPath,
+      mimeType: 'application/octet-stream',
+      base64: bytes.toString('base64'),
+      sizeBytes: metadata.size,
+      sha256: sha256Bytes(bytes),
+      encoding: 'base64',
+      truncated: oversized,
     }
   }
 

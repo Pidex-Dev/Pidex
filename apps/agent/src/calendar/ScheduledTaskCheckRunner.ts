@@ -36,7 +36,7 @@ export const createScheduledTaskCheckRunner = (deps: {
     }
     if (check.kind === 'command-exit-code') {
       const result = await deps.toolExecutor.execute<{ exitCode: number }>(
-        'PowerShell',
+        'exec_command',
         { command: check.command, timeout: 120_000, description: '任务自动验收' },
         context,
       )

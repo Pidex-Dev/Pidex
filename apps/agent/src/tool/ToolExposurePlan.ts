@@ -82,6 +82,7 @@ export function createToolExposurePlan(
     .filter((tool) => tool.visibility === 'deferred')
     .map((tool) => tool.sdkName)
   const lifecycle: string[] = []
+  if (input.hasSkillService) lifecycle.push('skill_read')
   if (input.hasProjectSources) lifecycle.push('project_source_list', 'project_source_read')
   if (profile !== 'main') lifecycle.push('finalize_result')
   else {

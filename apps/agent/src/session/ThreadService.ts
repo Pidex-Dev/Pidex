@@ -108,10 +108,9 @@ const workspaceEditingSection = (): PromptSection => ({
   authority: 'builtin',
   source: { type: 'runtime', name: 'workspace-editing' },
   content: [
-    'Before modifying an existing file, use Read to capture its snapshot, then Edit or apply_patch with precise atomic replacements.',
-    'Use apply_patch for atomic multi-file changes, creating multiple new files together, or moving and deleting files. Use Edit for ordinary single-file edits, and Write for creating a single new file or complete rewrites.',
-    'Every Edit oldText or apply_patch hunk context must match exactly and uniquely in the same original text. On a missing or ambiguous match, Read again and add context; never replay unchanged.',
-    'Do not use Python, sed, Bash or PowerShell to bypass Edit, Write, apply_patch, workspace boundaries, Read snapshots or approvals.',
+    'Before modifying an existing file, use Read to inspect its content and capture its snapshot, then use Edit for precise atomic replacements or Write for creating new files or complete rewrites.',
+    'Every Edit oldText must match exactly and uniquely in the same original text. On a missing or ambiguous match, Read again and add context; never replay unchanged.',
+    'Do not use Python, sed, PowerShell or Git Bash to bypass Edit, Write, workspace boundaries, Read snapshots or approvals.',
   ].join('\n'),
 })
 
@@ -749,7 +748,7 @@ export class ThreadService {
           ]
         : []),
       ...(sideChat ? [sideChatSection(sideChat.referenceText)] : []),
-      ...(exposedTools.some((tool) => tool === 'Edit' || tool === 'Write' || tool === 'apply_patch')
+      ...(exposedTools.some((tool) => tool === 'Edit' || tool === 'Write')
         ? [workspaceEditingSection()]
         : []),
       configurationScopeSection(),
@@ -1841,9 +1840,7 @@ export class ThreadService {
             ]
           : []),
         ...(sideChat ? [sideChatSection(sideChat.referenceText)] : []),
-        ...(exposedTools.some(
-          (tool) => tool === 'Edit' || tool === 'Write' || tool === 'apply_patch',
-        )
+        ...(exposedTools.some((tool) => tool === 'Edit' || tool === 'Write')
           ? [workspaceEditingSection()]
           : []),
         configurationScopeSection(),

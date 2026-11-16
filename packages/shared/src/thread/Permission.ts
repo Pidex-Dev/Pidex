@@ -305,6 +305,9 @@ export type PermissionGrantScope = typeof PermissionGrantScopeSchema.Type
 export const ShellInputSchema = Schema.Struct({
   command: Schema.String,
   cwd: Schema.optional(Schema.String),
+  shell: Schema.optional(Schema.String),
+  tty: Schema.optional(Schema.Boolean),
+  yieldTimeMs: Schema.optional(Schema.Number),
   timeoutMs: Schema.optional(Schema.Number),
   additionalPermissions: Schema.optional(AdditionalPermissionsSchema),
   justification: Schema.optional(Schema.String),
