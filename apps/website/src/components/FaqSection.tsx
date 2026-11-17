@@ -12,27 +12,27 @@ export const FaqSection: React.FC = () => {
   }
 
   return (
-    <section id="faq" className="py-24 sm:py-32 border-t border-[#DCD6CB]/60">
+    <section id="faq" className="py-24 sm:py-32 border-t border-white/10 text-[#f3f1ec]">
       <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           {/* Left Column: Title & Note */}
           <div className="lg:col-span-4">
-            <span className="font-mono text-xs font-bold uppercase tracking-widest text-[#63715A]">
+            <span className="font-mono text-xs font-bold uppercase tracking-widest text-[#9daa94]">
               Frequently Asked Questions
             </span>
-            <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-[#17211D] sm:text-4xl leading-tight">
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-[#f3f1ec] sm:text-4xl leading-tight">
               Clear answers, zero marketing fluff.
             </h2>
-            <p className="mt-4 text-base text-[#55625D] leading-relaxed">
+            <p className="mt-4 text-base text-[#a9ada9] leading-relaxed">
               Pidex is open source and currently in Beta. Here are the core technical realities of
               how it operates today.
             </p>
 
-            <div className="mt-8 rounded-2xl border border-[#DCD6CB] bg-[#FCFAF5] p-5">
-              <span className="font-mono text-xs font-bold text-[#C9936E] uppercase">
+            <div className="mt-8 rounded-2xl border border-white/11 bg-[#121313] p-5">
+              <span className="font-mono text-xs font-bold text-[#cf9d7d] uppercase">
                 Beta Notice
               </span>
-              <p className="mt-2 text-xs text-[#55625D] leading-relaxed">
+              <p className="mt-2 text-xs text-[#a9ada9] leading-relaxed">
                 We currently publish pure source releases on GitHub for Windows x64. Binary
                 installers are generated on your local machine using Bun.
               </p>
@@ -46,19 +46,19 @@ export const FaqSection: React.FC = () => {
               return (
                 <div
                   key={faq.question}
-                  className="rounded-[24px] border border-[#DCD6CB] bg-[#FCFAF5] overflow-hidden transition-all duration-200 shadow-2xs"
+                  className="rounded-[24px] border border-white/11 bg-[#121313] overflow-hidden transition-all duration-200 shadow-2xs"
                 >
                   <button
                     type="button"
                     onClick={() => toggleIndex(idx)}
                     aria-expanded={isOpen}
                     aria-controls={`faq-answer-${idx}`}
-                    className="flex w-full items-center justify-between p-6 text-left font-bold text-lg text-[#17211D] hover:text-[#63715A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9936E]"
+                    className="flex w-full items-center justify-between p-6 text-left font-bold text-lg text-[#f3f1ec] hover:text-[#9daa94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9936E]"
                   >
                     <span>{faq.question}</span>
                     <ChevronDown
-                      className={`h-5 w-5 text-[#55625D] transition-transform duration-200 shrink-0 ml-4 ${
-                        isOpen ? 'rotate-180 text-[#C9936E]' : ''
+                      className={`h-5 w-5 text-[#a9ada9] transition-transform duration-200 shrink-0 ml-4 ${
+                        isOpen ? 'rotate-180 text-[#cf9d7d]' : ''
                       }`}
                     />
                   </button>
@@ -66,7 +66,7 @@ export const FaqSection: React.FC = () => {
                   {isOpen && (
                     <div
                       id={`faq-answer-${idx}`}
-                      className="px-6 pb-6 pt-1 text-sm sm:text-base text-[#55625D] leading-relaxed border-t border-[#DCD6CB]/40 animate-fade-up-1"
+                      className="px-6 pb-6 pt-1 text-sm sm:text-base text-[#a9ada9] leading-relaxed border-t border-white/11 animate-fade-up-1"
                     >
                       {faq.answer}
                     </div>

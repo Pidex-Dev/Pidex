@@ -12,7 +12,7 @@ import { Footer } from './components/Footer'
 
 export const App: React.FC = () => {
   return (
-    <div className="site-shell min-h-screen text-[#17211D]">
+    <div className="site-shell min-h-screen text-[#f3f1ec]">
       {/* Accessible Skip to Content Link */}
       <a
         href="#main-content"

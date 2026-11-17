@@ -5,15 +5,15 @@ import { GithubIcon } from './GithubIcon'
 
 export const FooterCta: React.FC = () => {
   return (
-    <section className="py-20 sm:py-28">
+    <section className="py-20 sm:py-28 border-white/10 text-[#f3f1ec]">
       <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-16">
-        <div className="relative overflow-hidden rounded-[36px] sm:rounded-[48px] border border-[#DCD6CB] bg-[#17211D] p-10 sm:p-20 text-center text-[#FCFAF5] shadow-xl">
+        <div className="relative overflow-hidden rounded-[36px] sm:rounded-[48px] border border-white/11 bg-[#ecebe7] p-10 sm:p-20 text-center text-[#111313] shadow-xl">
           {/* Subtle warm decorative glow */}
           <div className="pointer-events-none absolute -top-48 left-1/2 -translate-x-1/2 h-96 w-96 rounded-full bg-[#C9936E]/20 blur-3xl" />
 
           <div className="relative z-10 max-w-2xl mx-auto">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 backdrop-blur-xs mb-6">
-              <Sparkles className="h-3.5 w-3.5 text-[#C9936E]" />
+              <Sparkles className="h-3.5 w-3.5 text-[#cf9d7d]" />
               <span className="font-mono text-xs font-semibold uppercase tracking-wider text-[#FCFAF5]">
                 Get Started Today
               </span>
@@ -33,7 +33,7 @@ export const FooterCta: React.FC = () => {
                 href={GITHUB_REPO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2.5 rounded-full bg-[#FCFAF5] px-8 py-4 text-base font-bold text-[#17211D] shadow-lg transition-all duration-200 hover:bg-[#F4F0E7] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9936E]"
+                className="inline-flex items-center gap-2.5 rounded-full bg-[#121313] px-8 py-4 text-base font-bold text-[#f3f1ec] shadow-lg transition-all duration-200 hover:bg-[#0a0b0b] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9936E]"
               >
                 <GithubIcon className="h-5 w-5" />
                 <span>View on GitHub</span>
