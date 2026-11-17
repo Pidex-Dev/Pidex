@@ -1,6 +1,17 @@
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { DiscoveredModelCard } from '../src/features/models/provider-management/ProviderModelsSection.js'
+import { DiscoveredModelRow } from '../src/features/models/provider-management/ProviderModelSyncPanel.js'
+import {
+  GENERIC_MODEL_CONTEXT_WINDOW,
+  GENERIC_MODEL_MAX_TOKENS,
+  resolveCandidateImportModel,
+} from '../src/features/models/provider-management/ModelCandidateImport.js'
+import {
+  filterDiscoveredModels,
+  resolveModelCapabilities,
+  resolveModelContextWindow,
+  resolveModelVendor,
+} from '../src/features/models/provider-management/ModelSyncHelpers.js'
 import {
   ModelCatalogDetails,
   modelPrice,
@@ -10,11 +21,6 @@ import type {
   DesktopModelProviderSummary,
   DesktopProviderModelDefinition,
 } from '../shared/Types.js'
-import {
-  resolveModelCapabilities,
-  resolveModelContextWindow,
-  resolveModelVendor,
-} from '../src/features/models/provider-management/ProviderModelsSection.js'
 
 describe('DiscoveredModelCard helpers', () => {
   const mockProvider: DesktopModelProviderSummary = {
@@ -162,12 +168,12 @@ describe('DiscoveredModelCard helpers', () => {
   })
 })
 
-it('摘要价格区分未知与免费，展开按钮与添加按钮互不触发', () => {
+it('点击行展开详情且不触发添加，右侧按钮独立触发添加/移除且无左侧折叠箭头或拖拽添加', () => {
   expect(modelPrice(undefined)).toBe('未知')
   expect(modelPrice(0)).toBe('免费')
   let toggles = 0
   let expands = 0
-  const card = DiscoveredModelCard({
+  const row = DiscoveredModelRow({
     model: {
       id: 'example',
       api: 'openai-completions',
@@ -179,28 +185,86 @@ it('摘要价格区分未知与免费，展开按钮与添加按钮互不触发'
       },
     },
     provider: { providerID: 'gateway', kind: 'custom', defaultModels: [], apiKeyConfigured: true },
-    isSelected: false,
+    isAdded: false,
     isToggling: false,
     expanded: true,
-    onToggle: () => {
+    onToggleModel: () => {
       toggles++
     },
-    onExpand: () => {
+    onToggleExpand: () => {
       expands++
     },
-  }) as React.ReactElement<{ children: React.ReactElement[] }>
-  const [selection, disclosure] = card.props.children
-  ;(disclosure!.props as { onClick: () => void }).onClick()
+  }) as React.ReactElement<{
+    draggable?: boolean
+    children: [React.ReactElement<{ children: [React.ReactElement, React.ReactElement] }>, React.ReactElement | null]
+  }>
+  expect(row.props.draggable).toBeUndefined()
+  const [header] = row.props.children
+  const [expandBtn, actionTooltip] = header.props.children
+  ;(expandBtn!.props as { onClick: () => void }).onClick()
   expect(expands).toBe(1)
   expect(toggles).toBe(0)
-  ;(selection!.props as { onClick: () => void }).onClick()
+  const actionBtn = (actionTooltip as React.ReactElement<{ children: React.ReactElement }>).props.children
+  ;(actionBtn.props as { onClick: () => void }).onClick()
   expect(toggles).toBe(1)
-  const html = renderToStaticMarkup(card)
+  expect(expands).toBe(1)
+  const html = renderToStaticMarkup(row)
   expect(html).toContain('aria-expanded="true"')
+  expect(html).toContain('aria-label="添加模型 example"')
+  expect(html).not.toContain('draggable="true"')
+  expect(html).not.toContain('role="checkbox"')
   expect(html).toContain('原厂参考价')
   expect(html).toContain('当前客户端暂未支持原生发送')
   expect(html).toContain('输出 未知')
-  expect(html.match(/role="checkbox"/g)).toHaveLength(1)
+  expect(html).toContain('128K')
+  expect(html).toContain('8K')
+})
+
+it('未匹配或缺失规格候选保留已知字段并补齐通用默认参数', () => {
+  const partial = resolveCandidateImportModel({
+    id: 'auto/dfmodel',
+    api: 'openai-completions',
+    contextWindow: 1_000_000,
+    reasoning: true,
+  })
+  expect(partial.contextWindow).toBe(1_000_000)
+  expect(partial.maxTokens).toBe(GENERIC_MODEL_MAX_TOKENS)
+  expect(partial.reasoning).toBe(true)
+  expect(partial.tools).toBe(true)
+  expect(partial.input).toEqual(['text'])
+
+  const bare = resolveCandidateImportModel({
+    id: 'embed-model',
+    modelType: 'embedding',
+    api: 'openai-completions',
+  })
+  expect(bare.contextWindow).toBe(GENERIC_MODEL_CONTEXT_WINDOW)
+  expect(bare.maxTokens).toBe(GENERIC_MODEL_MAX_TOKENS)
+  expect(bare.tools).toBe(false)
+})
+
+it('支持状态与能力组合筛选', () => {
+  const provider: DesktopModelProviderSummary = {
+    providerID: 'gateway',
+    kind: 'custom',
+    displayName: 'Gateway',
+    defaultModels: [],
+    apiKeyConfigured: true,
+  }
+  const models: DesktopProviderModelDefinition[] = [
+    { id: 'deepseek-r1', api: 'openai-completions', reasoning: true },
+    { id: 'qwen-vl', api: 'openai-completions', input: ['text', 'image'] },
+    { id: 'glm-5', api: 'openai-completions', reasoning: true, input: ['text', 'image'] },
+  ]
+  const filtered = filterDiscoveredModels(models, {
+    query: '',
+    statusFilter: 'unadded',
+    capabilityFilters: new Set(['reasoning', 'vision']),
+    addedIds: new Set(['deepseek-r1']),
+    provider,
+    modelMetadata: {},
+  })
+  expect(filtered.map((m) => m.id)).toEqual(['glm-5'])
 })
 
 it('模型资料只渲染安全链接，独立音频单价明确标注估算限制', () => {

@@ -47,7 +47,7 @@ test('供应商设置只跟随详情或新建路由，保持区域并排除编�
   })
 })
 
-test('模型编辑面板仅保留在当前供应商详情的右侧', () => {
+test('模型编辑与同步模型面板仅保留在当前供应商详情的右侧', () => {
   const tab = {
     id: 'provider-model',
     kind: 'provider-model',
@@ -57,6 +57,23 @@ test('模型编辑面板仅保留在当前供应商详情的右侧', () => {
   expect(scopedProviderManagementTab(tab, '/providers', '?provider=magpie')).toEqual(tab)
   expect(scopedProviderManagementTab(tab, '/providers', '?provider=deepseek')).toBeNull()
   expect(scopedProviderManagementTab(tab, '/chat', '?provider=magpie')).toBeNull()
+
+  const syncTab = {
+    id: 'provider-sync',
+    kind: 'provider-sync',
+    providerId: 'magpie',
+    section: 'sync',
+  } as const
+  expect(scopedProviderManagementTab(syncTab, '/providers', '?provider=magpie')).toEqual(syncTab)
+  expect(scopedProviderManagementTab(syncTab, '/providers', '?provider=deepseek')).toBeNull()
+  expect(scopedProviderManagementTab(syncTab, '/chat', '?provider=magpie')).toBeNull()
+  expect(getWorkbenchTabDisplayTitle(syncTab, null)).toBe('同步模型')
+  expect(BUILTIN_COMPOSITE_VIEWS['provider-sync']).toMatchObject({
+    allowedLocations: ['right'],
+    canMove: false,
+    canFloat: false,
+    canClose: true,
+  })
 })
 
 test('路由定义统一提供空状态与添加标签菜单的可用标签', () => {
