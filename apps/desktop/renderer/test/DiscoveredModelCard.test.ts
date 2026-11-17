@@ -1,6 +1,8 @@
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { DiscoveredModelRow } from '../src/features/models/provider-management/ProviderModelSyncPanel.js'
+import { ModelRowItem } from '../src/features/models/provider-management/ProviderModelsSection.js'
+import { ProviderModelListRow } from '../src/features/models/provider-management/ProviderModelListRow.js'
 import {
   GENERIC_MODEL_CONTEXT_WINDOW,
   GENERIC_MODEL_MAX_TOKENS,
@@ -173,7 +175,7 @@ it('点击行展开详情且不触发添加，右侧按钮独立触发添加/移
   expect(modelPrice(0)).toBe('免费')
   let toggles = 0
   let expands = 0
-  const row = DiscoveredModelRow({
+  const wrapper = DiscoveredModelRow({
     model: {
       id: 'example',
       api: 'openai-completions',
@@ -194,21 +196,27 @@ it('点击行展开详情且不触发添加，右侧按钮独立触发添加/移
     onToggleExpand: () => {
       expands++
     },
-  }) as React.ReactElement<{
+  }) as React.ReactElement<React.ComponentProps<typeof ProviderModelListRow>>
+  const row = ProviderModelListRow(wrapper.props) as React.ReactElement<{
     draggable?: boolean
-    children: [React.ReactElement<{ children: [React.ReactElement, React.ReactElement] }>, React.ReactElement | null]
+    children: [
+      React.ReactElement<{
+        children: [React.ReactElement, React.ReactElement, React.ReactElement]
+      }>,
+      React.ReactElement | null,
+    ]
   }>
   expect(row.props.draggable).toBeUndefined()
   const [header] = row.props.children
-  const [expandBtn, actionTooltip] = header.props.children
-  ;(expandBtn!.props as { onClick: () => void }).onClick()
+  const [, expandBtn, actionTooltip] = header.props.children
+  ;(expandBtn.props as { onClick: () => void }).onClick()
   expect(expands).toBe(1)
   expect(toggles).toBe(0)
   const actionBtn = (actionTooltip as React.ReactElement<{ children: React.ReactElement }>).props.children
   ;(actionBtn.props as { onClick: () => void }).onClick()
   expect(toggles).toBe(1)
   expect(expands).toBe(1)
-  const html = renderToStaticMarkup(row)
+  const html = renderToStaticMarkup(wrapper)
   expect(html).toContain('aria-expanded="true"')
   expect(html).toContain('aria-label="添加模型 example"')
   expect(html).not.toContain('draggable="true"')
@@ -218,6 +226,70 @@ it('点击行展开详情且不触发添加，右侧按钮独立触发添加/移
   expect(html).toContain('输出 未知')
   expect(html).toContain('128K')
   expect(html).toContain('8K')
+})
+
+it('左侧已配置模型行共用同款展开详情与能力徽章，且点击行不误触编辑', () => {
+  let expands = 0
+  let edits = 0
+  let removes = 0
+  const wrapper = ModelRowItem({
+    modelId: 'example',
+    model: {
+      id: 'example',
+      name: 'Example Pro',
+      api: 'openai-completions',
+      reasoning: true,
+      cost: { input: 2, output: 8 },
+    },
+    disabled: false,
+    enabled: false,
+    expanded: true,
+    onToggleExpand: () => {
+      expands++
+    },
+    onTest: () => {},
+    onEdit: () => {
+      edits++
+    },
+    onRemove: () => {
+      removes++
+    },
+    editingDisabled: false,
+  }) as React.ReactElement<React.ComponentProps<typeof ProviderModelListRow>>
+  const row = ProviderModelListRow(wrapper.props) as React.ReactElement<{
+    children: [
+      React.ReactElement<{
+        children: [React.ReactElement, React.ReactElement, React.ReactElement]
+      }>,
+      React.ReactElement | null,
+    ]
+  }>
+  const [header] = row.props.children
+  const [, expandBtn, actionGroup] = header.props.children
+  ;(expandBtn.props as { onClick: () => void }).onClick()
+  expect(expands).toBe(1)
+  expect(edits).toBe(0)
+  const actionTooltips = (
+    actionGroup as React.ReactElement<{
+      children: [null | React.ReactElement, React.ReactElement, React.ReactElement, React.ReactElement]
+    }>
+  ).props.children
+  const editBtn = (actionTooltips[2] as React.ReactElement<{ children: React.ReactElement }>).props
+    .children
+  ;(editBtn.props as { onClick: () => void }).onClick()
+  expect(edits).toBe(1)
+  const removeBtn = (actionTooltips[3] as React.ReactElement<{ children: React.ReactElement }>)
+    .props.children
+  ;(removeBtn.props as { onClick: () => void }).onClick()
+  expect(removes).toBe(1)
+  const html = renderToStaticMarkup(wrapper)
+  expect(html).toContain('model-center-model-row')
+  expect(html).toContain('aria-expanded="true"')
+  expect(html).toContain('aria-label="编辑模型 example"')
+  expect(html).toContain('aria-label="移除模型 example"')
+  expect(html).toContain('已停用')
+  expect(html).toContain('未知 / 未知')
+  expect(html).toContain('输入 $2 / 输出 $8')
 })
 
 it('未匹配或缺失规格候选保留已知字段并补齐通用默认参数', () => {
