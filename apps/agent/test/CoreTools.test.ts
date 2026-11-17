@@ -2,7 +2,7 @@ import { ThreadGoalService } from '../src/session/ThreadGoalService'
 import { EventHub } from '../src/storage/events/EventHub'
 import { ContextCompactionService } from '../src/context/ContextCompactionService'
 import { afterEach, describe, expect, test } from 'bun:test'
-import { lstat, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -264,8 +264,6 @@ describe('核心工具面', () => {
     for (const removed of [
       'apply_patch',
       'view_image',
-      'Glob',
-      'Grep',
       'PowerShell',
       'Bash',
       'workspace_read',
@@ -273,6 +271,8 @@ describe('核心工具面', () => {
     ]) {
       expect(() => executor.definition(removed)).toThrow()
     }
+    expect(executor.definition('Glob').allowedProfiles).toEqual(['explorer'])
+    expect(executor.definition('Grep').allowedProfiles).toEqual(['explorer'])
     const defaultPlan = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
@@ -284,11 +284,17 @@ describe('核心工具面', () => {
     expect(defaultPlan.eager).toContain('Edit')
     expect(defaultPlan.eager).toContain('exec_command')
     expect(defaultPlan.eager).toContain('write_stdin')
+    expect(defaultPlan.eager).not.toContain('Glob')
+    expect(defaultPlan.eager).not.toContain('Grep')
     expect(defaultPlan.eager).not.toContain('apply_patch')
     expect(defaultPlan.eager).not.toContain('view_image')
     expect(defaultPlan.deferred).not.toContain('Edit')
     expect(defaultPlan.deferred).not.toContain('Write')
-    expect(defaultPlan.exposed).toContain('spawn_agents')
+    expect(defaultPlan.deferred).toContain('send_agent')
+    expect(defaultPlan.deferred).toContain('stop_agent')
+    expect(defaultPlan.exposed).toContain('Agent')
+    expect(defaultPlan.exposed).not.toContain('spawn_agents')
+    expect(defaultPlan.exposed).not.toContain('wait_agents')
     const sideChatPlan = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
@@ -296,10 +302,11 @@ describe('核心工具面', () => {
       profile: 'main',
       delegationEnabled: false,
     })
+    expect(sideChatPlan.exposed).not.toContain('Agent')
     expect(sideChatPlan.exposed).not.toContain('spawn_agents')
     expect(sideChatPlan.exposed).not.toContain('wait_agents')
-    expect(sideChatPlan.exposed).not.toContain('send_agent')
-    expect(sideChatPlan.exposed).not.toContain('stop_agent')
+    expect(sideChatPlan.deferred).not.toContain('send_agent')
+    expect(sideChatPlan.deferred).not.toContain('stop_agent')
     const editSkillPlan = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
@@ -914,10 +921,10 @@ describe('核心工具面', () => {
     ).rejects.toMatchObject({ code: 'INVALID_TOOL_INPUT' })
     await expect(
       executor.execute('Glob', { pattern: '*.ts' }, context),
-    ).rejects.toMatchObject({ code: 'TOOL_NOT_FOUND' })
+    ).rejects.toMatchObject({ code: 'TOOL_NOT_ALLOWED_FOR_PROFILE' })
     await expect(
       executor.execute('Grep', { pattern: 'needle' }, context),
-    ).rejects.toMatchObject({ code: 'TOOL_NOT_FOUND' })
+    ).rejects.toMatchObject({ code: 'TOOL_NOT_ALLOWED_FOR_PROFILE' })
     await expect(
       executor.execute('apply_patch', { patch: '*** Begin Patch\n*** End Patch' }, context),
     ).rejects.toMatchObject({ code: 'TOOL_NOT_FOUND' })

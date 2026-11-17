@@ -289,7 +289,9 @@ describe('工作区工具', () => {
       profile: 'explorer',
     })
     expect(explorerPlan.allows('request_permissions')).toBe(false)
-    expect(explorerPlan.allows('spawn_agents')).toBe(true)
+    expect(explorerPlan.allows('Agent')).toBe(false)
+    expect(explorerPlan.allows('Glob')).toBe(true)
+    expect(explorerPlan.allows('Grep')).toBe(true)
     const runs: string[] = []
     const executor = new ToolExecutor(registry, {
       dataDir: join(root, '.agent-data'),

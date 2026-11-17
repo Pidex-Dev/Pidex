@@ -125,7 +125,8 @@ describe('ToolExposurePlan finalize_result exposure', () => {
   test('Grill 主 Agent 使用调查权限、可提问与派发 Explorer，但不暴露计划提交', () => {
     const plan = exposure({ taskMode: 'grill', profile: 'main', sandboxMode: 'danger-full-access' })
     expect(plan.allows('request_user_input')).toBe(true)
-    expect(plan.allows('spawn_agents')).toBe(true)
+    expect(plan.allows('Agent')).toBe(true)
+    expect(plan.allows('spawn_agents')).toBe(false)
     expect(plan.allows('submit_plan')).toBe(false)
     expect(plan.allows('submit_schedule_plan')).toBe(false)
     expect(plan.allows('update_plan')).toBe(false)
@@ -140,7 +141,7 @@ describe('ToolExposurePlan finalize_result exposure', () => {
     expect(plan.exposed).not.toContain('view_image')
   })
 
-  test('Plan、Grill 与 Explorer 暴露同一调查工具集，写工具仍不可见', () => {
+  test('Plan、Grill 与 Explorer 暴露调查工具集，Glob/Grep 仅 Explorer 可见，写工具仍不可见', () => {
     for (const [taskMode, profile] of [
       ['plan', 'main'],
       ['grill', 'main'],
@@ -152,6 +153,13 @@ describe('ToolExposurePlan finalize_result exposure', () => {
         expect(plan.exposed).toContain(name)
       for (const name of ['Write', 'Edit', 'apply_patch', 'view_image'])
         expect(plan.exposed).not.toContain(name)
+      if (profile === 'explorer') {
+        expect(plan.exposed).toContain('Glob')
+        expect(plan.exposed).toContain('Grep')
+      } else {
+        expect(plan.exposed).not.toContain('Glob')
+        expect(plan.exposed).not.toContain('Grep')
+      }
     }
   })
 
@@ -172,29 +180,34 @@ describe('ToolExposurePlan finalize_result exposure', () => {
     }
   })
 
-  test('子 Agent 暴露递归协作与收尾工具，但不暴露主 Agent 计划和权限工具', () => {
+  test('单层 explorer/worker 不再暴露 Agent，仅 default 子 Agent 保留有限深度递归，控制工具按需 deferred', () => {
     for (const profile of ['default', 'explorer', 'worker'] as const) {
       const plan = exposure({ taskMode: 'chat', profile })
       expect(plan.allows('finalize_result')).toBe(true)
       expect(plan.allows('update_plan')).toBe(false)
       expect(plan.allows('request_permissions')).toBe(false)
-      expect(plan.allows('spawn_agents')).toBe(true)
-      expect(plan.allows('followup_agent')).toBe(true)
+      expect(plan.allows('Agent')).toBe(profile === 'default')
+      expect(plan.deferred).toContain('followup_agent')
+      expect(plan.deferred).toContain('send_agent')
+      expect(plan.deferred).toContain('stop_agent')
+      expect(plan.deferred).toContain('list_agents')
       expect(plan.allows('report_agent')).toBe(true)
     }
   })
 
-  test('深度上限隐藏创建入口，但保留父子通信工具', () => {
+  test('深度上限隐藏创建入口，但保留父子通信工具与 deferred 控制发现', () => {
     const plan = createToolExposurePlan(new ToolCatalog(), {
       taskMode: 'chat',
-      profile: 'worker',
+      profile: 'default',
       depth: 3,
       sandboxMode: 'workspace-write',
       approvalPolicy: 'auto_review',
     })
+    expect(plan.allows('Agent')).toBe(false)
     expect(plan.allows('spawn_agents')).toBe(false)
     expect(plan.allows('report_agent')).toBe(true)
-    expect(plan.allows('wait_agents')).toBe(true)
+    expect(plan.deferred).toContain('send_agent')
+    expect(plan.deferred).toContain('stop_agent')
   })
 
   test('Skill allowlist 不恢复主 Agent 收尾工具，子 Agent 的收尾工具不被剥离', () => {

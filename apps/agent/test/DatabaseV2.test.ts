@@ -167,6 +167,40 @@ describe('数据库兼容与迁移', () => {
     reopened.close()
   })
 
+  test('v75 缺少子代理 Fork 与后台通知表时迁移到当前版本并保留已有数据', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'pidex-history-v75-incomplete-'))
+    paths.push(root)
+    const historyPath = join(root, 'agent.sqlite')
+    const profilePath = join(root, 'profile.sqlite')
+    const db = new AgentDatabase({ historyPath, profilePath })
+    const thread = db.createThread({ title: '保留的 v75 会话' })
+    db.sqlite.exec(`
+      DROP TABLE subagent_fork_contexts;
+      DROP TABLE subagent_background_notifications;
+      PRAGMA user_version = 75;
+    `)
+    db.close()
+
+    const reopened = new AgentDatabase({ historyPath, profilePath })
+    expect(reopened.sqlite.query('PRAGMA user_version').get()).toEqual({
+      user_version: SCHEMA_VERSION,
+    })
+    expect(reopened.getThread(thread.id)?.title).toBe('保留的 v75 会话')
+    expect(
+      reopened.sqlite
+        .query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'subagent_fork_contexts'")
+        .get(),
+    ).toEqual({ name: 'subagent_fork_contexts' })
+    expect(
+      reopened.sqlite
+        .query(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'subagent_background_notifications'",
+        )
+        .get(),
+    ).toEqual({ name: 'subagent_background_notifications' })
+    reopened.close()
+  })
+
   test('v35 工作流表补齐排序位置并保留已有任务', async () => {
     const root = await mkdtemp(join(tmpdir(), 'pidex-history-v35-'))
     paths.push(root)

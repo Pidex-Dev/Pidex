@@ -3,6 +3,7 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Model, Provider } from '@pidex/model-schema'
+import { resolveDefaultSubagentName, resolveSubagentDisplayParts } from '@pidex/shared/thread'
 import { AgentDatabase, SCHEMA_VERSION } from '../src/storage/database/AgentDatabase'
 import { SubagentRepository } from '../src/subagent/SubagentRepository'
 import { removeFixturePaths } from './FixtureCleanup'
@@ -96,5 +97,60 @@ describe('subagent role schema', () => {
       db.sqlite.query('SELECT role FROM subagent_tasks WHERE id = ?').get(created.task.id),
     ).toEqual({ role: 'future-role' })
     db.close()
+  })
+
+  test('schema 76 前向迁移补 nullable title 列并保留未知对象与默认命名拆分', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'pidex-subagent-title-schema-'))
+    paths.push(root)
+
+    const seeded = seededDatabase(root)
+    seeded.sqlite.exec(`
+      ALTER TABLE subagent_tasks DROP COLUMN title;
+      CREATE TABLE future_schema_76_extension (id TEXT PRIMARY KEY, value TEXT NOT NULL);
+      INSERT INTO future_schema_76_extension VALUES ('kept', 'v76');
+      PRAGMA user_version = 76;
+    `)
+    seeded.close()
+
+    const migrated = seededDatabase(root)
+    expect(migrated.sqlite.query('PRAGMA user_version').get()).toEqual({
+      user_version: SCHEMA_VERSION,
+    })
+    const columns = (
+      migrated.sqlite.query('PRAGMA table_info(subagent_tasks)').all() as Array<{ name: string }>
+    ).map((column) => column.name)
+    expect(columns).toContain('title')
+    expect(
+      migrated.sqlite.query("SELECT value FROM future_schema_76_extension WHERE id = 'kept'").get(),
+    ).toEqual({ value: 'v76' })
+    migrated.close()
+
+    expect(resolveDefaultSubagentName({ profile: 'general', role: 'general' })).toBe(
+      'General Purpose',
+    )
+    expect(resolveDefaultSubagentName({ profile: 'explorer', role: 'general' })).toBe('Explorer')
+    expect(resolveDefaultSubagentName({ profile: 'worker', role: 'general' })).toBe('Worker')
+    expect(resolveDefaultSubagentName({ profile: 'worker', role: 'frontend' })).toBe('Frontend')
+    expect(resolveDefaultSubagentName({ profile: 'worker', isFork: true })).toBe(
+      'Context Fork',
+    )
+    expect(resolveDefaultSubagentName({ profile: 'default', role: 'general' })).toBe(
+      'General Purpose',
+    )
+    expect(
+      resolveSubagentDisplayParts({
+        displayName: 'Explorer',
+        title: '核对 ZCode 设计',
+        profile: 'explorer',
+        role: 'general',
+      }),
+    ).toEqual({ agentName: 'Explorer', taskTitle: '核对 ZCode 设计' })
+    expect(
+      resolveSubagentDisplayParts({
+        displayName: '历史任务标题',
+        profile: 'worker',
+        role: 'backend',
+      }),
+    ).toEqual({ agentName: 'Backend', taskTitle: '历史任务标题' })
   })
 })
