@@ -184,14 +184,15 @@ export function SidebarFrame({
         aria-label={labels.sidebar}
         aria-hidden={hidden || undefined}
         className={cx(
-          'desktop-sidebar tw:flex tw:flex-none tw:flex-col tw:overflow-hidden tw:select-none tw:type-2 tw:text-app-text tw:antialiased tw:[text-rendering:optimizeLegibility]',
+          'desktop-sidebar tw:flex-none tw:flex-col tw:overflow-hidden tw:select-none tw:type-2 tw:text-app-text tw:antialiased tw:[text-rendering:optimizeLegibility]',
+          !hidden && 'tw:flex',
           floating
-            ? 'is-floating tw:absolute tw:top-2 tw:bottom-2 tw:left-2 tw:z-[calc(var(--cpx-sys-z-composer)+1)] tw:rounded-container tw:border-0 tw:bg-app-raised tw:shadow-floating tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width)-16px)]'
-            : 'tw:relative tw:h-full tw:border-r tw:border-app-border-subtle tw:bg-app-main tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width))]',
+            ? 'is-floating tw:absolute tw:top-2 tw:bottom-2 tw:left-2 tw:z-[calc(var(--cpx-sys-z-composer)+1)] tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width)-16px)]'
+            : cx(
+                'tw:relative tw:h-full tw:z-dock tw:border-r tw:border-app-border-subtle tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width))]',
+                docked ? 'is-docked tw:bg-app-main' : 'tw:bg-app-sidebar',
+              ),
           `is-${shell.mode}`,
-          floating ? 'is-floating tw:z-[calc(var(--cpx-sys-z-composer)+1)]' : 'tw:z-dock',
-          !floating && docked ? 'is-docked tw:bg-app-main' : undefined,
-          !floating && !docked ? 'tw:bg-app-sidebar' : undefined,
           hidden ? 'is-collapsed tw:pointer-events-none tw:hidden' : undefined,
           resizing ? 'is-resizing' : undefined,
         )}
@@ -230,7 +231,7 @@ export function SidebarFrame({
             aria-valuemax={maxWidth}
             aria-valuemin={minWidth}
             aria-valuenow={width}
-            className="sidebar-resizer tw:absolute tw:inset-y-0 tw:right-0 tw:z-local tw:w-1 tw:cursor-col-resize tw:touch-none tw:focus-visible:outline-none"
+            className="sidebar-resizer tw:absolute tw:inset-y-0 tw:right-0 tw:z-local tw:w-1 tw:touch-none tw:focus-visible:outline-none"
             onDoubleClick={handleResetWidth}
             onKeyDown={handleResizeKey}
             onLostPointerCapture={handleLostPointerCapture}

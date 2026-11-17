@@ -119,13 +119,13 @@ export function ExpandableFileMutationRow({
       >
         <Pencil
           size="var(--inline-icon-size, 1em)"
-          className="cpx-agent-activity__icon"
+          className="cpx-agent-activity__icon tw:size-[var(--inline-icon-size,1em)] tw:shrink-0"
           aria-hidden="true"
         />
         <span className="cpx-agent-activity__label" title={fileMutationTitle(file, workspacePath)}>
           {fileMutationLabel(item.state, file.path, file.operation)}
         </span>
-        <span className="cpx-agent-activity__review-indicator">
+        <span className="cpx-agent-activity__review-indicator tw:inline-flex tw:flex-none tw:items-center tw:gap-2">
           {file.additions !== null ? (
             <small className="canonical-diff-add">+{file.additions}</small>
           ) : null}
@@ -135,7 +135,7 @@ export function ExpandableFileMutationRow({
         </span>
         <ChevronRight
           size="var(--inline-icon-size, 1em)"
-          className="cpx-agent-activity__chevron"
+          className="cpx-agent-activity__chevron tw:size-[var(--inline-icon-size,1em)] tw:shrink-0"
           aria-hidden="true"
         />
       </button>

@@ -45,7 +45,7 @@ function PullRequestRow({
   const visual = threadPullRequestVisual(item.status)
   const Icon = threadPullRequestIcon(item.status)
   return (
-    <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:text-app-text-meta tw:type-1">
+    <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:text-app-text-meta tw:type-1">
       {React.createElement(Icon, {
         'aria-hidden': 'true',
         className: cx('tw:size-[var(--inline-icon-size,1em)]', visual.className),
@@ -106,7 +106,7 @@ export function SidebarSessionHoverCardOverlay({
       onFocusRequestHandled={onFocusRequestHandled}
       positionOutsideSidebar
     >
-      <SidebarHoverCardFrame className="sidebar-session-hover-card-content tw:flex tw:min-w-0 tw:flex-col tw:gap-2">
+      <SidebarHoverCardFrame className="sidebar-session-hover-card-content tw:flex tw:flex-col tw:gap-2">
         <SidebarHoverCardHeader className="sidebar-session-hover-card-header tw:grid-cols-[minmax(0,1fr)_auto] tw:items-start">
           {editing ? (
             <input
@@ -156,7 +156,7 @@ export function SidebarSessionHoverCardOverlay({
           <span className="sidebar-session-hover-card-trailing tw:col-start-2 tw:inline-flex tw:items-center tw:gap-1 tw:pt-1">
             <Laptop
               aria-hidden="true"
-              className="sidebar-session-hover-card-device-icon tw:flex-none tw:text-app-text-meta"
+              className="sidebar-session-hover-card-device-icon tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 tw:text-app-text-meta"
               size="var(--inline-icon-size, 1em)"
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
@@ -186,7 +186,7 @@ export function SidebarSessionHoverCardOverlay({
           </span>
         </SidebarHoverCardHeader>
         <div className="sidebar-session-hover-card-meta tw:flex tw:min-w-0 tw:flex-col tw:gap-1">
-          <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:text-app-text-meta tw:type-1">
+          <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:text-app-text-meta tw:type-1">
             <Folder
               aria-hidden="true"
               className="tw:size-[var(--inline-icon-size,1em)] tw:text-app-text-meta"
@@ -219,7 +219,7 @@ export function SidebarSessionHoverCardOverlay({
             </span>
           </SidebarHoverCardRow>
           {model.environmentLabel && model.environmentKind ? (
-            <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:text-app-text-meta tw:type-1">
+            <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:text-app-text-meta tw:type-1">
               {model.environmentKind === 'worktree' ? (
                 <GitFork
                   aria-hidden="true"
@@ -248,7 +248,7 @@ export function SidebarSessionHoverCardOverlay({
             />
           ))}
           {model.errorMessage ? (
-            <SidebarHoverCardRow className="sidebar-session-hover-card-row sidebar-session-hover-card-error-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:items-start tw:type-1">
+            <SidebarHoverCardRow className="sidebar-session-hover-card-row sidebar-session-hover-card-error-row tw:items-start tw:type-1">
               <CircleAlert
                 aria-hidden="true"
                 className="sidebar-session-hover-card-error-icon tw:size-[var(--inline-icon-size,1em)] tw:text-app-danger tw:shrink-0 tw:mt-1"

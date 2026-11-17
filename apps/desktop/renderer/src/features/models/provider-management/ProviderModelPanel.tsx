@@ -108,7 +108,7 @@ export function ProviderModelPanel({
             </p>
           </div>
         ) : null}
-        <footer className="settings-management-dialog-footer tw:shrink-0">
+        <footer className="settings-management-dialog-footer tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4">
           <Button size="md" color="secondary" disabled={busy} onClick={close}>
             取消
           </Button>

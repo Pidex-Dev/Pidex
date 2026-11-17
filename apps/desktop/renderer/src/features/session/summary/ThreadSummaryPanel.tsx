@@ -51,7 +51,7 @@ import type { CommandMenuActionRegistration } from '../../search/CommandMenuActi
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 
 const SUMMARY_ROW_CLASS =
-  'interactive-row interactive-row--nav thread-summary-row tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:text-left tw:no-underline tw:type-2'
+  'interactive-row interactive-row--nav thread-summary-row tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2'
 
 const SUMMARY_ROW_LABEL_CLASS =
   'tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap'
@@ -129,7 +129,7 @@ export function ThreadSummaryPopover({
           side="bottom"
           sideOffset={8}
         >
-          <div className="thread-summary-popover tw:w-[16.25rem] tw:p-1 tw:max-h-[min(680px,calc(100vh-80px))]">
+          <div className="thread-summary-popover tw:[--popover-width:16.25rem] tw:[--popover-max-height:min(680px,calc(100vh-80px))] tw:p-1">
             {panel}
           </div>
         </Popover.Content>
@@ -517,7 +517,7 @@ export function ThreadSummaryPanel({
               key={agent.id}
             >
               <button
-                className="interactive-row interactive-row--nav thread-summary-row-group__main tw:grid tw:min-w-0 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:items-center tw:bg-transparent tw:text-left tw:type-2"
+                className="interactive-row interactive-row--nav thread-summary-row thread-summary-row-group__main tw:min-w-0"
                 type="button"
                 onClick={() => onOpenSubagent?.(agent.id)}
               >
@@ -566,7 +566,8 @@ export function ThreadSummaryPanel({
           ))}
           {!showAllAgents && agentPreview.totalCount > visibleAgents.length ? (
             <button
-              className={`${SUMMARY_ROW_CLASS} tw:text-app-text-meta tw:hover:text-app-text tw:focus-visible:text-app-text`}
+              className={SUMMARY_ROW_CLASS}
+              data-tone="meta"
               type="button"
               onClick={() => setShowAllAgents(true)}
             >
@@ -613,7 +614,8 @@ export function ThreadSummaryPanel({
         >
           {!artifactPreview.items.length ? (
             <button
-              className={`${SUMMARY_ROW_CLASS} tw:text-app-text-meta`}
+              className={SUMMARY_ROW_CLASS}
+              data-tone="meta"
               type="button"
               disabled={!onCreateOutput}
               onClick={onCreateOutput}
@@ -627,7 +629,8 @@ export function ThreadSummaryPanel({
           ))}
           {!showAllArtifacts && artifactPreview.totalCount > artifactPreview.items.length ? (
             <button
-              className={`${SUMMARY_ROW_CLASS} tw:text-app-text-meta tw:hover:text-app-text tw:focus-visible:text-app-text`}
+              className={SUMMARY_ROW_CLASS}
+              data-tone="meta"
               type="button"
               onClick={() => setShowAllArtifacts(true)}
             >
@@ -658,7 +661,8 @@ export function ThreadSummaryPanel({
           {sourcePreview.totalCount > sourcePreview.items.length ? (
             <button
               aria-haspopup="dialog"
-              className={`${SUMMARY_ROW_CLASS} thread-summary-source-toggle tw:text-app-text-meta tw:[&>svg:first-child]:text-app-text-meta tw:hover:text-app-text tw:focus-visible:text-app-text tw:hover:[&>svg:first-child]:text-app-text tw:focus-visible:[&>svg:first-child]:text-app-text`}
+              className={`${SUMMARY_ROW_CLASS} thread-summary-source-toggle tw:[&>svg:first-child]:text-app-text-meta tw:hover:[&>svg:first-child]:text-app-text tw:focus-visible:[&>svg:first-child]:text-app-text`}
+              data-tone="meta"
               type="button"
               onClick={() => setSourcesPanelOpen(true)}
             >
@@ -816,7 +820,7 @@ function ThreadSummarySourceRow({
   const Icon = source.toolKind === 'web-search' ? Search : Plug
   return (
     <div
-      className="thread-summary-row thread-summary-source-static tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-2"
+      className="thread-summary-static-row thread-summary-source-static tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-2"
       title={source.source ?? source.label}
     >
       <Icon
@@ -873,7 +877,7 @@ function ArtifactRow({
   if (!previewable || !onOpen) {
     return (
       <div
-        className="thread-summary-row tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-2"
+        className="thread-summary-static-row tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-2"
         title={`${artifact.name}：${meta}`}
       >
         {row}
@@ -912,7 +916,7 @@ function ThreadSummarySourcesPanel({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop thread-summary-sources-overlay tw:fixed tw:inset-0 tw:z-modal" />
         <Dialog.Content
-          className="ui-dialog-surface ui-dialog-surface--side-right thread-summary-sources-panel tw:fixed tw:z-popover tw:top-3 tw:right-3 tw:bottom-3 tw:flex tw:w-[min(360px,calc(100vw-24px))] tw:flex-col tw:gap-3 tw:rounded-5 tw:p-4 tw:text-app-text tw:outline-none"
+          className="ui-dialog-surface ui-dialog-surface--side-right thread-summary-sources-panel tw:fixed tw:top-3 tw:right-3 tw:bottom-3 tw:flex tw:w-[min(360px,calc(100vw-24px))] tw:flex-col tw:gap-3 tw:p-4 tw:text-app-text tw:outline-none"
           onCloseAutoFocus={onCloseAutoFocus}
         >
           <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">

@@ -215,7 +215,7 @@ export type ProviderEditorFormProps = {
 
 /* 编辑弹窗字段：标签/说明排版与输入宽度，窄屏回到单列。 */
 const PROVIDER_EDITOR_FIELD_CLASS =
-  'provider-editor-field tw:grid tw:gap-2 tw:[&>span]:flex tw:[&>span]:items-center tw:[&>span]:justify-between tw:[&>span]:gap-2 tw:[&>span]:text-app-text tw:[&>span]:type-label tw:[&>span>small]:text-app-text-meta tw:[&>span>small]:type-caption tw:[&>p]:col-start-2 tw:[&>p]:m-0 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body-sm tw:[&_input]:w-full tw:[&_textarea]:w-full tw:max-[720px]:grid-cols-1 tw:max-[720px]:[&>p]:col-start-1'
+  'provider-editor-field tw:grid tw:min-w-0 tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:gap-2 tw:px-4 tw:py-3 tw:[&>span]:flex tw:[&>span]:items-center tw:[&>span]:justify-between tw:[&>span]:gap-2 tw:[&>span]:text-app-text tw:[&>span]:type-label tw:[&>span>small]:text-app-text-meta tw:[&>span>small]:type-caption tw:[&>p]:col-start-2 tw:[&>p]:m-0 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body-sm tw:[&_input]:w-full tw:[&_textarea]:w-full tw:max-[720px]:grid-cols-1 tw:max-[720px]:[&>p]:col-start-1'
 
 const PROVIDER_EDITOR_PANEL_FIELD_CLASS =
   'provider-editor-field tw:grid tw:min-w-0 tw:content-start tw:gap-2 tw:[&>span]:flex tw:[&>span]:items-center tw:[&>span]:justify-between tw:[&>span]:gap-2 tw:[&>span]:text-app-text tw:[&>span]:type-1 tw:[&>span]:weight-medium tw:[&>span>small]:text-app-text-meta tw:[&>span>small]:type-1 tw:[&>p]:m-0 tw:[&>p]:text-app-text-soft tw:[&>p]:type-1 tw:[&_input]:w-full tw:[&_textarea]:w-full'
@@ -1033,10 +1033,10 @@ export function ProviderEditorForm({
         className={
           embedded
             ? 'tw:flex tw:items-start tw:justify-between tw:gap-4'
-            : 'settings-management-dialog-header provider-editor-header tw:flex-none tw:justify-between'
+            : 'settings-management-dialog-header provider-editor-header tw:flex tw:flex-none tw:items-start tw:justify-between tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:p-5'
         }
       >
-        <div className="settings-management-dialog-heading provider-editor-heading tw:flex tw:min-w-0 tw:items-start tw:gap-3">
+        <div className="settings-management-dialog-heading provider-editor-heading tw:flex tw:min-w-0 tw:flex-1 tw:items-start tw:gap-3">
           <div className="provider-editor-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:bg-app-accent-subtle tw:text-app-accent-fg tw:[&_svg]:size-icon-lg">
             <Server
               className="tw:size-icon-md"
@@ -1140,7 +1140,7 @@ export function ProviderEditorForm({
           className={
             embedded
               ? 'tw:grid tw:gap-5'
-              : 'settings-management-dialog-body provider-editor-body tw:overflow-x-hidden'
+              : 'settings-management-dialog-body provider-editor-body tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-y-auto tw:overflow-x-hidden tw:p-5'
           }
         >
           {embedded || activeTab === 'basic' ? (
@@ -1150,7 +1150,7 @@ export function ProviderEditorForm({
                   className={
                     embedded
                       ? 'tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5'
-                      : 'settings-management-dialog-card provider-editor-basic-card'
+                      : 'settings-management-dialog-card provider-editor-basic-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel'
                   }
                 >
                   <div
@@ -1250,7 +1250,7 @@ export function ProviderEditorForm({
                     </label>
                   </section>
                 ) : (
-                  <div className="settings-management-dialog-card provider-editor-basic-card">
+                  <div className="settings-management-dialog-card provider-editor-basic-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel">
                     <label
                       className={cx(
                         'settings-management-dialog-row',
@@ -1499,9 +1499,12 @@ export function ProviderEditorForm({
               ) : null}
 
               {managed ? (
-                <div className="settings-management-dialog-card">
+                <div className="settings-management-dialog-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel">
                   {models.map((model) => (
-                    <div className="settings-management-dialog-row" key={model.editorKey}>
+                    <div
+                      className="settings-management-dialog-row tw:grid tw:min-w-0 tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:gap-4 tw:px-4 tw:py-3 tw:max-[640px]:grid-cols-1 tw:max-[640px]:gap-2"
+                      key={model.editorKey}
+                    >
                       <span>{model.id}</span>
                       <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-1)]">
                         {protocol}
@@ -1637,7 +1640,7 @@ export function ProviderEditorForm({
           ) : null}
           {!embedded && activeTab === 'advanced' && !managed ? (
             <div className="provider-editor-tab-panel tw:grid tw:gap-4">
-              <div className="settings-management-dialog-card">
+              <div className="settings-management-dialog-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel">
                 <div className="settings-management-dialog-row provider-editor-switch-card tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3">
                   <div className="provider-editor-switch-info tw:grid tw:min-w-0 tw:gap-1">
                     <strong className="tw:text-app-text tw:type-2 tw:weight-medium">
@@ -1684,7 +1687,7 @@ export function ProviderEditorForm({
 
               <label
                 className={cx(
-                  'settings-management-dialog-card settings-management-dialog-row',
+                  'settings-management-dialog-card settings-management-dialog-row tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel',
                   activeFieldClass,
                 )}
               >
@@ -1708,7 +1711,7 @@ export function ProviderEditorForm({
 
       <footer
         className={cx(
-          'settings-management-dialog-footer provider-editor-footer tw:flex-none tw:justify-between tw:max-[720px]:flex-col tw:max-[720px]:items-stretch tw:max-[720px]:gap-2',
+          'settings-management-dialog-footer provider-editor-footer tw:flex tw:flex-none tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4 tw:max-[720px]:flex-col tw:max-[720px]:items-stretch tw:max-[720px]:gap-2',
           embedded &&
             'tw:sticky tw:bottom-0 tw:z-10 tw:border-t tw:border-app-border-subtle tw:bg-app-panel tw:py-3',
         )}
@@ -2089,7 +2092,7 @@ export function ProviderEditorForm({
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
           aria-labelledby={titleId}
-          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog provider-editor-dialog ${SETTINGS_MANAGEMENT_DIALOG_SIZE.providerEditor}`}
+          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog provider-editor-dialog tw:flex tw:min-w-0 tw:flex-col tw:overflow-hidden tw:text-app-text ${SETTINGS_MANAGEMENT_DIALOG_SIZE.providerEditor}`}
           onCloseAutoFocus={onCloseAutoFocus}
         >
           {content}
@@ -2196,19 +2199,21 @@ const ProviderModelCard = memo(function ProviderModelCard({
           <Dialog.Portal>
             <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
             <Dialog.Content
-              className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog ${SETTINGS_MANAGEMENT_DIALOG_SIZE.providerModels}`}
+              className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:min-w-0 tw:flex-col tw:overflow-hidden tw:text-app-text ${SETTINGS_MANAGEMENT_DIALOG_SIZE.providerModels}`}
             >
-              <header className="settings-management-dialog-header">
-                <div className="settings-management-dialog-heading">
-                  <Dialog.Title>编辑模型</Dialog.Title>
-                  <Dialog.Description>
+              <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:p-5">
+                <div className="settings-management-dialog-heading tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
+                  <Dialog.Title className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
+                    编辑模型
+                  </Dialog.Title>
+                  <Dialog.Description className="tw:m-0 tw:text-app-text-soft tw:type-1">
                     模型修改进入供应商草稿，点击保存供应商后生效。
                   </Dialog.Description>
                 </div>
               </header>
               <fieldset
                 disabled={disabled}
-                className="settings-management-dialog-body tw:m-0 tw:border-0"
+                className="settings-management-dialog-body tw:m-0 tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto tw:border-0 tw:p-5"
               >
                 <ModelEditor
                   model={model}
@@ -2217,7 +2222,7 @@ const ProviderModelCard = memo(function ProviderModelCard({
                   baseUrl={baseUrl}
                 />
               </fieldset>
-              <footer className="settings-management-dialog-footer">
+              <footer className="settings-management-dialog-footer tw:flex tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4">
                 <Dialog.Close asChild>
                   <Button size="md" color="primary">
                     完成

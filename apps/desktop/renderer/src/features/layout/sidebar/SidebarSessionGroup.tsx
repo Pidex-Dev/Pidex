@@ -596,20 +596,9 @@ function SidebarSessionGroupComponent({
               )}
             >
               {sessionIndent !== 'gutter' || showConversationIcon ? (
-                <span
-                  aria-hidden="true"
-                  className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:h-5 tw:w-full tw:items-center tw:justify-center"
-                />
+                <span aria-hidden="true" className="sidebar-row-leading sidebar-row-leading-spacer" />
               ) : null}
-              <div
-                className={cx(
-                  'sidebar-row-main',
-                  'tw:min-w-0',
-                  'tw:flex',
-                  'tw:items-center',
-                  'tw:gap-4',
-                )}
-              >
+              <div className="sidebar-row-main tw:gap-4">
                 {canShowMore ? (
                   <Button
                     aria-expanded={canCollapse}
@@ -1128,7 +1117,7 @@ function SidebarSessionWorkspaceMeta({ session }: { session: SessionListItem }):
     return (
       <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
         <MessageSquare
-          className="sidebar-session-workspace-meta__icon tw:flex-none"
+          className="sidebar-session-workspace-meta__icon tw:size-[var(--inline-icon-size,1em)] tw:shrink-0"
           size="var(--inline-icon-size, 1em)"
         />
         <span className="sidebar-session-workspace-meta__name tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">
@@ -1153,7 +1142,7 @@ function SidebarSessionWorkspaceMeta({ session }: { session: SessionListItem }):
   return (
     <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
       <Folder
-        className="sidebar-session-workspace-meta__icon tw:flex-none"
+        className="sidebar-session-workspace-meta__icon tw:size-[var(--inline-icon-size,1em)] tw:shrink-0"
         size="var(--inline-icon-size, 1em)"
       />
       <span className="sidebar-session-workspace-meta__name tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">

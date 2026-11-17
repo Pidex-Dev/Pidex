@@ -406,14 +406,14 @@ export function CanonicalUserInput({
           </React.Suspense>
           {submitError ? (
             <p
-              className="canonical-user-message__editor-error"
+              className="canonical-user-message__editor-error tw:m-0 tw:text-app-danger tw:type-1"
               id={`edit-error-${input.id}`}
               role="alert"
             >
               {submitError}
             </p>
           ) : null}
-          <div className="canonical-user-message__editor-actions">
+          <div className="canonical-user-message__editor-actions tw:flex tw:justify-end tw:gap-2">
             <Button color="secondary" disabled={submitting} onClick={cancelEditing}>
               取消
             </Button>
@@ -445,7 +445,10 @@ export function CanonicalUserInput({
       />
       {inline && input.state === 'active' ? <small role="status">等待模型接收…</small> : null}
       {!inline && (
-        <div className="canonical-message-actions" aria-label="用户消息操作">
+        <div
+          className="canonical-message-actions tw:flex tw:items-center tw:gap-1 tw:min-h-[26px]"
+          aria-label="用户消息操作"
+        >
           <MessageSentTime sentAt={input.createdAt} />
           <CopyButton text={displayText} />
           {editingAllowed ? (
@@ -792,7 +795,7 @@ function TextItemView({
         />
       </ConversationMarkdownErrorBoundary>
       {hasBottomBar ? (
-        <div className="canonical-message-actions canonical-message-actions--assistant tw:flex tw:items-center tw:gap-1 tw:mt-1 tw:min-h-[26px]">
+        <div className="canonical-message-actions canonical-message-actions--assistant tw:flex tw:items-center tw:justify-start tw:gap-1 tw:mt-1 tw:min-h-[26px]">
           {actionItems.length > 0 ? <AssistantActionsGroup actions={actionItems} /> : null}
           {actionItems.length > 0 && goalAchievedDuration ? (
             <span
@@ -844,7 +847,11 @@ function ContextCompactionItemView({ item }: { item: ItemOf<'activity'> }): Reac
       data-compaction-id={item.id}
     >
       <div className="cpx-agent-activity__item-header cpx-agent-activity__item-header--static">
-        <Icon size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
+        <Icon
+          size={APP_ICON_SIZES.sm}
+          className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
+          aria-hidden="true"
+        />
         <span className="reasoning-node__label">
           {label}
           {active && !reducedMotion ? (
@@ -927,26 +934,26 @@ function ActivityItemView({
         {active ? (
           <LoaderCircle
             size={APP_ICON_SIZES.sm}
-            className="tw:size-icon-sm cpx-agent-activity__icon canonical-spin"
+            className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon canonical-spin"
             aria-hidden="true"
           />
         ) : item.status === 'error' ? (
           <CircleAlert
             size={APP_ICON_SIZES.sm}
-            className="tw:size-icon-sm cpx-agent-activity__icon"
+            className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
             aria-hidden="true"
           />
         ) : (
           <Check
             size={APP_ICON_SIZES.sm}
-            className="tw:size-icon-sm cpx-agent-activity__icon"
+            className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
             aria-hidden="true"
           />
         )}
         <span className="cpx-agent-activity__label">{item.title}</span>
         <ChevronRight
           size="var(--inline-icon-size, 1em)"
-          className="cpx-agent-activity__chevron"
+          className="tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 cpx-agent-activity__chevron"
           aria-hidden="true"
         />
       </button>
@@ -1027,25 +1034,25 @@ export function ToolItemView({
           {view.active ? (
             <LoaderCircle
               size={APP_ICON_SIZES.sm}
-              className="tw:size-icon-sm canonical-spin cpx-agent-activity__icon"
+              className="tw:size-icon-sm tw:shrink-0 canonical-spin cpx-agent-activity__icon"
               aria-hidden="true"
             />
           ) : item.state === 'interrupted' ? (
             <CircleStop
               size={APP_ICON_SIZES.sm}
-              className="tw:size-icon-sm cpx-agent-activity__icon"
+              className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
               aria-hidden="true"
             />
           ) : view.failed ? (
             <CircleAlert
               size={APP_ICON_SIZES.sm}
-              className="tw:size-icon-sm cpx-agent-activity__icon"
+              className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
               aria-hidden="true"
             />
           ) : (
             React.createElement(SummaryIcon, {
               size: APP_ICON_SIZES.sm,
-              className: 'cpx-agent-activity__icon',
+              className: 'tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon',
               'aria-hidden': 'true',
             })
           )}
@@ -1058,7 +1065,7 @@ export function ToolItemView({
           )}
           <ChevronRight
             size={APP_ICON_SIZES.sm}
-            className="tw:size-icon-sm cpx-agent-activity__chevron"
+            className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__chevron"
             aria-hidden="true"
           />
         </ToolActivityHeader>
@@ -1208,8 +1215,8 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
   return (
     <article
       className={cx(
-        'canonical-command-shell md-code-surface tw:mx-0 tw:my-2 tw:min-w-0',
-        embedded && 'canonical-command-shell--embedded tw:my-1',
+        'canonical-command-shell md-code-surface tw:mx-0 tw:min-w-0',
+        embedded ? 'canonical-command-shell--embedded tw:my-1' : 'tw:my-2',
       )}
       data-state={item.state}
     >
@@ -1540,7 +1547,7 @@ export function PatchSummaryView({
             ) : null}
           </span>
         </span>
-        <span className="canonical-patch-card__actions">
+        <span className="canonical-patch-card__actions tw:flex tw:flex-none tw:flex-nowrap tw:items-center tw:justify-end tw:gap-2">
           {canApplyPatch ? (
             <Button
               color="primary"
@@ -1596,7 +1603,10 @@ export function PatchSummaryView({
         </button>
       ) : null}
       {actionError ? (
-        <p className="canonical-patch-card__error" role="alert">
+        <p
+          className="canonical-patch-card__error tw:m-0 tw:border-t tw:border-app-border-subtle tw:px-3 tw:py-2 tw:text-app-danger tw:type-1"
+          role="alert"
+        >
           {actionError}
         </p>
       ) : null}
@@ -1650,19 +1660,19 @@ export function FileMutationItemView({
               {active ? (
                 <LoaderCircle
                   size={APP_ICON_SIZES.sm}
-                  className="tw:size-icon-sm canonical-spin cpx-agent-activity__icon"
+                  className="tw:size-icon-sm tw:shrink-0 canonical-spin cpx-agent-activity__icon"
                   aria-hidden="true"
                 />
               ) : failed ? (
                 <CircleAlert
                   size={APP_ICON_SIZES.sm}
-                  className="tw:size-icon-sm cpx-agent-activity__icon"
+                  className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
                   aria-hidden="true"
                 />
               ) : (
                 <Pencil
                   size={APP_ICON_SIZES.sm}
-                  className="tw:size-icon-sm cpx-agent-activity__icon"
+                  className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
                   aria-hidden="true"
                 />
               )}
@@ -1690,7 +1700,7 @@ export function FileMutationItemView({
               <div className="cpx-agent-activity__item-header cpx-agent-activity__item-header--static">
                 <Pencil
                   size="var(--inline-icon-size, 1em)"
-                  className="cpx-agent-activity__icon"
+                  className="tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 cpx-agent-activity__icon"
                   aria-hidden="true"
                 />
                 <span

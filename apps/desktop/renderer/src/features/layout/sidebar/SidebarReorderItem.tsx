@@ -144,7 +144,7 @@ export const SidebarReorderItem = forwardRef<HTMLElement, Props>(function Sideba
       data-sidebar-receives={receives ? value : undefined}
       data-dragging={isDragSource || undefined}
       className={cx(
-        'sidebar-reorder-item tw:relative tw:min-w-0 tw:cursor-grab tw:select-none',
+        'sidebar-reorder-item tw:relative tw:min-w-0 tw:select-none',
         isDragSource && 'tw:opacity-40',
         className,
       )}

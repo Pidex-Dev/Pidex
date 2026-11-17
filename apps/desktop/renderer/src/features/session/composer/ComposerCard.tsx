@@ -170,7 +170,7 @@ const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
  * hook for the permission menu and its tests.
  */
 const COMPOSER_CHIP_TRIGGER_CLASS = cx(
-  'tw:inline-flex tw:h-5 tw:min-w-0 tw:cursor-pointer tw:select-none tw:items-center tw:gap-1.5',
+  'tw:inline-flex tw:h-5 tw:w-auto tw:min-w-0 tw:appearance-none tw:cursor-pointer tw:select-none tw:items-center tw:gap-1.5',
   'tw:rounded-pill tw:border-0 tw:bg-transparent tw:px-2 tw:py-0 tw:type-1 tw:weight-medium',
   'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
   'tw:hover:bg-app-hover',
@@ -183,7 +183,7 @@ const PERMISSION_TRIGGER_OPEN_CLASS = 'tw:bg-app-selected'
 const PERMISSION_TRIGGER_LABEL_CLASS =
   'permission-select-trigger-label composer-footer-label tw:min-w-0 tw:truncate'
 const PERMISSION_ITEM_ICON_CLASS =
-  'permission-select-item-icon menu-column-leading tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text tw:[&>svg]:block tw:[&>svg]:size-icon tw:[&>svg]:[stroke-width:var(--cpx-sys-icon-stroke-width)]'
+  'permission-select-item-icon menu-column-leading tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:[&>svg]:block tw:[&>svg]:size-icon tw:[&>svg]:[stroke-width:var(--cpx-sys-icon-stroke-width)]'
 const PERMISSION_ITEM_BODY_CLASS =
   'permission-select-item-body menu-column-label tw:min-w-0 tw:flex-1 tw:grid tw:gap-0'
 const PERMISSION_ITEM_DETAIL_CLASS =
@@ -253,6 +253,14 @@ const TOOLBAR_RIGHT_CLASS =
   'toolbar-right tw:ml-auto tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-1 tw:@max-[420px]/composer-footer:gap-1'
 const TOOLBAR_DIVIDER_CLASS =
   'toolbar-divider tw:inline-block tw:h-3 tw:w-px tw:shrink-0 tw:bg-app-border-subtle tw:@max-[300px]/composer-footer:hidden'
+const COMPOSER_MODE_CHIP_CLASS = cx(
+  'composer-plan-mode-chip tw:group tw:relative tw:inline-flex tw:h-5 tw:w-auto tw:min-w-0 tw:appearance-none',
+  'tw:cursor-pointer tw:select-none tw:items-center tw:gap-1 tw:rounded-full tw:border-0 tw:bg-transparent tw:px-1 tw:py-0',
+  'tw:type-1 tw:weight-medium tw:text-app-text-meta',
+  'tw:hover:bg-app-hover tw:hover:text-app-accent-fg tw:focus-visible:text-app-accent-fg tw:data-[active=true]:text-app-accent-fg',
+  'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1',
+  'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
+)
 const COMPOSER_MODE_CHIP_LABEL_CLASS = 'composer-footer-label'
 
 /** 上下文用量圆环按 12px 槽位绘制；进度由描边虚线长度表达，避免低分辨率下的圆孔失真。 */
@@ -1852,7 +1860,6 @@ export function ComposerCard({
                   aria-label="更改权限"
                   aria-description={permissionUnavailableReason}
                   className={cx(
-                    'chip-button',
                     getPermissionClassName(permissionMode),
                     PERMISSION_TRIGGER_CLASS,
                     openDropdown === 'permission' && PERMISSION_TRIGGER_OPEN_CLASS,
@@ -1868,7 +1875,7 @@ export function ComposerCard({
                 <Select.Content
                   size="auto"
                   align="start"
-                  className="popover-surface permission-select-content tw:max-h-[min(440px,calc(100vh_-_96px))] tw:overflow-hidden tw:type-1"
+                  className="popover-surface permission-select-content tw:[--popover-max-height:min(440px,calc(100vh_-_96px))] tw:[--popover-overflow-y:hidden]"
                   data-theme-component="dropdown-surface"
                   collisionPadding={6}
                   side="top"
@@ -1927,9 +1934,7 @@ export function ComposerCard({
                 <button
                   aria-pressed="true"
                   aria-label="退出目标输入"
-                  className={cx(
-                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-1',
-                  )}
+                  className={COMPOSER_MODE_CHIP_CLASS}
                   onClick={() => {
                     onGoalModeChange?.(false)
                   }}
@@ -1981,9 +1986,7 @@ export function ComposerCard({
                 <button
                   aria-pressed="true"
                   aria-label="退出深度访谈"
-                  className={cx(
-                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-1',
-                  )}
+                  className={COMPOSER_MODE_CHIP_CLASS}
                   onClick={() => {
                     void Promise.resolve(onGrillModeChange(false)).catch((error: unknown) =>
                       onCommandError?.(
@@ -2026,9 +2029,7 @@ export function ComposerCard({
                 <button
                   aria-pressed="true"
                   aria-label="退出计划模式"
-                  className={cx(
-                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-1',
-                  )}
+                  className={COMPOSER_MODE_CHIP_CLASS}
                   onClick={() => {
                     void Promise.resolve(onPlanModeChange(false)).catch((error: unknown) =>
                       onCommandError?.(error instanceof Error ? error.message : '计划模式未更新'),

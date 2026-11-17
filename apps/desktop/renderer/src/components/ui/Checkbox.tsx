@@ -44,7 +44,7 @@ export function Checkbox({
       disabled={disabled}
       onCheckedChange={onCheckedChange}
     >
-      <CheckboxPrimitive.Indicator className="ui-checkbox-indicator tw:size-icon-sm [&_svg]:tw:size-icon-sm">
+      <CheckboxPrimitive.Indicator className="ui-checkbox-indicator tw:size-icon-sm tw:[&_svg]:size-icon-sm">
         {checked === 'indeterminate' ? (
           <Minus size={APP_ICON_SIZES.sm} aria-hidden="true" />
         ) : (

@@ -84,7 +84,7 @@ export function ThemeFontPicker({
         disabled={downloadingFontName !== null}
         options={buildWeightOptions(selectedExternalSpec)}
         size="sm"
-        triggerClassName="appearance-font-style"
+        triggerClassName="appearance-font-style tw:h-[28px] tw:min-h-[28px] tw:w-max tw:max-w-none tw:rounded-3"
         value={selectedWeightValue(selectedExternalSpec, face)}
         onChange={(weightValue) =>
           onCommit(
@@ -178,7 +178,7 @@ export function ThemeFontPicker({
         ariaLabel={`${ariaLabel}字体家族`}
         disabled={downloadingFontName !== null}
         options={familyOptions}
-        triggerClassName="appearance-font-family"
+        triggerClassName="appearance-font-family tw:h-[28px] tw:min-h-[28px] tw:w-max tw:max-w-none tw:rounded-3"
         value={currentFamilyValue}
         size="md"
         onChange={handleFamilyChange}
@@ -190,7 +190,7 @@ export function ThemeFontPicker({
           disabled={downloadingFontName !== null}
           options={buildWeightOptions(selectedExternalSpec)}
           size="sm"
-          triggerClassName="appearance-font-style"
+          triggerClassName="appearance-font-style tw:h-[28px] tw:min-h-[28px] tw:w-max tw:max-w-none tw:rounded-3"
           value={selectedWeightValue(selectedExternalSpec, face)}
           onChange={(weightValue) =>
             onCommit(

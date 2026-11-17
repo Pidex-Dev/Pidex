@@ -116,7 +116,8 @@ export function StopSlider({
           <span className="stop-slider-fill" style={{ width: fillWidth }} />
           <span
             aria-hidden="true"
-            className={cx('stop-slider-stops', isSingleStop && 'tw:justify-end')}
+            className="stop-slider-stops"
+            data-single-stop={isSingleStop ? 'true' : undefined}
           >
             {labels.map((label, stopIndex) => (
               <span
@@ -139,7 +140,8 @@ export function StopSlider({
       {showLabels ? (
         <div
           aria-hidden="true"
-          className={cx('stop-slider-labels', isSingleStop && 'tw:justify-end')}
+          className="stop-slider-labels"
+          data-single-stop={isSingleStop ? 'true' : undefined}
         >
           {labels.map((label, stopIndex) => (
             <span

@@ -211,11 +211,11 @@ export function ApiKeyEditorForm({
         className={
           embedded
             ? 'tw:grid tw:gap-3'
-            : 'settings-management-dialog-card model-center-key-dialog-fields tw:m-5 tw:gap-0'
+            : 'settings-management-dialog-card model-center-key-dialog-fields tw:m-5 tw:grid tw:min-w-0 tw:gap-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel'
         }
       >
         {!hideProvider ? (
-          <label className="settings-management-dialog-row model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-2 tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full">
+          <label className="settings-management-dialog-row model-center-field tw:grid tw:min-w-0 tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:gap-2 tw:px-4 tw:py-3 tw:text-app-text tw:type-2 tw:max-[640px]:grid-cols-1 tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full">
             <span>Provider</span>
             {editing ? (
               <div className="model-center-key-dialog-provider tw:flex tw:min-h-7 tw:items-center tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:text-app-text-soft">
@@ -240,7 +240,8 @@ export function ApiKeyEditorForm({
         ) : null}
         <label
           className={cx(
-            !embedded && 'settings-management-dialog-row',
+            !embedded &&
+              'settings-management-dialog-row tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:px-4 tw:py-3 tw:max-[640px]:grid-cols-1',
             'model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-2 tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full',
           )}
         >
@@ -256,7 +257,8 @@ export function ApiKeyEditorForm({
         </label>
         <label
           className={cx(
-            !embedded && 'settings-management-dialog-row',
+            !embedded &&
+              'settings-management-dialog-row tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:px-4 tw:py-3 tw:max-[640px]:grid-cols-1',
             'model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-2 tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full',
           )}
         >
@@ -286,7 +288,7 @@ export function ApiKeyEditorForm({
         className={
           embedded
             ? 'tw:flex tw:justify-end tw:gap-2 tw:pt-3'
-            : 'settings-management-dialog-footer model-center-key-dialog-actions tw:flex-wrap'
+            : 'settings-management-dialog-footer model-center-key-dialog-actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4'
         }
       >
         {onCancel ? (
@@ -337,21 +339,21 @@ export function ApiKeyEditorDialog({
         <Dialog.Content
           aria-describedby={descriptionId}
           aria-labelledby={titleId}
-          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog tw:overflow-x-hidden ${SETTINGS_MANAGEMENT_DIALOG_SIZE.credential}`}
+          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog tw:flex tw:min-w-0 tw:flex-col tw:overflow-hidden tw:text-app-text ${SETTINGS_MANAGEMENT_DIALOG_SIZE.credential}`}
           onCloseAutoFocus={onCloseAutoFocus}
         >
           <header className="settings-management-dialog-header model-center-key-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:p-5">
-            <div className="settings-management-dialog-heading model-center-key-dialog-heading tw:flex tw:min-w-0 tw:items-start tw:gap-3">
+            <div className="settings-management-dialog-heading model-center-key-dialog-heading tw:flex tw:min-w-0 tw:flex-1 tw:items-start tw:gap-3">
               <span className="model-center-key-dialog-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
                 <KeyRound className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
               </span>
               <div>
-                <Dialog.Title id={titleId} className="tw:weight-medium">
+                <Dialog.Title id={titleId} className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-medium">
                   {editing ? '编辑 API Key' : '新增 API Key'}
                 </Dialog.Title>
                 <Dialog.Description
                   id={descriptionId}
-                  className="tw:mt-1 tw:[line-height:var(--cpx-sys-line-height-1)]"
+                  className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1"
                 >
                   {editing
                     ? '修改名称，或输入新 Key 完成安全更换。旧密钥不会回填。'

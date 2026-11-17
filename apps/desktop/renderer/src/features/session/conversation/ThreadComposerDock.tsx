@@ -13,7 +13,7 @@ export const ThreadComposerDock = forwardRef<HTMLDivElement, ThreadComposerDockP
   function ThreadComposerDock({ children, style }, ref) {
     return (
       <div
-        className="chat-composer workflow-page__composer tw:relative tw:flex tw:w-full tw:flex-none tw:justify-center tw:p-0 tw:pointer-events-none tw:[&_.composer]:w-full tw:[&_.inline-approval-card]:w-full tw:[&_.inline-approval-card]:pointer-events-auto tw:[&_.inline-approval-card]:z-composer tw:[&_.workflow-composer-card]:w-full"
+        className="chat-composer workflow-page__composer tw:relative tw:mx-auto tw:flex tw:w-full tw:max-w-full tw:flex-none tw:justify-center tw:p-0 tw:pointer-events-none tw:[&_.composer]:w-full tw:[&_.inline-approval-card]:w-full tw:[&_.inline-approval-card]:pointer-events-auto tw:[&_.inline-approval-card]:z-composer tw:[&_.workflow-composer-card]:w-full"
         data-component="thread-composer-dock"
       >
         <ComposerFrame

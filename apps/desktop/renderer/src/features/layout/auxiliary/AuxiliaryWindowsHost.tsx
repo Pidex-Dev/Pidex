@@ -56,7 +56,7 @@ export const AuxiliaryWindowsHost = memo(function AuxiliaryWindowsHost({
             title={title}
             onDockBack={() => onDockBack(tab.id)}
           >
-            <div className="workbench-tab-panel tw:h-full tw:w-full tw:flex tw:flex-col tw:overflow-hidden">
+            <div className="workbench-tab-panel tw:h-full tw:flex-col">
               <WorkbenchTabErrorBoundary tabId={tab.id}>
                 {definition.render(tab, panelContext)}
               </WorkbenchTabErrorBoundary>

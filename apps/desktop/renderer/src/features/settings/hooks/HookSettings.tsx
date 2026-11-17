@@ -369,7 +369,7 @@ function HookGroupDialog({
     <Dialog.Root open={group !== null} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
-        <Dialog.Content className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-5 tw:rounded-5 tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-2xl">
+        <Dialog.Content className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:min-w-0 tw:flex-col tw:overflow-hidden tw:p-5 tw:w-[min(640px,calc(100vw-32px))] tw:max-h-[85vh] tw:text-app-text">
           {group ? (
             <>
               <div className="tw:flex tw:items-start tw:justify-between tw:gap-3 tw:shrink-0">

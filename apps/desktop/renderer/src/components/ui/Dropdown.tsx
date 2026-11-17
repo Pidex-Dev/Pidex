@@ -45,10 +45,11 @@ export function Dropdown({
           className={[
             'popover-surface',
             'popover',
-            'tw:text-app-text',
             className,
             textMode === 'wrap' ? 'popover-text-wrap' : '',
-          ].join(' ')}
+          ]
+            .filter(Boolean)
+            .join(' ')}
           collisionPadding={collisionPadding}
           avoidCollisions={avoidCollisions}
           onCloseAutoFocus={focusModality.suppressFocusRingOnClose}

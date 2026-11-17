@@ -103,7 +103,7 @@ export function SessionGroupSwitcherPopover({
           trailing={
             selected ? (
               <Check
-                className="tw:size-icon-sm popover-item-check"
+                className="popover-item-check"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
@@ -111,7 +111,7 @@ export function SessionGroupSwitcherPopover({
           }
         >
           {option.group ? (
-            <span className="popover-item-label popover-item-label--rich tw:w-full tw:min-w-0">
+            <span className="popover-item-label popover-item-label--rich tw:w-full">
               <span className="popover-item-title">{option.group.name}</span>
               <span className="popover-item-description">
                 {option.group.memberCount} 个会话 · {option.group.projectLabels.length} 个项目

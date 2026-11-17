@@ -211,7 +211,7 @@ export function WorkbenchTabStrip({
                       className={cx(
                         'right-dock-tab-wrap tw:group tw:relative tw:flex tw:h-6 tw:min-w-[5.625rem] tw:max-w-[9.75rem] tw:flex-[1_1_156px] tw:items-center tw:overflow-hidden tw:rounded-3 tw:border tw:border-transparent tw:px-2 tw:py-1 tw:shadow-none tw:transition-[background-color,border-color,color] tw:duration-state tw:ease-standard tw:[&.dragging]:opacity-50',
                         active
-                          ? 'active tw:bg-app-selected tw:text-app-text'
+                          ? 'is-active tw:bg-app-selected tw:text-app-text'
                           : 'tw:text-app-text-meta tw:hover:bg-app-hover tw:hover:text-app-text-soft tw:has-[:focus-visible]:bg-app-hover tw:has-[:focus-visible]:text-app-text-soft',
                         hasDivider && 'has-divider',
                       )}
@@ -249,7 +249,6 @@ export function WorkbenchTabStrip({
                         aria-selected={active}
                         className={cx(
                           'right-dock-tab tw:pr-6 tw:relative tw:inline-flex tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:items-center tw:gap-2 tw:overflow-hidden tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:whitespace-nowrap tw:type-2 tw:weight-medium',
-                          active && 'active',
                           tab.kind === 'file-preview' && tab.preview && 'preview tw:italic',
                         )}
                         id={`workbench-tab-${target}-${domId(tab.id)}`}
@@ -274,7 +273,7 @@ export function WorkbenchTabStrip({
                           onCloseTab(tab.id)
                         }}
                       >
-                        <span className="right-dock-tab-icon tw:inline-flex tw:size-[var(--inline-icon-size,1em)] tw:items-center tw:justify-center tw:[&>svg]:size-[var(--inline-icon-size,1em)]">
+                        <span className="right-dock-tab-icon tw:inline-flex tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 tw:items-center tw:justify-center tw:[&>svg]:size-[var(--inline-icon-size,1em)] tw:[&>svg]:shrink-0">
                           {tabIcon}
                         </span>
                         <span className="right-dock-tab-title tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:text-left tw:whitespace-nowrap">

@@ -208,7 +208,7 @@ export function GitSettings(): React.ReactNode {
             description="在 Pidex 中创建新分支时使用的前缀"
             control={
               <Input
-                className="settings-input-narrow"
+                className="tw:w-[200px] tw:max-w-full"
                 value={gitBranchPrefix}
                 placeholder="pidex/"
                 onBlur={() => void save(['gitBranchPrefix'])}
@@ -288,9 +288,9 @@ export function GitSettings(): React.ReactNode {
             variant="stacked"
             description="已添加到提交信息生成提示中"
             control={
-              <div className="settings-git-instruction-control tw:flex tw:flex-wrap tw:items-end tw:justify-end tw:gap-2 tw:[&_.settings-textarea]:min-w-0 tw:[&_.settings-textarea]:flex-[1_1_240px]">
+              <div className="settings-git-instruction-control tw:flex tw:flex-wrap tw:items-end tw:justify-end tw:gap-2">
                 <textarea
-                  className="settings-textarea"
+                  className="tw:min-w-0 tw:w-[min(360px,48vw)] tw:flex-[1_1_240px] tw:resize-y tw:rounded-control tw:border tw:border-app-border tw:bg-app-underlay tw:px-control-inline tw:py-control-block tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard tw:hover:not-disabled:border-app-border-strong tw:focus-visible:border-app-focus tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:disabled:cursor-default tw:disabled:border-app-border-subtle tw:disabled:bg-app-panel tw:disabled:text-app-text-disabled tw:disabled:opacity-55 tw:max-[900px]:w-full"
                   rows={6}
                   value={commitMessagePrompt}
                   placeholder="添加提交消息指引..."
@@ -304,9 +304,9 @@ export function GitSettings(): React.ReactNode {
             variant="stacked"
             description="已添加到 PR 标题/描述生成提示中"
             control={
-              <div className="settings-git-instruction-control tw:flex tw:flex-wrap tw:items-end tw:justify-end tw:gap-2 tw:[&_.settings-textarea]:min-w-0 tw:[&_.settings-textarea]:flex-[1_1_240px]">
+              <div className="settings-git-instruction-control tw:flex tw:flex-wrap tw:items-end tw:justify-end tw:gap-2">
                 <textarea
-                  className="settings-textarea"
+                  className="tw:min-w-0 tw:w-[min(360px,48vw)] tw:flex-[1_1_240px] tw:resize-y tw:rounded-control tw:border tw:border-app-border tw:bg-app-underlay tw:px-control-inline tw:py-control-block tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard tw:hover:not-disabled:border-app-border-strong tw:focus-visible:border-app-focus tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:disabled:cursor-default tw:disabled:border-app-border-subtle tw:disabled:bg-app-panel tw:disabled:text-app-text-disabled tw:disabled:opacity-55 tw:max-[900px]:w-full"
                   rows={6}
                   value={pullRequestPrompt}
                   placeholder="添加拉取请求消息指引..."

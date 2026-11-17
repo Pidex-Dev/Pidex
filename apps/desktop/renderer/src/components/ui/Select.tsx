@@ -38,7 +38,7 @@ export type SelectProps<T extends string = string> = {
 }
 
 const SELECT_TRIGGER_CLASSNAME =
-  'ui-select-trigger settings-dropdown settings-dropdown-trigger tw:min-h-6 tw:min-w-0 tw:appearance-none tw:inline-flex tw:items-center tw:justify-between tw:gap-control-gap tw:border tw:rounded-control tw:px-row-inline tw:py-0 tw:text-left tw:type-2 tw:weight-medium tw:cursor-pointer tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-out tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1'
+  'ui-select-trigger settings-dropdown settings-dropdown-trigger tw:min-h-6 tw:min-w-0 tw:appearance-none tw:inline-flex tw:items-center tw:justify-between tw:gap-control-gap tw:border tw:rounded-control tw:px-row-inline tw:py-0 tw:text-left tw:type-2 tw:weight-medium tw:cursor-pointer tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-out'
 function OptionContent({
   option,
   selected,

@@ -45,9 +45,12 @@ export function ApplicationUsagePanel({
   if (loading && !data) return <ApplicationUsageSkeleton />
   if (!data) {
     return (
-      <div className="usage-empty-state" role="status">
-        <h3>暂时无法读取应用用量</h3>
-        <p>{error ?? '本机还没有可归属到模型的调用记录。'}</p>
+      <div
+        className="usage-empty-state tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-4 tw:text-app-text-soft tw:type-1 tw:shadow-none"
+        role="status"
+      >
+        <h3 className="tw:m-0 tw:mb-1 tw:text-app-text tw:type-2">暂时无法读取应用用量</h3>
+        <p className="tw:m-0 tw:mb-3">{error ?? '本机还没有可归属到模型的调用记录。'}</p>
         <Button color="secondary" onClick={onRefresh}>
           重新读取
         </Button>
@@ -92,16 +95,18 @@ export function ApplicationUsagePanel({
   return (
     <div
       aria-labelledby="usage-application-tab"
-      className="usage-panel"
+      className="usage-panel tw:grid tw:gap-4"
       id="usage-application-panel"
       role="tabpanel"
     >
-      <div className="usage-panel-toolbar">
+      <div className="usage-panel-toolbar tw:flex tw:items-center tw:justify-between tw:gap-4 tw:@max-[900px]:flex-col tw:@max-[900px]:items-stretch">
         <div>
-          <h3>应用用量</h3>
-          <p>仅统计本机已持久化、能够可靠归属 Provider 和模型的调用。</p>
+          <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">应用用量</h3>
+          <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
+            仅统计本机已持久化、能够可靠归属 Provider 和模型的调用。
+          </p>
         </div>
-        <div className="usage-toolbar-actions">
+        <div className="usage-toolbar-actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:@max-[900px]:justify-start">
           <SegmentedControl
             ariaLabel="应用用量时间范围"
             onChange={onRangeChange}
@@ -115,46 +120,60 @@ export function ApplicationUsagePanel({
       </div>
 
       {error ? (
-        <div className="usage-inline-error" role="status">
+        <div
+          className="usage-inline-error tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-4 tw:text-app-danger tw:type-1 tw:shadow-none"
+          role="status"
+        >
           {error}
         </div>
       ) : null}
 
-      <div className="usage-metric-grid">
+      <div className="usage-metric-grid tw:grid tw:grid-cols-3 tw:gap-3 tw:@max-[900px]:grid-cols-1">
         {metrics.map((metric) => (
-          <article className="usage-metric-card" key={metric.label}>
-            <span>{metric.label}</span>
-            <strong>{metric.value}</strong>
-            <small>{metric.note}</small>
+          <article
+            className="usage-metric-card tw:grid tw:min-w-0 tw:gap-1 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4 tw:shadow-none"
+            key={metric.label}
+          >
+            <span className="tw:text-app-text-soft tw:type-1">{metric.label}</span>
+            <strong className="tw:text-app-text tw:type-5 tw:weight-bold tw:tabular-nums">
+              {metric.value}
+            </strong>
+            <small className="tw:text-app-text-soft tw:type-1">{metric.note}</small>
           </article>
         ))}
       </div>
 
-      <section className="usage-visual-card">
-        <header>
+      <section className="usage-visual-card tw:grid tw:min-w-0 tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4 tw:shadow-none">
+        <header className="tw:flex tw:items-start tw:justify-between tw:gap-3">
           <div>
-            <h3>活跃记录</h3>
-            <p>颜色越深表示当天模型调用 Token 越多。</p>
+            <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">活跃记录</h3>
+            <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
+              颜色越深表示当天模型调用 Token 越多。
+            </p>
           </div>
         </header>
         <UsageHeatmap points={data.heatmap} />
       </section>
 
-      <div className="usage-visual-grid">
-        <section className="usage-visual-card usage-trend-card">
-          <header>
+      <div className="usage-visual-grid tw:grid tw:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.8fr)] tw:gap-4 tw:@max-[1100px]:grid-cols-1">
+        <section className="usage-visual-card usage-trend-card tw:grid tw:min-w-0 tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4 tw:shadow-none">
+          <header className="tw:flex tw:items-start tw:justify-between tw:gap-3">
             <div>
-              <h3>Token 趋势</h3>
-              <p>每日按模型堆叠，最多展示前五模型。</p>
+              <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">Token 趋势</h3>
+              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
+                每日按模型堆叠，最多展示前五模型。
+              </p>
             </div>
           </header>
           <TokenTrendChart daily={data.daily} modelRanking={data.models} />
         </section>
-        <section className="usage-visual-card">
-          <header>
+        <section className="usage-visual-card tw:grid tw:min-w-0 tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4 tw:shadow-none">
+          <header className="tw:flex tw:items-start tw:justify-between tw:gap-3">
             <div>
-              <h3>模型分布</h3>
-              <p>按总 Token 统计模型占比。</p>
+              <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">模型分布</h3>
+              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
+                按总 Token 统计模型占比。
+              </p>
             </div>
           </header>
           <ModelDistribution models={data.models} total={data.totals.totalTokens} />
@@ -166,14 +185,14 @@ export function ApplicationUsagePanel({
 
 function ApplicationUsageSkeleton(): React.ReactNode {
   return (
-    <SkeletonRegion className="usage-loading" label="正在读取应用用量">
-      <SkeletonBlock className="usage-loading-toolbar" />
-      <div className="usage-metric-grid">
+    <SkeletonRegion className="usage-loading tw:grid tw:gap-3" label="正在读取应用用量">
+      <SkeletonBlock className="usage-loading-toolbar tw:h-[44px] tw:w-full tw:rounded-3" />
+      <div className="usage-metric-grid tw:grid tw:grid-cols-3 tw:gap-3 tw:@max-[900px]:grid-cols-1">
         {Array.from({ length: 6 }, (_, index) => (
-          <SkeletonBlock className="usage-loading-metric" key={index} />
+          <SkeletonBlock className="usage-loading-metric tw:h-[96px] tw:rounded-4" key={index} />
         ))}
       </div>
-      <SkeletonBlock className="usage-loading-chart" />
+      <SkeletonBlock className="usage-loading-chart tw:h-[260px] tw:w-full tw:rounded-4" />
     </SkeletonRegion>
   )
 }
@@ -181,16 +200,24 @@ function ApplicationUsageSkeleton(): React.ReactNode {
 function UsageHeatmap({ points }: { points: LocalUsage['heatmap'] }): React.ReactNode {
   const max = Math.max(1, ...points.map((point) => point.totalTokens))
   if (points.length === 0) {
-    return <p className="usage-chart-empty">所选时间范围内暂无活跃记录。</p>
+    return (
+      <p className="usage-chart-empty tw:m-0 tw:py-4 tw:text-center tw:text-app-text-soft tw:type-1">
+        所选时间范围内暂无活跃记录。
+      </p>
+    )
   }
   return (
-    <div aria-label="每日活跃热力图" className="usage-heatmap" role="list">
+    <div
+      aria-label="每日活跃热力图"
+      className="usage-heatmap tw:grid tw:grid-cols-[repeat(auto-fill,minmax(13px,1fr))] tw:gap-1"
+      role="list"
+    >
       {points.map((point) => {
         const intensity = Math.max(1, Math.ceil((point.totalTokens / max) * 4))
         return (
           <span
             aria-label={`${point.date}，${formatCount(point.totalTokens)} Token，${formatCount(point.modelResponses)} 次模型响应`}
-            className="usage-heatmap-cell"
+            className="usage-heatmap-cell tw:aspect-square tw:min-w-[10px] tw:rounded-compact"
             data-intensity={intensity}
             key={point.date}
             role="listitem"
@@ -229,15 +256,19 @@ function TokenTrendChart({
   const active = chartData.find((day) => day.date === activeDate) ?? chartData.at(-1)
 
   if (daily.length === 0) {
-    return <p className="usage-chart-empty">所选时间范围内暂无 Token 记录。</p>
+    return (
+      <p className="usage-chart-empty tw:m-0 tw:py-4 tw:text-center tw:text-app-text-soft tw:type-1">
+        所选时间范围内暂无 Token 记录。
+      </p>
+    )
   }
 
   return (
     <div className="usage-trend">
-      <div className="usage-chart-scroll">
+      <div className="usage-chart-scroll tw:min-w-0 tw:overflow-x-auto">
         <svg
           aria-label="每日 Token 趋势堆叠柱状图"
-          className="usage-token-chart"
+          className="usage-token-chart tw:block tw:h-[220px] tw:w-full tw:min-w-[560px]"
           preserveAspectRatio="none"
           role="img"
           viewBox={`0 0 ${width} 220`}
@@ -277,22 +308,36 @@ function TokenTrendChart({
           })}
         </svg>
       </div>
-      <div aria-live="polite" className="usage-chart-detail">
-        <strong>{active?.date ?? '—'}</strong>
-        <span>{formatCount(active?.total)} Token</span>
+      <div
+        aria-live="polite"
+        className="usage-chart-detail tw:flex tw:min-h-6 tw:flex-wrap tw:items-center tw:gap-3 tw:text-app-text-soft tw:type-1"
+      >
+        <strong className="tw:text-app-text">{active?.date ?? '—'}</strong>
+        <span className="tw:inline-flex tw:items-center tw:gap-1">
+          {formatCount(active?.total)} Token
+        </span>
         {active?.values.map((value, index) =>
           value > 0 ? (
-            <span key={models[index]?.key}>
-              <i style={{ background: CHART_COLORS[index] }} />
+            <span className="tw:inline-flex tw:items-center tw:gap-1" key={models[index]?.key}>
+              <i
+                className="tw:inline-block tw:size-2 tw:shrink-0 tw:rounded-indicator"
+                style={{ background: CHART_COLORS[index] }}
+              />
               {models[index]?.label} {formatCompactCount(value)}
             </span>
           ) : null,
         )}
       </div>
-      <div aria-label="图表模型图例" className="usage-chart-legend">
+      <div
+        aria-label="图表模型图例"
+        className="usage-chart-legend tw:flex tw:min-h-6 tw:flex-wrap tw:items-center tw:gap-3 tw:text-app-text-soft tw:type-1"
+      >
         {models.map((model, index) => (
-          <span key={model.key}>
-            <i style={{ background: CHART_COLORS[index] }} />
+          <span className="tw:inline-flex tw:items-center tw:gap-1" key={model.key}>
+            <i
+              className="tw:inline-block tw:size-2 tw:shrink-0 tw:rounded-indicator"
+              style={{ background: CHART_COLORS[index] }}
+            />
             {model.label}
           </span>
         ))}
@@ -346,37 +391,51 @@ function ModelDistribution({
     segments.push(`${CHART_COLORS[5]} ${offset}% 100%`)
   }
   return (
-    <div className="usage-distribution">
+    <div className="usage-distribution tw:grid tw:place-items-center tw:gap-4">
       <div
         aria-label={`模型分布，总计 ${formatCount(total)} Token`}
-        className="usage-donut"
+        className="usage-donut tw:grid tw:aspect-square tw:w-[150px] tw:place-items-center tw:rounded-pill"
         role="img"
         style={{ background: `conic-gradient(${segments.join(',')})` }}
       >
-        <span>
-          <strong>{formatCompactCount(total)}</strong>
-          <small>Token</small>
+        <span className="tw:grid tw:aspect-square tw:w-[72%] tw:place-content-center tw:rounded-pill tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-center">
+          <strong className="tw:text-app-text tw:type-4 tw:tabular-nums">
+            {formatCompactCount(total)}
+          </strong>
+          <small className="tw:text-app-text-soft tw:type-1">Token</small>
         </span>
       </div>
-      <ol className="usage-model-ranking">
+      <ol className="usage-model-ranking tw:m-0 tw:grid tw:w-full tw:list-none tw:gap-0 tw:p-0">
         {models.length === 0 ? (
-          <li>暂无模型用量</li>
+          <li className="tw:flex tw:items-center tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:py-2">
+            暂无模型用量
+          </li>
         ) : (
           models.map((model, index) => (
-            <li key={`${model.providerId}/${model.modelId}`}>
-              <i style={{ background: CHART_COLORS[Math.min(index, 5)] }} />
-              <span>
+            <li
+              className="tw:flex tw:items-center tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:py-2"
+              key={`${model.providerId}/${model.modelId}`}
+            >
+              <i
+                className="tw:inline-block tw:size-2 tw:shrink-0 tw:rounded-indicator"
+                style={{ background: CHART_COLORS[Math.min(index, 5)] }}
+              />
+              <span className="tw:mr-auto tw:grid tw:min-w-0">
                 <Link
                   className="usage-provider-link"
                   to={`/providers?provider=${encodeURIComponent(String(model.providerId))}&section=models`}
                 >
                   {model.displayName}
                 </Link>
-                <small>{model.providerId}</small>
+                <small className="tw:block tw:text-app-text-soft tw:type-1">
+                  {model.providerId}
+                </small>
               </span>
-              <span>
+              <span className="tw:text-right tw:text-app-text-soft tw:type-1 tw:tabular-nums">
                 {model.sharePercent.toFixed(1)}%
-                <small>{formatCompactCount(model.totalTokens)} Token</small>
+                <small className="tw:block tw:text-app-text-soft tw:type-1">
+                  {formatCompactCount(model.totalTokens)} Token
+                </small>
               </span>
             </li>
           ))

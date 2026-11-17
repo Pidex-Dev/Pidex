@@ -107,7 +107,8 @@ export function CommandMenuDialog({
         <Dialog.Overlay className="ui-dialog-backdrop command-menu-backdrop tw:fixed tw:inset-0 tw:z-modal tw:flex tw:items-center tw:justify-center tw:bg-app-scrim tw:backdrop-blur-none tw:@max-[560px]:px-2" />
         <Dialog.Content
           aria-describedby="command-menu-description"
-          className="ui-dialog-surface ui-dialog-surface--centered command-menu-dialog tw:w-[min(520px,92vw)] tw:max-h-[calc(100vh-clamp(6rem,16vh,10rem))] tw:overflow-hidden tw:rounded-none tw:border tw:border-app-border-subtle tw:bg-app-raised tw:shadow-none tw:text-app-text tw:outline-none tw:[-webkit-app-region:no-drag] tw:forced-colors:border-[CanvasText] tw:@max-[560px]:w-full"
+          className="ui-dialog-surface ui-dialog-surface--centered command-menu-dialog tw:w-[min(520px,92vw)] tw:max-h-[calc(100vh-clamp(6rem,16vh,10rem))] tw:overflow-hidden tw:text-app-text tw:outline-none tw:[-webkit-app-region:no-drag] tw:@max-[560px]:w-full"
+          data-surface="command"
           onCloseAutoFocus={onCloseAutoFocus}
           onOpenAutoFocus={(event) => {
             event.preventDefault()

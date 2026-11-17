@@ -21,7 +21,7 @@ export function ExecutionPlanCard({ item }: { item: ExecutionPlanItem }): React.
   return (
     <article aria-label="执行计划" className={EXECUTION_PLAN_CARD_CLASS} data-status={item.status}>
       <div
-        className="execution-plan-card__edge-fade tw:relative tw:min-w-0 tw:[--edge-fade-distance:var(--cpx-sys-space-4)]"
+        className="execution-plan-card__edge-fade tw:[--edge-fade-distance:var(--cpx-sys-space-4)]"
         data-at-end={edge.atEnd}
         data-at-start={edge.atStart}
         data-scrollable={edge.scrollable}

@@ -738,10 +738,10 @@ function QuestionAnswerFormInstance({
                       {currentQuestion.multiSelect ? (
                         <span
                           className={cx(
-                            'ask-user-question-checkbox tw:inline-flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:border tw:border-app-border tw:text-app-canvas',
+                            'ask-user-question-checkbox tw:inline-flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:border tw:text-app-canvas',
                             selected
-                              ? 'is-selected tw:border-app-text tw:bg-app-text'
-                              : 'tw:bg-transparent',
+                              ? 'tw:border-app-text tw:bg-app-text'
+                              : 'tw:border-app-border tw:bg-transparent',
                           )}
                           aria-hidden="true"
                         >

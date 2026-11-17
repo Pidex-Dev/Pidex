@@ -78,7 +78,7 @@ export function WhatsNewDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop whats-new-dialog-backdrop tw:overflow-hidden" />
         <Dialog.Content
-          className="ui-dialog-surface ui-dialog-surface--centered whats-new-dialog tw:grid tw:w-[min(1040px,calc(100vw-var(--cpx-sys-space-8)))] tw:h-[min(80vh,760px)] tw:min-h-0 tw:min-w-0 tw:grid-rows-[auto_minmax(0,1fr)] tw:overflow-hidden tw:rounded-5 tw:border-0 tw:bg-app-raised tw:shadow-lg tw:text-app-text"
+          className="ui-dialog-surface ui-dialog-surface--centered whats-new-dialog tw:grid tw:w-[min(1040px,calc(100vw-var(--cpx-sys-space-8)))] tw:h-[min(80vh,760px)] tw:min-h-0 tw:min-w-0 tw:grid-rows-[auto_minmax(0,1fr)] tw:overflow-hidden tw:text-app-text"
           onCloseAutoFocus={(event) => {
             if (!restoreFocusElement?.isConnected) return
             event.preventDefault()

@@ -41,7 +41,7 @@ export function DropdownActions({ actions }: { actions: readonly AppContextMenuA
           <Menu.SubContent
             size="sm"
             collisionPadding={6}
-            className="popover-surface popover popover-menu--grid tw:text-app-text"
+            className="popover-surface popover popover-menu--grid"
           >
             <div className="popover-scroll-content popover-menu-list tw:min-w-0">
               <DropdownActions actions={action.children} />

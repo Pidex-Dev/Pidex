@@ -542,7 +542,7 @@ export function ConversationTurnNavRail({
     >
       <div
         ref={listRef}
-        className="conversation-turn-nav-list tw:w-[2.25rem] tw:max-h-[min(70vh,640px)] tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:[scrollbar-width:none]"
+        className="conversation-turn-nav-list tw:w-[2.25rem] tw:max-h-[min(70vh,640px)] tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain"
         data-fade-start={!edges.atStart || undefined}
         data-fade-end={!edges.atEnd || undefined}
         data-scrubbing={scrubItemId !== null ? '' : undefined}

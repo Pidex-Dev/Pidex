@@ -59,8 +59,8 @@ export function WorkspaceFileTree(props: WorkspaceFileTreeProps): React.ReactNod
             <header className="workspace-file-tree-group-header tw:sticky tw:top-0 tw:z-local tw:flex tw:h-6 tw:items-center tw:gap-2 tw:bg-app-dock tw:px-3 tw:text-app-text tw:type-1 tw:weight-medium">
               <ChevronRight
                 aria-hidden="true"
-                className="right-dock-tree-chevron tw:inline-flex tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta tw:transition-transform tw:duration-state tw:ease-out"
-                size="var(--inline-icon-size, 1em)"
+                className="right-dock-tree-chevron tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta tw:transition-transform tw:duration-state tw:ease-out"
+                size={APP_ICON_SIZES.sm}
               />
               <span className="tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
                 {folder.name}
@@ -362,7 +362,7 @@ function WorkspaceFileTreeContent({
         }
         className={cx(
           'right-dock-tree-row tw:flex tw:h-5 tw:min-h-5 tw:w-full tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:py-0 tw:pr-2 tw:pl-2 tw:text-left tw:text-app-text tw:cursor-pointer tw:select-none tw:type-1 tw:transition-[background-color,border-color,box-shadow,color] tw:duration-state tw:ease-out tw:hover:bg-app-hover',
-          activePath != null && normalizePath(activePath) === key && 'active tw:bg-app-selected',
+          activePath != null && normalizePath(activePath) === key && 'tw:bg-app-selected',
         )}
         role="treeitem"
         style={{ paddingLeft: `${4 + file.depth * 14}px` }}
@@ -429,20 +429,20 @@ function WorkspaceFileTreeContent({
         {file.type === 'directory' && loadingDirectories.has(key) ? (
           <LoaderCircle
             aria-hidden="true"
-            className="right-dock-tree-chevron is-spinning tw:inline-flex tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta"
-            size={APP_ICON_SIZE}
+            className="right-dock-tree-chevron is-spinning tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta"
+            size={APP_ICON_SIZES.sm}
           />
         ) : file.type === 'directory' && directoryErrors.has(key) ? (
           <RotateCcw
             aria-hidden="true"
-            className="right-dock-tree-chevron tw:inline-flex tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta"
-            size={APP_ICON_SIZE}
+            className="right-dock-tree-chevron tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta"
+            size={APP_ICON_SIZES.sm}
           />
         ) : file.type === 'directory' ? (
           <ChevronRight
             aria-hidden="true"
             className={cx(
-              'right-dock-tree-chevron tw:inline-flex tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta tw:transition-transform tw:duration-state tw:ease-out',
+              'right-dock-tree-chevron tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta tw:transition-transform tw:duration-state tw:ease-out',
               expandedDirectories.has(key) && 'is-expanded tw:rotate-90',
             )}
             size={APP_ICON_SIZES.sm}
@@ -451,7 +451,7 @@ function WorkspaceFileTreeContent({
         ) : (
           <FileTypeIcon
             aria-hidden="true"
-            className="right-dock-tree-file-icon tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center"
+            className="right-dock-tree-file-icon tw:inline-flex tw:size-icon tw:shrink-0 tw:items-center tw:justify-center"
             path={file.path}
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}

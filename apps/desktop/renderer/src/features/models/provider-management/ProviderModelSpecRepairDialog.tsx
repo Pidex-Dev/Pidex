@@ -129,12 +129,14 @@ export function ProviderModelSpecRepairDialog({
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
           onCloseAutoFocus={onCloseAutoFocus}
-          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden ${SETTINGS_MANAGEMENT_DIALOG_SIZE.providerModels}`}
+          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:min-w-0 tw:flex-col tw:overflow-hidden tw:text-app-text ${SETTINGS_MANAGEMENT_DIALOG_SIZE.providerModels}`}
         >
-          <header className="settings-management-dialog-header tw:shrink-0">
-            <div className="settings-management-dialog-heading">
-              <Dialog.Title>检查 32K 模型规格</Dialog.Title>
-              <Dialog.Description>
+          <header className="settings-management-dialog-header tw:flex tw:shrink-0 tw:items-start tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:p-5">
+            <div className="settings-management-dialog-heading tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
+              <Dialog.Title className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
+                检查 32K 模型规格
+              </Dialog.Title>
+              <Dialog.Description className="tw:m-0 tw:text-app-text-soft tw:type-1">
                 扫描当前提供商中上下文为 32,768 的已保存模型；按字段选择要应用的官方或供应商规格。
               </Dialog.Description>
             </div>
@@ -148,7 +150,7 @@ export function ProviderModelSpecRepairDialog({
               <X className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
             </Button>
           </header>
-          <div className="settings-management-dialog-body tw:min-h-0 tw:flex-1 tw:overflow-y-auto">
+          <div className="settings-management-dialog-body tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-y-auto tw:p-5">
             {loading ? (
               <p className="tw:py-6 tw:text-center tw:text-app-text-soft tw:type-1">
                 正在检查模型规格…
@@ -250,7 +252,7 @@ export function ProviderModelSpecRepairDialog({
               {error}
             </p>
           ) : null}
-          <footer className="settings-management-dialog-footer tw:shrink-0">
+          <footer className="settings-management-dialog-footer tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4">
             <Button size="md" color="secondary" disabled={applying} onClick={onClose}>
               取消
             </Button>

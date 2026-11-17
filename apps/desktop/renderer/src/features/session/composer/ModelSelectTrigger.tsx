@@ -44,7 +44,7 @@ const EFFORT_BUTTON_CLASS = cx(
   'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1',
 )
 const CHEVRON_WRAP_CLASS =
-  'composer-model-trigger-chevron-wrap tw:inline-flex tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:text-app-text-meta tw:group-hover:text-app-text'
+  'composer-model-trigger-chevron-wrap tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:text-app-text-meta tw:group-hover:text-app-text'
 /** The secondary chevron yields to footer space before the allocator flips the capsule to its icon state. */
 const CHEVRON_FOOTER_CLASS = 'composer-footer-secondary-chevron'
 const CHEVRON_CLASS =

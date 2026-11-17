@@ -67,7 +67,7 @@ export function ThreadAttachmentRows({
   if (attachments.length === 0) return null
 
   return (
-    <div className="thread-attachment-rows tw:grid tw:min-w-0 tw:gap-2">
+    <div className="thread-attachment-rows tw:grid tw:w-full tw:min-w-0 tw:justify-items-end tw:gap-2">
       {manifest ? (
         <div className="browser-annotation-cards">
           {manifest.annotations.map((a) => {

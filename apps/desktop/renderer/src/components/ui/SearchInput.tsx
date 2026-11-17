@@ -71,10 +71,13 @@ const DEFAULT_VARIANT_RADIUS_CLASSES: Record<SearchInputVariant, string> = {
 
 const VARIANT_BASE_CLASSES: Record<SearchInputVariant, string> = {
   outlined:
-    'search-input--outlined tw:bg-app-control tw:type-1 tw:has-[:focus-visible]:outline-none',
-  standard: 'search-input--standard tw:type-2 tw:weight-medium',
-  compact: 'search-input--compact tw:type-2 tw:weight-medium',
-  embedded: 'search-input--embedded tw:border-0 tw:bg-transparent tw:type-1',
+    'search-input--outlined tw:border tw:border-app-border-subtle tw:bg-app-control tw:type-1 tw:has-[input:enabled]:hover:border-app-border-strong tw:has-[:focus-visible]:border-app-focus tw:has-[:focus-visible]:outline-none',
+  standard:
+    'search-input--standard tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:type-2 tw:weight-medium tw:has-[input:enabled]:hover:border-app-border-strong tw:has-[:focus-visible]:border-app-focus tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus',
+  compact:
+    'search-input--compact tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:type-2 tw:weight-medium tw:has-[input:enabled]:hover:border-app-border-strong tw:has-[:focus-visible]:border-app-focus tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus',
+  embedded:
+    'search-input--embedded tw:border-0 tw:bg-transparent tw:type-1 tw:has-[:focus-visible]:shadow-none tw:has-[:focus-visible]:outline-none',
 }
 
 export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(function SearchInput(
@@ -160,10 +163,8 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
   return (
     <div
       className={cx(
-        'search-input tw:type-2 tw:weight-medium tw:inline-flex tw:min-w-0 tw:items-center tw:gap-control-gap tw:border tw:border-app-border-subtle tw:bg-app-canvas',
+        'search-input tw:inline-flex tw:min-w-0 tw:items-center tw:gap-control-gap',
         'tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard',
-        'tw:hover:border-app-border-strong',
-        'tw:has-[:focus-visible]:border-app-focus tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus',
         'tw:has-[input:disabled]:cursor-default tw:has-[input:disabled]:bg-app-panel tw:has-[input:disabled]:outline-none tw:has-[input:disabled]:opacity-55',
         VARIANT_BASE_CLASSES[variant],
         sizeClass,

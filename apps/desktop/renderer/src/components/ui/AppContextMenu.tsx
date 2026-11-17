@@ -2,7 +2,6 @@ import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import { ContextMenu as ContextMenu } from './floating/Menu.js'
 import { Check, ChevronRight } from 'lucide-react'
 import type { DesktopEditAction } from '@pidex/shared/desktop-edit-ipc'
-import { cx } from '../../utils/Cx.js'
 import { useFloatingFocusModality } from '../../utils/FloatingFocus.js'
 import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './IconTokens.js'
 import { OverflowTitle } from './OverflowTitle.js'
@@ -58,32 +57,6 @@ export function resolveAppContextMenuActions(
 ): AppContextMenuAction[] {
   if (!open) return []
   return typeof actions === 'function' ? actions() : actions
-}
-
-/*
- * Row layout moved from `styles/components/menu-item.scss`
- * (`.app-context-menu--flex` / `.app-context-menu--grid`). The cells keep their
- * label/leading/trailing geometry from `styles/popover.scss`; only the layout
- * dependent pieces are utilities here.
- */
-const CONTEXT_ITEM_LAYOUT_CLASSNAMES: Record<AppContextMenuLayout, string> = {
-  flex: 'tw:flex tw:items-center tw:gap-row-gap',
-  grid: 'tw:grid tw:grid-cols-[max-content_minmax(0,1fr)_max-content] tw:items-center tw:gap-x-row-gap',
-}
-
-const CONTEXT_LEADING_LAYOUT_CLASSNAMES: Record<AppContextMenuLayout, string> = {
-  flex: 'tw:hidden',
-  grid: '',
-}
-
-const CONTEXT_LABEL_LAYOUT_CLASSNAMES: Record<AppContextMenuLayout, string> = {
-  flex: 'tw:min-w-0 tw:grow tw:shrink tw:basis-auto',
-  grid: '',
-}
-
-const CONTEXT_TRAILING_LAYOUT_CLASSNAMES: Record<AppContextMenuLayout, string> = {
-  flex: 'tw:shrink-0 tw:grow-0 tw:basis-auto tw:ml-auto',
-  grid: '',
 }
 
 export function AppContextMenu({
@@ -158,7 +131,7 @@ export function AppContextMenu({
               focusModality.suppressFocusRingOnClose(event)
             }}
           >
-            {mergedActions.map((action, index) => renderAction(action, index, layout))}
+            {mergedActions.map((action, index) => renderAction(action, index))}
           </ContextMenu.Content>
         </ContextMenu.Portal>
       ) : null}
@@ -166,11 +139,7 @@ export function AppContextMenu({
   )
 }
 
-function renderAction(
-  action: AppContextMenuAction,
-  key: number,
-  layout: AppContextMenuLayout,
-): ReactNode {
+function renderAction(action: AppContextMenuAction, key: number): ReactNode {
   switch (action.kind) {
     case 'separator':
       return (
@@ -182,41 +151,19 @@ function renderAction(
     case 'sub':
       return (
         <ContextMenu.Sub key={key}>
-          <ContextMenu.SubTrigger
-            className={cx(
-              'app-context-menu-sub-trigger',
-              'sidebar-context-menu-sub-trigger',
-              CONTEXT_ITEM_LAYOUT_CLASSNAMES[layout],
-            )}
-          >
-            <span
-              className={cx(
-                'app-context-menu-leading',
-                'sidebar-context-menu-leading',
-                CONTEXT_LEADING_LAYOUT_CLASSNAMES[layout],
-              )}
-            >
+          <ContextMenu.SubTrigger className="app-context-menu-sub-trigger sidebar-context-menu-sub-trigger">
+            <span className="app-context-menu-leading sidebar-context-menu-leading">
               {action.icon}
             </span>
             <OverflowTitle
-              className={cx(
-                'app-context-menu-label',
-                'sidebar-context-menu-label',
-                CONTEXT_LABEL_LAYOUT_CLASSNAMES[layout],
-              )}
+              className="app-context-menu-label sidebar-context-menu-label"
               variant="menu"
             >
               {action.label}
             </OverflowTitle>
-            <span
-              className={cx(
-                'app-context-menu-trailing',
-                'sidebar-context-menu-trailing',
-                CONTEXT_TRAILING_LAYOUT_CLASSNAMES[layout],
-              )}
-            >
+            <span className="app-context-menu-trailing sidebar-context-menu-trailing">
               <ChevronRight
-                className="app-context-menu-arrow sidebar-context-menu-arrow tw:size-icon-sm"
+                className="app-context-menu-arrow sidebar-context-menu-arrow"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
@@ -228,9 +175,7 @@ function renderAction(
               className={`app-context-menu-content app-context-menu-sub-content sidebar-context-menu-content app-context-menu--${action.layout}`}
               collisionPadding={6}
             >
-              {action.children.map((child, childKey) =>
-                renderAction(child, childKey, action.layout),
-              )}
+              {action.children.map((child, childKey) => renderAction(child, childKey))}
             </ContextMenu.SubContent>
           </ContextMenu.Portal>
         </ContextMenu.Sub>
@@ -239,41 +184,21 @@ function renderAction(
       return (
         <ContextMenu.Item
           key={key}
-          className={cx(
-            'app-context-menu-item',
-            'sidebar-context-menu-item',
-            CONTEXT_ITEM_LAYOUT_CLASSNAMES[layout],
-          )}
+          className="app-context-menu-item sidebar-context-menu-item"
           data-color={action.color}
           disabled={action.disabled}
           onSelect={action.onSelect}
         >
-          <span
-            className={cx(
-              'app-context-menu-leading',
-              'sidebar-context-menu-leading',
-              CONTEXT_LEADING_LAYOUT_CLASSNAMES[layout],
-            )}
-          >
+          <span className="app-context-menu-leading sidebar-context-menu-leading">
             {action.icon}
           </span>
           <OverflowTitle
-            className={cx(
-              'app-context-menu-label',
-              'sidebar-context-menu-label',
-              CONTEXT_LABEL_LAYOUT_CLASSNAMES[layout],
-            )}
+            className="app-context-menu-label sidebar-context-menu-label"
             variant="menu"
           >
             {action.label}
           </OverflowTitle>
-          <span
-            className={cx(
-              'app-context-menu-trailing',
-              'sidebar-context-menu-trailing',
-              CONTEXT_TRAILING_LAYOUT_CLASSNAMES[layout],
-            )}
-          >
+          <span className="app-context-menu-trailing sidebar-context-menu-trailing">
             {action.checked ? <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} /> : null}
             {action.shortcut ? (
               <span

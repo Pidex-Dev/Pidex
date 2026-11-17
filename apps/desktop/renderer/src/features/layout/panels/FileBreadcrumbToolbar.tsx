@@ -75,10 +75,10 @@ export function FileBreadcrumbToolbar({
   }, [absolutePath])
 
   return (
-    <header className="file-breadcrumb-toolbar tw:flex tw:h-6 tw:min-h-6 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-app-dock tw:px-2">
+    <header className="file-breadcrumb-toolbar tw:flex tw:h-6 tw:min-h-6 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-app-dock tw:px-2 tw:text-app-text-soft tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
       <div
         aria-label={`文件路径：${path}`}
-        className="file-breadcrumb-toolbar__path tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:type-2 tw:weight-medium"
+        className="file-breadcrumb-toolbar__path tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:whitespace-nowrap tw:type-2 tw:weight-medium"
       >
         {segments.map((segment, index) => {
           return (
@@ -104,7 +104,7 @@ export function FileBreadcrumbToolbar({
           )
         })}
       </div>
-      <div className="file-breadcrumb-toolbar__actions tw:flex tw:shrink-0 tw:items-center tw:gap-1">
+      <div className="file-breadcrumb-toolbar__actions tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:@max-[440px]:gap-0">
         {markdownViewMode && onToggleMarkdownViewMode ? (
           <SegmentedControl<MarkdownFileViewMode>
             ariaLabel="Markdown 查看模式"

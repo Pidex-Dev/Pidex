@@ -100,7 +100,7 @@ export function PersonalizationSettings({ onError, onNotice }: Props = {}): Reac
         >
           <div className="personalization-instructions-editor tw:grid tw:gap-3">
             <textarea
-              className="settings-textarea settings-textarea-tall personalization-textarea tw:min-h-[26.25rem] tw:w-full tw:font-mono tw:text-[length:var(--cpx-sys-font-size-code)] tw:[line-height:var(--cpx-sys-line-height-code)]"
+              className="personalization-textarea tw:min-h-[26.25rem] tw:w-full tw:resize-y tw:rounded-control tw:border tw:border-app-border tw:bg-app-underlay tw:px-control-inline tw:py-control-block tw:text-app-text tw:type-code tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard tw:hover:not-disabled:border-app-border-strong tw:focus-visible:border-app-focus tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:disabled:cursor-default tw:disabled:border-app-border-subtle tw:disabled:bg-app-panel tw:disabled:text-app-text-disabled tw:disabled:opacity-55"
               onChange={(event) => draft.setValue('customInstructions', event.target.value)}
               placeholder="1、用 utf-8 读取文件！&#10;2、不写测试"
               value={draft.values.customInstructions}

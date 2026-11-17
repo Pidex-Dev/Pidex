@@ -78,12 +78,16 @@ function UserAttachmentFilePreview({
   const state = useUserAttachmentPreview(tab)
 
   if (state.status === 'loading') {
-    return <div className="right-dock-empty-state">正在读取附件…</div>
+    return (
+      <div className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
+        正在读取附件…
+      </div>
+    )
   }
   if (state.status === 'error') {
     return (
-      <div className="right-dock-empty-state">
-        <strong>{state.message}</strong>
+      <div className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
+        <strong className="tw:text-app-text tw:type-4 tw:weight-bold">{state.message}</strong>
         <Button color="secondary" onClick={state.retry}>
           重试
         </Button>
@@ -103,12 +107,14 @@ function UserAttachmentFilePreview({
       : encoding === 'utf8'
   if (!supported) {
     return (
-      <div className="right-dock-empty-state">
-        <strong>{attachment.name}</strong>
-        <span>
+      <div className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
+        <strong className="tw:text-app-text tw:type-4 tw:weight-bold">{attachment.name}</strong>
+        <span className="tw:max-w-full tw:wrap-anywhere tw:text-app-text-soft tw:type-1">
           {attachment.mediaType} · {formatByteSize(attachment.sizeBytes)}
         </span>
-        <span>不支持应用内预览，但仍会作为本地路径上下文提供给 Agent。</span>
+        <span className="tw:max-w-full tw:wrap-anywhere tw:text-app-text-soft tw:type-1">
+          不支持应用内预览，但仍会作为本地路径上下文提供给 Agent。
+        </span>
       </div>
     )
   }
@@ -222,8 +228,8 @@ function DirectoryAttachmentPreview({ tab }: Props): React.ReactNode {
   const parent = relativePath.split(/[\\/]/u).slice(0, -1).join('/')
   return (
     <section style={panelStyle}>
-      <header className="file-breadcrumb-toolbar">
-        <div className="file-breadcrumb-toolbar__path">
+      <header className="file-breadcrumb-toolbar tw:flex tw:h-6 tw:min-h-6 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-app-dock tw:px-2 tw:text-app-text-soft tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
+        <div className="file-breadcrumb-toolbar__path tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:whitespace-nowrap tw:type-2 tw:weight-medium">
           <strong>{tab.attachment.name}</strong>
           <span>{relativePath || '目录根'}</span>
         </div>
@@ -233,8 +239,16 @@ function DirectoryAttachmentPreview({ tab }: Props): React.ReactNode {
           </Button>
         ) : null}
       </header>
-      {loading ? <div className="right-dock-empty-state">正在读取目录…</div> : null}
-      {error ? <div className="right-dock-empty-state">{error}</div> : null}
+      {loading ? (
+        <div className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
+          正在读取目录…
+        </div>
+      ) : null}
+      {error ? (
+        <div className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
+          {error}
+        </div>
+      ) : null}
       {!loading && !error ? (
         <div className="right-dock-file-preview-scroll-area">
           {entries.length ? (
@@ -250,7 +264,9 @@ function DirectoryAttachmentPreview({ tab }: Props): React.ReactNode {
               </button>
             ))
           ) : (
-            <div className="right-dock-empty-state">目录为空</div>
+            <div className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
+              目录为空
+            </div>
           )}
         </div>
       ) : null}
@@ -266,9 +282,9 @@ function AttachmentToolbar({
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <header className="file-breadcrumb-toolbar">
+    <header className="file-breadcrumb-toolbar tw:flex tw:h-6 tw:min-h-6 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-app-dock tw:px-2 tw:text-app-text-soft tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
       <div
-        className="file-breadcrumb-toolbar__path"
+        className="file-breadcrumb-toolbar__path tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:whitespace-nowrap tw:type-2 tw:weight-medium"
         style={metadataStyle}
         title={value.attachment.name}
       >
@@ -277,7 +293,9 @@ function AttachmentToolbar({
           {value.attachment.mediaType} · {formatByteSize(value.attachment.sizeBytes)}
         </span>
       </div>
-      <div className="file-breadcrumb-toolbar__actions">{children}</div>
+      <div className="file-breadcrumb-toolbar__actions tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:@max-[440px]:gap-0">
+        {children}
+      </div>
     </header>
   )
 }
@@ -540,13 +558,19 @@ function PlayableAttachment({ value }: { value: LoadedUserAttachment }): React.R
   const { source, failed, setFailed } = useMediaObjectUrl(value)
   if (failed)
     return (
-      <div className="right-dock-empty-state" role="status">
+      <div
+        className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft"
+        role="status"
+      >
         当前编码无法播放。
       </div>
     )
   if (!source)
     return (
-      <div className="right-dock-empty-state" role="status">
+      <div
+        className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft"
+        role="status"
+      >
         正在读取媒体…
       </div>
     )
@@ -624,7 +648,13 @@ function TextAttachmentPreview({ value }: { value: LoadedUserAttachment }): Reac
       </AttachmentToolbar>
       {formatted.jsonInvalid ? <div style={noticeStyle}>JSON 无法格式化，已显示原文。</div> : null}
       <div style={editorFrameStyle}>
-        <Suspense fallback={<div className="right-dock-empty-state">正在加载文件预览…</div>}>
+        <Suspense
+          fallback={
+            <div className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
+              正在加载文件预览…
+            </div>
+          }
+        >
           <FileEditor
             ariaLabel={`${value.attachment.name} 附件预览`}
             language={formatted.language}

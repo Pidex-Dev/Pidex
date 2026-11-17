@@ -170,7 +170,7 @@ function ColorControl({
         trigger={
           <button
             aria-label={`${ariaLabel}颜色选择器`}
-            className="appearance-color-swatch tw:size-5"
+            className="appearance-color-swatch tw:relative tw:size-5 tw:cursor-pointer tw:rounded-pill"
             style={
               {
                 '--appearance-color-swatch-background': normalizedValue,
@@ -1015,7 +1015,7 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
               control={
                 <div
                   aria-label="外观模式"
-                  className="appearance-mode-gallery tw:grid tw:w-[17rem] tw:max-w-full tw:grid-cols-3 tw:gap-3"
+                  className="appearance-mode-gallery tw:grid tw:w-[17rem] tw:max-w-full tw:grid-cols-3 tw:gap-3 tw:@max-[760px]:gap-2"
                   role="radiogroup"
                   onKeyDown={(event) => {
                     const keyOffsets: Partial<Record<string, number>> = {

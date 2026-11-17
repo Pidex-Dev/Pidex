@@ -157,7 +157,7 @@ export function StructuredDeliveryText({ text }: { text: string }): React.ReactN
           text={text}
         />
       </ConversationMarkdownErrorBoundary>
-      <div className="canonical-message-actions canonical-message-actions--assistant">
+      <div className="canonical-message-actions canonical-message-actions--assistant tw:mt-1 tw:flex tw:min-h-[26px] tw:items-center tw:justify-start tw:gap-1">
         <CopyButton text={text} />
       </div>
     </article>

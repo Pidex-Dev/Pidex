@@ -160,7 +160,7 @@ function ReviewCommitSourceSubmenu({ children }: { children: React.ReactNode }):
         className="popover-item popover-sub-trigger"
         leadingMode="none"
         trailing={
-          <ChevronRight className="tw:size-icon-sm popover-item-arrow" size={APP_ICON_SIZES.sm} />
+          <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />
         }
       >
         <DropdownMenu.SubTrigger tabIndex={-1}>
@@ -171,7 +171,7 @@ function ReviewCommitSourceSubmenu({ children }: { children: React.ReactNode }):
         <DropdownMenu.SubContent
           size="lg"
           data-theme-component="dropdown-surface"
-          className="popover-surface popover popover-review-commits popover-menu--flex tw:max-h-[min(320px,calc(100vh-96px))] tw:overflow-hidden"
+          className="popover-surface popover popover-review-commits popover-menu--flex tw:[--popover-max-height:min(320px,calc(100vh-96px))] tw:[--popover-overflow-y:hidden]"
           collisionPadding={6}
         >
           {children}

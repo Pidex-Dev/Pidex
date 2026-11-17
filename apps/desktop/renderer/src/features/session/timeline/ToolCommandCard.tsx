@@ -290,7 +290,7 @@ export function ToolCommandCard({
         </div>
         <div className="canonical-command-card__actions">
           <button
-            className="md-code-wrap tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:text-app-text-soft tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+            className="md-code-wrap tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
             type="button"
             aria-label="输出自动换行"
             title="输出自动换行"
@@ -303,7 +303,7 @@ export function ToolCommandCard({
         </div>
       </div>
       {children}
-      <footer className="canonical-command-shell__footer">
+      <footer className="canonical-command-shell__footer tw:flex tw:p-2 tw:pt-0">
         <span className="canonical-command-shell__status">
           <StatusIcon
             size={APP_ICON_SIZES.sm}

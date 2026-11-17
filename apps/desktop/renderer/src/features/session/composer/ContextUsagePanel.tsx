@@ -252,7 +252,7 @@ export function ContextUsagePanel({
               </div>
             ) : (
               <div
-                className="context-meter-bar tw:flex-row"
+                className="context-meter-bar"
                 role="group"
                 aria-label={cache ? '缓存命中率分布' : '已用上下文分类构成'}
               >
@@ -390,7 +390,7 @@ export function ContextUsageStatusPanel({ contextUsage }: Props): React.ReactNod
         <div className="tw:min-w-0 tw:flex-1">
           <UsageSegmentBar ariaLabel="上下文容量分类分布" segments={metrics.contextBarSegments} />
         </div>
-        <span className="context-usage-panel-total tw:w-[9rem] tw:shrink-0 tw:text-right tw:text-app-text-meta">
+        <span className="context-usage-panel-total tw:w-[9rem] tw:shrink-0 tw:text-right tw:text-app-text-meta tw:type-1 tw:font-mono tw:tabular-nums">
           {metrics.totalLabel}
         </span>
       </div>
@@ -406,7 +406,7 @@ export function ContextUsageStatusPanel({ contextUsage }: Props): React.ReactNod
           <div className="tw:min-w-0 tw:flex-1">
             <UsageSegmentBar ariaLabel="缓存命中率分布" segments={metrics.cacheBarSegments} />
           </div>
-          <span className="context-usage-panel-total tw:w-[9rem] tw:shrink-0 tw:text-right tw:text-app-text-meta">
+          <span className="context-usage-panel-total tw:w-[9rem] tw:shrink-0 tw:text-right tw:text-app-text-meta tw:type-1 tw:font-mono tw:tabular-nums">
             {formatPercentValue(metrics.cacheHitRatio)}
           </span>
         </section>

@@ -90,7 +90,10 @@ export function CanonicalUserMessageContent({
         />
       </div>
       {withActions ? (
-        <div className="canonical-message-actions" aria-label="用户消息操作">
+        <div
+          className="canonical-message-actions tw:flex tw:items-center tw:gap-1 tw:min-h-[26px]"
+          aria-label="用户消息操作"
+        >
           <MessageSentTime sentAt={createdAt} />
           <CopyButton text={displayText} />
         </div>

@@ -17,11 +17,15 @@ export function ProviderBalanceCards({
 }): React.ReactNode {
   if (balances.length === 0) return null
   return (
-    <div aria-label="账户余额" className="provider-balances" role="group">
+    <div
+      aria-label="账户余额"
+      className="provider-balances tw:grid tw:grid-cols-[repeat(auto-fit,minmax(240px,1fr))] tw:gap-3 tw:@max-[900px]:grid-cols-1"
+      role="group"
+    >
       {balances.map((balance) =>
         compact ? (
           <div
-            className="provider-balance-card tw:flex tw:flex-wrap tw:items-baseline tw:justify-between tw:gap-x-4 tw:gap-y-2"
+            className="provider-balance-card tw:flex tw:min-w-0 tw:flex-wrap tw:items-baseline tw:justify-between tw:gap-x-4 tw:gap-y-2 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3"
             key={balance.currency}
           >
             {accountName ? (
@@ -55,19 +59,29 @@ export function ProviderBalanceCards({
             </div>
           </div>
         ) : (
-          <div className="provider-balance-card" key={balance.currency}>
-            <div className="provider-balance-header">
-              <span className="provider-balance-label">{balance.currency} 账户余额</span>
-              <span className="provider-balance-total">
+          <div
+            className="provider-balance-card tw:grid tw:min-w-0 tw:gap-2 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3"
+            key={balance.currency}
+          >
+            <div className="provider-balance-header tw:flex tw:items-baseline tw:justify-between tw:gap-2">
+              <span className="provider-balance-label tw:min-w-0 tw:truncate tw:text-app-text-soft tw:type-3 tw:weight-medium">
+                {balance.currency} 账户余额
+              </span>
+              <span className="provider-balance-total tw:whitespace-nowrap tw:text-app-text tw:type-3 tw:weight-bold tw:tabular-nums">
                 {formatAmount(balance.currency, balance.total)}
               </span>
             </div>
             {balance.components && balance.components.length > 0 ? (
-              <div className="provider-balance-components">
+              <div className="provider-balance-components tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-x-3 tw:gap-y-2 tw:border-t tw:border-t-app-border-subtle tw:pt-2">
                 {balance.components.map((component) => (
-                  <span className="provider-balance-component" key={component.label}>
-                    <span className="provider-balance-component-label">{component.label}</span>
-                    <span className="provider-balance-component-amount">
+                  <span
+                    className="provider-balance-component tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text-soft tw:type-1 tw:tabular-nums"
+                    key={component.label}
+                  >
+                    <span className="provider-balance-component-label tw:text-app-text-meta">
+                      {component.label}
+                    </span>
+                    <span className="provider-balance-component-amount tw:text-app-text tw:weight-medium">
                       {formatAmount(balance.currency, component.amount)}
                     </span>
                   </span>

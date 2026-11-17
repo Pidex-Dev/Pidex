@@ -143,7 +143,6 @@ export function CodeBlock({
         'tw:m-0',
         'tw:max-w-full',
         'tw:font-mono',
-        !wrapContent && 'tw:overflow-x-auto',
         wrapped ? 'tw:whitespace-pre-wrap' : 'tw:whitespace-pre',
         onChangeCode && !isEditingCode && 'tw:cursor-text',
       )}
@@ -152,11 +151,13 @@ export function CodeBlock({
         <textarea
           ref={textareaRef}
           aria-label="编辑代码内容"
-          className="md-code-editor-textarea tw:m-0 tw:w-full tw:resize-y tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-inherit tw:text-app-text tw:whitespace-pre tw:overflow-x-auto"
+          className={cx(
+            'md-code-editor-textarea tw:block tw:box-border tw:m-0 tw:w-full tw:min-w-full tw:resize-y tw:border-0 tw:rounded-none tw:outline-none tw:bg-transparent tw:p-0 tw:font-mono tw:text-app-text tw:overflow-x-auto',
+            wrapped ? 'tw:whitespace-pre-wrap tw:wrap-anywhere' : 'tw:whitespace-pre',
+          )}
           style={{
             ...codeStyle,
             minHeight: `${Math.max(2, editCodeValue.split('\n').length) * 1.5}em`,
-            fontFamily: 'inherit',
             fontSize: 'inherit',
             lineHeight: 'inherit',
           }}
@@ -205,11 +206,9 @@ export function CodeBlock({
       aria-label={ariaLabel ?? `${languageLabel} 代码块`}
       className={cx(
         'md-code-block',
-        surface === 'standalone' && 'md-code-surface',
-        'tw:mx-0',
+        surface === 'standalone' ? 'md-code-surface' : 'tw:overflow-hidden',
         'tw:w-full',
         'tw:max-w-full',
-        'tw:overflow-hidden',
         className,
       )}
     >
@@ -242,7 +241,7 @@ export function CodeBlock({
           ) : onChangeLanguage ? (
             <button
               aria-label={`修改代码语言：当前为 ${languageLabel}`}
-              className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-5 tw:items-center tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+              className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-5 tw:items-center tw:px-1 tw:font-mono tw:tracking-normal tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
               title="点击直接修改代码语言"
               type="button"
               onClick={(e) => {
@@ -255,14 +254,16 @@ export function CodeBlock({
               <span>{languageLabel}</span>
             </button>
           ) : (
-            <span className="md-code-lang tw:font-mono">{headerLabel ?? languageLabel}</span>
+            <span className="md-code-lang tw:font-mono tw:tracking-normal">
+              {headerLabel ?? languageLabel}
+            </span>
           )}
         </figcaption>
       ) : null}
       <span className="md-code-actions tw:flex tw:items-center">
         {showWrapControl ? (
           <button
-            className="md-code-wrap tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:text-app-text-soft tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+            className="md-code-wrap tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
             type="button"
             aria-label="代码自动换行"
             title="代码自动换行"

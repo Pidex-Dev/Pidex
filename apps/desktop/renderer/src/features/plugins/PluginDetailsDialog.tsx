@@ -161,7 +161,7 @@ export function PluginDetailsDialog({
               />
             </ScrollArea>
 
-            <footer className="settings-management-dialog-footer plugin-details-dialog__actions tw:flex tw:flex-wrap tw:justify-end tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4">
+            <footer className="settings-management-dialog-footer plugin-details-dialog__actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4">
               <Dialog.Close asChild>
                 <Button size="md" color="secondary">
                   关闭

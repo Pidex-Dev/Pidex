@@ -77,7 +77,8 @@ const FILE_PILL_OPEN_CLASS = cx(
 )
 const FILE_PILL_OPEN_REMOVABLE_CLASS = 'tw:pe-6'
 const FILE_PILL_OPEN_STATIC_CLASS = 'tw:pe-2'
-const FILE_PILL_ICON_CLASS = 'attachment-file-pill__icon tw:shrink-0 tw:text-app-text-meta'
+const FILE_PILL_ICON_CLASS =
+  'attachment-file-pill__icon tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 tw:text-app-text-meta'
 const FILE_PILL_TEXT_CLASS =
   'attachment-file-pill__text tw:flex tw:min-w-0 tw:items-baseline tw:gap-1 tw:type-1'
 const FILE_PILL_NAME_CLASS = 'attachment-file-pill__name tw:truncate tw:[font:inherit]'

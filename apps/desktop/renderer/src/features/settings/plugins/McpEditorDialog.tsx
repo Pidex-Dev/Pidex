@@ -306,7 +306,7 @@ export function McpEditorDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-0 tw:text-app-text ${SETTINGS_MANAGEMENT_DIALOG_SIZE.mcpEditor}`}
+          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:min-w-0 tw:flex-col tw:overflow-hidden tw:p-0 tw:text-app-text ${SETTINGS_MANAGEMENT_DIALOG_SIZE.mcpEditor}`}
           onCloseAutoFocus={(event) => {
             if (!restoreFocusElement?.isConnected) return
             event.preventDefault()
@@ -317,8 +317,8 @@ export function McpEditorDialog({
             closeRef.current?.focus()
           }}
         >
-          <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3">
-            <span className="settings-management-dialog-heading tw:min-w-0 tw:flex-1">
+          <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:p-5">
+            <span className="settings-management-dialog-heading tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
               <Dialog.Title className="tw:type-4 tw:weight-bold tw:m-0">
                 {server ? `MCP：${server.name}` : '新增 MCP server'}
               </Dialog.Title>
@@ -348,7 +348,7 @@ export function McpEditorDialog({
             </Dialog.Close>
           </header>
 
-          <div className="settings-management-dialog-body tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto">
+          <div className="settings-management-dialog-body tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto tw:p-5">
             {runtimeError || needsAuth ? (
               <div className="tw:type-1 tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text-soft">
                 {runtimeError ??
@@ -662,7 +662,7 @@ export function McpEditorDialog({
               </FormCard>
               <Field label="Server JSON">
                 <textarea
-                  className="settings-textarea settings-code-textarea tw:min-h-[13rem] tw:w-full tw:resize-y"
+                  className="tw:min-h-[13rem] tw:w-full tw:resize-y tw:rounded-control tw:border tw:border-app-border tw:bg-app-underlay tw:px-control-inline tw:py-control-block tw:text-app-text tw:type-code tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard tw:hover:not-disabled:border-app-border-strong tw:focus-visible:border-app-focus tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:disabled:cursor-default tw:disabled:border-app-border-subtle tw:disabled:bg-app-panel tw:disabled:text-app-text-disabled tw:disabled:opacity-55"
                   rows={10}
                   spellCheck={false}
                   value={form.configText}
@@ -679,7 +679,7 @@ export function McpEditorDialog({
             </McpAdvancedDisclosure>
           </div>
 
-          <footer className="settings-management-dialog-footer tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2">
+          <footer className="settings-management-dialog-footer tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4">
             <span>
               {server?.removable ? (
                 <Button size="md" color="danger" disabled={busy} onClick={() => onRemove(server)}>
@@ -781,7 +781,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function FormCard({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
-    <section className="settings-management-dialog-card tw:grid tw:overflow-hidden">
+    <section className="settings-management-dialog-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel">
       {children}
     </section>
   )
@@ -795,9 +795,13 @@ function FormRow({
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <div className="settings-management-dialog-row">
-      <span className="settings-management-dialog-row-label">{label}</span>
-      <div className="settings-management-dialog-row-control">{children}</div>
+    <div className="settings-management-dialog-row tw:grid tw:min-w-0 tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:gap-4 tw:px-4 tw:py-3 tw:max-[640px]:grid-cols-1 tw:max-[640px]:gap-2">
+      <span className="settings-management-dialog-row-label tw:text-app-text tw:type-2 tw:weight-medium">
+        {label}
+      </span>
+      <div className="settings-management-dialog-row-control tw:grid tw:min-w-0 tw:gap-2">
+        {children}
+      </div>
     </div>
   )
 }

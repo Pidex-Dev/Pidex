@@ -43,9 +43,14 @@ export function SettingsDropdown({
       }))}
       ariaLabel={t(ariaLabel)}
       /* The theme picker sizes its own trigger; every other settings dropdown
-         stays inside the shared 48vw ceiling. */
+         stays inside the shared 48vw ceiling unless the caller overrides width. */
       triggerClassName={cx(
-        variant === 'theme' ? undefined : 'tw:max-w-[min(360px,48vw)] tw:max-[900px]:max-w-none',
+        variant === 'theme' || triggerClassName?.includes('tw:max-w-')
+          ? undefined
+          : 'tw:max-w-[min(360px,48vw)] tw:max-[900px]:max-w-none',
+        variant === 'theme' || triggerClassName?.includes('tw:w-')
+          ? undefined
+          : 'tw:max-[900px]:w-full',
         triggerClassName,
       )}
       variant={variant}

@@ -97,7 +97,7 @@ export function FullAccessConfirmationContent({
 
   return (
     <AlertDialog.Content
-      className="ui-dialog-surface ui-dialog-surface--centered permission-modal full-access-confirmation-dialog tw:grid tw:w-[min(30rem,calc(100vw-var(--cpx-sys-space-8)))] tw:gap-4 tw:rounded-6 tw:border tw:border-app-border-subtle tw:p-5 tw:text-app-text"
+      className="ui-dialog-surface ui-dialog-surface--centered permission-modal full-access-confirmation-dialog tw:grid tw:w-[min(30rem,calc(100vw-var(--cpx-sys-space-8)))] tw:gap-4 tw:p-5 tw:text-app-text"
       onCloseAutoFocus={onCloseAutoFocus}
     >
       <header className="full-access-confirmation-header tw:flex tw:items-center tw:gap-2">

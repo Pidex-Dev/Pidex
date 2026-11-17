@@ -293,7 +293,7 @@ function SidebarProjectGroupComponent({
   )
 
   return (
-    <section className={cx('sidebar-project', 'tw:flex', 'tw:flex-col', 'tw:flex tw:flex-col')}>
+    <section className="sidebar-project tw:flex tw:flex-col">
       <SidebarContextMenu
         actions={contextActions()}
         layout="grid"
@@ -301,11 +301,11 @@ function SidebarProjectGroupComponent({
         trigger={
           <SidebarRow
             className={cx(
-              'sidebar-project-header tw:cursor-pointer tw:group tw:focus:outline-none tw:focus-visible:outline-none tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-0 tw:has-[:focus-visible]:outline-app-focus tw:[&>.sidebar-row-trailing]:relative tw:[&>.sidebar-row-trailing]:w-auto',
+              'sidebar-project-header tw:group tw:focus:outline-none tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-0 tw:has-[:focus-visible]:outline-app-focus tw:[&>.sidebar-row-trailing]:relative tw:[&>.sidebar-row-trailing]:w-auto',
               isUnavailable &&
                 'sidebar-project-header--unavailable tw:text-app-text-disabled tw:hover:bg-transparent tw:[&_.sidebar-item-icon]:text-app-text-disabled',
             )}
-            labelClassName="sidebar-project-name tw:flex tw:min-w-0 tw:items-center tw:text-inherit"
+            labelClassName="sidebar-project-name tw:text-inherit"
             layout="grid"
             leading={
               <ProjectAppearanceGlyph

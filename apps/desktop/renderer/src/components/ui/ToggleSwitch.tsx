@@ -58,7 +58,7 @@ export const ToggleSwitch = forwardRef<HTMLButtonElement, Props>(function Toggle
     >
       <Switch.Thumb
         className={cx(
-          'toggle-knob tw:absolute tw:box-border tw:rounded-full tw:border tw:shadow-sm',
+          'toggle-knob tw:box-border tw:rounded-full tw:shadow-sm',
           'tw:transition-[background-color,border-color,transform] tw:duration-state tw:ease-standard',
           'tw:data-[disabled]:shadow-none',
         )}

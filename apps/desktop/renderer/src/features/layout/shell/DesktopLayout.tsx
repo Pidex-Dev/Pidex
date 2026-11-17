@@ -4186,7 +4186,7 @@ export function DesktopLayout(): React.ReactNode {
                 <div
                   aria-label="主要内容"
                   ref={mainRouteRef}
-                  className="desktop-main-route tw:flex tw:min-w-0 tw:min-h-0 tw:flex-auto tw:flex-col tw:overflow-hidden"
+                  className="desktop-main-route tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:flex-col tw:overflow-hidden"
                   id="desktop-main-content"
                   tabIndex={-1}
                   role="region"

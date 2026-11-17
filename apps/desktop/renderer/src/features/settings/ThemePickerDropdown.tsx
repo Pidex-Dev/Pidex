@@ -89,7 +89,7 @@ export function ThemePickerDropdown({
     <button
       aria-label={t(ariaLabel)}
       className={cx(
-        'settings-dropdown settings-dropdown-trigger appearance-theme-trigger tw:inline-flex tw:h-6 tw:min-h-6 tw:w-auto tw:min-w-[11rem] tw:max-w-[16rem] tw:items-center tw:justify-between tw:gap-2 tw:rounded-pill tw:border tw:border-app-border tw:bg-app-control tw:px-2 tw:py-0 tw:text-app-text tw:type-2 tw:weight-medium tw:cursor-pointer tw:outline-none tw:transition-[background-color,border-color,color] tw:hover:border-app-border-strong tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus',
+        'appearance-theme-trigger tw:inline-flex tw:h-6 tw:min-h-6 tw:w-auto tw:min-w-[11rem] tw:max-w-[16rem] tw:items-center tw:justify-between tw:gap-2 tw:rounded-pill tw:border tw:border-app-border tw:px-2 tw:py-0 tw:type-2 tw:weight-medium tw:cursor-pointer tw:outline-none tw:transition-[background-color,border-color,color] tw:hover:border-app-border-strong',
         triggerClassName,
       )}
       data-theme-component="dropdown-trigger"
@@ -143,7 +143,7 @@ export function ThemePickerDropdown({
           }
           trailing={
             <ChevronRight
-              className="tw:size-icon-sm popover-item-arrow"
+              className="popover-item-arrow"
               size={APP_ICON_SIZES.sm}
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
@@ -156,7 +156,7 @@ export function ThemePickerDropdown({
         <DropdownMenu.Portal>
           <DropdownMenu.SubContent
             aria-label={t('Codex 主题列表')}
-            className="popover-surface popover tw:max-h-[20rem] tw:overflow-y-auto"
+            className="popover-surface popover tw:[--popover-max-height:20rem]"
             collisionPadding={6}
             data-theme-component="dropdown-surface"
             size="sm"

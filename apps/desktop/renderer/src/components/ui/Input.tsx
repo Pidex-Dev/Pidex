@@ -1,7 +1,6 @@
 import { forwardRef } from 'react'
 import type React from 'react'
 import { cx } from '../../utils/Cx.js'
-import './Input.css'
 
 export type InputSize = 'sm' | 'md' | 'compact'
 
@@ -30,6 +29,7 @@ export const Input = forwardRef<HTMLInputElement, Props>(function Input(
         'tw:py-control-block tw:px-control-inline',
         'tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard',
         'tw:enabled:hover:border-app-border-strong',
+        'tw:aria-invalid:border-app-danger tw:aria-invalid:enabled:hover:border-app-danger',
         'tw:focus-visible:border-app-focus tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus',
         'tw:disabled:cursor-default tw:disabled:bg-app-panel tw:disabled:text-app-text-disabled tw:disabled:opacity-55',
         SIZE_CLASSES[size],

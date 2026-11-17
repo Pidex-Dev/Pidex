@@ -116,7 +116,7 @@ export function ProjectSwitcherPopover({
           trailing={
             selected ? (
               <Check
-                className="tw:size-icon-sm popover-item-check"
+                className="popover-item-check"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />

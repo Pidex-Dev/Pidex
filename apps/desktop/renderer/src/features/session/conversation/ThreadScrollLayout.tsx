@@ -8,6 +8,7 @@ export type ThreadScrollLayoutProps = {
   scrollRef: React.RefObject<HTMLDivElement | null>
   footerRef: React.RefObject<HTMLElement | null>
   className?: string
+  innerClassName?: string
   footerClassName?: string
 }
 
@@ -33,6 +34,7 @@ export function ThreadScrollLayout({
   scrollRef,
   footerRef,
   className,
+  innerClassName,
   footerClassName,
 }: ThreadScrollLayoutProps): React.ReactNode {
   const measuredInsetRef = React.useRef(THREAD_FOOTER_GAP_PX)
@@ -136,7 +138,12 @@ export function ThreadScrollLayout({
         .join(' ')}
       data-component="thread-scroll-layout"
     >
-      <div className="thread-scroll-layout__inner tw:flex tw:min-w-0 tw:min-h-full tw:shrink-0 tw:flex-col">
+      <div
+        className={cx(
+          'thread-scroll-layout__inner tw:flex tw:min-w-0 tw:min-h-full tw:shrink-0 tw:flex-col',
+          innerClassName,
+        )}
+      >
         <div className="thread-scroll-layout__content tw:flex tw:min-w-0 tw:shrink-0 tw:flex-col">
           {children}
         </div>

@@ -1582,10 +1582,10 @@ export function ConversationPage(): React.ReactNode {
       ) : null}
       <div
         ref={workflowBodyRef}
-        className="workflow-page__body tw:relative tw:flex tw:w-full tw:min-h-0 tw:flex-1 tw:overflow-hidden"
+        className="workflow-page__body tw:relative tw:flex tw:w-full tw:min-h-0 tw:flex-1 tw:overflow-hidden tw:bg-transparent"
       >
         <main className="workflow-page__main tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-1 tw:flex-col tw:bg-transparent">
-          <div className="workflow-main-scroll-frame tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-1 tw:overflow-hidden">
+          <div className="workflow-main-scroll-frame tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-1 tw:overflow-hidden tw:bg-transparent">
             <ConversationTurnNavRail
               key={activeSessionId}
               items={turnNavItems}
@@ -1597,6 +1597,7 @@ export function ConversationPage(): React.ReactNode {
             />
             <ThreadScrollLayout
               className={`workflow-main-scroll-area tw:flex tw:min-h-0 tw:flex-1 tw:flex-col${inlineSummaryPanel ? ' workflow-main-scroll-area--with-summary' : ''}`}
+              innerClassName="tw:w-full tw:max-w-[calc(var(--page-content-max-width)+2*var(--cpx-sys-space-4))] tw:mx-auto tw:px-4 tw:pt-6"
               footer={composerFooter}
               footerClassName="workflow-main-scroll-footer tw:px-0 tw:pb-4"
               footerRef={threadFooterRef}
@@ -1712,7 +1713,7 @@ function SessionSubmenu({
         className="popover-item popover-sub-trigger"
         leading={<span className="popover-item-icon">{icon}</span>}
         trailing={
-          <ChevronRight className="tw:size-icon-sm popover-item-arrow" size={APP_ICON_SIZES.sm} />
+          <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />
         }
       >
         <DropdownMenu.SubTrigger disabled={disabled} tabIndex={-1}>

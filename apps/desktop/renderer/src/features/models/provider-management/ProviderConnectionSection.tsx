@@ -135,11 +135,14 @@ export function ProviderCredentialUsageCard({
   const balances = allBalances(result)
   return (
     <div
-      className="provider-usage-source tw:grid tw:min-w-0 tw:gap-3"
+      className="provider-usage-source tw:grid tw:min-w-0 tw:gap-3 tw:pt-1"
       data-status={status ?? undefined}
     >
       {result?.error ? (
-        <div className="usage-source-error" role="status">
+        <div
+          className="usage-source-error tw:grid tw:gap-1 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-4 tw:text-app-danger tw:type-1 tw:shadow-none"
+          role="status"
+        >
           <strong>{result.error.message}</strong>
           <span>{result.error.retryable ? '可以稍后重试。' : '查询暂时失败。'}</span>
         </div>
@@ -147,7 +150,7 @@ export function ProviderCredentialUsageCard({
       {balances.length > 0 ? (
         <ProviderBalanceCards balances={balances} compact accountName={credentialName} />
       ) : (
-        <p className="usage-chart-empty">
+        <p className="usage-chart-empty tw:m-0 tw:py-4 tw:text-center tw:text-app-text-soft tw:type-1">
           {loading
             ? '正在查询余额。'
             : status === 'not-connected'
@@ -754,7 +757,7 @@ export function ProviderConnectionSection({
                                     在供应商控制台查看用量与余额。
                                   </p>
                                 </div>
-                                <span className="usage-badge">
+                                <span className="usage-badge tw:inline-flex tw:min-h-[20px] tw:items-center tw:rounded-full tw:px-2 tw:py-1 tw:type-1">
                                   {usageStatusLabel('unsupported')}
                                 </span>
                               </div>
@@ -790,7 +793,9 @@ export function ProviderConnectionSection({
                                   当前接入方式不支持查询余额或用量，请到供应商控制台查看。
                                 </p>
                               </div>
-                              <span className="usage-badge">{usageStatusLabel('unsupported')}</span>
+                              <span className="usage-badge tw:inline-flex tw:min-h-[20px] tw:items-center tw:rounded-full tw:px-2 tw:py-1 tw:type-1">
+                                {usageStatusLabel('unsupported')}
+                              </span>
                             </div>
                           )
                         }

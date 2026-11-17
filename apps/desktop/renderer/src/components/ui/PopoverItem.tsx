@@ -87,19 +87,19 @@ function renderTrailing({
       {withArrow ? (
         arrowDirection === 'down' ? (
           <ChevronDown
-            className="popover-item-arrow tw:size-icon-sm"
+            className="popover-item-arrow"
             size={APP_ICON_SIZES.sm}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : arrowDirection === 'up' ? (
           <ChevronUp
-            className="popover-item-arrow tw:size-icon-sm"
+            className="popover-item-arrow"
             size={APP_ICON_SIZES.sm}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : (
           <ChevronRight
-            className="popover-item-arrow tw:size-icon-sm"
+            className="popover-item-arrow"
             size={APP_ICON_SIZES.sm}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
@@ -114,7 +114,7 @@ const LABEL_CLASS = 'popover-item-label tw:grow tw:shrink tw:basis-auto'
 function renderBody(children: React.ReactNode, description?: React.ReactNode): React.ReactNode {
   if (description) {
     return (
-      <span className="popover-item-label popover-item-label--rich tw:w-full tw:min-w-0">
+      <span className="popover-item-label popover-item-label--rich tw:w-full">
         <OverflowTitle className="popover-item-title" variant="menu">
           {children}
         </OverflowTitle>
@@ -166,7 +166,7 @@ export function PopoverItem({
   const isSelectedWithCheck = Boolean(selected && withCheck)
   const indicator = isSelectedWithCheck ? (
     <Check
-      className="popover-item-check tw:size-icon-sm"
+      className="popover-item-check"
       size={APP_ICON_SIZES.sm}
       strokeWidth={APP_ICON_STROKE_WIDTH}
     />
@@ -224,7 +224,7 @@ export function PopoverCheckboxItem({
   const indicator = (
     <DropdownMenu.ItemIndicator asChild>
       <Check
-        className="popover-item-check tw:size-icon-sm"
+        className="popover-item-check"
         size={APP_ICON_SIZES.sm}
         strokeWidth={APP_ICON_STROKE_WIDTH}
       />
@@ -287,7 +287,7 @@ export function PopoverRadioItem({
   const indicator = (
     <DropdownMenu.ItemIndicator asChild>
       <Check
-        className="popover-item-check tw:size-icon-sm"
+        className="popover-item-check"
         size={APP_ICON_SIZES.sm}
         strokeWidth={APP_ICON_STROKE_WIDTH}
       />

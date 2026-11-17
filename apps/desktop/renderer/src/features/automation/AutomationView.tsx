@@ -687,7 +687,8 @@ function AutomationViewContent(): React.ReactNode {
         <Popover.Portal>
           <div>
             <div
-              className="ui-dialog-backdrop permission-modal-backdrop automation-calendar__focus-backdrop tw:pointer-events-auto tw:p-0 tw:animate-none tw:transition-none tw:backdrop-blur-none tw:forced-colors:bg-transparent"
+              className="ui-dialog-backdrop permission-modal-backdrop automation-calendar__focus-backdrop tw:pointer-events-auto"
+              data-backdrop="flat"
               data-state="open"
               aria-hidden="true"
               onClick={() => closeDetail(true)}
@@ -695,7 +696,8 @@ function AutomationViewContent(): React.ReactNode {
             <Popover.Content
               size="lg"
               ref={surfaceRef}
-              className="popover-surface ui-dialog-surface automation-focus-shell tw:z-modal tw:grid tw:max-h-[min(35rem,calc(100vh-60px),var(--popover-available-height))] tw:overflow-hidden tw:rounded-floating tw:animate-none tw:transition-none tw:backdrop-blur-none tw:text-app-text tw:forced-colors:border tw:forced-colors:border-[CanvasText]"
+              className="popover-surface ui-dialog-surface automation-focus-shell tw:grid tw:[--popover-max-height:min(35rem,calc(100vh-60px),var(--popover-available-height))] tw:[--popover-overflow-y:hidden]"
+              data-surface="floating"
               side="bottom"
               align="start"
               sideOffset={0}

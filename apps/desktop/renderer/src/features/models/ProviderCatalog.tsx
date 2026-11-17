@@ -78,7 +78,7 @@ export function ProviderCatalog({
                         type="button"
                         onClick={() => onSelect(provider.id)}
                       >
-                        <span className="provider-card-logo settings-management-row-icon">
+                        <span className="provider-card-logo settings-management-row-icon tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-3 tw:bg-app-editor tw:text-app-text-soft">
                           <ProviderIcon
                             fallback={
                               <Server

@@ -518,7 +518,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                     <div className="memory-settings-editor-scroll-content tw:flex tw:min-w-0 tw:h-full tw:flex-col">
                       {selectedMemory ? (
                         <textarea
-                          className="settings-textarea memory-settings-editor-textarea tw:block tw:w-full tw:min-h-[20rem] tw:flex-1 tw:resize-y tw:box-border tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-3 tw:text-app-text tw:type-code tw:m-0 tw:outline-none tw:focus:border-app-accent-border"
+                          className="memory-settings-editor-textarea tw:m-0 tw:box-border tw:block tw:min-h-[20rem] tw:w-full tw:flex-1 tw:resize-y tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-3 tw:text-app-text tw:type-code tw:outline-none tw:hover:not-disabled:border-app-border-strong tw:focus:border-app-accent-border tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
                           value={draftContent ?? selectedMemory.content}
                           onChange={(event) => setDraftContent(event.target.value)}
                         />

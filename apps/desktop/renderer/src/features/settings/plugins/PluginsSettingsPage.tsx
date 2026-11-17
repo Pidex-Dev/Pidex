@@ -968,7 +968,7 @@ export function PluginsSettingsPage({
           </div>
         </header>
 
-        <div className="settings-management-toolbar plugins-settings-toolbar">
+        <div className="settings-management-toolbar plugins-settings-toolbar tw:mb-3 tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-4 tw:@max-[42rem]:flex-col tw:@max-[42rem]:items-stretch">
           <SegmentedControl
             ariaLabel="管理扩展"
             value={tab}
@@ -978,7 +978,7 @@ export function PluginsSettingsPage({
             getTabId={(value) => `plugins-settings-tab-${value}`}
             getPanelId={(value) => `plugins-settings-panel-${value}`}
           />
-          <div className="settings-management-toolbar-actions plugins-settings-toolbar-actions">
+          <div className="settings-management-toolbar-actions plugins-settings-toolbar-actions tw:flex tw:min-w-0 tw:items-center tw:justify-end tw:gap-2 tw:@max-[42rem]:w-full tw:@max-[42rem]:justify-start">
             <SearchInput
               ref={searchRef}
               aria-label={searchPlaceholder(tab)}
@@ -1041,7 +1041,7 @@ export function PluginsSettingsPage({
 
         <section
           aria-labelledby={`plugins-settings-tab-${tab}`}
-          className="settings-management-list plugins-settings-list"
+          className="settings-management-list plugins-settings-list tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel"
           id={`plugins-settings-panel-${tab}`}
           role="tabpanel"
         >
@@ -1340,11 +1340,15 @@ export function PluginsSettingsPage({
 
 function LoadingRows(): React.ReactNode {
   return (
-    <div aria-label="正在加载" className="settings-management-loading" role="status">
+    <div
+      aria-label="正在加载"
+      className="settings-management-loading tw:grid tw:divide-y tw:divide-app-border-subtle"
+      role="status"
+    >
       {[0, 1, 2, 3].map((index) => (
         <div
           aria-hidden="true"
-          className="settings-management-loading-row tw:animate-pulse tw:motion-reduce:animate-none"
+          className="settings-management-loading-row tw:h-[calc(var(--cpx-sys-space-6)*2+var(--cpx-sys-space-1))] tw:animate-pulse tw:bg-app-editor tw:motion-reduce:animate-none"
           key={index}
         />
       ))}
@@ -1354,7 +1358,7 @@ function LoadingRows(): React.ReactNode {
 
 function EmptyState({ label }: { label: string }): React.ReactNode {
   return (
-    <div className="settings-management-empty">
+    <div className="settings-management-empty tw:grid tw:min-h-[12rem] tw:place-items-center tw:p-6 tw:text-center tw:text-app-text-soft tw:type-1">
       <span className="tw:grid tw:justify-items-center tw:gap-3">
         <Package
           className="tw:size-icon-md"

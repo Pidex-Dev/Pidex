@@ -417,8 +417,8 @@ export function RightDockPlanPanel({
             size={APP_ICON_SIZES.lg}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
-          <strong className="tw:text-app-text">暂无计划</strong>
-          <span className="tw:max-w-full tw:text-app-text-soft">
+          <strong className="tw:text-app-text tw:type-4 tw:weight-bold">暂无计划</strong>
+          <span className="tw:max-w-full tw:wrap-anywhere tw:text-app-text-soft tw:type-1">
             从主对话里的计划卡片打开计划书
           </span>
         </div>
@@ -511,16 +511,16 @@ export function RightDockFilesPanel({
           'tw:flex tw:h-full tw:w-full tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col',
         )}
       >
-        <header className="file-breadcrumb-toolbar file-breadcrumb-toolbar--empty">
+        <header className="file-breadcrumb-toolbar file-breadcrumb-toolbar--empty tw:flex tw:h-6 tw:min-h-6 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-app-dock tw:px-2 tw:text-app-text-soft tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
           <div
             aria-label={`文件路径：${rootDisplayName}`}
-            className="file-breadcrumb-toolbar__path"
+            className="file-breadcrumb-toolbar__path tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:justify-start tw:overflow-hidden tw:whitespace-nowrap tw:type-2 tw:weight-medium"
           >
             <strong className="file-breadcrumb-toolbar__root" title={workspacePath}>
               {rootDisplayName}
             </strong>
           </div>
-          <div className="file-breadcrumb-toolbar__actions">
+          <div className="file-breadcrumb-toolbar__actions tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:@max-[440px]:gap-0">
             {workspacePath ? (
               <Button
                 isIconOnly
@@ -578,10 +578,10 @@ export function RightDockFilesPanel({
           style={treeResize.layoutStyle}
         >
           <div className="right-dock-file-selection-target right-dock-open-file-placeholder tw:flex tw:h-full tw:min-h-0 tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:[&>*]:grow tw:[&>*]:shrink tw:[&>*]:basis-auto tw:[&>*]:min-h-0">
-            <div className="right-dock-empty-state">
+            <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:min-w-0 tw:min-h-0 tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-5 tw:text-center tw:text-app-text-meta">
               <svg
                 aria-hidden="true"
-                className="right-dock-open-file-illustration"
+                className="right-dock-open-file-illustration tw:size-icon-lg"
                 fill="none"
                 height={APP_ICON_SIZE}
                 stroke="currentColor"
@@ -595,8 +595,10 @@ export function RightDockFilesPanel({
                 <path d="M9 13h6" />
                 <path d="M12 10v6" />
               </svg>
-              <strong>打开文件</strong>
-              <span>从工作区目录树中选择文件</span>
+              <strong className="tw:text-app-text tw:type-4 tw:weight-bold">打开文件</strong>
+              <span className="tw:max-w-full tw:wrap-anywhere tw:text-app-text-soft tw:type-1">
+                从工作区目录树中选择文件
+              </span>
             </div>
           </div>
           <EditorFileTreePresence
@@ -784,14 +786,16 @@ export function RightDockFilePreviewPanel({
 
   if (document.status !== 'ready') {
     return (
-      <div className="right-dock-empty-state">
+      <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:min-w-0 tw:min-h-0 tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-5 tw:text-center tw:text-app-text-meta">
         <Folder
           className="tw:size-icon-lg"
           size={APP_ICON_SIZES.lg}
           strokeWidth={APP_ICON_STROKE_WIDTH}
         />
-        <strong>正在读取文件</strong>
-        <span>{expectedPath}</span>
+        <strong className="tw:text-app-text tw:type-4 tw:weight-bold">正在读取文件</strong>
+        <span className="tw:max-w-full tw:wrap-anywhere tw:text-app-text-soft tw:type-1">
+          {expectedPath}
+        </span>
       </div>
     )
   }

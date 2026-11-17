@@ -202,7 +202,7 @@ export function SettingsNav({ activeTab, workspacePath = null, onBack, onTabChan
                         leading={
                           <item.icon
                             size={APP_ICON_SIZE}
-                            className="settings-nav-icon tw:size-icon-md tw:text-current"
+                            className="settings-nav-icon tw:text-current"
                           />
                         }
                       >

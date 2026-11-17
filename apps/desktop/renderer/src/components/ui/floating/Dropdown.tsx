@@ -290,7 +290,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
         data-theme-component="dropdown-surface"
         tabIndex={-1}
         style={{ ...floatingStyle, ...style }}
-        className={`popover-surface popover popover-menu-list tw:select-none tw:text-[var(--cpx-sys-color-fg-primary)] ${className}`}
+        className={`popover-surface popover popover-menu-list ${className}`}
         onKeyDown={(event) => {
           onKeyDown?.(event)
           if (
@@ -498,10 +498,10 @@ const DropdownItem = forwardRef<HTMLDivElement, DropdownItemProps>(
                 {icon}
               </span>
             )}
-            <div className="menu-column-label tw:min-w-0">
+            <div className="menu-column-label">
               <div className="tw:truncate">{children}</div>
               {description && (
-                <div className="menu-column-detail tw:type-1 tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:whitespace-normal tw:wrap-anywhere tw:mt-1">
+                <div className="menu-column-detail tw:type-1 tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:mt-1">
                   {description}
                 </div>
               )}

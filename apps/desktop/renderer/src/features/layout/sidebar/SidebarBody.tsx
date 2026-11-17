@@ -102,7 +102,7 @@ const SECTION_HEADER_CLASS =
 const SECTION_TITLE_CLASS =
   'sidebar-section-title tw:flex tw:min-w-0 tw:items-center tw:type-2 tw:normal-case tw:text-app-text-meta'
 const SECTION_TOGGLE_CLASS =
-  'sidebar-section-toggle tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)] tw:items-center tw:gap-x-2 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit'
+  'sidebar-section-toggle tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)] tw:items-center tw:gap-x-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit'
 const SECTION_ACTIONS_CLASS =
   'sidebar-section-actions tw:flex tw:w-full tw:items-center tw:justify-end tw:opacity-0 tw:pointer-events-none tw:transition-opacity tw:duration-feedback tw:ease-out tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-has-[:focus-visible]:opacity-100 tw:group-has-[:focus-visible]:pointer-events-auto tw:has-[[data-state=open]]:opacity-100 tw:has-[[data-state=open]]:pointer-events-auto'
 /* 展开/折叠箭头：随 aria-expanded 旋转，hover 时显现。 */
@@ -117,8 +117,8 @@ const SECTION_CONTENT_CLASS =
   'sidebar-section-content tw:grid tw:min-w-0 tw:sidebar-row-gap tw:overflow-hidden tw:pt-0'
 /* 更多/收起操作行：与分组行同一 gutter，1px 行间距。 */
 const SHOW_MORE_ACTIONS_CLASS =
-  'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-0.5 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-3 tw:px-1 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard'
-const SHOW_MORE_ROW_CLASS = 'sidebar-row-main tw:min-w-0 tw:flex tw:items-center tw:gap-4'
+  'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-1 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-3 tw:px-1 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard'
+const SHOW_MORE_ROW_CLASS = 'sidebar-row-main tw:gap-4'
 const SHOW_MORE_BUTTON_CLASS =
   'tw:w-auto sidebar-show-more-button tw:first:-ml-2 tw:min-w-0 tw:border-0 tw:[font:inherit]'
 const SHOW_MORE_LABEL_CLASS = 'tw:block tw:overflow-hidden tw:whitespace-nowrap'
@@ -1597,10 +1597,7 @@ function SidebarShowMoreActions({
 }): React.ReactNode {
   return (
     <div className={SHOW_MORE_ACTIONS_CLASS}>
-      <span
-        aria-hidden="true"
-        className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:h-6 tw:w-full tw:items-center tw:justify-center"
-      />
+      <span aria-hidden="true" className="sidebar-row-leading sidebar-row-leading-spacer" />
       <div className={SHOW_MORE_ROW_CLASS}>
         {canShowMore ? (
           <Button
@@ -1626,17 +1623,7 @@ function SidebarShowMoreActions({
           </Button>
         ) : null}
       </div>
-      <span
-        aria-hidden="true"
-        className={cx(
-          'sidebar-row-trailing',
-          'tw:min-w-0',
-          'tw:flex',
-          'tw:items-center',
-          'tw:w-full',
-          'tw:justify-end',
-        )}
-      />
+      <span aria-hidden="true" className="sidebar-row-trailing tw:w-full tw:justify-end" />
     </div>
   )
 }

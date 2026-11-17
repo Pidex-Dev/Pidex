@@ -181,7 +181,7 @@ export function ProjectEditDialog({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="ui-dialog-backdrop project-edit-backdrop tw:backdrop-blur-none" />
+        <Dialog.Overlay className="ui-dialog-backdrop project-edit-backdrop" />
         <Dialog.Content
           aria-describedby={undefined}
           className="ui-dialog-surface ui-dialog-surface--centered project-edit-dialog tw:flex tw:flex-col tw:box-border tw:w-[min(32rem,calc(100vw-2rem))] tw:max-w-[calc(100vw-2rem)] tw:max-h-[calc(100vh-2rem)] tw:overflow-y-auto tw:gap-3 tw:p-5 tw:text-app-text tw:outline-none"

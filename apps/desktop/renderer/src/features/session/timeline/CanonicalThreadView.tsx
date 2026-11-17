@@ -193,7 +193,7 @@ export function CanonicalProcessGroup({
       {canExpand && !onActivate ? (
         <ChevronRight
           size={APP_ICON_SIZES.sm}
-          className="tw:size-icon-sm cpx-agent-activity__chevron"
+          className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__chevron"
           aria-hidden="true"
         />
       ) : null}

@@ -374,7 +374,7 @@ export function ProfileSettings(): React.ReactNode {
           size="lg"
           align="center"
           aria-label="设置 GitHub 状态"
-          className="popover-surface profile-status-popover tw:z-popover"
+          className="profile-status-popover"
           style={{ padding: 0 }}
           collisionPadding={8}
           side="bottom"

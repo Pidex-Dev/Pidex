@@ -804,7 +804,7 @@ function MarkdownTable({
         <Dialog.Portal>
           <Dialog.Overlay className="ui-dialog-backdrop tw:fixed tw:inset-0 tw:z-modal" />
           <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered tw:z-modal tw:flex tw:w-[calc(100vw-4rem)] tw:max-h-[calc(100vh-4rem)] tw:min-h-0 tw:flex-col tw:gap-3 tw:p-4 tw:text-app-text tw:outline-none"
+            className="ui-dialog-surface ui-dialog-surface--centered tw:flex tw:w-[calc(100vw-4rem)] tw:max-h-[calc(100vh-4rem)] tw:min-h-0 tw:flex-col tw:gap-3 tw:p-4 tw:text-app-text"
             aria-describedby={undefined}
             onCloseAutoFocus={onCloseAutoFocus}
           >

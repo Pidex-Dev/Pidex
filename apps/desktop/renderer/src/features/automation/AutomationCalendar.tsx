@@ -348,7 +348,7 @@ export function AutomationCalendar({
             <Popover.Portal>
               <Popover.Content
                 size="md"
-                className="popover-surface automation-calendar__tasks-popover tw:flex tw:max-h-[22rem] tw:flex-col"
+                className="popover-surface automation-calendar__tasks-popover tw:flex tw:flex-col tw:[--popover-max-height:22rem]"
                 side="bottom"
                 align="start"
                 sideOffset={6}

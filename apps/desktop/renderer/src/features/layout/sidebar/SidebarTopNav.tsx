@@ -151,17 +151,13 @@ function SidebarNavItems({
             active={active && !plainActive}
             asChild
             className={cx(
-              'sidebar-nav-link tw:type-2 tw:weight-medium',
+              'sidebar-nav-link tw:weight-medium',
               'tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus',
               active && !plainActive ? 'active' : undefined,
               plainActive ? 'sidebar-row--ghost' : undefined,
             )}
             key={item.view}
-            labelClassName={cx(
-              'sidebar-item-label',
-              'tw:min-w-0',
-              'tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap',
-            )}
+            labelClassName="sidebar-item-label tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap"
             layout="flex"
             leading={item.icon}
           >
@@ -270,7 +266,7 @@ export function SidebarHeader({
           />
         </div>
         {showActions ? (
-          <div className="sidebar-header-actions tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:gap-row-gap">
+          <div className="sidebar-header-actions tw:flex tw:min-w-0 tw:shrink-0 tw:items-center">
             <Popover.Root
               open={
                 !sidebarActivityCoachmarkDismissed &&

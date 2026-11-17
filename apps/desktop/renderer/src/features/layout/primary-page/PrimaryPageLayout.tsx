@@ -43,12 +43,14 @@ export function PrimaryPageLayout({
     >
       <header
         className={cx(
-          'primary-page-layout__header tw:flex tw:w-[min(var(--page-content-max-width),100%)] tw:min-w-0 tw:flex-none tw:flex-col tw:mx-auto',
-          hasPermanentSearch && 'primary-page-layout__header--with-search',
+          'primary-page-layout__header tw:w-[min(var(--page-content-max-width),100%)] tw:min-w-0 tw:flex-none tw:mx-auto',
+          hasPermanentSearch
+            ? 'primary-page-layout__header--with-search'
+            : 'tw:flex tw:flex-col',
           headerClassName,
         )}
       >
-        <div className="primary-page-layout__header-top tw:flex tw:w-full tw:min-w-0 tw:items-start tw:justify-between tw:gap-4">
+        <div className="primary-page-layout__header-top tw:w-full tw:min-w-0 tw:items-start tw:justify-between tw:gap-4">
           <div className="primary-page-layout__header-main tw:flex tw:min-w-0 tw:flex-1 tw:flex-col">
             {expandableSearch && isValidElement<SearchInputProps>(search) ? (
               <SearchHeading
@@ -79,7 +81,7 @@ export function PrimaryPageLayout({
           ) : null}
         </div>
         {hasPermanentSearch ? (
-          <div className="primary-page-layout__search tw:mt-4 tw:w-full tw:min-w-0 tw:[&_.search-input]:w-full">
+          <div className="primary-page-layout__search tw:min-w-0 tw:[&_.search-input]:w-full">
             {search}
           </div>
         ) : null}

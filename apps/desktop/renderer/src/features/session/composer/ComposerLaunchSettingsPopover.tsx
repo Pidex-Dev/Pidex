@@ -57,7 +57,7 @@ type Props = {
 type View = 'settings' | 'branch' | 'environment'
 
 const CONTENT_CLASS =
-  'popover-surface popover popover-menu-spacing tw:z-popover tw:grid tw:max-h-none tw:overflow-hidden tw:text-app-text'
+  'popover-surface popover-menu-spacing tw:grid tw:[--popover-max-height:none] tw:[--popover-overflow-y:hidden]'
 const NOTE_CLASS = 'tw:m-0 tw:px-2 tw:pb-1 tw:text-app-text-meta tw:type-1'
 
 /**
@@ -284,7 +284,7 @@ export function ComposerLaunchSettingsPopover({
                     trailing={
                       <ChevronRight
                         aria-hidden="true"
-                        className="tw:size-icon-sm popover-item-arrow"
+                        className="popover-item-arrow"
                         size={APP_ICON_SIZES.sm}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
@@ -298,7 +298,7 @@ export function ComposerLaunchSettingsPopover({
                         setView('branch')
                       }}
                     >
-                      <span className="popover-item-label tw:flex tw:w-full tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
+                      <span className="popover-item-label tw:flex tw:w-full tw:flex-1 tw:items-center tw:gap-2">
                         <span className="tw:text-app-text-soft">分支</span>
                         <span className="tw:ml-auto tw:min-w-0 tw:truncate tw:text-app-text-soft">
                           {pendingBranch ?? '未选择'}
@@ -324,7 +324,7 @@ export function ComposerLaunchSettingsPopover({
                     trailing={
                       <ChevronRight
                         aria-hidden="true"
-                        className="tw:size-icon-sm popover-item-arrow"
+                        className="popover-item-arrow"
                         size={APP_ICON_SIZES.sm}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
@@ -339,7 +339,7 @@ export function ComposerLaunchSettingsPopover({
                       }
                       onClick={() => setView('environment')}
                     >
-                      <span className="popover-item-label tw:flex tw:w-full tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
+                      <span className="popover-item-label tw:flex tw:w-full tw:flex-1 tw:items-center tw:gap-2">
                         <span className="tw:text-app-text-soft">环境</span>
                         <span className="tw:ml-auto tw:min-w-0 tw:truncate tw:text-app-text-soft">
                           {environmentValue}
@@ -422,7 +422,7 @@ export function ComposerLaunchSettingsPopover({
                         trailing={
                           selected ? (
                             <Check
-                              className="tw:size-icon-sm popover-item-check"
+                              className="popover-item-check"
                               size={APP_ICON_SIZES.sm}
                               strokeWidth={APP_ICON_STROKE_WIDTH}
                             />
@@ -434,7 +434,7 @@ export function ComposerLaunchSettingsPopover({
                           type="button"
                           onClick={() => void selectEnvironment(environment.id)}
                         >
-                          <span className="popover-item-label tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:items-start">
+                          <span className="popover-item-label tw:flex tw:flex-1 tw:flex-col tw:items-start">
                             <span className="tw:min-w-0 tw:max-w-full tw:truncate">
                               {environment.name}
                             </span>
@@ -488,7 +488,7 @@ function SubViewHeader({ title, onBack }: { title: string; onBack: () => void })
       <Button isIconOnly aria-label="返回" color="ghostSecondary" size="toolbar" onClick={onBack}>
         <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
       </Button>
-      <span className="popover-header tw:p-0">{title}</span>
+      <span className="tw:text-app-text-meta tw:type-1 tw:weight-medium">{title}</span>
     </div>
   )
 }

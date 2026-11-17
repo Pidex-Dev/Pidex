@@ -70,7 +70,7 @@ const MODELS_HEADER_LEAD_CLASS =
 const MODELS_HEADER_ACTIONS_CLASS =
   'composer-models-header-actions tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:justify-end'
 const MODELS_TITLE_CLASS =
-  'composer-models-title tw:shrink-0 tw:tracking-[-0.01em] tw:text-app-text'
+  'composer-models-title tw:shrink-0 tw:tracking-[-0.01em] tw:text-app-text tw:type-2 tw:weight-bold'
 const HUB_BACK_CLASS = cx(
   'composer-hub-back tw:inline-flex tw:size-5 tw:cursor-pointer tw:items-center tw:justify-center',
   'tw:rounded-3 tw:border-0 tw:bg-transparent tw:text-app-text-soft',
@@ -151,7 +151,7 @@ const HUB_ROW_LOGO_CLASS = cx(
 const HUB_ROW_TEXT_CLASS = 'composer-hub-row-text tw:min-w-0 tw:flex-1'
 const HUB_ROW_TITLE_CLASS = 'composer-hub-row-title tw:flex tw:min-w-0 tw:items-center tw:gap-1'
 const HUB_ROW_NAME_CLASS =
-  'composer-hub-row-name tw:truncate tw:tracking-[-0.01em] tw:text-app-text'
+  'composer-hub-row-name tw:truncate tw:tracking-[-0.01em] tw:text-app-text tw:type-2 tw:weight-bold'
 const HUB_ROW_DESC_CLASS =
   'composer-hub-row-desc tw:mt-1 tw:truncate tw:text-app-text-soft tw:type-1'
 const HUB_BADGE_CLASS = cx(
@@ -166,7 +166,7 @@ const HUB_BADGE_CONNECTED_CLASS = cx(
 )
 const HUB_ACTION_BUTTON_CLASS = cx(
   'composer-hub-action-btn tw:shrink-0 tw:cursor-pointer tw:rounded-compact tw:border tw:border-app-border-subtle',
-  'tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-text',
+  'tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-text tw:type-1 tw:weight-bold',
   'tw:transition-colors tw:duration-feedback tw:ease-standard tw:hover:bg-app-hover',
 )
 

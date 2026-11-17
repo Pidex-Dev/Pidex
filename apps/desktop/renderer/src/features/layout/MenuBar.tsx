@@ -113,7 +113,7 @@ type MenuItemProps = {
 function MenuItem({ children, disabled, shortcut, onSelect }: MenuItemProps): React.ReactNode {
   return (
     <Menubar.Item
-      className="menubar-item tw:outline-none"
+      className="menubar-item"
       disabled={disabled}
       onSelect={(event) => {
         if (disabled) {
@@ -126,7 +126,7 @@ function MenuItem({ children, disabled, shortcut, onSelect }: MenuItemProps): Re
       <OverflowTitle className={cx('menubar-item-label', 'tw:min-w-0')} variant="menu">
         {children}
       </OverflowTitle>
-      <span className="menubar-item-trailing tw:min-w-0 tw:justify-self-end">
+      <span className="menubar-item-trailing tw:min-w-0">
         {shortcut ? (
           <span
             className={cx(
@@ -164,11 +164,11 @@ function MenuSub({
 }: MenuSubProps): React.ReactNode {
   return (
     <Menubar.Sub>
-      <Menubar.SubTrigger className="menubar-item tw:outline-none">
+      <Menubar.SubTrigger className="menubar-item">
         <OverflowTitle className={cx('menubar-item-label', 'tw:min-w-0')} variant="menu">
           {label}
         </OverflowTitle>
-        <span className="menubar-item-trailing tw:min-w-0 tw:justify-self-end tw:flex tw:items-center">
+        <span className="menubar-item-trailing tw:min-w-0 tw:flex tw:items-center">
           <ChevronRight
             className="tw:size-icon-sm"
             size={APP_ICON_SIZES.sm}
@@ -184,7 +184,7 @@ function MenuSub({
           className={cx(
             'popover-surface menubar-content popover-menu-list',
             'tw:origin-[var(--radix-menubar-content-transform-origin,top_left)]',
-            'tw:max-h-[min(calc(100vh_-_96px),var(--radix-menubar-content-available-height,calc(100vh_-_96px)))]',
+            'tw:[--popover-max-height:min(calc(100vh_-_96px),var(--radix-menubar-content-available-height,calc(100vh_-_96px)))]',
             contentClassName,
           )}
           collisionPadding={6}
@@ -394,7 +394,7 @@ export function MenuBar({
                   className={cx(
                     'popover-surface menubar-content popover-menu-list',
                     'tw:origin-[var(--radix-menubar-content-transform-origin,top_left)]',
-                    'tw:max-h-[min(calc(100vh_-_96px),var(--radix-menubar-content-available-height,calc(100vh_-_96px)))]',
+                    'tw:[--popover-max-height:min(calc(100vh_-_96px),var(--radix-menubar-content-available-height,calc(100vh_-_96px)))]',
                   )}
                   collisionPadding={6}
                   data-edit-command-preserve-target

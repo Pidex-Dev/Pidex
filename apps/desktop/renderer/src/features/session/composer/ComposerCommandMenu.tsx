@@ -40,14 +40,9 @@ const SECTION_TITLE_CLASS = cx(
   'tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1 tw:weight-medium',
 )
 const STATUS_ROW_CLASS = 'chat-input__dropdown-status tw:p-2 tw:text-app-text-meta tw:type-1'
-const MENU_ITEM_CLASS = cx(
-  'chat-input__dropdown-item tw:grid tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:gap-x-2',
-  'tw:border-0 tw:type-2 tw:weight-medium',
-)
-const MENU_ITEM_IDLE_CLASS = 'tw:bg-transparent'
-const MENU_ITEM_KEYBOARD_CLASS = 'is-keyboard-active tw:bg-app-hover'
-const MENU_ITEM_DISABLED_CLASS =
-  'is-disabled tw:cursor-not-allowed tw:pointer-events-none tw:text-app-text-meta tw:opacity-58'
+const MENU_ITEM_CLASS = 'chat-input__dropdown-item tw:border-0'
+const MENU_ITEM_KEYBOARD_CLASS = 'is-keyboard-active'
+const MENU_ITEM_DISABLED_CLASS = 'is-disabled'
 const ITEM_LEADING_CLASS = cx(
   'chat-input__dropdown-leading tw:inline-flex tw:size-4 tw:items-center tw:justify-center tw:text-app-text',
   'tw:[&>svg]:block tw:[&>svg]:size-[var(--inline-icon-size,1em)]',
@@ -166,10 +161,11 @@ export function ComposerCommandMenu({
       <button
         aria-disabled={item.disabled || undefined}
         aria-selected={item.key === activeKey}
+        data-highlighted={item.key === activeKey ? 'true' : undefined}
         className={cx(
           MENU_ITEM_CLASS,
           item.isActive && 'is-active',
-          item.key === activeKey ? MENU_ITEM_KEYBOARD_CLASS : MENU_ITEM_IDLE_CLASS,
+          item.key === activeKey && MENU_ITEM_KEYBOARD_CLASS,
           item.disabled && MENU_ITEM_DISABLED_CLASS,
         )}
         id={composerMenuItemId(id, item.key)}

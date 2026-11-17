@@ -180,8 +180,8 @@ function CodingQuickChatView({ surface }: { surface: NewSessionSurface }): React
       ref={pageRef}
       className="quick-chat-workspace tw:flex tw:h-full tw:w-full tw:min-h-0 tw:overflow-hidden"
     >
-      <main className="quick-chat-view coding-chat-view tw:flex tw:h-full tw:w-full tw:min-h-full tw:flex-col tw:items-stretch tw:justify-end tw:overflow-x-hidden tw:overflow-y-auto tw:pb-4 tw:text-app-text">
-        <section className="quick-chat-hero-region tw:m-auto tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-center tw:justify-center tw:gap-4">
+      <main className="quick-chat-view coding-chat-view tw:flex tw:h-full tw:w-full tw:min-h-full tw:flex-col tw:items-stretch tw:justify-end tw:overflow-x-hidden tw:overflow-y-auto tw:pt-4 tw:pb-4 tw:text-app-text">
+        <section className="quick-chat-hero-region tw:m-auto tw:mx-auto tw:flex tw:w-full tw:max-w-[calc(var(--page-content-max-width)+2*var(--cpx-sys-space-4))] tw:min-w-0 tw:flex-col tw:items-center tw:justify-center tw:gap-4 tw:px-4">
           <div className="quick-chat-hero tw:flex tw:w-[var(--quick-chat-surface-width)] tw:max-w-full tw:flex-col tw:items-center tw:gap-5 tw:text-center tw:text-app-text tw:type-7 tw:weight-bold">
             <button
               ref={whaleMarkRef}
@@ -197,7 +197,7 @@ function CodingQuickChatView({ surface }: { surface: NewSessionSurface }): React
           </div>
         </section>
 
-        <section className="quick-chat-composer-region tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-center tw:justify-end tw:gap-3">
+        <section className="quick-chat-composer-region tw:mx-auto tw:flex tw:w-full tw:max-w-[calc(var(--page-content-max-width)+2*var(--cpx-sys-space-4))] tw:min-w-0 tw:flex-col tw:items-center tw:justify-end tw:gap-3 tw:px-4">
           {composerProps ? (
             <div className="chat-composer tw:static tw:m-0 tw:flex tw:w-[var(--quick-chat-surface-width)] tw:max-w-full tw:flex-col tw:items-center tw:gap-3 tw:pointer-events-auto">
               <SessionBoundComposer
