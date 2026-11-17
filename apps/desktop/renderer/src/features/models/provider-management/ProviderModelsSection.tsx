@@ -1,14 +1,4 @@
-import {
-  Activity,
-  RefreshCw,
-  Pencil,
-  Plus,
-  Minus,
-  Brain,
-  Eye,
-  Wrench,
-  Server,
-} from 'lucide-react'
+import { Activity, Minus, Pencil, Plus, RefreshCw } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
@@ -22,29 +12,26 @@ import type {
 import type { ModelTestStatus } from '../UseModelCenterController.js'
 import { Button } from '../../../components/ui/Button.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
-import { ProviderIcon } from '../ProviderIcon.js'
 import { modelLogoURL } from '../../../services/desktop-client/ModelLogo.js'
 import { SearchHeading } from '../../../components/ui/SearchHeading.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { toUserErrorMessage } from '../../../utils/Errors.js'
-import { formatCompactNumber } from '../../../utils/UsageFormatters.js'
 import { isExecutableDesktopProvider } from '../../../services/desktop-client/ProviderAdapters.js'
 import { createPortal } from 'react-dom'
 import { useDesktopLayoutOutletContext } from '../../layout/shell/DesktopLayoutOutletContext.js'
 import { ProviderModelPanel } from './ProviderModelPanel.js'
 import { isImportableCandidate, resolveCandidateImportModel } from './ModelCandidateImport.js'
-import { ProviderModelSpecRepairDialog } from './ProviderModelSpecRepairDialog.js'
 import {
   editableModel,
   normalizeEditableModel,
   resolveDiscoveryChatApi,
 } from './ProviderEditorForm.js'
-import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { cx } from '../../../utils/Cx.js'
 import { ProviderModelSyncPanel } from './ProviderModelSyncPanel.js'
 import { filterDiscoveredModels, type SyncStatusFilter } from './ModelSyncHelpers.js'
+import { ProviderModelListRow } from './ProviderModelListRow.js'
 
 export type ProviderModelsSectionProps = {
   provider: DesktopModelProviderSummary
@@ -149,7 +136,6 @@ export function ProviderModelsSection({
   const [searchQuery, setSearchQuery] = useState('')
   const builtinConfig = provider.config?.kind === 'builtin' ? provider.config : null
   const customConfig = provider.config?.kind === 'custom' ? provider.config : null
-  const [saving, setSaving] = useState(false)
   const panel = useDesktopLayoutOutletContext()?.providerManagement
   const modelEditorVersion = useRef(0)
   const [editingModel, setEditingModel] = useState<{
@@ -158,7 +144,6 @@ export function ProviderModelsSection({
     creating: boolean
     nativeApi?: string
   } | null>(null)
-  const [deletingModel, setDeletingModel] = useState<string | null>(null)
   const [discoveredModels, setDiscoveredModels] = useState<DesktopProviderModelDefinition[] | null>(
     null,
   )
@@ -167,13 +152,13 @@ export function ProviderModelsSection({
   >({})
   const [syncLoading, setSyncLoading] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
-  const [specRepairOpen, setSpecRepairOpen] = useState(false)
   const [optimisticAdded, setOptimisticAdded] = useState<Readonly<Record<string, boolean>>>({})
   const [togglingModelIds, setTogglingModelIds] = useState<Set<string>>(new Set())
   const [syncSearchQuery, setSyncSearchQuery] = useState('')
   const [syncStatusFilter, setSyncStatusFilter] = useState<SyncStatusFilter>('all')
   const [syncCapabilityFilters, setSyncCapabilityFilters] = useState<Set<string>>(new Set())
   const [expandedModelId, setExpandedModelId] = useState<string | null>(null)
+  const [expandedAddedModelId, setExpandedAddedModelId] = useState<string | null>(null)
   const pendingConfigRef = useRef<DesktopProviderDefinition | null>(null)
   const saveChainRef = useRef<Promise<void>>(Promise.resolve())
   const executable = isExecutableDesktopProvider(provider)
@@ -188,22 +173,25 @@ export function ProviderModelsSection({
   const rows = useMemo(
     () =>
       customConfig
-        ? customConfig.models.map((model) => ({
-            id: model.id,
-            group: model.group,
-            enabled: model.enabled !== false,
-            metadata: {
-              ...modelMetadata[model.id],
-              name: model.name,
-              contextWindow: model.contextWindow,
-              outputTokens: model.maxTokens,
-              reasoning: model.reasoning,
-              vision: model.input?.includes('image'),
-              providerApi: model.api,
-              inputCost: model.cost?.input,
-              outputCost: model.cost?.output,
-            } as DesktopModelMetadata,
-          }))
+        ? customConfig.models.map((model) => {
+            const meta = modelMetadata[model.id]
+            const resolvedModel: DesktopProviderModelDefinition = {
+              ...model,
+              ...(model.catalog ? {} : meta?.catalog ? { catalog: meta.catalog } : {}),
+              ...(model.maxInputTokens !== undefined
+                ? {}
+                : meta?.inputTokens !== undefined
+                  ? { maxInputTokens: meta.inputTokens }
+                  : {}),
+            }
+            return {
+              id: model.id,
+              group: model.group,
+              enabled: model.enabled !== false,
+              model: resolvedModel,
+              metadata: meta,
+            }
+          })
         : [
             ...new Set([
               ...(builtinConfig?.allowModels ?? []),
@@ -219,20 +207,65 @@ export function ProviderModelsSection({
             )
             .map((id) => {
               const override = builtinConfig?.models.find((model) => model.id === id)
+              const meta = modelMetadata[id]
+              const enabled =
+                override?.enabled !== false && !builtinConfig?.denyModels.includes(id as never)
+              const cost =
+                override?.cost ??
+                (meta?.inputCost !== undefined ||
+                meta?.outputCost !== undefined ||
+                meta?.cacheReadCost !== undefined ||
+                meta?.cacheWriteCost !== undefined
+                  ? {
+                      ...(meta?.inputCost !== undefined ? { input: meta.inputCost } : {}),
+                      ...(meta?.outputCost !== undefined ? { output: meta.outputCost } : {}),
+                      ...(meta?.cacheReadCost !== undefined ? { cacheRead: meta.cacheReadCost } : {}),
+                      ...(meta?.cacheWriteCost !== undefined
+                        ? { cacheWrite: meta.cacheWriteCost }
+                        : {}),
+                    }
+                  : undefined)
+              const input =
+                override?.input ??
+                (meta?.modalities?.input as DesktopProviderModelDefinition['input'] | undefined) ??
+                (meta?.vision ? (['text', 'image'] as const) : undefined)
+              const modelType = override?.modelType ?? meta?.modelType
+              const normalizedModelType =
+                modelType === 'embedding' || modelType === 'rerank' ? modelType : 'chat'
+              const resolvedModel: DesktopProviderModelDefinition = {
+                id: id as DesktopProviderModelDefinition['id'],
+                name: override?.name ?? meta?.name ?? id,
+                api: override?.api ?? meta?.providerApi ?? 'openai-completions',
+                enabled,
+                modelType: normalizedModelType,
+                ...(override?.contextWindow ?? meta?.contextWindow
+                  ? { contextWindow: override?.contextWindow ?? meta?.contextWindow }
+                  : {}),
+                ...(override?.maxInputTokens ?? meta?.inputTokens
+                  ? { maxInputTokens: override?.maxInputTokens ?? meta?.inputTokens }
+                  : {}),
+                ...(override?.maxTokens ?? meta?.outputTokens
+                  ? { maxTokens: override?.maxTokens ?? meta?.outputTokens }
+                  : {}),
+                ...(override?.reasoning !== undefined || meta?.reasoning !== undefined
+                  ? { reasoning: override?.reasoning ?? meta?.reasoning }
+                  : {}),
+                ...(override?.tools !== undefined || meta?.toolCall !== undefined
+                  ? { tools: override?.tools ?? meta?.toolCall }
+                  : {}),
+                ...(input ? { input } : {}),
+                ...(override?.catalog ?? meta?.catalog
+                  ? { catalog: override?.catalog ?? meta?.catalog }
+                  : {}),
+                ...(override?.optionSpecs ? { optionSpecs: override.optionSpecs } : {}),
+                ...(cost ? { cost } : {}),
+              }
               return {
                 id,
                 group: override?.group,
-                enabled:
-                  override?.enabled !== false && !builtinConfig?.denyModels.includes(id as never),
-                metadata: {
-                  ...modelMetadata[id],
-                  name: override?.name ?? modelMetadata[id]?.name,
-                  contextWindow: override?.contextWindow ?? modelMetadata[id]?.contextWindow,
-                  outputTokens: override?.maxTokens ?? modelMetadata[id]?.outputTokens,
-                  reasoning: override?.reasoning ?? modelMetadata[id]?.reasoning,
-                  vision: override?.input?.includes('image') ?? modelMetadata[id]?.vision,
-                  providerApi: override?.api ?? modelMetadata[id]?.providerApi,
-                } as DesktopModelMetadata,
+                enabled,
+                model: resolvedModel,
+                metadata: meta,
               }
             }),
     [customConfig, builtinConfig, models, modelMetadata],
@@ -295,7 +328,7 @@ export function ProviderModelsSection({
   }
 
   async function openSyncPanel() {
-    if (saving || busy) return
+    if (busy) return
     if (panel) {
       const opened = await panel.open(provider.providerID, 'sync')
       if (!opened) return
@@ -497,41 +530,25 @@ export function ProviderModelsSection({
     onNotice('模型配置已保存。')
   }
 
-  async function removeModel(id: string) {
-    if (!provider.config) return
-    setSaving(true)
-    try {
-      const config = provider.config
-      await onSaveDefinition(
-        config.kind === 'custom'
-          ? { ...config, models: config.models.filter((model) => model.id !== id) }
-          : {
-              ...config,
-              allowModels: config.allowModels.filter((modelId) => modelId !== id),
-              denyModels: [...new Set([...config.denyModels, id as never])],
-              models: config.models.map((model) =>
-                model.id === id ? { ...model, enabled: false } : model,
-              ),
-            },
-        provider.providerID,
-      )
-      await onRefresh()
-      setDeletingModel(null)
-      onNotice('模型已移除。')
-    } catch (error) {
-      onError(toUserErrorMessage(error))
-    } finally {
-      setSaving(false)
-    }
+  function removeModel(row: (typeof rows)[number]) {
+    if (togglingModelIds.has(row.id) || editingBlocked || !provider.config || !editable) return
+    if (expandedAddedModelId === row.id) setExpandedAddedModelId(null)
+    enqueueModelMutation({
+      removeIds: [row.id],
+      noticeMessage: `已移除模型 ${row.model.name ?? row.id}。`,
+    })
   }
-  const filtered = rows.filter(({ id, metadata }) =>
+
+  const visibleRows = rows.filter((row) => optimisticAdded[row.id] !== false)
+  const filtered = visibleRows.filter(({ id, model, metadata }) =>
     [
       id,
+      model.name,
       metadata?.name,
       metadata?.description,
       ...(metadata?.tags ?? []),
-      metadata?.reasoning ? '推理 reasoning' : '',
-      metadata?.vision ? '图片 vision' : '',
+      model.reasoning || metadata?.reasoning ? '推理 reasoning' : '',
+      model.input?.includes('image') || metadata?.vision ? '图片 vision' : '',
     ]
       .join(' ')
       .toLowerCase()
@@ -547,7 +564,7 @@ export function ProviderModelsSection({
               <h3 className="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:type-4 tw:weight-bold">
                 模型{' '}
                 <span className="tw:inline-flex tw:h-5 tw:min-w-5 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-hover tw:px-2 tw:type-1 tw:tabular-nums">
-                  {rows.length}
+                  {visibleRows.length}
                 </span>
               </h3>
             </div>
@@ -568,9 +585,9 @@ export function ProviderModelsSection({
             size="toolbar"
             aria-label="测试全部"
             title="测试全部"
-            disabled={busy || !executable || !rows.some((row) => row.enabled)}
+            disabled={busy || !executable || !visibleRows.some((row) => row.enabled)}
             onClick={() =>
-              void onTestModels(rows.filter((row) => row.enabled).map((row) => row.id))
+              void onTestModels(visibleRows.filter((row) => row.enabled).map((row) => row.id))
             }
           >
             <Activity className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
@@ -580,7 +597,6 @@ export function ProviderModelsSection({
             size="sm"
             disabled={
               busy ||
-              saving ||
               syncLoading ||
               editingBlocked ||
               provider.availability?.status === 'unavailable'
@@ -594,16 +610,6 @@ export function ProviderModelsSection({
             />
             同步模型
           </Button>
-          {customConfig ? (
-            <Button
-              color="outline"
-              size="sm"
-              disabled={busy || saving || editingBlocked}
-              onClick={() => setSpecRepairOpen(true)}
-            >
-              检查 32K 模型规格
-            </Button>
-          ) : null}
           {provider.config && editable ? (
             <Button
               color="outline"
@@ -611,7 +617,7 @@ export function ProviderModelsSection({
               size="sm"
               aria-label="添加模型"
               title="添加模型"
-              disabled={busy || saving || editingBlocked}
+              disabled={busy || editingBlocked}
               onClick={() => openModel()}
             >
               <Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
@@ -619,29 +625,49 @@ export function ProviderModelsSection({
           ) : null}
         </div>
       </header>
-      <div className="model-center-models-list tw:grid tw:min-w-0">
-        {filtered.map((row) => (
-          <ModelRowItem
-            key={row.id}
-            modelId={row.id}
-            metadata={row.metadata}
-            disabled={busy || !executable || !row.enabled}
-            enabled={row.enabled}
-            testStatus={testResults[`${provider.providerID}/${row.id}`]}
-            onTest={() => void onTestModels([row.id])}
-            onEdit={() => openModel(row.id)}
-            onRemove={() => setDeletingModel(row.id)}
-            editingDisabled={busy || saving || editingBlocked || !provider.config || !editable}
-            logoURL={modelLogoURL(row.id, row.metadata?.name) ?? provider.logoURL}
-            providerID={modelLogoURL(row.id, row.metadata?.name) ? undefined : provider.providerID}
-          />
-        ))}
-        {filtered.length === 0 ? (
-          <p className="tw:px-3 tw:py-4 tw:text-app-text-soft tw:type-1">
-            {rows.length === 0 ? '尚无模型，请同步目录或添加模型。' : '未找到匹配的模型。'}
-          </p>
-        ) : null}
-      </div>
+      {filtered.length > 0 ? (
+        <div
+          className="model-center-models-list tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel"
+          role="list"
+          aria-label="已配置模型列表"
+        >
+          {filtered.map((row) => (
+            <ModelRowItem
+              key={row.id}
+              modelId={row.id}
+              model={row.model}
+              metadata={row.metadata}
+              disabled={busy || !executable || !row.enabled}
+              enabled={row.enabled}
+              expanded={expandedAddedModelId === row.id}
+              onToggleExpand={() =>
+                setExpandedAddedModelId((prev) => (prev === row.id ? null : row.id))
+              }
+              testStatus={testResults[`${provider.providerID}/${row.id}`]}
+              onTest={() => void onTestModels([row.id])}
+              onEdit={() => openModel(row.id)}
+              onRemove={() => removeModel(row)}
+              editingDisabled={
+                busy ||
+                togglingModelIds.has(row.id) ||
+                editingBlocked ||
+                !provider.config ||
+                !editable
+              }
+              logoURL={modelLogoURL(row.id, row.model.name ?? row.metadata?.name) ?? provider.logoURL}
+              providerID={
+                modelLogoURL(row.id, row.model.name ?? row.metadata?.name)
+                  ? undefined
+                  : provider.providerID
+              }
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="model-center-models-list tw:m-0 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-4 tw:text-center tw:text-app-text-soft tw:type-1">
+          {visibleRows.length === 0 ? '尚无模型，请同步目录或添加模型。' : '未找到匹配的模型。'}
+        </p>
+      )}
       {editingModel &&
       panel?.host &&
       panel.tab?.providerId === provider.providerID &&
@@ -672,7 +698,7 @@ export function ProviderModelsSection({
               addedModelIds={effectiveAddedIds}
               togglingModelIds={togglingModelIds}
               loading={syncLoading}
-              mutating={togglingModelIds.size > 0 || saving || busy}
+              mutating={togglingModelIds.size > 0 || busy}
               error={syncError}
               editingBlocked={editingBlocked}
               searchQuery={syncSearchQuery}
@@ -702,41 +728,18 @@ export function ProviderModelsSection({
             panel.host,
           )
         : null}
-      {customConfig ? (
-        <ProviderModelSpecRepairDialog
-          open={specRepairOpen}
-          providerId={provider.providerID}
-          onClose={() => setSpecRepairOpen(false)}
-          onApplied={async () => {
-            await onRefresh()
-            onNotice('模型规格已更新。')
-          }}
-        />
-      ) : null}
-      <ConfirmationDialog
-        open={deletingModel !== null}
-        title="移除模型？"
-        description={
-          builtinConfig
-            ? '将从可用模型中移除，可通过同步模型重新添加。'
-            : '将从供应商配置中移除此模型。'
-        }
-        actionLabel="移除"
-        actionDisabled={saving}
-        onAction={() => {
-          if (deletingModel) void removeModel(deletingModel)
-        }}
-        onCancel={() => setDeletingModel(null)}
-      />
     </section>
   )
 }
 
-function ModelRowItem({
+export function ModelRowItem({
   modelId,
+  model,
   metadata,
   disabled,
   enabled,
+  expanded,
+  onToggleExpand,
   testStatus,
   onTest,
   onEdit,
@@ -746,9 +749,12 @@ function ModelRowItem({
   providerID,
 }: {
   modelId: string
+  model: DesktopProviderModelDefinition
   metadata?: DesktopModelMetadata
   disabled: boolean
   enabled: boolean
+  expanded: boolean
+  onToggleExpand: () => void
   testStatus?: ModelTestStatus
   onTest: () => void
   onEdit: () => void
@@ -757,80 +763,29 @@ function ModelRowItem({
   logoURL?: string
   providerID?: string
 }): React.ReactNode {
-  const details = `${modelId} · 上下文 ${metadata?.contextWindow ? formatCompactNumber(metadata.contextWindow) : '未知'} / 输出 ${metadata?.outputTokens ? formatCompactNumber(metadata.outputTokens) : '未知'}${enabled ? '' : ' · 已停用'}`
-  const hasCapabilities = Boolean(metadata?.reasoning || metadata?.vision || metadata?.toolCall)
   return (
-    <article
-      className="model-center-model-row tw:flex tw:min-w-0 tw:items-center tw:gap-3 tw:px-4 tw:py-3 tw:hover:bg-app-hover"
-      title={details}
-    >
-      <span className="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center">
-        <ProviderIcon
-          providerID={providerID}
-          logoURL={logoURL}
-          className="tw:size-full"
-          imageClassName="tw:object-contain tw:[.dark-theme_&]:invert tw:[.dark-theme_&]:hue-rotate-180"
-          fallback={<Server className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />}
-        />
-      </span>
-      <button
-        type="button"
-        className="tw:min-w-0 tw:flex-1 tw:truncate tw:text-left tw:type-2 tw:weight-medium"
-        aria-label={`编辑模型 ${modelId}`}
-        disabled={editingDisabled}
-        onClick={onEdit}
-      >
-        {metadata?.name || modelId}
-      </button>
-      <div className="tw:flex tw:shrink-0 tw:items-center tw:gap-4">
-        {hasCapabilities ? (
-          <div
-            role="group"
-            aria-label="模型功能"
-            className="tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:text-app-text-soft"
-          >
-            {metadata?.reasoning ? (
-              <Tooltip content="推理">
-                <span
-                  role="img"
-                  aria-label="推理"
-                  className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center"
-                >
-                  <Brain className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-                </span>
-              </Tooltip>
-            ) : null}
-            {metadata?.vision ? (
-              <Tooltip content="图片输入">
-                <span
-                  role="img"
-                  aria-label="图片输入"
-                  className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center"
-                >
-                  <Eye className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-                </span>
-              </Tooltip>
-            ) : null}
-            {metadata?.toolCall ? (
-              <Tooltip content="工具调用">
-                <span
-                  role="img"
-                  aria-label="工具调用"
-                  className="tw:inline-flex tw:size-5 tw:items-center tw:justify-center"
-                >
-                  <Wrench className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-                </span>
-              </Tooltip>
-            ) : null}
-          </div>
-        ) : null}
+    <ProviderModelListRow
+      model={model}
+      providerID={providerID}
+      logoURL={logoURL}
+      metadata={metadata}
+      expanded={expanded}
+      enabled={enabled}
+      unknownContextLabel="未知"
+      unknownMaxTokensLabel="未知"
+      onToggleExpand={onToggleExpand}
+      className={cx(
+        'model-center-model-row',
+        expanded ? 'tw:bg-app-hover/60' : 'tw:bg-transparent tw:hover:bg-app-hover',
+      )}
+      actions={
         <div
           role="group"
           aria-label="模型操作"
           className="tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:text-app-text-soft"
         >
           {testStatus?.state === 'reachable' ? (
-            <span role="status" className="tw:px-1.5 tw:text-app-success tw:type-1">
+            <span role="status" className="tw:px-1 tw:text-app-success tw:type-1 tw:tabular-nums">
               {testStatus.api ? `${testStatus.api} · ` : ''}
               {testStatus.latencyMs} ms
             </span>
@@ -838,7 +793,7 @@ function ModelRowItem({
             <Tooltip
               content={`${testStatus.message}${testStatus.category ? ` · ${testStatus.category}` : ''}`}
             >
-              <span role="status" className="tw:px-1.5 tw:text-app-danger tw:type-1">
+              <span role="status" className="tw:px-1 tw:text-app-danger tw:type-1">
                 失败
               </span>
             </Tooltip>
@@ -853,19 +808,19 @@ function ModelRowItem({
               loading={testStatus?.state === 'testing'}
               onClick={onTest}
             >
-              <Activity className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+              <Activity className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
             </Button>
           </Tooltip>
-          <Tooltip content="模型设置">
+          <Tooltip content="编辑模型">
             <Button
               color="ghostSecondary"
               isIconOnly
               size="toolbar"
-              aria-label={`模型设置 ${modelId}`}
+              aria-label={`编辑模型 ${modelId}`}
               disabled={editingDisabled}
               onClick={onEdit}
             >
-              <Pencil className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+              <Pencil className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
             </Button>
           </Tooltip>
           <Tooltip content="移除模型">
@@ -877,11 +832,11 @@ function ModelRowItem({
               disabled={editingDisabled}
               onClick={onRemove}
             >
-              <Minus className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+              <Minus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
             </Button>
           </Tooltip>
         </div>
-      </div>
-    </article>
+      }
+    />
   )
 }
