@@ -248,7 +248,7 @@ export function ProviderConnectionSection({
     return () => onDraftChange?.(false)
   }, [dirty, onDraftChange])
   useEffect(() => {
-    if (!panel || section === 'model') return
+    if (!panel || (section !== 'credentials' && section !== 'request')) return
     const beforeChange = async () => {
       setGuardRequested(true)
       try {
@@ -323,7 +323,7 @@ export function ProviderConnectionSection({
             </div>
           </header>
         </section>
-        {panel?.host && section && section !== 'model'
+        {panel?.host && (section === 'credentials' || section === 'request')
           ? createPortal(
               <p className="tw:p-4 tw:text-app-text-soft tw:type-1">
                 当前提供商暂不可用，无法管理连接或请求配置。
@@ -431,7 +431,7 @@ export function ProviderConnectionSection({
           }}
         />
       ) : null}
-      {panel?.host && section && section !== 'model'
+      {panel?.host && (section === 'credentials' || section === 'request')
         ? createPortal(
             <div
               className={`${PROVIDER_PANEL_CONTAINER_CLASS} tw:flex tw:min-h-0 tw:flex-1 tw:flex-col`}

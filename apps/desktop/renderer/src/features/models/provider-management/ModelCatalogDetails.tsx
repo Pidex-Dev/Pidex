@@ -42,9 +42,9 @@ export function ModelCatalogDetails({
       )
     : []
   return (
-    <div className="tw:grid tw:gap-3 tw:type-1 tw:text-app-text-soft tw:select-text">
-      <section aria-label="能力与限制">
-        <strong className="tw:text-app-text">能力与限制</strong>
+    <div className="tw:grid tw:gap-2 tw:type-1 tw:text-app-text-soft tw:select-text">
+      <section aria-label="能力与限制" className="tw:grid tw:gap-1">
+        <strong className="tw:weight-medium tw:text-app-text">能力与限制</strong>
         <p>目录输入：{(info?.input ?? model.input)?.join(' · ') || '未知'}</p>
         <p>目录输出：{info?.output?.join(' · ') || '未知'}</p>
         {info?.input?.includes('pdf') && <p>目录支持 PDF；当前客户端暂未支持原生发送。</p>}
@@ -56,7 +56,7 @@ export function ModelCatalogDetails({
           上下文 {model.contextWindow ?? '未知'} · 最大输入 {model.maxInputTokens ?? '未知'} ·
           最大输出 {model.maxTokens ?? '未知'} tokens
         </p>
-        <p>附件实际发送能力还取决于当前协议适配。</p>
+        <p className="tw:text-app-text-meta">附件实际发送能力还取决于当前协议适配。</p>
         <p>
           当前协议：{model.api}
           {info?.apiShape ? ` · 目录形态：${info.apiShape}` : ''}
@@ -66,8 +66,11 @@ export function ModelCatalogDetails({
           <p>目录推理字段：{info.interleavedField}（由协议适配决定实际处理方式）</p>
         )}
       </section>
-      <section aria-label="推理控制">
-        <strong className="tw:text-app-text">推理控制</strong>
+      <section
+        aria-label="推理控制"
+        className="tw:grid tw:gap-1 tw:border-t tw:border-app-border-subtle tw:pt-2"
+      >
+        <strong className="tw:weight-medium tw:text-app-text">推理控制</strong>
         {info?.reasoningOptions?.length ? (
           info.reasoningOptions.map((option, index) => (
             <p key={index}>
@@ -85,8 +88,11 @@ export function ModelCatalogDetails({
           <p>当前可选值：{model.optionSpecs.reasoningLevel.values.join(' · ')}</p>
         )}
       </section>
-      <section aria-label="完整价格">
-        <strong className="tw:text-app-text">价格 · USD / 百万 tokens</strong>
+      <section
+        aria-label="完整价格"
+        className="tw:grid tw:gap-1 tw:border-t tw:border-app-border-subtle tw:pt-2"
+      >
+        <strong className="tw:weight-medium tw:text-app-text">价格 · USD / 百万 tokens</strong>
         <p>
           {source
             ? `${source.kind === 'provider' ? '供应商价格' : '原厂参考价'} · ${source.providerId}`
@@ -113,13 +119,18 @@ export function ModelCatalogDetails({
               推理 {modelPrice(info?.reasoningCost)} · 音频输入 {modelPrice(info?.inputAudioCost)} ·
               音频输出 {modelPrice(info?.outputAudioCost)}
             </p>
-            <p>独立推理、音频单价仅供参考，未作为额外分项加入当前费用估算。</p>
+            <p className="tw:text-app-text-meta">
+              独立推理、音频单价仅供参考，未作为额外分项加入当前费用估算。
+            </p>
           </>
         )}
       </section>
       {differences.length > 0 && (
-        <section aria-label="当前配置差异">
-          <strong>当前配置 / 目录推荐</strong>
+        <section
+          aria-label="当前配置差异"
+          className="tw:grid tw:gap-1 tw:border-t tw:border-app-border-subtle tw:pt-2"
+        >
+          <strong className="tw:weight-medium tw:text-app-text">当前配置 / 目录推荐</strong>
           {differences.map(([label, saved, recommended]) => (
             <p key={String(label)}>
               {label}：{saved} / {recommended}
@@ -127,8 +138,11 @@ export function ModelCatalogDetails({
           ))}
         </section>
       )}
-      <section aria-label="模型资料">
-        <strong className="tw:text-app-text">模型资料</strong>
+      <section
+        aria-label="模型资料"
+        className="tw:grid tw:gap-1 tw:border-t tw:border-app-border-subtle tw:pt-2"
+      >
+        <strong className="tw:weight-medium tw:text-app-text">模型资料</strong>
         {info?.description && <p>{info.description}</p>}
         <p>
           系列：{info?.family ?? '未知'} · 状态：{info?.status ?? '目录未标注'}
