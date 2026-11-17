@@ -1,5 +1,5 @@
+import { TerminalControlStripper } from '@pidex/shared'
 import { secretScrubber } from '../security/SecretScrubber'
-import { TerminalControlStripper } from '../security/TerminalControlStripper'
 
 const MAX_OUTPUT_BYTES = 64 * 1024
 const COMPLETED_TTL_MS = 10 * 60 * 1000

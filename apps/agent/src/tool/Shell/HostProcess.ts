@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawn, spawnSync, type ChildProcessByStdio } from 'node:child_process'
 import type { Readable, Writable } from 'node:stream'
+import { TerminalControlStripper } from '@pidex/shared'
 import { AgentError } from '../../Domain'
 
 const MAX_OUTPUT_BYTES = 1024 * 1024
@@ -99,6 +100,8 @@ export async function collectProcess(
   let stderr = ''
   let stdoutBytes = 0
   let stderrBytes = 0
+  const stdoutStripper = new TerminalControlStripper()
+  const stderrStripper = new TerminalControlStripper()
   let truncated = false
   let timedOut = false
   let terminating = false
@@ -114,8 +117,9 @@ export async function collectProcess(
     if (target === 'stdout') stdoutBytes += accepted.byteLength
     else stderrBytes += accepted.byteLength
     if (accepted.byteLength < chunk.byteLength) truncated = true
-    if (target === 'stdout') stdout += accepted.toString('utf8')
-    else stderr += accepted.toString('utf8')
+    const decoded = accepted.toString('utf8')
+    if (target === 'stdout') stdout += stdoutStripper.write(decoded)
+    else stderr += stderrStripper.write(decoded)
   }
 
   child.stdout.on('data', (chunk: Buffer) => append('stdout', chunk))

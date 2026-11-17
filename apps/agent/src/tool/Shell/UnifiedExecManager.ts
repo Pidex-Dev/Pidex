@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import type { Readable, Writable } from 'node:stream'
 import type { IDisposable, IPty, IPtyForkOptions, IWindowsPtyForkOptions } from 'node-pty'
+import { TerminalControlStripper } from '@pidex/shared'
 import { AgentError } from '../../Domain'
 import {
   boundedTimeout,
@@ -92,6 +93,8 @@ interface ManagedSession {
   stdoutBuffer: string
   stderrBuffer: string
   combinedBuffer: string
+  stdoutStripper: TerminalControlStripper
+  stderrStripper: TerminalControlStripper
   totalBytes: number
   waiters: Set<() => void>
   timeoutTimer?: ReturnType<typeof setTimeout>
@@ -518,6 +521,8 @@ export class UnifiedExecManager {
       stdoutBuffer: '',
       stderrBuffer: '',
       combinedBuffer: '',
+      stdoutStripper: new TerminalControlStripper(),
+      stderrStripper: new TerminalControlStripper(),
       totalBytes: 0,
       waiters: new Set(),
       dispose: () => {
@@ -602,6 +607,8 @@ export class UnifiedExecManager {
       stdoutBuffer: '',
       stderrBuffer: '',
       combinedBuffer: '',
+      stdoutStripper: new TerminalControlStripper(),
+      stderrStripper: new TerminalControlStripper(),
       totalBytes: 0,
       waiters: new Set(),
       dispose: () => {
@@ -656,9 +663,12 @@ export class UnifiedExecManager {
     if (accepted.byteLength < chunk.byteLength) session.truncated = true
     session.totalBytes += accepted.byteLength
     const decoded = accepted.toString('utf8')
-    if (stream === 'stdout') session.stdoutBuffer += decoded
-    else session.stderrBuffer += decoded
-    session.combinedBuffer += decoded
+    const sanitized = (
+      stream === 'stdout' ? session.stdoutStripper : session.stderrStripper
+    ).write(decoded)
+    if (stream === 'stdout') session.stdoutBuffer += sanitized
+    else session.stderrBuffer += sanitized
+    session.combinedBuffer += sanitized
   }
 
   private async waitForOutputWindow(

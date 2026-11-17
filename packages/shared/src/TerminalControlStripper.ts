@@ -2,7 +2,7 @@
 export class TerminalControlStripper {
   private state: 'text' | 'escape' | 'csi' | 'osc' | 'string' | 'stringEscape' = 'text'
 
-  write(value: string) {
+  write(value: string): string {
     let output = ''
     for (const character of value) {
       const code = character.charCodeAt(0)
@@ -39,4 +39,10 @@ export class TerminalControlStripper {
     }
     return output
   }
+}
+
+/** Strips ANSI/VT terminal control sequences from a complete output string. */
+export function stripTerminalControlSequences(value: string): string {
+  if (!value) return value
+  return new TerminalControlStripper().write(value)
 }

@@ -41,4 +41,25 @@ describe('宿主 Shell 进程', () => {
     const result = await collectProcess(child, 25)
     expect(result.timedOut).toBe(true)
   })
+
+  test('增量剥离 stdout 与 stderr 中的跨块 ANSI 控制序列', async () => {
+    const child = spawn(
+      process.execPath,
+      [
+        '-e',
+        [
+          "process.stdout.write('\\u001b[31;')",
+          "setTimeout(() => { process.stdout.write('1m$ tsc -b\\u001b[0m\\n'); process.stderr.write('\\u001b[33mwarn\\u001b[0m') }, 10)",
+        ].join(';'),
+      ],
+      {
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    ) as CapturedChild
+    const result = await collectProcess(child, 30_000)
+    expect(result.exitCode).toBe(0)
+    expect(result.stdout).toBe('$ tsc -b\n')
+    expect(result.stderr).toBe('warn')
+  })
 })
