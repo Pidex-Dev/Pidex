@@ -313,7 +313,9 @@ export function DesktopLayout(): React.ReactNode {
         const tab: ProviderManagementTab =
           section === 'model'
             ? { id: 'provider-model', kind: 'provider-model', providerId, section }
-            : { id: 'provider-management', kind: 'provider-management', providerId, section }
+            : section === 'sync'
+              ? { id: 'provider-sync', kind: 'provider-sync', providerId, section }
+              : { id: 'provider-management', kind: 'provider-management', providerId, section }
         setProviderPanelTabs((tabs) => ({ ...tabs, [tab.id]: tab }))
         setProviderManagementTab(tab)
         setProviderPanelOpen(true)

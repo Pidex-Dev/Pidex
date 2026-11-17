@@ -60,6 +60,7 @@ export type SkillPreviewTab = {
 export type WorkbenchTabKind =
   | 'provider-management'
   | 'provider-model'
+  | 'provider-sync'
   | 'review'
   | 'browser'
   | 'file-browser'
@@ -143,7 +144,7 @@ export type WorkbenchTabDescriptor =
 
 export type WorkbenchTabId = WorkbenchTabDescriptor['id']
 
-export type ProviderManagementSection = 'credentials' | 'request' | 'model'
+export type ProviderManagementSection = 'credentials' | 'request' | 'model' | 'sync'
 export type ProviderManagementTab =
   | {
       id: 'provider-management'
@@ -152,6 +153,7 @@ export type ProviderManagementTab =
       section: 'credentials' | 'request'
     }
   | { id: 'provider-model'; kind: 'provider-model'; providerId: string; section: 'model' }
+  | { id: 'provider-sync'; kind: 'provider-sync'; providerId: string; section: 'sync' }
 
 export function createSkillPreviewTab(input: {
   name: string

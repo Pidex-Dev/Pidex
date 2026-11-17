@@ -40,6 +40,17 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     isSingleton: true,
     canFloat: false,
   },
+  'provider-sync': {
+    id: 'workbench.view.providerSync',
+    kind: 'provider-sync',
+    title: '同步模型',
+    defaultLocation: 'right',
+    allowedLocations: ['right'],
+    canMove: false,
+    canClose: true,
+    isSingleton: true,
+    canFloat: false,
+  },
   'file-browser': {
     id: 'workbench.view.fileBrowser',
     kind: 'file-browser',

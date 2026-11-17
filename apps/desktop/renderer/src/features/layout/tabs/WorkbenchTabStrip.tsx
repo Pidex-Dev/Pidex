@@ -75,7 +75,10 @@ export function WorkbenchTabStrip({
   const tabRefs = useRef(new Map<WorkbenchTabId, HTMLButtonElement>())
   const [menuOpen, setMenuOpen] = useState(false)
   const providerManagementOnly = state.tabIds.some(
-    (id) => tabsById[id]?.kind === 'provider-management' || tabsById[id]?.kind === 'provider-model',
+    (id) =>
+      tabsById[id]?.kind === 'provider-management' ||
+      tabsById[id]?.kind === 'provider-model' ||
+      tabsById[id]?.kind === 'provider-sync',
   )
   const launchers = useMemo(
     () => getWorkbenchRouteLaunchers(panelRoute, sideChatAvailable),
