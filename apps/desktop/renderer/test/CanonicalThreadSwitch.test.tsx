@@ -13,6 +13,7 @@ import {
   CanonicalProcessGroup,
   resolveTurnElapsedSeconds,
 } from '../src/features/session/timeline/CanonicalThreadView.js'
+import { getSingleActivityDisclosureStore } from '../src/features/session/timeline/TimelineDisclosureState.js'
 import { QuickChatContext } from '../src/features/session/QuickChatContext.js'
 import { ConversationItemContext } from '../src/features/session/timeline/ConversationItemContext.js'
 import {
@@ -191,11 +192,10 @@ describe('canonical thread switch', () => {
       blockers: [],
       contentBlocks: [],
     } as unknown as RenderTurnEntry
-    const render = (isSubagent = false) =>
+    const render = () =>
       renderToStaticMarkup(
         <CanonicalTestProviders>
           <CanonicalConversationTurn
-            isSubagent={isSubagent}
             disclosureState={disclosureStore('turn-activity:turn')}
             entry={entry}
             onOpenPlanInRightDock={() => undefined}
@@ -209,10 +209,6 @@ describe('canonical thread switch', () => {
     expect(main).toContain('历史完整交付')
     expect(main).not.toContain('已提交子代理结果')
     expect(main).not.toContain('canonical-result-card')
-    const child = render(true)
-    expect(child).toContain('已提交子代理结果')
-    expect(child).not.toContain('历史完整交付')
-    expect(child).not.toContain('canonical-turn__result')
   })
 
   test('Skill 在 canonical 用户消息正文中展示，不依赖聊天标题', () => {
@@ -563,12 +559,93 @@ describe('canonical thread switch', () => {
       </CanonicalTestProviders>,
     )
 
-    // 内联只有一行摘要：没有展开箭头、没有逐任务卡片、没有生命周期行。
-    expect(html).toContain('Frontend和Backend 已完成')
-    expect(html).toContain('打开子智能体列表')
+    // 每个子智能体渲染为独立可点击行：[Avatar] <agentName> <taskTitle>，不折叠生命周期行。
+    expect(html).toContain('Frontend')
+    expect(html).toContain('Backend')
+    expect(html).toContain('打开子智能体')
+    expect(html).not.toContain('Frontend和Backend 已完成')
     expect(html).not.toContain('cpx-agent-activity__chevron')
     expect(html).not.toContain('canonical-subagent-card')
     expect(html).not.toContain('已创建子代理')
+  })
+
+  test('renders agent name and task title per subagent row with legacy fallback', () => {
+    const items: Extract<Item, { type: 'subagent' }>[] = [
+      {
+        id: 'sa-1',
+        messageID: 'msg-1',
+        turnId: 'turn-1',
+        agentId: 'agent-1',
+        type: 'subagent',
+        subagentTaskId: 'task-1',
+        runId: 'run-1',
+        childThreadId: 'child-1',
+        displayName: 'Explorer',
+        title: '核对 ZCode 参照设计细节',
+        profile: 'explorer',
+        role: 'general',
+        task: '检查设计细节',
+        status: 'running',
+        queueReason: null,
+        result: null,
+        createdAt: 1_000,
+      },
+      {
+        id: 'sa-2',
+        messageID: 'msg-1',
+        turnId: 'turn-1',
+        agentId: 'agent-1',
+        type: 'subagent',
+        subagentTaskId: 'task-2',
+        runId: 'run-2',
+        childThreadId: 'child-2',
+        displayName: '历史任务标题回退',
+        profile: 'worker',
+        role: 'backend',
+        task: '补齐接口',
+        status: 'waiting-permission',
+        queueReason: null,
+        result: null,
+        createdAt: 1_001,
+      },
+    ]
+    const entry = {
+      id: 'turn-1',
+      turn: { id: 'turn-1', status: 'running', elapsedSeconds: 3, error: null },
+      items,
+      userItems: [],
+      inlineInputs: [],
+      attachments: [],
+      contextReferences: [],
+      processItems: items,
+      assistantResultItems: [],
+      patchItems: [],
+      postAssistantItems: [],
+      planItem: null,
+      executionPlanItems: [],
+      blockers: [],
+      contentBlocks: [],
+    } as unknown as RenderTurnEntry
+
+    const html = renderToStaticMarkup(
+      <CanonicalTestProviders>
+        <CanonicalConversationTurn
+          disclosureState={disclosureStore('turn-activity:turn-1')}
+          entry={entry}
+          onOpenPlanInRightDock={() => undefined}
+          onOpenSubagent={() => undefined}
+          dockedPlanItemId={null}
+        />
+      </CanonicalTestProviders>,
+    )
+
+    expect(html).toContain('Explorer')
+    expect(html).toContain('核对 ZCode 参照设计细节')
+    expect(html).toContain('Backend')
+    expect(html).toContain('历史任务标题回退')
+    expect(html).toContain('等待审批')
+    expect(html).toContain('General.png')
+    expect(html).toContain('Backend.png')
   })
 
   test('folds spawn/wait lifecycle rows into the subagent group instead of extra lines', () => {
@@ -700,6 +777,7 @@ describe('canonical thread switch', () => {
       }),
     ).toMatchObject({
       activeGroupKey: null,
+      showThinkingFallback: false,
       units: [{ kind: 'activity', item: { id: 'tool-9' } }],
     })
     expect(
@@ -708,14 +786,57 @@ describe('canonical thread switch', () => {
         turnActive: true,
       }),
     ).toMatchObject({
-      activeGroupKey: 'process-group:tool-9',
-      units: [{ kind: 'group', items: [{ id: 'tool-9' }] }],
+      activeGroupKey: null,
+      showThinkingFallback: true,
+      units: [{ kind: 'activity', item: { id: 'tool-9' } }],
+    })
+    expect(
+      buildProcessActivityModel([active], { activitySliceClosed: false, turnActive: true }),
+    ).toMatchObject({
+      activeGroupKey: null,
+      showThinkingFallback: false,
+      units: [{ kind: 'activity', item: { id: 'tool-8' } }],
     })
     expect(
       buildProcessActivityModel([active], { activitySliceClosed: true, turnActive: false }),
     ).toMatchObject({
-      units: [{ kind: 'group', items: [{ id: 'tool-8' }] }],
+      activeGroupKey: null,
+      showThinkingFallback: false,
+      units: [{ kind: 'activity', item: { id: 'tool-8' } }],
     })
+    expect(
+      buildProcessActivityModel([active, tool('tool-10', 'Read')], {
+        activitySliceClosed: false,
+        turnActive: true,
+      }),
+    ).toMatchObject({
+      activeGroupKey: 'process-group:tool-8',
+      showThinkingFallback: false,
+      units: [{ kind: 'group', items: [{ id: 'tool-8' }, { id: 'tool-10' }] }],
+    })
+  })
+
+  test('carries single-item expansion into upgraded process group disclosure without blocking manual collapse', () => {
+    const baseStore = disclosureStore()
+    const singleStore = getSingleActivityDisclosureStore(baseStore, 'turn-1', 'tool-1')
+    expect(getSingleActivityDisclosureStore(baseStore, 'turn-1', 'tool-1')).toBe(singleStore)
+
+    singleStore.setExpanded('process-item:tool-1', true)
+    expect(baseStore.getSnapshot('process-item:tool-1')).toBe(true)
+    expect(baseStore.getSnapshot('process-group:turn-1:process-group:tool-1')).toBe(true)
+
+    baseStore.setExpanded('process-group:turn-1:process-group:tool-1', false)
+    expect(baseStore.getSnapshot('process-group:turn-1:process-group:tool-1')).toBe(false)
+    expect(baseStore.getSnapshot('process-item:tool-1')).toBe(true)
+
+    const mutationStore = getSingleActivityDisclosureStore(baseStore, 'turn-2', 'edit-1')
+    mutationStore.setExpanded('file-mutation:edit-1:0', true)
+    mutationStore.setExpanded('file-mutation:edit-1:1', true)
+    expect(baseStore.getSnapshot('process-group:turn-2:process-group:edit-1')).toBe(true)
+    mutationStore.setExpanded('file-mutation:edit-1:0', false)
+    expect(baseStore.getSnapshot('process-group:turn-2:process-group:edit-1')).toBe(true)
+    mutationStore.setExpanded('file-mutation:edit-1:1', false)
+    expect(baseStore.getSnapshot('process-group:turn-2:process-group:edit-1')).toBe(false)
   })
 
   test('uses commentary and reasoning as hard boundaries, excluding empty terminal reasoning', () => {
@@ -832,7 +953,7 @@ describe('canonical thread switch', () => {
       activeGroupKey: null,
       showThinkingFallback: true,
       units: [
-        { kind: 'group', items: [{ id: 'running-command' }] },
+        { kind: 'activity', item: { id: 'running-command' } },
         { kind: 'standalone', item: reasoning },
       ],
     })

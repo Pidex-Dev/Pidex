@@ -294,6 +294,15 @@ describe('canonical tool item display', () => {
     expect(cleanCommandOutput(emptyEnvelope)).toBeNull()
 
     expect(cleanCommandOutput('plain terminal output')).toBe('plain terminal output')
+
+    const ansiEnvelope = JSON.stringify({
+      exitCode: 0,
+      stdout: '\u001b[31;1m$ tsc -b\u001b[0m\n',
+      stderr: '',
+    })
+    expect(cleanCommandOutput(ansiEnvelope)).toBe('$ tsc -b\n')
+    expect(cleanCommandOutput('\u001b[31;1m$ tsc -b\u001b[0m')).toBe('$ tsc -b')
+    expect(cleanCommandOutput('\u001b[31;1m\u001b[0m')).toBeNull()
   })
 
   test('isProcessEnvelope detects various process execution payloads', () => {
@@ -705,6 +714,7 @@ describe('canonical tool item display', () => {
         '提问',
         'lucide-message-circle-question',
       ],
+      ['Agent', '正在运行子代理', '子代理已完成', '运行子代理', 'lucide-user-round-plus'],
       ['spawn_agents', '正在创建子代理', '已创建子代理', '创建子代理', 'lucide-user-round-plus'],
       ['wait_agents', '正在等待子代理', '子代理已返回', '等待子代理', 'lucide-hourglass'],
       ['send_agent', '正在通知子代理', '已通知子代理', '通知子代理', 'lucide-send'],
@@ -752,7 +762,7 @@ describe('canonical tool item display', () => {
 
       const runningMarkup = renderToStaticMarkup(<LifecycleToolItemView item={running} />)
       const completedMarkup = renderToStaticMarkup(
-        <LifecycleToolItemView item={completed} isSubagent />,
+        <LifecycleToolItemView item={{ ...completed, output: null }} />,
       )
       const failedMarkup = renderToStaticMarkup(
         <LifecycleToolItemView
@@ -1589,9 +1599,8 @@ describe('canonical tool item display', () => {
     expect(markup).toContain('空参数不再通过')
     expect(markup).toContain('https://example.com/report')
     expect(markup).not.toContain('canonical-tool-result-block--json')
-    const childMarkup = renderToStaticMarkup(<LifecycleToolItemView item={item} isSubagent />)
-    expect(childMarkup).toContain('已提交子代理结果')
-    expect(childMarkup).not.toContain('回归通过并修复了参数校验')
+    const childMarkup = renderToStaticMarkup(<LifecycleToolItemView item={item} />)
+    expect(childMarkup).toContain('回归通过并修复了参数校验')
     expect(childMarkup).not.toContain('canonical-result-card')
     for (const state of ['running', 'error', 'interrupted'] as const) {
       const statusMarkup = renderToStaticMarkup(<LifecycleToolItemView item={{ ...item, state }} />)

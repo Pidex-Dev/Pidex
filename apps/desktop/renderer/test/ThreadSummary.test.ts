@@ -2,55 +2,30 @@ import { describe, expect, test } from 'bun:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ThreadSummaryPanel } from '../src/features/session/summary/ThreadSummaryPanel.js'
+import {
+  THREAD_SUMMARY_COLLAPSED_SECTIONS_STORAGE_KEY,
+  THREAD_SUMMARY_GUTTER_MIN_WIDTH,
+  THREAD_SUMMARY_INLINE_MIN_WIDTH,
+  readThreadSummaryCollapsedSections,
+  readThreadSummaryOpen,
+  resolveThreadSummaryDisplayMode,
+  setThreadSummaryOpen,
+  toggleThreadSummarySection,
+} from '../src/features/session/summary/ThreadSummaryState.js'
+import {
+  patchConversationUiState,
+  transferConversationUiStateForHandoff,
+  validateConversationUiState,
+} from '../src/features/layout/tabs/ConversationUiState.js'
 
 import type { ToolItem } from '@pidex/shared/thread'
 
 import {
-  THREAD_SUMMARY_AGENTS_AUTO_COLLAPSE_DELAY_MS,
-  resolveThreadSummaryAgentsAutoCollapse,
-} from '../src/features/session/summary/ThreadSummaryState.js'
-import {
   deriveThreadSummaryViewModel,
+  previewThreadSummaryAgents,
   previewThreadSummarySources,
   type ThreadSummaryViewModelInput,
 } from '../src/features/session/summary/ThreadSummaryViewModel.js'
-
-describe('thread summary agents auto-collapse', () => {
-  test('waits 30 seconds after the last agent finishes and defers to manual toggles', () => {
-    expect(THREAD_SUMMARY_AGENTS_AUTO_COLLAPSE_DELAY_MS).toBe(30_000)
-    expect(
-      resolveThreadSummaryAgentsAutoCollapse({
-        totalCount: 0,
-        activeCount: 0,
-        manualOverride: false,
-      }),
-    ).toBe('idle')
-    // 有活动 Agent：清除手动覆盖，等待下一次评估。
-    expect(
-      resolveThreadSummaryAgentsAutoCollapse({
-        totalCount: 2,
-        activeCount: 1,
-        manualOverride: true,
-      }),
-    ).toBe('reset-override')
-    // 全部结束且用户没有手动操作：安排延迟折叠。
-    expect(
-      resolveThreadSummaryAgentsAutoCollapse({
-        totalCount: 2,
-        activeCount: 0,
-        manualOverride: false,
-      }),
-    ).toBe('schedule-collapse')
-    // 手动折叠选择优先：用户动过分区后不再自动折叠。
-    expect(
-      resolveThreadSummaryAgentsAutoCollapse({
-        totalCount: 2,
-        activeCount: 0,
-        manualOverride: true,
-      }),
-    ).toBe('idle')
-  })
-})
 
 describe('thread summary view model', () => {
   function buildSummaryInput(
@@ -164,20 +139,153 @@ describe('thread summary view model', () => {
     expect(model.agents).toEqual([
       {
         id: 'task-1',
+        agentName: 'General Purpose',
+        taskTitle: '资料梳理',
         name: '资料梳理',
+        role: 'general',
         status: 'running',
         state: 'running',
         stoppable: true,
+        startedAt: null,
+        summary: undefined as never,
+        recencyAt: undefined as never,
       },
       {
         id: 'task-2',
+        agentName: 'General Purpose',
+        taskTitle: '回归测试',
         name: '回归测试',
+        role: 'qa',
         status: 'completed',
         state: 'finished',
         stoppable: false,
+        startedAt: null,
+        summary: undefined as never,
+        recencyAt: undefined as never,
       },
     ])
     expect(model.hasContent).toBe(true)
+  })
+
+  test('renders expanded agents list by default and compact avatars when collapsed', () => {
+    const model = deriveThreadSummaryViewModel(
+      buildSummaryInput({
+        subagents: [
+          {
+            task: { id: 'task-1', displayName: 'Inspect context.ts rules', createdAt: 10 },
+            currentRun: { status: 'completed', finishedAt: 100 },
+          },
+          {
+            task: { id: 'task-2', displayName: 'Inspect acceptance-reports structure', createdAt: 20 },
+            currentRun: { status: 'completed', finishedAt: 200 },
+          },
+          {
+            task: { id: 'task-3', displayName: 'Inventory md report dirs', createdAt: 30 },
+            currentRun: { status: 'failed', finishedAt: 300 },
+          },
+          {
+            task: {
+              id: 'task-4',
+              displayName: 'Explorer',
+              title: 'Inventory grill-retest-round3',
+              profile: 'explorer',
+              role: 'general',
+              createdAt: 40,
+            },
+            currentRun: { status: 'running', startedAt: 400 },
+          },
+        ] as never,
+      }),
+    )
+
+    expect(model.agents.map((agent) => agent.id)).toEqual([
+      'task-4',
+      'task-3',
+      'task-2',
+      'task-1',
+    ])
+    expect(previewThreadSummaryAgents(model.agents)).toEqual({
+      items: model.agents.slice(0, 3),
+      remainingCount: 1,
+      totalCount: 4,
+    })
+
+    const baseProps = {
+      branches: [],
+      collapsedSections: new Set<never>(),
+      onToggleSection: () => {},
+      onBranchSelect: async () => {},
+      onCommitOrPush: () => {},
+      onCreateBranch: () => {},
+      onCreatePullRequest: () => {},
+      onOpenReview: () => {},
+      onStopSubagent: async () => {},
+      onOpenWorkspacePath: () => {},
+    }
+
+    const htmlFourExpanded = renderToStaticMarkup(
+      createElement(ThreadSummaryPanel, { ...baseProps, model }),
+    )
+    expect(htmlFourExpanded).toContain('>智能体<')
+    expect(htmlFourExpanded).toContain('>1 运行<')
+    expect(htmlFourExpanded).toContain('Inventory grill-retest-round3')
+    expect(htmlFourExpanded).toContain('Explorer')
+    expect(htmlFourExpanded).toContain('aria-label="停止 Inventory grill-retest-round3"')
+    expect(htmlFourExpanded).toContain('ui-disclosure-content tw:grid tw:grid-cols-1')
+    expect(htmlFourExpanded).toContain('thread-summary-section__rows tw:grid tw:grid-cols-1')
+    expect(htmlFourExpanded).not.toContain('aria-label="重试')
+
+    const htmlFourCollapsed = renderToStaticMarkup(
+      createElement(ThreadSummaryPanel, {
+        ...baseProps,
+        collapsedSections: new Set(['agents'] as const),
+        model,
+      }),
+    )
+    const headerFourCollapsed =
+      (
+        htmlFourCollapsed
+          .split(/<section[^>]*>/)
+          .find((part) => part.includes('>智能体<')) ?? ''
+      ).split('</header>')[0] ?? ''
+    expect(headerFourCollapsed).toContain('>智能体<')
+    expect(headerFourCollapsed).toContain('>+1<')
+    expect(headerFourCollapsed.match(/<img /g)).toHaveLength(3)
+
+    const threeModel = deriveThreadSummaryViewModel(
+      buildSummaryInput({
+        subagents: [
+          {
+            task: { id: 'task-1', displayName: 'Agent 1', createdAt: 10 },
+            currentRun: { status: 'completed', finishedAt: 100 },
+          },
+          {
+            task: { id: 'task-2', displayName: 'Agent 2', createdAt: 20 },
+            currentRun: { status: 'completed', finishedAt: 200 },
+          },
+          {
+            task: { id: 'task-3', displayName: 'Agent 3', createdAt: 30 },
+            currentRun: { status: 'running', startedAt: 300 },
+          },
+        ] as never,
+      }),
+    )
+    const htmlThreeCollapsed = renderToStaticMarkup(
+      createElement(ThreadSummaryPanel, {
+        ...baseProps,
+        collapsedSections: new Set(['agents'] as const),
+        model: threeModel,
+      }),
+    )
+    const headerThreeCollapsed =
+      (
+        htmlThreeCollapsed
+          .split(/<section[^>]*>/)
+          .find((part) => part.includes('>智能体<')) ?? ''
+      ).split('</header>')[0] ?? ''
+    expect(headerThreeCollapsed).toContain('>智能体<')
+    expect(headerThreeCollapsed).not.toContain('>+')
+    expect(headerThreeCollapsed.match(/<img /g)).toHaveLength(3)
   })
 
   test('shows a change summary from the changed file count alone (binary files)', () => {
@@ -586,6 +694,112 @@ describe('thread summary view model', () => {
     expect(previewThreadSummarySources(sources)).toEqual({
       items: sources.slice(0, 3),
       totalCount: 7,
+    })
+  })
+})
+
+function withMockLocalStorage(run: (storage: Storage) => void): void {
+  const map = new Map<string, string>()
+  const storage: Storage = {
+    get length() {
+      return map.size
+    },
+    clear() {
+      map.clear()
+    },
+    getItem(key) {
+      return map.get(key) ?? null
+    },
+    key(index) {
+      return Array.from(map.keys())[index] ?? null
+    },
+    removeItem(key) {
+      map.delete(key)
+    },
+    setItem(key, value) {
+      map.set(key, String(value))
+    },
+  }
+  const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { localStorage: storage },
+  })
+  try {
+    run(storage)
+  } finally {
+    if (originalWindowDescriptor) {
+      Object.defineProperty(globalThis, 'window', originalWindowDescriptor)
+    } else {
+      Reflect.deleteProperty(globalThis, 'window')
+    }
+  }
+}
+
+describe('thread summary persistence and placement', () => {
+  test('resolves overlay, shift, and gutter display modes from container width', () => {
+    expect(resolveThreadSummaryDisplayMode(0)).toBe('overlay')
+    expect(resolveThreadSummaryDisplayMode(THREAD_SUMMARY_INLINE_MIN_WIDTH - 1)).toBe('overlay')
+    expect(resolveThreadSummaryDisplayMode(THREAD_SUMMARY_INLINE_MIN_WIDTH)).toBe('shift')
+    expect(resolveThreadSummaryDisplayMode(THREAD_SUMMARY_GUTTER_MIN_WIDTH - 1)).toBe('shift')
+    expect(resolveThreadSummaryDisplayMode(THREAD_SUMMARY_GUTTER_MIN_WIDTH)).toBe('gutter')
+  })
+
+  test('persists per-conversation open state across reloads, patches, and handoff', () => {
+    withMockLocalStorage((storage) => {
+      expect(readThreadSummaryOpen('thread-a')).toBe(false)
+      expect(readThreadSummaryOpen('thread-b')).toBe(false)
+
+      setThreadSummaryOpen('thread-a', true)
+      expect(readThreadSummaryOpen('thread-a')).toBe(true)
+      expect(readThreadSummaryOpen('thread-b')).toBe(false)
+
+      patchConversationUiState('thread-a', { mainScrollTop: 120 })
+      expect(readThreadSummaryOpen('thread-a')).toBe(true)
+
+      const transferResult = transferConversationUiStateForHandoff({
+        sourceThreadId: 'thread-a',
+        targetThreadId: 'thread-a-worktree',
+        sourceWorkspacePath: 'F:\\CodeProject\\Pidex-Ts',
+      })
+      expect(transferResult.transferred).toBe(true)
+      expect(readThreadSummaryOpen('thread-a-worktree')).toBe(true)
+
+      setThreadSummaryOpen('thread-a', false)
+      expect(readThreadSummaryOpen('thread-a')).toBe(false)
+
+      setThreadSummaryOpen(null, true)
+      expect(readThreadSummaryOpen(null)).toBe(true)
+      expect(storage.getItem('conversation.ui-state.null')).toBeNull()
+      setThreadSummaryOpen(null, false)
+    })
+  })
+
+  test('defaults summaryOpen to false when validating legacy conversation UI state', () => {
+    expect(validateConversationUiState({ schemaVersion: 4, mainScrollTop: 10 }).summaryOpen).toBe(
+      false,
+    )
+    expect(
+      validateConversationUiState({ schemaVersion: 4, summaryOpen: true }).summaryOpen,
+    ).toBe(true)
+  })
+
+  test('persists collapsed sections globally and ignores invalid entries', () => {
+    withMockLocalStorage((storage) => {
+      expect([...readThreadSummaryCollapsedSections()]).toEqual([])
+
+      toggleThreadSummarySection('sources')
+      toggleThreadSummarySection('environment')
+      expect([...readThreadSummaryCollapsedSections()]).toEqual(['environment', 'sources'])
+
+      toggleThreadSummarySection('environment')
+      expect([...readThreadSummaryCollapsedSections()]).toEqual(['sources'])
+
+      storage.setItem(
+        THREAD_SUMMARY_COLLAPSED_SECTIONS_STORAGE_KEY,
+        JSON.stringify(['goal', 'unknown-section', 42]),
+      )
+      expect([...readThreadSummaryCollapsedSections()]).toEqual(['goal'])
     })
   })
 })

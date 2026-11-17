@@ -171,11 +171,13 @@ function renderPanel({
   snapshot: panelSnapshot,
   capabilities,
   onBackToParent,
+  taskOverrides,
 }: {
   currentRun: SubagentRun
   snapshot: ThreadSnapshot
   capabilities: Parameters<typeof SubagentThreadPanel>[0]['capabilities']
   onBackToParent?: () => void
+  taskOverrides?: Partial<SubagentTask>
 }): string {
   return renderToStaticMarkup(
     <TestProviders>
@@ -193,7 +195,7 @@ function renderPanel({
         onBackToParent={onBackToParent}
         run={currentRun}
         snapshot={panelSnapshot}
-        task={task}
+        task={{ ...task, ...taskOverrides }}
       />
     </TestProviders>,
   )
@@ -262,10 +264,10 @@ describe('subagent thread panel', () => {
       onBackToParent: () => undefined,
     })
 
-    // 返回箭头、状态与专用操作
-    expect(markup).toContain('title="返回父对话"')
-    expect(markup).toContain('已完成')
-    expect(markup).toContain('title="重试"')
+    // 无独立头部与重试按钮；工作树变更操作随正文内联保留
+    expect(markup).not.toContain('<header')
+    expect(markup).not.toContain('title="返回父对话"')
+    expect(markup).not.toContain('title="重试"')
     expect(markup).toContain('aria-label="应用子智能体变更"')
     expect(markup).not.toContain('title="停止此子智能体及全部后代"')
 
@@ -279,12 +281,26 @@ describe('subagent thread panel', () => {
     expect(markup).not.toContain('附件')
     expect(markup).not.toContain('权限模式')
     expect(markup).not.toContain('模型')
-    // 不再固定显示 profile、模型与运行次数
+    // 不再固定显示 profile、模型与运行次数，也不显示层级提示
     expect(markup).not.toContain('探索 · ')
     expect(markup).not.toContain('第 1 次运行')
+    expect(markup).not.toContain('第 1 层')
+    expect(markup).not.toContain('role="status"')
   })
 
-  test('renders a running subagent with stop instead of retry', () => {
+  test('renders runtime status notices without depth label when active', () => {
+    const markup = renderPanel({
+      currentRun: run({ status: 'running', startedAt: 1, finishedAt: null }),
+      snapshot: snapshot(),
+      capabilities: fullCapabilities,
+      taskOverrides: { depth: 2, waitingForDescendants: true, queuedFollowups: 1 },
+    })
+
+    expect(markup).not.toContain('第 2 层')
+    expect(markup).toContain('等待后代结算 · 1 条后续任务已接纳')
+  })
+
+  test('renders a running subagent without header or retry button', () => {
     const markup = renderPanel({
       currentRun: run({ status: 'running', startedAt: 1, finishedAt: null }),
       snapshot: snapshot(),
@@ -292,8 +308,8 @@ describe('subagent thread panel', () => {
       onBackToParent: () => undefined,
     })
 
-    expect(markup).toContain('运行中')
-    expect(markup).toContain('title="停止此子智能体及全部后代"')
+    expect(markup).toContain('data-status="running"')
+    expect(markup).not.toContain('<header')
     expect(markup).not.toContain('title="重试"')
     expect(markup).not.toContain('subagent-thread-panel__composer-slot')
   })
@@ -341,8 +357,7 @@ describe('subagent thread panel', () => {
     // 每次只展示最早请求；解决审批后再显示整组提问。
     expect(markup).not.toContain('aria-label="自定义回答"')
     expect(markup).toContain('data-variant="permission"')
-    expect(markup).toContain('允许一次')
-    expect(markup).toContain('拒绝')
+    expect(markup).toContain('提交')
     expect(markup).toContain('需要运行测试')
 
     const questionMarkup = renderPanel({
@@ -354,8 +369,6 @@ describe('subagent thread panel', () => {
     expect(questionMarkup).toContain('是否继续检查其他目录？')
     expect(questionMarkup).toContain('aria-label="自定义回答"')
     expect(questionMarkup).toContain('role="radio"')
-    expect(questionMarkup).toContain('跳过')
-    expect(questionMarkup).toContain('跳过当前问题')
     expect(questionMarkup).toContain('提交')
     const disabledMarkup = renderPanel({
       currentRun: run({ status: 'waiting-question' }),

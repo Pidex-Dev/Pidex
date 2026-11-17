@@ -409,4 +409,18 @@ describe('controlled interaction state', () => {
 
     expect(changes).toEqual([true, false])
   })
+
+  test('interaction.css keeps the 24px min-height floor in @layer reset so primitive row heights win', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const { resolve } = await import('node:path')
+    const interactionCss = await readFile(
+      resolve(import.meta.dir, '../src/styles/primitives/interaction.css'),
+      'utf8',
+    )
+    const resetBlock = interactionCss.match(/@layer reset\s*\{[\s\S]*?\n\}/)?.[0] ?? ''
+    const overridesBlock = interactionCss.match(/@layer overrides\s*\{[\s\S]*?\n\}/)?.[0] ?? ''
+
+    expect(resetBlock).toContain('min-height: 24px;')
+    expect(overridesBlock).not.toContain('min-height:')
+  })
 })

@@ -1160,6 +1160,28 @@ describe('sidebar view model', () => {
         new Set(),
       ),
     ).toBe('running')
+    expect(
+      deriveSidebarSessionVisualState(
+        {
+          ...sessions[0]!,
+          status: 'waiting',
+          latestTurnStatus: 'waiting-subagents',
+          unreadAt: null,
+        },
+        new Set(),
+      ),
+    ).toBe('running')
+    expect(
+      deriveSidebarSessionVisualState(
+        {
+          ...sessions[0]!,
+          status: 'waiting',
+          latestTurnStatus: 'waiting-subagents',
+          unreadAt: null,
+        },
+        new Set(['pinned']),
+      ),
+    ).toBe('needs-input')
   })
 
   test('uses a dynamic read status action for every session', () => {

@@ -2094,4 +2094,28 @@ describe('workbench layout snapshot v1', () => {
     expect(exited.visibility).toEqual(baseline.visibility)
     expect(exited.auxiliaryPanelWidth).toBe(660)
   })
+
+  test('supports independent subagent-thread right dock tabs with avatar icon and title persistence', () => {
+    const subagentTab: WorkbenchTabDescriptor = {
+      id: 'subagent-thread:task-42',
+      kind: 'subagent-thread',
+      taskId: 'task-42',
+      parentThreadId: 'thread-main',
+      title: '核对 ZCode 参照设计细节',
+      role: 'frontend',
+    }
+    const state = open(createDefaultWorkbenchTabsState(), subagentTab)
+    expect(state.right.tabIds).toEqual(['subagent-thread:task-42'])
+    expect(state.right.activeTabId).toBe('subagent-thread:task-42')
+    const def = getWorkbenchTabDefinition('subagent-thread')
+    expect(getWorkbenchTabDisplayTitle(subagentTab)).toBe('核对 ZCode 参照设计细节')
+    const iconHtml = renderToStaticMarkup(def.getIcon?.(subagentTab) ?? null)
+    expect(iconHtml).toContain('Frontend.png')
+
+    const validated = validateConversationUiState({
+      ...createDefaultConversationUiState(),
+      workbench: state,
+    })
+    expect(validated.workbench.tabsById['subagent-thread:task-42']).toEqual(subagentTab)
+  })
 })
