@@ -166,35 +166,10 @@
   }
 
   /* --- Role + weight pairs -------------------------------------------- */
-  .composer-models-title {
-    font-family: var(--cpx-sys-font-family-sans);
-    font-size: var(--cpx-sys-font-size-2);
-    line-height: var(--cpx-sys-line-height-2);
-    letter-spacing: var(--cpx-sys-letter-spacing-2);
-    font-weight: var(--cpx-sys-font-weight-bold);
-  }
-
-  .composer-hub-row-name {
-    font-family: var(--cpx-sys-font-family-sans);
-    font-size: var(--cpx-sys-font-size-2);
-    line-height: var(--cpx-sys-line-height-2);
-    letter-spacing: var(--cpx-sys-letter-spacing-2);
-    font-weight: var(--cpx-sys-font-weight-bold);
-  }
-
-  .composer-hub-action-btn {
-    font-family: var(--cpx-sys-font-family-sans);
-    font-size: var(--cpx-sys-font-size-1);
-    line-height: var(--cpx-sys-line-height-1);
-    letter-spacing: var(--cpx-sys-letter-spacing-1);
-    font-weight: var(--cpx-sys-font-weight-bold);
-  }
-
   .composer-model-name {
     font-family: var(--cpx-sys-font-family-sans);
     font-size: var(--cpx-sys-font-size-2);
     line-height: var(--cpx-sys-line-height-2);
-    letter-spacing: var(--cpx-sys-letter-spacing-2);
     font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
   }
@@ -234,19 +209,6 @@
     }
   }
 
-  .context-usage-panel-total {
-    font-size: var(--cpx-sys-font-size-1);
-    line-height: var(--cpx-sys-line-height-1);
-    letter-spacing: var(--cpx-sys-letter-spacing-1);
-    font-family: var(--cpx-sys-font-family-mono);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .context-usage-panel-value {
-    font-family: var(--cpx-sys-font-family-mono);
-    font-variant-numeric: tabular-nums;
-  }
-
   /* --- Shared attachment image tile ----------------------------------- */
   .attachment-image-tile {
     position: relative;
@@ -278,10 +240,6 @@
     /* Keep the translucent tint over an opaque base to hide stacked icons. */
     background: var(--cpx-sys-color-surface-canvas);
     background-image: linear-gradient(var(--cpx-sys-color-hover), var(--cpx-sys-color-hover));
-  }
-
-  .attachment-file-pill__detail::before {
-    content: '· ';
   }
 
   /* --- Hidden-scrollbar rows ------------------------------------------ */
@@ -339,17 +297,6 @@
   }
 
   .composer {
-    border: 1px solid var(--cpx-sys-color-border-default);
-    border-radius: var(--cpx-comp-composer-radius);
-    background: var(--cpx-comp-surface-raised);
-    backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
     box-shadow: var(--cpx-comp-composer-shadow);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .composer {
-      backdrop-filter: none;
-      background: var(--cpx-comp-surface-floating);
-    }
   }
 }

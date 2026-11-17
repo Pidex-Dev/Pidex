@@ -283,7 +283,7 @@
     overflow-x: var(--popover-overflow-x, hidden);
     overflow-y: var(--popover-overflow-y, auto);
     overscroll-behavior: contain;
-    border-radius: var(--cpx-comp-dropdown-menu-radius);
+    border-radius: var(--cpx-comp-dropdown-menu-radius, var(--cpx-sys-radius-floating));
     corner-shape: var(--cpx-sys-corner-shape);
     color: var(--cpx-sys-color-fg-primary);
     font-family: var(--cpx-sys-font-family-sans);
@@ -325,13 +325,6 @@
       backdrop-filter: none;
       background: var(--cpx-comp-surface-floating);
     }
-  }
-  .popover-surface {
-    border: 0;
-    background: var(--cpx-comp-dropdown-menu-bg, var(--cpx-comp-surface-floating));
-    backdrop-filter: var(--cpx-comp-dropdown-menu-backdrop-filter, blur(16px));
-    box-shadow: var(--cpx-comp-dropdown-menu-shadow, var(--cpx-sys-shadow-floating));
-    border-radius: var(--cpx-comp-dropdown-menu-radius, var(--cpx-sys-radius-floating));
   }
 
   /* The floating tooltip surface (border, background, radius, shadow, padding and
@@ -398,6 +391,7 @@
   .sidebar-context-menu-arrow {
     width: var(--cpx-sys-icon-size-sm);
     height: var(--cpx-sys-icon-size-sm);
+    flex-shrink: 0;
     stroke-width: var(--cpx-comp-icon-stroke-width);
     color: var(--cpx-sys-color-fg-tertiary);
   }
@@ -410,6 +404,19 @@
     justify-self: end;
   }
 
+  .app-context-menu--flex .sidebar-context-menu-leading {
+    display: none;
+  }
+
+  .app-context-menu--flex .sidebar-context-menu-label {
+    flex: 1 1 auto;
+  }
+
+  .app-context-menu--flex .sidebar-context-menu-trailing {
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+  }
+
   .sidebar-context-menu-shortcut {
     color: var(--cpx-sys-color-fg-tertiary);
     font-family: var(--cpx-sys-font-family-sans);
@@ -420,7 +427,6 @@
   }
 
   .popover *,
-  .chip-button *,
   .meta-chip * {
     user-select: none;
     -webkit-user-select: none;
@@ -456,30 +462,12 @@
     padding: 0;
   }
 
-  .popover-empty {
-    padding: 8px;
-    color: var(--cpx-comp-input-placeholder-fg);
-    font-family: var(--cpx-sys-font-family-sans);
-    font-size: var(--cpx-sys-font-size-1);
-    line-height: var(--cpx-sys-line-height-1);
-    letter-spacing: var(--cpx-sys-letter-spacing-1);
-    text-align: center;
-  }
-
   /* --- Popover item interaction states --- */
   .permission-select-item[data-highlighted] .permission-select-item-icon {
     color: var(--cpx-sys-color-fg-primary);
   }
 
   /* --- Popover item children --- */
-  .popover-item-trailing {
-    min-width: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--cpx-comp-row-gap);
-    justify-self: end;
-  }
-
   .popover-item-icon {
     display: inline-flex;
     align-items: center;
@@ -503,6 +491,7 @@
     width: var(--cpx-sys-icon-size-sm);
     height: var(--cpx-sys-icon-size-sm);
     display: block;
+    flex-shrink: 0;
     stroke-width: var(--cpx-comp-icon-stroke-width);
     object-fit: contain;
   }
@@ -610,7 +599,8 @@
   /* Nested list and scroll wrappers share the surface's column tracks. */
   :is([data-theme-component='dropdown-surface'], .popover-menu-spacing):not(
       .chat-input__dropdown,
-      .ui-select-content
+      .ui-select-content,
+      .app-context-menu--flex
     ):has(
       :is(.sidebar-row-main, .sidebar-context-menu-label, .menubar-item-label, .menu-column-label)
     ) {

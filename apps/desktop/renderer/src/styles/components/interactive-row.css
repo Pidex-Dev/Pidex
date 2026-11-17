@@ -85,7 +85,21 @@
     --interactive-row-current-padding-inline: var(--cpx-comp-row-padding-inline);
   }
 
-  .interactive-row--menu,
+  .thread-summary-row {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) max-content;
+  }
+
+  .thread-summary-row[data-tone='meta'] {
+    color: var(--cpx-sys-color-fg-tertiary);
+  }
+
+  .thread-summary-row[data-tone='meta']:is(:hover, :focus-visible):not(
+      :where(:disabled, [data-disabled], [aria-disabled='true'])
+    ) {
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
   .menubar-item,
   .settings-dropdown-item,
   .permission-select-item,
@@ -98,7 +112,6 @@
     --interactive-row-current-padding-inline: var(--cpx-comp-row-padding-inline);
   }
 
-  .interactive-row--rich,
   .permission-select-item {
     --interactive-row-current-min-height: var(--cpx-comp-row-height-menu-rich, 40px);
     --interactive-row-current-padding-block: var(--cpx-comp-row-padding-block-rich, 6px);
@@ -237,6 +250,12 @@
     transform: none;
     cursor: default;
     opacity: var(--cpx-comp-row-disabled-opacity, 0.55);
+  }
+
+  .chat-input__dropdown-item:disabled,
+  .chat-input__dropdown-item[aria-disabled='true'] {
+    cursor: not-allowed;
+    pointer-events: none;
   }
 
   @media (forced-colors: active) {

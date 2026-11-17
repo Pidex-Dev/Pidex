@@ -108,19 +108,19 @@
       display var(--cpx-sys-motion-exit) var(--cpx-sys-ease-in) allow-discrete;
   }
 
-  .ui-dialog-backdrop[data-state='open'] {
+  .ui-dialog-backdrop:not([data-backdrop='flat'])[data-state='open'] {
     animation: ui-dialog-backdrop-in var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
   }
 
-  .ui-dialog-backdrop[data-state='closed'] {
+  .ui-dialog-backdrop:not([data-backdrop='flat'])[data-state='closed'] {
     animation: ui-dialog-backdrop-out var(--cpx-sys-motion-exit) var(--cpx-sys-ease-in);
   }
 
-  .ui-dialog-surface[data-state='open'] {
+  .ui-dialog-surface:not([data-surface='floating'])[data-state='open'] {
     animation: radix-floating-surface-in var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
   }
 
-  .ui-dialog-surface[data-state='closed'] {
+  .ui-dialog-surface:not([data-surface='floating'])[data-state='closed'] {
     animation: radix-floating-surface-out var(--cpx-sys-motion-exit) var(--cpx-sys-ease-in);
   }
 

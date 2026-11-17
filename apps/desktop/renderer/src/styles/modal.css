@@ -25,6 +25,10 @@
     translate: -50% -50%;
   }
 
+  .ui-dialog-surface--side-right {
+    z-index: calc(var(--cpx-sys-z-modal) + 1);
+  }
+
   .ui-dialog-surface {
     background: var(--cpx-comp-modal-bg, var(--cpx-comp-surface-floating));
     border: 0;
@@ -32,9 +36,36 @@
     border-radius: var(--cpx-comp-modal-radius, var(--cpx-sys-radius-prominent));
   }
 
+  .permission-modal-backdrop[data-backdrop='flat'] {
+    padding: 0;
+    backdrop-filter: none;
+  }
+
+  .ui-dialog-surface[data-surface='command'] {
+    background: var(--cpx-comp-modal-bg, var(--cpx-comp-surface-floating));
+    border: 1px solid var(--cpx-sys-color-border-subtle);
+    border-radius: var(--cpx-sys-radius-none);
+    box-shadow: none;
+  }
+
+  .ui-dialog-surface[data-surface='floating'] {
+    z-index: var(--cpx-sys-z-modal);
+    border-radius: var(--cpx-sys-radius-floating);
+    backdrop-filter: none;
+  }
+
   @media (forced-colors: active) {
     :is(.permission-modal-backdrop, .ui-dialog-backdrop) {
       background: color-mix(in srgb, CanvasText 18%, transparent);
+    }
+
+    .permission-modal-backdrop[data-backdrop='flat'] {
+      background: transparent;
+    }
+
+    .ui-dialog-surface[data-surface='command'],
+    .ui-dialog-surface[data-surface='floating'] {
+      border: 1px solid CanvasText;
     }
   }
   .permission-modal header span {
@@ -104,20 +135,6 @@
     );
   }
 
-  /* --- Permission code scroll --- */
-  .permission-code-scroll-content code {
-    display: block;
-    min-width: max-content;
-    padding: var(--cpx-sys-space-3);
-    border-radius: var(--cpx-sys-radius-container);
-    background: var(--cpx-comp-modal-preformat-bg);
-    font-family: var(--cpx-sys-font-family-mono);
-    font-size: var(--cpx-sys-font-size-code);
-    line-height: var(--cpx-sys-line-height-code);
-    letter-spacing: var(--cpx-sys-letter-spacing-code);
-    white-space: pre;
-  }
-
   /* --- Git Workflow Modal ---
      Form controls are `components/ui` primitives now, so only the scroll shell
      and the status glyph stay here; element selectors would restyle Button/Checkbox. */
@@ -159,40 +176,6 @@
   /* --- GitHub Repository Modal --- */
   .github-repository-modal {
     width: min(760px, 100%);
-  }
-
-  .github-login-panel {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--cpx-sys-space-3);
-    padding: var(--cpx-sys-space-4);
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-4);
-    background: var(--cpx-comp-modal-preformat-bg);
-  }
-
-  .github-login-panel h3,
-  .github-login-panel p {
-    margin: 0;
-  }
-
-  .github-login-panel h3 {
-    color: var(--cpx-sys-color-fg-primary);
-    font-family: var(--cpx-sys-font-family-sans);
-    font-size: var(--cpx-sys-font-size-2);
-    line-height: var(--cpx-sys-line-height-2);
-    letter-spacing: var(--cpx-sys-letter-spacing-2);
-    font-weight: var(--cpx-sys-font-weight-medium);
-  }
-
-  .github-login-panel p {
-    margin-top: var(--cpx-sys-space-1);
-    color: var(--cpx-sys-color-fg-secondary);
-    font-family: var(--cpx-sys-font-family-sans);
-    font-size: var(--cpx-sys-font-size-1);
-    line-height: var(--cpx-sys-line-height-1);
-    letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .github-repository-search {

@@ -79,6 +79,11 @@
     pointer-events: none;
   }
 
+  .stop-slider-stops[data-single-stop='true'],
+  .stop-slider-labels[data-single-stop='true'] {
+    justify-content: flex-end;
+  }
+
   .stop-slider-stop {
     display: block;
     width: 4px;

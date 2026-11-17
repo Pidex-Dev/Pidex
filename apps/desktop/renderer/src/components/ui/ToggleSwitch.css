@@ -31,12 +31,13 @@
   }
 
   .toggle-knob {
+    position: absolute;
     inset-block-start: 50%;
     inset-inline-start: var(--cpx-switch-thumb-gap);
     inline-size: var(--cpx-switch-thumb-size);
     block-size: var(--cpx-switch-thumb-size);
     transform: translate3d(0, -50%, 0);
-    border-color: var(--cpx-sys-color-border-default);
+    border: 1px solid var(--cpx-sys-color-border-default);
     background: var(--cpx-comp-switch-thumb-fill);
   }
 

@@ -52,6 +52,13 @@
     align-items: center;
   }
 
+  .chat-input__dropdown-item {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) max-content;
+    column-gap: var(--cpx-sys-space-2);
+    align-items: center;
+  }
+
   .popover-item-label,
   .sidebar-context-menu-label,
   .settings-dropdown-item > span,

@@ -312,8 +312,7 @@
 
   .md-code-block {
     position: relative;
-    margin-top: 16px;
-    margin-bottom: 20px;
+    margin: 16px 0 20px;
   }
   .md-code-block[data-surface='embedded'] {
     margin: 0;
@@ -337,10 +336,6 @@
     background: transparent;
   }
 
-  .md-code-lang {
-    letter-spacing: normal;
-  }
-
   .md-code-actions {
     position: absolute;
     z-index: var(--cpx-sys-z-local);
@@ -359,6 +354,7 @@
   }
 
   .md-code-pre {
+    overflow-x: auto;
     padding: 0.9rem 1rem 0.85rem;
     font-size: var(--cpx-sys-font-size-code);
     line-height: var(--cpx-sys-line-height-code);
@@ -402,26 +398,6 @@
     border-radius: 0;
     background: transparent;
     font: inherit;
-  }
-
-  .md-code-editor-textarea {
-    display: block;
-    box-sizing: border-box;
-    width: 100%;
-    min-width: 100%;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    outline: none;
-    background: transparent;
-    color: var(--cpx-sys-color-fg-primary);
-    font-family: var(--cpx-sys-font-family-mono);
-    font-size: var(--cpx-sys-font-size-code);
-    line-height: var(--cpx-sys-line-height-code);
-    white-space: pre;
-    overflow-x: auto;
-    resize: vertical;
   }
 
   .md-code-placeholder,
@@ -812,12 +788,9 @@
     min-width: 0;
     overflow-wrap: anywhere;
   }
-  .md-code-block[data-wrapped='true'] .md-code-editor-textarea {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
   .md-code-wrap {
     background: transparent;
+    color: var(--cpx-sys-color-fg-secondary);
   }
   .md-code-wrap:is(:hover, [aria-pressed='true']) {
     background: var(--cpx-sys-color-hover);

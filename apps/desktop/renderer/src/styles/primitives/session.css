@@ -46,32 +46,19 @@
 
   .popover.popover-thread-summary-branch {
     max-height: min(320px, calc(100vh - 96px));
-  }
-
-  .popover.popover-branch,
-  .popover.popover-thread-summary-branch {
     --popover-overflow-y: hidden;
   }
 
-  .popover.popover-branch .popover-scroll-content,
   .popover.popover-thread-summary-branch .popover-scroll-content {
     display: flex;
     flex-direction: column;
+    max-height: min(320px, calc(100vh - 96px));
   }
 
-  .popover.popover-branch .popover-scroll-content > :not(.branch-popover-list-scroll),
   .popover.popover-thread-summary-branch
     .popover-scroll-content
     > :not(.branch-popover-list-scroll) {
     flex: 0 0 auto;
-  }
-
-  .popover.popover-branch .popover-scroll-content {
-    max-height: min(420px, calc(100vh - 32px));
-  }
-
-  .popover.popover-thread-summary-branch .popover-scroll-content {
-    max-height: min(320px, calc(100vh - 96px));
   }
 
   .branch-popover-list-scroll {
@@ -526,12 +513,11 @@
 
   .quick-chat-view {
     --quick-chat-surface-width: min(var(--page-content-max-width), 100%);
-    padding-top: var(--cpx-sys-space-4);
   }
 
   /*
-   * 新会话页在窄高度下收紧上内边距与英雄区高度：这两组值一个是 720px 视口
-   * 媒体查询、一个是 min() 混合值，utility 只能覆盖其一，因此保持成对声明。
+   * 新会话页在窄高度下收紧英雄区高度：一个在 720px 视口媒体查询内，
+   * 保持成对声明。
    */
 
   .coding-chat-view .quick-chat-hero-region {
@@ -539,28 +525,11 @@
     padding-bottom: var(--cpx-sys-space-6);
   }
 
-  .chat-home-view .chat-home-region {
-    --chat-home-region-padding-block: min(10vh, calc(var(--cpx-sys-space-1) * 20));
-
-    gap: var(--cpx-sys-space-7);
-    padding-block: var(--chat-home-region-padding-block);
-  }
-
   @media (max-height: 720px) {
     .coding-chat-view .quick-chat-hero-region {
       min-height: 260px;
       padding-bottom: var(--cpx-sys-space-4);
     }
-
-    .chat-home-view .chat-home-region {
-      gap: var(--cpx-sys-space-5);
-      padding-block: var(--cpx-sys-space-4);
-    }
-  }
-
-  /* 建议卡片的语气色默认值；`is-*` 覆盖由 TSX 里的静态映射表提供。 */
-  .new-session-suggestions {
-    --new-session-suggestion-tone: var(--cpx-sys-color-accent);
   }
 
   /*

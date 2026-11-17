@@ -3,6 +3,10 @@
  * flattening its nesting: the renderer no longer compiles Sass.
  */
 @layer features {
+  .composer-footer-secondary-chevron {
+    display: inline-flex;
+  }
+
   @container composer-footer (width <= 475px) {
     .composer-footer-label {
       display: none;
