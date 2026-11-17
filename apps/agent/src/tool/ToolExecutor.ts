@@ -142,6 +142,8 @@ export interface ToolExecutionContext {
   authorizationOnly?: boolean
   /** Optional active Skill ceiling. It can only remove tools from the effective policy. */
   allowedTools?: readonly string[]
+  delegationEnabled?: boolean
+  collaborationEnabled?: boolean
   onProgress?: (progress: ToolProgress) => void
   onSkillDocumentRead?: (path: string, hash: string) => Promise<{ name: string } | undefined>
   /** Immutable tool catalog captured for this turn. */
@@ -558,7 +560,8 @@ export class ToolExecutor {
       ruleRequiresApproval: false,
     }
     const pathValue = typeof input.file_path === 'string' ? input.file_path : input.path
-    const fileTool = name === 'Read' || name === 'Write' || name === 'Edit'
+    const fileTool =
+      name === 'Read' || name === 'Write' || name === 'Edit' || name === 'Glob' || name === 'Grep'
     const targetPath = pathValue === '@pidex/config.json' ? this.options?.userConfigPath : pathValue
     const canonicalTarget =
       fileTool && typeof targetPath === 'string' && !targetPath.startsWith('@')
@@ -788,6 +791,12 @@ export class ToolExecutor {
           sandboxMode: permissionConfig.sandboxMode,
           approvalPolicy: permissionConfig.approvalPolicy,
           profile: context.profile ?? 'main',
+          ...(context.delegationEnabled !== undefined
+            ? { delegationEnabled: context.delegationEnabled }
+            : {}),
+          ...(context.collaborationEnabled !== undefined
+            ? { collaborationEnabled: context.collaborationEnabled }
+            : {}),
           ...(context.allowedTools ? { allowedTools: context.allowedTools } : {}),
           ...(context.frozenDeferredToolNames
             ? { frozenDeferredToolNames: context.frozenDeferredToolNames }

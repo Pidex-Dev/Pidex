@@ -15,6 +15,7 @@ export const PI_LIFECYCLE_TOOLS = [
   'submit_plan',
   'submit_schedule_plan',
   'submit_task_schedule',
+  'Agent',
   'spawn_agents',
   'wait_agents',
   'send_agent',
@@ -77,8 +78,17 @@ export function createToolExposurePlan(
   const eager = definitions
     .filter((tool) => tool.visibility === 'eager')
     .map((tool) => tool.sdkName)
+  const canDelegate =
+    input.delegationEnabled !== false &&
+    (input.collaborationEnabled !== false || profile === 'main')
+  const canCollaborate = canDelegate && input.collaborationEnabled !== false
+  const deferredControlAllowed = (name: string) => {
+    if (name === 'send_agent' || name === 'stop_agent') return canDelegate
+    if (name === 'followup_agent' || name === 'list_agents') return canCollaborate
+    return true
+  }
   const deferredCandidates = definitions
-    .filter((tool) => tool.visibility === 'deferred')
+    .filter((tool) => tool.visibility === 'deferred' && deferredControlAllowed(tool.sdkName))
     .map((tool) => tool.sdkName)
   const lifecycle: string[] = []
   if (input.hasSkillService) lifecycle.push('skill_read')
@@ -102,14 +112,12 @@ export function createToolExposurePlan(
     }
   }
 
-  if (
-    input.delegationEnabled !== false &&
-    (input.collaborationEnabled !== false || profile === 'main')
-  ) {
-    if ((input.depth ?? (profile === 'main' ? 0 : 1)) < MAX_SUBAGENT_DEPTH)
-      lifecycle.push('spawn_agents')
-    lifecycle.push('wait_agents', 'send_agent', 'stop_agent')
-    if (input.collaborationEnabled !== false) lifecycle.push('followup_agent', 'list_agents')
+  if (canDelegate) {
+    if (
+      (profile === 'main' || profile === 'default') &&
+      (input.depth ?? (profile === 'main' ? 0 : 1)) < MAX_SUBAGENT_DEPTH
+    )
+      lifecycle.push('Agent')
     if (profile !== 'main' && input.collaborationEnabled !== false) lifecycle.push('report_agent')
   }
   const allowlist = input.allowedTools ? new Set(input.allowedTools) : null

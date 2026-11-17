@@ -18,6 +18,8 @@ import {
 } from './RequestPermissions/Definition'
 import { toolCatalogSummary, toolSearchDefinition } from './ToolSearch/Definition'
 import { applyEditsText } from './Edit/ApplyEditText'
+import { globDefinition } from './Glob/Definition'
+import { grepDefinition } from './Grep/Definition'
 import { subagentToolDefinitions } from './Delegation/Definitions'
 import type { TurnPatchMutationFile } from '../patch/TurnPatchTypes'
 import { diffLines } from 'diff'
@@ -738,6 +740,8 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     },
   },
   toolSearchDefinition,
+  globDefinition,
+  grepDefinition,
   requestPermissionsDefinition,
   ...subagentToolDefinitions,
 ]

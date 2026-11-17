@@ -65,6 +65,8 @@ export interface HarnessRuntimeRequest {
     | { kind: 'image' | 'audio' | 'video'; name: string; mediaType: string; base64: string }
   >
   allowedTools?: readonly string[]
+  delegationEnabled?: boolean
+  collaborationEnabled?: boolean
   toolCatalog?: ToolCatalog
   /** Frozen deferred tool names from the persisted turn snapshot; the runtime may only bind these. */
   frozenDeferredToolNames?: readonly string[]
@@ -229,6 +231,7 @@ export interface PiRuntimeEventSink {
 export interface PiToolAdapterOptions {
   executor: ToolExecutor
   request: HarnessRuntimeRequest
+  callbacks?: PiLifecycleCallbacks
 }
 
 export interface PiLifecycleCallbacks {
@@ -284,6 +287,11 @@ export interface PiLifecycleCallbacks {
     input: import('zod').infer<
       typeof import('../../tool/TaskSchedule/Definitions').taskArrangementInput
     >,
+    toolCallID: string,
+    signal?: AbortSignal,
+  ): Promise<unknown>
+  agent?(
+    input: Record<string, unknown>,
     toolCallID: string,
     signal?: AbortSignal,
   ): Promise<unknown>

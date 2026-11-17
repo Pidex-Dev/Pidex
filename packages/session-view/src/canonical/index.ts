@@ -1414,6 +1414,7 @@ function reconcileSubagentItems(state: CanonicalThreadState): void {
       runId: run?.id ?? item.runId,
       childThreadId: projection.task.childThreadId,
       displayName: projection.task.displayName,
+      ...(projection.task.title !== undefined ? { title: projection.task.title } : {}),
       profile: projection.task.profile,
       ...(projection.task.role ? { role: projection.task.role } : {}),
       task: projection.task.task,

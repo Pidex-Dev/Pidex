@@ -576,6 +576,7 @@ export const SubagentItemSchema = Schema.Struct({
   runId: Schema.String,
   childThreadId: Schema.String,
   displayName: Schema.String,
+  title: Schema.optional(Schema.NullOr(Schema.String)),
   profile: SubagentProfileSchema,
   /** 派生自 task.role，仅供时间线独立渲染；不单独持久化。 */
   role: Schema.optional(SubagentRoleSchema),

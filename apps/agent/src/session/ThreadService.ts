@@ -255,6 +255,21 @@ export class ThreadService {
       if (this.coordinator.active(threadID)) return
       void this.executeTurn(threadID, turnID)
     })
+    this.subagents.setBackgroundNotifyHandler?.(async (threadID, sourceTurnID, prompt) => {
+      const previous = this.db.getTurnInput(sourceTurnID)
+      if (!previous) return
+      await this.enqueueFollowUp(
+        threadID,
+        {
+          content: prompt,
+          model: previous.model,
+          taskMode: previous.taskMode,
+          permissionConfig: previous.permissionConfig,
+          strategy: 'queue',
+        },
+        `subagent-notify:${sourceTurnID}:${crypto.randomUUID()}`,
+      )
+    })
     if (resumeOnConstruct) queueMicrotask(() => this.resumeQueuedTurns())
   }
 
@@ -1867,7 +1882,7 @@ export class ThreadService {
           threadID,
           turnID,
           collaborationEnabled: this.subagents.collaboration.available,
-          collaborationMessages: () => this.subagents.collaboration.notices(threadID),
+          collaborationMessages: () => this.subagents.collaborationNotices(threadID),
           agentID: agent.id,
           sessionID: agent.sessionID,
           content,

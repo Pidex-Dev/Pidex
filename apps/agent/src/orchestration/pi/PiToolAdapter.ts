@@ -1,4 +1,7 @@
-import { subagentToolDefinitions } from '../../tool/Delegation/Definitions'
+import {
+  AGENT_TOOL_DESCRIPTION,
+  subagentToolDefinitions,
+} from '../../tool/Delegation/Definitions'
 import type { AgentToolResult } from '../harness/AgentTypes'
 import { Type, type TSchema } from '@earendil-works/pi-ai'
 import { AgentError } from '../../Domain'
@@ -74,6 +77,32 @@ export function formatToolExecutionResult(
   return textResult(output)
 }
 
+const subagentLifecycleFromCallbacks = (
+  callbacks: PiLifecycleCallbacks | undefined,
+  toolCallID: string,
+  signal: AbortSignal,
+): ToolContext['subagentLifecycle'] | undefined => {
+  if (!callbacks) return undefined
+  return async (name, input) => {
+    if (name === 'Agent' && callbacks.agent) return callbacks.agent(input, toolCallID, signal)
+    if (name === 'spawn_agents' && callbacks.spawnAgents)
+      return callbacks.spawnAgents(input, toolCallID, signal)
+    if (name === 'wait_agents' && callbacks.waitAgents)
+      return callbacks.waitAgents(input, toolCallID, signal)
+    if (name === 'send_agent' && callbacks.sendAgent)
+      return callbacks.sendAgent(input, toolCallID, signal)
+    if (name === 'followup_agent' && callbacks.followupAgent)
+      return callbacks.followupAgent(input, toolCallID, signal)
+    if (name === 'report_agent' && callbacks.reportAgent)
+      return callbacks.reportAgent(input, toolCallID, signal)
+    if (name === 'list_agents' && callbacks.listAgents)
+      return callbacks.listAgents(input, toolCallID, signal)
+    if (name === 'stop_agent' && callbacks.stopAgent)
+      return callbacks.stopAgent(input, toolCallID, signal)
+    throw new AgentError('TOOL_NOT_AVAILABLE', `当前执行没有 ${name} 子 Agent 协作入口`, 409)
+  }
+}
+
 export function adaptToolDefinition(
   definition: ToolDefinition,
   options: PiToolAdapterOptions,
@@ -101,7 +130,13 @@ export function adaptToolDefinition(
         permissionConfig: request.permissionConfig,
         model: request.policyModel,
       }
+      const subagentLifecycle = subagentLifecycleFromCallbacks(
+        options.callbacks,
+        toolCallID,
+        toolContext.signal,
+      )
       const output = await options.executor.execute(definition.name ?? definition.sdkName, parsed, {
+        ...(subagentLifecycle ? { subagentLifecycle } : {}),
         threadID: request.threadID,
         turnID: request.turnID,
         agentID: request.agentID,
@@ -121,6 +156,12 @@ export function adaptToolDefinition(
             }
           : {}),
         ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+        ...(request.delegationEnabled !== undefined
+          ? { delegationEnabled: request.delegationEnabled }
+          : {}),
+        ...(request.collaborationEnabled !== undefined
+          ? { collaborationEnabled: request.collaborationEnabled }
+          : {}),
         ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
         ...(request.frozenDeferredToolNames
           ? { frozenDeferredToolNames: request.frozenDeferredToolNames }
@@ -460,6 +501,32 @@ export function createLifecycleTools(
         true,
       ),
     )
+  if (callbacks.agent) {
+    const agentDef = subagentToolDefinitions.find((definition) => definition.sdkName === 'Agent')!
+    add({
+      name: 'Agent',
+      label: 'Agent',
+      description: AGENT_TOOL_DESCRIPTION,
+      parameters: Type.Unsafe(agentDef.inputSchema),
+      executionMode: 'parallel',
+      execute: async (toolCallID, input, signal) => {
+        const parsed = agentDef.schema.parse(input) as Record<string, unknown>
+        const result = await callbacks.agent!(parsed, toolCallID, signal)
+        const terminate = Boolean(result && typeof result === 'object' && '__piPause' in result)
+        if (result && typeof result === 'object' && '__handbackText' in result) {
+          const { __handbackText, ...rest } = result as Record<string, unknown>
+          const safeDetails = secretScrubber.scrub(rest)
+          const safeText = secretScrubber.scrubText(String(__handbackText ?? ''))
+          return {
+            content: [{ type: 'text', text: safeText }],
+            details: safeDetails,
+            ...(terminate ? { terminate: true } : {}),
+          }
+        }
+        return textResult(result, terminate)
+      },
+    })
+  }
   if (callbacks.spawnAgents)
     add(
       lifecycleTool(
@@ -491,30 +558,6 @@ export function createLifecycleTools(
         (result) => Boolean(result && typeof result === 'object' && '__piPause' in result),
       ),
     )
-  if (callbacks.sendAgent)
-    add(
-      lifecycleTool(
-        'send_agent',
-        'Send supplemental instructions or a new request to a child. Running children continue at safe boundaries; finished children start a new turn. Earlier results describe earlier work only.',
-        Type.Unsafe(
-          subagentToolDefinitions.find((definition) => definition.sdkName === 'send_agent')!
-            .inputSchema,
-        ),
-        callbacks.sendAgent,
-      ),
-    )
-  if (callbacks.followupAgent)
-    add(
-      lifecycleTool(
-        'followup_agent',
-        'Queue follow-up work for a direct child without interrupting its turn or cancelling approvals or questions.',
-        Type.Object({
-          taskID: Type.String({ minLength: 1 }),
-          message: Type.String({ minLength: 1 }),
-        }),
-        callbacks.followupAgent,
-      ),
-    )
   if (callbacks.reportAgent)
     add(
       lifecycleTool(
@@ -522,27 +565,6 @@ export function createLifecycleTools(
         'Record progress or results for the direct parent without starting a parent turn. Reports cannot change permissions.',
         Type.Object({ message: Type.String({ minLength: 1 }) }),
         callbacks.reportAgent,
-      ),
-    )
-  if (callbacks.listAgents)
-    add(
-      lifecycleTool(
-        'list_agents',
-        'List direct children, current runs and received reports.',
-        Type.Object({}),
-        callbacks.listAgents,
-      ),
-    )
-  if (callbacks.stopAgent)
-    add(
-      lifecycleTool(
-        'stop_agent',
-        'Stop a child. Existing modifications remain and require explicit review or rollback if needed.',
-        Type.Unsafe(
-          subagentToolDefinitions.find((definition) => definition.sdkName === 'stop_agent')!
-            .inputSchema,
-        ),
-        callbacks.stopAgent,
       ),
     )
   if (callbacks.finalizeResult) {
@@ -592,13 +614,10 @@ export function createPiTools(
     'submit_plan',
     'submit_schedule_plan',
     'submit_task_schedule',
+    'Agent',
     'spawn_agents',
     'wait_agents',
-    'send_agent',
-    'followup_agent',
     'report_agent',
-    'list_agents',
-    'stop_agent',
     'finalize_result',
   ])
   const regular = options.request.exposedTools

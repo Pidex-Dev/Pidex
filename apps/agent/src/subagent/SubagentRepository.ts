@@ -48,6 +48,7 @@ export type SpawnSubagentInput = {
   parentTurnID: string
   parentAgentID: string
   displayName: string
+  title?: string | null
   profile: Exclude<SubagentProfile, 'main'>
   role?: SubagentRole
   /** Stable per-project identity for the optional named-memory namespace. */
@@ -59,6 +60,7 @@ export type SpawnSubagentInput = {
   workspaceMode: 'shared' | 'worktree'
   workspaceRoot: string
   taskMode?: TaskMode
+  isFork?: boolean
 }
 
 export type SubagentClaim = {
@@ -100,7 +102,7 @@ export class SubagentRepository {
         )
         .run(
           childThreadID,
-          input.displayName,
+          input.title?.trim() || input.displayName,
           input.parentThreadID,
           input.taskMode ?? 'chat',
           permission.sandboxMode,
@@ -111,7 +113,7 @@ export class SubagentRepository {
         )
       this.db.sqlite
         .query(
-          `INSERT INTO subagent_tasks (id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, profile, role, memory_key, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)`,
+          `INSERT INTO subagent_tasks (id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, title, profile, role, memory_key, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)`,
         )
         .run(
           taskID,
@@ -120,6 +122,7 @@ export class SubagentRepository {
           input.parentAgentID,
           childThreadID,
           input.displayName,
+          input.title?.trim() || null,
           input.profile,
           input.role ?? null,
           input.memoryKey ?? null,
@@ -154,15 +157,24 @@ export class SubagentRepository {
         parentAgentID: input.parentAgentID,
         profile: input.profile,
         task: input.task,
-        content: [
-          `Subagent task:\n${input.task}`,
-          `Workspace: ${input.workspaceRoot}`,
-          `Workspace mode: ${input.workspaceMode}`,
-          `Permission ceiling: ${stringify(input.permissionCeiling)}`,
-          'Return structured findings relevant to this task only. Do not assume main-conversation context not explicitly supplied.',
-          'Finish with a standalone finalize_result call. Provide a nonempty summary of the work and outcome; use empty arrays for absent lists. Report succeeded/partial/blocked faithfully. Partial and blocked deliveries are valid; never fabricate verification success.',
-          'Include findings, changes or evidence references, verification and unresolved issues. Keep long logs in the task record, not the summary.',
-        ].join('\n\n'),
+        content: input.isFork
+          ? [
+              '<fork_boilerplate>',
+              'This is an implicit fork of the parent conversation. You share the parent context prefix up to this point.',
+              'Execute only the directive below. Do not re-delegate or launch another fork.',
+              '</fork_boilerplate>',
+              '',
+              `Directive:\n${input.task}`,
+            ].join('\n')
+          : [
+              `Subagent task:\n${input.task}`,
+              `Workspace: ${input.workspaceRoot}`,
+              `Workspace mode: ${input.workspaceMode}`,
+              `Permission ceiling: ${stringify(input.permissionCeiling)}`,
+              'Return structured findings relevant to this task only. Do not assume main-conversation context not explicitly supplied.',
+              'Finish with a standalone finalize_result call. Provide a nonempty summary of the work and outcome; use empty arrays for absent lists. Report succeeded/partial/blocked faithfully. Partial and blocked deliveries are valid; never fabricate verification success.',
+              'Include findings, changes or evidence references, verification and unresolved issues. Keep long logs in the task record, not the summary.',
+            ].join('\n\n'),
         model: input.model,
         permission,
         taskMode: input.taskMode ?? 'chat',
@@ -188,6 +200,7 @@ export class SubagentRepository {
             runId: runID,
             childThreadId: childThreadID,
             displayName: input.displayName,
+            ...(input.title?.trim() ? { title: input.title.trim() } : {}),
             profile: input.profile,
             ...(input.role ? { role: input.role } : {}),
             task: input.task,
@@ -332,7 +345,7 @@ export class SubagentRepository {
   task(taskID: string): SubagentTask | null {
     const row = this.db.sqlite
       .query(
-        'SELECT id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, profile, role, memory_key, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, created_at, updated_at FROM subagent_tasks WHERE id = ?',
+        'SELECT id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, title, profile, role, memory_key, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, created_at, updated_at FROM subagent_tasks WHERE id = ?',
       )
       .get(taskID) as Record<string, string | number | null> | null
     if (!row) return null
@@ -379,6 +392,7 @@ export class SubagentRepository {
           .get(String(row.id), String(row.current_run_id)) as { count: number }
       ).count,
       displayName: String(row.display_name),
+      ...(typeof row.title === 'string' && row.title.trim() ? { title: row.title.trim() } : {}),
       profile: String(row.profile) as SubagentTask['profile'],
       ...(isSubagentRole(row.role) ? { role: row.role } : {}),
       ...(row.memory_key ? { memoryKey: String(row.memory_key) } : {}),

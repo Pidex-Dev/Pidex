@@ -120,7 +120,10 @@ export async function executeHarnessRun(
         }
       : {}),
   }
-  const tools = createPiTools({ executor: options.toolExecutor, request }, lifecycle)
+  const tools = createPiTools(
+    { executor: options.toolExecutor, request, callbacks: lifecycle },
+    lifecycle,
+  )
   /**
    * Objective revision injected into the request currently being sent. It is
    * confirmed only if that request succeeds, so a failed or cancelled request
@@ -141,6 +144,12 @@ export async function executeHarnessRun(
       sandboxMode: request.permissionConfig.sandboxMode,
       approvalPolicy: request.permissionConfig.approvalPolicy,
       profile: request.profile ?? 'main',
+      ...(request.delegationEnabled !== undefined
+        ? { delegationEnabled: request.delegationEnabled }
+        : {}),
+      ...(request.collaborationEnabled !== undefined
+        ? { collaborationEnabled: request.collaborationEnabled }
+        : {}),
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
       ...(request.frozenDeferredToolNames
         ? { frozenDeferredToolNames: request.frozenDeferredToolNames }
@@ -157,7 +166,12 @@ export async function executeHarnessRun(
       label: definition.sdkName,
       description:
         typeof definition.description === 'string' ? definition.description : definition.sdkName,
-      load: () => adaptToolDefinition(definition, { executor: options.toolExecutor, request }),
+      load: () =>
+        adaptToolDefinition(definition, {
+          executor: options.toolExecutor,
+          request,
+          callbacks: lifecycle,
+        }),
     })),
   )
   const harness = new AgentHarness({

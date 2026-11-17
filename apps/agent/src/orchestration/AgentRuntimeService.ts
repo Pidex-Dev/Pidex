@@ -28,6 +28,7 @@ import { estimateTokens } from '../context/harness/Compaction'
 import type { GoalUsageEntry } from '../storage/repositories/ThreadGoalLedgerRepository'
 import { piToolResultBlocks, piToolResultText } from './pi/PiEventAdapter'
 import { formatToolExecutionResult } from './pi/PiToolAdapter'
+import { formatSubagentHandback } from '../subagent/HandbackFormat'
 import {
   SqlitePiSessionRepo,
   type SqlitePiSessionStorage,
@@ -1496,28 +1497,40 @@ export class AgentRuntimeService implements AgentRuntime {
     // product turn always rebinds the persisted snapshot (pause/resume); a new
     // product turn recomposes. Missing storage falls back to fresh ephemeral and
     // fails resume closed.
-    const exposurePlan = this.toolExposure({
-      ...request,
-      permissionConfig: effectivePermissionConfig,
-    })
+    const exposurePlan = request.forkContext
+      ? {
+          ...request.forkContext.exposurePlan,
+          allows: (name: string) => request.forkContext!.exposurePlan.exposed.includes(name),
+        }
+      : this.toolExposure({
+          ...request,
+          permissionConfig: effectivePermissionConfig,
+        })
     const toolCatalog = request.toolCatalog ?? this.options.toolExecutor.catalog()
     const activityToolCatalog = toolCatalog.all()
-    const effectivePromptSections = resolveRuntimePromptSections({
-      ...(request.promptSections ? { sections: request.promptSections } : {}),
-      effectivePermissionConfig,
-      taskMode: request.taskMode,
-      profile: request.profile ?? 'main',
-      toolCatalog,
-      deferredToolNames: exposurePlan.deferred,
-    })
+    const effectivePromptSections = request.forkContext
+      ? []
+      : resolveRuntimePromptSections({
+          ...(request.promptSections ? { sections: request.promptSections } : {}),
+          effectivePermissionConfig,
+          taskMode: request.taskMode,
+          profile: request.profile ?? 'main',
+          toolCatalog,
+          deferredToolNames: exposurePlan.deferred,
+        })
     const composeBundle = () =>
-      composeRuntimePromptBundle({
-        threadID: request.threadID,
-        mode: request.taskMode,
-        profile: request.profile ?? 'main',
-        exposedTools: exposurePlan.exposed,
-        sections: effectivePromptSections,
-      })
+      request.forkContext
+        ? {
+            ...request.forkContext.bundle,
+            contextItems: [],
+          }
+        : composeRuntimePromptBundle({
+            threadID: request.threadID,
+            mode: request.taskMode,
+            profile: request.profile ?? 'main',
+            exposedTools: exposurePlan.exposed,
+            sections: effectivePromptSections,
+          })
     const skillService = request.skillService ?? new SkillService()
     const mcpBinding = this.mcpGenerationFor(request)
     const workspaceScope: RuntimeWorkspaceScope = {
@@ -1614,6 +1627,18 @@ export class AgentRuntimeService implements AgentRuntime {
     let exposedTools = composition.plan.snapshot.tools.exposed
     try {
       if (request.resume?.toolCallID) {
+        const interruptionRecord =
+          request.resume.interruption &&
+          typeof request.resume.interruption === 'object' &&
+          !Array.isArray(request.resume.interruption)
+            ? (request.resume.interruption as { toolCallRuns?: Record<string, string> })
+            : null
+        const toolCallRuns =
+          interruptionRecord?.toolCallRuns &&
+          typeof interruptionRecord.toolCallRuns === 'object' &&
+          Object.keys(interruptionRecord.toolCallRuns).length > 0
+            ? interruptionRecord.toolCallRuns
+            : null
         const entries = await session.getEntries()
         const assistantEntry = [...entries]
           .reverse()
@@ -1639,6 +1664,138 @@ export class AgentRuntimeService implements AgentRuntime {
           toolCall.type !== 'toolCall'
         )
           throw new Error('Pi checkpoint 中找不到待恢复的 tool call')
+        if (toolCallRuns) {
+          const callEntries = Object.entries(toolCallRuns)
+          const pendingCalls = callEntries.filter(
+            ([callID]) => !this.options.db.hasPersistedToolResult(request.turnID, callID),
+          )
+          if (pendingCalls.length > 0) {
+            const callIDs = new Set(
+              assistantEntry.message.content.flatMap((part) =>
+                part.type === 'toolCall' ? [part.id] : [],
+              ),
+            )
+            const settledSiblings = new Map(
+              entries.flatMap((entry) => {
+                if (entry.type !== 'message' || entry.message.role !== 'toolResult') return []
+                const message = entry.message
+                if (
+                  !callIDs.has(message.toolCallId) ||
+                  message.toolCallId in toolCallRuns ||
+                  (message.details as { __piPause?: boolean } | undefined)?.__piPause === true ||
+                  (message.isError &&
+                    piToolResultText(message, { tool: message.toolName }) === '等待用户审批')
+                )
+                  return []
+                return [[message.toolCallId, message] as const]
+              }),
+            )
+            await session.moveTo(assistantEntry.id)
+            for (const message of settledSiblings.values()) await session.appendMessage(message)
+            const persistedBatch: Array<{
+              callID: string
+              toolName: string
+              output: string
+              details: unknown
+              isError: boolean
+            }> = []
+            for (const [callID, runID] of pendingCalls) {
+              const callPart = assistantEntry.message.content.find(
+                (part) => part.type === 'toolCall' && part.id === callID,
+              )
+              const toolName = callPart?.type === 'toolCall' ? callPart.name : 'Agent'
+              let details: unknown
+              let outputText = ''
+              let callIsError = false
+              try {
+                const waitRes = (await request.delegation?.wait({
+                  runIDs: [runID],
+                  mode: 'all',
+                })) as {
+                  runs?: Array<{
+                    id: string
+                    taskId: string
+                    status: string
+                    result?: unknown
+                    error?: string | null
+                  }>
+                } | null
+                const run = waitRes?.runs?.[0] ?? null
+                const normalizedStatus = run
+                  ? run.status === 'completed'
+                    ? 'completed'
+                    : run.status
+                  : 'unknown'
+                details = secretScrubber.scrub(
+                  run
+                    ? {
+                        status: normalizedStatus,
+                        taskId: run.taskId,
+                        runId: run.id,
+                        ...(run.result !== undefined ? { result: run.result } : {}),
+                        ...(run.error ? { error: run.error } : {}),
+                      }
+                    : { status: 'unknown', runId: runID },
+                )
+                outputText = run
+                  ? secretScrubber.scrubText(
+                      formatSubagentHandback({
+                        taskId: run.taskId,
+                        runId: run.id,
+                        status: normalizedStatus,
+                        result: (details as { result?: unknown }).result,
+                        error: (details as { error?: string | null }).error ?? null,
+                      }),
+                    )
+                  : JSON.stringify(details, null, 2)
+                callIsError = Boolean(!run || run.status === 'failed')
+              } catch (cause) {
+                callIsError = true
+                outputText = secretScrubber.scrubText(
+                  cause instanceof Error ? cause.message : String(cause),
+                )
+                details = { error: outputText }
+              }
+              await session.appendMessage({
+                role: 'toolResult',
+                toolCallId: callID,
+                toolName,
+                content: [{ type: 'text', text: outputText }],
+                isError: callIsError,
+                timestamp: Date.now(),
+              })
+              persistedBatch.push({
+                callID,
+                toolName,
+                output: outputText,
+                details,
+                isError: callIsError,
+              })
+            }
+            const completedEvents = this.options.db.transaction(() => {
+              storage.flush()
+              return persistedBatch.flatMap((item) =>
+                this.persistFinishedTool(
+                  {
+                    threadID: request.threadID,
+                    turnID: request.turnID,
+                    agentID: request.agentID,
+                  },
+                  {
+                    toolCallID: item.callID,
+                    tool: item.toolName,
+                    output: item.output,
+                    details: item.details,
+                    isError: item.isError,
+                  },
+                  request.workspace,
+                  integrationSourceFor(activityToolCatalog, item.toolName),
+                ),
+              )
+            })
+            for (const event of completedEvents) await this.publish(event)
+          }
+        } else {
         // A node_repl approval resumes only the recorded internal operation. The
         // pause never persisted a script, so the call is re-executed with the
         // recovery record instead of the stale pause result.
@@ -1687,6 +1844,7 @@ export class AgentRuntimeService implements AgentRuntime {
         const lifecycleNames = new Set([
           'request_user_input',
           'request_permissions',
+          'Agent',
           'spawn_agents',
           'wait_agents',
           'send_agent',
@@ -1847,6 +2005,7 @@ export class AgentRuntimeService implements AgentRuntime {
           })
           for (const event of completedEvents) await this.publish(event)
         }
+        }
         if (request.resume.decision) {
           if (request.signal.aborted) throw new AgentError('RUN_ABORTED', '任务已停止', 499)
           const waitingEvent = this.options.db.transaction(() => {
@@ -1909,6 +2068,7 @@ export class AgentRuntimeService implements AgentRuntime {
       // 按来源实测的上下文字符量只对本次 run 有意义，用闭包保存，
       // 由 executeHarnessRun 在每次 provider 请求前刷新、由 eventSink 读取。
       let contextUsageBreakdown: ContextUsageBreakdownEntry[] | undefined
+      const pendingSyncAgentWaits = new Map<string, { taskId: string; runId: string }>()
       const executeSubagentTool = (
         name: string,
         input: Record<string, unknown>,
@@ -2140,6 +2300,223 @@ export class AgentRuntimeService implements AgentRuntime {
             })
             return { status: 'submitted', proposal, reviewUrl: '/automations' }
           },
+          agent: async (input, toolCallID) =>
+            executeSubagentTool('Agent', input, toolCallID, async (actual) => {
+              if (request.isForkChild) {
+                throw new Error('Fork 子代理禁止继续创建子代理，请直接完成当前任务。')
+              }
+              const rawType =
+                typeof actual.subagent_type === 'string' && actual.subagent_type.trim()
+                  ? actual.subagent_type.trim()
+                  : undefined
+              const readOnlyMode = isReadOnlyTaskMode(request.taskMode)
+              const isFork = !rawType && !readOnlyMode
+              const profile = (rawType ?? (readOnlyMode ? 'explorer' : 'default')) as
+                | 'default'
+                | 'explorer'
+                | 'worker'
+              if (readOnlyMode && profile !== 'explorer') {
+                throw new Error('Plan 与 Grill 模式只能创建 Explorer 子 Agent')
+              }
+              const promptText = String(actual.prompt ?? '').trim()
+              const descriptionText = String(actual.description ?? '').trim()
+              const explicitName =
+                typeof actual.name === 'string' && actual.name.trim()
+                  ? actual.name.trim()
+                  : undefined
+              const title = descriptionText || undefined
+              const role =
+                typeof actual.role === 'string' && actual.role.trim()
+                  ? (actual.role.trim() as import('@pidex/shared/thread').SubagentRole)
+                  : undefined
+              const memoryKey =
+                typeof actual.memoryKey === 'string' && actual.memoryKey.trim()
+                  ? actual.memoryKey.trim()
+                  : undefined
+              if (isFork) {
+                storage.flush()
+                const pathEntries = await storage.getPathToRootOrCompaction(
+                  await session.getLeafId(),
+                )
+                const hasForkMarker = pathEntries.some(
+                  (entry) =>
+                    entry.type === 'message' &&
+                    entry.message.role === 'user' &&
+                    Array.isArray(entry.message.content) &&
+                    entry.message.content.some(
+                      (part) => part.type === 'text' && part.text.includes('<fork_boilerplate>'),
+                    ),
+                )
+                if (request.isForkChild || hasForkMarker) {
+                  throw new Error(
+                    'Fork 子代理禁止递归 Fork；请直接完成当前任务或显式指定 subagent_type。',
+                  )
+                }
+                let assistantIndex = -1
+                for (let index = pathEntries.length - 1; index >= 0; index -= 1) {
+                  const candidate = pathEntries[index]
+                  if (
+                    candidate?.type === 'message' &&
+                    candidate.message.role === 'assistant' &&
+                    candidate.message.content.some(
+                      (part) => part.type === 'toolCall' && part.id === toolCallID,
+                    )
+                  ) {
+                    assistantIndex = index
+                    break
+                  }
+                }
+                const prefixEntries =
+                  assistantIndex >= 0 ? pathEntries.slice(0, assistantIndex + 1) : pathEntries
+                const assistantEntry = assistantIndex >= 0 ? pathEntries[assistantIndex] : undefined
+                const toolCalls =
+                  assistantEntry?.type === 'message' && assistantEntry.message.role === 'assistant'
+                    ? assistantEntry.message.content.filter((part) => part.type === 'toolCall')
+                    : []
+                const nowMs = Date.now()
+                const placeholderMessages = toolCalls.map((call) => ({
+                  role: 'toolResult' as const,
+                  toolCallId: call.id,
+                  toolName: call.name,
+                  content: [{ type: 'text' as const, text: 'Fork started — processing in background' }],
+                  isError: false,
+                  timestamp: nowMs,
+                }))
+                const spawned = (await request.delegation!.spawn(
+                  {
+                    agents: [
+                      {
+                        ...(explicitName ? { name: explicitName } : {}),
+                        ...(title ? { title } : {}),
+                        profile: 'default',
+                        task: promptText,
+                        ...(role ? { role } : {}),
+                        fork: {
+                          bundle: composedBundle,
+                          exposurePlan: composition.plan.snapshot.tools,
+                          entries: prefixEntries,
+                          placeholderMessages,
+                        },
+                        background: true,
+                      },
+                    ],
+                  },
+                  {
+                    permissionConfig: effectivePermissionConfig,
+                    ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+                  },
+                )) as {
+                  agents: Array<{
+                    taskId: string
+                    runId: string
+                    childThreadId: string
+                    displayName: string
+                    title?: string
+                    profile: string
+                  }>
+                }
+                const first = spawned.agents[0]!
+                return {
+                  status: 'async_launched',
+                  taskId: first.taskId,
+                  runId: first.runId,
+                  displayName: first.displayName,
+                  ...(first.title ? { title: first.title } : {}),
+                  profile: 'fork',
+                  message:
+                    'Fork started in background. Do not duplicate its work or fabricate its findings; briefly inform the user and end your turn to receive the completion notification.',
+                }
+              }
+
+              const spawned = (await request.delegation!.spawn(
+                {
+                  agents: [
+                    {
+                      ...(explicitName ? { name: explicitName } : {}),
+                      ...(title ? { title } : {}),
+                      profile,
+                      task: promptText,
+                      ...(role ? { role } : {}),
+                      ...(memoryKey ? { memoryKey } : {}),
+                      ...(actual.run_in_background === true ? { background: true } : {}),
+                    },
+                  ],
+                },
+                {
+                  permissionConfig: effectivePermissionConfig,
+                  ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+                },
+              )) as {
+                agents: Array<{
+                  taskId: string
+                  runId: string
+                  childThreadId: string
+                  displayName: string
+                  title?: string
+                  profile: string
+                }>
+              }
+              const first = spawned.agents[0]!
+              if (actual.run_in_background === true) {
+                return {
+                  status: 'async_launched',
+                  taskId: first.taskId,
+                  runId: first.runId,
+                  displayName: first.displayName,
+                  ...(first.title ? { title: first.title } : {}),
+                  profile: first.profile,
+                  message:
+                    'Background subagent launched. Do not duplicate its work; you will be notified when it completes.',
+                }
+              }
+              if (await request.delegation?.isWaitSatisfied({ runIDs: [first.runId], mode: 'all' })) {
+                const waitRes = (await request.delegation?.wait({
+                  runIDs: [first.runId],
+                  mode: 'all',
+                })) as {
+                  runs?: Array<{
+                    id: string
+                    taskId: string
+                    status: string
+                    result?: unknown
+                    error?: string | null
+                  }>
+                } | null
+                const run = waitRes?.runs?.[0] ?? null
+                const finalStatus =
+                  run?.status === 'completed' ? 'completed' : (run?.status ?? 'completed')
+                const scrubbedResult =
+                  run?.result !== undefined ? secretScrubber.scrub(run.result) : undefined
+                const scrubbedError = run?.error ? secretScrubber.scrubText(run.error) : undefined
+                return {
+                  status: finalStatus,
+                  taskId: first.taskId,
+                  runId: first.runId,
+                  displayName: first.displayName,
+                  ...(first.title ? { title: first.title } : {}),
+                  profile: first.profile,
+                  ...(scrubbedResult !== undefined ? { result: scrubbedResult } : {}),
+                  ...(scrubbedError ? { error: scrubbedError } : {}),
+                  __handbackText: formatSubagentHandback({
+                    taskId: first.taskId,
+                    runId: first.runId,
+                    displayName: first.displayName,
+                    ...(first.title ? { title: first.title } : {}),
+                    profile: first.profile,
+                    status: finalStatus,
+                    ...(scrubbedResult !== undefined ? { result: scrubbedResult } : {}),
+                    ...(scrubbedError ? { error: scrubbedError } : {}),
+                  }),
+                }
+              }
+              pendingSyncAgentWaits.set(toolCallID, { taskId: first.taskId, runId: first.runId })
+              return {
+                __piPause: true,
+                status: 'waiting_for_subagents',
+                taskId: first.taskId,
+                runId: first.runId,
+              }
+            }),
           spawnAgents: async (input, toolCallID) =>
             executeSubagentTool('spawn_agents', input, toolCallID, async (input) => {
               const agents = Array.isArray(input.agents) ? input.agents : []
@@ -2181,37 +2558,41 @@ export class AgentRuntimeService implements AgentRuntime {
               }
               return request.delegation?.wait({ runIDs, mode })
             }),
-          followupAgent: async (input, operationID) =>
-            executeSubagentTool('followup_agent', input, operationID, async (actual) =>
-              request.delegation?.followup?.({
-                taskID: String(actual.taskID),
-                message: String(actual.message),
-                operationID,
-              }),
-            ),
+          followupAgent: async (input, operationID) => {
+            if (!request.delegation)
+              throw new AgentError('TOOL_NOT_AVAILABLE', '当前执行没有子 Agent 协作入口', 409)
+            return request.delegation.followup?.({
+              taskID: String(input.taskID ?? input.taskId ?? ''),
+              message: String(input.message ?? ''),
+              operationID,
+            })
+          },
           reportAgent: async (input, operationID) =>
             executeSubagentTool('report_agent', input, operationID, async (actual) =>
               request.delegation?.report?.({ message: String(actual.message), operationID }),
             ),
-          listAgents: async (input, toolCallID) =>
-            executeSubagentTool('list_agents', input, toolCallID, async () =>
-              request.delegation?.list?.(),
-            ),
-          sendAgent: async (input, operationID) =>
-            executeSubagentTool('send_agent', input, operationID, async (input) =>
-              request.delegation?.send({
-                taskID: String(input.taskID ?? input.taskId ?? ''),
-                message: String(input.message ?? ''),
-                operationID,
-              }),
-            ),
-          stopAgent: async (input, operationID) =>
-            executeSubagentTool('stop_agent', input, operationID, async (input) =>
-              request.delegation?.stop({
-                operationID,
-                taskID: String(input.taskID ?? input.taskId ?? ''),
-              }),
-            ),
+          listAgents: async () => {
+            if (!request.delegation)
+              throw new AgentError('TOOL_NOT_AVAILABLE', '当前执行没有子 Agent 协作入口', 409)
+            return request.delegation.list?.()
+          },
+          sendAgent: async (input, operationID) => {
+            if (!request.delegation)
+              throw new AgentError('TOOL_NOT_AVAILABLE', '当前执行没有子 Agent 协作入口', 409)
+            return request.delegation.send({
+              taskID: String(input.taskID ?? input.taskId ?? ''),
+              message: String(input.message ?? ''),
+              operationID,
+            })
+          },
+          stopAgent: async (input, operationID) => {
+            if (!request.delegation)
+              throw new AgentError('TOOL_NOT_AVAILABLE', '当前执行没有子 Agent 协作入口', 409)
+            return request.delegation.stop({
+              operationID,
+              taskID: String(input.taskID ?? input.taskId ?? ''),
+            })
+          },
           finalizeResult: async (input: SubagentResult) => input,
         },
       }
@@ -2259,6 +2640,12 @@ export class AgentRuntimeService implements AgentRuntime {
           ...(request.attachments ? { attachments: request.attachments } : {}),
           preapprovedToolCalls,
           ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+          ...(request.delegationEnabled !== undefined
+            ? { delegationEnabled: request.delegationEnabled }
+            : {}),
+          ...(request.collaborationEnabled !== undefined
+            ? { collaborationEnabled: request.collaborationEnabled }
+            : {}),
           ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
           frozenDeferredToolNames: composition.plan.snapshot.tools.deferred,
           onSkillDocumentRead: (path, hash) => composition.bindings.skills.documentRead(path, hash),
@@ -2302,6 +2689,31 @@ export class AgentRuntimeService implements AgentRuntime {
           }
         }
         throw cause
+      }
+      if (!paused && pendingSyncAgentWaits.size > 0) {
+        const entries = [...pendingSyncAgentWaits.entries()]
+        const firstCallID = entries[0]![0]
+        const toolCallRuns = Object.fromEntries(
+          entries.map(([callID, entry]) => [callID, entry.runId]),
+        )
+        const runIDs = [...new Set(entries.map(([, entry]) => entry.runId))]
+        await pause({
+          kind: 'subagents',
+          runIDs,
+          waitMode: 'all',
+          toolCallID: firstCallID,
+          checkpoint: {
+            state: JSON.stringify({
+              engine: 'pi',
+              sessionID: request.sessionID,
+            }),
+            interruption: {
+              toolCallID: firstCallID,
+              toolCallRuns,
+            },
+            toolCallID: firstCallID,
+          },
+        })
       }
       return paused ? { status: 'paused' as const, output: result.output } : result
     } finally {
