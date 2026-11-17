@@ -56,6 +56,8 @@ describe('ToggleSwitch 四档尺寸与样式契约', () => {
       css,
       'calc(var(--cpx-switch-width) - 2px - var(--cpx-switch-thumb-size) - var(--cpx-switch-thumb-gap) * 2)',
     )
+    expectSourceContains(css, 'position: absolute')
+    expectSourceContains(css, 'border: 1px solid var(--cpx-sys-color-border-default)')
     expectSourceContains(interactionCss, '.toggle-switch')
   })
 })

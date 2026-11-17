@@ -183,30 +183,41 @@ describe('non-color design token contracts', () => {
   })
 
   test('representative components keep page, section, row, reading, control, metric, and meta responsibilities distinct', async () => {
-    const [settings, session, markdown, button, settingsSection, generalSettings, conversation] =
-      await Promise.all([
-        read('../src/styles/primitives/settings.css'),
-        read('../src/features/session/QuickChatView.tsx'),
-        read('../src/styles/markdown.css'),
-        read('../src/components/ui/Button.tsx'),
-        read('../src/features/settings/SettingsSection.tsx'),
-        read('../src/features/settings/GeneralSettings.tsx'),
-        read('../src/styles/primitives/conversation.css'),
-      ])
+    const [
+      ,
+      session,
+      markdown,
+      button,
+      settingsSection,
+      generalSettings,
+      conversation,
+      extensionRow,
+      applicationUsage,
+    ] = await Promise.all([
+      read('../src/styles/primitives/settings.css'),
+      read('../src/features/session/QuickChatView.tsx'),
+      read('../src/styles/markdown.css'),
+      read('../src/components/ui/Button.tsx'),
+      read('../src/features/settings/SettingsSection.tsx'),
+      read('../src/features/settings/GeneralSettings.tsx'),
+      read('../src/styles/primitives/conversation.css'),
+      read('../src/features/settings/plugins/ExtensionManagementRow.tsx'),
+      read('../src/features/settings/usage/ApplicationUsagePanel.tsx'),
+    ])
 
     expect(generalSettings).toMatch(/className="settings-page-title [^"]*tw:type-6 tw:weight-bold/)
     expect(settingsSection).toMatch(
       /className="settings-section-title [^"]*tw:type-4 tw:weight-bold/,
     )
-    expect(settings).toMatch(
-      /\.settings-management-row-title\s*\{[^}]*font-size:\s*var\(--cpx-sys-font-size-2\);/s,
+    expect(extensionRow).toMatch(
+      /className="settings-management-row-title [^"]*tw:type-2 tw:weight-medium/,
     )
     expect(session).toContain('tw:type-7 tw:weight-bold')
     expect(markdown).toMatch(/\.md-body\s*\{[^}]*font-size:\s*var\(--cpx-sys-font-size-2\);/s)
     expect(markdown).toMatch(/h2\s*\{[^}]*font-size:\s*var\(--cpx-sys-font-size-6\);/s)
     expect(button).toMatch(/font-size:\s*var\(--cpx-sys-font-size-2\);/)
-    expect(settings).toMatch(
-      /\.usage-metric-card strong\s*\{[^}]*font-size:\s*var\(--cpx-sys-font-size-5\);[^}]*font-variant-numeric:\s*tabular-nums;/s,
+    expect(applicationUsage).toMatch(
+      /className="tw:text-app-text tw:type-5 tw:weight-bold tw:tabular-nums"/,
     )
     expect(conversation).toMatch(/font-size:\s*var\(--cpx-sys-font-size-1\);/)
   })
@@ -514,15 +525,18 @@ describe('non-color design token contracts', () => {
   })
 
   test('canonical conversation lets the final agent response fill the page width', async () => {
-    const conversation = await read('../src/styles/primitives/conversation.css')
-    const markdown = await read('../src/styles/markdown.css')
+    const [conversation, markdown, canonicalRenderer] = await Promise.all([
+      read('../src/styles/primitives/conversation.css'),
+      read('../src/styles/markdown.css'),
+      read('../src/features/session/timeline/CanonicalItemRenderer.tsx'),
+    ])
     expect(conversation).toMatch(
       /\.canonical-turn\s*\{[\s\S]*?max-width:\s*var\(--page-content-max-width\)/,
     )
     expect(conversation).toMatch(/\.canonical-turn\s*\{[\s\S]*?container-type:\s*inline-size/)
     expect(conversation).not.toMatch(/--thread-reading-width/)
-    expect(conversation).toMatch(
-      /\.canonical-text-item--result\s*\{\s*width:\s*100%;\s*background:\s*transparent;\s*box-shadow:\s*none;\s*\}/,
+    expect(canonicalRenderer).toContain(
+      'canonical-text-item--result tw:w-full tw:bg-transparent tw:shadow-none',
     )
     expect(markdown).toMatch(
       /\.conversation-page \.md-wide-block\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%/,
@@ -560,7 +574,7 @@ describe('non-color design token contracts', () => {
       '\\.canonical-turn-activity',
       '\\.canonical-process-card',
       '\\.cpx-agent-activity__item',
-      '\\.cpx-agent-activity__details',
+      '\\.cpx-agent-activity__details:not\\(\\.cpx-agent-activity__details--diff\\)',
       '\\.cpx-agent-activity__file-changes',
       '\\.canonical-lifecycle-tool',
     ]) {
@@ -622,12 +636,8 @@ describe('non-color design token contracts', () => {
     expect(conversation).toMatch(
       /\.quick-chat-view,\s*\.conversation-page\s*\{\s*--cpx-sys-layout-conversation-max-width: 48rem;\s*--page-content-max-width: var\(--cpx-sys-layout-conversation-max-width\);\s*--session-content-w: 100%;/,
     )
-    expect(conversation).toMatch(
-      /\.quick-chat-view > \.quick-chat-hero-region,\s*\.quick-chat-view > \.quick-chat-composer-region\s*\{\s*width: 100%;\s*max-width: calc\(var\(--page-content-max-width\) \+ 2 \* var\(--cpx-sys-space-4\)\);\s*margin-inline: auto;\s*padding-inline: var\(--cpx-sys-space-4\);/,
-    )
-    // 消息与吸底输入框共用带最小左右留白的列，窄窗口也不能贴边。
-    expect(conversation).toMatch(
-      /\.conversation-page \.thread-scroll-layout__inner\s*\{\s*width: 100%;\s*max-width: calc\(var\(--page-content-max-width\) \+ 2 \* var\(--cpx-sys-space-4\)\);\s*margin-inline: auto;\s*padding-inline: var\(--cpx-sys-space-4\);/,
+    expect(page).toContain(
+      'innerClassName="tw:w-full tw:max-w-[calc(var(--page-content-max-width)+2*var(--cpx-sys-space-4))] tw:mx-auto tw:px-4 tw:pt-6"',
     )
     expect(conversation).not.toMatch(
       /\.quick-chat-view,\s*\.conversation-page \.thread-scroll-layout__inner/,
@@ -638,13 +648,21 @@ describe('non-color design token contracts', () => {
     expect(conversation).not.toContain('--conversation-inline-gutter')
     for (const homeView of ['QuickChatView']) {
       const source = await read(`../src/features/session/${homeView}.tsx`)
+      expect(source).toContain(
+        'quick-chat-hero-region tw:m-auto tw:mx-auto tw:flex tw:w-full tw:max-w-[calc(var(--page-content-max-width)+2*var(--cpx-sys-space-4))] tw:min-w-0 tw:flex-col tw:items-center tw:justify-center tw:gap-4 tw:px-4',
+      )
+      expect(source).toContain(
+        'quick-chat-composer-region tw:mx-auto tw:flex tw:w-full tw:max-w-[calc(var(--page-content-max-width)+2*var(--cpx-sys-space-4))] tw:min-w-0 tw:flex-col tw:items-center tw:justify-end tw:gap-3 tw:px-4',
+      )
       expect(source).not.toContain('tw:px-8')
       expect(source).not.toContain('tw:max-w-none')
       expect(source).not.toContain('scrollbar-gutter:stable')
       expect(source).toContain('tw:w-[var(--quick-chat-surface-width)]')
     }
     expect(conversation).toContain('--session-timeline-width: 100%;')
-    expect(timeline).toContain('tw:w-[var(--session-timeline-width,var(--session-content-w,100%))]')
+    expect(conversation).toMatch(
+      /\.session-timeline-container\s*\{\s*width:\s*var\(--session-timeline-width,\s*var\(--session-content-w,\s*100%\)\);/,
+    )
     expect(conversation).not.toContain('--conversation-content-inline-start')
     expect(conversation).not.toContain('@media (max-width: 760px)')
     expect(conversation).toMatch(

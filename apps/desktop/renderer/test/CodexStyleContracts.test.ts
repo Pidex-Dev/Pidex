@@ -167,7 +167,7 @@ describe('Codex CPX design system token contract', () => {
     ])
 
     expect(rows).toMatch(
-      /\.interactive-row--rich,[\s\S]*?\.permission-select-item\s*\{[\s\S]*?--interactive-row-current-min-height:/,
+      /\.permission-select-item\s*\{[\s\S]*?--interactive-row-current-min-height:/,
     )
     expect(rows).toMatch(
       /\.permission-select-scroll-content\s*\{[\s\S]*?gap: var\(--cpx-comp-row-gap-y\);/,
@@ -259,12 +259,9 @@ describe('Codex CPX design system token contract', () => {
       Bun.file(new URL('../src/features/settings/SettingsNav.tsx', import.meta.url)).text(),
     ])
 
-    // 设置导航与侧栏共用 4px 内边距契约：导航滚动区从该共享变量取
-    // padding-inline，不再有独立的 settings-nav gutter 变量。
+    // 设置导航与侧栏共用 4px 内边距契约；导航滚动区由 TSX `tw:px-2` + `tw:gap-2` 承担。
     expectSourceContains(sidebar, '--sidebar-inline-gutter: var(--cpx-sys-space-1);')
-    expect(sidebar).toMatch(
-      /\.settings-nav-scroll-content\s*\{[\s\S]*?padding-inline: var\(--sidebar-inline-gutter\);/,
-    )
+    expectSourceNotContains(sidebar, '.settings-nav-scroll-content')
     expect(settings).toMatch(
       /@container \(max-width: 42rem\)[\s\S]*?\.settings-management-row\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
     )
@@ -304,7 +301,7 @@ describe('Codex CPX design system token contract', () => {
         ).text(),
       ])
 
-    expectSourceContains(settings, '.settings-management-list')
+    expectSourceContains(plugins, 'settings-management-list')
     expectSourceContains(settings, '.settings-management-dialog-row')
     expectSourceNotContains(providerCatalog, 'settings-management-list')
     expectSourceContains(providerCatalog, 'model-center-catalog-list')
@@ -549,7 +546,7 @@ describe('Codex CPX design system token contract', () => {
 
     expect(summary).not.toContain('--thread-summary-inline-width')
     expect(threadSummary).not.toContain('tw:w-[var(--thread-summary-inline-width)]')
-    expect(threadSummary).toContain('thread-summary-popover tw:w-[16.25rem] tw:p-1')
+    expect(threadSummary).toContain('thread-summary-popover tw:[--popover-width:16.25rem]')
     expect(threadSummary).toContain('tw:w-full tw:flex tw:min-h-0 tw:flex-col tw:gap-1')
     expect(threadSummary).toContain('tw:overflow-y-auto tw:[scrollbar-width:thin]')
     expect(threadSummary).toContain('tw:pb-2 tw:last:pb-0')
@@ -759,7 +756,7 @@ describe('UI-Design native floating behavior', () => {
       Bun.file(new URL('../src/components/ui/floating/Popover.tsx', import.meta.url)).text(),
       Bun.file(new URL('../src/features/settings/ProfileSettings.tsx', import.meta.url)).text(),
     ])
-    expect(actions).toContain('popover-surface popover popover-menu--grid tw:text-app-text')
+    expect(actions).toContain('popover-surface popover popover-menu--grid')
     expect(popover).toContain("asChild ? '' : 'popover-panel-spacing'")
     expect(profile).toContain('style={{ padding: 0 }}')
   })

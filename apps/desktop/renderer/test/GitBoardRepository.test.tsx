@@ -494,14 +494,15 @@ test('没有尾部操作的侧栏行不预留空列', () => {
       <button type="button">Row</button>
     </SidebarRow>,
   )
-  expect(plain).toContain('tw:grid-cols-1')
-  expect(plain).not.toContain('tw:grid-cols-[minmax(0,1fr)_auto]')
+  expect(plain).toContain('data-layout="flex"')
+  expect(plain).toContain('data-leading-mode="none"')
+  expect(plain).not.toContain('data-has-trailing="true"')
   const actions = renderToStaticMarkup(
     <SidebarRow layout="flex" leadingMode="none" trailing={<span>Action</span>}>
       Row
     </SidebarRow>,
   )
-  expect(actions).toContain('tw:grid-cols-[minmax(0,1fr)_auto]')
+  expect(actions).toContain('data-has-trailing="true"')
 })
 
 test('同一不可用状态的后台刷新不重试 Review，状态变化或手动刷新后恢复', async () => {

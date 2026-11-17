@@ -48,10 +48,10 @@ describe('model center account management', () => {
     expect(html).not.toContain('>查看<')
     expect(html).not.toContain('>连接<')
     expect(html).toMatch(
-      /<span class="provider-card-logo settings-management-row-icon"><span class="ui-remote-image\b/,
+      /<span class="provider-card-logo settings-management-row-icon[^"]*"><span class="ui-remote-image\b/,
     )
     expect(html).not.toContain('class="ui-remote-image provider-card-logo"')
-    expect(html.match(/class="provider-card-logo settings-management-row-icon"/g)).toHaveLength(2)
+    expect(html.match(/class="provider-card-logo settings-management-row-icon\b/g)).toHaveLength(2)
   })
 
   test('模型卡标题仅由独立 disclosure button 控制展开', async () => {

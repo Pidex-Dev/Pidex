@@ -162,7 +162,7 @@ describe('PrimaryPageLayout', () => {
     expect(html).not.toContain(
       'primary-page-layout__actions tw:flex tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:pt-1',
     )
-    expect(html).toContain('primary-page-layout__search tw:mt-4 tw:w-full tw:min-w-0')
+    expect(html).toContain('primary-page-layout__search tw:min-w-0')
   })
 
   test('keeps title row 36px min-height without permanent search for baseline consistency', () => {

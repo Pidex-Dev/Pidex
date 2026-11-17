@@ -337,14 +337,13 @@ describe('loading interaction primitives', () => {
     const buttonHtml = renderToStaticMarkup(<Button>确认</Button>)
     expect(buttonHtml).not.toContain('tw:text-trim')
 
-    const chipCss = await readFile(
-      resolve(import.meta.dir, '../src/components/ui/Chip.css'),
+    const chipSource = await readFile(
+      resolve(import.meta.dir, '../src/components/ui/Chip.tsx'),
       'utf8',
     )
-    // Ensure .chip-button does not apply to child > span which causes nested double padding
-    expect(chipCss).not.toMatch(/\.chip-button\s*,\s*\.chip-button\s*>\s*span/)
-    expect(chipCss).not.toContain('text-box-trim')
-    expect(chipCss).not.toContain('text-box:')
+    expect(chipSource).not.toContain('./Chip.css')
+    expect(chipSource).not.toContain('text-box-trim')
+    expect(chipSource).not.toContain('text-box:')
 
     const interactiveRowCss = await readFile(
       resolve(import.meta.dir, '../src/styles/components/interactive-row.css'),
@@ -367,12 +366,13 @@ describe('loading interaction primitives', () => {
     expect(menuItemCss).not.toContain('text-box-trim')
     expect(menuItemCss).not.toContain('text-box:')
 
-    const inputCss = await readFile(
-      resolve(import.meta.dir, '../src/components/ui/Input.css'),
+    const inputSource = await readFile(
+      resolve(import.meta.dir, '../src/components/ui/Input.tsx'),
       'utf8',
     )
-    expect(inputCss).not.toContain('text-box-trim')
-    expect(inputCss).not.toContain('text-box:')
+    expect(inputSource).not.toContain('./Input.css')
+    expect(inputSource).not.toContain('text-box-trim')
+    expect(inputSource).not.toContain('text-box:')
 
     const popoverCss = await readFile(resolve(import.meta.dir, '../src/styles/popover.css'), 'utf8')
     expect(popoverCss).not.toContain('text-box-trim')
