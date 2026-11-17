@@ -67,7 +67,7 @@ import {
 import { ModelReasoningControl, ModelSelectTrigger } from './ModelSelectTrigger.js'
 import { resolveThinkingLabel, resolveThinkingOptions } from './ThinkingLevelPopover.js'
 import { MotionConfig } from 'motion/react'
-import { resolveComposerFooterFit, useComposerFooterFit } from './ComposerFooterLayout.js'
+import { useComposerFooterFit } from './ComposerFooterLayout.js'
 import { ComposerStatusOverlay } from './ComposerStatusOverlay.js'
 import { ComposerGoalRow } from './ComposerGoalRow.js'
 import { ContextUsagePanel } from './ContextUsagePanel.js'
@@ -1387,9 +1387,8 @@ export function ComposerCard({
   const modelIconProbeRef = useRef<HTMLDivElement | null>(null)
   const [modelHeld, setModelHeld] = useState(false)
   const [ringHeld, setRingHeld] = useState(false)
-  const heldModelModeRef = useRef<'text' | 'icon'>('text')
   const showRing = showContextUsage && contextUsage != null
-  const footerMetrics = useComposerFooterFit(
+  const footerFit = useComposerFooterFit(
     {
       footer: footerRef,
       left: toolbarLeftRef,
@@ -1399,14 +1398,12 @@ export function ComposerCard({
       modelIcon: modelIconProbeRef,
     },
     `${selectedModelLabel}|${selectedThinkingLabel}|${showThinkingOptions}|${showRing}|${planModeActive}|${grillModeActive}|${goalModeEnabled}|${capabilities.dictation}`,
+    {
+      hasRing: showRing,
+      holdModel: modelHeld || openDropdown === 'model',
+      holdRing: ringHeld || contextPreviewOpen,
+    },
   )
-  const footerFit = resolveComposerFooterFit(footerMetrics, {
-    hasRing: showRing,
-    holdModel: modelHeld || openDropdown === 'model',
-    holdRing: ringHeld || contextPreviewOpen,
-    heldModelMode: heldModelModeRef.current,
-  })
-  if (footerFit.modelMode !== 'hidden') heldModelModeRef.current = footerFit.modelMode
   const handleThinkingSelect = useCallback(
     (value: string): void => {
       if (onModelVariantChange) onModelVariantChange(value)

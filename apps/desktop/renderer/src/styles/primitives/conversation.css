@@ -656,20 +656,19 @@
     white-space: nowrap;
   }
 
+  .cpx-agent-activity__summary[data-active='true'] {
+    position: relative;
+  }
+
+  .cpx-agent-activity__summary[data-active='true'] .reasoning-node__shimmer {
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
   /* 子智能体组头：最多四个 18px 角色头像，后续叠放 6px。 */
   .cpx-agent-activity__dots {
     display: inline-flex;
     flex: none;
     align-items: center;
-  }
-
-  .cpx-agent-activity__avatar {
-    margin-inline-start: -6px;
-    box-shadow: 0 0 0 1px var(--cpx-sys-color-surface-panel);
-  }
-
-  .cpx-agent-activity__avatar:first-child {
-    margin-inline-start: 0;
   }
 
   .cpx-agent-activity[data-expandable='false'] > .cpx-agent-activity__header {

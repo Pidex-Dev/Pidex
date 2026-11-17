@@ -81,13 +81,10 @@ import { useThreadBookmarks } from './UseThreadBookmarks.js'
 import {
   ThreadSummaryErrorBoundary,
   ThreadSummaryPanel,
-  ThreadSummaryPopover,
-  type ThreadSummarySectionId,
 } from '../summary/ThreadSummaryPanel.js'
-import { useThreadSummaryController } from '../summary/ThreadSummaryState.js'
 import {
-  resolveThreadSummaryAgentsAutoCollapse,
-  THREAD_SUMMARY_AGENTS_AUTO_COLLAPSE_DELAY_MS,
+  useThreadSummaryCollapsedSections,
+  useThreadSummaryController,
 } from '../summary/ThreadSummaryState.js'
 import { useBranchReviewSummary } from '../summary/UseBranchReviewSummary.js'
 import { deriveThreadSummaryViewModel } from '../summary/ThreadSummaryViewModel.js'
@@ -131,15 +128,6 @@ const ConversationEnvironmentControls = React.lazy(() =>
 )
 
 const WORKSPACE_HEADER_ICON_SIZE = APP_ICON_SIZE
-
-function isFinishedSubagentStatus(status: string | null | undefined): boolean {
-  return (
-    status === 'completed' ||
-    status === 'failed' ||
-    status === 'stopped' ||
-    status === 'interrupted'
-  )
-}
 
 export function ConversationPage(): React.ReactNode {
   const navigate = useNavigate()
@@ -195,6 +183,7 @@ export function ConversationPage(): React.ReactNode {
     onOpenSideChat,
     sideChatAvailable,
     onOpenSubagent,
+    onOpenSubagentDirectory,
     permissionMode,
     composerProps,
     layoutResizeActive,
@@ -572,89 +561,14 @@ export function ConversationPage(): React.ReactNode {
     ],
   )
   const workflowBodyRef = React.useRef<HTMLDivElement>(null)
-  const threadSummary = useThreadSummaryController(workflowBodyRef)
-  // 切换会话时关闭浮层，分区折叠状态按会话保留在内存里。
-  const closeSummaryPopover = threadSummary.setPopoverOpen
-  const EMPTY_COLLAPSED_SECTIONS = React.useMemo<ReadonlySet<ThreadSummarySectionId>>(
-    () => new Set(),
-    [],
+  const hasComposerFooter = !isThreadLoading && Boolean(composerPropsForPage)
+  const threadSummary = useThreadSummaryController(
+    workflowBodyRef,
+    activeSessionId,
+    threadFooterRef,
+    hasComposerFooter,
   )
-  const [collapsedSectionsByThread, setCollapsedSectionsByThread] = React.useState(
-    () => new Map<string, ReadonlySet<ThreadSummarySectionId>>(),
-  )
-  const agentsManualOverrideRef = React.useRef(false)
-  const agentsAutoCollapseTimerRef = React.useRef<number | null>(null)
-  const collapsedSections =
-    (activeSessionId ? collapsedSectionsByThread.get(activeSessionId) : undefined) ??
-    EMPTY_COLLAPSED_SECTIONS
-  React.useEffect(() => {
-    closeSummaryPopover(false)
-    agentsManualOverrideRef.current = false
-    if (agentsAutoCollapseTimerRef.current !== null) {
-      window.clearTimeout(agentsAutoCollapseTimerRef.current)
-      agentsAutoCollapseTimerRef.current = null
-    }
-  }, [activeSessionId, closeSummaryPopover])
-  const toggleSummarySection = React.useCallback((id: ThreadSummarySectionId): void => {
-    const threadId = activeSessionIdRef.current
-    if (!threadId) return
-    if (id === 'agents') {
-      // 手动折叠选择优先：用户动过 Agent 分区后不再自动折叠。
-      agentsManualOverrideRef.current = true
-      if (agentsAutoCollapseTimerRef.current !== null) {
-        window.clearTimeout(agentsAutoCollapseTimerRef.current)
-        agentsAutoCollapseTimerRef.current = null
-      }
-    }
-    setCollapsedSectionsByThread((current) => {
-      const collapsed = new Set(current.get(threadId) ?? [])
-      if (collapsed.has(id)) collapsed.delete(id)
-      else collapsed.add(id)
-      const next = new Map(current)
-      next.set(threadId, collapsed)
-      return next
-    })
-  }, [])
-  const agentsActiveCount = React.useMemo(
-    () =>
-      subagents.filter(({ currentRun }) => !isFinishedSubagentStatus(currentRun?.status)).length,
-    [subagents],
-  )
-  React.useEffect(() => {
-    if (!activeSessionId) return
-    const decision = resolveThreadSummaryAgentsAutoCollapse({
-      activeCount: agentsActiveCount,
-      manualOverride: agentsManualOverrideRef.current,
-      totalCount: subagents.length,
-    })
-    if (decision === 'idle') return
-    if (decision === 'reset-override') {
-      agentsManualOverrideRef.current = false
-      return
-    }
-    // Agent 全部结束后延迟 30 秒自动折叠该分区。
-    agentsAutoCollapseTimerRef.current = window.setTimeout(() => {
-      agentsAutoCollapseTimerRef.current = null
-      if (agentsManualOverrideRef.current) return
-      setCollapsedSectionsByThread((current) => {
-        const threadId = activeSessionIdRef.current
-        if (!threadId || current.get(threadId)?.has('agents')) return current
-        const next = new Map(current)
-        next.set(threadId, new Set(next.get(threadId) ?? []).add('agents'))
-        return next
-      })
-    }, THREAD_SUMMARY_AGENTS_AUTO_COLLAPSE_DELAY_MS)
-    return () => {
-      if (agentsAutoCollapseTimerRef.current !== null) {
-        window.clearTimeout(agentsAutoCollapseTimerRef.current)
-        agentsAutoCollapseTimerRef.current = null
-      }
-    }
-  }, [activeSessionId, agentsActiveCount, subagents.length])
-  const handleStopSubagent = React.useCallback((taskId: string): void => {
-    // 不做乐观状态变更：等待 subagent 投影事件更新后再改变行状态。
-    desktopClient.stopSubagent(taskId).catch(() => undefined)
-  }, [])
+  const [collapsedSections, toggleSummarySection] = useThreadSummaryCollapsedSections()
   const fallbackTitle = canonicalAuxiliary.fallbackTitle ?? '新对话'
   const renderedSessionTitle = sessionTitle ?? fallbackTitle
   const hasActiveSession = Boolean(activeSessionId)
@@ -1229,107 +1143,105 @@ export function ConversationPage(): React.ReactNode {
     workspacePath,
   ])
 
-  const { workspaceHeaderActions, inlineSummaryPanel } = React.useMemo(() => {
-    const summaryAvailable = !isThreadLoading && threadSummaryModel.hasContent
-    const summaryPanel = (
-      <ThreadSummaryErrorBoundary>
-        <ThreadSummaryPanel
-          key={activeSessionId ?? 'thread-summary'}
-          branches={branches}
-          collapsedSections={collapsedSections}
-          model={threadSummaryModel}
-          workspaceActions={launchActions}
-          environmentChoices={environmentChoices}
-          selectedActionId={selectedLaunchActionId}
-          onSelectAction={setSelectedLaunchActionId}
-          onActivateBrowserTab={onActivateBrowserTab}
-          onBranchSelect={onBranchSelect}
-          onCommitOrPush={onCommitOrPush}
-          onCreateBranch={onCreateBranch}
-          onCreatePullRequest={onCreatePullRequest}
-          onCreateOutput={() => onAppendComposerText('请帮我创建文件或站点：')}
-          onGitOperation={onGitOperation}
-          onAddEnvironmentAction={() =>
-            navigate(
-              `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}&mode=edit`,
-            )
+  const { workspaceHeaderActions, summaryPanelElement, shouldShiftForSummary, summaryDisplayMode } =
+    React.useMemo(() => {
+      const summaryAvailable = !isThreadLoading && threadSummaryModel.hasContent
+      const summaryOpen = summaryAvailable && threadSummary.isOpen
+      const summaryPanel = (
+        <ThreadSummaryErrorBoundary>
+          <ThreadSummaryPanel
+            key={activeSessionId ?? 'thread-summary'}
+            branches={branches}
+            collapsedSections={collapsedSections}
+            model={threadSummaryModel}
+            workspaceActions={launchActions}
+            environmentChoices={environmentChoices}
+            selectedActionId={selectedLaunchActionId}
+            onSelectAction={setSelectedLaunchActionId}
+            onActivateBrowserTab={onActivateBrowserTab}
+            onBranchSelect={onBranchSelect}
+            onCommitOrPush={onCommitOrPush}
+            onCreateBranch={onCreateBranch}
+            onCreatePullRequest={onCreatePullRequest}
+            onCreateOutput={() => onAppendComposerText('请帮我创建文件或站点：')}
+            onGitOperation={onGitOperation}
+            onAddEnvironmentAction={() =>
+              navigate(
+                `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}&mode=edit`,
+              )
+            }
+            onOpenEnvironmentSettings={() =>
+              navigate(
+                `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}`,
+              )
+            }
+            onOpenTerminal={onOpenTerminal}
+            pushEnabled={Boolean(
+              gitStatus?.branchName && (!gitStatus.upstream || gitStatus.ahead > 0),
+            )}
+            onMoveToWorktree={
+              handoffAction
+                ? () => {
+                    void handoffAction.execute()
+                  }
+                : undefined
+            }
+            onGoalPause={onGoalPause}
+            onGoalResume={onGoalResume}
+            onOpenArtifact={onOpenArtifact}
+            onOpenAttachment={onOpenAttachment}
+            onOpenLocalContext={onOpenLocalContext}
+            onOpenReview={openBranchReview}
+            onRetryGitDetection={onRefreshDiff}
+            changesLoading={branchReviewState.loading}
+            onOpenSubagent={onOpenSubagent}
+            onOpenSubagentDirectory={onOpenSubagentDirectory}
+            onStopSubagent={
+              desktopClient.stopSubagent
+                ? async (taskId) => {
+                    await desktopClient.stopSubagent?.(taskId)
+                  }
+                : undefined
+            }
+            onOpenWorkspacePath={onOpenWorkspacePath}
+            onToggleSection={toggleSummarySection}
+          />
+        </ThreadSummaryErrorBoundary>
+      )
+      const summaryToggle = (
+        <Button
+          isIconOnly
+          color={summaryOpen ? 'ghostActive' : 'ghostSecondary'}
+          title={summaryOpen ? '关闭概览' : '打开概览'}
+          aria-pressed={summaryOpen}
+          onClick={
+            summaryAvailable ? () => threadSummary.setOpen(!threadSummary.isOpen) : undefined
           }
-          onOpenEnvironmentSettings={() =>
-            navigate(
-              `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}`,
-            )
-          }
-          onOpenTerminal={onOpenTerminal}
-          pushEnabled={Boolean(
-            gitStatus?.branchName && (!gitStatus.upstream || gitStatus.ahead > 0),
-          )}
-          onMoveToWorktree={
-            handoffAction
-              ? () => {
-                  void handoffAction.execute()
-                }
-              : undefined
-          }
-          onGoalPause={onGoalPause}
-          onGoalResume={onGoalResume}
-          onOpenArtifact={onOpenArtifact}
-          onOpenAttachment={onOpenAttachment}
-          onOpenLocalContext={onOpenLocalContext}
-          onOpenReview={openBranchReview}
-          onRetryGitDetection={onRefreshDiff}
-          changesLoading={branchReviewState.loading}
-          onOpenSubagent={onOpenSubagent}
-          onOpenWorkspacePath={onOpenWorkspacePath}
-          onStopSubagent={handleStopSubagent}
-          onToggleSection={toggleSummarySection}
-        />
-      </ThreadSummaryErrorBoundary>
-    )
-    const summaryToggle = (
-      <Button
-        isIconOnly
-        color={threadSummary.isPopoverOpen ? 'ghostActive' : 'ghostSecondary'}
-        title={threadSummary.isPopoverOpen ? '关闭概览' : '打开概览'}
-        aria-pressed={threadSummary.isPopoverOpen}
-        onClick={
-          summaryAvailable && threadSummary.isInline
-            ? () => threadSummary.setPopoverOpen(!threadSummary.isPopoverOpen)
-            : undefined
-        }
-        size="toolbar"
-      >
-        <LayoutList
-          className="tw:size-icon-md"
-          size={APP_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
-      </Button>
-    )
+          size="toolbar"
+        >
+          <LayoutList
+            className="tw:size-icon-md"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+        </Button>
+      )
 
-    return {
-      workspaceHeaderActions: (
-        <div className="chat-session-actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:whitespace-nowrap">
-          {!summaryAvailable ? (
-            <Tooltip content="当前对话暂无可展示的摘要">{summaryToggle}</Tooltip>
-          ) : threadSummary.isInline ? (
-            summaryToggle
-          ) : (
-            <ThreadSummaryPopover
-              open={threadSummary.isPopoverOpen}
-              panel={summaryPanel}
-              onOpenChange={threadSummary.setPopoverOpen}
-            >
-              {summaryToggle}
-            </ThreadSummaryPopover>
-          )}
-        </div>
-      ),
-      inlineSummaryPanel:
-        summaryAvailable && threadSummary.isInline && threadSummary.isPopoverOpen
-          ? summaryPanel
-          : null,
-    }
-  }, [
+      return {
+        workspaceHeaderActions: (
+          <div className="chat-session-actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:whitespace-nowrap">
+            {!summaryAvailable ? (
+              <Tooltip content="当前对话暂无可展示的摘要">{summaryToggle}</Tooltip>
+            ) : (
+              summaryToggle
+            )}
+          </div>
+        ),
+        summaryPanelElement: summaryOpen ? summaryPanel : null,
+        shouldShiftForSummary: summaryOpen && threadSummary.displayMode === 'shift',
+        summaryDisplayMode: threadSummary.displayMode,
+      }
+    }, [
     branches,
     activeSessionId,
     collapsedSections,
@@ -1344,7 +1256,6 @@ export function ConversationPage(): React.ReactNode {
     gitDetection,
     handoffAction,
     onAppendComposerText,
-    handleStopSubagent,
     browserTabs,
     threadGoal,
     onGoalPause,
@@ -1359,6 +1270,7 @@ export function ConversationPage(): React.ReactNode {
     onCreatePullRequest,
     onOpenPlanInRightDock,
     onOpenSubagent,
+    onOpenSubagentDirectory,
     onOpenWorkspacePath,
     navigate,
     settingsDraft.setValue,
@@ -1596,7 +1508,7 @@ export function ConversationPage(): React.ReactNode {
               onToggleBookmark={toggleThreadBookmark}
             />
             <ThreadScrollLayout
-              className={`workflow-main-scroll-area tw:flex tw:min-h-0 tw:flex-1 tw:flex-col${inlineSummaryPanel ? ' workflow-main-scroll-area--with-summary' : ''}`}
+              className={`workflow-main-scroll-area tw:flex tw:min-h-0 tw:flex-1 tw:flex-col${shouldShiftForSummary ? ' workflow-main-scroll-area--with-summary' : ''}`}
               innerClassName="tw:w-full tw:max-w-[calc(var(--page-content-max-width)+2*var(--cpx-sys-space-4))] tw:mx-auto tw:px-4 tw:pt-6"
               footer={composerFooter}
               footerClassName="workflow-main-scroll-footer tw:px-0 tw:pb-4"
@@ -1651,12 +1563,17 @@ export function ConversationPage(): React.ReactNode {
             </ThreadScrollLayout>
           </div>
         </main>
-        {inlineSummaryPanel ? (
+        {summaryPanelElement ? (
           <div
-            className="thread-summary-inline tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:max-h-[calc(100%-32px)] tw:rounded-floating tw:bg-app-raised tw:p-1"
+            className={
+              summaryDisplayMode === 'overlay'
+                ? 'thread-summary-inline thread-summary-floating tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:rounded-floating tw:p-1'
+                : 'thread-summary-inline tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:max-h-[calc(100%-32px)] tw:rounded-floating tw:bg-app-raised tw:p-1'
+            }
+            data-summary-mode={summaryDisplayMode}
             data-testid="thread-summary-inline"
           >
-            {inlineSummaryPanel}
+            {summaryPanelElement}
           </div>
         ) : null}
       </div>

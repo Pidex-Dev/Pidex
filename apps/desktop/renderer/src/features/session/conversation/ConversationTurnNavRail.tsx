@@ -364,67 +364,77 @@ export function ConversationTurnNavRail({
 
     let frameId: number | null = null
     let currentObservedContent: HTMLElement | null = null
+    let disposed = false
 
-    const observer =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => updateVisibility())
+    const measureVisibility = (): void => {
+      if (disposed) return
+      if (currentObservedContent && !currentObservedContent.isConnected) {
+        observer?.unobserve(currentObservedContent)
+        currentObservedContent.removeEventListener('transitionend', scheduleVisibility)
+        currentObservedContent = null
+      }
+      const content = currentObservedContent ?? resolveContent()
+      if (content !== currentObservedContent) {
+        if (currentObservedContent) {
+          observer?.unobserve(currentObservedContent)
+          currentObservedContent.removeEventListener('transitionend', scheduleVisibility)
+        }
+        currentObservedContent = content
+        if (content) {
+          observer?.observe(content)
+          content.addEventListener('transitionend', scheduleVisibility)
+        }
+      }
+      if (!content) {
+        if (contentMountObserver && !observingMount) {
+          contentMountObserver.observe(frame, { childList: true, subtree: true })
+          observingMount = true
+        }
+        return
+      }
+      if (observingMount) {
+        contentMountObserver?.disconnect()
+        observingMount = false
+      }
+      const frameRect = frame.getBoundingClientRect()
+      const contentRect = content.getBoundingClientRect()
+      const scale = frame.offsetWidth > 0 ? frameRect.width / frame.offsetWidth : 1
+      const inlineClearance = (contentRect.left - frameRect.left) / (scale > 0 ? scale : 1)
+      setHasInlineClearance(inlineClearance >= MIN_TURN_NAV_INLINE_CLEARANCE_PX)
+    }
 
-    const updateVisibility = (): void => {
+    const scheduleVisibility = (): void => {
       if (frameId !== null) return
       frameId = window.requestAnimationFrame(() => {
         frameId = null
-        const content = resolveContent()
-        if (content !== currentObservedContent) {
-          if (currentObservedContent) {
-            observer?.unobserve(currentObservedContent)
-            currentObservedContent.removeEventListener('transitionend', updateVisibility)
-          }
-          currentObservedContent = content
-          if (content) {
-            observer?.observe(content)
-            content.addEventListener('transitionend', updateVisibility)
-          }
-        }
-        if (!content) return
-        const frameRect = frame.getBoundingClientRect()
-        const contentRect = content.getBoundingClientRect()
-        const scale = frame.offsetWidth > 0 ? frameRect.width / frame.offsetWidth : 1
-        const inlineClearance = (contentRect.left - frameRect.left) / (scale > 0 ? scale : 1)
-        setHasInlineClearance(inlineClearance >= MIN_TURN_NAV_INLINE_CLEARANCE_PX)
+        measureVisibility()
       })
     }
 
-    observer?.observe(frame)
-    updateVisibility()
+    // INVARIANT: ResizeObserver runs after layout with clean geometry so reading rects directly avoids forced style/layout recalc inside rAF after motion writes.
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => measureVisibility())
 
-    // 初次挂载时消息内容可能处于异步拉取或首帧虚拟化阶段，通过 childList 监听正文挂载，确保一挂载立即点亮导轨
+    // INVARIANT: Only watch subtree childList while content is not yet mounted and disconnect once ResizeObserver attaches.
+    let observingMount = false
     const contentMountObserver =
       typeof MutationObserver === 'undefined'
         ? null
-        : new MutationObserver(() => updateVisibility())
-    contentMountObserver?.observe(frame, { childList: true, subtree: true })
+        : new MutationObserver(() => scheduleVisibility())
 
-    const styleHost = frame.closest<HTMLElement>('.workflow-page__main')
-    const styleObserver =
-      typeof MutationObserver === 'undefined' || !styleHost
-        ? null
-        : new MutationObserver(updateVisibility)
-    if (styleObserver && styleHost) {
-      styleObserver.observe(styleHost, {
-        attributeFilter: ['style'],
-        attributes: true,
-      })
-    }
-    window.addEventListener('resize', updateVisibility)
+    observer?.observe(frame)
+    measureVisibility()
+    window.addEventListener('resize', scheduleVisibility)
 
     return () => {
+      disposed = true
       if (frameId !== null) window.cancelAnimationFrame(frameId)
       observer?.disconnect()
       contentMountObserver?.disconnect()
-      styleObserver?.disconnect()
       if (currentObservedContent) {
-        currentObservedContent.removeEventListener('transitionend', updateVisibility)
+        currentObservedContent.removeEventListener('transitionend', scheduleVisibility)
       }
-      window.removeEventListener('resize', updateVisibility)
+      window.removeEventListener('resize', scheduleVisibility)
     }
   }, [items.length])
 

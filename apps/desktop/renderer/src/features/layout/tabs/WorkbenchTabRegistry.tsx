@@ -56,7 +56,9 @@ import {
 } from '../dock/RightDockPanels.js'
 import { RightDockPromptPreviewPanel } from '../dock/RightDockPromptPreviewPanel.js'
 import { SideChatThreadPanel } from '../../session/conversation/SideChatThreadPanel.js'
+import { SubagentAvatar } from '../../session/subagents/SubagentAvatar.js'
 import { SubagentDirectoryPanel } from '../../session/subagents/SubagentDirectoryPanel.js'
+import { SubagentThreadTabPanel } from '../../session/subagents/SubagentDockContent.js'
 import { UserAttachmentPreviewPanel } from '../../session/attachments/UserAttachmentPreviewPanel.js'
 
 const DesktopBrowserPanel = React.lazy(() =>
@@ -557,6 +559,32 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           onSelectTask={(taskId) => context.subagentDirectory.onSelectTask(tab.threadId, taskId)}
           selectedTaskId={tab.selectedTaskId}
           threadId={tab.threadId}
+        />
+      ) : null,
+  },
+  {
+    kind: 'subagent-thread',
+    label: '子智能体',
+    icon: <Bot size={iconSize} />,
+    getIcon: (tab) => (
+      <SubagentAvatar
+        role={tab.kind === 'subagent-thread' ? (tab.role ?? 'general') : 'general'}
+        size="sm"
+        className="tw:size-full"
+      />
+    ),
+    launcher: false,
+    lifecycle: 'unmount-when-hidden',
+    getAvailability: (context) => context.subagentDirectory.availability,
+    getTitle: (tab) => (tab.kind === 'subagent-thread' ? tab.title : '子智能体'),
+    render: (tab, context) =>
+      tab.kind === 'subagent-thread' ? (
+        <SubagentThreadTabPanel
+          onError={context.subagentDirectory.onError}
+          onOpenPatchReview={context.subagentDirectory.onOpenPatchReview}
+          onOpenTask={context.subagentDirectory.onOpenTask}
+          onPatchApplied={context.subagentDirectory.onRefreshDiff}
+          taskId={tab.taskId}
         />
       ) : null,
   },

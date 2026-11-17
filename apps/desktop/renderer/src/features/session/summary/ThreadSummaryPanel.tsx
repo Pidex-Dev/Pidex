@@ -3,7 +3,6 @@ import * as React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
 import {
-  Bot,
   ChevronDown,
   FileText,
   Folder,
@@ -26,9 +25,13 @@ import {
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { cx } from '../../../utils/Cx.js'
-import { formatSidebarSessionRelativeTime } from '../../layout/sidebar/SessionRelativeTime.js'
-import { subagentStatusLabel } from '../subagents/SubagentStatusLabel.js'
-import { Tooltip } from '../../../components/ui/Tooltip.js'
+import { SubagentAvatar } from '../subagents/SubagentAvatar.js'
+import {
+  formatElapsed,
+  subagentAttentionLabel,
+  subagentStatusLabel,
+  useRunningClock,
+} from '../subagents/SubagentStatusLabel.js'
 import { BranchSelectPopover } from '../composer/BranchSelectPopover.js'
 import type {
   ThreadSummaryArtifact,
@@ -51,15 +54,16 @@ import type { CommandMenuActionRegistration } from '../../search/CommandMenuActi
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 
 const SUMMARY_ROW_CLASS =
-  'interactive-row interactive-row--nav thread-summary-row tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2'
+  'interactive-row interactive-row--nav thread-summary-row tw:w-full tw:min-w-0'
 
 const SUMMARY_ROW_LABEL_CLASS =
   'tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap'
 
 const SUMMARY_ROW_ICON_CLASS = 'tw:text-app-text'
 
-export type ThreadSummarySectionId =
-  'environment' | 'goal' | 'agents' | 'browser' | 'sources' | 'artifacts'
+import type { ThreadSummarySectionId } from './ThreadSummaryState.js'
+
+export type { ThreadSummarySectionId } from './ThreadSummaryState.js'
 
 type ThreadSummaryActions = {
   environmentChoices?: readonly CommandMenuActionRegistration[]
@@ -86,8 +90,9 @@ type ThreadSummaryActions = {
   onOpenLocalContext?: (reference: LocalContextReference) => void
   onOpenReview: () => void
   onOpenSubagent?: (taskId: string) => void
+  onOpenSubagentDirectory?: () => void
+  onStopSubagent?: (taskId: string) => void | Promise<void>
   onOpenWorkspacePath: () => void
-  onStopSubagent?: (taskId: string) => void
 }
 
 type ThreadSummaryPanelProps = ThreadSummaryActions & {
@@ -211,8 +216,9 @@ export function ThreadSummaryPanel({
   onOpenLocalContext,
   onOpenReview,
   onOpenSubagent,
-  onToggleSection,
+  onOpenSubagentDirectory,
   onStopSubagent,
+  onToggleSection,
 }: ThreadSummaryPanelProps): React.ReactNode {
   const selectedAction =
     workspaceActions.find((action) => action.id === selectedActionId) ?? workspaceActions[0]
@@ -222,11 +228,30 @@ export function ThreadSummaryPanel({
   const [environmentMenuOpen, setEnvironmentMenuOpen] = React.useState(false)
   const [branchSearch, setBranchSearch] = React.useState('')
   const [sourcesPanelOpen, setSourcesPanelOpen] = React.useState(false)
-  const [showAllAgents, setShowAllAgents] = React.useState(false)
   const [showAllArtifacts, setShowAllArtifacts] = React.useState(false)
+  const [stoppingAgentIds, setStoppingAgentIds] = React.useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
   const sourcePreview = previewThreadSummarySources(model.sources)
   const agentPreview = previewThreadSummaryAgents(model.agents)
-  const visibleAgents = showAllAgents ? model.agents : agentPreview.items
+  const runningAgentsCount = model.agents.filter((agent) => agent.state !== 'finished').length
+  const now = useRunningClock(runningAgentsCount > 0)
+  const handleStopAgent = React.useCallback(
+    async (taskId: string): Promise<void> => {
+      if (!onStopSubagent) return
+      setStoppingAgentIds((prev) => new Set(prev).add(taskId))
+      try {
+        await onStopSubagent(taskId)
+      } finally {
+        setStoppingAgentIds((prev) => {
+          const next = new Set(prev)
+          next.delete(taskId)
+          return next
+        })
+      }
+    },
+    [onStopSubagent],
+  )
   const artifactPreview = {
     items: model.artifacts.slice(0, showAllArtifacts ? model.artifacts.length : 6),
     totalCount: model.artifacts.length,
@@ -237,8 +262,6 @@ export function ThreadSummaryPanel({
     fileCount: 0,
   }
   const environment = model.environment
-  // 相对时间在渲染时计算；面板不常驻 ticker（与侧栏一致）。
-  const [now] = React.useState(Date.now)
 
   const isSectionExpanded = (id: ThreadSummarySectionId): boolean => !collapsedSections.has(id)
   const toggleSection = (id: ThreadSummarySectionId): void => onToggleSection(id)
@@ -271,18 +294,7 @@ export function ThreadSummaryPanel({
         workspaceActions.length > 0 ||
         environmentChoices.length > 0) ? (
         <ThreadSummarySection
-          collapsedSummary={
-            changes.fileCount > 0 ? (
-              <span className="thread-summary-diff tw:inline-flex tw:gap-1 tw:type-1 tw:tabular-nums">
-                <strong className="tw:text-app-success tw:weight-regular">
-                  +{formatReviewCount(changes.additions)}
-                </strong>
-                <em className="tw:text-app-danger tw:not-italic">
-                  -{formatReviewCount(changes.deletions)}
-                </em>
-              </span>
-            ) : null
-          }
+          collapsedSummary={null}
           expanded={isSectionExpanded('environment')}
           first
           id="environment"
@@ -504,79 +516,94 @@ export function ThreadSummaryPanel({
 
       {model.agents.length ? (
         <ThreadSummarySection
-          collapsedSummary={<AgentSectionSummary agents={model.agents} />}
+          collapsedSummary={
+            <span className="tw:inline-flex tw:items-center tw:gap-1">
+              <span className="tw:inline-flex tw:items-center">
+                {agentPreview.items.map((agent, index) => (
+                  <SubagentAvatar
+                    key={agent.id}
+                    role={agent.role}
+                    size="sm"
+                    className={cx('tw:ring-1 tw:ring-app-raised', index > 0 && 'tw:-ms-1')}
+                  />
+                ))}
+              </span>
+              {agentPreview.remainingCount > 0 ? (
+                <span className="tw:type-1 tw:tabular-nums tw:text-app-text-meta">
+                  +{agentPreview.remainingCount}
+                </span>
+              ) : null}
+            </span>
+          }
           expanded={isSectionExpanded('agents')}
           id="agents"
-          meta={<AgentSectionMeta agents={model.agents} />}
-          title="Agent"
+          meta={
+            <span className="tw:type-1 tw:tabular-nums tw:text-app-text-meta">
+              {runningAgentsCount > 0 ? `${runningAgentsCount} 运行` : `${model.agents.length}`}
+            </span>
+          }
+          title="智能体"
           onToggle={toggleSection}
         >
-          {visibleAgents.map((agent) => (
-            <div
-              className="thread-summary-row-group tw:grid tw:w-[calc(100%+16px)] tw:-mx-2 tw:grid-cols-[minmax(0,1fr)_max-content]"
-              key={agent.id}
-            >
-              <button
-                className="interactive-row interactive-row--nav thread-summary-row thread-summary-row-group__main tw:min-w-0"
-                type="button"
-                onClick={() => onOpenSubagent?.(agent.id)}
-              >
-                <Bot
-                  className={SUMMARY_ROW_ICON_CLASS}
-                  aria-hidden="true"
-                  size="var(--inline-icon-size, 1em)"
-                />
-                <span className="tw:grid tw:min-w-0">
-                  <span className={SUMMARY_ROW_LABEL_CLASS}>{agent.name}</span>
-                  {agent.summary ? (
-                    <small className="tw:min-w-0 tw:truncate tw:text-app-text-meta tw:type-1">
-                      {agent.summary}
-                    </small>
-                  ) : null}
-                </span>
-                <small
-                  className={cx(
-                    'tw:whitespace-nowrap tw:type-1',
-                    agent.state === 'finished' ? 'tw:text-app-text-meta' : 'tw:text-app-accent-fg',
-                  )}
+          <div className="tw:flex tw:min-w-0 tw:flex-col tw:gap-1">
+            {model.agents.map((agent) => {
+              const titleText = agent.taskTitle || agent.agentName
+              const attention = subagentAttentionLabel(agent.status)
+              const timeOrStatus =
+                agent.state !== 'finished'
+                  ? (attention ?? `已运行 ${formatElapsed(agent.startedAt, now)}`)
+                  : subagentStatusLabel(agent.status)
+              const metaText = !agent.taskTitle
+                ? timeOrStatus
+                : agent.state === 'finished'
+                  ? `${agent.agentName} ${timeOrStatus}`
+                  : `${timeOrStatus} · ${agent.agentName}`
+              const openTarget = onOpenSubagent
+                ? () => onOpenSubagent(agent.id)
+                : onOpenSubagentDirectory
+              return (
+                <div
+                  className="tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-1"
+                  key={agent.id}
                 >
-                  {subagentStatusLabel(agent.status)}
-                  {agent.state === 'finished'
-                    ? ` · ${formatSidebarSessionRelativeTime(new Date(agent.recencyAt).toISOString(), now)}`
-                    : ''}
-                </small>
-              </button>
-              {agent.stoppable ? (
-                <Tooltip content="停止该子 Agent">
                   <button
-                    aria-label={`停止 ${agent.name}`}
-                    className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:[&>svg]:size-icon-sm"
+                    className="interactive-row interactive-row--nav tw:min-w-0 tw:flex-1"
+                    title={agent.taskTitle ? `${agent.agentName} · ${agent.taskTitle}` : agent.agentName}
                     type="button"
-                    onClick={() => onStopSubagent?.(agent.id)}
+                    onClick={openTarget}
                   >
-                    <Square
-                      className="tw:size-icon-sm"
-                      aria-hidden="true"
-                      size={APP_ICON_SIZES.sm}
-                    />
+                    <SubagentAvatar role={agent.role} size="sm" />
+                    <span className="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-0.5">
+                      <span className="tw:min-w-0 tw:truncate tw:text-app-text tw:type-2">
+                        {titleText}
+                      </span>
+                      <span className="tw:min-w-0 tw:truncate tw:text-app-text-meta tw:type-1 tw:tabular-nums">
+                        {metaText}
+                      </span>
+                    </span>
                   </button>
-                </Tooltip>
-              ) : null}
-            </div>
-          ))}
-          {!showAllAgents && agentPreview.totalCount > visibleAgents.length ? (
-            <button
-              className={SUMMARY_ROW_CLASS}
-              data-tone="meta"
-              type="button"
-              onClick={() => setShowAllAgents(true)}
-            >
-              <ChevronDown aria-hidden="true" size="var(--inline-icon-size, 1em)" />
-              <span className={SUMMARY_ROW_LABEL_CLASS}>
-                查看全部 {agentPreview.totalCount} 个 Agent
-              </span>
-            </button>
-          ) : null}
+                  {agent.stoppable && onStopSubagent ? (
+                    <Button
+                      aria-label={`停止 ${titleText}`}
+                      color="ghostSecondary"
+                      disabled={stoppingAgentIds.has(agent.id)}
+                      leftIcon={
+                        <Square
+                          aria-hidden="true"
+                          className="tw:size-2.5 tw:fill-current"
+                          size={APP_ICON_SIZES.sm}
+                        />
+                      }
+                      size="xs"
+                      onClick={() => void handleStopAgent(agent.id)}
+                    >
+                      停止
+                    </Button>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
         </ThreadSummarySection>
       ) : null}
 
@@ -686,36 +713,6 @@ export function ThreadSummaryPanel({
   )
 }
 
-function AgentSectionMeta({
-  agents,
-}: {
-  agents: ThreadSummaryViewModel['agents']
-}): React.ReactNode {
-  const running = agents.filter((agent) => agent.state === 'running').length
-  const waiting = agents.filter((agent) => agent.state === 'waiting').length
-  const finished = agents.length - running - waiting
-  const label =
-    running + waiting > 0
-      ? [running > 0 ? `${running} 运行` : null, waiting > 0 ? `${waiting} 等待` : null]
-          .filter(Boolean)
-          .join(' · ')
-      : `${finished} 已结束`
-  return <span className="tw:whitespace-nowrap tw:text-app-text-meta tw:type-1">{label}</span>
-}
-
-function AgentSectionSummary({
-  agents,
-}: {
-  agents: ThreadSummaryViewModel['agents']
-}): React.ReactNode {
-  const active = agents.filter((agent) => agent.state !== 'finished').length
-  return (
-    <span className="tw:type-1 tw:tabular-nums">
-      {active > 0 ? `${active} 活跃` : `${agents.length} 已结束`}
-    </span>
-  )
-}
-
 function BrowserTabRow({
   tab,
   onActivate,
@@ -820,7 +817,7 @@ function ThreadSummarySourceRow({
   const Icon = source.toolKind === 'web-search' ? Search : Plug
   return (
     <div
-      className="thread-summary-static-row thread-summary-source-static tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-2"
+      className="thread-summary-static-row thread-summary-source-static tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[16px_minmax(0,1fr)] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-2"
       title={source.source ?? source.label}
     >
       <Icon
@@ -877,7 +874,7 @@ function ArtifactRow({
   if (!previewable || !onOpen) {
     return (
       <div
-        className="thread-summary-static-row tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-2"
+        className="thread-summary-static-row tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-2"
         title={`${artifact.name}：${meta}`}
       >
         {row}
@@ -934,7 +931,7 @@ function ThreadSummarySourcesPanel({
             当前会话中已识别的附件、文件与网页来源。
           </Dialog.Description>
           <div
-            className="thread-summary-sources-panel__list tw:grid tw:min-h-0 tw:content-start tw:gap-1 tw:overflow-y-auto"
+            className="thread-summary-sources-panel__list tw:grid tw:grid-cols-1 tw:min-h-0 tw:content-start tw:gap-1 tw:overflow-y-auto"
             role="list"
           >
             {sources.map((source) => (
@@ -978,8 +975,8 @@ function ThreadSummarySection({
       aria-labelledby={headingId}
       className={
         first
-          ? 'thread-summary-section thread-summary-section--first tw:relative tw:z-0 tw:flex tw:flex-col tw:gap-1 tw:pb-2 tw:last:pb-0'
-          : 'thread-summary-section tw:relative tw:z-0 tw:flex tw:flex-col tw:pb-2 tw:last:pb-0'
+          ? 'thread-summary-section thread-summary-section--first tw:relative tw:z-0 tw:flex tw:min-w-0 tw:flex-col tw:gap-1 tw:pb-2 tw:last:pb-0'
+          : 'thread-summary-section tw:relative tw:z-0 tw:flex tw:min-w-0 tw:flex-col tw:pb-2 tw:last:pb-0'
       }
     >
       <header className="tw:sticky tw:top-0 tw:z-local tw:flex tw:h-6 tw:w-full tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-transparent tw:px-2 tw:py-0 tw:text-app-text-soft tw:type-2 tw:weight-medium">
@@ -987,7 +984,7 @@ function ThreadSummarySection({
           <button
             aria-controls={contentId}
             aria-expanded={expanded}
-            className="thread-summary-section__toggle tw:inline-flex tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:py-1 tw:pr-1 tw:pl-0 tw:text-left tw:text-inherit tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+            className="thread-summary-section__toggle tw:inline-flex tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:text-left tw:text-inherit tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
             type="button"
             onClick={() => onToggle(id)}
           >
@@ -1007,7 +1004,7 @@ function ThreadSummarySection({
       </header>
       <DisclosureContent
         className="thread-summary-section__content tw:relative tw:z-0"
-        contentClassName="thread-summary-section__rows tw:grid tw:min-h-0 tw:gap-0 tw:overflow-hidden tw:px-2"
+        contentClassName="thread-summary-section__rows tw:grid tw:grid-cols-1 tw:min-h-0 tw:gap-0 tw:overflow-hidden"
         expanded={expanded}
         id={contentId}
       >

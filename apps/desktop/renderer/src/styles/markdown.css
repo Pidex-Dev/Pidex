@@ -111,6 +111,7 @@
     color: var(--cpx-sys-color-fg-secondary);
   }
   .md-body blockquote {
+    margin-inline: 0;
     padding: 0.65rem 1.15rem;
     border-left: 2px solid var(--cpx-sys-color-border-default);
     border-radius: 0;
@@ -341,7 +342,6 @@
     z-index: var(--cpx-sys-z-local);
     top: 0;
     right: var(--cpx-sys-space-2);
-    min-height: var(--cpx-sys-space-8);
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);

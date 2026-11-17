@@ -1,3 +1,4 @@
+import type { SubagentRole } from '@pidex/shared/thread'
 import type { FileEditorViewState } from '../../editor/FileEditor.js'
 
 export type WorkbenchPanelTarget = 'right' | 'bottom' | 'sidebar'
@@ -72,6 +73,7 @@ export type WorkbenchTabKind =
   | 'prompt-preview'
   | 'side-chat'
   | 'subagent-directory'
+  | 'subagent-thread'
   | 'terminal'
 
 export type WorkbenchTabDescriptor =
@@ -140,6 +142,14 @@ export type WorkbenchTabDescriptor =
       kind: 'subagent-directory'
       threadId: string
       selectedTaskId?: string
+    }
+  | {
+      id: `subagent-thread:${string}`
+      kind: 'subagent-thread'
+      taskId: string
+      parentThreadId: string
+      title: string
+      role?: SubagentRole
     }
 
 export type WorkbenchTabId = WorkbenchTabDescriptor['id']

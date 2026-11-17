@@ -109,7 +109,12 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkspace,
 } from '../../../../shared/Types.js'
-import type { Attachment, LocalContextReference } from '@pidex/shared/thread'
+import {
+  resolveSubagentDisplayParts,
+  type Attachment,
+  type LocalContextReference,
+} from '@pidex/shared/thread'
+import { resolveSubagentRole } from '../../session/subagents/SubagentRole.js'
 import {
   lazy,
   Suspense,
@@ -1546,11 +1551,37 @@ export function DesktopLayout(): React.ReactNode {
       }
       void desktopClient
         .readSubagent(taskId)
-        .then((read) => openSubagentDirectory(read.task.parentThreadId, taskId))
+        .then((read) => {
+          const { agentName, taskTitle } = resolveSubagentDisplayParts({
+            displayName: read.task.displayName,
+            title: read.task.title,
+            profile: read.task.profile,
+            role: read.task.role,
+            task: read.task.task,
+          })
+          const role = resolveSubagentRole({
+            role: read.task.role,
+            displayName: read.task.displayName,
+            task: read.task.task,
+          })
+          openRightDockTab({
+            id: `subagent-thread:${taskId}`,
+            kind: 'subagent-thread',
+            taskId,
+            parentThreadId: read.task.parentThreadId,
+            title: taskTitle || agentName,
+            role,
+          })
+        })
         .catch((error) => handleErrorMessage(error))
     },
-    [handleErrorMessage, openSubagentDirectory],
+    [handleErrorMessage, openRightDockTab],
   )
+
+  const handleOpenSubagentDirectory = useCallback((): void => {
+    if (!activeSessionItem) return
+    openSubagentDirectory(activeSessionItem.id, null)
+  }, [activeSessionItem, openSubagentDirectory])
 
   const handleSubmitEditedUserMessage = useCallback(
     async (
@@ -3827,6 +3858,7 @@ export function DesktopLayout(): React.ReactNode {
       onOpenSideChat: handleOpenSideChat,
       sideChatAvailable: sideChatSupported,
       onOpenSubagent: handleOpenSubagent,
+      onOpenSubagentDirectory: handleOpenSubagentDirectory,
       onAddComposerFiles: handleAddComposerFiles,
       onRefreshDiff: handleRefreshDiff,
       onRenameSession: async (title) => {
@@ -3925,6 +3957,7 @@ export function DesktopLayout(): React.ReactNode {
       handleOpenSideChat,
       sideChatSupported,
       handleOpenSubagent,
+      handleOpenSubagentDirectory,
       handleAddComposerFiles,
       handleRefreshDiff,
       renameSession,

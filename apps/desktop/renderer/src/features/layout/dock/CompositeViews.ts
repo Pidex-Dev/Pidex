@@ -161,6 +161,17 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     isSingleton: false,
     canFloat: true,
   },
+  'subagent-thread': {
+    id: 'workbench.view.subagentThread',
+    kind: 'subagent-thread',
+    title: '子智能体',
+    defaultLocation: 'right',
+    allowedLocations: ['sidebar', 'right', 'floating'],
+    canMove: true,
+    canClose: true,
+    isSingleton: false,
+    canFloat: true,
+  },
   'skill-preview': {
     id: 'workbench.view.skillPreview',
     kind: 'skill-preview',

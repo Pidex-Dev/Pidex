@@ -82,6 +82,7 @@
   .interactive-row--nav {
     --interactive-row-current-min-height: var(--cpx-comp-row-height-nav);
     --interactive-row-current-radius: var(--cpx-comp-row-radius);
+    --interactive-row-current-padding-block: var(--cpx-comp-row-padding-block);
     --interactive-row-current-padding-inline: var(--cpx-comp-row-padding-inline);
   }
 

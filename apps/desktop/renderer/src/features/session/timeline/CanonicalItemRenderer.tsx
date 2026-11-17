@@ -31,6 +31,7 @@ import type {
   LocalContextReference,
   ToolResultBlock,
 } from '@pidex/shared/thread'
+import { stripTerminalControlSequences } from '@pidex/shared'
 import { decodeResultCardEnvelope } from '@pidex/shared/thread-result-card'
 import type { RpcParams, RpcResult } from '@pidex/agent-protocol'
 import type { DesktopDiffMarkerStyle } from '../../../../shared/Types.js'
@@ -1299,7 +1300,7 @@ function ToolResultBlocksView({
         return false
       }
       if (renderedResultText) {
-        const blockText = block.text.trim()
+        const blockText = stripTerminalControlSequences(block.text).trim()
         const resultText = renderedResultText.trim()
         if (
           blockText &&
@@ -1346,7 +1347,7 @@ function ToolResultBlockView({
     case 'text':
       return (
         <pre className="canonical-tool-result-block canonical-tool-result-block--text">
-          <code>{block.text}</code>
+          <code>{stripTerminalControlSequences(block.text)}</code>
         </pre>
       )
     case 'citation': {
@@ -1892,6 +1893,14 @@ const LIFECYCLE_ACTIONS: Readonly<Record<string, LifecycleAction>> = {
     running: '正在询问问题',
     toolLabel: '提问',
   },
+  agent: {
+    completed: '子代理已完成',
+    error: '运行子代理失败',
+    icon: UserRoundPlus,
+    interrupted: '已中断子代理',
+    running: '正在运行子代理',
+    toolLabel: '运行子代理',
+  },
   spawn_agents: {
     completed: '已创建子代理',
     error: '创建子代理失败',
@@ -2061,13 +2070,15 @@ export function cleanCommandOutput(rawText: string | null): string | null {
         const stdout = typeof record.stdout === 'string' ? record.stdout : ''
         const stderr = typeof record.stderr === 'string' ? record.stderr : ''
         const combined = stdout + (stdout && stderr && !stdout.endsWith('\n') ? '\n' : '') + stderr
-        return combined.trim() ? combined : null
+        const sanitized = stripTerminalControlSequences(combined)
+        return sanitized.trim() ? sanitized : null
       }
     } catch {
       // 保持原样文本
     }
   }
-  return text
+  const sanitized = stripTerminalControlSequences(text)
+  return sanitized.trim() ? sanitized : null
 }
 
 function isToolSearchName(tool: string): boolean {
@@ -2207,17 +2218,11 @@ export function isStandaloneLifecycleTool(item: ToolItem): boolean {
   return buildLifecycleToolDisplay(item) !== null
 }
 
-export function LifecycleToolItemView({
-  item,
-  isSubagent = false,
-}: {
-  item: ToolItem
-  isSubagent?: boolean
-}): React.ReactNode {
+export function LifecycleToolItemView({ item }: { item: ToolItem }): React.ReactNode {
   const context = React.useContext(ConversationItemContext)
   const display = buildLifecycleToolDisplay(item)
   if (!display) return null
-  const text = !isSubagent ? historicalDeliveryText(item, context?.workspacePath) : null
+  const text = historicalDeliveryText(item, context?.workspacePath)
   if (text) return <StructuredDeliveryText text={text} />
   const LifecycleIcon = display.icon
   return (

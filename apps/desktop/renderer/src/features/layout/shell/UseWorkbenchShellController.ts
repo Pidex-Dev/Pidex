@@ -124,12 +124,36 @@ export function useWorkbenchShellController({
       (
         updater: WorkbenchTabsState | ((current: WorkbenchTabsState) => WorkbenchTabsState),
       ): void => {
-        workbenchStore.setState((state) => ({
-          panelState:
+        workbenchStore.setState((state) => {
+          const nextPanelState =
             typeof updater === 'function'
               ? (updater as (current: WorkbenchTabsState) => WorkbenchTabsState)(state.panelState)
-              : updater,
-        }))
+              : updater
+          if (nextPanelState === state.panelState) return state
+          if (state.layoutState == null) return { panelState: nextPanelState }
+          const nextAuxVisible = getWorkbenchWorkspaceLayout(nextPanelState) !== 'chat'
+          const nextBottomVisible = nextPanelState.bottom.open
+          if (
+            state.layoutState.visibility.auxiliaryPanel === nextAuxVisible &&
+            state.layoutState.visibility.bottomPanel === nextBottomVisible &&
+            state.layoutState.visibility.mainContent === true
+          ) {
+            return { panelState: nextPanelState }
+          }
+          // INVARIANT: Mirror panel visibility into layoutState within the same store update so post-commit sync effects do not trigger a cascading second DesktopLayout render.
+          return {
+            panelState: nextPanelState,
+            layoutState: {
+              ...state.layoutState,
+              visibility: {
+                ...state.layoutState.visibility,
+                auxiliaryPanel: nextAuxVisible,
+                bottomPanel: nextBottomVisible,
+                mainContent: true,
+              },
+            },
+          }
+        })
       },
     [workbenchStore],
   )

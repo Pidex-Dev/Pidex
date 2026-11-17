@@ -795,14 +795,16 @@ export function deriveSidebarSessionVisualState(
   pendingPermissionSessionIds: ReadonlySet<string>,
 ): SidebarSessionVisualState {
   if (
-    session.status === 'waiting' ||
     pendingPermissionSessionIds.has(session.id) ||
     session.latestTurnStatus === 'waiting-question' ||
-    session.latestTurnStatus === 'waiting-permission'
+    session.latestTurnStatus === 'waiting-permission' ||
+    (session.status === 'waiting' && session.latestTurnStatus !== 'waiting-subagents')
   ) {
     return 'needs-input'
   }
-  if (session.status === 'running') return 'running'
+  if (session.status === 'running' || session.latestTurnStatus === 'waiting-subagents') {
+    return 'running'
+  }
   if (session.latestTurnStatus === 'failed') return 'error'
   if (session.unreadAt) return 'unread'
   return 'idle'

@@ -11,7 +11,12 @@ import {
 import { useCanonicalThreadConversation } from '../timeline/UseCanonicalThreadConversation.js'
 import { SubagentDockContent } from './SubagentDockContent.js'
 import { buildSubagentDirectory, type SubagentDirectoryRow } from './SubagentDirectoryRows.js'
-import { subagentAttentionLabel, subagentStatusLabel } from './SubagentStatusLabel.js'
+import {
+  formatElapsed,
+  subagentAttentionLabel,
+  subagentStatusLabel,
+  useRunningClock,
+} from './SubagentStatusLabel.js'
 import { SubagentAvatar } from './SubagentAvatar.js'
 import { useSubagentRead } from './UseSubagentRead.js'
 
@@ -29,26 +34,6 @@ export type SubagentDirectoryPanelProps = {
 }
 
 /** 运行中每秒推进耗时；无运行项时不挂定时器。 */
-function useRunningClock(running: boolean): number {
-  const [now, setNow] = React.useState(Date.now)
-  React.useEffect(() => {
-    if (!running) return
-    setNow(Date.now())
-    const interval = window.setInterval(() => setNow(Date.now()), 1_000)
-    return () => window.clearInterval(interval)
-  }, [running])
-  return now
-}
-
-function formatElapsed(since: number | null, now: number): string {
-  if (since == null) return '运行中'
-  const seconds = Math.max(0, Math.floor((now - since) / 1_000))
-  if (seconds < 60) return `${seconds}s`
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m`
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
-}
-
 const ROW_CLASS =
   'tw:grid tw:min-w-0 tw:grid-cols-[24px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-2 tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus'
 
@@ -177,9 +162,7 @@ export function SubagentDirectoryPanel({
       <SubagentDockContent
         availability={detail.availability}
         error={detail.error}
-        onBack={() => onSelectTask(null)}
         onError={onError}
-        onOpenParentSubagent={onOpenTask}
         onOpenPatchReview={onOpenPatchReview}
         onOpenSubagent={(item) => onOpenTask(item.subagentTaskId)}
         onPatchApplied={onRefreshDiff}

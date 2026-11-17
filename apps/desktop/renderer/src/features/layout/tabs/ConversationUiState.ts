@@ -14,6 +14,7 @@ import {
 } from '../dock/RightDockState.js'
 import { arePathsEqual } from '../../../utils/PathUtils.js'
 import { isRecord } from '@pidex/shared/guards'
+import { SubagentRoleSchema, type SubagentRole } from '@pidex/shared/thread'
 
 const STORAGE_PREFIX = 'conversation.ui-state.'
 
@@ -86,6 +87,7 @@ export type ConversationUiStateV4 = {
   schemaVersion: 4
   workbench: WorkbenchTabsState
   mainScrollTop: number
+  summaryOpen?: boolean
   sideChatInput: string
   sideChatAttachments: DesktopComposerAttachment[]
   review: ReviewTabUiState
@@ -108,6 +110,7 @@ export function createDefaultConversationUiState(): ConversationUiState {
     schemaVersion: 4,
     workbench: createDefaultWorkbenchTabsState(),
     mainScrollTop: 0,
+    summaryOpen: false,
     sideChatInput: '',
     sideChatAttachments: [],
     review: createDefaultReviewTabUiState(),
@@ -270,6 +273,7 @@ export function transferConversationUiStateForHandoff(input: {
           tab?.kind !== 'skill-preview' &&
           tab?.kind !== 'goal' &&
           tab?.kind !== 'subagent-directory' &&
+          tab?.kind !== 'subagent-thread' &&
           tab?.kind !== 'file-preview',
       ),
     )
@@ -327,6 +331,7 @@ export function validateConversationUiState(
     schemaVersion: 4,
     workbench,
     mainScrollTop: toFiniteNonNegativeNumber(state.mainScrollTop),
+    summaryOpen: state.summaryOpen === true,
     sideChatInput: typeof state.sideChatInput === 'string' ? state.sideChatInput : '',
     sideChatAttachments: Array.isArray(state.sideChatAttachments)
       ? (state.sideChatAttachments as DesktopComposerAttachment[])
@@ -664,6 +669,31 @@ function validateTabDescriptor(
       kind: 'subagent-directory',
       threadId: tab.threadId,
       ...(selectedTaskId ? { selectedTaskId } : {}),
+    }
+  }
+  if (
+    tab.kind === 'subagent-thread' &&
+    typeof tab.id === 'string' &&
+    tab.id.startsWith('subagent-thread:') &&
+    typeof tab.taskId === 'string' &&
+    tab.taskId.length > 0 &&
+    typeof tab.parentThreadId === 'string' &&
+    tab.parentThreadId.length > 0 &&
+    typeof tab.title === 'string' &&
+    tab.title.trim().length > 0
+  ) {
+    const validRole =
+      typeof tab.role === 'string' &&
+      (SubagentRoleSchema.literals as readonly string[]).includes(tab.role)
+        ? (tab.role as SubagentRole)
+        : undefined
+    return {
+      id: tab.id as `subagent-thread:${string}`,
+      kind: 'subagent-thread',
+      taskId: tab.taskId,
+      parentThreadId: tab.parentThreadId,
+      title: tab.title,
+      ...(validRole ? { role: validRole } : {}),
     }
   }
 

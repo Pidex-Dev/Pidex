@@ -1,5 +1,6 @@
 import React from 'react'
 import { Check, ChevronDown, CircleAlert, CircleStop, LoaderCircle, WrapText } from 'lucide-react'
+import { stripTerminalControlSequences } from '@pidex/shared'
 import type { Item } from '@pidex/shared/thread'
 import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { useScrollEdgeState } from '../../../hooks/UseScrollEdgeState.js'
@@ -114,7 +115,11 @@ export function CanonicalCommandBlock({
     if (!element || commandExpanded) return
     const measure = (): void =>
       setCommandOverflowing(element.scrollHeight > element.clientHeight + 1)
-    measure()
+    if (typeof ResizeObserver === 'undefined') {
+      measure()
+      return
+    }
+    // INVARIANT: ResizeObserver runs an initial post-layout observation before paint, avoiding forced synchronous layout reads during React commit.
     const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
@@ -193,17 +198,21 @@ export function ToolCommandCard({
   const active =
     item.state === 'pending' || item.state === 'waiting-permission' || item.state === 'running'
   const [wrapped, setWrapped] = useCodeWrapPreference()
+  const sanitizedOutput = React.useMemo(
+    () => (output === null ? null : stripTerminalControlSequences(output)),
+    [output],
+  )
   const scrollerRef = React.useRef<HTMLDivElement | null>(null)
   const contentRef = React.useRef<HTMLPreElement | null>(null)
   const followingRef = React.useRef(active)
   const pinRef = React.useRef<HTMLDivElement | null>(null)
   const wasExpandedRef = React.useRef(false)
   const prevWrappedRef = React.useRef(wrapped)
-  const edge = useScrollEdgeState(scrollerRef, { contentRef, version: output })
+  const edge = useScrollEdgeState(scrollerRef, { contentRef, version: sanitizedOutput })
   const exitCode = readCommandExitCode(item.output)
   const outputChunks = React.useMemo(
-    () => commandOutputChunks(output ?? (active ? '等待输出' : '无输出')),
-    [output, active],
+    () => commandOutputChunks(sanitizedOutput ?? (active ? '等待输出' : '无输出')),
+    [sanitizedOutput, active],
   )
   const StatusIcon =
     item.state === 'interrupted'
@@ -238,7 +247,7 @@ export function ToolCommandCard({
     if (justExpanded || wrappedChanged || needsBreakZero) {
       scroller.scrollTop = commandOutputScrollTop(scroller, active, followingRef.current)
     }
-  }, [active, expanded, output, wrapped])
+  }, [active, expanded, sanitizedOutput, wrapped])
 
   return (
     <article
@@ -299,7 +308,9 @@ export function ToolCommandCard({
           >
             <WrapText className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
           </button>
-          {output !== null ? <CopyButton ariaLabel="复制返回结果" text={output} /> : null}
+          {sanitizedOutput !== null ? (
+            <CopyButton ariaLabel="复制返回结果" text={sanitizedOutput} />
+          ) : null}
         </div>
       </div>
       {children}

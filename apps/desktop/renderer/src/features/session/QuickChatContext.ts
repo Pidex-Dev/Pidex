@@ -83,6 +83,7 @@ export type QuickChatContextValue = {
   onOpenSideChat: () => void
   sideChatAvailable: boolean
   onOpenSubagent: (taskId: string) => void
+  onOpenSubagentDirectory?: () => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshDiff: () => void
   onRenameSession: (title: string) => Promise<boolean>

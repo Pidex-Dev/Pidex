@@ -442,7 +442,8 @@
     }
   }
 
-  .thread-summary-popover .thread-summary-error {
+  .thread-summary-popover .thread-summary-error,
+  .thread-summary-floating .thread-summary-error {
     max-height: inherit;
     border: 0;
     border-radius: inherit;
@@ -565,7 +566,8 @@
   /* --- Forced-colors surfaces --------------------------------------- */
 
   @media (forced-colors: active) {
-    .thread-summary-error {
+    .thread-summary-error,
+    .thread-summary-floating {
       outline: 1px solid CanvasText;
       box-shadow: none;
     }
@@ -603,6 +605,18 @@
     }
   }
 
+  .thread-summary-floating {
+    max-width: calc(100% - var(--cpx-sys-space-4));
+    max-height: calc(
+      100% - var(--cpx-sys-space-4) -
+        var(--thread-summary-footer-clearance, var(--cpx-sys-space-4))
+    );
+    border: var(--cpx-comp-surface-edge);
+    background: var(--cpx-comp-surface-floating);
+    backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
+    box-shadow: var(--cpx-sys-shadow-floating);
+  }
+
   .thread-summary-error {
     border: var(--cpx-comp-surface-edge);
     border-radius: var(--cpx-sys-radius-container);
@@ -613,7 +627,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .thread-summary-error {
+    .thread-summary-error,
+    .thread-summary-floating {
       backdrop-filter: none;
       background: var(--cpx-comp-surface-floating);
     }

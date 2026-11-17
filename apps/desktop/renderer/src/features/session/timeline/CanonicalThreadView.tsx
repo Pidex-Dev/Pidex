@@ -1,4 +1,5 @@
 import { ConversationItemContext } from './ConversationItemContext.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
 import { formatGoalDurationCompact } from '../composer/ComposerGoalRow.js'
 import { ModelSwitchDivider } from './ModelSwitchDivider.js'
 import { ForkOriginDivider } from './ForkOriginDivider.js'
@@ -10,7 +11,12 @@ import React from 'react'
 import { VisualizationView } from '../../visualization/VisualizationView.js'
 import { ChevronRight, CircleAlert, LoaderCircle, RotateCcw, type LucideIcon } from 'lucide-react'
 import type { RenderBlocker, RenderTurnEntry } from '@pidex/session-view'
-import type { Input, Item, ThreadForkOrigin } from '@pidex/shared/thread'
+import {
+  resolveSubagentDisplayParts,
+  type Input,
+  type Item,
+  type ThreadForkOrigin,
+} from '@pidex/shared/thread'
 import type { DesktopDiffMarkerStyle } from '../../../../shared/Types.js'
 import type { VirtualizerHandle } from 'virtua'
 import { FullScreenWhaleLoading } from '../../../components/ui/FullScreenWhaleLoading.js'
@@ -56,8 +62,12 @@ import {
 } from './SummarizeProcessItems.js'
 import { resolveSubagentRole } from '../subagents/SubagentRole.js'
 import { SubagentAvatar } from '../subagents/SubagentAvatar.js'
+import { subagentAttentionLabel, subagentStatusLabel } from '../subagents/SubagentStatusLabel.js'
 import {
+  getSingleActivityDisclosureStore,
   getTimelineDisclosureStore,
+  processGroupDisclosureId,
+  processGroupUnitKey,
   releaseTimelineDisclosureStore,
   retainTimelineDisclosureStore,
 } from './TimelineDisclosureState.js'
@@ -162,34 +172,65 @@ export function CanonicalProcessGroup({
     else setLocalExpanded(value)
   }
   const contentId = React.useId()
+  const shimmerId = React.useId()
+  const reducedMotion = usePrefersReducedMotion()
   const visibleLabel = useDeferredProcessSummary(label, summaryKey, active)
   const datastate = active ? 'active' : failed ? 'failed' : 'completed'
   const SummaryIcon = processSummaryIcon(active ? 'thinking' : failed ? 'failed' : kind)
+  // 与思考节点同款文字扫光：文本遮罩让动画只移动 transform，不逐帧重绘文字。
+  const labelShimmer =
+    active && !reducedMotion ? (
+      <svg className="reasoning-node__shimmer" aria-hidden="true" width="100%" height="100%">
+        <defs>
+          <mask id={`${shimmerId}-mask`}>
+            <text
+              x="0"
+              y="50%"
+              dy=".35em"
+              textLength="100%"
+              lengthAdjust="spacingAndGlyphs"
+              fill="white"
+            >
+              {visibleLabel}
+            </text>
+          </mask>
+          <linearGradient id={`${shimmerId}-gradient`}>
+            <stop offset="0" stopColor="currentColor" stopOpacity="0" />
+            <stop offset=".5" stopColor="currentColor" />
+            <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <g mask={`url(#${shimmerId}-mask)`}>
+          <rect
+            className="reasoning-node__sweep"
+            width="100%"
+            height="100%"
+            fill={`url(#${shimmerId}-gradient)`}
+          />
+        </g>
+      </svg>
+    ) : null
   const summaryContent = (
     <>
       {dots ? (
-        <span className="cpx-agent-activity__dots">
-          {dots}
-          {active ? (
-            <LoaderCircle
-              className="tw:size-icon-sm canonical-spin"
-              size={APP_ICON_SIZES.sm}
-              aria-hidden="true"
-            />
-          ) : null}
-        </span>
+        <span className="cpx-agent-activity__dots">{dots}</span>
       ) : active ? (
-        <LoaderCircle
-          size={APP_ICON_SIZES.sm}
-          className="tw:size-icon-sm canonical-spin"
-          aria-hidden="true"
-        />
+        labelShimmer ? null : (
+          <LoaderCircle
+            size={APP_ICON_SIZES.sm}
+            className="tw:size-icon-sm canonical-spin"
+            aria-hidden="true"
+          />
+        )
       ) : failed ? (
         <CircleAlert className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
       ) : (
         React.createElement(SummaryIcon, { size: APP_ICON_SIZES.sm, 'aria-hidden': 'true' })
       )}
-      <span className="cpx-agent-activity__summary">{visibleLabel}</span>
+      <span className="cpx-agent-activity__summary" data-active={active || undefined}>
+        {visibleLabel}
+        {labelShimmer}
+      </span>
       {canExpand && !onActivate ? (
         <ChevronRight
           size={APP_ICON_SIZES.sm}
@@ -301,9 +342,12 @@ function useDeferredProcessSummary(label: string, summaryKey: string, defer: boo
 }
 
 const SUBAGENT_LIFECYCLE_TOOLS: ReadonlySet<string> = new Set([
+  'agent',
   'spawn_agents',
   'wait_agents',
   'send_agent',
+  'followup_agent',
+  'list_agents',
   'stop_agent',
   'finalize_result',
 ])
@@ -327,7 +371,7 @@ function groupProcessItems(items: readonly Item[], inputs: readonly Input[]): Ra
     if (!single) return
     units.push({
       kind: 'group',
-      key: `process-group:${single.id}`,
+      key: processGroupUnitKey(single.id),
       items: pendingItems,
     })
     pendingItems = []
@@ -395,31 +439,25 @@ export function buildProcessActivityModel(
     const [single] = unit.items
     // 子智能体组自带各任务状态，交由摘要句判断，不跟随父 turn 的 active。
     const isSubagentUnit = single?.type === 'subagent'
-    const isLatestActiveUnit = !isSubagentUnit && sliceActive && unitIndex === lastUnitIndex
-    const containsActiveItem = unit.items.some(isProcessItemActive)
-    if (isLatestActiveUnit) activeGroupKey = unit.key
-    if (
-      single &&
-      !isSubagentUnit &&
-      unit.items.length === 1 &&
-      !containsActiveItem &&
-      !isLatestActiveUnit
-    ) {
+    if (single && !isSubagentUnit && unit.items.length === 1) {
       return {
         kind: 'activity',
         key: `process-item:${single.id}`,
         item: single,
       }
     }
+    const isLatestActiveUnit = !isSubagentUnit && sliceActive && unitIndex === lastUnitIndex
+    if (isLatestActiveUnit) activeGroupKey = unit.key
     return unit
   })
 
-  const lastUnit = rawUnits.at(-1)
+  const lastUnit = units.at(-1)
   const showThinkingFallback =
     sliceActive &&
     !hasBlockingRequest &&
     (!lastUnit ||
       lastUnit.kind === 'user' ||
+      (lastUnit.kind === 'activity' && !isProcessItemActive(lastUnit.item)) ||
       (lastUnit.kind === 'standalone' &&
         (lastUnit.item.type === 'reasoning' || !isProcessItemActive(lastUnit.item))))
 
@@ -856,7 +894,6 @@ export const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
 })
 
 function CanonicalConversationTurnComponent({
-  isSubagent = false,
   disclosureState,
   diffMarkerStyle = 'color',
   entry,
@@ -871,7 +908,6 @@ function CanonicalConversationTurnComponent({
   readThreadPatchDiff,
   threadId,
 }: {
-  isSubagent?: boolean
   disclosureState: KeyedDisclosureStore
   entry: RenderTurnEntry
   registerInputRow?: RegisterConversationTurnRow
@@ -886,51 +922,56 @@ function CanonicalConversationTurnComponent({
   readThreadPatchDiff?: ReadThreadPatchDiff
   threadId?: string
 }): React.ReactNode {
-  const disclosure = (id: string) => ({ id, store: disclosureState })
+  const disclosure = (id: string, store: KeyedDisclosureStore = disclosureState) => ({ id, store })
   const renderItem = (
     item: RenderTurnEntry['items'][number],
     options: {
       disclosureId?: string
+      disclosureStore?: KeyedDisclosureStore
       presentation?: CanonicalItemRendererProps['presentation']
       showAssistantActions?: boolean
       goalAchievedDuration?: string | null
     } = {},
-  ) => (
-    <CanonicalItemRenderer
-      diffMarkerStyle={diffMarkerStyle}
-      disclosure={
-        options.disclosureId
-          ? disclosure(options.disclosureId)
-          : item.type === 'question'
-            ? disclosure(`question:${item.id}`)
-            : undefined
-      }
-      disclosureStore={disclosureState}
-      item={item}
-      key={item.id}
-      onApplyPatch={onApplyPatch}
-      onOpenPatchReview={onOpenPatchReview}
-      onOpenPlanInRightDock={onOpenPlanInRightDock}
-      onOpenSubagent={onOpenSubagent}
-      presentation={options.presentation}
-      readThreadPatchDiff={readThreadPatchDiff}
-      dockedPlanItemId={dockedPlanItemId}
-      latestPlanItemId={latestPlanItemId}
-      pendingPlanItemId={pendingPlanItemId}
-      showAssistantActions={options.showAssistantActions}
-      goalAchievedDuration={options.goalAchievedDuration}
-      threadId={threadId}
-    />
-  )
+  ) => {
+    const activeDisclosureStore = options.disclosureStore ?? disclosureState
+    return (
+      <CanonicalItemRenderer
+        diffMarkerStyle={diffMarkerStyle}
+        disclosure={
+          options.disclosureId
+            ? disclosure(options.disclosureId, activeDisclosureStore)
+            : item.type === 'question'
+              ? disclosure(`question:${item.id}`, activeDisclosureStore)
+              : undefined
+        }
+        disclosureStore={activeDisclosureStore}
+        item={item}
+        key={item.id}
+        onApplyPatch={onApplyPatch}
+        onOpenPatchReview={onOpenPatchReview}
+        onOpenPlanInRightDock={onOpenPlanInRightDock}
+        onOpenSubagent={onOpenSubagent}
+        presentation={options.presentation}
+        readThreadPatchDiff={readThreadPatchDiff}
+        dockedPlanItemId={dockedPlanItemId}
+        latestPlanItemId={latestPlanItemId}
+        pendingPlanItemId={pendingPlanItemId}
+        showAssistantActions={options.showAssistantActions}
+        goalAchievedDuration={options.goalAchievedDuration}
+        threadId={threadId}
+      />
+    )
+  }
   const renderProcessItem = (
     item: RenderTurnEntry['processItems'][number],
     presentation: NonNullable<CanonicalItemRendererProps['presentation']>,
+    storeOverride: KeyedDisclosureStore = disclosureState,
   ): React.ReactNode => {
     if (item.type === 'tool' && isFileMutationTool(item)) {
       return (
         <FileMutationItemView
           diffMarkerStyle={diffMarkerStyle}
-          disclosureStore={disclosureState}
+          disclosureStore={storeOverride}
           item={item}
           key={item.id}
           readThreadPatchDiff={readThreadPatchDiff}
@@ -939,10 +980,11 @@ function CanonicalConversationTurnComponent({
       )
     }
     if (item.type === 'tool' && isStandaloneLifecycleTool(item)) {
-      return <LifecycleToolItemView item={item} isSubagent={isSubagent} key={item.id} />
+      return <LifecycleToolItemView item={item} key={item.id} />
     }
     return renderItem(item, {
       disclosureId: `process-item:${item.id}`,
+      disclosureStore: storeOverride,
       presentation,
     })
   }
@@ -966,11 +1008,9 @@ function CanonicalConversationTurnComponent({
     return null
   }, [entry.items])
   const active = isActiveTurn(entry.turn.status)
-  const historicalDeliveries = !isSubagent
-    ? entry.processItems.filter(
-        (item) => item.type === 'tool' && historicalDeliveryText(item) !== null,
-      )
-    : []
+  const historicalDeliveries = entry.processItems.filter(
+    (item) => item.type === 'tool' && historicalDeliveryText(item) !== null,
+  )
   const historicalDeliveryIds = new Set(historicalDeliveries.map((item) => item.id))
   const processItems = entry.processItems.filter((item) => !historicalDeliveryIds.has(item.id))
   const hasAssistantResult =
@@ -1020,9 +1060,14 @@ function CanonicalConversationTurnComponent({
       {processActivity.units.map((unit) => {
         if (unit.kind === 'user') return renderUserInput(unit.input, true)
         if (unit.kind === 'activity') {
+          const singleStore = getSingleActivityDisclosureStore(
+            disclosureState,
+            entry.turn.id,
+            unit.item.id,
+          )
           return (
             <React.Fragment key={unit.key}>
-              {renderProcessItem(unit.item, 'grouped')}
+              {renderProcessItem(unit.item, 'grouped', singleStore)}
             </React.Fragment>
           )
         }
@@ -1038,49 +1083,81 @@ function CanonicalConversationTurnComponent({
           unit.key === processActivity.activeGroupKey ? entry.turn.status : 'completed',
         )
         const isSubagentGroup = unit.items[0]?.type === 'subagent'
-        const agentDots = isSubagentGroup
-          ? unit.items
-              .filter(
-                (item): item is Extract<Item, { type: 'subagent' }> => item.type === 'subagent',
-              )
-              .slice(0, 4)
-              .map((item) => (
-                <SubagentAvatar
-                  className="cpx-agent-activity__avatar"
-                  key={`avatar:${item.id}`}
-                  role={resolveSubagentRole({
-                    role: item.role,
-                    displayName: item.displayName,
-                    task: item.task,
-                  })}
-                  size="sm"
-                />
-              ))
-          : null
-        // 产品边界：子智能体在父对话里只保留一行进度摘要，完整列表与详情统一在
-        // 右侧「子智能体」目录查看，因此这里不展开、也不渲染逐任务卡片。
         if (isSubagentGroup) {
-          const first = unit.items[0]
-          return (
-            <CanonicalProcessGroup
-              {...summary}
-              canExpand={false}
-              disclosure={disclosure(`process-group:${entry.turn.id}:${unit.key}`)}
-              dots={agentDots}
-              key={unit.key}
-              onActivate={
-                first && first.type === 'subagent'
-                  ? () => onOpenSubagent(first.subagentTaskId)
-                  : undefined
-              }
-            />
+          const subagents = unit.items.filter(
+            (item): item is Extract<Item, { type: 'subagent' }> => item.type === 'subagent',
           )
+          return subagents.map((item) => {
+            const { agentName, taskTitle } = resolveSubagentDisplayParts({
+              displayName: item.displayName,
+              title: item.title,
+              profile: item.profile,
+              role: item.role,
+              task: item.task,
+            })
+            const role = resolveSubagentRole({
+              role: item.role,
+              displayName: item.displayName,
+              task: item.task,
+            })
+            const active = isProcessItemActive(item)
+            const attention = subagentAttentionLabel(item.status)
+            const failed =
+              item.status === 'failed' ||
+              item.status === 'stopped' ||
+              item.status === 'interrupted'
+            const rowState = active
+              ? 'running'
+              : attention
+                ? 'waiting'
+                : failed
+                  ? 'error'
+                  : 'done'
+            const ariaLabel = taskTitle
+              ? `${agentName}：${taskTitle}，打开子智能体`
+              : `${agentName}，打开子智能体`
+            return (
+              <div className="cpx-agent-activity" data-state={rowState} key={item.id}>
+                <button
+                  aria-label={ariaLabel}
+                  className="cpx-agent-activity__header"
+                  type="button"
+                  onClick={() => onOpenSubagent(item.subagentTaskId)}
+                >
+                  <SubagentAvatar role={role} size="sm" />
+                  <span className="tw:flex-none tw:text-app-accent-fg tw:weight-medium">
+                    {agentName}
+                  </span>
+                  {taskTitle ? (
+                    <span className="tw:min-w-0 tw:truncate tw:text-app-text-secondary">
+                      {taskTitle}
+                    </span>
+                  ) : null}
+                  {attention ? (
+                    <span className="tw:flex-none tw:rounded-2 tw:bg-app-warning-subtle tw:px-1.5 tw:py-0.5 tw:type-0 tw:text-app-warning-fg">
+                      {attention}
+                    </span>
+                  ) : failed ? (
+                    <span className="tw:flex-none tw:rounded-2 tw:bg-app-danger-subtle tw:px-1.5 tw:py-0.5 tw:type-0 tw:text-app-danger-fg">
+                      {subagentStatusLabel(item.status)}
+                    </span>
+                  ) : active ? (
+                    <LoaderCircle
+                      aria-hidden="true"
+                      className="tw:size-icon-sm tw:flex-none canonical-spin tw:text-app-text-meta"
+                      size={APP_ICON_SIZES.sm}
+                    />
+                  ) : null}
+                </button>
+              </div>
+            )
+          })
         }
         return (
           <CanonicalProcessGroup
             {...summary}
             canExpand={unit.items.length > 0}
-            disclosure={disclosure(`process-group:${entry.turn.id}:${unit.key}`)}
+            disclosure={disclosure(processGroupDisclosureId(entry.turn.id, unit.key))}
             key={unit.key}
           >
             {unit.items.map((item) => (
