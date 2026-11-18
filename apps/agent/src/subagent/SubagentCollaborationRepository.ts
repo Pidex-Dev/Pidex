@@ -356,21 +356,27 @@ export class SubagentCollaborationRepository {
         parent_thread_id: string
         parent_turn_id: string
       }>
-      if (!ready.length) return []
-      const seal = this.db.sqlite.query(
-        "UPDATE subagent_background_notifications SET status = 'notified', notified_at = ? WHERE task_id = ? AND status = 'pending'",
-      )
-      const claimed: Array<{ taskID: string; parentThreadID: string; parentTurnID: string }> = []
-      for (const row of ready) {
-        if (seal.run(now, row.task_id).changes > 0) {
-          claimed.push({
-            taskID: row.task_id,
-            parentThreadID: row.parent_thread_id,
-            parentTurnID: row.parent_turn_id,
-          })
-        }
-      }
-      return claimed
+      return ready.map((row) => ({
+        taskID: row.task_id,
+        parentThreadID: row.parent_thread_id,
+        parentTurnID: row.parent_turn_id,
+      }))
+    })
+  }
+
+  /**
+   * Seals claimed notifications as notified only after the parent enqueue has
+   * succeeded, so a crash or handler failure before this point leaves the rows
+   * pending for at-least-once redelivery. Idempotent: only pending rows change.
+   */
+  sealBackgroundNotifications(taskIDs: readonly string[]) {
+    if (!this.backgroundNotificationsAvailable || !taskIDs.length) return
+    const now = Date.now()
+    const seal = this.db.sqlite.query(
+      "UPDATE subagent_background_notifications SET status = 'notified', notified_at = ? WHERE task_id = ? AND status = 'pending'",
+    )
+    this.db.transaction(() => {
+      for (const taskID of taskIDs) seal.run(now, taskID)
     })
   }
 

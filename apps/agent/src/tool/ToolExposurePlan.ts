@@ -93,8 +93,7 @@ export function createToolExposurePlan(
   const lifecycle: string[] = []
   if (input.hasSkillService) lifecycle.push('skill_read')
   if (input.hasProjectSources) lifecycle.push('project_source_list', 'project_source_read')
-  if (profile !== 'main') lifecycle.push('finalize_result')
-  else {
+  if (profile === 'main') {
     if (isReadOnlyTaskMode(input.taskMode) || input.defaultModeRequestUserInput)
       lifecycle.push('request_user_input')
     // Plan 主 Agent 以结构化 submit_plan 交付最终方案；<proposed_plan> 仅作兼容回退。
@@ -129,10 +128,6 @@ export function createToolExposurePlan(
   const explicitlyAllowedDeferred = allowlist
     ? deferredCandidates.filter((name) => allowlist.has(name))
     : []
-  // 子 Agent 无论 allowlist 收紧都必须能够收尾提交。
-  const finalizers = new Set(['finalize_result'])
-  const lifecycleExemption =
-    profile !== 'main' ? (name: string) => finalizers.has(name) : () => false
   const exposed = [
     ...new Set([
       ...eager,
@@ -140,7 +135,7 @@ export function createToolExposurePlan(
       ...explicitlyAllowedDeferred,
       ...lifecycle,
     ]),
-  ].filter((name) => !allowlist || allowlist.has(name) || lifecycleExemption(name))
+  ].filter((name) => !allowlist || allowlist.has(name))
   const exposedSet = new Set(exposed)
   return {
     eager: eager.filter((name) => exposedSet.has(name)),

@@ -141,6 +141,8 @@ const collectFilesFallback = async (
     for (const entry of entries) {
       if (files.length >= MAX_FALLBACK_FILES) break
       if (entry.isSymbolicLink()) continue
+      // INVARIANT: tree walks mirror rg defaults and skip hidden entries; explicitly targeted dotfiles/dotdirs are admitted by lstat(root) above.
+      if (entry.name.startsWith('.')) continue
       if (entry.isDirectory()) {
         if (IGNORED_DIRECTORIES.has(entry.name) && !globPattern?.includes(entry.name)) continue
         await walk(join(dir, entry.name))
@@ -283,7 +285,7 @@ export const grepDefinition: ToolDefinition<GrepInput, GrepOutput> = {
   capabilities: {
     filesystem: 'read',
     network: 'none',
-    process: false,
+    process: true,
     externalState: false,
     userInteraction: false,
     readOnly: true,

@@ -19,7 +19,9 @@ import { Type } from '@earendil-works/pi-ai'
 import { AgentError, type SubagentResult } from '../../Domain'
 
 /** Field names of the canonical shared domain schema, for the mirror check. */
-export const structuredResultDomainFields = Object.keys(SubagentResultSchema.fields).sort()
+export const structuredResultDomainFields = Object.keys(SubagentResultSchema.fields)
+  .filter((field) => field !== 'reportText' && field !== 'stats')
+  .sort()
 
 const decodeStructuredResult = Schema.decodeUnknownSync(SubagentResultSchema)
 

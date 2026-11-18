@@ -118,6 +118,14 @@ export class PermissionDecisionEngine {
     const requested = requestedPermissions(invocation.input)
     if (executionPolicy.fileAccess === 'read-only' && requested.writePaths.length)
       return deny('只读文件访问范围禁止写入路径')
+    // INVARIANT: read-only Shell admission relies solely on the host-computed
+    // readOnlyShell fact; model-declared writePaths never cover redirections.
+    if (
+      executionPolicy.fileAccess === 'read-only' &&
+      (tool.sdkName === 'exec_command' || tool.sdkName === 'write_stdin') &&
+      invocation.permissionFacts?.readOnlyShell !== true
+    )
+      return deny('只读文件访问范围仅允许宿主确认的只读 Shell 命令')
     if (isReadOnlyTaskMode(invocation.taskMode) && requested.networkDomains.length)
       return deny('Plan 与 Grill 模式禁止 Shell 网络权限')
     // The durable checkpoint field remains named `sandbox` for v4/SQLite

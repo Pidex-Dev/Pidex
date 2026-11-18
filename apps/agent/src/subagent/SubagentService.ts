@@ -59,6 +59,7 @@ import { createMcpInstructionSections } from '../mcp/McpPromptSections'
 import type { ProjectSourceService } from '../project/ProjectSourceService'
 import { secretScrubber } from '../security/SecretScrubber'
 import { getRootThreadId } from '../session/GoalDirectiveService'
+import { createHash } from 'node:crypto'
 
 const terminal = new Set(['completed', 'failed', 'stopped', 'interrupted'])
 export const pausedSubagentStatus = (kind: PendingApproval['kind'] | null) =>
@@ -1453,29 +1454,35 @@ export class SubagentService {
     result: AgentRuntimeResult,
     signal: AbortSignal,
   ) {
+    if (result.status !== 'completed')
+      throw new AgentError('SUBAGENT_RESULT_INVALID', '子 Agent 未返回合法的结果', 422)
     const isFork = Boolean(this.collaboration.forkContext(taskID))
-    const structured =
-      result.status === 'completed'
-        ? (result.result ??
-          (isFork
-            ? {
-                outcome: 'succeeded' as const,
-                summary: result.output.trim() || 'Fork 子代理已完成。',
-                findings: [],
-                changedFiles: [],
-                validation: [],
-                risks: [],
-                references: [],
-              }
-            : undefined))
-        : undefined
-    if (!structured)
-      throw new AgentError('SUBAGENT_RESULT_INVALID', '子 Agent 未返回合法的结构化结果', 422)
+    const rawText = result.output.trim()
+    const summaryText =
+      rawText.length === 0
+        ? isFork
+          ? 'Fork 子代理已完成。'
+          : '子代理已完成。'
+        : rawText.length <= 240
+          ? rawText
+          : `${rawText.slice(0, 239)}…`
+    const structured = result.result ?? {
+      outcome: 'succeeded' as const,
+      summary: summaryText,
+      ...(rawText ? { reportText: rawText } : {}),
+      ...(result.stats ? { stats: result.stats } : {}),
+      findings: [],
+      changedFiles: [],
+      validation: [],
+      risks: [],
+      references: [],
+    }
     const task = this.requireTask(taskID)
     if (task.workspace.baselineRef) await this.workspaces?.finalize(taskID)
     if (signal.aborted) return
     const canonicalResult = {
       ...structured,
+      ...(result.stats && !structured.stats ? { stats: result.stats } : {}),
       changedFiles: this.canonicalChangedFiles(runID, structured.changedFiles),
     }
     const finished = this.repository.finish(runID, 'completed', canonicalResult, null)
@@ -1570,6 +1577,7 @@ export class SubagentService {
     threadID: string,
     sourceTurnID: string,
     prompt: string,
+    inputID: string,
   ) => Promise<void> | void
 
   setParentResumeHandler(handler: (threadID: string, turnID: string) => void) {
@@ -1577,7 +1585,12 @@ export class SubagentService {
   }
 
   setBackgroundNotifyHandler(
-    handler: (threadID: string, sourceTurnID: string, prompt: string) => Promise<void> | void,
+    handler: (
+      threadID: string,
+      sourceTurnID: string,
+      prompt: string,
+      inputID: string,
+    ) => Promise<void> | void,
   ) {
     this.backgroundNotifyHandler = handler
   }
@@ -1642,12 +1655,18 @@ export class SubagentService {
       '</task-notification>',
     ].join('\n')
     try {
-      await this.backgroundNotifyHandler(task.parentThreadId, sourceTurnID, prompt)
+      await this.backgroundNotifyHandler(
+        task.parentThreadId,
+        sourceTurnID,
+        prompt,
+        `subagent-status:${task.id}:${run.id}:${kind}:${Date.now()}`,
+      )
     } catch {
       // INVARIANT: Background status reminders are best-effort and must not fail child execution.
     }
   }
 
+  // INVARIANT: 后台通知至少一次投递——claim 只读 pending 终态行，seal 在 enqueue 成功之后；handler 抛错行保持 pending 等下次 notifySettled 重试，重复由确定性 inputID 在 duplicateAdmission 收敛。
   private async dispatchBackgroundNotifications(parentThreadID: string) {
     if (this.stoppingThreads.has(parentThreadID)) {
       this.collaboration.discardBackgroundNotificationsForThread(parentThreadID)
@@ -1670,7 +1689,9 @@ export class SubagentService {
           ...(current.currentRun.result !== undefined
             ? { result: secretScrubber.scrub(current.currentRun.result) }
             : {}),
-          ...(current.currentRun.error ? { error: current.currentRun.error } : {}),
+          ...(current.currentRun.error
+            ? { error: secretScrubber.scrubText(current.currentRun.error) }
+            : {}),
         })
         return [
           `<task-notification taskId="${current.id}" status="${current.currentRun.status}">`,
@@ -1680,18 +1701,29 @@ export class SubagentService {
       })
       .filter((block): block is string => Boolean(block))
     if (!blocks.length) return
-    const remaining = this.collaboration.pendingBackgroundNotifications(parentThreadID)
+    const sourceTurnID = claimed[claimed.length - 1]!.parentTurnID
+    const batchHash = createHash('sha256')
+      .update(
+        claimed
+          .map((item) => item.taskID)
+          .sort()
+          .join('\n'),
+      )
+      .digest('hex')
+      .slice(0, 16)
+    const inputID = `subagent-notify:${sourceTurnID}:${batchHash}`
+    // INVARIANT: 本批仍是 pending，remaining 需扣除本批，避免把已结算任务算进“仍在运行”。
+    const remaining = Math.max(
+      0,
+      this.collaboration.pendingBackgroundNotifications(parentThreadID) - claimed.length,
+    )
     const closing =
       remaining > 0
         ? `${remaining} background subagent(s) are still running. Integrate or report these settled results cleanly without duplicating running work.`
         : 'All background subagents have completed. Synthesize these verified results and respond directly to the user.'
     const prompt = [...blocks, '', closing].join('\n')
-    const sourceTurnID = claimed[claimed.length - 1]!.parentTurnID
-    try {
-      await this.backgroundNotifyHandler(parentThreadID, sourceTurnID, prompt)
-    } catch {
-      this.collaboration.discardBackgroundNotifications(claimed.map((item) => item.taskID))
-    }
+    await this.backgroundNotifyHandler(parentThreadID, sourceTurnID, prompt, inputID)
+    this.collaboration.sealBackgroundNotifications(claimed.map((item) => item.taskID))
   }
 
   async deferCompletion(threadID: string, turnID: string, result: AgentRuntimeResult) {
@@ -1808,7 +1840,8 @@ export class SubagentService {
         await this.publish(events)
       }
     }
-    if (task) await this.dispatchBackgroundNotifications(task.parentThreadId)
+    // INVARIANT: dispatch 失败必须在此收敛——行保持 pending 等下次 notifySettled 重试；向上传播会中断启动恢复（fatal stage）或 execute finally 的收尾链。
+    if (task) await this.dispatchBackgroundNotifications(task.parentThreadId).catch(() => undefined)
   }
 
   private async resolveModel(ref: Model.Ref) {

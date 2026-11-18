@@ -8,6 +8,7 @@ import type {
   PermissionConfig,
   SubagentProfile,
   SubagentResult,
+  SubagentStats,
   TaskMode,
 } from '../Domain'
 import type { WorkspaceService } from '../workspace/WorkspaceService'
@@ -184,7 +185,7 @@ export interface AgentRuntimeRequest {
 }
 
 export type AgentRuntimeResult =
-  | { status: 'completed'; output: string; result?: SubagentResult }
+  | { status: 'completed'; output: string; result?: SubagentResult; stats?: SubagentStats }
   | { status: 'paused'; output: string }
 
 export interface AgentRuntime {

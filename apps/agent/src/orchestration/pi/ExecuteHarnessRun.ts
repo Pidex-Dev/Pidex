@@ -493,7 +493,34 @@ export async function executeHarnessRun(
       }),
     },
   )
-  const unsubscribe = harness.subscribe((event) => adapter.handle(event))
+  const startedAt = Date.now()
+  let latestAssistantText = ''
+  let toolUseCount = 0
+  let totalTokens = 0
+  const unsubscribe = harness.subscribe((event) => {
+    if (event.type === 'tool_execution_end') {
+      toolUseCount += 1
+    } else if (event.type === 'message_end' && event.message.role === 'assistant') {
+      const stepText = adapter.outputText(event.message.content)
+      if (stepText.trim().length > 0) latestAssistantText = stepText
+      const usage = event.message.usage as unknown as Record<string, unknown> | undefined
+      if (usage && typeof usage === 'object') {
+        const stepTotal =
+          typeof usage.totalTokens === 'number' && Number.isFinite(usage.totalTokens)
+            ? usage.totalTokens
+            : ['input', 'output', 'cacheRead', 'cacheWrite'].reduce(
+                (sum, key) =>
+                  sum +
+                  (typeof usage[key] === 'number' && Number.isFinite(usage[key] as number)
+                    ? (usage[key] as number)
+                    : 0),
+                0,
+              )
+        totalTokens += stepTotal
+      }
+    }
+    return adapter.handle(event)
+  })
   // These hooks are not broadcast by subscribe; forward metadata through the same event sink.
   for (const type of [
     'before_agent_start',
@@ -588,6 +615,17 @@ export async function executeHarnessRun(
     if (message.stopReason === 'aborted' || request.signal.aborted)
       throw new AgentError('RUN_ABORTED', '任务已停止', 499)
     const output = adapter.outputText(message.content)
+    // ZCode-style fallback: if the final step only contained tool calls with empty
+    // text, recover the latest non-empty assistant step text from this run.
+    const resolvedOutput = output.trim().length > 0 ? output : latestAssistantText || output
+    const stats =
+      request.profile && request.profile !== 'main'
+        ? {
+            durationMs: Math.max(0, Date.now() - startedAt),
+            toolUseCount,
+            ...(totalTokens > 0 ? { totalTokens } : {}),
+          }
+        : undefined
     // The delivery candidate is bound to its tool call: only when the final
     // assistant message is the one that carried the successful submission is
     // it the delivery result of this runtime. Later steering or continued
@@ -607,11 +645,14 @@ export async function executeHarnessRun(
     ) {
       return {
         status: 'completed',
-        output: output || '已达到目标 Token 预算限制，子任务已安全结束当前回合。',
+        output: resolvedOutput || '已达到目标 Token 预算限制，子任务已安全结束当前回合。',
+        ...(stats ? { stats } : {}),
         result: {
           outcome: 'partial',
           summary:
             '已达到目标 Token 预算限制，子任务已安全结束当前回合。已完成进展已汇总，待预算恢复后可继续推进。',
+          ...(resolvedOutput.trim() ? { reportText: resolvedOutput.trim() } : {}),
+          ...(stats ? { stats } : {}),
           findings: [],
           changedFiles: [],
           validation: [],
@@ -622,7 +663,8 @@ export async function executeHarnessRun(
     }
     return {
       status: 'completed',
-      output: delivered ? formatStructuredResult(delivered.result) : output,
+      output: delivered ? formatStructuredResult(delivered.result) : resolvedOutput,
+      ...(stats ? { stats } : {}),
       ...(delivered ? { result: delivered.result } : {}),
     }
   } catch (error) {

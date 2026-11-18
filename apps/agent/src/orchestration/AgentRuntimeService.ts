@@ -2309,8 +2309,15 @@ export class AgentRuntimeService implements AgentRuntime {
                 typeof actual.subagent_type === 'string' && actual.subagent_type.trim()
                   ? actual.subagent_type.trim()
                   : undefined
+              if (actual.run_in_background === true && (request.profile ?? 'main') !== 'main') {
+                throw new Error(
+                  '子代理不支持后台派发（run_in_background），请改为同步委派：去掉 run_in_background 后重试。',
+                )
+              }
               const readOnlyMode = isReadOnlyTaskMode(request.taskMode)
-              const isFork = !rawType && !readOnlyMode
+              // INVARIANT: implicit fork is main-parent-only; notification delivery requires a root parent, so other parents delegate synchronously.
+              const isFork =
+                !rawType && !readOnlyMode && (request.profile ?? 'main') === 'main'
               const profile = (rawType ?? (readOnlyMode ? 'explorer' : 'default')) as
                 | 'default'
                 | 'explorer'
@@ -2463,7 +2470,6 @@ export class AgentRuntimeService implements AgentRuntime {
                   taskId: first.taskId,
                   runId: first.runId,
                   displayName: first.displayName,
-                  ...(first.title ? { title: first.title } : {}),
                   profile: first.profile,
                   message:
                     'Background subagent launched. Do not duplicate its work; you will be notified when it completes.',
@@ -2484,7 +2490,7 @@ export class AgentRuntimeService implements AgentRuntime {
                 } | null
                 const run = waitRes?.runs?.[0] ?? null
                 const finalStatus =
-                  run?.status === 'completed' ? 'completed' : (run?.status ?? 'completed')
+                  run?.status === 'completed' ? 'completed' : (run?.status ?? 'unknown')
                 const scrubbedResult =
                   run?.result !== undefined ? secretScrubber.scrub(run.result) : undefined
                 const scrubbedError = run?.error ? secretScrubber.scrubText(run.error) : undefined
@@ -2593,7 +2599,6 @@ export class AgentRuntimeService implements AgentRuntime {
               taskID: String(input.taskID ?? input.taskId ?? ''),
             })
           },
-          finalizeResult: async (input: SubagentResult) => input,
         },
       }
       const resumedContent = request.resume

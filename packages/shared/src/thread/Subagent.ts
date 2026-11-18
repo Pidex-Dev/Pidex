@@ -168,9 +168,18 @@ export const SubagentReferenceSchema = Schema.Struct({
 })
 export type SubagentReference = typeof SubagentReferenceSchema.Type
 
+export const SubagentStatsSchema = Schema.Struct({
+  durationMs: Schema.optional(Schema.Number),
+  toolUseCount: Schema.optional(Schema.Number),
+  totalTokens: Schema.optional(Schema.Number),
+})
+export type SubagentStats = typeof SubagentStatsSchema.Type
+
 export const SubagentResultSchema = Schema.Struct({
   outcome: Schema.Literals(['succeeded', 'partial', 'blocked']),
   summary: Schema.String,
+  reportText: Schema.optional(Schema.String),
+  stats: Schema.optional(SubagentStatsSchema),
   findings: Schema.Array(SubagentFindingSchema),
   changedFiles: Schema.Array(SubagentChangedFileSchema),
   validation: Schema.Array(SubagentValidationSchema),

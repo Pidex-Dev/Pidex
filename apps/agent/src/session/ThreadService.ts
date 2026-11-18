@@ -255,9 +255,11 @@ export class ThreadService {
       if (this.coordinator.active(threadID)) return
       void this.executeTurn(threadID, turnID)
     })
-    this.subagents.setBackgroundNotifyHandler?.(async (threadID, sourceTurnID, prompt) => {
+    this.subagents.setBackgroundNotifyHandler?.(async (threadID, sourceTurnID, prompt, inputID) => {
       const previous = this.db.getTurnInput(sourceTurnID)
-      if (!previous) return
+      // INVARIANT: 源 turn input 缺失必须抛错让通知保持 pending 重试，静默返回会被 dispatch 视为投递成功并 seal。
+      if (!previous)
+        throw new AgentError('CONFLICT', '后台通知的源 Turn 输入不存在，等待重试', 409)
       await this.enqueueFollowUp(
         threadID,
         {
@@ -267,7 +269,7 @@ export class ThreadService {
           permissionConfig: previous.permissionConfig,
           strategy: 'queue',
         },
-        `subagent-notify:${sourceTurnID}:${crypto.randomUUID()}`,
+        inputID,
       )
     })
     if (resumeOnConstruct) queueMicrotask(() => this.resumeQueuedTurns())

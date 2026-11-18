@@ -74,9 +74,17 @@ export type SubagentStatus =
 
 export type SubagentQueueReason = 'parent_limit' | 'global_limit' | 'workspace_writer' | null
 
+export interface SubagentStats {
+  durationMs?: number
+  toolUseCount?: number
+  totalTokens?: number
+}
+
 export interface SubagentResult {
   outcome: 'succeeded' | 'partial' | 'blocked'
   summary: string
+  reportText?: string
+  stats?: SubagentStats
   findings: Array<{
     title: string
     detail: string

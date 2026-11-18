@@ -15,6 +15,7 @@ import type {
   PermissionConfig,
   SubagentProfile,
   SubagentResult,
+  SubagentStats,
   TaskMode,
 } from '../../Domain'
 import type { PromptBundle, PromptSection } from '../../prompt/Types'
@@ -27,7 +28,7 @@ import type { ScheduleDraftSubmission } from '../plan/ScheduleDraft'
 import type { RequestUserInput } from '../../session/QuestionInput'
 
 export type HarnessRunResult =
-  | { status: 'completed'; output: string; result?: SubagentResult }
+  | { status: 'completed'; output: string; result?: SubagentResult; stats?: SubagentStats }
   | { status: 'paused'; output: string }
 
 export type RuntimeCompactionTrigger = 'manual' | 'automatic' | 'reactive'

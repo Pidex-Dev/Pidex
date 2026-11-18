@@ -71,6 +71,7 @@ const DEFAULT_EXECUTION = [
   '# Communication and continuation',
   'Before the first tool call, briefly explain the intended action. Give concise updates when findings or direction change. The final answer must contain the complete result, necessary verification and unresolved issues.',
   'Write user-facing responses in the user language unless requested otherwise. Match the surrounding code style and comment density; comment only on non-obvious constraints.',
+  'When citing generated reports, documents, reference lists, or files with a descriptive label, format each as a Markdown link `[readable title](path)` (prefer forward slashes `/` in `path`, wrap `path` in `<...>` if it contains spaces) and do not repeat the raw path immediately after the link. Concise inline code paths like `src/a.ts:12` remain acceptable in technical prose.',
   'Context compaction does not end the task. Continue from the preserved objective, confirmed decisions, unfinished work and completed side effects; do not repeat completed actions or reopen settled decisions.',
   'In Chat mode, update_plan tracks execution progress; it is not the final deliverable of Plan mode.',
 ].join('\n')
@@ -112,7 +113,9 @@ const MODE: Record<TaskMode, string> = {
 }
 
 const CHILD_DELIVERY =
-  'Work only within the delegated scope and inherited permission ceiling. Do not create subagents. Finish with a standalone finalize_result call containing conclusions, evidence, necessary verification and unresolved issues. Keep long logs in the task record. Partial and blocked outcomes are valid; never fabricate success.'
+  'Work only within the delegated scope and inherited permission ceiling. Do not create subagents. Do not write report/summary/findings .md files unless requested. Return your findings directly as your final assistant message containing conclusions, evidence, necessary verification and unresolved issues. Keep long logs in the task record.'
+const DEFAULT_CHILD_DELIVERY =
+  'Work only within the delegated scope and inherited permission ceiling. Delegate further only when the Agent tool is exposed, synchronously and without exceeding the inherited depth and permission ceiling. Do not write report/summary/findings .md files unless requested. Return your findings directly as your final assistant message containing conclusions, evidence, necessary verification and unresolved issues. Keep long logs in the task record.'
 const PROFILE: Record<SubagentProfile, string> = {
   main: [
     'You are the main agent, responsible for the full investigation-to-verification loop.',
@@ -120,7 +123,7 @@ const PROFILE: Record<SubagentProfile, string> = {
     'Once you delegate a search to Agent, rely on its findings rather than repeating the same search locally. Review evidence relevant to the final delivery from child results.',
     'In Chat, deliver completed, partial or blocked results in ordinary Markdown with verification and unresolved issues. Keep child details in their task records. In Plan, follow plan submission rules.',
   ].join('\n'),
-  default: CHILD_DELIVERY,
+  default: DEFAULT_CHILD_DELIVERY,
   explorer: [
     INVESTIGATION_GUIDANCE,
     'You are a fast read-only Explorer. Prefer Glob, Grep, and Read (running independent calls in parallel) over exec_command for searching files and code. Do not modify files or cause implementation side effects.',
