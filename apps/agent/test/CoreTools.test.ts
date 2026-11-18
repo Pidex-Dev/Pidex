@@ -1169,4 +1169,47 @@ describe('核心工具面', () => {
       sizeBytes: pngBytes.byteLength,
     })
   })
+
+  test('Grep 声明进程能力，rg 缺失时回退扫描跳过 hidden 条目且显式 dotfile 目标保持可读', async () => {
+    const { root, executor, context } = await fixture()
+    expect(executor.definition('Grep').capabilities.process).toBe(true)
+    await writeFile(join(root, 'visible.txt'), 'GREP_FALLBACK_NEEDLE visible\n', 'utf8')
+    await writeFile(join(root, '.env'), 'GREP_FALLBACK_NEEDLE=secret\n', 'utf8')
+    await mkdir(join(root, '.hidden-dir'), { recursive: true })
+    await writeFile(join(root, '.hidden-dir', 'nested.txt'), 'GREP_FALLBACK_NEEDLE nested\n', 'utf8')
+    const explorerContext = { ...context, profile: 'explorer' as const }
+    const originalSpawn = Bun.spawn
+    const spawnCalls: unknown[][] = []
+    Bun.spawn = ((command: unknown, options?: unknown) => {
+      spawnCalls.push(command as unknown[])
+      if (Array.isArray(command) && command[0] === 'rg') {
+        const error = new Error('spawn rg ENOENT') as NodeJS.ErrnoException
+        error.code = 'ENOENT'
+        throw error
+      }
+      return originalSpawn(command as never, options as never)
+    }) as typeof Bun.spawn
+    try {
+      const scanned = await executor.execute<{ output: string; numResults: number }>(
+        'Grep',
+        { pattern: 'GREP_FALLBACK_NEEDLE', output_mode: 'files_with_matches' },
+        explorerContext,
+      )
+      expect(spawnCalls.length).toBeGreaterThan(0)
+      expect(scanned.output).toBe('visible.txt')
+      expect(scanned.numResults).toBe(1)
+      expect(scanned.output).not.toContain('.env')
+      expect(scanned.output).not.toContain('.hidden-dir')
+
+      const explicit = await executor.execute<{ output: string; numResults: number }>(
+        'Grep',
+        { pattern: 'GREP_FALLBACK_NEEDLE', path: '.env', output_mode: 'files_with_matches' },
+        explorerContext,
+      )
+      expect(explicit.output).toBe('.env')
+      expect(explicit.numResults).toBe(1)
+    } finally {
+      Bun.spawn = originalSpawn
+    }
+  })
 })

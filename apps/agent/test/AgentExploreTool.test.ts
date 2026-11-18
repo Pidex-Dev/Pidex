@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { Effect } from 'effect'
+import { createHash } from 'node:crypto'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,13 +9,13 @@ import {
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
-  getCurrentTools,
 } from '@earendil-works/pi-ai'
 import { DEFAULT_PERMISSION_CONFIG } from '@pidex/shared/thread'
 import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
 import type { AgentRuntimeRequest } from '../src/orchestration/AgentRuntimeTypes'
 import { ContextCompactionService } from '../src/context/ContextCompactionService'
 import { createPromptSections } from '../src/prompt/Sections'
+import { ThreadService } from '../src/session/ThreadService'
 import { SubagentService } from '../src/subagent/SubagentService'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { EventHub } from '../src/storage/events/EventHub'
@@ -427,8 +428,12 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
     expect(pushedNotifications[0]!.prompt).toContain('[Subagent hand-back')
     expect(pushedNotifications[0]!.prompt).toContain('  fork child done')
     expect(pushedNotifications[0]!.prompt).toContain('[/Subagent hand-back]')
-    // Re-running claim cannot emit a duplicate notification once sealed
+    // INVARIANT: 投递成功后行已 seal，claim 不再返回本批，通知不会重复投递。
     expect(subagents.collaboration.claimReadyBackgroundNotifications(chatThread.id)).toHaveLength(0)
+    const forkNotificationStatus = db.sqlite
+      .query('SELECT status FROM subagent_background_notifications WHERE task_id = ?')
+      .get(forkTask.id) as { status: string } | null
+    expect(forkNotificationStatus?.status).toBe('notified')
 
     // Plan mode omitting subagent_type defaults to explorer (no fork)
     const planThread = db.createThread()
@@ -492,6 +497,11 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
   test('Explorer 精简注入跳过 AGENTS.md 与 skills.catalog，并保有 Glob/Grep 引导', async () => {
     const root = tempRoot()
     writeFileSync(join(root, 'AGENTS.md'), '# Repo Rules\nDO_NOT_INJECT_INTO_EXPLORER\n')
+    mkdirSync(join(root, '.pidex', 'skills', 'demo-skill'), { recursive: true })
+    writeFileSync(
+      join(root, '.pidex', 'skills', 'demo-skill', 'SKILL.md'),
+      '---\nname: demo-skill\ndescription: Demo skill for explorer injection test\n---\nDemo body\n',
+    )
     const db = new AgentDatabase({
       historyPath: join(root, 'history.sqlite'),
       profilePath: join(root, 'profile.sqlite'),
@@ -501,6 +511,7 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
     const faux = fauxProvider({ models: [{ id: 'exp', input: ['text'], contextWindow: 64_000 }] })
     let capturedSystemPrompt = ''
     let capturedToolNames: string[] = []
+    let capturedSectionIds: string[] = []
     const models = createModels()
     models.setProvider(faux.provider)
     const executor = new ToolExecutor(new ToolRegistry(), {
@@ -535,6 +546,7 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
             ...(req.profile ? { profile: req.profile } : {}),
           })
           capturedToolNames = [...plan.exposed]
+          capturedSectionIds = (req.promptSections ?? []).map((s) => s.id)
           capturedSystemPrompt = (req.promptSections ?? []).map((s) => s.content).join('\n')
           return {
             status: 'completed',
@@ -598,7 +610,10 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
     expect(capturedSystemPrompt).not.toContain('DO_NOT_INJECT_INTO_EXPLORER')
     expect(capturedToolNames).toContain('Glob')
     expect(capturedToolNames).toContain('Grep')
-    expect(getCurrentTools([]).length).toBe(0)
+    // INVARIANT: explorer 跳过 skills catalog——工作区存在可发现的 Skill，但注入段与文本都不得包含它。
+    expect(capturedSectionIds).not.toContain('skills.catalog')
+    expect(capturedSystemPrompt).not.toContain('demo-skill')
+    expect(capturedSystemPrompt).not.toContain('Skills provide task guidance')
   })
 
   test('ToolSearch 可按需激活 deferred send_agent 并通过统一执行链调用', async () => {
@@ -1014,5 +1029,284 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
       .query('SELECT status FROM subagent_background_notifications WHERE task_id = ?')
       .get(staleBgSpawned.agents[0]!.taskId) as { status: string } | null
     expect(statusRow?.status).toBe('discarded')
+  })
+
+  test('后台通知 handler 抛错保持 pending，重试经确定性 inputID 去重，且 error 中的 API key 已脱敏', async () => {
+    const root = tempRoot()
+    const db = new AgentDatabase({
+      historyPath: join(root, 'history.sqlite'),
+      profilePath: join(root, 'profile.sqlite'),
+    })
+    databases.push(db)
+    const hub = await Effect.runPromise(EventHub.make)
+    const faux = fauxProvider({ models: [{ id: 'bg-retry', input: ['text'], contextWindow: 64_000 }] })
+    const modelRef = { providerID: faux.getModel().provider, id: 'bg-retry' } as never
+    const fakeApiKey = 'sk-fake0123456789abcdefXYZ'
+    const subagents = new SubagentService(
+      db,
+      hub,
+      {
+        resolve: async () => ({ ref: modelRef, model: faux.getModel() }),
+        getModel: async () => faux.getModel(),
+      } as unknown as AgentModelCatalog,
+      { setAgentStatusHandler: () => {}, cancelTurn: () => {} } as never,
+      { cancelTurn: () => {} } as never,
+      {
+        run: async () => {
+          throw new Error(`provider rejected api_key=${fakeApiKey}`)
+        },
+        steer: async () => {},
+        followUp: async () => {},
+        abort: async () => {},
+        clearTurnPermissionGrants: () => {},
+      } as never,
+      { listByBinding: async () => [] } as never,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      false,
+    )
+
+    const thread = db.createThread()
+    const turn = db.createTurn(thread.id, {
+      content: 'Background audit',
+      model: modelRef,
+      permissionConfig: permission,
+      strategy: 'queue',
+      taskMode: 'chat',
+    })
+    db.claimTurnExecution(turn.turnID)
+    const spawned = await subagents.spawn(
+      {
+        threadID: thread.id,
+        turnID: turn.turnID,
+        agentID: turn.agentID,
+        taskMode: 'chat',
+        model: modelRef,
+        permissionConfig: permission,
+        workspaceRoot: root,
+      },
+      [{ profile: 'explorer', task: 'Failing bg task', background: true }],
+    )
+    const taskID = spawned.agents[0]!.taskId
+
+    const deadline = Date.now() + 2000
+    while (
+      subagents.repository.task(taskID)?.currentRun?.status !== 'failed' &&
+      Date.now() < deadline
+    ) {
+      await new Promise((r) => setTimeout(r, 20))
+    }
+    expect(subagents.repository.task(taskID)?.currentRun?.status).toBe('failed')
+
+    const notificationStatus = () =>
+      (
+        db.sqlite
+          .query('SELECT status FROM subagent_background_notifications WHERE task_id = ?')
+          .get(taskID) as { status: string } | null
+      )?.status
+
+    // INVARIANT: 无 handler 时 dispatch 提前返回，行保持 pending（未 seal）。
+    expect(notificationStatus()).toBe('pending')
+
+    const delivered: Array<{ prompt: string; inputID: string }> = []
+    let attempts = 0
+    subagents.setBackgroundNotifyHandler((_threadID, _sourceTurnID, prompt, inputID) => {
+      attempts += 1
+      if (attempts === 1) throw new Error('transient enqueue failure')
+      delivered.push({ prompt, inputID })
+    })
+
+    const dispatch = (subagents as unknown as {
+      dispatchBackgroundNotifications(threadID: string): Promise<void>
+    }).dispatchBackgroundNotifications.bind(subagents)
+
+    await expect(dispatch(thread.id)).rejects.toThrow('transient enqueue failure')
+    expect(notificationStatus()).toBe('pending')
+    expect(delivered).toHaveLength(0)
+
+    await dispatch(thread.id)
+    expect(notificationStatus()).toBe('notified')
+    expect(delivered).toHaveLength(1)
+    expect(attempts).toBe(2)
+
+    const expectedInputID = `subagent-notify:${turn.turnID}:${createHash('sha256')
+      .update(taskID)
+      .digest('hex')
+      .slice(0, 16)}`
+    expect(delivered[0]!.inputID).toBe(expectedInputID)
+    expect(delivered[0]!.prompt).toContain('<task-notification')
+    expect(delivered[0]!.prompt).toContain('status="failed"')
+    expect(delivered[0]!.prompt).toContain('<redacted>')
+    expect(delivered[0]!.prompt).not.toContain(fakeApiKey)
+
+    // INVARIANT: seal 后 claim 为空，再次 dispatch 不产生重复通知。
+    expect(subagents.collaboration.claimReadyBackgroundNotifications(thread.id)).toHaveLength(0)
+    await dispatch(thread.id)
+    expect(delivered).toHaveLength(1)
+    expect(attempts).toBe(2)
+  })
+
+  test('后台通知经 ThreadService.enqueueFollowUp 落为恰一条 turn，重试命中 duplicate 不重复排队', async () => {
+    const root = tempRoot()
+    const db = new AgentDatabase({
+      historyPath: join(root, 'history.sqlite'),
+      profilePath: join(root, 'profile.sqlite'),
+    })
+    databases.push(db)
+    const hub = await Effect.runPromise(EventHub.make)
+    const faux = fauxProvider({ models: [{ id: 'bg-int', input: ['text'], contextWindow: 64_000 }] })
+    const modelRef = { providerID: faux.getModel().provider, id: 'bg-int' } as never
+    const subagents = new SubagentService(
+      db,
+      hub,
+      {
+        resolve: async () => ({ ref: modelRef, model: faux.getModel() }),
+        getModel: async () => faux.getModel(),
+      } as unknown as AgentModelCatalog,
+      { setAgentStatusHandler: () => {}, cancelTurn: () => {} } as never,
+      { cancelTurn: () => {} } as never,
+      {
+        run: async () => ({
+          status: 'completed',
+          output: 'done',
+          result: {
+            outcome: 'succeeded',
+            summary: 'integration bg settled',
+            findings: [],
+            changedFiles: [],
+            validation: [],
+            risks: [],
+            references: [],
+          },
+        }),
+        steer: async () => {},
+        followUp: async () => {},
+        abort: async () => {},
+        clearTurnPermissionGrants: () => {},
+      } as never,
+      { listByBinding: async () => [] } as never,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      false,
+    )
+    const workspace = await WorkspaceService.open(root)
+    const threads = new ThreadService(
+      db,
+      hub,
+      {
+        resolve: async () => ({ ref: modelRef, model: faux.getModel(), capabilities: { input: ['text'], tools: true } }),
+      } as never,
+      null as never,
+      { setResumeHandler: () => {} } as never,
+      { clearTurnPermissionGrants: () => {} } as never,
+      subagents,
+      { listByBinding: async () => [] } as never,
+      { dataRoot: root, userHome: root },
+      null as never,
+      null as never,
+      {
+        resolve: async () => ({
+          kind: 'projectless',
+          projectID: null,
+          workspaceRoot: root,
+          cwd: root,
+          runtimeWorkspaceRoots: [],
+          instructionSources: [],
+          outputDirectory: root,
+          workspace,
+        }),
+      } as never,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      false,
+    )
+    // INVARIANT: 隔离真实模型执行——通知 turn 只验证 admission/排队，不驱动运行时。
+    Object.defineProperty(db, 'startTurnExecution', {
+      configurable: true,
+      value: () => null,
+    })
+
+    const thread = db.createThread()
+    const sourceTurn = db.createTurn(thread.id, {
+      content: 'Running main turn',
+      model: modelRef,
+      permissionConfig: permission,
+      strategy: 'queue',
+      taskMode: 'chat',
+    })
+    db.claimTurnExecution(sourceTurn.turnID)
+    const spawned = await subagents.spawn(
+      {
+        threadID: thread.id,
+        turnID: sourceTurn.turnID,
+        agentID: sourceTurn.agentID,
+        taskMode: 'chat',
+        model: modelRef,
+        permissionConfig: permission,
+        workspaceRoot: root,
+      },
+      [{ profile: 'explorer', task: 'Integration bg task', background: true }],
+    )
+    const taskID = spawned.agents[0]!.taskId
+
+    const notificationInputID = `subagent-notify:${sourceTurn.turnID}:${createHash('sha256')
+      .update(taskID)
+      .digest('hex')
+      .slice(0, 16)}`
+    const deadline = Date.now() + 2000
+    while (
+      (
+        db.sqlite
+          .query('SELECT status FROM subagent_background_notifications WHERE task_id = ?')
+          .get(taskID) as { status: string } | null
+      )?.status !== 'notified' &&
+      Date.now() < deadline
+    ) {
+      await new Promise((r) => setTimeout(r, 20))
+    }
+
+    const admission = db.inputAdmission(notificationInputID)
+    expect(admission).not.toBeNull()
+    expect(admission!.thread_id).toBe(thread.id)
+    expect(admission!.content).toContain('<task-notification')
+    expect(admission!.content).toContain('integration bg settled')
+    const notifyTurns = db.sqlite
+      .query("SELECT id FROM inputs WHERE id LIKE 'subagent-notify:%'")
+      .all() as Array<{ id: string }>
+    expect(notifyTurns).toHaveLength(1)
+    expect(notifyTurns[0]!.id).toBe(notificationInputID)
+
+    // INVARIANT: 同批重试命中 duplicateAdmission，返回 duplicate 且不新增 turn。
+    const retry = await threads.enqueueFollowUp(
+      thread.id,
+      {
+        content: admission!.content,
+        model: modelRef,
+        taskMode: 'chat',
+        permissionConfig: permission,
+        strategy: 'queue',
+      },
+      notificationInputID,
+    )
+    expect(retry.disposition).toBe('duplicate')
+    expect(retry.inputID).toBe(notificationInputID)
+    expect(
+      (db.sqlite.query("SELECT COUNT(*) AS count FROM inputs WHERE id LIKE 'subagent-notify:%'").get() as { count: number }).count,
+    ).toBe(1)
   })
 })

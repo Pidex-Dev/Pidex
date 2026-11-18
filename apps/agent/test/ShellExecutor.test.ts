@@ -94,9 +94,12 @@ describe('统一 Shell 宿主执行门', () => {
       workspaceWrite,
       FULL_ACCESS_PERMISSION_CONFIG,
     ].entries()) {
+      // INVARIANT: read-only admission requires a host-confirmed read-only command; the blanket authorizeShell stub cannot elevate an unconfirmed one.
+      const command =
+        permissionConfig.sandboxMode === 'read-only' ? `Get-Location ${index}` : `Write-Output ${index}`
       await executor.execute(
         'exec_command',
-        { command: `Write-Output ${index}` },
+        { command },
         await executionContext(root, permissionConfig),
       )
     }

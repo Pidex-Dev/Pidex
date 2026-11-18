@@ -837,4 +837,15 @@ describe('协作模式提示', () => {
     expect(mode('plan')).toContain('two to five meaningful options')
     expect(mode('plan')).toContain('multiSelect')
   })
+
+  test('默认执行指引要求报告与引用使用可读 Markdown 文件超链接', () => {
+    const execution = createPromptSections({
+      permissionInstructions: '',
+      mode: 'chat',
+      profile: 'main',
+      userMessage: '你好',
+    }).find((section) => section.id === 'builtin.execution')!.content
+    expect(execution).toContain('[readable title](path)')
+    expect(execution).toContain('do not repeat the raw path immediately after the link')
+  })
 })

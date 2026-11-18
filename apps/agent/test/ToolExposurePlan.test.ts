@@ -180,10 +180,10 @@ describe('ToolExposurePlan finalize_result exposure', () => {
     }
   })
 
-  test('单层 explorer/worker 不再暴露 Agent，仅 default 子 Agent 保留有限深度递归，控制工具按需 deferred', () => {
+  test('单层 explorer/worker 不再暴露 Agent，仅 default 子 Agent 保留有限深度递归，控制工具按需 deferred，且所有子 Agent 均以文本收尾不再暴露 finalize_result', () => {
     for (const profile of ['default', 'explorer', 'worker'] as const) {
       const plan = exposure({ taskMode: 'chat', profile })
-      expect(plan.allows('finalize_result')).toBe(true)
+      expect(plan.allows('finalize_result')).toBe(false)
       expect(plan.allows('update_plan')).toBe(false)
       expect(plan.allows('request_permissions')).toBe(false)
       expect(plan.allows('Agent')).toBe(profile === 'default')
@@ -210,7 +210,7 @@ describe('ToolExposurePlan finalize_result exposure', () => {
     expect(plan.deferred).toContain('stop_agent')
   })
 
-  test('Skill allowlist 不恢复主 Agent 收尾工具，子 Agent 的收尾工具不被剥离', () => {
+  test('Skill allowlist 不恢复主 Agent 或子 Agent 的 finalize_result 工具', () => {
     const main = exposure({
       taskMode: 'chat',
       profile: 'main',
@@ -221,9 +221,9 @@ describe('ToolExposurePlan finalize_result exposure', () => {
     const subagent = exposure({
       taskMode: 'chat',
       profile: 'default',
-      allowedTools: ['Read'],
+      allowedTools: ['Read', 'finalize_result'],
     })
     expect(subagent.allows('Read')).toBe(true)
-    expect(subagent.allows('finalize_result')).toBe(true)
+    expect(subagent.allows('finalize_result')).toBe(false)
   })
 })

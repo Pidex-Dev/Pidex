@@ -50,6 +50,7 @@ async function createRuntime(input: {
   responses: Parameters<ReturnType<typeof fauxProvider>['setResponses']>[0]
   lifecycle?: HarnessRuntimeOptions['lifecycle']
   exposedTools?: readonly string[]
+  profile?: 'main' | 'default' | 'explorer' | 'worker'
   onActivated?: (active: ActiveHarness) => void
 }) {
   const faux = fauxProvider({
@@ -100,6 +101,7 @@ async function createRuntime(input: {
     turnID: 'turn-finalize-delivery',
     agentID: 'agent-finalize-delivery',
     sessionID,
+    ...(input.profile ? { profile: input.profile } : {}),
     content: 'original finalize request',
     taskMode: 'chat',
     permissionConfig: DEFAULT_PERMISSION_CONFIG,
@@ -429,6 +431,47 @@ describe('finalize_result structured delivery runtime', () => {
     const result = await setup.runtime.run(setup.request)
     expect(result).toEqual({ status: 'completed', output: '这是一个普通回答。' })
     expect(setup.finished.filter((entry) => entry.tool === 'finalize_result')).toHaveLength(0)
+    await setup.runtime.dispose()
+  })
+
+  test('子代理直接返回普通文本（无 finalize_result）并携带运行统计', async () => {
+    const setup = await createRuntime({
+      profile: 'explorer',
+      exposedTools: [],
+      responses: [fauxAssistantMessage('已读取目标文件并完成盘点结论。', { stopReason: 'stop' })],
+    })
+    const result = await setup.runtime.run(setup.request)
+    expect(result.status).toBe('completed')
+    expect(result.output).toBe('已读取目标文件并完成盘点结论。')
+    if (result.status === 'completed') {
+      expect(result.stats?.toolUseCount).toBe(0)
+      expect(result.stats?.totalTokens).toBeGreaterThan(0)
+      expect(typeof result.stats?.durationMs).toBe('number')
+    }
+    await setup.runtime.dispose()
+  })
+
+  test('子代理最后一步仅输出空正文时，倒序回溯最近一步非空正文', async () => {
+    const setup = await createRuntime({
+      profile: 'worker',
+      exposedTools: ['update_plan'],
+      responses: [
+        fauxAssistantMessage(
+          [
+            { type: 'text', text: '这是倒数第二步的完整修改报告。' },
+            fauxToolCall('update_plan', { explanation: 'step 1', plan: [] }),
+          ],
+          { stopReason: 'toolUse' },
+        ),
+        fauxAssistantMessage('', { stopReason: 'stop' }),
+      ],
+    })
+    const result = await setup.runtime.run(setup.request)
+    expect(result.status).toBe('completed')
+    expect(result.output).toBe('这是倒数第二步的完整修改报告。')
+    if (result.status === 'completed') {
+      expect(result.stats?.toolUseCount).toBe(1)
+    }
     await setup.runtime.dispose()
   })
 })

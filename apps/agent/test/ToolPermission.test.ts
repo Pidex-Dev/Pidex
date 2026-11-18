@@ -327,4 +327,77 @@ describe('工作区工具', () => {
       executor.execute('Write', { file_path: 'blocked.txt', content: 'blocked' }, context),
     ).rejects.toMatchObject({ code: 'TOOL_NOT_ALLOWED_FOR_PROFILE' })
   })
+
+  test('read-only 下 Shell 重定向写入被拒绝，已知安全只读命令放行，workspace-write 不受影响', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'pidex-readonly-shell-'))
+    paths.push(root)
+    const workspace = await WorkspaceService.open(root)
+    const runs: string[] = []
+    const approvals: string[] = []
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, '.agent-data'),
+      authorizeShell: async (invocation) => {
+        approvals.push(String(invocation.input.command))
+        return { decision: 'allow', risk: 'low', reason: '允许' }
+      },
+      runHost: async (command) => {
+        runs.push(command)
+        return {
+          exitCode: 0,
+          signal: null,
+          stdout: 'ok',
+          stderr: '',
+          timedOut: false,
+          truncated: false,
+        }
+      },
+    })
+    const context = {
+      threadID: 'thread',
+      turnID: 'turn',
+      profile: 'explorer' as const,
+      taskMode: 'chat' as const,
+      signal: new AbortController().signal,
+      workspace,
+      permissionConfig: {
+        sandboxMode: 'read-only' as const,
+        approvalPolicy: 'never' as const,
+        approvalsReviewer: 'auto_review' as const,
+      },
+    }
+
+    await expect(
+      executor.execute('exec_command', { command: 'echo hi > probe.txt' }, context),
+    ).rejects.toMatchObject({
+      code: 'TOOL_PERMISSION_DENIED',
+      message: '只读文件访问范围仅允许宿主确认的只读 Shell 命令',
+    })
+    expect(runs).toHaveLength(0)
+    expect(approvals).toHaveLength(0)
+    expect(await Bun.file(join(root, 'probe.txt')).exists()).toBe(false)
+
+    await expect(
+      executor.execute('write_stdin', { session_id: 1, chars: 'echo hi > probe.txt\n' }, context),
+    ).rejects.toMatchObject({ code: 'TOOL_PERMISSION_DENIED' })
+    expect(runs).toHaveLength(0)
+
+    await executor.execute('exec_command', { command: 'git status' }, context)
+    expect(runs).toHaveLength(1)
+
+    const workspaceWriteContext = {
+      ...context,
+      permissionConfig: {
+        sandboxMode: 'workspace-write' as const,
+        approvalPolicy: 'auto_review' as const,
+        approvalsReviewer: 'auto_review' as const,
+      },
+    }
+    await executor.execute(
+      'exec_command',
+      { command: 'echo hi > probe.txt' },
+      workspaceWriteContext,
+    )
+    expect(runs).toHaveLength(2)
+    expect(approvals.at(-1)).toBe('echo hi > probe.txt')
+  })
 })
