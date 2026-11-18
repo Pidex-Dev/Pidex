@@ -2,9 +2,12 @@ import { describe, expect, test } from 'bun:test'
 import type { Tokens } from 'marked'
 import {
   classifyMarkdownTarget,
+  formatFileReferenceShortLabel,
+  formatFileReferenceTooltip,
   lexMarkdown,
   parseMarkdown,
   parseMarkdownFileReference,
+  resolveFileLinkDisplayLabel,
   segmentStreamingMarkdown,
 } from '../src/features/markdown/index.js'
 import { buildMarkdownBlocks } from '../src/features/markdown/Parser.js'
@@ -293,5 +296,40 @@ describe('safe markdown targets', () => {
     expect(classifyMarkdownTarget('http://example.com')).toEqual({
       kind: 'unsafe',
     })
+  })
+
+  test('formats short labels, full tooltips, and custom file link displays', () => {
+    const ref = parseMarkdownFileReference('C:\\Users\\XiaoHi\\reports\\report.md#L10-L20')
+    expect(formatFileReferenceShortLabel(ref)).toBe('report.md (lines 10-20)')
+    expect(formatFileReferenceTooltip(ref)).toBe(
+      'C:\\Users\\XiaoHi\\reports\\report.md (lines 10-20)',
+    )
+    expect(
+      resolveFileLinkDisplayLabel(
+        '23:20 首条消息失败恢复报告',
+        'C:\\Users\\XiaoHi\\reports\\report.md',
+        parseMarkdownFileReference('C:\\Users\\XiaoHi\\reports\\report.md'),
+      ),
+    ).toEqual({ resolvedText: null, suffix: '' })
+    expect(
+      resolveFileLinkDisplayLabel(
+        '23:20 首条消息失败恢复报告',
+        'C:\\Users\\XiaoHi\\reports\\report.md#L10-L20',
+        ref,
+      ),
+    ).toEqual({ resolvedText: null, suffix: ' (lines 10-20)' })
+    expect(
+      resolveFileLinkDisplayLabel(
+        'C:\\Users\\XiaoHi\\reports\\report.md',
+        'C:\\Users\\XiaoHi\\reports\\report.md',
+        parseMarkdownFileReference('C:\\Users\\XiaoHi\\reports\\report.md'),
+      ),
+    ).toEqual({ resolvedText: 'report.md', suffix: '' })
+    expect(
+      resolveFileLinkDisplayLabel('`src/a.ts`', 'F:\\repo\\src\\a.ts#L12', {
+        path: 'F:\\repo\\src\\a.ts',
+        line: 12,
+      }),
+    ).toEqual({ resolvedText: 'src/a.ts (line 12)', suffix: '' })
   })
 })

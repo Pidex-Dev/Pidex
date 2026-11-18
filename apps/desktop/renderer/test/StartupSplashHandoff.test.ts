@@ -78,7 +78,14 @@ describe('单次启动交接', () => {
   })
   test('资源失败留在启动壳，错误页提交后正常交接', () => {
     const f = fixture()
+    const viewport = { hidden: true }
+    ;(f.label as { parentElement?: { hidden: boolean } }).parentElement = viewport
+    const release = f.shell.loading('正在读取模型配置…')
+    expect(viewport.hidden).toBe(true)
+    expect(f.label.textContent).toBe('正在读取模型配置…')
+    release()
     f.shell.fail('界面模块加载失败')
+    expect(viewport.hidden).toBe(false)
     expect(f.label.textContent).toBe('界面模块加载失败')
     expect(f.actions.hidden).toBe(false)
     expect(f.removed()).toBe(0)

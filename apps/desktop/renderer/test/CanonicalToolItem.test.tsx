@@ -639,6 +639,24 @@ describe('canonical tool item display', () => {
       buildStructuredToolDetail(
         toolItem({
           command: null,
+          input: { pattern: '**/*.ts' },
+          output: JSON.stringify({
+            path: 'apps',
+            filenames: ['src/a.ts', 'C:\\private\\src\\b.ts'],
+            numFiles: 2,
+            truncated: false,
+          }),
+          tool: 'Glob',
+        }),
+      ),
+    ).toEqual({
+      executionContent: '**/*.ts',
+      resultText: JSON.stringify(['src/a.ts', 'b.ts'], null, 2),
+    })
+    expect(
+      buildStructuredToolDetail(
+        toolItem({
+          command: null,
           input: { query: 'select:apply_patch' },
           output: JSON.stringify({ tools: [{ name: 'apply_patch' }] }),
           tool: 'tool.search',
@@ -661,6 +679,38 @@ describe('canonical tool item display', () => {
       executionContent: 'reverse-engineer-ui-feature',
       resultText: '# Skill\n完整内容',
     })
+  })
+
+  test('renders Glob filenames output inside the expanded result detail', () => {
+    const item = toolItem({
+      activity: { type: 'search', query: '**/*.ts' },
+      command: null,
+      input: { pattern: '**/*.ts' },
+      output: JSON.stringify({
+        path: 'apps',
+        filenames: ['src/feature/viewer.ts', 'src/feature/other.ts'],
+        numFiles: 2,
+        truncated: false,
+      }),
+      tool: 'Glob',
+    })
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolItemView
+          disclosure={{
+            id: 'tool:turn-1:tool-1',
+            expanded: true,
+            onExpandedChange: () => undefined,
+          }}
+          item={item}
+        />
+      </TooltipProvider>,
+    )
+
+    expect(markup).toContain('data-expanded="true"')
+    expect(markup).toContain('src/feature/viewer.ts')
+    expect(markup).toContain('src/feature/other.ts')
+    expect(markup).not.toContain('numFiles')
   })
 
   test('does not fall back to whole JSON for missing structured fields', () => {
@@ -1637,6 +1687,19 @@ describe('canonical tool item display', () => {
     ]) {
       expect(text).toContain(value)
     }
+    expect(text).not.toContain('[实现](<src/tool.ts>)：src/tool.ts')
+    expect(
+      subagentResultMarkdown({
+        ...result,
+        references: [
+          {
+            kind: 'file',
+            value: 'F:\\CodeProject\\guardian-lab\\src\\a.ts',
+            label: 'a.ts (主调查目标，4 行)',
+          },
+        ],
+      }),
+    ).toContain('[a.ts (主调查目标，4 行)](<F:\\CodeProject\\guardian-lab\\src\\a.ts>)')
     expect(JSON.stringify(item)).toBe(before)
     const mirrored = historicalDeliveryText(
       {
@@ -1677,7 +1740,7 @@ describe('canonical tool item display', () => {
     )
   })
 
-  test('only opens workspace-relative file references', () => {
+  test('opens relative and absolute file references while keeping parent traversal and missing-workspace relative paths display-only', () => {
     const withContext = (card: ReturnType<typeof resultCardEnvelope>) =>
       renderToStaticMarkup(
         <TooltipProvider>
@@ -1703,21 +1766,29 @@ describe('canonical tool item display', () => {
     )
     expect(relative).toContain('canonical-result-card__file-link')
     expect(relative).toContain('aria-label="打开文件 工具实现"')
+    expect(relative).not.toContain('title="src/tool/tool.ts"')
+    expect(relative).not.toMatch(/class="canonical-result-card__file-link"[^>]*\btitle=/u)
+
+    const absolute = withContext(
+      resultCardEnvelope({
+        card: { references: [{ kind: 'file', value: 'F:\\CodeProject\\guardian-lab\\src\\a.ts' }] },
+      }),
+    )
+    expect(absolute).toContain('canonical-result-card__file-link')
+    expect(absolute).toContain('aria-label="打开文件 a.ts"')
+    expect(absolute).toContain('>a.ts<')
 
     const escaping = withContext(
       resultCardEnvelope({
         card: {
-          references: [
-            { kind: 'file', value: 'C:\\private\\secret.ts' },
-            { kind: 'file', value: '../../outside.ts' },
-          ],
+          references: [{ kind: 'file', value: '../../outside.ts' }],
         },
       }),
     )
     expect(escaping).not.toContain('canonical-result-card__file-link')
-    expect(escaping).toContain('secret.ts')
+    expect(escaping).toContain('../../outside.ts')
 
-    // 没有工作区上下文时文件引用只展示，不提供打开入口。
+    // 没有工作区上下文时相对文件引用只展示，不提供打开入口。
     const withoutContext = renderToStaticMarkup(
       <TooltipProvider>
         <ResultCardView
