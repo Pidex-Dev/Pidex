@@ -19,6 +19,12 @@ import {
 import type { DesktopExternalOpenTarget } from '../../../shared/Types.js'
 import { AppContextMenu, type AppContextMenuAction } from '../../components/ui/AppContextMenu.js'
 import { Button } from '../../components/ui/Button.js'
+import {
+  TooltipContent,
+  TooltipPortal,
+  TooltipRoot,
+  TooltipTrigger,
+} from '../../components/ui/Tooltip.js'
 import { useDialogFocusRestore } from '../../components/ui/UseDialogFocusRestore.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { OpenTargetIcon } from '../../components/ui/OpenTargetIcon.js'
@@ -41,11 +47,13 @@ import { buildMarkdownBlocks } from './Parser.js'
 import { renderSafeHtml } from './SafeHtml.js'
 import {
   classifyMarkdownTarget,
+  formatFileReferenceTooltip,
   isLikelyFileReference,
   isInlinePluginLink,
   isSafeHttpsMediaSource,
   mediaKindForUrl,
   parseMarkdownFileReference,
+  resolveFileLinkDisplayLabel,
 } from './SafeTargets.js'
 import type {
   MarkdownDirectiveRegistry,
@@ -110,6 +118,7 @@ type RenderContext = {
     ((reference: MarkdownFileReference) => void | Promise<void>) | undefined
   streaming: boolean
   streamingFragment: string
+  insideFileLink?: boolean
 }
 
 export function MarkdownMessage({
@@ -861,8 +870,34 @@ function renderTableCell(
 }
 
 function renderLink(link: Tokens.Link, context: RenderContext, key: string): React.ReactNode {
-  const children = renderTokens(link.tokens, context, `${key}-label`)
   const target = classifyMarkdownTarget(link.href)
+  if (target.kind === 'file') {
+    const rawLinkLabel =
+      link.tokens.length === 1 && link.tokens[0]?.type === 'codespan'
+        ? (link.text ?? '')
+        : tokenText(link)
+    const display = resolveFileLinkDisplayLabel(rawLinkLabel, link.href, target)
+    const content =
+      display.resolvedText !== null ? (
+        display.resolvedText
+      ) : (
+        <>
+          {renderTokens(link.tokens, { ...context, insideFileLink: true }, `${key}-label`)}
+          {display.suffix}
+        </>
+      )
+    return (
+      <FileReferenceButton
+        className="md-file-reference"
+        context={context}
+        key={key}
+        reference={target}
+      >
+        {content}
+      </FileReferenceButton>
+    )
+  }
+  const children = renderTokens(link.tokens, context, `${key}-label`)
   const tokenClass = context.inlineLinkTokens ? 'composer-inline-skill-token' : undefined
   const label = (kind: 'thread' | 'browser' | 'plugin') =>
     tokenClass ? (
@@ -918,19 +953,6 @@ function renderLink(link: Tokens.Link, context: RenderContext, key: string): Rea
       </a>
     )
   }
-  if (target.kind === 'file') {
-    return (
-      <FileReferenceButton
-        className="md-file-reference"
-        context={context}
-        key={key}
-        reference={target}
-        title={link.title ?? target.path}
-      >
-        {children}
-      </FileReferenceButton>
-    )
-  }
   if (target.kind === 'anchor') {
     return (
       <a href={target.href} key={key} title={link.title ?? undefined}>
@@ -957,7 +979,11 @@ function renderImage(image: Tokens.Image, context: RenderContext, key: string): 
 }
 
 function renderCodeSpan(text: string, context: RenderContext, key: string): React.ReactNode {
-  if (isWindowsWorkspaceRouteCodeSpan(text, context.cwd) || !isLikelyFileReference(text))
+  if (
+    context.insideFileLink ||
+    isWindowsWorkspaceRouteCodeSpan(text, context.cwd) ||
+    !isLikelyFileReference(text)
+  )
     return <code key={key}>{text}</code>
   const target = classifyMarkdownTarget(text)
   if (target.kind !== 'file') return <code key={key}>{text}</code>
@@ -967,7 +993,6 @@ function renderCodeSpan(text: string, context: RenderContext, key: string): Reac
       context={context}
       key={key}
       reference={target}
-      title={target.path}
     >
       {text}
     </FileReferenceButton>
@@ -1115,7 +1140,6 @@ function renderTextWithFileReferences(
         context={context}
         key={`${key}-file-${matchIndex}`}
         reference={reference}
-        title={reference.path}
       >
         {label}
       </FileReferenceButton>,
@@ -1268,12 +1292,14 @@ function FileReferenceButton({
   className: string
   context: RenderContext
   reference: MarkdownFileReference
-  title: string
+  title?: string
 }): React.ReactNode {
   const absolutePath = resolveWorkspacePath(context.cwd, reference.path)
   const openTargets = useExternalOpenTargets(absolutePath)
   const [loadingTargets, setLoadingTargets] = React.useState(false)
+  const [menuOpen, setMenuOpen] = React.useState(false)
   const canCopyContents = context.canCopyFileReferenceContents?.(reference) ?? false
+  const tooltipText = title ?? formatFileReferenceTooltip(reference, absolutePath ?? reference.path)
 
   const prefetch = (): void => {
     if (!absolutePath) return
@@ -1406,49 +1432,64 @@ function FileReferenceButton({
     },
   ]
   return (
-    <AppContextMenu
-      actions={actions}
-      layout="grid"
-      onOpenChange={(open) => {
-        if (open) loadTargets()
-      }}
-      trigger={
-        <button
-          aria-label={`打开文件 ${reference.path}`}
-          className={className}
-          data-file-reference=""
-          onClick={(event) => {
-            if (event.detail > 1) return
-            if (event.ctrlKey || event.altKey) {
-              openFile(context, reference.path)
-              return
-            }
-            open(true)
-          }}
-          onDoubleClick={(event) => {
-            if (event.ctrlKey || event.altKey || !canCopyContents) return
-            open(false)
-          }}
-          onFocus={prefetch}
-          onMouseEnter={prefetch}
-          onPointerDown={prefetch}
-          type="button"
-          title={title}
+    <TooltipRoot open={menuOpen ? false : undefined}>
+      <AppContextMenu
+        actions={actions}
+        layout="grid"
+        onOpenChange={(nextOpen) => {
+          setMenuOpen(nextOpen)
+          if (nextOpen) loadTargets()
+        }}
+        trigger={
+          <TooltipTrigger asChild>
+            <button
+              aria-label={`打开文件 ${reference.path}`}
+              className={className}
+              data-file-reference=""
+              onClick={(event) => {
+                if (event.detail > 1) return
+                if (event.ctrlKey || event.altKey) {
+                  openFile(context, reference.path)
+                  return
+                }
+                open(true)
+              }}
+              onDoubleClick={(event) => {
+                if (event.ctrlKey || event.altKey || !canCopyContents) return
+                open(false)
+              }}
+              onFocus={prefetch}
+              onMouseEnter={prefetch}
+              onPointerDown={prefetch}
+              type="button"
+            >
+              <span className="md-file-reference__content">
+                <span aria-hidden="true" className="md-file-reference__icon">
+                  <FileTypeIcon
+                    path={reference.path}
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                </span>
+                <span className="md-file-reference__label">
+                  {renderFileReferenceLabel(children)}
+                </span>
+              </span>
+            </button>
+          </TooltipTrigger>
+        }
+        size="md"
+      />
+      <TooltipPortal>
+        <TooltipContent
+          className="md-file-reference__tooltip tw:max-w-[min(360px,calc(100vw-16px))] tw:whitespace-pre-wrap tw:break-words tw:[overflow-wrap:anywhere]"
+          side="top"
+          variant="default"
         >
-          <span className="md-file-reference__content">
-            <span aria-hidden="true" className="md-file-reference__icon">
-              <FileTypeIcon
-                path={reference.path}
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            </span>
-            <span className="md-file-reference__label">{renderFileReferenceLabel(children)}</span>
-          </span>
-        </button>
-      }
-      size="md"
-    />
+          {tooltipText}
+        </TooltipContent>
+      </TooltipPortal>
+    </TooltipRoot>
   )
 }
 

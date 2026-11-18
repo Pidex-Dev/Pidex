@@ -2823,8 +2823,9 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleOpenMarkdownFileReference = useCallback(
     (reference: MarkdownFileReference, options: MarkdownFileOpenOptions): void => {
-      if (!currentWorkspace) return
-      const resolved = resolveWorkspaceFileReference(currentWorkspace.path, reference.path)
+      const resolved = currentWorkspace
+        ? resolveWorkspaceFileReference(currentWorkspace.path, reference.path)
+        : null
       if (!resolved) {
         // Not a workspace path — open with system
         if (/^(?:[a-zA-Z]:[\\/]|\\\\|\/)/u.test(reference.path)) {
@@ -2834,6 +2835,7 @@ export function DesktopLayout(): React.ReactNode {
         }
         return
       }
+      if (!currentWorkspace) return
 
       // Workspace root directory — open file-browser tab
       if (resolved.relativePath === '.') {

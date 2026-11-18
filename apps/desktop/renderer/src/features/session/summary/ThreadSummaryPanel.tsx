@@ -561,19 +561,19 @@ export function ThreadSummaryPanel({
               const openTarget = onOpenSubagent
                 ? () => onOpenSubagent(agent.id)
                 : onOpenSubagentDirectory
+              const hasStopButton = Boolean(agent.stoppable && onStopSubagent)
               return (
-                <div
-                  className="tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-1"
-                  key={agent.id}
-                >
+                <div className="tw:relative tw:min-w-0" key={agent.id}>
                   <button
-                    className="interactive-row interactive-row--nav tw:min-w-0 tw:flex-1"
+                    className="interactive-row interactive-row--nav tw:w-full tw:min-w-0"
                     title={agent.taskTitle ? `${agent.agentName} · ${agent.taskTitle}` : agent.agentName}
                     type="button"
                     onClick={openTarget}
                   >
                     <SubagentAvatar role={agent.role} size="sm" />
-                    <span className="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-0.5">
+                    <span
+                      className={`tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-0.5${hasStopButton ? ' tw:pr-14' : ''}`}
+                    >
                       <span className="tw:min-w-0 tw:truncate tw:text-app-text tw:type-2">
                         {titleText}
                       </span>
@@ -582,9 +582,10 @@ export function ThreadSummaryPanel({
                       </span>
                     </span>
                   </button>
-                  {agent.stoppable && onStopSubagent ? (
+                  {hasStopButton ? (
                     <Button
                       aria-label={`停止 ${titleText}`}
+                      className="tw:absolute tw:right-1.5 tw:top-1/2 tw:-translate-y-1/2"
                       color="ghostSecondary"
                       disabled={stoppingAgentIds.has(agent.id)}
                       leftIcon={

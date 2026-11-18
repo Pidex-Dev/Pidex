@@ -35,7 +35,12 @@ import {
 } from '../../settings/UseDesktopSettings.js'
 import { WorkspaceHeaderItem } from '../../layout/workspace-header/index.js'
 import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
-import { enterTween, exitTween, motionTransition } from '../../motion/MotionTransitions.js'
+import {
+  enterTween,
+  exitTween,
+  motionTransition,
+  panelTween,
+} from '../../motion/MotionTransitions.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { InlineApprovalCard } from '../approvals/InlineApprovalCard.js'
 import {
@@ -83,6 +88,7 @@ import {
   ThreadSummaryPanel,
 } from '../summary/ThreadSummaryPanel.js'
 import {
+  type ThreadSummaryDisplayMode,
   useThreadSummaryCollapsedSections,
   useThreadSummaryController,
 } from '../summary/ThreadSummaryState.js'
@@ -1563,21 +1569,55 @@ export function ConversationPage(): React.ReactNode {
             </ThreadScrollLayout>
           </div>
         </main>
-        {summaryPanelElement ? (
-          <div
-            className={
-              summaryDisplayMode === 'overlay'
-                ? 'thread-summary-inline thread-summary-floating tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:rounded-floating tw:p-1'
-                : 'thread-summary-inline tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:max-h-[calc(100%-32px)] tw:rounded-floating tw:bg-app-raised tw:p-1'
-            }
-            data-summary-mode={summaryDisplayMode}
-            data-testid="thread-summary-inline"
-          >
-            {summaryPanelElement}
-          </div>
-        ) : null}
+        <AnimatePresence initial={false}>
+          {summaryPanelElement ? (
+            <ThreadSummaryPresence
+              key="thread-summary-inline"
+              displayMode={summaryDisplayMode}
+              reducedMotion={reduceMotion}
+            >
+              {summaryPanelElement}
+            </ThreadSummaryPresence>
+          ) : null}
+        </AnimatePresence>
       </div>
     </section>
+  )
+}
+
+function ThreadSummaryPresence({
+  children,
+  displayMode,
+  reducedMotion,
+}: {
+  children: React.ReactNode
+  displayMode: ThreadSummaryDisplayMode
+  reducedMotion: boolean
+}): React.ReactNode {
+  const isPresent = useIsPresent()
+  const baseClassName =
+    displayMode === 'overlay'
+      ? 'thread-summary-inline thread-summary-floating tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:rounded-floating tw:p-1'
+      : 'thread-summary-inline tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:max-h-[calc(100%-32px)] tw:rounded-floating tw:bg-app-raised tw:p-1'
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, x: 0 }}
+      aria-hidden={!isPresent ? true : undefined}
+      className={`${baseClassName} ${isPresent ? 'tw:pointer-events-auto' : 'tw:pointer-events-none'}`}
+      data-summary-mode={displayMode}
+      data-testid="thread-summary-inline"
+      exit={{
+        opacity: 0,
+        x: '100%',
+        transition: motionTransition(reducedMotion, panelTween),
+      }}
+      inert={!isPresent ? true : undefined}
+      initial={reducedMotion ? false : { opacity: 0, x: '100%' }}
+      transition={motionTransition(reducedMotion, panelTween)}
+    >
+      {children}
+    </motion.div>
   )
 }
 

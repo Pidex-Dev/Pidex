@@ -1493,8 +1493,13 @@
     padding: 0;
     border: 0;
     background: none;
-    color: inherit;
+    color: color-mix(
+      in srgb,
+      var(--cpx-sys-color-accent-fg) 80%,
+      var(--cpx-sys-color-fg-primary) 20%
+    );
     font: inherit;
+    font-weight: var(--cpx-sys-font-weight-medium);
     overflow: hidden;
     cursor: pointer;
     text-align: left;
@@ -1503,8 +1508,10 @@
   }
 
   .canonical-result-card__file-link:hover {
-    color: var(--cpx-sys-color-fg-primary);
-    text-decoration: underline;
+    text-decoration-line: underline;
+    text-decoration-style: dashed;
+    text-decoration-thickness: 0.5px;
+    text-underline-offset: 2px;
   }
 
   /* ── File mutation ── */
@@ -1960,7 +1967,17 @@
     }
   }
 
+  .workflow-main-scroll-area {
+    transition: padding-inline-end var(--cpx-sys-motion-panel) var(--cpx-sys-ease-entrance);
+  }
+
   .workflow-main-scroll-area--with-summary {
     padding-inline-end: 17.25rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .workflow-main-scroll-area {
+      transition: none;
+    }
   }
 }

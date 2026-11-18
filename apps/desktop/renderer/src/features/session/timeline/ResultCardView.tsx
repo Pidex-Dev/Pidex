@@ -20,7 +20,16 @@ import type {
 
 import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
-import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../../markdown/index.js'
+import { Tooltip } from '../../../components/ui/Tooltip.js'
+import { FileTypeIcon } from '../../layout/FileTypeIcon.js'
+import {
+  classifyMarkdownTarget,
+  formatFileReferenceShortLabel,
+  formatFileReferenceTooltip,
+  parseMarkdownFileReference,
+  type MarkdownFileOpenOptions,
+  type MarkdownFileReference,
+} from '../../markdown/index.js'
 import { ConversationItemContext } from './ConversationItemContext.js'
 import { CopyButton } from './CopyButton.js'
 import { safeCitationUrl } from './CitationUrl.js'
@@ -66,24 +75,45 @@ export function resultCardPlainText(card: ResultCard): string {
   return lines.join('\n')
 }
 
+function resultCardFileReference(
+  value: string,
+  workspacePath: string | null | undefined,
+): MarkdownFileReference | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (/^file:/iu.test(trimmed)) {
+    const classified = classifyMarkdownTarget(trimmed)
+    if (classified.kind !== 'file') return null
+    return {
+      path: classified.path,
+      ...(classified.line !== undefined ? { line: classified.line } : {}),
+      ...(classified.column !== undefined ? { column: classified.column } : {}),
+      ...(classified.endLine !== undefined ? { endLine: classified.endLine } : {}),
+      ...(classified.endColumn !== undefined ? { endColumn: classified.endColumn } : {}),
+    }
+  }
+  if (/^(?:[a-zA-Z]:[\\/]|\\\\|\/)/u.test(trimmed)) {
+    return parseMarkdownFileReference(trimmed)
+  }
+  if (!workspacePath) return null
+  const parsed = parseMarkdownFileReference(trimmed)
+  const normalized = parsed.path
+    .replaceAll('\\', '/')
+    .replace(/^\.\/+/, '')
+  const parts = normalized.split('/').filter(Boolean)
+  if (!parts.length || parts.includes('..')) return null
+  return { ...parsed, path: parts.join('/') }
+}
+
 /**
- * A reference may only open a file when the value is a workspace-relative path
- * and the client knows its workspace: absolute, drive-lettered or
- * parent-traversing values stay display-only.
+ * Parse a ResultCard file reference path: accepts workspace-relative paths
+ * when `workspacePath` is known, plus explicit absolute or `file://` paths.
  */
 export function resultCardFilePath(
   value: string,
   workspacePath: string | null | undefined,
 ): string | null {
-  if (!workspacePath) return null
-  const normalized = value
-    .trim()
-    .replaceAll('\\', '/')
-    .replace(/^\.\/+/, '')
-  if (!normalized || /^(?:[a-z]:|\/)/i.test(normalized)) return null
-  const parts = normalized.split('/').filter(Boolean)
-  if (!parts.length || parts.includes('..')) return null
-  return parts.join('/')
+  return resultCardFileReference(value, workspacePath)?.path ?? null
 }
 
 /**
@@ -195,6 +225,20 @@ function ResultCardItemView({
   )
 }
 
+const REFERENCE_TOOLTIP_CLASS =
+  'tw:max-w-[min(360px,calc(100vw-16px))] tw:whitespace-pre-wrap tw:break-words tw:[overflow-wrap:anywhere]'
+
+function resolveReferenceDisplayPath(
+  referencePath: string,
+  workspacePath: string | null | undefined,
+): string {
+  if (/^(?:[a-zA-Z]:[\\/]|\\\\|\/)/u.test(referencePath) || !workspacePath?.trim()) {
+    return referencePath
+  }
+  const separator = workspacePath.includes('\\') ? '\\' : '/'
+  return `${workspacePath.replace(/[\\/]+$/u, '')}${separator}${referencePath.replace(/^[.][\\/]/u, '')}`
+}
+
 function ResultCardReferenceItem({
   onOpenFileReference,
   reference,
@@ -211,51 +255,61 @@ function ResultCardReferenceItem({
     return (
       <li className="canonical-result-card__reference">
         <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
-        {url ? (
-          <a
-            className="tw:inline-flex tw:min-h-5 tw:min-w-5 tw:items-center"
-            href={url}
-            rel="noopener noreferrer"
-            target="_blank"
-            title={reference.value}
-          >
-            {text}
-          </a>
-        ) : (
-          <span title={reference.value}>{text}</span>
-        )}
+        <Tooltip className={REFERENCE_TOOLTIP_CLASS} content={reference.value} side="top" variant="default">
+          {url ? (
+            <a
+              className="tw:inline-flex tw:min-h-5 tw:min-w-5 tw:items-center"
+              href={url}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {text}
+            </a>
+          ) : (
+            <span>{text}</span>
+          )}
+        </Tooltip>
       </li>
     )
   }
   if (reference.kind === 'file') {
-    const path = resultCardFilePath(reference.value, workspacePath)
-    if (path && onOpenFileReference) {
+    const parsed = resultCardFileReference(reference.value, workspacePath)
+    const label = reference.label ?? (parsed ? formatFileReferenceShortLabel(parsed) : reference.value)
+    const tooltip = parsed
+      ? formatFileReferenceTooltip(parsed, resolveReferenceDisplayPath(parsed.path, workspacePath))
+      : reference.value
+    if (parsed && onOpenFileReference) {
       return (
         <li className="canonical-result-card__reference">
-          <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
-          <button
-            aria-label={`打开文件 ${text}`}
-            className="canonical-result-card__file-link"
-            onClick={() => onOpenFileReference({ path }, { preview: true })}
-            title={reference.value}
-            type="button"
-          >
-            {text}
-          </button>
+          <FileTypeIcon path={parsed.path} size={APP_ICON_SIZES.sm} />
+          <Tooltip className={REFERENCE_TOOLTIP_CLASS} content={tooltip} side="top" variant="default">
+            <button
+              aria-label={`打开文件 ${label}`}
+              className="canonical-result-card__file-link"
+              onClick={() => onOpenFileReference(parsed, { preview: true })}
+              type="button"
+            >
+              {label}
+            </button>
+          </Tooltip>
         </li>
       )
     }
     return (
       <li className="canonical-result-card__reference">
-        <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
-        <span title={reference.value}>{text}</span>
+        <FileTypeIcon path={parsed?.path ?? reference.value} size={APP_ICON_SIZES.sm} />
+        <Tooltip className={REFERENCE_TOOLTIP_CLASS} content={tooltip} side="top" variant="default">
+          <span>{label}</span>
+        </Tooltip>
       </li>
     )
   }
   return (
     <li className="canonical-result-card__reference">
       <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
-      <span title={reference.value}>{text}</span>
+      <Tooltip className={REFERENCE_TOOLTIP_CLASS} content={reference.value} side="top" variant="default">
+        <span>{text}</span>
+      </Tooltip>
     </li>
   )
 }

@@ -56,8 +56,12 @@ function DirectoryListRow({
     ? formatSidebarSessionRelativeTime(new Date(row.sortKey).toISOString(), now)
     : formatElapsed(row.runningSince, now)
   return (
-    <div className="tw:grid tw:w-[calc(100%+16px)] tw:-mx-2 tw:grid-cols-[minmax(0,1fr)_max-content]">
-      <button className={ROW_CLASS} type="button" onClick={() => onOpen(row.taskId)}>
+    <div className="tw:relative tw:w-[calc(100%+16px)] tw:-mx-2">
+      <button
+        className={`${ROW_CLASS} tw:w-full${row.terminal ? '' : ' tw:pr-9'}`}
+        type="button"
+        onClick={() => onOpen(row.taskId)}
+      >
         <SubagentAvatar role={row.role} size="md" />
         <span className="tw:grid tw:min-w-0">
           <span className="tw:flex tw:min-w-0 tw:items-baseline tw:gap-2">
@@ -80,7 +84,7 @@ function DirectoryListRow({
         <Tooltip content="停止该子智能体">
           <button
             aria-label={`停止 ${row.name}`}
-            className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+            className="tw:absolute tw:right-2 tw:top-1/2 tw:-translate-y-1/2 tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
             type="button"
             onClick={() => onStop(row.taskId)}
           >

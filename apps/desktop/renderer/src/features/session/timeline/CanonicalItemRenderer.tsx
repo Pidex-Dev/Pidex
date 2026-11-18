@@ -2182,7 +2182,7 @@ export function buildStructuredToolDetail(item: ToolItem): StructuredToolDetail 
         executionContent: inputText(input, 'pattern', 'glob') ?? '未提供匹配条件',
         resultText: structuredResult(
           output,
-          projectedOutputArray(output, ['matches'], projectSearchResult),
+          projectedOutputArray(output, ['filenames', 'matches'], projectSearchResult),
           error,
         ),
       }

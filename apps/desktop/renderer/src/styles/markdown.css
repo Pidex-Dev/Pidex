@@ -239,7 +239,7 @@
     overflow-wrap: anywhere;
   }
 
-  .md-file-reference:hover .md-file-reference__content {
+  .md-file-reference:hover .md-file-reference__label {
     text-decoration-line: underline;
     text-decoration-style: dashed;
     text-decoration-thickness: 0.5px;
