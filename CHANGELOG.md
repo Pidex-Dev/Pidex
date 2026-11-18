@@ -28,9 +28,11 @@
 - [agent/desktop] 提供商模型管理新增“检查 32K 模型规格”，一次只处理当前提供商：扫描上下文为 32,768 的已保存模型，按上下文、最大输入与最大输出分别预览并应用官方或供应商推荐；保留当前自动或手动配置模式，未匹配、歧义或目录不可用时保留原值供手动编辑。
 - [agent] 新增自然语言自管理延迟工具集（`pidex_config`、`pidex_skill`、`pidex_hook`、`pidex_mcp`、`pidex_plugin`）及配套内置 Skill，支持在统一判权与审批门禁下读写配置、创建/启停/移除 Skill 与 Hook、配置或移除 MCP 服务器以及只读查询插件状态。
 - [agent/desktop] 插件设置新增「应用」分类与宿主内置 App 一等管理：独立列出 Computer Use、Pets、Browser、GitHub 及其 Write/Read 工具清单与启用状态，应用可单独启停并对新会话的工具暴露生效（关闭在下一轮任务生效，与所属插件开关解耦）；应用详情弹窗提供工具分组折叠、「复制应用 ID」与「查看关联插件」跳转，插件详情页展示「使用的应用」并支持双向穿透，插件声明的 `.app.json` 应用连接器随目录一并展示。
-- [agent/desktop] 新增统一一步式 `Agent` 子代理工具与专属检索工具 `Glob`/`Grep`：支持同步并发派发多个子代理并在同轮统一挂起恢复；Chat 模式省略 `subagent_type` 时隐式触发后台会话 Fork（复用父系统提示词、工具集、对话前缀与 `cacheKey` 命中 Prompt Cache，跳过冗余发现并禁止嵌套再创建子代理），Plan/Grill 模式省略则默认派发只读 `explorer`；后台与 Fork 任务不阻塞父轮次结束，结算后以一次性 `<task-notification>` 与缩进隔离手交（`[Subagent hand-back]`）自动唤醒续接并过滤失效分支；`Glob`/`Grep` 仅对 `explorer` 暴露且默认仅跳过 `.git` 与 `node_modules`，将大范围代码检索与主上下文隔离。
+- [agent/desktop] 新增统一一步式 `Agent` 子代理工具与专属检索工具 `Glob`/`Grep`：支持同步并发派发多个子代理并在同轮统一挂起恢复；Chat 模式主 Agent 省略 `subagent_type` 时隐式触发后台会话 Fork（复用父系统提示词、工具集、对话前缀与 `cacheKey` 命中 Prompt Cache，跳过冗余发现并禁止嵌套再创建子代理），Plan/Grill 模式省略则默认派发只读 `explorer`；后台与 Fork 任务不阻塞父轮次结束，结算后以 `<task-notification>` 与缩进隔离手交（`[Subagent hand-back]`，换行变体归一化、超长结果中间截断）自动唤醒续接并过滤失效分支；通知至少一次投递——投递成功后才销账，失败保持待投并在下次结算重试，重复投递按批次确定性 ID 去重；子代理不支持后台派发（显式拒绝并提示同步委派）；`Glob`/`Grep` 仅对 `explorer` 暴露且默认仅跳过 `.git` 与 `node_modules`，将大范围代码检索与主上下文隔离。
 
 ### Changed
+
+- [agent/desktop] 统一文件引用超链接体验：Agent 提示词引导将报告、文档与引用清单输出为 `[可读标题](路径)`，前端对无描述的长路径自动缩略为文件名并将完整路径与行列位置放入随主题自适应的自定义 Tooltip（替代原生 `title`），悬停仅在文本下显示虚线下划线；同时放开结构化交付「引用」区块对绝对路径的支持并移除重复路径后缀。
 
 - [agent/desktop] 收敛子代理编排工具面并优化探索引导：模型侧用 `Agent` 取代 `spawn_agents` 与 `wait_agents`（保留旧checkpoint恢复兼容），将 `send_agent`/`stop_agent`/`followup_agent`/`list_agents` 转为按需 `ToolSearch` 发现；对单层 `explorer`/`worker` 隐藏 `Agent` 暴露，精简 `explorer` 的冗余技能与项目说明注入，并重写主 Agent 与 Shell 提示词以鼓励并发探索隔离上下文；桌面端时间线同步吸收并展示 `Agent` 状态。
 - [agent/desktop] 子智能体区分智能体名称与任务标题并增强状态感知：默认按显式命名、职能角色与模式分配清晰名称（如 `General Purpose`、`Explorer`、`Worker`、`Frontend`、`Context Fork`），将短任务标题独立持久化至 `subagent_tasks.title`（SQLite schema 77 向前兼容）；父会话请求前自动注入运行中/阻塞中子智能体的实时状态，后台子智能体在等待授权、等待回答或长时间无进展时主动通过 `<task-notification>` 提醒父 Agent 决策干预；桌面端主时间线改为逐条展示「头像 + 智能体名 + 任务标题」，会话概览默认展开「智能体」分区并提供停止按钮，点击行直接打开带头像图标与任务标题的无头部独立右侧标签页（移除手动重试入口）。
@@ -71,6 +73,8 @@
 
 ### Fixed
 
+- [desktop] 修复 `Glob` 检索成功但时间线展开区显示为空的问题：结果投影适配 `filenames` 输出键。
+- [agent] 修复子代理同步等待在结果缺失时误报 `completed` 的问题，统一回退为 `unknown`。
 - [agent] 修复 `Write` 在目标父目录尚未存在时直接报错的问题：预检阶段沿最近已存在祖先目录校验边界、符号链接、非目录祖先与写权限且不修改磁盘，所有预检与快照校验通过后才按需创建缺失父目录。
 - [agent] 移除结构化计划与调度草案参数在模型可见 JSON Schema 中的 `pattern` 正则约束（保留宿主运行时非空白校验），避免兼容网关或模型约束语法把文本字段拆成单字符输出。
 - [agent] 托管工具链 `ToolingManager.resolve` 在尚无托管安装时优先复用已存在的有效本机运行时，并为有效解析结果与自动安装失败分别增加进程内缓存和冷却机制，避免每次 `Bash` 工具调用阻塞重复尝试下载。
@@ -117,6 +121,10 @@
 - [agent/desktop] 移除托管工具链中的 `ripgrep` 自动下载、安装注册及设置页工具开关，文件与文本检索改由 `exec_command` 配合原生命令行工具执行；存储管理界面继续保留历史 `tooling:ripgrep` 残留目录的识别与清理入口。
 - [agent/desktop] 移除托管工具链中的 `Git Bash` 自动下载、协议选项与工作空间依赖项卡片；存储管理界面继续保留历史 `tooling:git-bash` 残留目录的识别与清理入口，桌面集成终端仍保留本机 Git Bash 探测。
 - [agent/desktop] 移除「请求批准（`default`）」、「按请求（`on-request`）」、「不可信（`untrusted`）」、「精细控制（`granular`）」、「自定义（`custom`）」权限模式以及预设可见性开关和配置页「文件访问范围」「审批时机」「审批执行者」高级下拉项；移除聊天输入框权限菜单中的「审批规则」「最近拒绝」、`/approve` 斜杠命令及「最近拒绝」重试能力（`approval.retry.v1`），保留 SQLite 基线列向前兼容。
+
+### Security
+
+- [agent] 只读文件访问范围强制宿主确认的只读 Shell 命令：`exec_command`/`write_stdin` 未经只读命令识别一律拒绝，重定向等写入不再依赖模型自行申报；`Grep` 如实声明进程能力，其无 ripgrep 回退检索对齐默认隐藏文件跳过，避免整树扫描绕过 `.env` 等敏感文件审批；后台子代理通知中的错误文本统一脱敏。
 
 ## 0.2.0-beta.7 — 2026-11-03
 
