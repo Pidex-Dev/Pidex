@@ -144,7 +144,7 @@ export function ThreadScrollLayout({
           innerClassName,
         )}
       >
-        <div className="thread-scroll-layout__content tw:flex tw:min-w-0 tw:shrink-0 tw:flex-col">
+        <div className="thread-scroll-layout__content tw:flex tw:min-w-0 tw:flex-[1_0_auto] tw:flex-col">
           {children}
         </div>
         {hasFooter ? (

@@ -70,8 +70,8 @@ const TerminalPanel = React.lazy(() =>
   import('../../terminal/TerminalPanel.js').then((module) => ({ default: module.TerminalPanel })),
 )
 
-function deferred(element: ReactNode): ReactNode {
-  return <Suspense fallback={null}>{element}</Suspense>
+function deferred(element: ReactNode, loadingLabel: string): ReactNode {
+  return <Suspense fallback={<WorkbenchPanelLoading label={loadingLabel} />}>{element}</Suspense>
 }
 
 function BrowserTabContent({
@@ -118,6 +118,7 @@ function BrowserTabContent({
       state={state}
       onStateChange={onStateChange}
     />,
+    '正在加载内置浏览器…',
   )
 }
 
@@ -538,6 +539,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           cwd={context.terminal.cwd}
           onDisplayPathChange={context.terminal.onDisplayPathChange}
         />,
+        '正在加载集成终端…',
       )
     },
   },

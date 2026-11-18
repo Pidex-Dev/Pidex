@@ -51,6 +51,7 @@ import {
   type KeyedDisclosureStore,
 } from '../../../components/ui/KeyedDisclosureStore.js'
 import { useLiveResizeValue } from '../../layout/UseLiveResizeValue.js'
+import { WorkbenchPanelLoading } from '../../layout/panels/WorkbenchPanelStates.js'
 import { buildReviewFileTree } from './BuildReviewFileTree.js'
 import { buildCommentCountsByPath } from '../comments/ReviewCommentUtils.js'
 import { CommitPopover } from './CommitPopover.js'
@@ -2555,27 +2556,31 @@ function WorkspaceReviewSidebarImpl({
               />
             </div>
 
-            <ReviewFileTreeController
-              commentCountsByPath={commentCountsByPath}
-              emptyMessage={
-                loadState === 'loading' && !summary
-                  ? '正在加载变更…'
-                  : loadState === 'not-repository' && !summary
-                    ? '当前工作区不是 Git 仓库。'
-                    : loadState === 'unsupported' && !summary
-                      ? '当前 Agent 不支持代码审阅。'
-                      : !summary && files.length === 0
-                        ? '无法加载变更，请重试。'
-                        : files.length === 0
-                          ? scope === 'staged'
-                            ? '暂无已暂存变更。'
-                            : '暂无未暂存变更。'
-                          : '当前筛选下没有匹配的文件。'
-              }
-              reviewTree={reviewTree}
-              selectedPath={selectedFile?.path ?? null}
-              onSelectFile={handleSelectFile}
-            />
+            {loadState === 'loading' && !summary && files.length === 0 ? (
+              <WorkbenchPanelLoading label="正在加载变更…" />
+            ) : (
+              <ReviewFileTreeController
+                commentCountsByPath={commentCountsByPath}
+                emptyMessage={
+                  loadState === 'loading' && !summary
+                    ? '正在加载变更…'
+                    : loadState === 'not-repository' && !summary
+                      ? '当前工作区不是 Git 仓库。'
+                      : loadState === 'unsupported' && !summary
+                        ? '当前 Agent 不支持代码审阅。'
+                        : !summary && files.length === 0
+                          ? '无法加载变更，请重试。'
+                          : files.length === 0
+                            ? scope === 'staged'
+                              ? '暂无已暂存变更。'
+                              : '暂无未暂存变更。'
+                            : '当前筛选下没有匹配的文件。'
+                }
+                reviewTree={reviewTree}
+                selectedPath={selectedFile?.path ?? null}
+                onSelectFile={handleSelectFile}
+              />
+            )}
 
             {staleComments.length > 0 ? (
               <ScrollArea

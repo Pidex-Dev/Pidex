@@ -1,5 +1,5 @@
 import React from 'react'
-import { CirclePlus, LoaderCircle } from 'lucide-react'
+import { CirclePlus } from 'lucide-react'
 import type { VirtualizerHandle } from 'virtua'
 import type {
   DesktopPermissionMode,
@@ -10,6 +10,7 @@ import { Button } from '../../../components/ui/Button.js'
 import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { WorkbenchTabDescriptor } from '../../layout/dock/RightDockState.js'
+import { WorkbenchPanelLoading } from '../../layout/panels/WorkbenchPanelStates.js'
 import { InlineApprovalCard } from '../approvals/InlineApprovalCard.js'
 import { PlanApprovalCard } from '../approvals/PlanApprovalCard.js'
 import { usePlanApprovalResponse } from '../approvals/UsePlanApprovalResponse.js'
@@ -172,19 +173,7 @@ export function SideChatThreadPanel({
         scrollRef={scrollRef}
       >
         {creating ? (
-          <div
-            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
-            role="status"
-          >
-            <LoaderCircle
-              size={APP_ICON_SIZES.lg}
-              className="tw:size-icon-lg canonical-spin"
-              aria-hidden="true"
-            />
-            <strong className="tw:mt-4 tw:text-app-text tw:type-4 tw:weight-bold">
-              正在启动侧边聊天
-            </strong>
-          </div>
+          <WorkbenchPanelLoading label="正在启动侧边聊天…" />
         ) : expired ? (
           <div
             className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
@@ -202,19 +191,7 @@ export function SideChatThreadPanel({
             </Button>
           </div>
         ) : conversation.loading && visibleTurnCount === 0 ? (
-          <div
-            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
-            role="status"
-          >
-            <LoaderCircle
-              size={APP_ICON_SIZES.lg}
-              className="tw:size-icon-lg canonical-spin"
-              aria-hidden="true"
-            />
-            <strong className="tw:mt-4 tw:text-app-text tw:type-4 tw:weight-bold">
-              正在启动侧边聊天
-            </strong>
-          </div>
+          <WorkbenchPanelLoading label="正在启动侧边聊天…" />
         ) : visibleTurnCount === 0 && !conversation.error ? (
           <div
             className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"

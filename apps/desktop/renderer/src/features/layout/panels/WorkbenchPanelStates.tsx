@@ -2,7 +2,7 @@ import { Component, Fragment } from 'react'
 import type React from 'react'
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { Button } from '../../../components/ui/Button.js'
-import { Spinner } from '../../../components/ui/Spinner.js'
+import { FullScreenWhaleLoading } from '../../../components/ui/FullScreenWhaleLoading.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -73,9 +73,9 @@ function WorkbenchPanelStateSurface({
 
 export function WorkbenchPanelLoading({ label }: { label: string }): React.ReactNode {
   return (
-    <WorkbenchPanelStateSurface title={label}>
-      <Spinner className="workbench-panel-state__spinner tw:text-app-text" />
-    </WorkbenchPanelStateSurface>
+    <div className="workbench-panel-loading tw:flex tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:flex-1 tw:self-stretch">
+      <FullScreenWhaleLoading label={label} showLabel={false} variant="contained" />
+    </div>
   )
 }
 

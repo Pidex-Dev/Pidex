@@ -23,6 +23,7 @@ import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
 import type { UserAttachmentPreviewTab } from '../../layout/dock/RightDockState.js'
+import { WorkbenchPanelLoading } from '../../layout/panels/WorkbenchPanelStates.js'
 import { type LoadedUserAttachment, useUserAttachmentPreview } from './UseUserAttachmentPreview.js'
 
 const FileEditor = lazy(() =>
@@ -78,11 +79,7 @@ function UserAttachmentFilePreview({
   const state = useUserAttachmentPreview(tab)
 
   if (state.status === 'loading') {
-    return (
-      <div className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
-        正在读取附件…
-      </div>
-    )
+    return <WorkbenchPanelLoading label="正在读取附件…" />
   }
   if (state.status === 'error') {
     return (
@@ -239,11 +236,7 @@ function DirectoryAttachmentPreview({ tab }: Props): React.ReactNode {
           </Button>
         ) : null}
       </header>
-      {loading ? (
-        <div className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
-          正在读取目录…
-        </div>
-      ) : null}
+      {loading ? <WorkbenchPanelLoading label="正在读取目录…" /> : null}
       {error ? (
         <div className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
           {error}
@@ -565,15 +558,7 @@ function PlayableAttachment({ value }: { value: LoadedUserAttachment }): React.R
         当前编码无法播放。
       </div>
     )
-  if (!source)
-    return (
-      <div
-        className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft"
-        role="status"
-      >
-        正在读取媒体…
-      </div>
-    )
+  if (!source) return <WorkbenchPanelLoading label="正在读取媒体…" />
   return (
     <AttachmentMediaPlayer
       key={source}
@@ -648,13 +633,7 @@ function TextAttachmentPreview({ value }: { value: LoadedUserAttachment }): Reac
       </AttachmentToolbar>
       {formatted.jsonInvalid ? <div style={noticeStyle}>JSON 无法格式化，已显示原文。</div> : null}
       <div style={editorFrameStyle}>
-        <Suspense
-          fallback={
-            <div className="right-dock-empty-state tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
-              正在加载文件预览…
-            </div>
-          }
-        >
+        <Suspense fallback={<WorkbenchPanelLoading label="正在加载文件预览…" />}>
           <FileEditor
             ariaLabel={`${value.attachment.name} 附件预览`}
             language={formatted.language}
@@ -773,6 +752,8 @@ const imageStyle: CSSProperties = {
   userSelect: 'none',
 }
 const editorFrameStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
   minHeight: 0,
   flex: '1 1 auto',
   overflow: 'hidden',

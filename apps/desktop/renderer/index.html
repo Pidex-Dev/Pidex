@@ -133,6 +133,10 @@
         text-align: center;
       }
 
+      .full-screen-whale-loader__status-viewport[hidden] {
+        display: none;
+      }
+
       .full-screen-whale-loader__status-viewport > span {
         display: block;
         overflow: hidden;
@@ -232,7 +236,7 @@
           <img class="full-screen-whale-loader__base" src="/pidex-mark-green.svg" alt="" />
           <div class="full-screen-whale-loader__overlay"></div>
         </div>
-        <div class="full-screen-whale-loader__status-viewport">
+        <div class="full-screen-whale-loader__status-viewport" hidden>
           <span class="full-screen-whale-loader__status">正在加载桌面界面…</span>
         </div>
         <div id="startup-actions" hidden>

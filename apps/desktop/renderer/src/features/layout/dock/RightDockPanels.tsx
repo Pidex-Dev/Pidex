@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FileEditorViewState } from '../../editor/FileEditor.js'
 import type React from 'react'
-import { Check, Copy, Download, Folder, FolderOpen, ListChecks, Undo2 } from 'lucide-react'
+import { Check, Copy, Download, FolderOpen, ListChecks, Undo2 } from 'lucide-react'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -785,19 +785,7 @@ export function RightDockFilePreviewPanel({
   }
 
   if (document.status !== 'ready') {
-    return (
-      <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:min-w-0 tw:min-h-0 tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-5 tw:text-center tw:text-app-text-meta">
-        <Folder
-          className="tw:size-icon-lg"
-          size={APP_ICON_SIZES.lg}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
-        <strong className="tw:text-app-text tw:type-4 tw:weight-bold">正在读取文件</strong>
-        <span className="tw:max-w-full tw:wrap-anywhere tw:text-app-text-soft tw:type-1">
-          {expectedPath}
-        </span>
-      </div>
-    )
+    return <WorkbenchPanelLoading label={`正在读取文件 ${expectedPath}`} />
   }
 
   return (
