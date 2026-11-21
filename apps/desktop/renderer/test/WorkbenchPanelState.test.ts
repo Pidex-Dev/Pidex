@@ -16,6 +16,10 @@ import {
   getWorkbenchTabDisplayTitle,
 } from '../src/features/layout/tabs/WorkbenchTabRegistry.js'
 import {
+  appendPanelQuery,
+  resolveJudgePanelTargetPath,
+} from '../src/features/layout/shell/UseWorkbenchRouteController.js'
+import {
   createDefaultConversationUiState,
   createDefaultReviewTabUiState,
   isReviewDiffExpanded,
@@ -304,6 +308,7 @@ describe('workbench dynamic tab state', () => {
       'browser',
       'file-browser',
       'side-chat',
+      'judge',
     ])
     expect(presentation.map((item) => item.label)).toEqual([
       '变更',
@@ -311,6 +316,7 @@ describe('workbench dynamic tab state', () => {
       '浏览器',
       '打开文件',
       '侧边聊天',
+      'Judge 决策',
     ])
     expect(presentation.map((item) => item.shortcut)).toEqual([
       'Ctrl+Shift+G',
@@ -318,6 +324,7 @@ describe('workbench dynamic tab state', () => {
       'Ctrl+T',
       'Ctrl+P',
       'Ctrl+Alt+S',
+      undefined,
     ])
     expect(
       getWorkbenchTabDefinition('file-browser').getTitle({
@@ -325,6 +332,32 @@ describe('workbench dynamic tab state', () => {
         kind: 'file-browser',
       }),
     ).toBe('打开文件')
+  })
+
+  test('persists judge tabs in conversation UI state and resolves settings open-panel target to the active thread', () => {
+    const state = createDefaultConversationUiState()
+    const withJudge = {
+      ...state,
+      workbench: applyWorkbenchPanelAction(state.workbench, {
+        type: 'openTab',
+        target: 'right',
+        tab: { id: 'judge', kind: 'judge', threadId: 'thread-42' },
+      }),
+    }
+    const restored = validateConversationUiState(withJudge)
+    expect(restored.workbench.tabsById.judge).toEqual({
+      id: 'judge',
+      kind: 'judge',
+      threadId: 'thread-42',
+    })
+    expect(restored.workbench.right.activeTabId).toBe('judge')
+    expect(resolveJudgePanelTargetPath('/threads/thread-42', null)).toBe('/threads/thread-42')
+    expect(resolveJudgePanelTargetPath('/projects', 'thread-9')).toBe('/threads/thread-9')
+    expect(resolveJudgePanelTargetPath('/projects', null)).toBe('/new')
+    expect(appendPanelQuery('/threads/thread-42', 'judge')).toBe('/threads/thread-42?panel=judge')
+    expect(appendPanelQuery('/threads/thread-42?view=1#top', 'judge')).toBe(
+      '/threads/thread-42?view=1&panel=judge#top',
+    )
   })
 
   test('hides the add button for an empty header and restores the add menu for side-chat tabs', () => {
