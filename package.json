@@ -70,10 +70,11 @@
     "undici": "8.12.3",
     "proxy-addr": "2.0.8",
     "source-map-js": "1.2.2",
-    "prosemirror-view": "1.42.6"
+    "prosemirror-view": "1.43.0"
   },
   "patchedDependencies": {
     "effect@4.0.0-beta.83": "patches/effect@4.0.0-beta.83.patch",
-    "gcp-metadata@8.1.2": "patches/gcp-metadata@8.1.2.patch"
+    "gcp-metadata@8.1.2": "patches/gcp-metadata@8.1.2.patch",
+    "virtua@0.55.0": "patches/virtua@0.55.0.patch"
   }
 }
