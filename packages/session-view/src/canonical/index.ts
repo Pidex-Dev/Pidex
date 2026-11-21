@@ -16,6 +16,24 @@ import type {
 } from '@pidex/shared/thread'
 import type { EventEnvelope, RpcResult } from '@pidex/agent-protocol'
 import { VISUALIZATION_TOOL, visualizationFromBlocks } from '@pidex/shared/visualization'
+import {
+  applyDecisionEnvelope,
+  cloneCanonicalDecisionState,
+  createCanonicalDecisionState,
+  mergeDecisionLedgerPage,
+  pruneDecisionEntriesForTurns,
+  selectDecisionNoticeEntries,
+  type CanonicalDecisionState,
+  type DecisionNoticeViewEntry,
+} from './DecisionProjection'
+import type { DecisionLedgerRecord, DecisionOutcomeRecord } from '@pidex/shared/decision'
+
+export {
+  selectDecisionLedgerEntries,
+  selectDecisionNoticeEntries,
+  type DecisionLedgerViewEntry,
+  type DecisionNoticeViewEntry,
+} from './DecisionProjection'
 
 export type ThreadEventEnvelopeLike = EventEnvelope
 
@@ -72,6 +90,7 @@ export interface CanonicalThreadState {
   attachmentsById: Map<string, Attachment>
   contextReferencesById: Map<string, LocalContextReference>
   subagentsByTaskId: Map<string, SubagentProjection>
+  decisions: CanonicalDecisionState
   groups: CanonicalTurnGroups
   queue: CanonicalQueueState
   history: {
@@ -102,6 +121,8 @@ export interface VisibleTurnEntry {
   approvals: ApprovalRequest[]
   attachments: Attachment[]
   contextReferences: LocalContextReference[]
+  /** Optional so cached pre-decision projections stay renderable; selectors always fill it. */
+  decisionNotices?: DecisionNoticeViewEntry[]
   answerAgentIds?: readonly string[]
 }
 
@@ -218,6 +239,8 @@ export function reconcileLatestThreadPage(
   ) {
     return fresh
   }
+
+  mergePreservedDecisionEntries(cached.decisions, fresh.decisions)
 
   const refreshedTurnIds = new Set([
     ...page.turns.map((bundle) => bundle.turn.id),
@@ -345,6 +368,42 @@ export function applyThreadEnvelope(
   return applyThreadEnvelopes(state, [envelope])
 }
 
+/**
+ * Merges a `decision/listLedger` page into the canonical state. The history
+ * stream fence is untouched; reconciled records deduplicate against events by
+ * ledger id.
+ */
+export function mergeDecisionLedgerIntoState(
+  state: CanonicalThreadState,
+  page: {
+    records: readonly DecisionLedgerRecord[]
+    outcomes: readonly DecisionOutcomeRecord[]
+  },
+): CanonicalThreadState {
+  return { ...state, decisions: mergeDecisionLedgerPage(state.decisions, page) }
+}
+
+function mergePreservedDecisionEntries(
+  cached: CanonicalDecisionState,
+  fresh: CanonicalDecisionState,
+): void {
+  for (const [id, notice] of cached.noticesById) {
+    if (!fresh.noticesById.has(id)) {
+      fresh.noticesById.set(id, notice)
+    }
+  }
+  for (const [id, record] of cached.ledgerById) {
+    if (!fresh.ledgerById.has(id)) {
+      fresh.ledgerById.set(id, record)
+    }
+  }
+  for (const [ledgerId, outcomes] of cached.pendingOutcomesByLedgerId) {
+    if (!fresh.pendingOutcomesByLedgerId.has(ledgerId)) {
+      fresh.pendingOutcomesByLedgerId.set(ledgerId, [...outcomes])
+    }
+  }
+}
+
 export function applyThreadEnvelopes(
   state: CanonicalThreadState,
   envelopes: readonly ThreadEventEnvelopeLike[],
@@ -433,6 +492,7 @@ export function selectVisibleTurnEntries(
       contextReferences: [...contextReferenceIds]
         .map((referenceId) => state.contextReferencesById.get(referenceId))
         .filter((reference): reference is LocalContextReference => reference !== undefined),
+      decisionNotices: selectDecisionNoticeEntries(state.decisions, turnId),
     })
   }
   return entries.flatMap((entry) => {
@@ -475,6 +535,7 @@ export function selectVisibleTurnEntries(
           approvals: [],
           attachments: [],
           contextReferences: [],
+          decisionNotices: [],
         }
       }),
     ]
@@ -763,6 +824,7 @@ function applyEnvelopePayload(
         if (removed.has(row.task.parentTurnId)) state.subagentsByTaskId.delete(id)
       for (const [id, row] of state.hookTrustsById)
         if (removed.has(row.turnId)) state.hookTrustsById.delete(id)
+      pruneDecisionEntriesForTurns(state.decisions, removed)
       state.pendingPlanApproval = null
       state.history.generation += 1
       rebuildTurnGroups(state)
@@ -1049,6 +1111,11 @@ function applyEnvelopePayload(
     case 'queue/updated':
       if (envelope.payload.action === 'added') state.pendingPlanApproval = null
       applyQueueUpdate(state, envelope.payload)
+      return
+    case 'decision/notice':
+    case 'decision/recorded':
+    case 'decision/outcomeRecorded':
+      applyDecisionEnvelope(state.decisions, envelope)
       return
     default:
       return
@@ -1480,6 +1547,7 @@ function emptyState(thread: Thread): CanonicalThreadState {
     attachmentsById: new Map(),
     contextReferencesById: new Map(),
     subagentsByTaskId: new Map(),
+    decisions: createCanonicalDecisionState(),
     groups: createEmptyTurnGroups(),
     queue: { version: 0, pauseReason: null, turnIds: [], inputIds: [] },
     history: { olderCursor: null, hasOlder: false, loadingOlder: false, generation: 0 },
@@ -1500,6 +1568,7 @@ function cloneState(state: CanonicalThreadState): CanonicalThreadState {
     attachmentsById: new Map(state.attachmentsById),
     contextReferencesById: new Map(state.contextReferencesById),
     subagentsByTaskId: new Map(state.subagentsByTaskId),
+    decisions: cloneCanonicalDecisionState(state.decisions),
     groups: copyTurnGroups(state.groups),
     queue: {
       ...state.queue,
@@ -1689,7 +1758,8 @@ function hasSameVisibleSources(previous: RenderTurnEntry, next: VisibleTurnEntry
     sameReferences(previous.agents, next.agents) &&
     sameReferences(previous.items, next.items) &&
     sameReferences(previous.approvals, next.approvals) &&
-    sameReferences(previous.attachments, next.attachments)
+    sameReferences(previous.attachments, next.attachments) &&
+    sameReferences(previous.decisionNotices ?? [], next.decisionNotices ?? [])
   )
 }
 

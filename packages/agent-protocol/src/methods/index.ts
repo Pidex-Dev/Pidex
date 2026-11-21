@@ -18,6 +18,7 @@ import { WorktreeRpcMethods } from './Worktree'
 import { SessionGroupRpcMethods } from './SessionGroup'
 import { WorkflowRpcMethods } from './Workflow'
 import { ComposerPredictionRpcMethods } from './Predictions'
+import { DecisionRpcMethods } from './Decision'
 import { HookRpcMethods } from './Hooks'
 import type { TerminalRpcMethodMap } from './Terminal'
 import type { LocalEnvironmentHostRpcMethodMap } from './LocalEnvironment'
@@ -41,6 +42,7 @@ export const RpcMethods = {
   ...SessionGroupRpcMethods,
   ...WorkflowRpcMethods,
   ...ComposerPredictionRpcMethods,
+  ...DecisionRpcMethods,
   ...HookRpcMethods,
 } as const
 export { BaseRpcMethods } from './Base'
@@ -106,4 +108,5 @@ export * from './Worktree'
 export * from './SessionGroup'
 export * from './Workflow'
 export * from './Predictions'
+export * from './Decision'
 export * from './Hooks'

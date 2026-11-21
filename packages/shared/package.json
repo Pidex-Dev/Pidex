@@ -9,6 +9,7 @@
     "./errors": "./src/Errors.ts",
     "./automation": "./src/Automation.ts",
     "./calendar": "./src/Calendar.ts",
+    "./decision": "./src/decision/index.ts",
     "./task-schedule": "./src/TaskSchedule.ts",
     "./desktop-theme": "./src/DesktopTheme.ts",
     "./desktop-external-fonts": "./src/DesktopExternalFonts.ts",
