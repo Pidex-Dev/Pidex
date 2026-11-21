@@ -200,13 +200,25 @@ jobs:
           if ($installers.Count -ne 1) {
             throw "Expected exactly one Windows x64 installer, found $($installers.Count)"
           }
-          bun scripts/WriteReleaseNotes.ts --tag "$env:GITHUB_REF_NAME" --output release/RELEASE_NOTES.md
-          if ($LASTEXITCODE -ne 0) { throw "Failed to generate release notes" }
+          $tag = $env:GITHUB_REF_NAME
+          $channel = "latest"
+          if ($tag -match '^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$') {
+            $channel = $Matches[1]
+          }
           $installer = $installers[0]
+          $blockmap = "$($installer.FullName).blockmap"
+          $updateMetadata = Join-Path "release" "$channel.yml"
+          foreach ($artifact in @($blockmap, $updateMetadata)) {
+            if (-not (Test-Path -LiteralPath $artifact -PathType Leaf)) {
+              throw "Missing auto-update artifact: $artifact"
+            }
+          }
+          bun scripts/WriteReleaseNotes.ts --tag "$tag" --output release/RELEASE_NOTES.md
+          if ($LASTEXITCODE -ne 0) { throw "Failed to generate release notes" }
           $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer.FullName).Hash.ToLowerInvariant()
           "$digest *$($installer.Name)" |
             Set-Content -LiteralPath release/SHA256SUMS.txt -Encoding utf8NoBOM
-      - name: Create GitHub Release with installer
+      - name: Create GitHub Release with installer and auto-update metadata
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -218,6 +230,13 @@ jobs:
             exit 1
           fi
 
+          channel="latest"
+          if [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$ ]]; then
+            channel="${BASH_REMATCH[1]}"
+          fi
+          update_metadata="release/${channel}.yml"
+          test -f "$update_metadata"
+
           release_args=(
             "$tag"
             --repo "$GITHUB_REPOSITORY"
@@ -225,9 +244,11 @@ jobs:
             --title "Pidex $tag"
             --notes-file release/RELEASE_NOTES.md
             release/Pidex-Desktop-*-x64.exe
+            release/Pidex-Desktop-*-x64.exe.blockmap
+            "$update_metadata"
             release/SHA256SUMS.txt
           )
-          if [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$ ]]; then
+          if [[ "$channel" != "latest" ]]; then
             release_args+=(--prerelease)
           fi
           gh release create "${release_args[@]}"

@@ -7,7 +7,6 @@ const packageWorkflow = readWorkflow('windows-x64-package.yml')
 const ciWorkflow = readWorkflow('ci.yml')
 const prRulesWorkflow = readWorkflow('pr-rules.yml')
 const performanceWorkflow = readWorkflow('windows-desktop-performance.yml')
-const cuaWorkflow = readWorkflow('cua-runtime.yml')
 const projectSetup = readFileSync(
   resolve(repositoryRoot, '.github/actions/setup-project/action.yml'),
   'utf8',
@@ -114,7 +113,7 @@ describe('release workflows', () => {
     expect(parity).not.toContain('name: beta-release')
   })
 
-  test('source-release builds and publishes the Windows x64 installer', () => {
+  test('source-release builds and publishes the Windows x64 installer and auto-update metadata', () => {
     const sourceRelease = job(packageWorkflow, 'source-release')
     expect(sourceRelease).toContain(
       "if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')",
@@ -128,6 +127,8 @@ describe('release workflows', () => {
     expect(sourceRelease).toContain('SHA256SUMS.txt')
     expect(sourceRelease).toContain('gh release create')
     expect(sourceRelease).toContain('Pidex-Desktop-*-x64.exe')
+    expect(sourceRelease).toContain('Pidex-Desktop-*-x64.exe.blockmap')
+    expect(sourceRelease).toContain('release/${channel}.yml')
     expect(sourceRelease).toContain('--verify-tag')
     expect(sourceRelease).toContain('--prerelease')
     expect(sourceRelease).not.toContain('asset_count')
@@ -136,7 +137,7 @@ describe('release workflows', () => {
     expect(sourceRelease).not.toContain('attest-')
   })
 
-  test('tag publishing no longer references binary or Release PR automation', () => {
+  test('tag publishing no longer references legacy Release PR automation', () => {
     const sourceRelease = job(packageWorkflow, 'source-release')
     for (const removedMarker of [
       'Verify trusted Release PR identity',
@@ -147,8 +148,6 @@ describe('release workflows', () => {
       'beta-preflight.allowed_signers',
       'release-pr-policy',
       'spdx.json',
-      'blockmap',
-      'beta.yml',
     ]) {
       expect(sourceRelease).not.toContain(removedMarker)
     }
@@ -180,7 +179,6 @@ describe('release workflows', () => {
       ciWorkflow,
       prRulesWorkflow,
       performanceWorkflow,
-      cuaWorkflow,
       projectSetup,
     ]) {
       for (const reference of actionReferences(workflow)) {

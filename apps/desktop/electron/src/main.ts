@@ -267,10 +267,18 @@ async function startDesktop(): Promise<void> {
   })
   const updater = new DesktopAutoUpdater({
     beforeInstall: async () => {
-      if (supervisor?.ownsBackend) {
-        await supervisor.shutdown()
-        stopBackendOnQuit = true
-      }
+      browserController?.dispose()
+      computerController?.dispose()
+      await stopTerminalsBeforeSupervisor({
+        manager: terminalManager,
+        stopSupervisor: async () => {
+          terminalHost?.invalidate()
+          if (supervisor?.ownsBackend) {
+            await supervisor.shutdown()
+            stopBackendOnQuit = true
+          }
+        },
+      })
     },
     packaged: app.isPackaged,
     version: app.getVersion(),
