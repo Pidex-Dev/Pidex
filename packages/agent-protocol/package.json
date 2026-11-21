@@ -26,7 +26,7 @@
   "dependencies": {
     "@pidex/model-schema": "workspace:*",
     "@pidex/shared": "workspace:*",
-    "effect": "4.0.0-beta.83"
+    "effect": "4.0.0-beta.103"
   },
   "devDependencies": {
     "@types/bun": "1.4.4",
