@@ -7,6 +7,8 @@
 
 ## Unreleased
 
+## 0.2.0-beta.8 — 2026-11-21
+
 ### Added
 
 - [agent/desktop] 新增 Decision API 与 Judge 决策内核：`decision/*` RPC v4 契约、`decision.engine.v1` 能力与独立决策账本（schema 75，含结果对照与幂等操作日志）；fail-open 决策引擎与多级 Judge 级联（OpenAI Decisions、System One、pi-ai Classifier、LLM 零样本），配置经 `.pidex/config.json` 的 `decision` 节分层读写，凭据仅经加密库或环境变量解析且写入前脱敏。共注册 25 个决策点，覆盖工具风险/审批/约束、外部内容与浏览器页面注入拦截（保留截图字段）、MCP 描述与不可信仓库指令/Skill 投毒筛查（跳过内置与用户全局目录、按哈希缓存）、浏览器高危不可逆动作风控（`auto-review` 下升级人工确认）、长输出折叠归档、回合延续与验证提醒、输入预检/任务框架/插话路由、上下文遗忘、Goal 辅助核验、记忆观察、评审分级、子 Agent 路由与 PR 监控唤醒分流（可执行修复/人工介入暂停/噪声跳过，并对审查正文防注入清洗）；安全门禁与分流类默认 shadow 观察、注入与投毒筛查默认 active，全部可经设置页按分组或单点切换 off/shadow/active。设置新增「决策」页（合并的 Judge 与级联折叠管理、Probe 连通性、按分组默认折叠与批量模式切换、单点轻量路由选择器及 recordState 隐私开关），会话右侧新增 Judge 面板实时展示决策记录并支持判对/判错纠偏，时间线内嵌决策提示。未配置 Judge 时所有路径与原有行为完全一致。
