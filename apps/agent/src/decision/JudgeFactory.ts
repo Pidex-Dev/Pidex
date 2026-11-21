@@ -9,7 +9,10 @@ import type { ConfigService } from '../config/ConfigService'
 import type { ApiKeyService } from '../provider/ApiKeyService'
 import type { PiModelService } from '../provider/pi/PiModelService'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
-import { isOpenAIAddress, OpenAIDecisionsJudgeProvider } from './providers/OpenAIDecisionsJudgeProvider'
+import {
+  isOpenAIAddress,
+  OpenAIDecisionsJudgeProvider,
+} from './providers/OpenAIDecisionsJudgeProvider'
 import { HttpJudgeProvider, SystemOneJudgeProvider } from './providers/SystemOneJudgeProvider'
 import { createPiClassifierJudgeProvider } from './providers/PiClassifierJudgeProvider'
 import { createPiLlmJudgeProvider } from './providers/PiLlmJudgeProvider'
@@ -52,7 +55,9 @@ function keyResolverFor(
       }
       throw new JudgeError(
         'auth',
-        deps.credentials ? 'The bound credential is unavailable' : 'Credential store is unavailable',
+        deps.credentials
+          ? 'The bound credential is unavailable'
+          : 'Credential store is unavailable',
       )
     }
     if (judge.providerId && deps.models) {

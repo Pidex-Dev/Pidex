@@ -72,10 +72,7 @@ export const browserActionRiskSpec = defineDecision({
     }
   },
   policy(answers): BrowserActionRiskOutcome {
-    if (
-      threeZone(answers.irreversible) === 'yes' &&
-      threeZone(answers.requested) !== 'yes'
-    ) {
+    if (threeZone(answers.irreversible) === 'yes' && threeZone(answers.requested) !== 'yes') {
       return 'confirm'
     }
     return 'allow'

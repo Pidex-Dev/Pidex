@@ -1,7 +1,4 @@
-import {
-  isFullAccessPermissionConfig,
-  isReadOnlyTaskMode,
-} from '@pidex/shared/thread'
+import { isFullAccessPermissionConfig, isReadOnlyTaskMode } from '@pidex/shared/thread'
 import type { PermissionDecision, ToolInvocation } from '../Domain'
 import type { ToolCatalogEntry } from '../tool/ToolRegistry'
 import { toolAllowedForFileAccess, toolAllowedInTaskMode } from '../tool/ToolRegistry'
@@ -142,10 +139,7 @@ export class PermissionDecisionEngine {
       risk,
       reason,
     })
-    const review = (
-      reason: string,
-      forceHumanApproval: boolean,
-    ): ResolvedPermissionDecision => ({
+    const review = (reason: string, forceHumanApproval: boolean): ResolvedPermissionDecision => ({
       action: 'review',
       reviewer: 'auto_review',
       sandbox,

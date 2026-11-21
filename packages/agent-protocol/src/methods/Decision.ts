@@ -19,11 +19,7 @@ import {
 
 const Sha256Schema = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))
 
-const DecisionReadErrors = [
-  'THREAD_NOT_FOUND',
-  'INVALID_REQUEST',
-  'INTERNAL_ERROR',
-] as const
+const DecisionReadErrors = ['THREAD_NOT_FOUND', 'INVALID_REQUEST', 'INTERNAL_ERROR'] as const
 
 const DecisionWriteErrors = [
   'THREAD_NOT_FOUND',

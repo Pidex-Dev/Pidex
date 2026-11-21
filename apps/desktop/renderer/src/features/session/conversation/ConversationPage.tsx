@@ -83,10 +83,7 @@ import {
   shouldDeferThreadLoading,
 } from '../state/PendingSubmissionStore.js'
 import { useThreadBookmarks } from './UseThreadBookmarks.js'
-import {
-  ThreadSummaryErrorBoundary,
-  ThreadSummaryPanel,
-} from '../summary/ThreadSummaryPanel.js'
+import { ThreadSummaryErrorBoundary, ThreadSummaryPanel } from '../summary/ThreadSummaryPanel.js'
 import {
   type ThreadSummaryDisplayMode,
   useThreadSummaryCollapsedSections,
@@ -1248,47 +1245,47 @@ export function ConversationPage(): React.ReactNode {
         summaryDisplayMode: threadSummary.displayMode,
       }
     }, [
-    branches,
-    activeSessionId,
-    collapsedSections,
-    toggleSummarySection,
-    isThreadLoading,
-    onRefreshDiff,
-    openBranchReview,
-    branchReviewState.loading,
-    onGitOperation,
-    onOpenTerminal,
-    gitStatus,
-    gitDetection,
-    handoffAction,
-    onAppendComposerText,
-    browserTabs,
-    threadGoal,
-    onGoalPause,
-    onGoalResume,
-    onOpenArtifact,
-    onActivateBrowserTab,
-    onOpenAttachment,
-    onOpenLocalContext,
-    onBranchSelect,
-    onCommitOrPush,
-    onCreateBranch,
-    onCreatePullRequest,
-    onOpenPlanInRightDock,
-    onOpenSubagent,
-    onOpenSubagentDirectory,
-    onOpenWorkspacePath,
-    navigate,
-    settingsDraft.setValue,
-    terminalProfileId,
-    setSidebarSessionPins,
-    threadSummary,
-    threadSummaryModel,
-    launchActions,
-    environmentChoices,
-    selectedLaunchActionId,
-    workspacePath,
-  ])
+      branches,
+      activeSessionId,
+      collapsedSections,
+      toggleSummarySection,
+      isThreadLoading,
+      onRefreshDiff,
+      openBranchReview,
+      branchReviewState.loading,
+      onGitOperation,
+      onOpenTerminal,
+      gitStatus,
+      gitDetection,
+      handoffAction,
+      onAppendComposerText,
+      browserTabs,
+      threadGoal,
+      onGoalPause,
+      onGoalResume,
+      onOpenArtifact,
+      onActivateBrowserTab,
+      onOpenAttachment,
+      onOpenLocalContext,
+      onBranchSelect,
+      onCommitOrPush,
+      onCreateBranch,
+      onCreatePullRequest,
+      onOpenPlanInRightDock,
+      onOpenSubagent,
+      onOpenSubagentDirectory,
+      onOpenWorkspacePath,
+      navigate,
+      settingsDraft.setValue,
+      terminalProfileId,
+      setSidebarSessionPins,
+      threadSummary,
+      threadSummaryModel,
+      launchActions,
+      environmentChoices,
+      selectedLaunchActionId,
+      workspacePath,
+    ])
 
   const composerFooter =
     !isThreadLoading && composerPropsForPage ? (
@@ -1669,9 +1666,7 @@ function SessionSubmenu({
         asChild
         className="popover-item popover-sub-trigger"
         leading={<span className="popover-item-icon">{icon}</span>}
-        trailing={
-          <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />
-        }
+        trailing={<ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />}
       >
         <DropdownMenu.SubTrigger disabled={disabled} tabIndex={-1}>
           <span className="popover-item-label">{label}</span>

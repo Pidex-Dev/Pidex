@@ -684,7 +684,8 @@
   }
 
   .usage-cost-notice {
-    border: 1px solid color-mix(in srgb, var(--usage-chart-3) 30%, var(--cpx-sys-color-border-subtle));
+    border: 1px solid
+      color-mix(in srgb, var(--usage-chart-3) 30%, var(--cpx-sys-color-border-subtle));
   }
 
   .usage-badge {

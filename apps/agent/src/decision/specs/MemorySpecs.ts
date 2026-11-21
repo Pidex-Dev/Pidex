@@ -111,7 +111,10 @@ export const memoryRecallSpec = defineDecision({
   policy(answers, input): MemoryRecallOutcome {
     const apply: string[] = []
     input.lessons.forEach((lesson, index) => {
-      if (verdictOf((answers as Record<string, DecisionAnswer>)[memoryRecallQuestionId(index)]) === 'yes')
+      if (
+        verdictOf((answers as Record<string, DecisionAnswer>)[memoryRecallQuestionId(index)]) ===
+        'yes'
+      )
         apply.push(lesson.id)
     })
     return { apply }
@@ -138,7 +141,8 @@ const WORTH_CRITERIA: Readonly<Record<MemoryWorthVerdict, string>> = {
   reusable:
     'Will help again in later work: a trap and the way around it, a rule for working here, or a fact about the project that is not obvious',
   one_off: 'Only about the task at hand, or a passing detail',
-  already_known: 'What any coding agent does without being told, or what `project_instructions` already says',
+  already_known:
+    'What any coding agent does without being told, or what `project_instructions` already says',
   unclear: 'Cannot tell',
 }
 
@@ -330,7 +334,8 @@ export const MEMORY_MANIFEST: readonly DecisionPointManifest[] = [
     group: 'context',
     title: 'Memory merge',
     titleZh: '记忆合并判别',
-    summary: 'Compares a candidate lesson with similar stored ones: same, refines, contradicts or unrelated.',
+    summary:
+      'Compares a candidate lesson with similar stored ones: same, refines, contradicts or unrelated.',
     summaryZh: '将候选记忆与相似已存记忆比对：相同、细化、矛盾或无关。',
     defaultMode: 'shadow',
     feature: 'decision.memory',

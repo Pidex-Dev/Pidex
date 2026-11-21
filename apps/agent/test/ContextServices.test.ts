@@ -54,11 +54,9 @@ describe('v8 上下文存储', () => {
       mcpTools: true,
       mcpElicitations: true,
     })
-    db.sqlite.query('UPDATE threads SET approval_policy = ?, approvals_reviewer = ? WHERE id = ?').run(
-      legacyGranular,
-      'user',
-      thread.id,
-    )
+    db.sqlite
+      .query('UPDATE threads SET approval_policy = ?, approvals_reviewer = ? WHERE id = ?')
+      .run(legacyGranular, 'user', thread.id)
     expect(db.getThreadSettings(thread.id)?.permissionConfig).toEqual({
       sandboxMode: 'workspace-write',
       approvalPolicy: 'auto_review',

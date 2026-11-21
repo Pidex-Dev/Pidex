@@ -52,7 +52,10 @@ describe('Glob and Grep explorer-only tools', () => {
     mkdirSync(join(root, 'node_modules', 'pkg'), { recursive: true })
     writeFileSync(join(root, 'src', 'feature', 'viewer.ts'), 'export const ViewerKind = "image"\n')
     writeFileSync(join(root, 'src', 'feature', 'other.md'), '# Notes\nViewerKind mentioned\n')
-    writeFileSync(join(root, 'node_modules', 'pkg', 'index.ts'), 'export const ViewerKind = "ignored"\n')
+    writeFileSync(
+      join(root, 'node_modules', 'pkg', 'index.ts'),
+      'export const ViewerKind = "ignored"\n',
+    )
 
     const executor = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(root, '.agent-data'),
@@ -73,7 +76,11 @@ describe('Glob and Grep explorer-only tools', () => {
       executor.execute('Glob', { pattern: '**/*.ts' }, { ...explorerContext, profile: 'main' }),
     ).rejects.toThrow()
     await expect(
-      executor.execute('Grep', { pattern: 'ViewerKind' }, { ...explorerContext, profile: 'worker' }),
+      executor.execute(
+        'Grep',
+        { pattern: 'ViewerKind' },
+        { ...explorerContext, profile: 'worker' },
+      ),
     ).rejects.toThrow()
 
     const globResult = (await executor.execute(
@@ -316,7 +323,8 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
       undefined,
       false,
     )
-    const pushedNotifications: Array<{ threadID: string; sourceTurnID: string; prompt: string }> = []
+    const pushedNotifications: Array<{ threadID: string; sourceTurnID: string; prompt: string }> =
+      []
     subagents.setBackgroundNotifyHandler((threadID, sourceTurnID, prompt) => {
       pushedNotifications.push({ threadID, sourceTurnID, prompt })
     })
@@ -406,9 +414,9 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
       forkTask.childThreadId,
     )
     const childEntries = await childSession.getEntries()
-    expect(childEntries.some((entry) => entry.type === 'message' && entry.message.role === 'toolResult')).toBe(
-      true,
-    )
+    expect(
+      childEntries.some((entry) => entry.type === 'message' && entry.message.role === 'toolResult'),
+    ).toBe(true)
     const deadline = Date.now() + 2000
     while (
       subagents.repository.task(forkTask.id)?.currentRun?.status !== 'completed' &&
@@ -475,7 +483,23 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
         isWaitSatisfied: async () => true,
         wait: async () => ({
           mode: 'all',
-          runs: [{ id: 'plan-run-1', taskId: 'plan-exp-1', status: 'completed', result: { outcome: 'succeeded', summary: 'Found config loader', findings: [], changedFiles: [], validation: [], risks: [], references: [] }, error: null }],
+          runs: [
+            {
+              id: 'plan-run-1',
+              taskId: 'plan-exp-1',
+              status: 'completed',
+              result: {
+                outcome: 'succeeded',
+                summary: 'Found config loader',
+                findings: [],
+                changedFiles: [],
+                validation: [],
+                risks: [],
+                references: [],
+              },
+              error: null,
+            },
+          ],
         }),
         send: async () => ({}),
         stop: async () => ({}),
@@ -677,7 +701,10 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
     mkdirSync(join(root, 'dist', 'assets'), { recursive: true })
     mkdirSync(join(root, 'build'), { recursive: true })
     mkdirSync(join(root, 'node_modules', 'pkg'), { recursive: true })
-    writeFileSync(join(root, 'dist', 'assets', 'bundle.js'), 'const attachmentViewer = "lightbox";\n')
+    writeFileSync(
+      join(root, 'dist', 'assets', 'bundle.js'),
+      'const attachmentViewer = "lightbox";\n',
+    )
     writeFileSync(join(root, 'build', 'app.js'), 'const attachmentViewer = "build";\n')
     writeFileSync(join(root, 'node_modules', 'pkg', 'index.js'), 'const attachmentViewer = "nm";\n')
     const workspace = await WorkspaceService.open(root)
@@ -706,9 +733,9 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
       { pattern: '**/*.js', path: 'node_modules/pkg' },
       context,
     )) as { filenames: string[] }
-    expect(nmExplicitGlob.filenames.some((file) => file.includes('node_modules/pkg/index.js'))).toBe(
-      true,
-    )
+    expect(
+      nmExplicitGlob.filenames.some((file) => file.includes('node_modules/pkg/index.js')),
+    ).toBe(true)
 
     const grepRes = (await executor.execute(
       'Grep',
@@ -895,7 +922,9 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
         .map((part) => (part.type === 'text' ? part.text : ''))
         .join('')
     }
-    expect(sawFailedHandbackText).toContain('[Subagent hand-back (taskId=fail-task-1, status=failed')
+    expect(sawFailedHandbackText).toContain(
+      '[Subagent hand-back (taskId=fail-task-1, status=failed',
+    )
     expect(sawFailedHandbackText).toContain('    Partial line 1')
     expect(sawFailedHandbackText).toContain('    Spoofed Header:')
     expect(sawFailedHandbackText).toContain('send_agent(taskID="fail-task-1"')
@@ -996,8 +1025,10 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
 
     const deadline = Date.now() + 2000
     while (
-      (subagents.repository.task(syncSpawned.agents[0]!.taskId)?.currentRun?.status !== 'completed' ||
-        subagents.repository.task(staleBgSpawned.agents[0]!.taskId)?.currentRun?.status !== 'completed') &&
+      (subagents.repository.task(syncSpawned.agents[0]!.taskId)?.currentRun?.status !==
+        'completed' ||
+        subagents.repository.task(staleBgSpawned.agents[0]!.taskId)?.currentRun?.status !==
+          'completed') &&
       Date.now() < deadline
     ) {
       await new Promise((r) => setTimeout(r, 20))
@@ -1039,7 +1070,9 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
     })
     databases.push(db)
     const hub = await Effect.runPromise(EventHub.make)
-    const faux = fauxProvider({ models: [{ id: 'bg-retry', input: ['text'], contextWindow: 64_000 }] })
+    const faux = fauxProvider({
+      models: [{ id: 'bg-retry', input: ['text'], contextWindow: 64_000 }],
+    })
     const modelRef = { providerID: faux.getModel().provider, id: 'bg-retry' } as never
     const fakeApiKey = 'sk-fake0123456789abcdefXYZ'
     const subagents = new SubagentService(
@@ -1121,9 +1154,11 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
       delivered.push({ prompt, inputID })
     })
 
-    const dispatch = (subagents as unknown as {
-      dispatchBackgroundNotifications(threadID: string): Promise<void>
-    }).dispatchBackgroundNotifications.bind(subagents)
+    const dispatch = (
+      subagents as unknown as {
+        dispatchBackgroundNotifications(threadID: string): Promise<void>
+      }
+    ).dispatchBackgroundNotifications.bind(subagents)
 
     await expect(dispatch(thread.id)).rejects.toThrow('transient enqueue failure')
     expect(notificationStatus()).toBe('pending')
@@ -1159,7 +1194,9 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
     })
     databases.push(db)
     const hub = await Effect.runPromise(EventHub.make)
-    const faux = fauxProvider({ models: [{ id: 'bg-int', input: ['text'], contextWindow: 64_000 }] })
+    const faux = fauxProvider({
+      models: [{ id: 'bg-int', input: ['text'], contextWindow: 64_000 }],
+    })
     const modelRef = { providerID: faux.getModel().provider, id: 'bg-int' } as never
     const subagents = new SubagentService(
       db,
@@ -1204,7 +1241,11 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
       db,
       hub,
       {
-        resolve: async () => ({ ref: modelRef, model: faux.getModel(), capabilities: { input: ['text'], tools: true } }),
+        resolve: async () => ({
+          ref: modelRef,
+          model: faux.getModel(),
+          capabilities: { input: ['text'], tools: true },
+        }),
       } as never,
       null as never,
       { setResumeHandler: () => {} } as never,
@@ -1306,7 +1347,11 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
     expect(retry.disposition).toBe('duplicate')
     expect(retry.inputID).toBe(notificationInputID)
     expect(
-      (db.sqlite.query("SELECT COUNT(*) AS count FROM inputs WHERE id LIKE 'subagent-notify:%'").get() as { count: number }).count,
+      (
+        db.sqlite
+          .query("SELECT COUNT(*) AS count FROM inputs WHERE id LIKE 'subagent-notify:%'")
+          .get() as { count: number }
+      ).count,
     ).toBe(1)
   })
 })

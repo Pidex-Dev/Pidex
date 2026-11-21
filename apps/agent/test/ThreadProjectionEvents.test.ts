@@ -167,7 +167,11 @@ describe('v4 会话事件投影契约', () => {
           cwd: root,
           additionalPermissions: { readPaths: [root], writePaths: [join(root, 'target.txt')] },
         },
-        permissionConfig: { ...permission, approvalPolicy: 'auto_review', approvalsReviewer: 'auto_review' },
+        permissionConfig: {
+          ...permission,
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
+        },
         model,
         taskMode: 'chat',
         durableApproval: true,

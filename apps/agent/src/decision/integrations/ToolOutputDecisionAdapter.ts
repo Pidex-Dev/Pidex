@@ -20,7 +20,6 @@ import {
   type TestLogCandidate,
 } from '../specs/ToolAdmissionTestLog'
 
-
 const PASSAGE_CHARS = 2_000
 const MAX_PASSAGES = 24
 const CHUNK_CHARS = 4_000
@@ -44,7 +43,11 @@ export function externalContentSource(
     normalized === 'browseraction'
   )
     return name
-  if (normalized.includes('fetch') || normalized.includes('websearch') || normalized.includes('web_search'))
+  if (
+    normalized.includes('fetch') ||
+    normalized.includes('websearch') ||
+    normalized.includes('web_search')
+  )
     return name
   if (normalized === 'exec_command') {
     const command = input.command
@@ -212,9 +215,7 @@ export async function admitToolOutput(
     const text =
       fold.units
         .map((unit) =>
-          omit.has(unit.id)
-            ? `${admissionPointer(unit.text.length)}\n`
-            : fold.rendered[unit.id]!,
+          omit.has(unit.id) ? `${admissionPointer(unit.text.length)}\n` : fold.rendered[unit.id]!,
         )
         .join('') + `\n${stored.pointer}`
     return {

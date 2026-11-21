@@ -1,7 +1,4 @@
-import {
-  AGENT_TOOL_DESCRIPTION,
-  subagentToolDefinitions,
-} from '../../tool/Delegation/Definitions'
+import { AGENT_TOOL_DESCRIPTION, subagentToolDefinitions } from '../../tool/Delegation/Definitions'
 import type { AgentToolResult } from '../harness/AgentTypes'
 import { Type, type TSchema } from '@earendil-works/pi-ai'
 import { AgentError } from '../../Domain'
@@ -173,7 +170,11 @@ export function adaptToolDefinition(
       })
       // INVARIANT: the model-facing copy may be decision-screened (injection
       const screened = options.executor.takeScreenedOutput?.(toolCallID)
-      return formatToolExecutionResult(definition, screened !== undefined ? screened : output, toolContext)
+      return formatToolExecutionResult(
+        definition,
+        screened !== undefined ? screened : output,
+        toolContext,
+      )
     },
   }
 }

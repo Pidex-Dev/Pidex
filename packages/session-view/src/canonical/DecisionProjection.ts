@@ -209,10 +209,7 @@ function attachOutcome(
   attachOutcomeToEntry(state, envelope.payload.outcome)
 }
 
-function attachOutcomeToEntry(
-  state: CanonicalDecisionState,
-  outcome: DecisionOutcomeRecord,
-): void {
+function attachOutcomeToEntry(state: CanonicalDecisionState, outcome: DecisionOutcomeRecord): void {
   const entry = state.ledgerById.get(outcome.ledgerId)
   if (!entry) {
     const pending = state.pendingOutcomesByLedgerId.get(outcome.ledgerId) ?? []

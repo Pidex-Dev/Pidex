@@ -5,7 +5,6 @@ import { threeZone } from '../DecisionPolicy'
 const standIn = (answer: DecisionAnswer): boolean =>
   answer.judge === 'untrusted' || answer.judge === 'unavailable'
 
-
 export type ContextForgetInput = {
   readonly goal: string
   // INVARIANT: Tool and arguments, e.g. "bash: npm test".
@@ -147,7 +146,8 @@ export const goalMetSpec = defineDecision({
     },
     needs_user: {
       type: 'boolean',
-      instructions: 'Does `final_message` ask the user for something the work cannot go on without?',
+      instructions:
+        'Does `final_message` ask the user for something the work cannot go on without?',
     },
   },
   buildState(input: GoalMetInput): JsonValue {
@@ -175,7 +175,8 @@ export const CONTEXT_MANIFEST: readonly DecisionPointManifest[] = [
     group: 'context',
     title: 'Active forgetting',
     titleZh: '陈旧结果遗忘',
-    summary: 'Judges whether an old tool result still earns its tokens; shrinking replaces it with a placeholder.',
+    summary:
+      'Judges whether an old tool result still earns its tokens; shrinking replaces it with a placeholder.',
     summaryZh: '判别陈旧工具结果是否仍值得保留全文，收缩时以占位符替换。',
     defaultMode: 'shadow',
     feature: 'decision.context',
@@ -185,7 +186,8 @@ export const CONTEXT_MANIFEST: readonly DecisionPointManifest[] = [
     group: 'context',
     title: 'Summary-free compaction',
     titleZh: '免摘要压缩',
-    summary: 'Scores old tool calls at compaction: what the output is and whether it must stay verbatim.',
+    summary:
+      'Scores old tool calls at compaction: what the output is and whether it must stay verbatim.',
     summaryZh: '压缩时逐个评估旧工具调用：输出类别与是否需要原文保留。',
     defaultMode: 'shadow',
     feature: 'decision.context',
@@ -195,7 +197,8 @@ export const CONTEXT_MANIFEST: readonly DecisionPointManifest[] = [
     group: 'context',
     title: 'Goal quick check',
     titleZh: '目标快速预判',
-    summary: 'Auxiliary goal-completion reading when enabled or when the structured verifier is unavailable; never bypasses delivery checks or budget gates.',
+    summary:
+      'Auxiliary goal-completion reading when enabled or when the structured verifier is unavailable; never bypasses delivery checks or budget gates.',
     summaryZh: '配置启用或结构化核验不可用时的辅助完成判别；绝不绕过未交付项检查与预算门禁。',
     defaultMode: 'shadow',
     feature: 'decision.context',

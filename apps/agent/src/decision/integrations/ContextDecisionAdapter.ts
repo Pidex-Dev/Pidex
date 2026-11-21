@@ -56,10 +56,18 @@ const userTextOf = (item: AgentInputItem): string => {
     .join('\n')
 }
 
-const callTextOf = (items: readonly AgentInputItem[], result: AgentInputItem & ToolResultItem): string => {
+const callTextOf = (
+  items: readonly AgentInputItem[],
+  result: AgentInputItem & ToolResultItem,
+): string => {
   for (const item of items) {
     if (item?.role !== 'assistant' || !Array.isArray(item.content)) continue
-    for (const part of item.content as Array<{ type?: string; id?: string; name?: string; arguments?: unknown }>) {
+    for (const part of item.content as Array<{
+      type?: string
+      id?: string
+      name?: string
+      arguments?: unknown
+    }>) {
       if (part?.type === 'toolCall' && part.id === result.toolCallId) {
         let args = ''
         try {
@@ -98,7 +106,11 @@ const sinceOf = (items: readonly AgentInputItem[], index: number): string[] => {
 }
 
 /** One-line stand-in for a shrunk tool result; the call itself stays visible. */
-export function forgetPlaceholder(call: string, resultChars: number, reason: 'forget' | 'compact'): string {
+export function forgetPlaceholder(
+  call: string,
+  resultChars: number,
+  reason: 'forget' | 'compact',
+): string {
   return `[早期工具结果已折叠：${call}（${resultChars} 字符，${reason === 'forget' ? '判定不再需要全文' : '压缩保留调用记录'}）。如需原文请重新执行或查阅会话归档。]`
 }
 
@@ -162,7 +174,11 @@ export async function planContextForget(
       ...(input.threadId ? { origin: { threadId: input.threadId } } : {}),
     },
   )
-  return applyForgetDecisions(input.items, batch, decided.map((decision) => decision.outcome))
+  return applyForgetDecisions(
+    input.items,
+    batch,
+    decided.map((decision) => decision.outcome),
+  )
 }
 
 function applyForgetDecisions(
@@ -258,7 +274,12 @@ function applyCompactDecisions(
     let action: ContextCompactCallVerdict['action'] = 'keep'
     if (decision.source === 'judge' && item.isError !== true) {
       const { keepResult, keepCall } = decision.outcome
-      if (keepCall !== null && keepCall <= COMPACT_DROP_CALL_AT && keepResult !== null && keepResult <= COMPACT_DROP_RESULT_AT) {
+      if (
+        keepCall !== null &&
+        keepCall <= COMPACT_DROP_CALL_AT &&
+        keepResult !== null &&
+        keepResult <= COMPACT_DROP_RESULT_AT
+      ) {
         action = 'drop-call'
       } else if (keepResult !== null && keepResult <= COMPACT_DROP_RESULT_AT) {
         action = 'drop-result'

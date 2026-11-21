@@ -37,7 +37,10 @@ export function memoryLessonsFromFiles(
   namespace: MemoryNamespace,
 ): MemoryLesson[] {
   return files
-    .filter((file) => namespace.kind !== 'project' || file.type === 'project' || file.type === 'reference')
+    .filter(
+      (file) =>
+        namespace.kind !== 'project' || file.type === 'project' || file.type === 'reference',
+    )
     .slice(0, MEMORY_JUDGE_MAX_LESSONS)
     .map((file) => ({
       id: file.path,

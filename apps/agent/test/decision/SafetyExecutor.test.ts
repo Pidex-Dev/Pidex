@@ -164,9 +164,7 @@ const mcpDefinition = (name: string, description: string, output: unknown): Tool
 
 describe('ToolExecutor 安全决策集成', () => {
   test('tool.constraint：active 命中用户硬约束时在授权后、执行前拒绝', async () => {
-    const f = await fixture((_state, id) =>
-      id.startsWith('constraint_') ? bool(0.95) : undefined,
-    )
+    const f = await fixture((_state, id) => (id.startsWith('constraint_') ? bool(0.95) : undefined))
     await enableActive(f.service, 'tool.constraint')
     applyTaskFrameChange(f.thread.id, 'hard_constraint', '不要删除 dist 目录')
     let executed = 0
@@ -176,7 +174,14 @@ describe('ToolExecutor 安全决策集成', () => {
       authorizeShell: async () => ({ decision: 'allow', risk: 'low', reason: '测试放行' }),
       runHost: async () => {
         executed += 1
-        return { stdout: '', stderr: '', exitCode: 0, signal: null, timedOut: false, truncated: false }
+        return {
+          stdout: '',
+          stderr: '',
+          exitCode: 0,
+          signal: null,
+          timedOut: false,
+          truncated: false,
+        }
       },
     })
     await expect(
@@ -189,7 +194,14 @@ describe('ToolExecutor 安全决策集成', () => {
       authorizeShell: async () => ({ decision: 'allow', risk: 'low', reason: '测试放行' }),
       runHost: async () => {
         executed += 1
-        return { stdout: '', stderr: '', exitCode: 0, signal: null, timedOut: false, truncated: false }
+        return {
+          stdout: '',
+          stderr: '',
+          exitCode: 0,
+          signal: null,
+          timedOut: false,
+          truncated: false,
+        }
       },
     })
     await plain.execute('exec_command', { command: 'rm -rf dist' }, f.context)
@@ -202,7 +214,11 @@ describe('ToolExecutor 安全决策集成', () => {
     const injected = `Result header.\n\n${poisoned}\n\nResult footer.`
     const f = await fixture((_state, id) =>
       id === 'injected'
-        ? bool(String((_state as { passage?: string }).passage ?? '').includes('ignore all') ? 0.9 : 0.1)
+        ? bool(
+            String((_state as { passage?: string }).passage ?? '').includes('ignore all')
+              ? 0.9
+              : 0.1,
+          )
         : undefined,
     )
     await enableActive(f.service, 'tool.injection')
@@ -269,9 +285,9 @@ describe('ToolExecutor 安全决策集成', () => {
       decisionService: f.service,
       authorizeShell: async () => ({ decision: 'allow', risk: 'low', reason: '测试放行' }),
     })
-    await expect(
-      executor.execute('mcp__docs__search', {}, f.context),
-    ).rejects.toMatchObject({ code: 'TOOL_DESCRIPTION_POISONED' })
+    await expect(executor.execute('mcp__docs__search', {}, f.context)).rejects.toMatchObject({
+      code: 'TOOL_DESCRIPTION_POISONED',
+    })
     expect(await executor.execute('mcp__docs__clean', {}, f.context)).toBe('ok')
     // 缓存清空后（等价于未注入筛查）暴露恢复。
     resetDescriptionVerdicts()

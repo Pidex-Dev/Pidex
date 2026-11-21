@@ -44,11 +44,16 @@ function toWire(question: DecisionQuestion): Record<string, unknown> {
 
 function probabilitiesOf(value: unknown): Record<string, number> | undefined {
   if (!isRecord(value)) return undefined
-  const entries = Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === 'number')
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, number] => typeof entry[1] === 'number',
+  )
   return entries.length > 0 ? Object.fromEntries(entries) : undefined
 }
 
-function fromWire(question: DecisionQuestion, raw: Record<string, unknown> | undefined): DecisionAnswer | undefined {
+function fromWire(
+  question: DecisionQuestion,
+  raw: Record<string, unknown> | undefined,
+): DecisionAnswer | undefined {
   if (!raw) return undefined
   const confidence = numberOr(raw.confidence)
   const signals = confidence !== undefined ? { confidence } : {}
@@ -60,9 +65,15 @@ function fromWire(question: DecisionQuestion, raw: Record<string, unknown> | und
     const score = numberOr(raw.score)
     return score === undefined ? undefined : { type: 'score', score, ...signals }
   }
-  if (typeof raw.choice !== 'string' || !Object.hasOwn(question.criteria, raw.choice)) return undefined
+  if (typeof raw.choice !== 'string' || !Object.hasOwn(question.criteria, raw.choice))
+    return undefined
   const probabilities = probabilitiesOf(raw.probabilities)
-  return { type: 'choice', choice: raw.choice, ...(probabilities ? { probabilities } : {}), ...signals }
+  return {
+    type: 'choice',
+    choice: raw.choice,
+    ...(probabilities ? { probabilities } : {}),
+    ...signals,
+  }
 }
 
 interface SystemOneBody {
@@ -165,7 +176,8 @@ export class SystemOneJudgeProvider implements JudgeProvider {
     const answers: Record<string, DecisionAnswer> = {}
     for (const [id, question] of Object.entries(request.questions)) {
       const answer = fromWire(question, body.answers[id])
-      if (!answer) throw new JudgeError('invalid_response', `${service} gave no usable answer for "${id}"`)
+      if (!answer)
+        throw new JudgeError('invalid_response', `${service} gave no usable answer for "${id}"`)
       answers[id] = answer
     }
     return {

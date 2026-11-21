@@ -12,7 +12,12 @@ import {
 import type { DecisionEffectiveProvider } from '@pidex/agent-protocol'
 import { Effect, Schema } from 'effect'
 import { AgentError, type EventEnvelope } from '../Domain'
-import { ConfigServiceError, type ConfigScope, type ConfigService, type ConfigValue } from '../config/ConfigService'
+import {
+  ConfigServiceError,
+  type ConfigScope,
+  type ConfigService,
+  type ConfigValue,
+} from '../config/ConfigService'
 import type { AgentLogger } from '../observability/AgentLogger'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
@@ -50,7 +55,8 @@ const PROBE_SECRET_PATTERNS = [
   /\bsk-[A-Za-z0-9._-]+\b/g,
   /\b(?:api[_-]?key|token|secret)\s*[:=]\s*[^\s,;"']+/gi,
 ]
-const PROBE_LOCAL_PATH_PATTERN = /(?:[A-Za-z]:\\[^\s"'`]+|\/(?:Users|home|var|tmp|etc|opt)\/[^\s"'`]+)/g
+const PROBE_LOCAL_PATH_PATTERN =
+  /(?:[A-Za-z]:\\[^\s"'`]+|\/(?:Users|home|var|tmp|etc|opt)\/[^\s"'`]+)/g
 
 function sanitizeProbeMessage(error: unknown): string | undefined {
   const raw = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
@@ -395,9 +401,14 @@ export class DecisionService {
   }): Promise<{ config: DecisionConfig; version: string }> {
     const repository = this.db.repositories.decisionLedger
     const request = { scope: input.scope, cwd: input.cwd ?? null, patch: input.patch }
-    const replay = repository.completedOperation(input.operationId, 'decision/updateConfig', request)
+    const replay = repository.completedOperation(
+      input.operationId,
+      'decision/updateConfig',
+      request,
+    )
     if (replay) {
-      if (!replay.matches) throw new AgentError('OPERATION_ID_CONFLICT', 'operationId 已用于其他请求', 409)
+      if (!replay.matches)
+        throw new AgentError('OPERATION_ID_CONFLICT', 'operationId 已用于其他请求', 409)
       return replay.result as { config: DecisionConfig; version: string }
     }
     const current = await this.getEffectiveConfig(input.cwd)
@@ -415,7 +426,13 @@ export class DecisionService {
     let write
     try {
       write = await this.config.batchWrite({
-        edits: [{ keyPath: ['decision'], value: next as unknown as ConfigValue, mergeStrategy: 'replace' }],
+        edits: [
+          {
+            keyPath: ['decision'],
+            value: next as unknown as ConfigValue,
+            mergeStrategy: 'replace',
+          },
+        ],
         target: { kind: input.scope },
         ...(input.cwd ? { cwd: input.cwd } : {}),
         ...(input.expectedVersion ? { expectedVersion: input.expectedVersion } : {}),
@@ -425,13 +442,18 @@ export class DecisionService {
       throw cause
     }
     const result = { config: next, version: write.version }
-    this.db.transaction(() => repository.recordOperation(input.operationId, 'decision/updateConfig', request, result))
+    this.db.transaction(() =>
+      repository.recordOperation(input.operationId, 'decision/updateConfig', request, result),
+    )
     await this.cleanupOrphanedDecisionCredentials(current, next)
     this.cached = null
     return result
   }
 
-  async probe(input: { judgeName?: string | undefined; cwd?: string | undefined }): Promise<DecisionProbeOutcome> {
+  async probe(input: {
+    judgeName?: string | undefined
+    cwd?: string | undefined
+  }): Promise<DecisionProbeOutcome> {
     const config = await this.getEffectiveConfig(input.cwd)
     let built: { name: string; judge: JudgeLike } | null = null
     try {
@@ -486,7 +508,7 @@ export class DecisionService {
           this.logger?.info('decision.probe.succeeded', {
             details: {
               provider: built.judge.id,
-              ...(value.modelId ?? judgeConfig?.model
+              ...((value.modelId ?? judgeConfig?.model)
                 ? { model: value.modelId ?? judgeConfig?.model }
                 : {}),
               durationMs: value.latencyMs,
@@ -545,7 +567,8 @@ export class DecisionService {
     limit?: number | undefined
     cursor?: string | undefined
   }) {
-    if (!this.db.getThread(input.threadId)) throw new AgentError('THREAD_NOT_FOUND', '会话不存在', 404)
+    if (!this.db.getThread(input.threadId))
+      throw new AgentError('THREAD_NOT_FOUND', '会话不存在', 404)
     return this.db.repositories.decisionLedger.listByThread(input)
   }
 
@@ -565,7 +588,8 @@ export class DecisionService {
     }
     const replay = repository.completedOperation(input.operationId, 'decision/markOutcome', request)
     if (replay) {
-      if (!replay.matches) throw new AgentError('OPERATION_ID_CONFLICT', 'operationId 已用于其他请求', 409)
+      if (!replay.matches)
+        throw new AgentError('OPERATION_ID_CONFLICT', 'operationId 已用于其他请求', 409)
       return replay.result as { outcome: DecisionOutcomeRecord }
     }
     const record = repository.getRecord(input.ledgerId)
@@ -598,10 +622,17 @@ export class DecisionService {
 
   /** Publishes a user-visible decision notice through the transactional outbox. */
   async presentNotice(notice: DecisionPresentationNotice): Promise<void> {
-    await publishAgentEvent(this.db, this.hub, notice.threadId, notice.turnId ?? null, 'decision/notice', {
-      threadId: notice.threadId,
-      notice,
-    })
+    await publishAgentEvent(
+      this.db,
+      this.hub,
+      notice.threadId,
+      notice.turnId ?? null,
+      'decision/notice',
+      {
+        threadId: notice.threadId,
+        notice,
+      },
+    )
   }
 }
 

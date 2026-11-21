@@ -11,7 +11,6 @@ import {
   type TaskFrame,
 } from '../specs/InputSpecs'
 
-
 export type InputDecisionThreadState = {
   readonly threadId: string
   readonly turnId?: string | undefined

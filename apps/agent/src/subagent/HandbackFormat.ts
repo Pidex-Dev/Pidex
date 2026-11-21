@@ -9,7 +9,10 @@ export interface SubagentHandbackInput {
   error?: string | null
 }
 
-const LINE_BREAK_VARIANTS = new RegExp('\\r\\n?|[\\u2028\\u2029\\u0085' + String.fromCharCode(0x0b, 0x0c, 0x1c, 0x1d, 0x1e) + ']', 'gu')
+const LINE_BREAK_VARIANTS = new RegExp(
+  '\\r\\n?|[\\u2028\\u2029\\u0085' + String.fromCharCode(0x0b, 0x0c, 0x1c, 0x1d, 0x1e) + ']',
+  'gu',
+)
 const RESULT_TEXT_LIMIT = 120_000
 const RESULT_HEAD_LENGTH = 60_000
 const RESULT_TAIL_LENGTH = 50_000

@@ -51,8 +51,7 @@ export function ProviderModelListRow({
   const capabilities = resolveModelCapabilities(model, metadata)
   const modelName = model.name || model.id
   const resolvedLogo = logoURL ?? modelLogoURL(model.id, model.name)
-  const fallbackProvider =
-    modelLogoURL(model.id, model.name) ? undefined : providerID
+  const fallbackProvider = modelLogoURL(model.id, model.name) ? undefined : providerID
 
   return (
     <div

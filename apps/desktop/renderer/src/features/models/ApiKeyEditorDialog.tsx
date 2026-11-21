@@ -348,7 +348,10 @@ export function ApiKeyEditorDialog({
                 <KeyRound className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
               </span>
               <div>
-                <Dialog.Title id={titleId} className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-medium">
+                <Dialog.Title
+                  id={titleId}
+                  className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-medium"
+                >
                   {editing ? '编辑 API Key' : '新增 API Key'}
                 </Dialog.Title>
                 <Dialog.Description

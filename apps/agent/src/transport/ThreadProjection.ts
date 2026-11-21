@@ -54,9 +54,7 @@ import { SubagentRepository } from '../subagent/SubagentRepository'
 import { classifyToolActivity, storedToolActivity } from '../tool/ToolActivityClassifier'
 
 const parse = <T>(value: string): T => JSON.parse(value) as T
-const projectPermissionConfig = (
-  row: Record<string, string | number | null>,
-): PermissionConfig =>
+const projectPermissionConfig = (row: Record<string, string | number | null>): PermissionConfig =>
   decodePermissionConfig({
     sandboxMode: row.sandbox_mode,
     approvalPolicy: row.approval_policy,
@@ -884,7 +882,9 @@ export class ThreadProjection {
     for (const row of this.db.repositories.interactions.listMcpElicitationsByThread(threadId)) {
       approvals.push(this.mcpElicitation(threadId, row))
     }
-    approvals.sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
+    approvals.sort(
+      (left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id),
+    )
     const inactive = new Set(
       (hasThreadEditStorage(this.db)
         ? (this.db.sqlite

@@ -19,7 +19,10 @@ import {
   decideInterjectionDelivery,
 } from '../../src/decision/integrations/InputDecisionAdapter'
 
-const engineWith = (answers: Record<string, DecisionAnswer>, modes: Record<string, 'off' | 'shadow' | 'active'>) =>
+const engineWith = (
+  answers: Record<string, DecisionAnswer>,
+  modes: Record<string, 'off' | 'shadow' | 'active'>,
+) =>
   new DecisionEngine({
     judge: new Judge({ provider: new MockJudgeProvider({ answers }) }),
     modes,
@@ -102,7 +105,9 @@ describe('task.frame', () => {
       recentTurns: [],
     })
     expect(decision.outcome).toBe('hard_constraint')
-    expect(taskFrameSpec.fallback({ userMessage: 'x', frame: null, recentTurns: [] })).toBe('no_change')
+    expect(taskFrameSpec.fallback({ userMessage: 'x', frame: null, recentTurns: [] })).toBe(
+      'no_change',
+    )
   })
 
   test('框架仅存内存：hard_constraint 只收窄，no_change 不改动，重启即失', () => {
@@ -136,7 +141,10 @@ describe('task.frame', () => {
 
 describe('input.interjection', () => {
   test('高置信 correction 判 steer，addition 与不确定判 followUp', async () => {
-    const steer = engineWith({ kind: choice('correction', 0.9) }, { 'input.interjection': 'active' })
+    const steer = engineWith(
+      { kind: choice('correction', 0.9) },
+      { 'input.interjection': 'active' },
+    )
     expect(
       (
         await steer.decide(inputInterjectionSpec, {
@@ -146,7 +154,10 @@ describe('input.interjection', () => {
         })
       ).outcome,
     ).toBe('steer')
-    const addition = engineWith({ kind: choice('addition', 0.9) }, { 'input.interjection': 'active' })
+    const addition = engineWith(
+      { kind: choice('addition', 0.9) },
+      { 'input.interjection': 'active' },
+    )
     expect(
       (
         await addition.decide(inputInterjectionSpec, {
@@ -156,7 +167,10 @@ describe('input.interjection', () => {
         })
       ).outcome,
     ).toBe('followUp')
-    const unsure = engineWith({ kind: choice('correction', 0.5) }, { 'input.interjection': 'active' })
+    const unsure = engineWith(
+      { kind: choice('correction', 0.5) },
+      { 'input.interjection': 'active' },
+    )
     expect(
       (
         await unsure.decide(inputInterjectionSpec, {
@@ -166,7 +180,9 @@ describe('input.interjection', () => {
         })
       ).outcome,
     ).toBe('followUp')
-    expect(inputInterjectionSpec.fallback({ userMessage: '', goal: '', currentAction: '' })).toBe('followUp')
+    expect(inputInterjectionSpec.fallback({ userMessage: '', goal: '', currentAction: '' })).toBe(
+      'followUp',
+    )
   })
 
   test('适配器：非运行中或无引擎时保持用户选择的投递方式', async () => {

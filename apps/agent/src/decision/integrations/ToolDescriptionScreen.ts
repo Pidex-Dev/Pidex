@@ -1,12 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { DecisionPresentationNotice } from '@pidex/shared/decision'
 import type { DecisionService } from '../DecisionService'
-import {
-  DESCRIPTION_THRESHOLD,
-  looksPoisoned,
-  toolDescriptionSpec,
-} from '../specs/ToolDescription'
-
+import { DESCRIPTION_THRESHOLD, looksPoisoned, toolDescriptionSpec } from '../specs/ToolDescription'
 
 const MAX_CACHE_ENTRIES = 2_048
 const SCREEN_TIMEOUT_MS = 15_000
@@ -77,8 +72,8 @@ export function screenToolDescriptions(
         toolDescriptionSpec,
         {
           server: input.server,
-          passages: pending.map((tool) =>
-            `${tool.name}\n${tool.description.slice(0, MAX_DESCRIPTION_CHARS)}`,
+          passages: pending.map(
+            (tool) => `${tool.name}\n${tool.description.slice(0, MAX_DESCRIPTION_CHARS)}`,
           ),
         },
         {

@@ -10,11 +10,13 @@ export class MockJudgeProvider implements JudgeProvider {
   private readonly answers: Readonly<Record<string, DecisionAnswer>>
   private readonly defaultProbability: number
 
-  constructor(options: {
-    id?: string | undefined
-    answers?: Readonly<Record<string, DecisionAnswer>> | undefined
-    defaultProbability?: number | undefined
-  } = {}) {
+  constructor(
+    options: {
+      id?: string | undefined
+      answers?: Readonly<Record<string, DecisionAnswer>> | undefined
+      defaultProbability?: number | undefined
+    } = {},
+  ) {
     this.id = options.id ?? 'mock'
     this.answers = options.answers ?? {}
     this.defaultProbability = options.defaultProbability ?? 0.5

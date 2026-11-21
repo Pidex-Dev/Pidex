@@ -161,7 +161,9 @@ try {
   const pagination = card.getByRole('group', { name: '问题导航', exact: true })
   const next = pagination.getByRole('button', { name: '下一题', exact: true })
   const previous = pagination.getByRole('button', { name: '上一题', exact: true })
-  const pillSubmit = card.locator('.ask-user-question-pill-actions').getByRole('button', { name: '提交', exact: true })
+  const pillSubmit = card
+    .locator('.ask-user-question-pill-actions')
+    .getByRole('button', { name: '提交', exact: true })
   const confirmSubmit = card.getByRole('button', { name: '确认提交', exact: true })
   const customInput = card.getByRole('textbox', { name: '自定义回答' })
   const stopTurn = card.getByRole('button', { name: '停止本轮', exact: true })
@@ -256,7 +258,10 @@ try {
   await page.getByRole('button', { name: '多选', exact: true }).click()
   await card.getByRole('checkbox').filter({ hasText: '桌面端与 CLI' }).click()
   await expect(card).toContainText('1 of 3')
-  await card.locator('.ask-user-question-pill-actions').getByRole('button', { name: '下一题', exact: true }).click()
+  await card
+    .locator('.ask-user-question-pill-actions')
+    .getByRole('button', { name: '下一题', exact: true })
+    .click()
   await choice('提问交互').click()
   await choice('暂时没有').click()
   await expect(card).toContainText('已收集全部确认，是否提交？')
@@ -536,10 +541,15 @@ try {
   await denyFeedback.fill('请先运行单测而不是全量测试')
   await expect(allowOnce).toHaveAttribute('aria-checked', 'false')
   await permissionSubmit.click()
-  assert.deepEqual(await page.evaluate('window.decisions.map((x)=>({behavior:x.behavior,updatedInput:x.updatedInput}))'), [
-    { behavior: 'allow', updatedInput: undefined },
-    { behavior: 'deny', updatedInput: { feedback: '请先运行单测而不是全量测试' } },
-  ])
+  assert.deepEqual(
+    await page.evaluate(
+      'window.decisions.map((x)=>({behavior:x.behavior,updatedInput:x.updatedInput}))',
+    ),
+    [
+      { behavior: 'allow', updatedInput: undefined },
+      { behavior: 'deny', updatedInput: { feedback: '请先运行单测而不是全量测试' } },
+    ],
+  )
   await page.evaluate('window.resolveDecision()')
 
   await mode('权限')
@@ -556,7 +566,10 @@ try {
   await expect(grant).toContainText('example.com')
   await expect(grant.getByRole('radio')).toHaveCount(2)
   await grant.getByRole('radio', { name: /当前轮次/u }).click()
-  await expect(grant.getByRole('radio', { name: /当前轮次/u })).toHaveAttribute('aria-checked', 'true')
+  await expect(grant.getByRole('radio', { name: /当前轮次/u })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  )
   await grant.getByRole('button', { name: '提交', exact: true }).click()
   assert.deepEqual(await page.evaluate('window.decisions[0]'), {
     requestId: 'grant',

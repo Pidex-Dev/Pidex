@@ -6529,7 +6529,12 @@ const fixtures = {
         },
       ],
       effectiveProviders: [
-        { name: 'fast', type: 'classifier', providerId: 'classifier', modelId: 'typesafe-system-one' },
+        {
+          name: 'fast',
+          type: 'classifier',
+          providerId: 'classifier',
+          modelId: 'typesafe-system-one',
+        },
         {
           name: 'deep',
           type: 'openai',

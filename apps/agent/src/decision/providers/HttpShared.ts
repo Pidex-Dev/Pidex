@@ -11,7 +11,8 @@ export const MAX_ERROR_MESSAGE_LENGTH = 300
 export function errorKindForStatus(status: number, message: string): JudgeErrorKind {
   if (status === 401) return 'auth'
   if (status === 402) return 'payment_required'
-  if (status === 403) return /credit|payment|billing|quota/i.test(message) ? 'payment_required' : 'auth'
+  if (status === 403)
+    return /credit|payment|billing|quota/i.test(message) ? 'payment_required' : 'auth'
   if (status === 429) return 'rate_limited'
   if (status >= 500) return 'server'
   return 'bad_request'
@@ -78,4 +79,8 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 export const judgeInputText = (value: unknown): string =>
-  value === null || value === undefined ? '' : typeof value === 'string' ? value : JSON.stringify(value)
+  value === null || value === undefined
+    ? ''
+    : typeof value === 'string'
+      ? value
+      : JSON.stringify(value)

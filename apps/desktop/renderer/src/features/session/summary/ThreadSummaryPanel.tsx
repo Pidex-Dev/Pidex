@@ -566,7 +566,9 @@ export function ThreadSummaryPanel({
                 <div className="tw:relative tw:min-w-0" key={agent.id}>
                   <button
                     className="interactive-row interactive-row--nav tw:w-full tw:min-w-0"
-                    title={agent.taskTitle ? `${agent.agentName} · ${agent.taskTitle}` : agent.agentName}
+                    title={
+                      agent.taskTitle ? `${agent.agentName} · ${agent.taskTitle}` : agent.agentName
+                    }
                     type="button"
                     onClick={openTarget}
                   >

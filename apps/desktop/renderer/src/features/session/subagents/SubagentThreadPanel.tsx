@@ -79,7 +79,8 @@ export function SubagentThreadPanel({
     role: task.role,
     task: task.task,
   })
-  const identityLabel = taskTitle && taskTitle !== agentName ? `${agentName} · ${taskTitle}` : agentName
+  const identityLabel =
+    taskTitle && taskTitle !== agentName ? `${agentName} · ${taskTitle}` : agentName
   const itemContext = useOptionalConversationItemContext()
   const readOnlyItemContext = React.useMemo(
     () => ({
@@ -248,7 +249,10 @@ export function SubagentThreadPanel({
             </div>
           ) : null}
           {statusNotices.length > 0 ? (
-            <div className="tw:text-app-text-meta tw:type-1 tw:[overflow-anchor:none]" role="status">
+            <div
+              className="tw:text-app-text-meta tw:type-1 tw:[overflow-anchor:none]"
+              role="status"
+            >
               {statusNotices.join(' · ')}
             </div>
           ) : null}

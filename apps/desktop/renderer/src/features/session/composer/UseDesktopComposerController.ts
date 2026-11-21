@@ -268,10 +268,7 @@ export function useDesktopComposerController({
     [attachments],
   )
   const branchName = getDesktopComposerBranchName(workspace)
-  const permissionView = useMemo(
-    () => permissionPresetView(permissionMode),
-    [permissionMode],
-  )
+  const permissionView = useMemo(() => permissionPresetView(permissionMode), [permissionMode])
   const permissionOptions = permissionView.options
   const effectivePermissionMode = permissionView.selection
   const hasConversationMessages =

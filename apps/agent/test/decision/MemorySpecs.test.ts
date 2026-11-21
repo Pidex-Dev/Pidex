@@ -54,7 +54,9 @@ describe('memory specs', () => {
       previousAssistantMessage: '我直接写了两次库',
     })
     expect(decision.outcome).toBe('correction')
-    expect(memoryCaptureSpec.fallback({ userMessage: '', previousAssistantMessage: '' })).toBe('skip')
+    expect(memoryCaptureSpec.fallback({ userMessage: '', previousAssistantMessage: '' })).toBe(
+      'skip',
+    )
   })
 
   test('recall：仅高置信 yes 召回，动态题目按课题生成', async () => {
@@ -105,10 +107,9 @@ describe('memory specs', () => {
       existing: [lessons[0]!],
     })
     expect(decision.outcome).toEqual(['contradicts'])
-    expect(memoryMergeSpec.fallback({ candidate: { trigger: '', lesson: '' }, existing: lessons })).toEqual([
-      'unrelated',
-      'unrelated',
-    ])
+    expect(
+      memoryMergeSpec.fallback({ candidate: { trigger: '', lesson: '' }, existing: lessons }),
+    ).toEqual(['unrelated', 'unrelated'])
   })
 
   test('applied：确信 yes/no 分别归类，不确定不入任何列表', async () => {
@@ -121,12 +122,17 @@ describe('memory specs', () => {
     )
     const decision = await engine.decide(memoryAppliedSpec, { lessons, turnDigest: '本轮用了 Bun' })
     expect(decision.outcome).toEqual({ applied: ['stack.md'], notApplied: ['style.md'] })
-    expect(memoryAppliedSpec.fallback({ lessons, turnDigest: '' })).toEqual({ applied: [], notApplied: [] })
+    expect(memoryAppliedSpec.fallback({ lessons, turnDigest: '' })).toEqual({
+      applied: [],
+      notApplied: [],
+    })
   })
 
   test('无引擎时 recall 适配器等价于无 Judge 行为', async () => {
     expect(await decideMemoryRecall(null, { userMessage: 'x', lessons })).toEqual({ apply: [] })
-    expect(await decideMemoryRecall(undefined, { userMessage: 'x', lessons: [] })).toEqual({ apply: [] })
+    expect(await decideMemoryRecall(undefined, { userMessage: 'x', lessons: [] })).toEqual({
+      apply: [],
+    })
   })
 
   test('课题映射：项目命名空间只收 project/reference 类型，注入课题按索引内容匹配', () => {
@@ -141,7 +147,9 @@ describe('memory specs', () => {
     expect(user).toHaveLength(3)
     const matched = memoryLessonsFromInjection(
       {
-        sections: [{ namespace: 'project:p', label: '项目', content: '- a.md：A', truncated: false }],
+        sections: [
+          { namespace: 'project:p', label: '项目', content: '- a.md：A', truncated: false },
+        ],
         ignored: false,
       },
       new Map([['project:p', project]]),
@@ -152,7 +160,16 @@ describe('memory specs', () => {
 
 describe('MemoryService 可选注入', () => {
   const document = (name: string, body: string) =>
-    ['---', `name: ${name}`, 'description: 构建相关约束', 'type: project', '---', '', body, ''].join('\n')
+    [
+      '---',
+      `name: ${name}`,
+      'description: 构建相关约束',
+      'type: project',
+      '---',
+      '',
+      body,
+      '',
+    ].join('\n')
 
   const fixture = async () => {
     const root = await mkdtemp(join(tmpdir(), 'pidex-memory-decision-'))
@@ -197,7 +214,10 @@ describe('MemoryService 可选注入', () => {
   test('注入后 recall 观察不改内容；shadow 模式不改变任何行为', async () => {
     const { db, memory } = await fixture()
     const seen: string[] = []
-    const engine = engineWith({ lesson_0: { type: 'boolean', probability: 0.95 } }, { 'memory.recall': 'shadow' })
+    const engine = engineWith(
+      { lesson_0: { type: 'boolean', probability: 0.95 } },
+      { 'memory.recall': 'shadow' },
+    )
     const decisions = {
       ensureEngine: async () => {
         seen.push('engine')

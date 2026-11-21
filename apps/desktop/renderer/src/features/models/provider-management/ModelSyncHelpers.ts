@@ -1,14 +1,4 @@
-import {
-  Binary,
-  Brain,
-  Code,
-  Eye,
-  MessageSquare,
-  Mic,
-  Sparkles,
-  Video,
-  Wrench,
-} from 'lucide-react'
+import { Binary, Brain, Code, Eye, MessageSquare, Mic, Sparkles, Video, Wrench } from 'lucide-react'
 import type React from 'react'
 import type {
   DesktopModelMetadata,
@@ -94,8 +84,8 @@ export function resolveModelCapabilities(
 
   const isReasoning = Boolean(
     model.reasoning ??
-      metadata?.reasoning ??
-      /reason|deepseek-r1|qwq|o1|o3|o4|thinking/i.test(text),
+    metadata?.reasoning ??
+    /reason|deepseek-r1|qwq|o1|o3|o4|thinking/i.test(text),
   )
   if (isReasoning) {
     caps.push({
@@ -108,9 +98,9 @@ export function resolveModelCapabilities(
 
   const isVision = Boolean(
     model.input?.includes('image') ||
-      metadata?.vision ||
-      metadata?.modalities?.input?.includes('image') ||
-      /vision|vl|-v-|image/i.test(text),
+    metadata?.vision ||
+    metadata?.modalities?.input?.includes('image') ||
+    /vision|vl|-v-|image/i.test(text),
   )
   if (isVision) {
     caps.push({
@@ -123,8 +113,8 @@ export function resolveModelCapabilities(
 
   const isAudio = Boolean(
     model.input?.includes('audio') ||
-      metadata?.modalities?.input?.includes('audio') ||
-      /audio|voice|speech|tts|whisper/i.test(text),
+    metadata?.modalities?.input?.includes('audio') ||
+    /audio|voice|speech|tts|whisper/i.test(text),
   )
   if (isAudio) {
     caps.push({

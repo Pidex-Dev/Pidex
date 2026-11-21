@@ -3,7 +3,12 @@ import { Effect } from 'effect'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createModels, fauxAssistantMessage, fauxProvider, fauxToolCall } from '@earendil-works/pi-ai'
+import {
+  createModels,
+  fauxAssistantMessage,
+  fauxProvider,
+  fauxToolCall,
+} from '@earendil-works/pi-ai'
 import { DEFAULT_PERMISSION_CONFIG } from '@pidex/shared/thread'
 import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
 import type { AgentRuntimeRequest } from '../src/orchestration/AgentRuntimeTypes'

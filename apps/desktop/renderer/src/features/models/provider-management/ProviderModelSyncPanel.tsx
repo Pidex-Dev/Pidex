@@ -279,8 +279,7 @@ export function ProviderModelSyncPanel({
                 expanded={expandedModelId === model.id}
                 current={
                   provider.config?.models.find((entry) => entry.id === model.id) as
-                    | DesktopProviderModelDefinition
-                    | undefined
+                    DesktopProviderModelDefinition | undefined
                 }
                 onToggleExpand={() => onToggleExpand(model.id)}
                 onToggleModel={() => onToggleModel(model)}

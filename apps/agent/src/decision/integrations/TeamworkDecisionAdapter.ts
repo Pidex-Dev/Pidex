@@ -10,7 +10,6 @@ import {
   type SwarmRoutingOutcome,
 } from '../specs/TeamworkSpecs'
 
-
 export type ReviewTriageResult = {
   readonly priorities: readonly ReviewPriority[]
   readonly source: 'judge' | 'fallback'
@@ -82,14 +81,14 @@ export async function routeSubagentSpawn(
   if (decision.source !== 'judge') return unchanged
   const outcome: SwarmRoutingOutcome = decision.outcome
   const tier =
-    canPickTier && outcome.reasoningLevel && request.reasoningLevels.includes(outcome.reasoningLevel)
+    canPickTier &&
+    outcome.reasoningLevel &&
+    request.reasoningLevels.includes(outcome.reasoningLevel)
       ? outcome.reasoningLevel
       : null
   return {
     ...(request.roleMissing && outcome.role ? { role: outcome.role } : {}),
-    model: tier
-      ? ({ ...request.modelRef, variant: tier } as Model.Ref)
-      : request.modelRef,
+    model: tier ? ({ ...request.modelRef, variant: tier } as Model.Ref) : request.modelRef,
     source: 'judge',
   }
 }

@@ -36,6 +36,7 @@
 ## 1. Phase 0：共享契约、SQLite 账本与 RPC v4 协议基座
 
 ### 1.1 `packages/shared` 新增 Decision 领域模型
+
 - **新建文件**：
   - `packages/shared/src/decision/Types.ts`
   - `packages/shared/src/decision/Manifest.ts`
@@ -62,6 +63,7 @@
 - **验证**：`bun run --cwd packages/shared typecheck`
 
 ### 1.2 `packages/agent-protocol` 新增 RPC v4 契约与能力声明
+
 - **新建文件**：
   - `packages/agent-protocol/src/methods/Decision.ts`
 - **修改文件**：
@@ -80,6 +82,7 @@
 - **验证**：`bun run --cwd packages/agent-protocol typecheck`
 
 ### 1.3 SQLite 独立表与 `DecisionLedgerRepository`（`apps/agent/src/storage`）
+
 - **新建文件**：
   - `apps/agent/src/storage/repositories/DecisionLedgerRepository.ts`
 - **修改文件**：
@@ -143,6 +146,7 @@
 ## 2. Phase 1：Decision 内核、Judge Providers 与服务装配（`apps/agent/src/decision`）
 
 ### 2.1 Decision 内核（参考 `D:\GitHubProject\Agent\mu\packages\kyrn-judge\src\`）
+
 - **新建目录**：`apps/agent/src/decision/`
   - `DecisionErrors.ts`：`JudgeErrorKind` (`'auth' | 'payment_required' | 'rate_limited' | 'bad_request' | 'timeout' | 'aborted' | 'unreachable' | 'server' | 'invalid_response'`) 与 `JudgeError` 类（禁止携带原始 key 或敏感状态）。
   - `DecisionPolicy.ts`：`threeZone(answer, yesAt = 0.8, noAt = 0.2)`、`isEscapeOption(choice)`、`hasEscapeOption(question)`。
@@ -155,6 +159,7 @@
     - 写入 Ledger 前通过 `SecretScrubber` + 已知环境变量/凭据脱敏器过滤 `state` 与 `questions`；仅当 `recordState === true` 时将脱敏后 `state` / `questions` 传给 Ledger。
 
 ### 2.2 Judge Providers（`apps/agent/src/decision/providers/`）
+
 - `OpenAIDecisionsJudgeProvider.ts`：
   - 请求 `POST /v1/decisions`（默认 `https://api.openai.com/v1/decisions`，模型 `gpt-6-luna`）。
   - 映射：`boolean -> predicate`（把 `criteria.true/false` 拼入 `instructions`）、`choice -> choice`、`score -> score`。
@@ -170,6 +175,7 @@
 - `MockJudgeProvider.ts`：测试用确定性 Mock Provider。
 
 ### 2.3 配置集成、Service 与 RPC Handler
+
 - **修改 `apps/agent/src/config/ConfigService.ts`**：
   - 将 `'decision'` 加入合法顶层配置键白名单，支持 `.pidex/config.json` 中 `decision` 节的 `user` / `profile` / `project` 分层读取与 key-path 局部写入。
 - **新建 `apps/agent/src/decision/DecisionService.ts`**：
@@ -184,16 +190,16 @@
 
 在 `apps/agent/src/decision/specs/` 下实现以下 8 个决策点，并在 `DecisionService` 中注册：
 
-| Spec ID | 默认模式 | `cacheImpact` | `latency` | 接入位置与核心行为 |
-| :--- | :--- | :--- | :--- | :--- |
-| `tool.risk` | `shadow` -> 观察后 `active` | `none` | `inline` | 接入 `ReviewerService.ts` / `ShellRiskClassifier.ts`：针对规则命中的风险命令，仅用 `{ command, flag, user_message }` 判断是否由用户明确请求；`fallback` 为 `'confirm'`，只增确认、绝不降低静态风险。 |
-| `tool.approval` | `shadow` -> `active` | `none` | `inline` | 接入 `ReviewerService.ts` / `GuardianScoreService.ts`：在 `auto-review` 且未命中 `forceHumanApproval` / `critical` 静态底线时评估 `{ tool_call, where, task, user_message }`（`needed | beyond | unrelated | unclear`）；高置信 `needed`（检查类 `>= 0.7`，常规 `>= 0.8`）返回可采纳放行结果并绑定 `actionHash`/`authorizationVersion`；否则回退现有 Guardian 深度审查或人工审批。审批完成后在 `ApprovalService.ts` 写入 `permission` outcome 对照记录。 |
-| `tool.constraint` | `shadow` -> `active` | `none` | `inline` | 接入 `ReviewerService.ts` / `ToolExecutor.ts`：核对有副作用工具调用是否违反当前线程用户明确约束（`task.frame` 未启用时读用户显式规则列表）。 |
-| `tool.injection` | `active` | `none` | `inline` | 接入 `ToolExecutor.ts` 外部内容工具（`web_fetch`、web search、MCP 工具输出、含外部抓取命令的 shell 输出）：按段分块调用 `decideMany` 检测提示词注入；命中段落在 `active` 模式下替换为单行安全占位并发送 `decision/notice`。 |
-| `tool.description` | `active` | `none` | `background` | 接入 `McpRuntimeService.ts` / `ToolExposurePlan.ts`：按 MCP 工具名称 + 描述 SHA-256 缓存检查工具描述是否夹带诱导越权指令；命中则从暴露工具集中剔除并拒绝调用。 |
-| `tool.admission` & `tool.admission.test-log` | `shadow` -> `active` | `append-only` | `inline` | 接入 `ToolExecutor.ts` 输出截断/归档前：先折叠重复测试日志段落，再对超长结果按块 `decideMany` 筛选必要片段入上下文，全文通过 `ArtifactService` 落盘并在上下文中附带读取指针。 |
-| `turn.continue` | `shadow` -> `active` | `append-only` | `inline` | 接入 `AgentRuntimeService.ts` 回合结束钩子：检测模型未调工具但承诺“接下来我会执行…”或对已授权工作请求许可（排除删除/推送/发布/不可逆外发），自动注入延续提示（每条用户消息最多 2 次）；下一轮结束写入 `nudge` outcome（`acted` / `ended`）。 |
-| `turn.completion` | `shadow` -> `active` | `append-only` | `inline` | 接入 `AgentRuntimeService.ts` 回合结束钩子：本轮存在代码改动且模型宣告完成、但本轮未执行任何测试/构建/类型检查时，触发一次验证提醒（每轮最多 1 次）。 |
+| Spec ID                                      | 默认模式                    | `cacheImpact` | `latency`    | 接入位置与核心行为                                                                                                                                                                                                                           |
+| :------------------------------------------- | :-------------------------- | :------------ | :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tool.risk`                                  | `shadow` -> 观察后 `active` | `none`        | `inline`     | 接入 `ReviewerService.ts` / `ShellRiskClassifier.ts`：针对规则命中的风险命令，仅用 `{ command, flag, user_message }` 判断是否由用户明确请求；`fallback` 为 `'confirm'`，只增确认、绝不降低静态风险。                                         |
+| `tool.approval`                              | `shadow` -> `active`        | `none`        | `inline`     | 接入 `ReviewerService.ts` / `GuardianScoreService.ts`：在 `auto-review` 且未命中 `forceHumanApproval` / `critical` 静态底线时评估 `{ tool_call, where, task, user_message }`（`needed                                                        | beyond | unrelated | unclear`）；高置信 `needed`（检查类 `>= 0.7`，常规 `>= 0.8`）返回可采纳放行结果并绑定 `actionHash`/`authorizationVersion`；否则回退现有 Guardian 深度审查或人工审批。审批完成后在 `ApprovalService.ts`写入`permission` outcome 对照记录。 |
+| `tool.constraint`                            | `shadow` -> `active`        | `none`        | `inline`     | 接入 `ReviewerService.ts` / `ToolExecutor.ts`：核对有副作用工具调用是否违反当前线程用户明确约束（`task.frame` 未启用时读用户显式规则列表）。                                                                                                 |
+| `tool.injection`                             | `active`                    | `none`        | `inline`     | 接入 `ToolExecutor.ts` 外部内容工具（`web_fetch`、web search、MCP 工具输出、含外部抓取命令的 shell 输出）：按段分块调用 `decideMany` 检测提示词注入；命中段落在 `active` 模式下替换为单行安全占位并发送 `decision/notice`。                  |
+| `tool.description`                           | `active`                    | `none`        | `background` | 接入 `McpRuntimeService.ts` / `ToolExposurePlan.ts`：按 MCP 工具名称 + 描述 SHA-256 缓存检查工具描述是否夹带诱导越权指令；命中则从暴露工具集中剔除并拒绝调用。                                                                               |
+| `tool.admission` & `tool.admission.test-log` | `shadow` -> `active`        | `append-only` | `inline`     | 接入 `ToolExecutor.ts` 输出截断/归档前：先折叠重复测试日志段落，再对超长结果按块 `decideMany` 筛选必要片段入上下文，全文通过 `ArtifactService` 落盘并在上下文中附带读取指针。                                                                |
+| `turn.continue`                              | `shadow` -> `active`        | `append-only` | `inline`     | 接入 `AgentRuntimeService.ts` 回合结束钩子：检测模型未调工具但承诺“接下来我会执行…”或对已授权工作请求许可（排除删除/推送/发布/不可逆外发），自动注入延续提示（每条用户消息最多 2 次）；下一轮结束写入 `nudge` outcome（`acted` / `ended`）。 |
+| `turn.completion`                            | `shadow` -> `active`        | `append-only` | `inline`     | 接入 `AgentRuntimeService.ts` 回合结束钩子：本轮存在代码改动且模型宣告完成、但本轮未执行任何测试/构建/类型检查时，触发一次验证提醒（每轮最多 1 次）。                                                                                        |
 
 > **注意**：`turn.continue` 与 `turn.completion` 的延续逻辑必须兼容 Pidex 现有的 `GoalContinuationCoordinator.ts`（当线程启用了 Goal 模式且即将进入 Goal 结算时，不重复触发 `turn.continue`）。
 
@@ -202,6 +208,7 @@
 ## 4. Phase 3：第二批（Input / Context / Goal）与第三批（Memory / Review / Swarm）
 
 ### 4.1 Phase 3A：Input、Context 与 Goal 快速回退
+
 - **Input 组**（接入 `AgentRuntimeService.ts` / 消息入队入口）：
   - `input.preflight`（`latency: inline`）：分类输入复杂度与思考深度提示。
   - `task.frame`（`latency: parallel`）：判别新消息为 `new_task | hard_constraint | correction | subgoal | no_change`，维护线程级轻量任务框架供 `tool.approval` / `tool.constraint` 使用。
@@ -211,6 +218,7 @@
   - `goal.met`：接入 `GoalVerifier.ts`，仅在配置启用快速 Judge 预判或结构化 LLM 核验不可用时作为辅助判别（不得绕过 Goal 的未交付项检查与预算门禁）。
 
 ### 4.2 Phase 3B：Memory、Review 与 Subagent
+
 - **Memory 组**（接入 `MemoryService.ts`）：
   - `memory.capture`、`memory.recall`、`memory.worth`、`memory.merge`、`memory.applied`。
 - **Review 与 Subagent 组**：
@@ -222,10 +230,12 @@
 ## 5. Phase 4：投影层与 Desktop Renderer 交互界面
 
 ### 5.1 `packages/session-view` 投影扩展
+
 - 在 `packages/session-view/src/canonical/` 扩展消息/事件投影，支持将 `'decision/notice'` 与 `'decision/recorded'` 映射为只读视图条目，确保 Renderer 不直接解析原始 wire payload。
 - **验证**：`bun run --cwd packages/session-view typecheck`
 
 ### 5.2 Desktop Settings → Decision / Judges 设置面板（`apps/desktop/renderer/src/features/settings/`）
+
 - **新建文件**：
   - `apps/desktop/renderer/src/features/settings/DecisionSettings.tsx`
   - `apps/desktop/renderer/src/features/settings/DecisionSettingsModel.ts`
@@ -238,6 +248,7 @@
   - 按 5 个分组展示全部已注册决策点，支持切换 `off | shadow | active`、配置单点 `routes` 与 `recordState` 开关（附隐私提示）。
 
 ### 5.3 会话工作台 Judge 面板与时间线提示（`apps/desktop/renderer/src/features/layout/dock/` & `session/`）
+
 - **新建文件**：
   - `apps/desktop/renderer/src/features/layout/dock/RightDockJudgePanel.tsx`（或放入 `features/session/` 后在 `RightDockPanels.tsx` 注册）。
   - 时间线 Decision Notice 紧凑渲染组件（在 `features/session/timeline/`）。

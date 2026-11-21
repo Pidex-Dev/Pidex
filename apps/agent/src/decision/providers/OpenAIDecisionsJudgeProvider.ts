@@ -35,11 +35,19 @@ export function isOpenAIAddress(baseUrl: string | undefined): boolean {
 
 type WireQuestion =
   | { type: 'predicate'; name: string; instructions: string }
-  | { type: 'choice'; name: string; instructions: string; choices: { value: string; description?: string }[] }
+  | {
+      type: 'choice'
+      name: string
+      instructions: string
+      choices: { value: string; description?: string }[]
+    }
   | { type: 'score'; name: string; instructions: string; levels: { label: string }[] }
 
 // INVARIANT: yes/no maps to predicate; criteria meanings go into the instructions.
-function toDecisionsQuestion(name: string, question: JudgeRequest['questions'][string]): WireQuestion {
+function toDecisionsQuestion(
+  name: string,
+  question: JudgeRequest['questions'][string],
+): WireQuestion {
   const instructions = judgeInputText(question.instructions)
   if (question.type === 'choice') {
     return {
@@ -57,7 +65,9 @@ function toDecisionsQuestion(name: string, question: JudgeRequest['questions'][s
       type: 'score',
       name,
       instructions,
-      levels: question.criteria.map((level, index) => ({ label: judgeInputText(level) || String(index) })),
+      levels: question.criteria.map((level, index) => ({
+        label: judgeInputText(level) || String(index),
+      })),
     }
   }
   const meaning = [
@@ -71,15 +81,21 @@ function toDecisionsQuestion(name: string, question: JudgeRequest['questions'][s
   }
 }
 
-function distribution(value: unknown, keep: (key: string) => boolean): Record<string, number> | undefined {
+function distribution(
+  value: unknown,
+  keep: (key: string) => boolean,
+): Record<string, number> | undefined {
   if (!Array.isArray(value)) return undefined
   const entries: [string, number][] = []
   for (const item of value) {
     if (!isRecord(item)) continue
     const key =
-      typeof item.value === 'number' || typeof item.value === 'string' ? String(item.value) : undefined
+      typeof item.value === 'number' || typeof item.value === 'string'
+        ? String(item.value)
+        : undefined
     const probability = numberOr(item.probability)
-    if (key !== undefined && probability !== undefined && keep(key)) entries.push([key, probability])
+    if (key !== undefined && probability !== undefined && keep(key))
+      entries.push([key, probability])
   }
   return entries.length > 0 ? Object.fromEntries(entries) : undefined
 }
@@ -101,18 +117,34 @@ function fromDecisionsAnswer(
     const score = numberOr(raw.score)
     if (raw.type !== 'score' || score === undefined) return undefined
     const levels = question.criteria.length
-    const probabilities = distribution(raw.probabilities, (key) => /^\d+$/.test(key) && Number(key) < levels)
+    const probabilities = distribution(
+      raw.probabilities,
+      (key) => /^\d+$/.test(key) && Number(key) < levels,
+    )
     return { type: 'score', score, ...(probabilities ? { probabilities } : {}), ...signals }
   }
-  if (raw.type !== 'choice' || typeof raw.choice !== 'string' || !Object.hasOwn(question.criteria, raw.choice))
+  if (
+    raw.type !== 'choice' ||
+    typeof raw.choice !== 'string' ||
+    !Object.hasOwn(question.criteria, raw.choice)
+  )
     return undefined
-  const probabilities = distribution(raw.probabilities, (key) => Object.hasOwn(question.criteria, key))
-  return { type: 'choice', choice: raw.choice, ...(probabilities ? { probabilities } : {}), ...signals }
+  const probabilities = distribution(raw.probabilities, (key) =>
+    Object.hasOwn(question.criteria, key),
+  )
+  return {
+    type: 'choice',
+    choice: raw.choice,
+    ...(probabilities ? { probabilities } : {}),
+    ...signals,
+  }
 }
 
 function overLimit(questions: readonly WireQuestion[]): string | undefined {
-  const within = (count: number, [min, max]: readonly [number, number]) => count >= min && count <= max
-  if (!within(questions.length, LIMITS.questions)) return `takes 1 to 400 questions, not ${questions.length}`
+  const within = (count: number, [min, max]: readonly [number, number]) =>
+    count >= min && count <= max
+  if (!within(questions.length, LIMITS.questions))
+    return `takes 1 to 400 questions, not ${questions.length}`
   for (const question of questions) {
     if (question.type === 'choice' && !within(question.choices.length, LIMITS.choices))
       return `takes 2 to 255 choices, not ${question.choices.length} for "${question.name}"`
@@ -209,10 +241,14 @@ export class OpenAIDecisionsJudgeProvider implements JudgeProvider {
 
     if (!response.ok) {
       const message = await readErrorMessage(response, apiKey)
-      throw new JudgeError(errorKindForStatus(response.status, message), message || `${service} responded with HTTP ${response.status}`, {
-        status: response.status,
-        endpoint: safeEndpoint,
-      })
+      throw new JudgeError(
+        errorKindForStatus(response.status, message),
+        message || `${service} responded with HTTP ${response.status}`,
+        {
+          status: response.status,
+          endpoint: safeEndpoint,
+        },
+      )
     }
 
     const body = (await response.json().catch(() => undefined)) as DecisionsBody | undefined

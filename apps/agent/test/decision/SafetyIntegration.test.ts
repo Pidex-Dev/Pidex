@@ -43,10 +43,7 @@ const model = Model.Ref.make({
 
 type Script = (state: Record<string, unknown>, questionId: string) => DecisionAnswer | undefined
 
-const scriptedService = async (
-  script: Script,
-  options: { judges?: boolean } = {},
-) => {
+const scriptedService = async (script: Script, options: { judges?: boolean } = {}) => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-safety-integration-'))
   roots.push(root)
   const db = new AgentDatabase(join(root, 'agent.sqlite'))
@@ -180,19 +177,25 @@ describe('safety 集成：权限链辅助判别', () => {
   test('无 DecisionService 或未配置 judge 时所有入口保持现状', async () => {
     const fixture = await scriptedService(() => undefined, { judges: false })
     const invocation = invocationOf(fixture)
-    expect(await precheckShellRisk(null, fixture.db, {
-      threadID: fixture.thread.id,
-      command: 'rm -rf dist',
-      flag: 'recursive delete',
-    })).toBeNull()
+    expect(
+      await precheckShellRisk(null, fixture.db, {
+        threadID: fixture.thread.id,
+        command: 'rm -rf dist',
+        flag: 'recursive delete',
+      }),
+    ).toBeNull()
     expect(await evaluateApprovalAssist(null, fixture.db, invocation)).toBeNull()
-    expect(await evaluateConstraintCheck(null, invocation, { constraints: ['不要删文件'] })).toBeNull()
+    expect(
+      await evaluateConstraintCheck(null, invocation, { constraints: ['不要删文件'] }),
+    ).toBeNull()
     // 未配置 judges：ensureEngine 为 null。
-    expect(await precheckShellRisk(fixture.service, fixture.db, {
-      threadID: fixture.thread.id,
-      command: 'rm -rf dist',
-      flag: 'recursive delete',
-    })).toBeNull()
+    expect(
+      await precheckShellRisk(fixture.service, fixture.db, {
+        threadID: fixture.thread.id,
+        command: 'rm -rf dist',
+        flag: 'recursive delete',
+      }),
+    ).toBeNull()
   })
 
   test('真实用户发言只取宿主 messages 表的 user 角色', async () => {
@@ -294,11 +297,7 @@ describe('safety 集成：权限链辅助判别', () => {
     critical.permissionFacts = { ...critical.permissionFacts, risk: 'critical' }
     expect(await evaluateApprovalAssist(fixture.service, fixture.db, critical)).toBeNull()
     await setModes(fixture.service, { 'tool.approval': 'off' })
-    const assist = await evaluateApprovalAssist(
-      fixture.service,
-      fixture.db,
-      invocationOf(fixture),
-    )
+    const assist = await evaluateApprovalAssist(fixture.service, fixture.db, invocationOf(fixture))
     expect(assist).toBeNull()
   })
 
@@ -315,20 +314,16 @@ describe('safety 集成：权限链辅助判别', () => {
     )
     const constraints = ['不要删除任何目录']
     await setModes(fixture.service, { 'tool.constraint': 'active' })
-    const active = await evaluateConstraintCheck(
-      fixture.service,
-      invocationOf(fixture),
-      { constraints },
-    )
+    const active = await evaluateConstraintCheck(fixture.service, invocationOf(fixture), {
+      constraints,
+    })
     const denial = constraintDenialOf(active, constraints)
     expect(denial?.broken).toEqual([0])
     expect(denial?.reason).toContain('不要删除任何目录')
     await setModes(fixture.service, { 'tool.constraint': 'shadow' })
-    const shadow = await evaluateConstraintCheck(
-      fixture.service,
-      invocationOf(fixture),
-      { constraints },
-    )
+    const shadow = await evaluateConstraintCheck(fixture.service, invocationOf(fixture), {
+      constraints,
+    })
     expect(constraintDenialOf(shadow, constraints)).toBeNull()
     // 无副作用工具不评估。
     const readOnly = invocationOf(fixture, { name: 'Read' })
@@ -343,9 +338,7 @@ describe('safety 集成：权限链辅助判别', () => {
         readOnly: true,
       },
     }
-    expect(
-      await evaluateConstraintCheck(fixture.service, readOnly, { constraints }),
-    ).toBeNull()
+    expect(await evaluateConstraintCheck(fixture.service, readOnly, { constraints })).toBeNull()
   })
 })
 
@@ -411,7 +404,9 @@ describe('safety 集成：外部内容注入与超长输出准入', () => {
     expect(externalContentSource('mcp__docs__search', {})).not.toBeNull()
     expect(externalContentSource('plugin_fetch', {}, true)).not.toBeNull()
     expect(externalContentSource('web__run', {})).not.toBeNull()
-    expect(externalContentSource('exec_command', { command: 'curl https://example.com' })).not.toBeNull()
+    expect(
+      externalContentSource('exec_command', { command: 'curl https://example.com' }),
+    ).not.toBeNull()
     expect(externalContentSource('exec_command', { command: 'git status' })).toBeNull()
     expect(externalContentSource('Read', {})).toBeNull()
   })

@@ -13,7 +13,8 @@ import { validateQuestions } from './Judge'
 export const ABSTAIN: unique symbol = Symbol('pidex.decision.abstain')
 export type Abstain = typeof ABSTAIN
 
-export type JsonValue = string | number | boolean | null | readonly JsonValue[] | { readonly [key: string]: JsonValue }
+export type JsonValue =
+  string | number | boolean | null | readonly JsonValue[] | { readonly [key: string]: JsonValue }
 
 export type AnswerFor<Q extends DecisionQuestions[string]> = Q extends { type: 'choice' }
   ? ChoiceAnswer
@@ -37,9 +38,7 @@ export interface DecisionSpec<In, Qs extends DecisionQuestions, Out extends Json
   readonly questions: Qs
   readonly questionsFor?: ((input: In) => DecisionQuestions) | undefined
   readonly capabilities?:
-    | DecisionCapability
-    | Readonly<Partial<Record<string, DecisionCapability>>>
-    | undefined
+    DecisionCapability | Readonly<Partial<Record<string, DecisionCapability>>> | undefined
   readonly cacheImpact: 'none' | 'append-only' | 'prefix-mutating'
   readonly latency: 'inline' | 'parallel' | 'background'
   readonly allowChoicesWithoutEscape?: boolean | undefined

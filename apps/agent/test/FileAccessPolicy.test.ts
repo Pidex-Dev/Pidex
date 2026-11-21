@@ -226,13 +226,7 @@ describe('完全访问权限下的文件工具', () => {
     }
 
     expect(
-      (
-        await executor.execute<{ kind: string }>(
-          'Read',
-          { path: lockedPng },
-          context,
-        )
-      ).kind,
+      (await executor.execute<{ kind: string }>('Read', { path: lockedPng }, context)).kind,
     ).toBe('image')
     await expect(
       executor.execute(

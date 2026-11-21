@@ -309,7 +309,10 @@ const writeStdinInputSchema = jsonObject(
       description: 'Characters to write to stdin; omit or pass empty string to poll output.',
     },
     yield_time_ms: { type: 'integer', minimum: 50, maximum: 60_000 },
-    kill: { type: 'boolean', description: 'Terminate the running session and return trailing output.' },
+    kill: {
+      type: 'boolean',
+      description: 'Terminate the running session and return trailing output.',
+    },
     max_output_tokens: { type: 'integer', minimum: 64, maximum: 100_000 },
   },
   ['session_id'],

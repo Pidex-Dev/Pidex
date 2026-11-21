@@ -88,7 +88,11 @@ describe('swarm.routing', () => {
       pickRole: false,
     })
     expect(Object.keys(noRole).sort()).toEqual(['difficulty', 'reasoning'])
-    const noTiers = swarmRoutingSpec.questionsFor!({ task: 'x', reasoningLevels: [], pickRole: true })
+    const noTiers = swarmRoutingSpec.questionsFor!({
+      task: 'x',
+      reasoningLevels: [],
+      pickRole: true,
+    })
     expect(Object.keys(noTiers)).toEqual(['role'])
     expect(swarmRoutingSpec.fallback({ task: '', reasoningLevels: [] })).toEqual({
       reasoningLevel: null,

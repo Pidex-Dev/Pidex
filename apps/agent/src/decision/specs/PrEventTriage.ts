@@ -72,11 +72,7 @@ export const prEventTriageSpec = defineDecision({
   },
   policy(answers): PrEventTriageRoute {
     const picked = pickChoice(answers.route, { minProbability: PR_EVENT_TRIAGE_MIN_PROBABILITY })
-    if (
-      picked === 'actionable_fix' ||
-      picked === 'needs_human' ||
-      picked === 'skip_noise'
-    ) {
+    if (picked === 'actionable_fix' || picked === 'needs_human' || picked === 'skip_noise') {
       return picked
     }
     return 'unclear'

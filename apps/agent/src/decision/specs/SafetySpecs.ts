@@ -87,8 +87,7 @@ export const SAFETY_MANIFEST: readonly DecisionPointManifest[] = [
     titleZh: '超长输出准入',
     summary:
       'Classifies chunks of overlong tool output; only confident noise is folded out. The full text is archived with a read pointer so a wrong verdict stays recoverable.',
-    summaryZh:
-      '对超长工具输出按块分类，仅折叠高置信噪声段落；全文归档并附读取指针，误判可恢复。',
+    summaryZh: '对超长工具输出按块分类，仅折叠高置信噪声段落；全文归档并附读取指针，误判可恢复。',
     defaultMode: 'shadow',
     feature: 'decision.safety',
   },

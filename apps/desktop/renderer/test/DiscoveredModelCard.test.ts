@@ -212,7 +212,8 @@ it('点击行展开详情且不触发添加，右侧按钮独立触发添加/移
   ;(expandBtn.props as { onClick: () => void }).onClick()
   expect(expands).toBe(1)
   expect(toggles).toBe(0)
-  const actionBtn = (actionTooltip as React.ReactElement<{ children: React.ReactElement }>).props.children
+  const actionBtn = (actionTooltip as React.ReactElement<{ children: React.ReactElement }>).props
+    .children
   ;(actionBtn.props as { onClick: () => void }).onClick()
   expect(toggles).toBe(1)
   expect(expands).toBe(1)
@@ -271,7 +272,12 @@ it('左侧已配置模型行共用同款展开详情与能力徽章，且点击�
   expect(edits).toBe(0)
   const actionTooltips = (
     actionGroup as React.ReactElement<{
-      children: [null | React.ReactElement, React.ReactElement, React.ReactElement, React.ReactElement]
+      children: [
+        null | React.ReactElement,
+        React.ReactElement,
+        React.ReactElement,
+        React.ReactElement,
+      ]
     }>
   ).props.children
   const editBtn = (actionTooltips[2] as React.ReactElement<{ children: React.ReactElement }>).props

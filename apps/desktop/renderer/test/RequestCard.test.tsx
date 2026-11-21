@@ -84,7 +84,9 @@ test('permission card formats outside-workspace titles and conversational grant 
         requestId: 'approval-ext-file',
         toolName: 'Write',
         input: {
-          affectedPaths: [{ path: 'C:\\Users\\XiaoHi\\Desktop\\文档\\测试.txt', operation: 'create' }],
+          affectedPaths: [
+            { path: 'C:\\Users\\XiaoHi\\Desktop\\文档\\测试.txt', operation: 'create' },
+          ],
         },
         description: '检测到风险或工作区外操作，需要批准',
         grantOptions: [
@@ -95,7 +97,9 @@ test('permission card formats outside-workspace titles and conversational grant 
       onDecide={() => {}}
     />,
   )
-  expect(fileHtml).toContain('需要在工作区外的 C:\\Users\\XiaoHi\\Desktop\\文档 目录创建 测试.txt，是否允许执行？')
+  expect(fileHtml).toContain(
+    '需要在工作区外的 C:\\Users\\XiaoHi\\Desktop\\文档 目录创建 测试.txt，是否允许执行？',
+  )
   expect(fileHtml).not.toContain('检测到风险或工作区外操作，需要批准')
   expect(
     formatGrantOptionLabel({

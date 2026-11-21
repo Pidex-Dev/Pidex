@@ -67,7 +67,12 @@ const MANAGED_TOOLING_SPECS: ReadonlyArray<{
   name: string
   description: string
 }> = [
-  { id: 'nodejs', active: true, name: 'Node.js 运行时', description: '内置工作空间 Node.js 工具链' },
+  {
+    id: 'nodejs',
+    active: true,
+    name: 'Node.js 运行时',
+    description: '内置工作空间 Node.js 工具链',
+  },
   { id: 'python', active: true, name: 'Python 运行时', description: '内置工作空间 Python 工具链' },
   {
     id: 'git-bash',
@@ -75,7 +80,12 @@ const MANAGED_TOOLING_SPECS: ReadonlyArray<{
     name: 'Git Bash 运行时',
     description: '已停用的内置 Windows Git Bash 环境',
   },
-  { id: 'ripgrep', active: false, name: 'ripgrep 搜索工具', description: '已停用的内置高速代码检索工具' },
+  {
+    id: 'ripgrep',
+    active: false,
+    name: 'ripgrep 搜索工具',
+    description: '已停用的内置高速代码检索工具',
+  },
 ]
 
 export class StorageManagementService {

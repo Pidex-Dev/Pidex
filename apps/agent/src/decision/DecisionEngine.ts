@@ -13,7 +13,13 @@ import type {
 } from '@pidex/shared/decision'
 import { isJudgeError, judgeErrorKindOf } from './DecisionErrors'
 import { environmentSecrets, redactForJudge } from './DecisionRedaction'
-import { ABSTAIN, digestOf, type AnswersFor, type DecisionSpec, type JsonValue } from './DecisionSpec'
+import {
+  ABSTAIN,
+  digestOf,
+  type AnswersFor,
+  type DecisionSpec,
+  type JsonValue,
+} from './DecisionSpec'
 import type { JudgeLike } from './Judge'
 
 // INVARIANT: batches up to this size record each item's answers in the ledger.
@@ -242,7 +248,10 @@ export class DecisionEngine {
     }
   }
 
-  private applies(spec: { readonly actsInShadow?: boolean | undefined }, mode: DecisionMode): boolean {
+  private applies(
+    spec: { readonly actsInShadow?: boolean | undefined },
+    mode: DecisionMode,
+  ): boolean {
     return mode === 'active' || (mode === 'shadow' && spec.actsInShadow === true)
   }
 
@@ -310,7 +319,9 @@ export class DecisionEngine {
       ...(evaluation.warnings ? { warnings: evaluation.warnings } : {}),
       ...(evaluation.tiers ? { tiers: evaluation.tiers } : {}),
       stateDigest: digestOf(state),
-      ...(evaluation.request ? { state: evaluation.request.state, questions: evaluation.request.questions } : {}),
+      ...(evaluation.request
+        ? { state: evaluation.request.state, questions: evaluation.request.questions }
+        : {}),
       createdAt: Date.now(),
     }
     await this.record(record)
@@ -359,7 +370,12 @@ export class DecisionEngine {
     const worker = async () => {
       while (next < inputs.length) {
         const index = next++
-        evaluations[index] = await this.evaluate(spec, inputs[index]!, states[index]!, options.signal)
+        evaluations[index] = await this.evaluate(
+          spec,
+          inputs[index]!,
+          states[index]!,
+          options.signal,
+        )
       }
     }
     const asked = options.concurrency ?? 4
@@ -374,7 +390,8 @@ export class DecisionEngine {
       return {
         specId: spec.id,
         mode,
-        outcome: useJudged && evaluation.judged !== undefined ? evaluation.judged : spec.fallback(input),
+        outcome:
+          useJudged && evaluation.judged !== undefined ? evaluation.judged : spec.fallback(input),
         source: useJudged ? 'judge' : 'fallback',
         reason: useJudged ? undefined : (evaluation.failure ?? 'shadow'),
         judged: evaluation.judged,
@@ -386,13 +403,21 @@ export class DecisionEngine {
       }
     })
 
-    const inputTokens = evaluations.reduce((sum, evaluation) => sum + (evaluation.usage?.inputTokens ?? 0), 0)
-    const outputTokens = evaluations.reduce((sum, evaluation) => sum + (evaluation.usage?.outputTokens ?? 0), 0)
+    const inputTokens = evaluations.reduce(
+      (sum, evaluation) => sum + (evaluation.usage?.inputTokens ?? 0),
+      0,
+    )
+    const outputTokens = evaluations.reduce(
+      (sum, evaluation) => sum + (evaluation.usage?.outputTokens ?? 0),
+      0,
+    )
     const requests =
       this.recordState && inputs.length <= MAX_BATCH_ANSWERS
         ? evaluations.map((evaluation) => evaluation.request ?? null)
         : undefined
-    const failures = evaluations.filter((evaluation) => evaluation.failure?.startsWith('error:')).length
+    const failures = evaluations.filter((evaluation) =>
+      evaluation.failure?.startsWith('error:'),
+    ).length
     await this.record({
       id: ledgerId,
       ...(origin?.threadId ? { threadId: origin.threadId } : {}),

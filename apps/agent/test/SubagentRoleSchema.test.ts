@@ -131,9 +131,7 @@ describe('subagent role schema', () => {
     expect(resolveDefaultSubagentName({ profile: 'explorer', role: 'general' })).toBe('Explorer')
     expect(resolveDefaultSubagentName({ profile: 'worker', role: 'general' })).toBe('Worker')
     expect(resolveDefaultSubagentName({ profile: 'worker', role: 'frontend' })).toBe('Frontend')
-    expect(resolveDefaultSubagentName({ profile: 'worker', isFork: true })).toBe(
-      'Context Fork',
-    )
+    expect(resolveDefaultSubagentName({ profile: 'worker', isFork: true })).toBe('Context Fork')
     expect(resolveDefaultSubagentName({ profile: 'default', role: 'general' })).toBe(
       'General Purpose',
     )

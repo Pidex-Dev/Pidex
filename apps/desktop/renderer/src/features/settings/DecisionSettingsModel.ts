@@ -39,7 +39,8 @@ export const DECISION_MODE_LABELS: Record<DecisionMode, string> = {
 export type DecisionGroupModeValue = DecisionMode | 'custom'
 
 export const DECISION_GROUP_CUSTOM_MODE_LABEL = '自定义'
-export const DECISION_GROUP_CUSTOM_MODE_DESCRIPTION = '该分组下包含不同模式的决策点；点击其他模式可一键统一覆盖全组。'
+export const DECISION_GROUP_CUSTOM_MODE_DESCRIPTION =
+  '该分组下包含不同模式的决策点；点击其他模式可一键统一覆盖全组。'
 
 export const DECISION_GROUP_SUMMARIES: Record<DecisionGroup, string> = {
   input: '用户输入预检、任务框架与插话路由',
@@ -142,10 +143,7 @@ export function groupDecisionManifest(
 }
 
 /** Effective mode of a decision point: explicit config first, manifest default second. */
-export function decisionModeOf(
-  config: DecisionConfig,
-  point: DecisionPointManifest,
-): DecisionMode {
+export function decisionModeOf(config: DecisionConfig, point: DecisionPointManifest): DecisionMode {
   return config.modes[point.id] ?? point.defaultMode
 }
 
@@ -201,7 +199,8 @@ export function decisionGroupStatusSummary(
   if (counts.active > 0) modeParts.push(`${counts.active} 生效`)
   if (counts.shadow > 0) modeParts.push(`${counts.shadow} 影子`)
   if (counts.off > 0) modeParts.push(`${counts.off} 关闭`)
-  const base = modeParts.length > 1 ? `${points.length} 项 · ${modeParts.join(' / ')}` : `${points.length} 项`
+  const base =
+    modeParts.length > 1 ? `${points.length} 项 · ${modeParts.join(' / ')}` : `${points.length} 项`
   return counts.customRouteCount > 0 ? `${base} · ${counts.customRouteCount} 项独立路由` : base
 }
 
@@ -262,10 +261,7 @@ export function decisionRouteSelectValue(
   configuredJudges: Readonly<Record<string, unknown>>,
 ): string {
   if (!route || route.length === 0) return DECISION_ROUTE_GLOBAL_VALUE
-  if (
-    route.length === 1 &&
-    Object.prototype.hasOwnProperty.call(configuredJudges, route[0]!)
-  ) {
+  if (route.length === 1 && Object.prototype.hasOwnProperty.call(configuredJudges, route[0]!)) {
     return `${DECISION_ROUTE_SINGLE_PREFIX}${route[0]!}`
   }
   return DECISION_ROUTE_CUSTOM_VALUE

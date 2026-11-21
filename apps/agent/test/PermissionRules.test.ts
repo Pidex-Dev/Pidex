@@ -230,9 +230,9 @@ describe('权限规则匹配', () => {
         networkDomains: ['sub.example.test'],
       }),
     ).toBe(false)
-    expect(
-      permissionRuleMatches({ kind: 'tool', tool: 'PowerShell' }, invocation, undefined),
-    ).toBe(process.platform === 'win32')
+    expect(permissionRuleMatches({ kind: 'tool', tool: 'PowerShell' }, invocation, undefined)).toBe(
+      process.platform === 'win32',
+    )
     expect(
       permissionRuleMatches(
         { kind: 'tool', tool: 'Bash' },

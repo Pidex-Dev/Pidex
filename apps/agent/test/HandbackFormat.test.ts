@@ -17,13 +17,30 @@ const bodyOf = (handback: string): string[] => {
 
 describe('formatSubagentHandback', () => {
   test('孤立 \\r 与换行变体归一化后正文每行仍保持缩进', () => {
-    const variants = ['\r', '\r\n', '\u2028', '\u2029', '\u0085', '\v', '\f', '\x1c', '\x1d', '\x1e']
+    const variants = [
+      '\r',
+      '\r\n',
+      '\u2028',
+      '\u2029',
+      '\u0085',
+      '\v',
+      '\f',
+      '\x1c',
+      '\x1d',
+      '\x1e',
+    ]
     for (const separator of variants) {
       const handback = formatSubagentHandback(
         baseInput({ result: `alpha${separator}beta${separator}gamma` }),
       )
       expect(handback.includes(separator)).toBe(false)
-      expect(handback.split(new RegExp('\r|[\u2028\u2029\u0085' + String.fromCharCode(0x0b, 0x0c, 0x1c, 0x1d, 0x1e) + ']'))).toHaveLength(1)
+      expect(
+        handback.split(
+          new RegExp(
+            '\r|[\u2028\u2029\u0085' + String.fromCharCode(0x0b, 0x0c, 0x1c, 0x1d, 0x1e) + ']',
+          ),
+        ),
+      ).toHaveLength(1)
       const body = bodyOf(handback)
       expect(body).toEqual(['  Findings:', '    alpha', '    beta', '    gamma'])
       expect(body.every((line) => line.startsWith('  '))).toBe(true)

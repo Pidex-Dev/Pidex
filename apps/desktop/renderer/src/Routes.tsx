@@ -99,57 +99,57 @@ const router = createHashRouter([
           </DesktopSettingsProvider>
         ),
         children: [
-      {
-        element: (
-          <PetCatalogProvider>
-            <GitBoardProvider>
-              <DesktopLayout />
-            </GitBoardProvider>
-          </PetCatalogProvider>
-        ),
-        children: [
-          { index: true, element: <Navigate to="/new" replace /> },
-          { path: 'new', element: <QuickChatView /> },
-          { path: 'threads/:threadId', element: <ConversationPage /> },
-          { path: 'projects', element: <ProjectsView /> },
-          { path: 'projects/:projectId', element: <ProjectsView /> },
-          { path: 'workflows', element: <SessionGroupsView /> },
-          { path: 'workflows/:groupId', element: <SessionGroupsView /> },
-          { path: 'session-groups', element: <LegacyWorkflowRedirect /> },
-          { path: 'session-groups/:groupId', element: <LegacyWorkflowRedirect /> },
-          { path: 'models', element: <LegacyModelsRedirect /> },
           {
-            path: 'providers',
             element: (
-              <Suspense fallback={<ProvidersPageFallback />}>
-                <ProvidersView />
-              </Suspense>
+              <PetCatalogProvider>
+                <GitBoardProvider>
+                  <DesktopLayout />
+                </GitBoardProvider>
+              </PetCatalogProvider>
             ),
+            children: [
+              { index: true, element: <Navigate to="/new" replace /> },
+              { path: 'new', element: <QuickChatView /> },
+              { path: 'threads/:threadId', element: <ConversationPage /> },
+              { path: 'projects', element: <ProjectsView /> },
+              { path: 'projects/:projectId', element: <ProjectsView /> },
+              { path: 'workflows', element: <SessionGroupsView /> },
+              { path: 'workflows/:groupId', element: <SessionGroupsView /> },
+              { path: 'session-groups', element: <LegacyWorkflowRedirect /> },
+              { path: 'session-groups/:groupId', element: <LegacyWorkflowRedirect /> },
+              { path: 'models', element: <LegacyModelsRedirect /> },
+              {
+                path: 'providers',
+                element: (
+                  <Suspense fallback={<ProvidersPageFallback />}>
+                    <ProvidersView />
+                  </Suspense>
+                ),
+              },
+              {
+                path: 'git',
+                element: (
+                  <Suspense fallback={<GitBoardPageFallback />}>
+                    <GitBoardView />
+                  </Suspense>
+                ),
+              },
+              { path: 'plugins', element: <PluginsView /> },
+              { path: 'pull-requests', element: <PullRequestsPlaceholder /> },
+              { path: 'automations', element: <AutomationView /> },
+              { path: 'pets', element: <PetCatalogPage /> },
+              {
+                path: 'settings/providers',
+                element: <LegacySettingsProvidersRedirect />,
+              },
+              {
+                path: 'settings/environment/:projectId',
+                element: <SettingsLayout />,
+              },
+              { path: 'settings/:tab', element: <SettingsLayout /> },
+              { path: '*', element: <NotFoundPage /> },
+            ],
           },
-          {
-            path: 'git',
-            element: (
-              <Suspense fallback={<GitBoardPageFallback />}>
-                <GitBoardView />
-              </Suspense>
-            ),
-          },
-          { path: 'plugins', element: <PluginsView /> },
-          { path: 'pull-requests', element: <PullRequestsPlaceholder /> },
-          { path: 'automations', element: <AutomationView /> },
-          { path: 'pets', element: <PetCatalogPage /> },
-          {
-            path: 'settings/providers',
-            element: <LegacySettingsProvidersRedirect />,
-          },
-          {
-            path: 'settings/environment/:projectId',
-            element: <SettingsLayout />,
-          },
-          { path: 'settings/:tab', element: <SettingsLayout /> },
-          { path: '*', element: <NotFoundPage /> },
-        ],
-      },
         ],
       },
     ],

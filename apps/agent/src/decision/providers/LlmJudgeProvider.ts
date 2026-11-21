@@ -27,7 +27,8 @@ Answer formats, by question type:
 Judge only from STATE. Answer every question id. Reply with exactly one JSON object and nothing else:
 {"answers": {"<question id>": {...}}}`
 
-const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value))
 
 function renderQuestion(question: DecisionQuestion): Record<string, unknown> {
   if (question.type === 'choice') {
@@ -45,7 +46,9 @@ function toAnswer(question: DecisionQuestion, raw: unknown): DecisionAnswer | un
   if (typeof raw !== 'object' || raw === null) return undefined
   const record = raw as Record<string, unknown>
   if (question.type === 'boolean') {
-    return typeof record.p === 'number' ? { type: 'boolean', probability: clamp(record.p, 0, 1) } : undefined
+    return typeof record.p === 'number'
+      ? { type: 'boolean', probability: clamp(record.p, 0, 1) }
+      : undefined
   }
   if (question.type === 'score') {
     if (typeof record.score !== 'number') return undefined
@@ -91,7 +94,8 @@ export class LlmJudgeProvider implements JudgeProvider {
     const questions = Object.fromEntries(
       Object.entries(request.questions).map(([id, question]) => [id, renderQuestion(question)]),
     )
-    const state = typeof request.state === 'string' ? request.state : JSON.stringify(request.state, null, 1)
+    const state =
+      typeof request.state === 'string' ? request.state : JSON.stringify(request.state, null, 1)
 
     let result: LlmCompletionResult
     try {
@@ -108,15 +112,24 @@ export class LlmJudgeProvider implements JudgeProvider {
 
     const parsed = extractJson(result.text)
     const rawAnswers =
-      typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>).answers : undefined
+      typeof parsed === 'object' && parsed !== null
+        ? (parsed as Record<string, unknown>).answers
+        : undefined
     if (typeof rawAnswers !== 'object' || rawAnswers === null) {
-      throw new JudgeError('invalid_response', 'The judge model did not reply with an answers object')
+      throw new JudgeError(
+        'invalid_response',
+        'The judge model did not reply with an answers object',
+      )
     }
 
     const answers: Record<string, DecisionAnswer> = {}
     for (const [id, question] of Object.entries(request.questions)) {
       const answer = toAnswer(question, (rawAnswers as Record<string, unknown>)[id])
-      if (!answer) throw new JudgeError('invalid_response', `The judge model gave no usable answer for "${id}"`)
+      if (!answer)
+        throw new JudgeError(
+          'invalid_response',
+          `The judge model gave no usable answer for "${id}"`,
+        )
       answers[id] = answer
     }
     return {

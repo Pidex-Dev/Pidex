@@ -384,7 +384,11 @@ export class SubagentCollaborationRepository {
     taskID: string,
     context: {
       bundle: Record<string, unknown>
-      exposurePlan: { eager: readonly string[]; deferred: readonly string[]; exposed: readonly string[] }
+      exposurePlan: {
+        eager: readonly string[]
+        deferred: readonly string[]
+        exposed: readonly string[]
+      }
     },
   ) {
     if (!this.forkAvailable) return

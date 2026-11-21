@@ -27,12 +27,15 @@ export function redactForJudge<T>(value: T, known: readonly string[] = []): T {
   const replaceKnown = (input: unknown): unknown => {
     if (typeof input === 'string') {
       let clean = input
-      for (const secret of known) if (clean.includes(secret)) clean = clean.split(secret).join('<redacted>')
+      for (const secret of known)
+        if (clean.includes(secret)) clean = clean.split(secret).join('<redacted>')
       return clean
     }
     if (Array.isArray(input)) return input.map(replaceKnown)
     if (input && typeof input === 'object')
-      return Object.fromEntries(Object.entries(input).map(([key, item]) => [key, replaceKnown(item)]))
+      return Object.fromEntries(
+        Object.entries(input).map(([key, item]) => [key, replaceKnown(item)]),
+      )
     return input
   }
   return secretScrubber.scrub(replaceKnown(value)) as T

@@ -1,10 +1,7 @@
 import { ModelPricingService } from './provider/ModelPricingService'
 import { DecisionService } from './decision/DecisionService'
 import { realUserMessages } from './decision/integrations/PermissionDecisionAdapter'
-import {
-  INPUT_CONTEXT_MEMORY_TEAMWORK_MANIFEST,
-  SAFETY_TURN_MANIFEST,
-} from './decision/specs'
+import { INPUT_CONTEXT_MEMORY_TEAMWORK_MANIFEST, SAFETY_TURN_MANIFEST } from './decision/specs'
 import { ModelPricingRepository } from './storage/repositories/ModelPricingRepository'
 import { ModelRecommendationStore } from './provider/pi/ModelRecommendationStore'
 import { ProviderDirectoryStore } from './provider/pi/ProviderDirectoryStore'
@@ -846,7 +843,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         for (const event of events) await Effect.runPromise(hub.publish(event))
       },
       describeBrowserActionTarget: (tabId, operation) =>
-        browser.describeActionTarget(tabId, operation as Parameters<BrowserService['describeActionTarget']>[1]),
+        browser.describeActionTarget(
+          tabId,
+          operation as Parameters<BrowserService['describeActionTarget']>[1],
+        ),
       resolveRealUserMessages: (threadID) => realUserMessages(db, threadID),
     })
     const questions = new QuestionService(db, hub, false)
@@ -855,7 +855,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const contextCompaction = new ContextCompactionService(db)
     toolExecutor.setArchiveToolOutput(async ({ name, text }) => {
       const stored = await artifacts.archiveText(text)
-      return { pointer: `[pidex-admission-archive] 完整输出已归档（${name}，sha256:${stored.sha256}），可按该哈希经 Artifact 通道读取。` }
+      return {
+        pointer: `[pidex-admission-archive] 完整输出已归档（${name}，sha256:${stored.sha256}），可按该哈希经 Artifact 通道读取。`,
+      }
     })
     const orchestrator = new AgentRuntimeService({
       db,

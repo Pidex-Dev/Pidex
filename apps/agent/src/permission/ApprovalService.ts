@@ -475,9 +475,10 @@ export class ApprovalService {
       if (!this.guardianScores)
         return await this.finishGuardianReview(invocation, await reviewPromise)
       const assistPromise = assist
-        ? Promise.resolve(approvalAssistDecision(this.db, invocation, assist)).then(
-            (decision) => ({ kind: 'approval' as const, decision }),
-          )
+        ? Promise.resolve(approvalAssistDecision(this.db, invocation, assist)).then((decision) => ({
+            kind: 'approval' as const,
+            decision,
+          }))
         : null
       const racers: Promise<
         | { kind: 'review'; decision: PermissionDecision }

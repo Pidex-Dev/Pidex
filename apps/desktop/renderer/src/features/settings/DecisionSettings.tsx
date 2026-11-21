@@ -31,10 +31,7 @@ import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { useMountEffect } from '../../hooks/UseMountEffect.js'
 import { useWindowEvent } from '../../hooks/UseExternalSubscription.js'
-import {
-  CONFIG_UPDATED_EVENT,
-  desktopClient,
-} from '../../services/desktop-client/index.js'
+import { CONFIG_UPDATED_EVENT, desktopClient } from '../../services/desktop-client/index.js'
 import {
   ModelPickerPopover,
   type ProviderModelOption,
@@ -199,7 +196,9 @@ export function DecisionSettings({
         )
         if (!mountedRef.current) return
         const byId = new Map(
-          fetched.flatMap((entry) => (entry.status === 'fulfilled' ? [[entry.value.providerID, entry.value.catalog]] : [])),
+          fetched.flatMap((entry) =>
+            entry.status === 'fulfilled' ? [[entry.value.providerID, entry.value.catalog]] : [],
+          ),
         )
         if (byId.size > 0) {
           setProviders((current) =>
@@ -281,11 +280,7 @@ export function DecisionSettings({
   )
 
   const saveJudge = useCallback(
-    async (
-      name: string,
-      judge: JudgeConfig,
-      options: SaveJudgeOptions = {},
-    ): Promise<boolean> => {
+    async (name: string, judge: JudgeConfig, options: SaveJudgeOptions = {}): Promise<boolean> => {
       if (busy || !view) return false
       const trimmedKey = options.apiKey?.trim() ?? ''
       const isNewJudge = !Object.prototype.hasOwnProperty.call(view.config.judges, name)
@@ -431,9 +426,7 @@ export function DecisionSettings({
               ariaLabel="配置层"
               size="sm"
               value={scope}
-              options={SCOPE_OPTIONS.filter(
-                (option) => option.value !== 'project' || Boolean(cwd),
-              )}
+              options={SCOPE_OPTIONS.filter((option) => option.value !== 'project' || Boolean(cwd))}
               onValueChange={(value) => setScope(value as DecisionConfigScope)}
             />
             <Button
@@ -487,9 +480,7 @@ export function DecisionSettings({
               busy={busy}
               probes={probes}
               probing={probing}
-              onTiersChange={(tiers) =>
-                void applyPatch([{ keyPath: ['tiers'], value: tiers }])
-              }
+              onTiersChange={(tiers) => void applyPatch([{ keyPath: ['tiers'], value: tiers }])}
               onProbe={(name) => void probeJudge(name)}
               onSaveJudge={saveJudge}
               onRemoveJudge={(name) =>
@@ -569,8 +560,8 @@ export function DecisionSettings({
                   className="tw:size-icon-md tw:shrink-0"
                 />
                 <span>
-                  API Key 仅加密保存在 Pidex 凭据库中，不会明文写入配置文件、账本或日志；删除
-                  Judge 时会自动清理其专属凭据。
+                  API Key 仅加密保存在 Pidex 凭据库中，不会明文写入配置文件、账本或日志；删除 Judge
+                  时会自动清理其专属凭据。
                 </span>
               </div>
             </SettingsSection>
@@ -864,7 +855,9 @@ function JudgesAndCascadeSection({
                 <p
                   className={`tw:m-0 tw:type-1 ${customNameTaken ? 'tw:text-app-danger' : 'tw:text-app-text-meta'}`}
                 >
-                  {customNameTaken ? `已存在同名 Judge「${trimmedCustomName}」。` : customHints.hint}
+                  {customNameTaken
+                    ? `已存在同名 Judge「${trimmedCustomName}」。`
+                    : customHints.hint}
                 </p>
                 <Button
                   color="primary"
@@ -1132,12 +1125,7 @@ function JudgeEditor({
           >
             探测
           </Button>
-          <Button
-            color="ghostSecondary"
-            size="xs"
-            type="button"
-            onClick={onToggleExpanded}
-          >
+          <Button color="ghostSecondary" size="xs" type="button" onClick={onToggleExpanded}>
             {expanded ? '收起' : '编辑'}
           </Button>
           <Button
@@ -1270,7 +1258,9 @@ function JudgeEditor({
                     autoComplete="off"
                     spellCheck={false}
                     aria-label={`${name} API Key`}
-                    placeholder={hasSavedKey ? '输入新 API Key 以替换' : '直接输入 API Key（加密入库）'}
+                    placeholder={
+                      hasSavedKey ? '输入新 API Key 以替换' : '直接输入 API Key（加密入库）'
+                    }
                     value={pendingApiKey}
                     onChange={(event) => setPendingApiKey(event.target.value)}
                     className="tw:min-w-0 tw:flex-1"
@@ -1350,9 +1340,7 @@ function DecisionPointsSection({
   onModeChange: (specId: string, mode: DecisionMode) => void
   onRouteChange: (specId: string, route: string[]) => void
 }): React.ReactNode {
-  const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<DecisionGroup>>(
-    () => new Set(),
-  )
+  const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<DecisionGroup>>(() => new Set())
 
   const toggleGroup = (group: DecisionGroup): void => {
     setExpandedGroups((current) => {
@@ -1502,10 +1490,7 @@ function DecisionPointRow({
     if (judgeNames.length > 1 || selectValue === DECISION_ROUTE_CUSTOM_VALUE) {
       base.push({
         value: DECISION_ROUTE_CUSTOM_VALUE,
-        label:
-          savedRoute.length > 1
-            ? `自定义级联（${savedRoute.length} 级）`
-            : '自定义级联…',
+        label: savedRoute.length > 1 ? `自定义级联（${savedRoute.length} 级）` : '自定义级联…',
       })
     }
     return base

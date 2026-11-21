@@ -97,9 +97,7 @@ function resultCardFileReference(
   }
   if (!workspacePath) return null
   const parsed = parseMarkdownFileReference(trimmed)
-  const normalized = parsed.path
-    .replaceAll('\\', '/')
-    .replace(/^\.\/+/, '')
+  const normalized = parsed.path.replaceAll('\\', '/').replace(/^\.\/+/, '')
   const parts = normalized.split('/').filter(Boolean)
   if (!parts.length || parts.includes('..')) return null
   return { ...parsed, path: parts.join('/') }
@@ -255,7 +253,12 @@ function ResultCardReferenceItem({
     return (
       <li className="canonical-result-card__reference">
         <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
-        <Tooltip className={REFERENCE_TOOLTIP_CLASS} content={reference.value} side="top" variant="default">
+        <Tooltip
+          className={REFERENCE_TOOLTIP_CLASS}
+          content={reference.value}
+          side="top"
+          variant="default"
+        >
           {url ? (
             <a
               className="tw:inline-flex tw:min-h-5 tw:min-w-5 tw:items-center"
@@ -274,7 +277,8 @@ function ResultCardReferenceItem({
   }
   if (reference.kind === 'file') {
     const parsed = resultCardFileReference(reference.value, workspacePath)
-    const label = reference.label ?? (parsed ? formatFileReferenceShortLabel(parsed) : reference.value)
+    const label =
+      reference.label ?? (parsed ? formatFileReferenceShortLabel(parsed) : reference.value)
     const tooltip = parsed
       ? formatFileReferenceTooltip(parsed, resolveReferenceDisplayPath(parsed.path, workspacePath))
       : reference.value
@@ -282,7 +286,12 @@ function ResultCardReferenceItem({
       return (
         <li className="canonical-result-card__reference">
           <FileTypeIcon path={parsed.path} size={APP_ICON_SIZES.sm} />
-          <Tooltip className={REFERENCE_TOOLTIP_CLASS} content={tooltip} side="top" variant="default">
+          <Tooltip
+            className={REFERENCE_TOOLTIP_CLASS}
+            content={tooltip}
+            side="top"
+            variant="default"
+          >
             <button
               aria-label={`打开文件 ${label}`}
               className="canonical-result-card__file-link"
@@ -307,7 +316,12 @@ function ResultCardReferenceItem({
   return (
     <li className="canonical-result-card__reference">
       <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
-      <Tooltip className={REFERENCE_TOOLTIP_CLASS} content={reference.value} side="top" variant="default">
+      <Tooltip
+        className={REFERENCE_TOOLTIP_CLASS}
+        content={reference.value}
+        side="top"
+        variant="default"
+      >
         <span>{text}</span>
       </Tooltip>
     </li>

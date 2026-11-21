@@ -99,11 +99,16 @@ describe('decision settings model', () => {
   })
 
   test('formats probe outcomes without raw provider details', () => {
+    expect(decisionProbeLabel({ ok: true, providerId: 'openai', latencyMs: 42 })).toBe(
+      '连通正常 · 42ms',
+    )
     expect(
-      decisionProbeLabel({ ok: true, providerId: 'openai', latencyMs: 42 }),
-    ).toBe('连通正常 · 42ms')
-    expect(
-      decisionProbeLabel({ ok: false, providerId: 'openai', latencyMs: 5_000, errorKind: 'timeout' }),
+      decisionProbeLabel({
+        ok: false,
+        providerId: 'openai',
+        latencyMs: 5_000,
+        errorKind: 'timeout',
+      }),
     ).toBe('请求超时 · 5000ms')
   })
 
@@ -169,9 +174,9 @@ describe('decision settings model', () => {
       }),
     ).toBe(true)
 
-    expect(
-      nextDecisionJudgeName({ 'qwen:qwen-plus': {} }, 'qwen', 'qwen-plus'),
-    ).toBe('qwen:qwen-plus-2')
+    expect(nextDecisionJudgeName({ 'qwen:qwen-plus': {} }, 'qwen', 'qwen-plus')).toBe(
+      'qwen:qwen-plus-2',
+    )
 
     const providerLlmDraft = {
       ...judgeDraftOf({
@@ -296,9 +301,7 @@ describe('decision settings model', () => {
     const judges = { fast: {}, strong: {} }
     expect(decisionRouteSelectValue(undefined, judges)).toBe(DECISION_ROUTE_GLOBAL_VALUE)
     expect(decisionRouteSelectValue([], judges)).toBe(DECISION_ROUTE_GLOBAL_VALUE)
-    expect(decisionRouteSelectValue(['fast'], judges)).toBe(
-      `${DECISION_ROUTE_SINGLE_PREFIX}fast`,
-    )
+    expect(decisionRouteSelectValue(['fast'], judges)).toBe(`${DECISION_ROUTE_SINGLE_PREFIX}fast`)
     expect(decisionRouteSelectValue(['fast', 'strong'], judges)).toBe(DECISION_ROUTE_CUSTOM_VALUE)
     expect(decisionRouteSelectValue(['unknown'], judges)).toBe(DECISION_ROUTE_CUSTOM_VALUE)
 

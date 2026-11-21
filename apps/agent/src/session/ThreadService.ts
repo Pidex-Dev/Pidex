@@ -285,8 +285,7 @@ export class ThreadService {
     this.subagents.setBackgroundNotifyHandler?.(async (threadID, sourceTurnID, prompt, inputID) => {
       const previous = this.db.getTurnInput(sourceTurnID)
       // INVARIANT: 源 turn input 缺失必须抛错让通知保持 pending 重试，静默返回会被 dispatch 视为投递成功并 seal。
-      if (!previous)
-        throw new AgentError('CONFLICT', '后台通知的源 Turn 输入不存在，等待重试', 409)
+      if (!previous) throw new AgentError('CONFLICT', '后台通知的源 Turn 输入不存在，等待重试', 409)
       await this.enqueueFollowUp(
         threadID,
         {
@@ -1395,7 +1394,8 @@ export class ThreadService {
   // INVARIANT: Advisory preflight at the message entry; never blocks or changes admission.
   noteIncomingMessage(threadID: string, content: string): void {
     if (!this.decisions || !content.trim()) return
-    const activeTurnId = this.coordinator.active(threadID)?.turnID ?? this.db.activeTurn(threadID)?.id
+    const activeTurnId =
+      this.coordinator.active(threadID)?.turnID ?? this.db.activeTurn(threadID)?.id
     const running = Boolean(activeTurnId)
     void decideInputPreflight(this.decisions, {
       messageText: content,
@@ -2335,9 +2335,7 @@ export class ThreadService {
       if (!input || input.strategy === 'guide') return
       const toolCalls = (
         this.db.sqlite
-          .query(
-            "SELECT data FROM items WHERE turn_id = ? AND type = 'tool' ORDER BY ordinal",
-          )
+          .query("SELECT data FROM items WHERE turn_id = ? AND type = 'tool' ORDER BY ordinal")
           .all(turnID) as Array<{ data: string }>
       ).flatMap((row): TurnEndToolCall[] => {
         try {

@@ -22,19 +22,15 @@ import {
 } from '../specs/BrowserActionRisk'
 import { taskFrameOf } from '../specs/InputSpecs'
 
-
 const USER_MESSAGE_LIMIT = 8
 const USER_MESSAGE_CHARS = 2_000
 
-export function realUserMessages(
-  db: Pick<AgentDatabase, 'sqlite'>,
-  threadID: string,
-): string {
+export function realUserMessages(db: Pick<AgentDatabase, 'sqlite'>, threadID: string): string {
   if (!db.sqlite) return ''
   const collect = (id: string): string[] =>
     (
-      db.sqlite!
-        .query(
+      db
+        .sqlite!.query(
           `SELECT content FROM messages WHERE thread_id = ? AND role = 'user' ORDER BY created_at DESC, id DESC LIMIT ${USER_MESSAGE_LIMIT}`,
         )
         .all(id) as Array<{ content: string }>
@@ -232,8 +228,7 @@ export async function evaluateConstraintCheck(
       capabilities.filesystem === 'workspace-write' ||
       capabilities.filesystem === 'host-write')
   if (!sideEffecting) return null
-  const constraints =
-    options.constraints ?? taskFrameOf(invocation.threadID)?.constraints ?? []
+  const constraints = options.constraints ?? taskFrameOf(invocation.threadID)?.constraints ?? []
   if (constraints.length === 0) return null
   const engine = await decisions?.ensureEngine(options.cwd).catch(() => null)
   if (!engine) return null
@@ -323,7 +318,9 @@ export async function evaluateBrowserActionRisk(
     browserActionRiskSpec,
     {
       action: operation.action,
-      url: secretScrubber.scrubText(input.targetContext?.url ?? invocation.authorizationScope?.browserOrigin ?? '').slice(0, 500),
+      url: secretScrubber
+        .scrubText(input.targetContext?.url ?? invocation.authorizationScope?.browserOrigin ?? '')
+        .slice(0, 500),
       title: secretScrubber.scrubText(input.targetContext?.title ?? '').slice(0, 300),
       target: secretScrubber.scrubText(targetText).slice(0, 400),
       textPreview: redactBrowserInputPreview(rawPreview, targetText),

@@ -142,7 +142,12 @@ const schemas = {
   list_agents: listAgentsInputSchema,
 }
 
-const DEFERRED_CONTROL_TOOLS = new Set(['send_agent', 'stop_agent', 'followup_agent', 'list_agents'])
+const DEFERRED_CONTROL_TOOLS = new Set([
+  'send_agent',
+  'stop_agent',
+  'followup_agent',
+  'list_agents',
+])
 
 const DESCRIPTION_BY_NAME: Record<string, string> = {
   Agent: AGENT_TOOL_DESCRIPTION,

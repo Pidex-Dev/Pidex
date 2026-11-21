@@ -65,7 +65,9 @@ describe('Phase 3 注册清单与规格一致性', () => {
     expect(INPUT_CONTEXT_MEMORY_TEAMWORK_SPECS['task.frame'].latency).toBe('parallel')
     expect(INPUT_CONTEXT_MEMORY_TEAMWORK_SPECS['context.compact'].latency).toBe('background')
     expect(INPUT_CONTEXT_MEMORY_TEAMWORK_SPECS['memory.applied'].latency).toBe('background')
-    expect(INPUT_CONTEXT_MEMORY_TEAMWORK_SPECS['context.forget'].cacheImpact).toBe('prefix-mutating')
+    expect(INPUT_CONTEXT_MEMORY_TEAMWORK_SPECS['context.forget'].cacheImpact).toBe(
+      'prefix-mutating',
+    )
   })
 
   test('无 DecisionService 时所有入口适配器等价于无 Judge 行为', async () => {

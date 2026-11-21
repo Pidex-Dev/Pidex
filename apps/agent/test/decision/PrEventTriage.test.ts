@@ -150,7 +150,14 @@ describe('PullRequestWatchService 三路分流集成', () => {
       .query(
         `INSERT INTO pr_watches (id, project_id, pr_url, automation_id, thread_id, worktree_id) VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run(watchId, 'proj-1', 'https://github.com/org/repo/pull/42', automationId, thread.id, worktreeId)
+      .run(
+        watchId,
+        'proj-1',
+        'https://github.com/org/repo/pull/42',
+        automationId,
+        thread.id,
+        worktreeId,
+      )
 
     let paused = false
     const startedPrompts: string[] = []

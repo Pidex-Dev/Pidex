@@ -188,7 +188,9 @@ describe('数据库兼容与迁移', () => {
     expect(reopened.getThread(thread.id)?.title).toBe('保留的 v75 会话')
     expect(
       reopened.sqlite
-        .query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'subagent_fork_contexts'")
+        .query(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'subagent_fork_contexts'",
+        )
         .get(),
     ).toEqual({ name: 'subagent_fork_contexts' })
     expect(

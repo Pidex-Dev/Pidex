@@ -1,7 +1,10 @@
 import type { ContextBudget } from '@pidex/shared/thread'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { DecisionService } from '../decision/DecisionService'
-import { planContextForget, type ContextForgetPlan } from '../decision/integrations/ContextDecisionAdapter'
+import {
+  planContextForget,
+  type ContextForgetPlan,
+} from '../decision/integrations/ContextDecisionAdapter'
 
 export type AgentInputItem = Record<string, any>
 

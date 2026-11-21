@@ -17,10 +17,8 @@ import {
   type TurnContinuationInput,
 } from '../../src/decision/integrations/TurnDecisionAdapter'
 
-const engineWith = (
-  provider: JudgeProvider,
-  modes: Record<string, 'off' | 'shadow' | 'active'>,
-) => new DecisionEngine({ judge: new Judge({ provider }), modes })
+const engineWith = (provider: JudgeProvider, modes: Record<string, 'off' | 'shadow' | 'active'>) =>
+  new DecisionEngine({ judge: new Judge({ provider }), modes })
 
 const failing = (): JudgeProvider => ({
   id: 'failing',
@@ -179,7 +177,10 @@ describe('回合结束适配器', () => {
     expect((await evaluateTurnContinuation(null, turnInput())).action).toBe('none')
     expect(
       (
-        await evaluateTurnCompletion(null, turnInput({ patches: [{ path: 'a.ts', operation: 'update' }] }))
+        await evaluateTurnCompletion(
+          null,
+          turnInput({ patches: [{ path: 'a.ts', operation: 'update' }] }),
+        )
       ).action,
     ).toBe('none')
   })
@@ -202,12 +203,8 @@ describe('回合结束适配器', () => {
       ).action,
     ).toBe('none')
     expect(
-      (
-        await evaluateTurnContinuation(
-          null,
-          turnInput({ goal: { active: true, settling: true } }),
-        )
-      ).action,
+      (await evaluateTurnContinuation(null, turnInput({ goal: { active: true, settling: true } })))
+        .action,
     ).toBe('none')
   })
 

@@ -2074,10 +2074,7 @@ type SubjectVariant = {
   pseudoStates: Set<string>
 }
 
-function mergeSubjectVariants(
-  left: SubjectVariant[],
-  right: SubjectVariant[],
-): SubjectVariant[] {
+function mergeSubjectVariants(left: SubjectVariant[], right: SubjectVariant[]): SubjectVariant[] {
   const merged: SubjectVariant[] = []
   for (const a of left) {
     for (const b of right) {
@@ -2168,7 +2165,9 @@ function extractSelectorSubjectRules(selectorText: string): SubjectVariant[] {
     }
     const ancestorNodes = selector.nodes.slice(0, subjectStart)
     const subjectNodes = selector.nodes.slice(subjectStart)
-    if (subjectNodes.some((node) => node.type === 'pseudo' && pseudoElementPattern.test(node.value))) {
+    if (
+      subjectNodes.some((node) => node.type === 'pseudo' && pseudoElementPattern.test(node.value))
+    ) {
       continue
     }
     const ancestorHasState = selectorNodesContainHas(ancestorNodes)
@@ -2356,7 +2355,11 @@ function tailwindUtilityCategories(utilityToken: string): CssPropertyCategory[] 
   ) {
     return ['display']
   }
-  if (/^(?:static|fixed|absolute|relative|sticky|inset-|top-|right-|bottom-|left-|start-|end-)/.test(utility)) {
+  if (
+    /^(?:static|fixed|absolute|relative|sticky|inset-|top-|right-|bottom-|left-|start-|end-)/.test(
+      utility,
+    )
+  ) {
     return ['position']
   }
   if (/^size-/.test(utility)) return ['width', 'height']
@@ -2411,7 +2414,9 @@ function tailwindUtilityCategories(utilityToken: string): CssPropertyCategory[] 
   if (utility === 'font-sans' || utility === 'font-mono' || utility === 'font-serif') {
     return ['font-family']
   }
-  if (/^font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$/.test(utility)) {
+  if (
+    /^font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$/.test(utility)
+  ) {
     return ['font-weight']
   }
   if (/^text-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|[1-9]|code)$/.test(utility)) {
@@ -2442,7 +2447,10 @@ function tailwindUtilityCategories(utilityToken: string): CssPropertyCategory[] 
   if (utility.startsWith('border-r') || utility.startsWith('border-e')) return ['border-right']
   if (utility.startsWith('border-b')) return ['border-bottom']
   if (utility.startsWith('border-l') || utility.startsWith('border-s')) return ['border-left']
-  if (utility === 'border' || (utility.startsWith('border-') && !utility.startsWith('border-spacing'))) {
+  if (
+    utility === 'border' ||
+    (utility.startsWith('border-') && !utility.startsWith('border-spacing'))
+  ) {
     return ['border-top', 'border-right', 'border-bottom', 'border-left']
   }
   if (utility.startsWith('overflow-x-')) return ['overflow-x']
@@ -2801,14 +2809,12 @@ if (multiFileAllowlistConfigured) {
 const observedCollisions: CssTailwindCollisionRecord[] = []
 const seenCollisionKeys = new Set<string>()
 
-function recordBranchCollisions(
-  path: string,
-  line: number,
-  branches: string[][],
-): void {
+function recordBranchCollisions(path: string, line: number, branches: string[][]): void {
   for (const branch of branches) {
     const branchSet = new Set(branch)
-    const cssClasses = branch.filter((token) => !token.startsWith('tw:') && classCssProfiles.has(token))
+    const cssClasses = branch.filter(
+      (token) => !token.startsWith('tw:') && classCssProfiles.has(token),
+    )
     const twTokens = branch.filter((token) => token.startsWith('tw:'))
     if (cssClasses.length === 0 || twTokens.length === 0) continue
 
@@ -2954,7 +2960,9 @@ for (const collision of observedCollisions) {
 
 for (const exception of collisionExceptions) {
   if (!exception.used) {
-    errors.push(`[css-tw-collision] stale cssTailwindCollisionExceptions entry: ${exception.descriptor}`)
+    errors.push(
+      `[css-tw-collision] stale cssTailwindCollisionExceptions entry: ${exception.descriptor}`,
+    )
   }
 }
 

@@ -256,12 +256,7 @@ function QuestionAnswerFormInstance({
       if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault()
         movePlanFocus(event.key === 'ArrowUp' ? -1 : 1)
-      } else if (
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey &&
-        /^[1-9]$/u.test(event.key)
-      ) {
+      } else if (!event.ctrlKey && !event.metaKey && !event.altKey && /^[1-9]$/u.test(event.key)) {
         const optionIndex = Number(event.key) - 1
         const option = currentQuestion.options[optionIndex]
         if (option) {

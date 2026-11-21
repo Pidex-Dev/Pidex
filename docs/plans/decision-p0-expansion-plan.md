@@ -9,12 +9,12 @@
 
 本次 P0 覆盖 4 项能力，仅新增 **3 个 Spec**（浏览器防注入直接复用已有 `tool.injection`），全部归入现有 `safety` 与 `teamwork` 分组，**不改动 RPC v4 协议枚举与 SQLite Schema**。
 
-| 能力 | Spec ID | 分组 | 默认模式 | `cacheImpact` | `latency` | 核心接入位置 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 浏览器页面内容防注入 | 复用 `tool.injection` | `safety` | `active`（沿用） | `none` | `inline` | `ToolOutputDecisionAdapter.ts`、`ToolExecutor.ts` |
-| 浏览器不可逆动作风控 | `browser.action.risk` | `safety` | `shadow` | `none` | `inline` | `BrowserService.ts`、`ToolExecutor.ts` / `PermissionDecisionAdapter.ts` |
-| 外部指令与 Skill 筛查 | `instruction.screen` | `safety` | `active` | `none` | 目录 `background` / 正文 `inline`（SHA-256 缓存） | `SkillService.ts`、`InstructionDiscoveryService.ts`、`ThreadService.ts`、`SubagentService.ts`、`PiToolAdapter.ts` |
-| PR Watch 唤醒门禁与分流 | `pr.event_triage` | `teamwork` | `shadow` | `none` | `inline` | `PullRequestWatchService.ts`、`Bootstrap.ts` |
+| 能力                    | Spec ID               | 分组       | 默认模式         | `cacheImpact` | `latency`                                         | 核心接入位置                                                                                                      |
+| :---------------------- | :-------------------- | :--------- | :--------------- | :------------ | :------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------- |
+| 浏览器页面内容防注入    | 复用 `tool.injection` | `safety`   | `active`（沿用） | `none`        | `inline`                                          | `ToolOutputDecisionAdapter.ts`、`ToolExecutor.ts`                                                                 |
+| 浏览器不可逆动作风控    | `browser.action.risk` | `safety`   | `shadow`         | `none`        | `inline`                                          | `BrowserService.ts`、`ToolExecutor.ts` / `PermissionDecisionAdapter.ts`                                           |
+| 外部指令与 Skill 筛查   | `instruction.screen`  | `safety`   | `active`         | `none`        | 目录 `background` / 正文 `inline`（SHA-256 缓存） | `SkillService.ts`、`InstructionDiscoveryService.ts`、`ThreadService.ts`、`SubagentService.ts`、`PiToolAdapter.ts` |
+| PR Watch 唤醒门禁与分流 | `pr.event_triage`     | `teamwork` | `shadow`         | `none`        | `inline`                                          | `PullRequestWatchService.ts`、`Bootstrap.ts`                                                                      |
 
 ### 强制安全与兼容红线
 
@@ -28,6 +28,7 @@
 ## 1. 模块一：浏览器页面内容防注入（复用 `tool.injection`）
 
 ### 1.1 目标
+
 将浏览器工具返回的网页文本纳入既有 `tool.injection` 段落级筛查，防止网页 DOM、无障碍树或评论区中的间接提示词注入进入模型上下文，同时完整保留 `BrowserResult` 的截图（`image`）等结构化字段。
 
 ### 1.2 文件改动清单
@@ -46,15 +47,18 @@
 ## 2. 模块二：浏览器不可逆动作风控（`browser.action.risk`）
 
 ### 2.1 目标
+
 弥补 `BrowserService.inspect` 当前仅按站点 `origin` 授权的粒度盲区：在 `auto-review` 模式下，对同一已授权站点中可能产生不可逆外部副作用的交互动作进行快速判别，命中且非用户明确要求时升级为人工审批。
 
 ### 2.2 `BrowserService` 轻量元素语义缓存
+
 - **修改 [`apps/agent/src/browser/BrowserService.ts`](../../apps/agent/src/browser/BrowserService.ts)**：
   - 在内存中维护按 `(tabId, documentId)` 索引的轻量 LRU 映射（上限如 64 份文档，不落盘，标签关闭或 `documentId` 变更时自动失效）：
     - 当 `BrowserRead` 的 `snapshot` 完成返回 `result.text` 时，解析包含 `[ref=...]` 的无障碍树行，建立 `ref -> elementSummary`（截断至单行 ≤ 300 字符）。
   - 提供只读查询方法 `describeActionTarget(tabId: string, operation: BrowserOperation): { url: string | null; title: string | null; targetText: string | null }`，在 `ref` 缺失时回退输出 `selector` 或坐标概要。
 
 ### 2.3 Spec 定义
+
 - **新建 `apps/agent/src/decision/specs/BrowserActionRisk.ts`**：
   - `id: 'browser.action.risk'`，`version: 1`，`cacheImpact: 'none'`，`latency: 'inline'`。
   - `capabilities: { irreversible: 'screen', requested: 'relate' }`。
@@ -82,6 +86,7 @@
     - `group: 'safety'`，`defaultMode: 'shadow'`，`feature: 'browser-action-risk'`。
 
 ### 2.4 运行时接线
+
 - **覆盖动作白名单**：仅 `BrowserAction` 且 `operation.action` 属于 `'click' | 'fill' | 'select' | 'check' | 'key' | 'dialog'`（跳过 `hover`、`scroll`、`viewport`）。
 - **触发条件**：
   - 仅在 `auto-review` 模式（非 `full-access`、非 `read-only`）且静态规则尚未判定为 `deny` 或强制 `ask` 时调用（避免重复确认）。
@@ -95,9 +100,11 @@
 ## 3. 模块三：外部指令与 Skill 筛查（`instruction.screen`）
 
 ### 3.1 目标
+
 在不可信仓库指令文件（`AGENTS.override.md`、`AGENTS.md`、`CLAUDE.md`）以及不可信 Skill（仓库内 Skill 与第三方 Plugin Skill 的目录描述和 `skill_read` 正文）进入模型上下文前，拦截诱导越权、窃密、隐瞒用户或篡改工具行为的投毒段落。
 
 ### 3.2 信任边界（严格白名单跳过）
+
 - **需要筛查（不可信来源）**：
   - `InstructionDiscoveryService.discover()` 扫描到的全部仓库指令文件。
   - `SkillService` 中来源为 `workspace`（仓库内）与 `plugin`（第三方插件 `plugin://...`）的 Skill 目录描述与 `skill_read` 正文。
@@ -106,6 +113,7 @@
   - 用户全局目录 Skill（`userHome` / `dataRoot`）。
 
 ### 3.3 Spec 定义
+
 - **新建 `apps/agent/src/decision/specs/InstructionScreen.ts`**：
   - `id: 'instruction.screen'`，`version: 1`，`cacheImpact: 'none'`，`latency: 'inline'`，`capabilities: 'screen'`。
   - 复用 [`ToolInjection.ts`](../../apps/agent/src/decision/specs/ToolInjection.ts) 的 `splitPassages` 与 [`ToolDescription.ts`](../../apps/agent/src/decision/specs/ToolDescription.ts) 的 `looksPoisoned` 作为静态地板。
@@ -126,6 +134,7 @@
     - `group: 'safety'`，`defaultMode: 'active'`，`feature: 'instruction-screen'`。
 
 ### 3.4 分层时序、缓存与处置（`InstructionScreenAdapter.ts`）
+
 - **新建 `apps/agent/src/decision/integrations/InstructionScreenAdapter.ts`**：
   - **缓存键**：按 `sha256(kind + '\0' + content)` 维护进程内 LRU 缓存（容量 1,024），存贮两类结果：
     1. 目录描述 verdict：`'clean' | 'poisoned'`；
@@ -149,9 +158,11 @@
 ## 4. 模块四：PR Watch 唤醒门禁与评论分流（`pr.event_triage`）
 
 ### 4.1 目标
+
 在 [`apps/agent/src/github/PullRequestWatchService.ts`](../../apps/agent/src/github/PullRequestWatchService.ts) 轮询发现 `CHANGES_REQUESTED` 或 `CI FAILURE/ERROR` 变更时，先通过低延迟 Decision 模型做三路分流，避免为无关讨论、重复噪声或需要人工拍板的问题拉起完整主模型 Turn，并对进入修复 Prompt 的外部 Review 文本做防注入筛查。
 
 ### 4.2 Spec 定义
+
 - **新建 `apps/agent/src/decision/specs/PrEventTriage.ts`**（或在 [`TeamworkSpecs.ts`](../../apps/agent/src/decision/specs/TeamworkSpecs.ts) 统一导出注册）：
   - `id: 'pr.event_triage'`，`version: 1`，`cacheImpact: 'none'`，`latency: 'inline'`，`capabilities: 'classify'`。
   - **Input**：
@@ -178,6 +189,7 @@
     - `group: 'teamwork'`，`defaultMode: 'shadow'`，`feature: 'pr-event-triage'`。
 
 ### 4.3 宿主状态机接线
+
 - **新建 `apps/agent/src/decision/integrations/PrWatchDecisionAdapter.ts`**：
   - 导出 `triagePrWatchEvent(decisions, input, options)` 与 `screenPrReviewTexts(decisions, input, options)`（复用 `screenExternalContent` / `tool.injection`）。
 - **修改 [`apps/agent/src/github/PullRequestWatchService.ts`](../../apps/agent/src/github/PullRequestWatchService.ts)** 与 [`apps/agent/src/Bootstrap.ts`](../../apps/agent/src/Bootstrap.ts)：
@@ -201,6 +213,7 @@
 ## 5. 测试与验证计划
 
 ### 5.1 新增与补充单元测试（`apps/agent/test/decision/`）
+
 1. **Browser 防注入测试**（扩充 `SafetyIntegration.test.ts` / `SafetyExecutor.test.ts`）：
    - `externalContentSource` 识别 `BrowserRead` / `BrowserAction` / `BrowserNavigate`，排除无关工具；
    - `ToolExecutor` 对 `{ text, image }` 形态的 `BrowserResult` 拦截注入段落后，完整保留 `image` 字段且替换后 `text` 生效。
@@ -219,7 +232,9 @@
    - 更新 `Phase3Manifest.test.ts`（或新增 `DecisionP0Manifest.test.ts`），验证新 Spec 在 `DecisionService` 注册表中可见、分组与 `defaultMode` 正确，Settings 页面可无需改代码自动渲染。
 
 ### 5.2 交付前验证命令
+
 按 [`AGENTS.md`](../../AGENTS.md) 执行最小充分验证：
+
 1. `bun test apps/agent/test/decision/`（及受影响的 browser / prompt / github 单测）
 2. `bun run --cwd apps/agent typecheck`
 3. 若涉及 `packages/` 或跨 workspace 导出检查，补充 `bun run typecheck`

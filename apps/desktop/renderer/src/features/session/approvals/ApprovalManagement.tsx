@@ -230,12 +230,7 @@ export function ApprovalRulesPanel({
           <span className="tw:min-w-0 tw:flex-1 tw:text-app-text-soft tw:type-1">
             规则已在其他位置更新，请刷新后重试。
           </span>
-          <Button
-            color="secondary"
-            disabled={loading}
-            size="sm"
-            onClick={() => void loadRules()}
-          >
+          <Button color="secondary" disabled={loading} size="sm" onClick={() => void loadRules()}>
             刷新规则
           </Button>
         </div>

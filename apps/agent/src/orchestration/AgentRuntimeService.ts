@@ -1803,215 +1803,215 @@ export class AgentRuntimeService implements AgentRuntime {
             for (const event of completedEvents) await this.publish(event)
           }
         } else {
-        // A node_repl approval resumes only the recorded internal operation. The
-        // pause never persisted a script, so the call is re-executed with the
-        // recovery record instead of the stale pause result.
-        const nodeReplRecovery = computerOperationRecoveryFrom(request.resume.interruption)
-        const alreadySettled =
-          !nodeReplRecovery &&
-          this.options.db.hasPersistedToolResult(request.turnID, request.resume.toolCallID)
-        if (!alreadySettled) {
-          const callIDs = new Set(
-            assistantEntry.message.content.flatMap((part) =>
-              part.type === 'toolCall' ? [part.id] : [],
-            ),
-          )
-          // Rewinding replaces pause placeholders, but must retain settled siblings,
-          // including results committed by an earlier approval before a restart.
-          const settledSiblings = new Map(
-            entries.flatMap((entry) => {
-              if (entry.type !== 'message' || entry.message.role !== 'toolResult') return []
-              const message = entry.message
-              if (
-                !callIDs.has(message.toolCallId) ||
-                message.toolCallId === request.resume!.toolCallID ||
-                (message.details as { __piPause?: boolean } | undefined)?.__piPause === true ||
-                (message.isError &&
-                  piToolResultText(message, { tool: message.toolName }) === '等待用户审批')
-              )
-                return []
-              return [[message.toolCallId, message] as const]
-            }),
-          )
-          await session.moveTo(assistantEntry.id)
-          for (const message of settledSiblings.values()) await session.appendMessage(message)
-        }
-        let resolutionText =
-          request.resume.decision === 'deny'
-            ? request.resume.answer
-              ? `The user denied this tool call and requested: ${request.resume.answer}`
-              : 'The user denied this tool call. Choose another authorized approach.'
-            : (request.resume.answer ?? request.resume.decision ?? 'continue')
-        let resolutionDetails: unknown
-        let resolutionContent: import('@earendil-works/pi-ai').ToolResultMessage['content'] | null =
-          null
-        let resumedResultBlocks: import('@pidex/shared/thread').ToolResultBlock[] = []
-        let resumedArtifacts: import('../storage/ArtifactService').ArtifactBlobInput[] = []
-        let isError = request.resume.decision === 'deny'
-        const lifecycleNames = new Set([
-          'request_user_input',
-          'request_permissions',
-          'Agent',
-          'spawn_agents',
-          'wait_agents',
-          'send_agent',
-          'followup_agent',
-          'report_agent',
-          'list_agents',
-          'stop_agent',
-          'update_plan',
-          'update_goal',
-          'finalize_result',
-        ])
-        if (
-          !alreadySettled &&
-          request.resume.decision === 'allow' &&
-          toolCall.name === 'request_permissions' &&
-          request.resume.permissionGrant
-        ) {
-          try {
-            const grant = await this.options.toolExecutor.applyPermissionGrant(
-              {
-                scope: request.resume.permissionGrant.scope,
-                requestedPermissions: toolCall.arguments as Record<string, unknown>,
-                grantedPermissions: request.resume.permissionGrant.grantedPermissions,
-              },
-              {
-                threadID: request.threadID,
-                turnID: request.turnID,
-                agentID: request.agentID,
-                profile: request.profile ?? 'main',
-                taskMode: request.taskMode,
-                signal: request.signal,
-                workspace: request.workspace,
-                ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
-                permissionConfig: effectivePermissionConfig,
-                model: request.fallbackModel,
-                taskSummary: request.content,
-                toolCallID: request.resume.toolCallID,
-              },
+          // A node_repl approval resumes only the recorded internal operation. The
+          // pause never persisted a script, so the call is re-executed with the
+          // recovery record instead of the stale pause result.
+          const nodeReplRecovery = computerOperationRecoveryFrom(request.resume.interruption)
+          const alreadySettled =
+            !nodeReplRecovery &&
+            this.options.db.hasPersistedToolResult(request.turnID, request.resume.toolCallID)
+          if (!alreadySettled) {
+            const callIDs = new Set(
+              assistantEntry.message.content.flatMap((part) =>
+                part.type === 'toolCall' ? [part.id] : [],
+              ),
             )
-            resolutionDetails = secretScrubber.scrub(grant)
-            resolutionText = resumedToolResultText(grant, toolCall.name)
-          } catch (cause) {
-            isError = true
-            resolutionText = secretScrubber.scrubText(
-              cause instanceof Error ? cause.message : String(cause),
+            // Rewinding replaces pause placeholders, but must retain settled siblings,
+            // including results committed by an earlier approval before a restart.
+            const settledSiblings = new Map(
+              entries.flatMap((entry) => {
+                if (entry.type !== 'message' || entry.message.role !== 'toolResult') return []
+                const message = entry.message
+                if (
+                  !callIDs.has(message.toolCallId) ||
+                  message.toolCallId === request.resume!.toolCallID ||
+                  (message.details as { __piPause?: boolean } | undefined)?.__piPause === true ||
+                  (message.isError &&
+                    piToolResultText(message, { tool: message.toolName }) === '等待用户审批')
+                )
+                  return []
+                return [[message.toolCallId, message] as const]
+              }),
             )
+            await session.moveTo(assistantEntry.id)
+            for (const message of settledSiblings.values()) await session.appendMessage(message)
           }
-        }
-        if (
-          !alreadySettled &&
-          request.resume.decision === 'allow' &&
-          !lifecycleNames.has(toolCall.name)
-        ) {
-          const completed = nodeReplRecovery
-            ? null
-            : this.options.db.completedToolCall(request.resume.toolCallID)
-          if (completed && toolCall.name !== 'Read' && toolCall.name !== 'workspace.read') {
-            resolutionDetails = secretScrubber.scrub(completed.output)
-            resolutionText = resumedToolResultText(completed.output, completed.name)
-          } else
+          let resolutionText =
+            request.resume.decision === 'deny'
+              ? request.resume.answer
+                ? `The user denied this tool call and requested: ${request.resume.answer}`
+                : 'The user denied this tool call. Choose another authorized approach.'
+              : (request.resume.answer ?? request.resume.decision ?? 'continue')
+          let resolutionDetails: unknown
+          let resolutionContent:
+            import('@earendil-works/pi-ai').ToolResultMessage['content'] | null = null
+          let resumedResultBlocks: import('@pidex/shared/thread').ToolResultBlock[] = []
+          let resumedArtifacts: import('../storage/ArtifactService').ArtifactBlobInput[] = []
+          let isError = request.resume.decision === 'deny'
+          const lifecycleNames = new Set([
+            'request_user_input',
+            'request_permissions',
+            'Agent',
+            'spawn_agents',
+            'wait_agents',
+            'send_agent',
+            'followup_agent',
+            'report_agent',
+            'list_agents',
+            'stop_agent',
+            'update_plan',
+            'update_goal',
+            'finalize_result',
+          ])
+          if (
+            !alreadySettled &&
+            request.resume.decision === 'allow' &&
+            toolCall.name === 'request_permissions' &&
+            request.resume.permissionGrant
+          ) {
             try {
-              const resumeToolContext = {
-                threadID: request.threadID,
-                turnID: request.turnID,
-                agentID: request.agentID,
-                profile: request.profile ?? 'main',
-                taskMode: request.taskMode,
-                signal: request.signal,
-                workspace: request.workspace,
-                ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
-                permissionConfig: effectivePermissionConfig,
-                model: request.fallbackModel,
-                taskSummary: request.content,
-                toolCallID: request.resume.toolCallID,
-                approvedToolCallID: request.resume.toolCallID,
-                ...(request.resume.computerGrant
-                  ? { approvedComputerGrant: request.resume.computerGrant }
-                  : {}),
-                onSkillDocumentRead: (path: string, hash: string) =>
-                  composition.bindings.skills.documentRead(path, hash),
-                ...(request.resume.authorizationFingerprint
-                  ? { approvedAuthorizationFingerprint: request.resume.authorizationFingerprint }
-                  : {}),
-                toolCatalog: composition.bindings.toolCatalog,
-                ...(nodeReplRecovery ? { computerRecovery: nodeReplRecovery } : {}),
-              }
-              const resolution = await this.options.toolExecutor.execute(
-                toolCall.name,
-                toolCall.arguments as Record<string, unknown>,
-                resumeToolContext,
+              const grant = await this.options.toolExecutor.applyPermissionGrant(
+                {
+                  scope: request.resume.permissionGrant.scope,
+                  requestedPermissions: toolCall.arguments as Record<string, unknown>,
+                  grantedPermissions: request.resume.permissionGrant.grantedPermissions,
+                },
+                {
+                  threadID: request.threadID,
+                  turnID: request.turnID,
+                  agentID: request.agentID,
+                  profile: request.profile ?? 'main',
+                  taskMode: request.taskMode,
+                  signal: request.signal,
+                  workspace: request.workspace,
+                  ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+                  permissionConfig: effectivePermissionConfig,
+                  model: request.fallbackModel,
+                  taskSummary: request.content,
+                  toolCallID: request.resume.toolCallID,
+                },
               )
-              const resumedDefinition = activityToolCatalog.find(
-                (entry) => entry.sdkName === toolCall.name || entry.name === toolCall.name,
-              )
-              const formattedResult = formatToolExecutionResult(
-                resumedDefinition,
-                resolution,
-                resumeToolContext,
-              )
-              resolutionDetails = secretScrubber.scrub(
-                resumedDefinition?.auditResult?.(resolution) ?? formattedResult.details,
-              )
-              resolutionText =
-                piToolResultText(formattedResult, { tool: toolCall.name }) ||
-                '工具执行完成（无输出）'
-              resolutionContent = formattedResult.content ?? null
-              const projected = piToolResultBlocks(formattedResult)
-              if (projected.artifacts.length > 0) {
-                resumedResultBlocks = projected.blocks
-                resumedArtifacts = projected.artifacts
-              }
+              resolutionDetails = secretScrubber.scrub(grant)
+              resolutionText = resumedToolResultText(grant, toolCall.name)
             } catch (cause) {
               isError = true
               resolutionText = secretScrubber.scrubText(
                 cause instanceof Error ? cause.message : String(cause),
               )
             }
-        }
-        if (!alreadySettled) {
-          await session.appendMessage({
-            role: 'toolResult',
-            toolCallId: request.resume.toolCallID,
-            toolName: toolCall.name,
-            content: resolutionContent ?? [
-              {
-                type: 'text',
-                text: resolutionText,
-              },
-            ],
-            isError,
-            timestamp: Date.now(),
-          })
-          const artifactRecords = await this.persistFinishedToolArtifacts(resumedArtifacts)
-          let completedEvents: Array<ReturnType<AgentDatabase['insertEvent']>> = []
-          this.options.db.transaction(() => {
-            storage.flush()
-            if (!request.resume?.resumeLeaseID && request.resume?.checkpointID) {
-              this.options.db.completeQuestionResume(request.resume.checkpointID)
-            }
-            completedEvents = this.persistFinishedTool(
-              {
-                threadID: request.threadID,
-                turnID: request.turnID,
-                agentID: request.agentID,
-              },
-              {
-                toolCallID: request.resume!.toolCallID!,
-                tool: toolCall.name,
-                output: resolutionText,
-                details: resolutionDetails,
-                isError,
-                ...(resumedResultBlocks.length ? { resultBlocks: resumedResultBlocks } : {}),
-                ...(artifactRecords.length ? { artifactRecords } : {}),
-              },
-              request.workspace,
-              integrationSourceFor(activityToolCatalog, toolCall.name),
-            )
-          })
-          for (const event of completedEvents) await this.publish(event)
-        }
+          }
+          if (
+            !alreadySettled &&
+            request.resume.decision === 'allow' &&
+            !lifecycleNames.has(toolCall.name)
+          ) {
+            const completed = nodeReplRecovery
+              ? null
+              : this.options.db.completedToolCall(request.resume.toolCallID)
+            if (completed && toolCall.name !== 'Read' && toolCall.name !== 'workspace.read') {
+              resolutionDetails = secretScrubber.scrub(completed.output)
+              resolutionText = resumedToolResultText(completed.output, completed.name)
+            } else
+              try {
+                const resumeToolContext = {
+                  threadID: request.threadID,
+                  turnID: request.turnID,
+                  agentID: request.agentID,
+                  profile: request.profile ?? 'main',
+                  taskMode: request.taskMode,
+                  signal: request.signal,
+                  workspace: request.workspace,
+                  ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+                  permissionConfig: effectivePermissionConfig,
+                  model: request.fallbackModel,
+                  taskSummary: request.content,
+                  toolCallID: request.resume.toolCallID,
+                  approvedToolCallID: request.resume.toolCallID,
+                  ...(request.resume.computerGrant
+                    ? { approvedComputerGrant: request.resume.computerGrant }
+                    : {}),
+                  onSkillDocumentRead: (path: string, hash: string) =>
+                    composition.bindings.skills.documentRead(path, hash),
+                  ...(request.resume.authorizationFingerprint
+                    ? { approvedAuthorizationFingerprint: request.resume.authorizationFingerprint }
+                    : {}),
+                  toolCatalog: composition.bindings.toolCatalog,
+                  ...(nodeReplRecovery ? { computerRecovery: nodeReplRecovery } : {}),
+                }
+                const resolution = await this.options.toolExecutor.execute(
+                  toolCall.name,
+                  toolCall.arguments as Record<string, unknown>,
+                  resumeToolContext,
+                )
+                const resumedDefinition = activityToolCatalog.find(
+                  (entry) => entry.sdkName === toolCall.name || entry.name === toolCall.name,
+                )
+                const formattedResult = formatToolExecutionResult(
+                  resumedDefinition,
+                  resolution,
+                  resumeToolContext,
+                )
+                resolutionDetails = secretScrubber.scrub(
+                  resumedDefinition?.auditResult?.(resolution) ?? formattedResult.details,
+                )
+                resolutionText =
+                  piToolResultText(formattedResult, { tool: toolCall.name }) ||
+                  '工具执行完成（无输出）'
+                resolutionContent = formattedResult.content ?? null
+                const projected = piToolResultBlocks(formattedResult)
+                if (projected.artifacts.length > 0) {
+                  resumedResultBlocks = projected.blocks
+                  resumedArtifacts = projected.artifacts
+                }
+              } catch (cause) {
+                isError = true
+                resolutionText = secretScrubber.scrubText(
+                  cause instanceof Error ? cause.message : String(cause),
+                )
+              }
+          }
+          if (!alreadySettled) {
+            await session.appendMessage({
+              role: 'toolResult',
+              toolCallId: request.resume.toolCallID,
+              toolName: toolCall.name,
+              content: resolutionContent ?? [
+                {
+                  type: 'text',
+                  text: resolutionText,
+                },
+              ],
+              isError,
+              timestamp: Date.now(),
+            })
+            const artifactRecords = await this.persistFinishedToolArtifacts(resumedArtifacts)
+            let completedEvents: Array<ReturnType<AgentDatabase['insertEvent']>> = []
+            this.options.db.transaction(() => {
+              storage.flush()
+              if (!request.resume?.resumeLeaseID && request.resume?.checkpointID) {
+                this.options.db.completeQuestionResume(request.resume.checkpointID)
+              }
+              completedEvents = this.persistFinishedTool(
+                {
+                  threadID: request.threadID,
+                  turnID: request.turnID,
+                  agentID: request.agentID,
+                },
+                {
+                  toolCallID: request.resume!.toolCallID!,
+                  tool: toolCall.name,
+                  output: resolutionText,
+                  details: resolutionDetails,
+                  isError,
+                  ...(resumedResultBlocks.length ? { resultBlocks: resumedResultBlocks } : {}),
+                  ...(artifactRecords.length ? { artifactRecords } : {}),
+                },
+                request.workspace,
+                integrationSourceFor(activityToolCatalog, toolCall.name),
+              )
+            })
+            for (const event of completedEvents) await this.publish(event)
+          }
         }
         if (request.resume.decision) {
           if (request.signal.aborted) throw new AgentError('RUN_ABORTED', '任务已停止', 499)
@@ -2385,12 +2385,9 @@ export class AgentRuntimeService implements AgentRuntime {
               }
               const readOnlyMode = isReadOnlyTaskMode(request.taskMode)
               // INVARIANT: implicit fork is main-parent-only; notification delivery requires a root parent, so other parents delegate synchronously.
-              const isFork =
-                !rawType && !readOnlyMode && (request.profile ?? 'main') === 'main'
+              const isFork = !rawType && !readOnlyMode && (request.profile ?? 'main') === 'main'
               const profile = (rawType ?? (readOnlyMode ? 'explorer' : 'default')) as
-                | 'default'
-                | 'explorer'
-                | 'worker'
+                'default' | 'explorer' | 'worker'
               if (readOnlyMode && profile !== 'explorer') {
                 throw new Error('Plan 与 Grill 模式只能创建 Explorer 子 Agent')
               }
@@ -2454,7 +2451,9 @@ export class AgentRuntimeService implements AgentRuntime {
                   role: 'toolResult' as const,
                   toolCallId: call.id,
                   toolName: call.name,
-                  content: [{ type: 'text' as const, text: 'Fork started — processing in background' }],
+                  content: [
+                    { type: 'text' as const, text: 'Fork started — processing in background' },
+                  ],
                   isError: false,
                   timestamp: nowMs,
                 }))
@@ -2544,7 +2543,9 @@ export class AgentRuntimeService implements AgentRuntime {
                     'Background subagent launched. Do not duplicate its work; you will be notified when it completes.',
                 }
               }
-              if (await request.delegation?.isWaitSatisfied({ runIDs: [first.runId], mode: 'all' })) {
+              if (
+                await request.delegation?.isWaitSatisfied({ runIDs: [first.runId], mode: 'all' })
+              ) {
                 const waitRes = (await request.delegation?.wait({
                   runIDs: [first.runId],
                   mode: 'all',

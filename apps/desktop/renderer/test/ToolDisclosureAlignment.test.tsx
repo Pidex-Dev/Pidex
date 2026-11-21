@@ -105,7 +105,12 @@ describe('Codex-aligned tool disclosure behavior', () => {
     for (const activity of explorationActivities) {
       const completed = makeTool({ activity, output: 'some content', state: 'completed' })
       const running = makeTool({ activity, output: null, state: 'running' })
-      const failedWithOutput = makeTool({ activity, output: null, error: '权限不足', state: 'error' })
+      const failedWithOutput = makeTool({
+        activity,
+        output: null,
+        error: '权限不足',
+        state: 'error',
+      })
       const failedEmpty = makeTool({ activity, output: null, error: null, state: 'error' })
 
       expect(buildToolItemDisplay(completed).canExpand).toBe(false)

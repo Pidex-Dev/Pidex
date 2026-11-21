@@ -45,7 +45,11 @@ describe('DecisionEngine', () => {
       },
     }
     const ledger = memoryLedger()
-    const engine = new DecisionEngine({ judge: new Judge({ provider }), ledger, defaultMode: 'off' })
+    const engine = new DecisionEngine({
+      judge: new Judge({ provider }),
+      ledger,
+      defaultMode: 'off',
+    })
     const decision = await engine.decide(spec, { text: 'rm -rf' })
     expect(decision.outcome).toBe('confirm')
     expect(decision.source).toBe('fallback')
@@ -57,7 +61,11 @@ describe('DecisionEngine', () => {
   test('shadow 模式记录 judged 但仍返回 fallback', async () => {
     const ledger = memoryLedger()
     const engine = new DecisionEngine({
-      judge: new Judge({ provider: new MockJudgeProvider({ answers: { requested: { type: 'boolean', probability: 0.95 } } }) }),
+      judge: new Judge({
+        provider: new MockJudgeProvider({
+          answers: { requested: { type: 'boolean', probability: 0.95 } },
+        }),
+      }),
       ledger,
       modes: { 'test.boolean': 'shadow' },
     })
@@ -74,7 +82,11 @@ describe('DecisionEngine', () => {
   })
 
   test('active 模式采纳 judged；actsInShadow 在 shadow 下也采纳', async () => {
-    const judge = new Judge({ provider: new MockJudgeProvider({ answers: { requested: { type: 'boolean', probability: 0.95 } } }) })
+    const judge = new Judge({
+      provider: new MockJudgeProvider({
+        answers: { requested: { type: 'boolean', probability: 0.95 } },
+      }),
+    })
     const active = new DecisionEngine({ judge, modes: { 'test.boolean': 'active' } })
     expect((await active.decide(spec, { text: 'ls' })).outcome).toBe('allow')
 
@@ -143,7 +155,11 @@ describe('DecisionEngine', () => {
   test('decideMany 保持顺序并合并为一条批处理账本记录', async () => {
     const ledger = memoryLedger()
     const engine = new DecisionEngine({
-      judge: new Judge({ provider: new MockJudgeProvider({ answers: { requested: { type: 'boolean', probability: 0.95 } } }) }),
+      judge: new Judge({
+        provider: new MockJudgeProvider({
+          answers: { requested: { type: 'boolean', probability: 0.95 } },
+        }),
+      }),
       ledger,
       modes: { 'test.boolean': 'active' },
     })
@@ -157,7 +173,11 @@ describe('DecisionEngine', () => {
   })
 
   test('显式配置模式优先；未配置点回落 manifest 默认，再回落引擎默认', async () => {
-    const judge = new Judge({ provider: new MockJudgeProvider({ answers: { requested: { type: 'boolean', probability: 0.95 } } }) })
+    const judge = new Judge({
+      provider: new MockJudgeProvider({
+        answers: { requested: { type: 'boolean', probability: 0.95 } },
+      }),
+    })
     const engine = new DecisionEngine({
       judge,
       defaultMode: 'off',
@@ -171,14 +191,14 @@ describe('DecisionEngine', () => {
   })
 
   test('defineDecision 校验版本、逃逸选项与 score 层级', () => {
-    expect(() =>
-      defineDecision({ ...spec, id: 'bad.version', version: 0 }),
-    ).toThrow()
+    expect(() => defineDecision({ ...spec, id: 'bad.version', version: 0 })).toThrow()
     expect(() =>
       defineDecision({
         ...spec,
         id: 'bad.choice',
-        questions: { pick: { type: 'choice', instructions: 'pick', criteria: { a: null, b: null } } },
+        questions: {
+          pick: { type: 'choice', instructions: 'pick', criteria: { a: null, b: null } },
+        },
         policy: () => 'confirm',
       }),
     ).toThrow(/escape option/)

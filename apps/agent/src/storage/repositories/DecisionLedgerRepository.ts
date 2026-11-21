@@ -148,9 +148,7 @@ const recordFromRow = (row: LedgerRow): DecisionLedgerRecord => {
     ...(row.tiers_json != null
       ? { tiers: parseJson(row.tiers_json) as DecisionLedgerRecord['tiers'] }
       : {}),
-    ...(row.batch_json != null
-      ? { batch: parseJson(row.batch_json) as DecisionBatch }
-      : {}),
+    ...(row.batch_json != null ? { batch: parseJson(row.batch_json) as DecisionBatch } : {}),
     stateDigest: row.state_digest,
     ...(row.state_json != null
       ? { state: parseJson(row.state_json) as DecisionLedgerRecord['state'] }

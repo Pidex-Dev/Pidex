@@ -2,7 +2,6 @@ import type { DecisionPointManifest } from '@pidex/shared/decision'
 import { ABSTAIN, defineDecision, type JsonValue } from '../DecisionSpec'
 import { pickChoice, threeZone, type DecisionVerdict } from '../DecisionPolicy'
 
-
 // INVARIANT: The thread's lightweight task frame; host-maintained, never model-authored.
 export type TaskFrame = {
   readonly goal: string
@@ -73,7 +72,11 @@ export function chatByRule(message: string, sessionHasWork: boolean): boolean {
   return !sessionHasWork && !TECHNICAL.test(text) && !CAMEL_CASE.test(text)
 }
 
-function gearFor(turnType: TurnType | 'unknown', filesChanged: DecisionVerdict, peak: number): InputGear {
+function gearFor(
+  turnType: TurnType | 'unknown',
+  filesChanged: DecisionVerdict,
+  peak: number,
+): InputGear {
   if (turnType === 'unknown') return 'standard'
   if (turnType === 'chat') return filesChanged === 'yes' ? 'standard' : 'chat'
   const conversational = turnType === 'chat_question' || turnType === 'design_discussion'
@@ -132,7 +135,12 @@ export const inputPreflightSpec = defineDecision({
     task_complexity: {
       type: 'score',
       instructions: 'What is the scope of `user_message`?',
-      criteria: ['A question', 'One place in the code', 'Several places in the code', 'The whole codebase'],
+      criteria: [
+        'A question',
+        'One place in the code',
+        'Several places in the code',
+        'The whole codebase',
+      ],
     },
     reasoning_depth: {
       type: 'score',
@@ -171,7 +179,8 @@ export const inputPreflightSpec = defineDecision({
   },
   policy(answers, input): InputPreflightOutcome | typeof ABSTAIN {
     const ruledChat = chatByRule(input.userMessage, input.sessionHasWork === true)
-    const turnType = (pickChoice(answers.turn_type) as TurnType | undefined) ?? (ruledChat ? 'chat' : 'unknown')
+    const turnType =
+      (pickChoice(answers.turn_type) as TurnType | undefined) ?? (ruledChat ? 'chat' : 'unknown')
     const needsFilesChanged = threeZone(answers.needs_files_changed)
     const hasMainLine = input.taskFrame !== undefined || input.recentTurns.length > 0
     const verdicts = {
@@ -194,7 +203,13 @@ export const inputPreflightSpec = defineDecision({
   },
   fallback(input: InputPreflightInput): InputPreflightOutcome {
     if (!chatByRule(input.userMessage, input.sessionHasWork === true)) return UNKNOWN_PREFLIGHT
-    return { ...UNKNOWN_PREFLIGHT, turnType: 'chat', gear: 'chat', needsFilesChanged: 'no', planFirst: 'no' }
+    return {
+      ...UNKNOWN_PREFLIGHT,
+      turnType: 'chat',
+      gear: 'chat',
+      needsFilesChanged: 'no',
+      planFirst: 'no',
+    }
   },
 })
 
@@ -248,7 +263,10 @@ export const taskFrameSpec = defineDecision({
   policy(answers): TaskFrameOutcome {
     const { choice, probabilities } = answers.change
     const asOutcome = (option: string): TaskFrameOutcome =>
-      option === 'new_task' || option === 'hard_constraint' || option === 'correction' || option === 'subgoal'
+      option === 'new_task' ||
+      option === 'hard_constraint' ||
+      option === 'correction' ||
+      option === 'subgoal'
         ? option
         : 'no_change'
     if (!probabilities) return asOutcome(choice)
@@ -358,7 +376,11 @@ export const inputInterjectionSpec = defineDecision({
     },
   },
   buildState(input: InterjectionInput): JsonValue {
-    return { user_message: input.userMessage, current_action: input.currentAction, goal: input.goal }
+    return {
+      user_message: input.userMessage,
+      current_action: input.currentAction,
+      goal: input.goal,
+    }
   },
   policy(answers): InterjectionOutcome {
     const kind = pickChoice(answers.kind, { minProbability: 0.7 })
@@ -386,7 +408,8 @@ export const INPUT_MANIFEST: readonly DecisionPointManifest[] = [
     group: 'input',
     title: 'Task frame',
     titleZh: '任务框架',
-    summary: 'Detects new tasks, hard constraints, corrections and subgoals; feeds tool approval and constraint checks.',
+    summary:
+      'Detects new tasks, hard constraints, corrections and subgoals; feeds tool approval and constraint checks.',
     summaryZh: '判别新任务、硬约束、纠正与子目标，维护线程任务框架供工具审批与约束判别使用。',
     defaultMode: 'shadow',
     feature: 'decision.input',

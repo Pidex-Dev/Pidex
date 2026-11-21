@@ -6,7 +6,11 @@ import type { DecisionAnswer } from '@pidex/shared/decision'
 import { DecisionEngine } from '../../src/decision/DecisionEngine'
 import { Judge } from '../../src/decision/Judge'
 import { MockJudgeProvider } from '../../src/decision/providers/MockJudgeProvider'
-import { contextCompactSpec, contextForgetSpec, goalMetSpec } from '../../src/decision/specs/ContextSpecs'
+import {
+  contextCompactSpec,
+  contextForgetSpec,
+  goalMetSpec,
+} from '../../src/decision/specs/ContextSpecs'
 import {
   FORGET_MIN_RESULT_CHARS,
   planContextCompaction,
@@ -35,7 +39,9 @@ const items = () => [
   { role: 'user', content: '修复登录超时', timestamp: 1 },
   {
     role: 'assistant',
-    content: [{ type: 'toolCall', id: 'call-1', name: 'bash', arguments: { command: 'cat big.log' } }],
+    content: [
+      { type: 'toolCall', id: 'call-1', name: 'bash', arguments: { command: 'cat big.log' } },
+    ],
     timestamp: 2,
   },
   {
@@ -66,13 +72,18 @@ describe('context.forget / context.compact', () => {
     const compact = await planContextCompaction(undefined, { items: items() })
     expect(compact.verdicts).toEqual([])
     expect(compact.items).toEqual(items())
-    expect(contextForgetSpec.fallback({ goal: '', call: '', resultChars: 0, ageTurns: 0, since: [] })).toBe('keep')
+    expect(
+      contextForgetSpec.fallback({ goal: '', call: '', resultChars: 0, ageTurns: 0, since: [] }),
+    ).toBe('keep')
   })
 
   test('active forget 只收缩陈旧大结果，占位符保留调用信息', async () => {
     const decisions = {
       ensureEngine: async () =>
-        engineWith({ still_needed: { type: 'boolean', probability: 0.1 } }, { 'context.forget': 'active' }),
+        engineWith(
+          { still_needed: { type: 'boolean', probability: 0.1 } },
+          { 'context.forget': 'active' },
+        ),
     } as unknown as DecisionService
     const plan = await planContextForget(decisions, { items: items() })
     expect(plan.shrunkToolCallIds).toEqual(['call-1'])
@@ -86,7 +97,10 @@ describe('context.forget / context.compact', () => {
   test('shadow forget 记录判定但不改动 items', async () => {
     const decisions = {
       ensureEngine: async () =>
-        engineWith({ still_needed: { type: 'boolean', probability: 0.1 } }, { 'context.forget': 'shadow' }),
+        engineWith(
+          { still_needed: { type: 'boolean', probability: 0.1 } },
+          { 'context.forget': 'shadow' },
+        ),
     } as unknown as DecisionService
     const plan = await planContextForget(decisions, { items: items() })
     expect(plan.shrunkToolCallIds).toEqual([])
@@ -128,14 +142,23 @@ describe('context.forget / context.compact', () => {
     } as unknown as DecisionService
     const dropped = await planContextCompaction(dropDecisions, { items: items() })
     expect(dropped.droppedToolCallIds).toEqual(['call-1'])
-    expect(dropped.items.some((item) => (item as { toolCallId?: string }).toolCallId === 'call-1')).toBe(false)
+    expect(
+      dropped.items.some((item) => (item as { toolCallId?: string }).toolCallId === 'call-1'),
+    ).toBe(false)
     const assistant = dropped.items[1] as { content: Array<{ id?: string }> }
     expect(assistant.content.some((part) => part.id === 'call-1')).toBe(false)
   })
 
   test('fallback compact 判定全 null，不触发任何收缩', () => {
     expect(
-      contextCompactSpec.fallback({ goal: '', call: '', resultHead: '', resultChars: 0, isError: false, since: [] }),
+      contextCompactSpec.fallback({
+        goal: '',
+        call: '',
+        resultHead: '',
+        resultChars: 0,
+        isError: false,
+        since: [],
+      }),
     ).toEqual({ kind: null, keepResult: null, keepCall: null })
   })
 })
@@ -172,8 +195,12 @@ describe('goal.met 辅助判别', () => {
       unverified: false,
     })
     expect(met.outcome).toBe('met')
-    expect(goalMetSpec.fallback({ goal: '', finalMessage: '', openItems: 0, unverified: false })).toBe('unjudged')
-    expect(goalMetSpec.fallback({ goal: '', finalMessage: '', openItems: 2, unverified: false })).toBe('continue')
+    expect(
+      goalMetSpec.fallback({ goal: '', finalMessage: '', openItems: 0, unverified: false }),
+    ).toBe('unjudged')
+    expect(
+      goalMetSpec.fallback({ goal: '', finalMessage: '', openItems: 2, unverified: false }),
+    ).toBe('continue')
   })
 
   test('未注入或未启用快速预判且结构化核验可用时不调用 Judge', async () => {
@@ -247,7 +274,8 @@ describe('集成面：ContextManager / ContextCompactionService 可选注入', (
     const db = new AgentDatabase(join(root, 'agent.sqlite'))
     try {
       const { ContextManager } = await import('../../src/context/ContextManager')
-      const { ContextCompactionService } = await import('../../src/context/ContextCompactionService')
+      const { ContextCompactionService } =
+        await import('../../src/context/ContextCompactionService')
       const context = new ContextManager(db)
       const compaction = new ContextCompactionService(db, context)
       const forget = await context.planForget({ threadID: 't', items: items() })

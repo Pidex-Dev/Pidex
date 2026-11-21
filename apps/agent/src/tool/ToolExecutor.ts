@@ -983,8 +983,7 @@ export class ToolExecutor {
               afterContent,
             }),
           ]
-        } catch {
-        }
+        } catch {}
       }
       if (context.approvedToolCallID !== invocation.id && !context.authorizationOnly)
         this.options?.observeToolStart?.(invocation)
@@ -1613,9 +1612,7 @@ export class ToolExecutor {
       phase = 'execution'
       const executionStartedAt = Date.now()
       const useInjectedHost =
-        Boolean(this.options.runHost) &&
-        !parsedShell.tty &&
-        parsedShell.yieldTimeMs === undefined
+        Boolean(this.options.runHost) && !parsedShell.tty && parsedShell.yieldTimeMs === undefined
       const result = useInjectedHost
         ? await this.options.runHost!(
             runtime.mockCommand,
@@ -1632,7 +1629,9 @@ export class ToolExecutor {
             executable: runtime.shell.executable,
             args: runtime.shell.argsForCommand(parsedShell.command, Boolean(parsedShell.tty)),
             tty: Boolean(parsedShell.tty),
-            ...(parsedShell.yieldTimeMs !== undefined ? { yieldTimeMs: parsedShell.yieldTimeMs } : {}),
+            ...(parsedShell.yieldTimeMs !== undefined
+              ? { yieldTimeMs: parsedShell.yieldTimeMs }
+              : {}),
             ...(shell.timeoutMs !== undefined ? { timeoutMs: shell.timeoutMs } : {}),
             ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
             env: runtime.env,
@@ -1779,8 +1778,7 @@ export class ToolExecutor {
     const resumedApproval =
       Boolean(context.approvedToolCallID) && context.approvedToolCallID === invocation.id
     const hookAsked = invocation.permissionFacts?.hookRequiresApproval === true
-    const needsReview =
-      !resumedApproval && (hookAsked || finalDecision.action === 'review')
+    const needsReview = !resumedApproval && (hookAsked || finalDecision.action === 'review')
     const decision: PermissionDecision = needsReview
       ? await this.options.authorizeShell(invocation, context.signal)
       : {
@@ -2125,11 +2123,7 @@ export class ToolExecutor {
     })
   }
 
-  private async commandForShell(
-    shellKind: ExecShellKind,
-    command: string,
-    signal: AbortSignal,
-  ) {
+  private async commandForShell(shellKind: ExecShellKind, command: string, signal: AbortSignal) {
     const required = shellRuntimeDependencies(command)
     const environment =
       required.length > 0

@@ -691,7 +691,10 @@
   .cpx-agent-activity__content {
     min-width: 0;
     margin-block: var(--conversation-grouped-item-gap, var(--cpx-sys-space-1)) 0;
-    padding-left: var(--cpx-activity-indent, calc(var(--cpx-sys-icon-size-sm) + var(--cpx-sys-space-2)));
+    padding-left: var(
+      --cpx-activity-indent,
+      calc(var(--cpx-sys-icon-size-sm) + var(--cpx-sys-space-2))
+    );
   }
 
   .execution-plan-card__edge-fade {
@@ -1007,7 +1010,10 @@
 
   .cpx-agent-activity__details {
     min-width: 0;
-    margin-left: var(--cpx-activity-indent, calc(var(--cpx-sys-icon-size-sm) + var(--cpx-sys-space-2)));
+    margin-left: var(
+      --cpx-activity-indent,
+      calc(var(--cpx-sys-icon-size-sm) + var(--cpx-sys-space-2))
+    );
   }
 
   .cpx-agent-activity__details:not(.cpx-agent-activity__details--diff) {

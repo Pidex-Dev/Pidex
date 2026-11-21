@@ -367,12 +367,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                     <Gauge className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                   </span>
                 }
-                trailing={
-                  <ChevronRight
-                    className="popover-item-arrow"
-                    size={APP_ICON_SIZES.sm}
-                  />
-                }
+                trailing={<ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />}
               >
                 <DropdownMenu.SubTrigger tabIndex={-1}>
                   <span className="popover-item-label">{t('剩余用量')}</span>
@@ -488,12 +483,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   <HelpCircle className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </span>
               }
-              trailing={
-                <ChevronRight
-                  className="popover-item-arrow"
-                  size={APP_ICON_SIZES.sm}
-                />
-              }
+              trailing={<ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />}
             >
               <DropdownMenu.SubTrigger tabIndex={-1}>
                 <span className="popover-item-label">{t('帮助')}</span>

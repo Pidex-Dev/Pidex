@@ -291,11 +291,7 @@ export interface PiLifecycleCallbacks {
     toolCallID: string,
     signal?: AbortSignal,
   ): Promise<unknown>
-  agent?(
-    input: Record<string, unknown>,
-    toolCallID: string,
-    signal?: AbortSignal,
-  ): Promise<unknown>
+  agent?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   spawnAgents?(
     input: Record<string, unknown>,
     toolCallID: string,

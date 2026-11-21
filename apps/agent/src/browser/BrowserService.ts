@@ -61,7 +61,10 @@ export class BrowserService {
   private readonly tabs = new Map<string, BrowserTab>()
   private readonly hosts = new Map<string, Host>()
   private readonly pending = new Map<string, Pending>()
-  private readonly snapshotRefs = new Map<string, { documentId: string; refs: Map<string, string> }>()
+  private readonly snapshotRefs = new Map<
+    string,
+    { documentId: string; refs: Map<string, string> }
+  >()
   constructor(
     private readonly db: AgentDatabase,
     private readonly hub: EventHub,

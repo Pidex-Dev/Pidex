@@ -84,11 +84,7 @@ export function PlanApprovalCard({
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
     if (disabled) return
-    if (
-      event.nativeEvent.isComposing ||
-      event.nativeEvent.keyCode === 229 ||
-      event.repeat
-    ) {
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || event.repeat) {
       return
     }
     if (event.key === 'Escape') {
@@ -137,10 +133,7 @@ export function PlanApprovalCard({
               className={cx('ask-user-question-option-row', selected && 'is-selected')}
               onClick={handleOptionClick}
             >
-              <span
-                className="request-card-marker ask-user-question-option-num"
-                aria-hidden="true"
-              >
+              <span className="request-card-marker ask-user-question-option-num" aria-hidden="true">
                 1
               </span>
               <span className="ask-user-question-option-inline tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1">

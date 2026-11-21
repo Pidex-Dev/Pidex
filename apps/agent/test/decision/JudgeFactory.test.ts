@@ -6,10 +6,12 @@ import { buildJudge } from '../../src/decision/JudgeFactory'
 describe('Decision JudgeFactory & SystemOne endpoint', () => {
   test('systemOneEndpoint appends /systemone for /v1 and prefixed .../v1 paths', () => {
     expect(systemOneEndpoint('http://127.0.0.1:8700')).toBe('http://127.0.0.1:8700/v1/systemone')
-    expect(systemOneEndpoint('https://api.example.com/v1')).toBe('https://api.example.com/v1/systemone')
-    expect(
-      systemOneEndpoint('https://cn-beijing.maas.qianwenaiapi.com/compatible-mode/v1'),
-    ).toBe('https://cn-beijing.maas.qianwenaiapi.com/compatible-mode/v1/systemone')
+    expect(systemOneEndpoint('https://api.example.com/v1')).toBe(
+      'https://api.example.com/v1/systemone',
+    )
+    expect(systemOneEndpoint('https://cn-beijing.maas.qianwenaiapi.com/compatible-mode/v1')).toBe(
+      'https://cn-beijing.maas.qianwenaiapi.com/compatible-mode/v1/systemone',
+    )
     expect(
       systemOneEndpoint('https://cn-beijing.maas.qianwenaiapi.com/compatible-mode/v1/systemone'),
     ).toBe('https://cn-beijing.maas.qianwenaiapi.com/compatible-mode/v1/systemone')
@@ -118,7 +120,9 @@ describe('Decision JudgeFactory & SystemOne endpoint', () => {
   test('SystemOneJudgeProvider attaches sanitized endpoint and scrubbed plain-text error body on HTTP 404', async () => {
     const originalFetch = globalThis.fetch
     globalThis.fetch = (async () =>
-      new Response('404 page not found for sk-secret-value', { status: 404 })) as unknown as typeof fetch
+      new Response('404 page not found for sk-secret-value', {
+        status: 404,
+      })) as unknown as typeof fetch
 
     try {
       const judge = buildJudge(

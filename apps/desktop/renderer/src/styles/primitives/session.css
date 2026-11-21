@@ -608,8 +608,7 @@
   .thread-summary-floating {
     max-width: calc(100% - var(--cpx-sys-space-4));
     max-height: calc(
-      100% - var(--cpx-sys-space-4) -
-        var(--thread-summary-footer-clearance, var(--cpx-sys-space-4))
+      100% - var(--cpx-sys-space-4) - var(--thread-summary-footer-clearance, var(--cpx-sys-space-4))
     );
     border: var(--cpx-comp-surface-edge);
     background: var(--cpx-comp-surface-floating);

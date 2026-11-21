@@ -43,10 +43,7 @@ describe('shared permission preset round-trip', () => {
   })
 
   test('exposes only the two active preset catalog labels and descriptions', () => {
-    expect(PERMISSION_MODE_OPTIONS.map((option) => option.label)).toEqual([
-      '帮我批准',
-      '完全访问',
-    ])
+    expect(PERMISSION_MODE_OPTIONS.map((option) => option.label)).toEqual(['帮我批准', '完全访问'])
     const labels = Object.fromEntries(
       PERMISSION_MODE_OPTIONS.map((option) => [option.value, option.label]),
     )

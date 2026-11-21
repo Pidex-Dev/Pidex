@@ -25,9 +25,7 @@ type RepeatedToolIdentity = {
 }
 
 function isToolActive(item: ToolItem): boolean {
-  return (
-    item.state === 'pending' || item.state === 'waiting-permission' || item.state === 'running'
-  )
+  return item.state === 'pending' || item.state === 'waiting-permission' || item.state === 'running'
 }
 
 function isToolFailed(item: ToolItem): boolean {

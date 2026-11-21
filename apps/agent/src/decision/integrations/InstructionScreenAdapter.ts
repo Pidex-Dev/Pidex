@@ -177,9 +177,7 @@ export function screenSkillCatalog<T extends ScreenableSkillSummary>(
   })
 }
 
-const applyStaticFloor = (
-  text: string,
-): { text: string; withheld: number } => {
+const applyStaticFloor = (text: string): { text: string; withheld: number } => {
   const pieces = splitPassages(text, PASSAGE_CHARS).slice(0, MAX_PASSAGES)
   if (pieces.length === 0) return { text, withheld: 0 }
   const tail = text.slice(pieces.join('').length)

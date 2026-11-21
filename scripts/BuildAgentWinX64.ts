@@ -51,7 +51,12 @@ try {
   await cp(builtinPluginsSource, builtinPluginsOutput, { recursive: true })
   await rm(nodePtyOutput, { recursive: true, force: true })
   await mkdir(nodePtyOutput, { recursive: true })
-  for (const relativeEntry of ['package.json', 'lib', join('prebuilds', 'win32-x64'), join('build', 'Release')]) {
+  for (const relativeEntry of [
+    'package.json',
+    'lib',
+    join('prebuilds', 'win32-x64'),
+    join('build', 'Release'),
+  ]) {
     const sourceEntry = resolve(nodePtySource, relativeEntry)
     if (await stat(sourceEntry).catch(() => null)) {
       await cp(sourceEntry, resolve(nodePtyOutput, relativeEntry), {

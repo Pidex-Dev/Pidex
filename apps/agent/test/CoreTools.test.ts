@@ -919,12 +919,12 @@ describe('核心工具面', () => {
         context,
       ),
     ).rejects.toMatchObject({ code: 'INVALID_TOOL_INPUT' })
-    await expect(
-      executor.execute('Glob', { pattern: '*.ts' }, context),
-    ).rejects.toMatchObject({ code: 'TOOL_NOT_ALLOWED_FOR_PROFILE' })
-    await expect(
-      executor.execute('Grep', { pattern: 'needle' }, context),
-    ).rejects.toMatchObject({ code: 'TOOL_NOT_ALLOWED_FOR_PROFILE' })
+    await expect(executor.execute('Glob', { pattern: '*.ts' }, context)).rejects.toMatchObject({
+      code: 'TOOL_NOT_ALLOWED_FOR_PROFILE',
+    })
+    await expect(executor.execute('Grep', { pattern: 'needle' }, context)).rejects.toMatchObject({
+      code: 'TOOL_NOT_ALLOWED_FOR_PROFILE',
+    })
     await expect(
       executor.execute('apply_patch', { patch: '*** Begin Patch\n*** End Patch' }, context),
     ).rejects.toMatchObject({ code: 'TOOL_NOT_FOUND' })
@@ -1038,7 +1038,9 @@ describe('核心工具面', () => {
     ])
     const pdfBytes = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Page >>\nendobj\n%%EOF\n', 'utf8')
     const mp3Bytes = Buffer.from([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00])
-    const mp4Bytes = Buffer.from([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x70, 0x34, 0x32])
+    const mp4Bytes = Buffer.from([
+      0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x70, 0x34, 0x32,
+    ])
     const binBytes = Buffer.from([0x00, 0x01, 0xfe, 0xff, 0x10, 0x20])
 
     await writeFile(join(root, 'sample.png'), pngBytes)
@@ -1176,7 +1178,11 @@ describe('核心工具面', () => {
     await writeFile(join(root, 'visible.txt'), 'GREP_FALLBACK_NEEDLE visible\n', 'utf8')
     await writeFile(join(root, '.env'), 'GREP_FALLBACK_NEEDLE=secret\n', 'utf8')
     await mkdir(join(root, '.hidden-dir'), { recursive: true })
-    await writeFile(join(root, '.hidden-dir', 'nested.txt'), 'GREP_FALLBACK_NEEDLE nested\n', 'utf8')
+    await writeFile(
+      join(root, '.hidden-dir', 'nested.txt'),
+      'GREP_FALLBACK_NEEDLE nested\n',
+      'utf8',
+    )
     const explorerContext = { ...context, profile: 'explorer' as const }
     const originalSpawn = Bun.spawn
     const spawnCalls: unknown[][] = []

@@ -27,7 +27,7 @@ export type TestLogSelectionOutcome = {
 // INVARIANT: Only a verdict at least this sure may omit a candidate.
 export const TEST_LOG_OMIT_AT = 0.9
 
- // INVARIANT: an omission requires a reported probability >= 0.9; missing
+// INVARIANT: an omission requires a reported probability >= 0.9; missing
 export const toolAdmissionTestLogSpec = defineDecision({
   id: 'tool.admission.test-log',
   version: 1,
@@ -127,10 +127,7 @@ function foldRepeatsWithin(unit: { kind: TestLogUnit['kind']; text: string }): {
       if (block.trim().length < MIN_DUPLICATE_CHARS) continue
       if (!kept.includes(block.trim())) continue
       let end = start + size
-      while (
-        end + size <= lines.length &&
-        lines.slice(end, end + size).join('') === block
-      ) {
+      while (end + size <= lines.length && lines.slice(end, end + size).join('') === block) {
         end += size
       }
       if (end === start + size) continue

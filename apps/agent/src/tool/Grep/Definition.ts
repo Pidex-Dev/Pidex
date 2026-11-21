@@ -94,11 +94,7 @@ const runRipgrep = async (
   } catch (error) {
     const code = (error as NodeJS.ErrnoException | null)?.code
     if (code === 'ENOENT') return { status: 'missing' }
-    throw new AgentError(
-      'GREP_FAILED',
-      error instanceof Error ? error.message : String(error),
-      500,
-    )
+    throw new AgentError('GREP_FAILED', error instanceof Error ? error.message : String(error), 500)
   }
   const onAbort = () => {
     try {
@@ -265,7 +261,12 @@ export const grepDefinition: ToolDefinition<GrepInput, GrepOutput> = {
       },
       '-i': { type: 'boolean', description: 'Case insensitive search.' },
       '-n': { type: 'boolean', description: 'Show line numbers in content mode (default true).' },
-      '-C': { type: 'integer', minimum: 0, maximum: 20, description: 'Context lines around match.' },
+      '-C': {
+        type: 'integer',
+        minimum: 0,
+        maximum: 20,
+        description: 'Context lines around match.',
+      },
       '-A': { type: 'integer', minimum: 0, maximum: 20, description: 'Lines after match.' },
       '-B': { type: 'integer', minimum: 0, maximum: 20, description: 'Lines before match.' },
       context: { type: 'integer', minimum: 0, maximum: 20, description: 'Alias for -C.' },

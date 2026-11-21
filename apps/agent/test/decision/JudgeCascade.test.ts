@@ -37,7 +37,11 @@ describe('CascadeJudge', () => {
       { judge: scripted('fast', 0.95), profile: { capabilities: { rate: false } } },
     ])
     const result = await cascade.evaluate({ state: {}, questions })
-    expect(result.answers.classify).toMatchObject({ type: 'boolean', probability: 0.95, judge: 'fast' })
+    expect(result.answers.classify).toMatchObject({
+      type: 'boolean',
+      probability: 0.95,
+      judge: 'fast',
+    })
     expect(result.answers.rate).toMatchObject({ judge: 'untrusted' })
     expect(result.tiers?.[0]).toMatchObject({ judgeId: 'fast', asked: 1, kept: 1 })
   })
@@ -71,7 +75,9 @@ describe('CascadeJudge', () => {
       { judge: failing('fast', 'timeout') },
       { judge: failing('deep', 'auth') },
     ])
-    await expect(cascade.evaluate({ state: {}, questions })).rejects.toMatchObject({ kind: 'timeout' })
+    await expect(cascade.evaluate({ state: {}, questions })).rejects.toMatchObject({
+      kind: 'timeout',
+    })
   })
 
   test('多层统计合并 usage 与 requests', async () => {

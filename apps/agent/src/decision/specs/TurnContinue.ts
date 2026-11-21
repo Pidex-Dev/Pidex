@@ -37,7 +37,8 @@ export const turnContinueSpec = defineDecision({
         'Does `final_message` say the assistant will now act, continue working, or call a tool, and then end without doing so?',
       criteria: {
         true: 'Like:\n- "I should do the same for the JS worker. Doing that now."\n- "Let me run the tests next."\n- "I\'ll fix that now."',
-        false: 'Like:\n- "I\'ve completed the task."\n- "The fix is done and tests pass."\n- "Is there anything else I can help with?"',
+        false:
+          'Like:\n- "I\'ve completed the task."\n- "The fix is done and tests pass."\n- "Is there anything else I can help with?"',
       },
     },
     asks_go_ahead: {

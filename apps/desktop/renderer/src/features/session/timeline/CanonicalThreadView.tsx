@@ -1271,16 +1271,8 @@ function CanonicalConversationTurnComponent({
             const active = isProcessItemActive(item)
             const attention = subagentAttentionLabel(item.status)
             const failed =
-              item.status === 'failed' ||
-              item.status === 'stopped' ||
-              item.status === 'interrupted'
-            const rowState = active
-              ? 'running'
-              : attention
-                ? 'waiting'
-                : failed
-                  ? 'error'
-                  : 'done'
+              item.status === 'failed' || item.status === 'stopped' || item.status === 'interrupted'
+            const rowState = active ? 'running' : attention ? 'waiting' : failed ? 'error' : 'done'
             const ariaLabel = taskTitle
               ? `${agentName}：${taskTitle}，打开子智能体`
               : `${agentName}，打开子智能体`

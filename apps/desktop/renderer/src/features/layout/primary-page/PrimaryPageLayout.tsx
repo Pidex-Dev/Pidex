@@ -44,9 +44,7 @@ export function PrimaryPageLayout({
       <header
         className={cx(
           'primary-page-layout__header tw:w-[min(var(--page-content-max-width),100%)] tw:min-w-0 tw:flex-none tw:mx-auto',
-          hasPermanentSearch
-            ? 'primary-page-layout__header--with-search'
-            : 'tw:flex tw:flex-col',
+          hasPermanentSearch ? 'primary-page-layout__header--with-search' : 'tw:flex tw:flex-col',
           headerClassName,
         )}
       >

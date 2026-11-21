@@ -39,7 +39,8 @@ export const toolApprovalSpec = defineDecision({
   questions: {
     verdict: {
       type: 'choice',
-      instructions: 'What is `tool_call`, for `task` and `user_message` (real messages from the human user)?',
+      instructions:
+        'What is `tool_call`, for `task` and `user_message` (real messages from the human user)?',
       criteria: {
         needed: 'A step the task needs, done the way the user would expect',
         beyond:

@@ -162,10 +162,20 @@ export const normalizeExecShellKind = (raw?: string): ExecShellKind => {
     return process.platform === 'win32' ? 'powershell' : 'bash'
   }
   const normalized = raw.trim().toLowerCase()
-  if (normalized === 'powershell' || normalized === 'pwsh' || normalized === 'pwsh.exe' || normalized === 'powershell.exe') {
+  if (
+    normalized === 'powershell' ||
+    normalized === 'pwsh' ||
+    normalized === 'pwsh.exe' ||
+    normalized === 'powershell.exe'
+  ) {
     return 'powershell'
   }
-  if (normalized === 'bash' || normalized === 'git-bash' || normalized === 'bash.exe' || normalized === 'sh') {
+  if (
+    normalized === 'bash' ||
+    normalized === 'git-bash' ||
+    normalized === 'bash.exe' ||
+    normalized === 'sh'
+  ) {
     return 'bash'
   }
   if (normalized === 'cmd' || normalized === 'cmd.exe') {
@@ -248,10 +258,7 @@ const runCapture = (
     })
   })
 
-const whereWindowsExecutables = async (
-  name: string,
-  signal?: AbortSignal,
-): Promise<string[]> => {
+const whereWindowsExecutables = async (name: string, signal?: AbortSignal): Promise<string[]> => {
   const output = await runCapture('where.exe', [name], 5_000, signal)
   if (!output) return []
   return output
@@ -367,7 +374,10 @@ export async function resolveExecShell(
   return resolvePowerShellExecShell()
 }
 
-const capByTokens = (text: string, maxOutputTokens?: number): { text: string; truncated: boolean } => {
+const capByTokens = (
+  text: string,
+  maxOutputTokens?: number,
+): { text: string; truncated: boolean } => {
   if (maxOutputTokens === undefined || !Number.isFinite(maxOutputTokens) || maxOutputTokens <= 0) {
     return { text, truncated: false }
   }
@@ -663,9 +673,9 @@ export class UnifiedExecManager {
     if (accepted.byteLength < chunk.byteLength) session.truncated = true
     session.totalBytes += accepted.byteLength
     const decoded = accepted.toString('utf8')
-    const sanitized = (
-      stream === 'stdout' ? session.stdoutStripper : session.stderrStripper
-    ).write(decoded)
+    const sanitized = (stream === 'stdout' ? session.stdoutStripper : session.stderrStripper).write(
+      decoded,
+    )
     if (stream === 'stdout') session.stdoutBuffer += sanitized
     else session.stderrBuffer += sanitized
     session.combinedBuffer += sanitized

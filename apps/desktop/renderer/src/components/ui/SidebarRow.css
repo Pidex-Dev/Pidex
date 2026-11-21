@@ -98,7 +98,13 @@
   }
 
   .sidebar-row:hover:not(
-      :where(:disabled, [data-disabled], [aria-disabled='true'], [data-menu-item], [data-variant='empty'])
+      :where(
+        :disabled,
+        [data-disabled],
+        [aria-disabled='true'],
+        [data-menu-item],
+        [data-variant='empty']
+      )
     ),
   .sidebar-row[data-highlighted]:not(
       :where(:disabled, [data-disabled], [aria-disabled='true'], [data-variant='empty'])

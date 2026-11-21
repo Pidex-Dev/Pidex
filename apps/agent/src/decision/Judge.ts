@@ -96,7 +96,8 @@ function withOwnProbabilities(
 ): DecisionAnswer {
   if (answer.type !== 'choice' || question.type !== 'choice' || !answer.probabilities) return answer
   const own = Object.entries(answer.probabilities).filter(
-    ([option, probability]) => Object.hasOwn(question.criteria, option) && isProbability(probability),
+    ([option, probability]) =>
+      Object.hasOwn(question.criteria, option) && isProbability(probability),
   )
   if (own.length === Object.keys(answer.probabilities).length) return answer
   return { ...answer, probabilities: own.length > 0 ? Object.fromEntries(own) : undefined }
@@ -146,7 +147,8 @@ export class Judge implements JudgeLike {
   }) {
     this.provider = options.provider
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
-    this.maxQuestionsPerRequest = options.maxQuestionsPerRequest ?? DEFAULT_MAX_QUESTIONS_PER_REQUEST
+    this.maxQuestionsPerRequest =
+      options.maxQuestionsPerRequest ?? DEFAULT_MAX_QUESTIONS_PER_REQUEST
   }
 
   async evaluate(request: JudgeCall): Promise<JudgeResult> {
@@ -165,7 +167,9 @@ export class Judge implements JudgeLike {
     let responses: ProviderResponse[]
     try {
       const requests = Promise.all(
-        chunks.map((questions) => this.provider.evaluate({ state: request.state, questions, signal })),
+        chunks.map((questions) =>
+          this.provider.evaluate({ state: request.state, questions, signal }),
+        ),
       )
       // SAFETY: race provider work so a broken AbortSignal implementation still fails open at the deadline.
       const deadline = new Promise<never>((_, reject) => {
@@ -180,7 +184,9 @@ export class Judge implements JudgeLike {
       if (request.signal?.aborted)
         throw new JudgeError('aborted', 'Judge call was aborted', { cause: error })
       if (timeout.aborted)
-        throw new JudgeError('timeout', `Judge call exceeded ${this.timeoutMs} ms`, { cause: error })
+        throw new JudgeError('timeout', `Judge call exceeded ${this.timeoutMs} ms`, {
+          cause: error,
+        })
       if (error instanceof JudgeError) throw error
       throw new JudgeError('unreachable', 'Judge provider failed', { cause: error })
     }

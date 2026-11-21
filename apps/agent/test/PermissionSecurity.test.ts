@@ -100,7 +100,9 @@ describe('统一权限真值', () => {
         fileAccess,
         shellEnvironment: 'host',
       })
-      expect(catalog.list('chat', sandboxMode).map((tool) => tool.sdkName)).toContain('exec_command')
+      expect(catalog.list('chat', sandboxMode).map((tool) => tool.sdkName)).toContain(
+        'exec_command',
+      )
     }
   })
 
@@ -367,10 +369,7 @@ test('预设允许普通操作；模型控制标记无效且 never-review 不能
           engine.evaluate(invocation({ name, permissionConfig }), catalog.get(name)).action,
         ).toBe('allow')
       expect(
-        engine.evaluate(
-          invocation({ name: 'Read', permissionConfig }),
-          catalog.get('Read'),
-        ).risk,
+        engine.evaluate(invocation({ name: 'Read', permissionConfig }), catalog.get('Read')).risk,
       ).toBe('low')
       const tool = { ...catalog.get('Read'), approvalStrategy: 'never-review' as const }
       const input = {

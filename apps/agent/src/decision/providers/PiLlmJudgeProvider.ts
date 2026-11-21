@@ -9,14 +9,17 @@ import type { PiModelService } from '../../provider/pi/PiModelService'
 import { resolveSpecializedPiModel } from '../../provider/pi/PiSpecializedModelResolver'
 import { LlmJudgeProvider, type LlmCompletion } from './LlmJudgeProvider'
 
-const thinkingLevelOf = (thinking: JudgeConfig['thinking']): 'minimal' | 'low' | 'medium' | 'high' => {
+const thinkingLevelOf = (
+  thinking: JudgeConfig['thinking'],
+): 'minimal' | 'low' | 'medium' | 'high' => {
   if (thinking === undefined || thinking === 'off') return 'minimal'
   return thinking
 }
 
 const refOf = (model: string): Model.Ref => {
   const separator = model.indexOf('/')
-  if (separator <= 0) throw new JudgeError('bad_request', 'LLM judge model must be provider/model-id')
+  if (separator <= 0)
+    throw new JudgeError('bad_request', 'LLM judge model must be provider/model-id')
   return Model.Ref.make({
     providerID: Provider.ID.make(model.slice(0, separator)),
     id: Model.ID.make(model.slice(separator + 1)),

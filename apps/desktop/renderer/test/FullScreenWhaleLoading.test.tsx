@@ -70,7 +70,9 @@ describe('FullScreenWhaleLoading', () => {
       <FullScreenWhaleLoading label="正在加载子智能体…" showLabel={false} variant="contained" />,
     )
 
-    expect(html).toContain('<div class="full-screen-whale-loader full-screen-whale-loader--contained"')
+    expect(html).toContain(
+      '<div class="full-screen-whale-loader full-screen-whale-loader--contained"',
+    )
     expect(html).not.toContain('<main ')
     expect(html).toContain('role="status"')
     expect(html).toContain('aria-label="正在加载子智能体…"')

@@ -219,16 +219,14 @@ describe('SchedulePlanProposalRepository', () => {
     expect(proposals.findByToolCall('tool:1')?.id).toBe(proposal.id)
     expect(proposals.findByCommitOperation('proposal:commit:1')?.id).toBe(proposal.id)
 
-    db.sqlite
-      .query('UPDATE scheduled_tasks SET permission_config = ? WHERE id = ?')
-      .run(
-        JSON.stringify({
-          sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
-        }),
-        'scheduled:proposal',
-      )
+    db.sqlite.query('UPDATE scheduled_tasks SET permission_config = ? WHERE id = ?').run(
+      JSON.stringify({
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+      }),
+      'scheduled:proposal',
+    )
     expect(db.repositories.scheduledTasks.read('scheduled:proposal')?.permissionConfig).toEqual({
       sandboxMode: 'workspace-write',
       approvalPolicy: 'auto_review',

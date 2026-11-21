@@ -52,9 +52,7 @@ const outcomeRecord = (
 })
 
 const decisionEvents = (db: AgentDatabase, threadId: string) =>
-  db
-    .eventsAfter(0, threadId)
-    .filter((event) => event.method.startsWith('decision/'))
+  db.eventsAfter(0, threadId).filter((event) => event.method.startsWith('decision/'))
 
 describe('decision ledger storage', () => {
   test('74 → 75 迁移幂等建表并保留既有数据', async () => {
@@ -72,13 +70,13 @@ describe('decision ledger storage', () => {
       user_version: SCHEMA_VERSION,
     })
     expect(reopened.repositories.decisionLedger.available()).toBe(true)
-    expect(
-      reopened.sqlite
-        .query('SELECT title FROM threads WHERE id = ?')
-        .get(thread.id),
-    ).toEqual({ title: '决策线程' })
+    expect(reopened.sqlite.query('SELECT title FROM threads WHERE id = ?').get(thread.id)).toEqual({
+      title: '决策线程',
+    })
     reopened.repositories.decisionLedger.appendRecord(ledgerRecord(thread.id, { id: 'decision:2' }))
-    expect(reopened.repositories.decisionLedger.listByThread({ threadId: thread.id }).records).toHaveLength(1)
+    expect(
+      reopened.repositories.decisionLedger.listByThread({ threadId: thread.id }).records,
+    ).toHaveLength(1)
     reopened.close()
   })
 
@@ -112,14 +110,23 @@ describe('decision ledger storage', () => {
     const repository = db.repositories.decisionLedger
     repository.appendRecord(ledgerRecord(thread.id, { id: 'decision:a', createdAt: 1_000 }))
     repository.appendRecord(
-      ledgerRecord(thread.id, { id: 'decision:b', createdAt: 2_000, turnId: 'turn:1', specId: 'tool.approval' }),
+      ledgerRecord(thread.id, {
+        id: 'decision:b',
+        createdAt: 2_000,
+        turnId: 'turn:1',
+        specId: 'tool.approval',
+      }),
     )
     repository.appendRecord(ledgerRecord(other.id, { id: 'decision:c', createdAt: 3_000 }))
     repository.appendOutcome(outcomeRecord('decision:b', thread.id))
 
     const all = repository.listByThread({ threadId: thread.id })
     expect(all.records.map((record) => record.id)).toEqual(['decision:b', 'decision:a'])
-    expect(all.records[0]?.usage).toEqual({ inputTokens: 120, outputTokens: 8, cachedInputTokens: 64 })
+    expect(all.records[0]?.usage).toEqual({
+      inputTokens: 120,
+      outputTokens: 8,
+      cachedInputTokens: 64,
+    })
     expect(all.outcomes.map((outcome) => outcome.ledgerId)).toEqual(['decision:b'])
     expect(all.nextCursor).toBeUndefined()
 
@@ -135,7 +142,11 @@ describe('decision ledger storage', () => {
     expect(secondPage.records.map((record) => record.id)).toEqual(['decision:a'])
     expect(secondPage.nextCursor).toBeUndefined()
 
-    const filtered = repository.listByThread({ threadId: thread.id, specId: 'tool.approval', turnId: 'turn:1' })
+    const filtered = repository.listByThread({
+      threadId: thread.id,
+      specId: 'tool.approval',
+      turnId: 'turn:1',
+    })
     expect(filtered.records.map((record) => record.id)).toEqual(['decision:b'])
     db.close()
   })
@@ -172,9 +183,9 @@ describe('decision ledger storage', () => {
     db.sqlite.query('DELETE FROM threads WHERE id = ?').run(thread.id)
     expect(repository.getRecord('decision:1')).toBeNull()
     expect(repository.listByThread({ threadId: thread.id })).toEqual({ records: [], outcomes: [] })
-    expect(
-      db.sqlite.query('SELECT COUNT(*) AS count FROM decision_outcomes').get(),
-    ).toEqual({ count: 0 })
+    expect(db.sqlite.query('SELECT COUNT(*) AS count FROM decision_outcomes').get()).toEqual({
+      count: 0,
+    })
     db.close()
   })
 })

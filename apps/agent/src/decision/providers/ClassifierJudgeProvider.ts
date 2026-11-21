@@ -1,4 +1,9 @@
-import type { DecisionAnswer, DecisionQuestion, JudgeErrorKind, JudgeInput } from '@pidex/shared/decision'
+import type {
+  DecisionAnswer,
+  DecisionQuestion,
+  JudgeErrorKind,
+  JudgeInput,
+} from '@pidex/shared/decision'
 import { JudgeError } from '../DecisionErrors'
 import type { JudgeProvider, JudgeRequest, ProviderResponse } from '../Judge'
 import { judgeInputText, MAX_ERROR_MESSAGE_LENGTH } from './HttpShared'
@@ -52,7 +57,10 @@ function toWire(question: DecisionQuestion): ClassifierWireQuestion {
     : { type: 'bool', instructions }
 }
 
-function fromWire(question: DecisionQuestion, answer: ClassifierWireAnswer | undefined): DecisionAnswer | undefined {
+function fromWire(
+  question: DecisionQuestion,
+  answer: ClassifierWireAnswer | undefined,
+): DecisionAnswer | undefined {
   if (!answer) return undefined
   if (question.type === 'boolean') {
     return answer.type === 'bool' ? { type: 'boolean', probability: answer.probability } : undefined
@@ -75,7 +83,8 @@ function fromWire(question: DecisionQuestion, answer: ClassifierWireAnswer | und
 function kindOf(message: string): JudgeErrorKind {
   if (/no api key|no credentials|not configured/i.test(message)) return 'auth'
   if (/\b402\b/.test(message)) return 'payment_required'
-  if (/\b403\b/.test(message)) return /credit|payment|billing|quota/i.test(message) ? 'payment_required' : 'auth'
+  if (/\b403\b/.test(message))
+    return /credit|payment|billing|quota/i.test(message) ? 'payment_required' : 'auth'
   if (/\b401\b|unauthori[sz]ed/i.test(message)) return 'auth'
   if (/\b429\b|rate.?limit/i.test(message)) return 'rate_limited'
   if (/\b5\d\d\b/.test(message)) return 'server'
@@ -110,18 +119,24 @@ export class ClassifierJudgeProvider implements JudgeProvider {
       throw aborted
     }
     if (outcome.stopReason === 'error') {
-      const message = (outcome.errorMessage ?? 'The classifier call failed').slice(0, MAX_ERROR_MESSAGE_LENGTH)
+      const message = (outcome.errorMessage ?? 'The classifier call failed').slice(
+        0,
+        MAX_ERROR_MESSAGE_LENGTH,
+      )
       throw new JudgeError(kindOf(message), message)
     }
     const answers: Record<string, DecisionAnswer> = {}
     for (const [id, question] of Object.entries(request.questions)) {
       const answer = fromWire(question, outcome.answers[id])
-      if (!answer) throw new JudgeError('invalid_response', `${this.id} gave no usable answer for "${id}"`)
+      if (!answer)
+        throw new JudgeError('invalid_response', `${this.id} gave no usable answer for "${id}"`)
       answers[id] = answer
     }
     return {
       answers,
-      usage: outcome.usage ? { inputTokens: outcome.usage.input, outputTokens: outcome.usage.output } : undefined,
+      usage: outcome.usage
+        ? { inputTokens: outcome.usage.input, outputTokens: outcome.usage.output }
+        : undefined,
       modelId: this.id.slice('classifier:'.length),
     }
   }

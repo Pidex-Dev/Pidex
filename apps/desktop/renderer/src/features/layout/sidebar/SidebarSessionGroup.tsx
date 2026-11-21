@@ -596,7 +596,10 @@ function SidebarSessionGroupComponent({
               )}
             >
               {sessionIndent !== 'gutter' || showConversationIcon ? (
-                <span aria-hidden="true" className="sidebar-row-leading sidebar-row-leading-spacer" />
+                <span
+                  aria-hidden="true"
+                  className="sidebar-row-leading sidebar-row-leading-spacer"
+                />
               ) : null}
               <div className="sidebar-row-main tw:gap-4">
                 {canShowMore ? (

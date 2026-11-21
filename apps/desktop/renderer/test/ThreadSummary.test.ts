@@ -176,7 +176,11 @@ describe('thread summary view model', () => {
             currentRun: { status: 'completed', finishedAt: 100 },
           },
           {
-            task: { id: 'task-2', displayName: 'Inspect acceptance-reports structure', createdAt: 20 },
+            task: {
+              id: 'task-2',
+              displayName: 'Inspect acceptance-reports structure',
+              createdAt: 20,
+            },
             currentRun: { status: 'completed', finishedAt: 200 },
           },
           {
@@ -198,12 +202,7 @@ describe('thread summary view model', () => {
       }),
     )
 
-    expect(model.agents.map((agent) => agent.id)).toEqual([
-      'task-4',
-      'task-3',
-      'task-2',
-      'task-1',
-    ])
+    expect(model.agents.map((agent) => agent.id)).toEqual(['task-4', 'task-3', 'task-2', 'task-1'])
     expect(previewThreadSummaryAgents(model.agents)).toEqual({
       items: model.agents.slice(0, 3),
       remainingCount: 1,
@@ -244,9 +243,7 @@ describe('thread summary view model', () => {
     )
     const headerFourCollapsed =
       (
-        htmlFourCollapsed
-          .split(/<section[^>]*>/)
-          .find((part) => part.includes('>智能体<')) ?? ''
+        htmlFourCollapsed.split(/<section[^>]*>/).find((part) => part.includes('>智能体<')) ?? ''
       ).split('</header>')[0] ?? ''
     expect(headerFourCollapsed).toContain('>智能体<')
     expect(headerFourCollapsed).toContain('>+1<')
@@ -279,9 +276,7 @@ describe('thread summary view model', () => {
     )
     const headerThreeCollapsed =
       (
-        htmlThreeCollapsed
-          .split(/<section[^>]*>/)
-          .find((part) => part.includes('>智能体<')) ?? ''
+        htmlThreeCollapsed.split(/<section[^>]*>/).find((part) => part.includes('>智能体<')) ?? ''
       ).split('</header>')[0] ?? ''
     expect(headerThreeCollapsed).toContain('>智能体<')
     expect(headerThreeCollapsed).not.toContain('>+')
@@ -779,9 +774,9 @@ describe('thread summary persistence and placement', () => {
     expect(validateConversationUiState({ schemaVersion: 4, mainScrollTop: 10 }).summaryOpen).toBe(
       false,
     )
-    expect(
-      validateConversationUiState({ schemaVersion: 4, summaryOpen: true }).summaryOpen,
-    ).toBe(true)
+    expect(validateConversationUiState({ schemaVersion: 4, summaryOpen: true }).summaryOpen).toBe(
+      true,
+    )
   })
 
   test('persists collapsed sections globally and ignores invalid entries', () => {

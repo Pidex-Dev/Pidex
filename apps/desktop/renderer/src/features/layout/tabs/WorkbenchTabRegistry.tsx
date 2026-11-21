@@ -440,9 +440,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
         ? { status: 'available' }
         : { status: 'unavailable', reason: '当前 Agent 运行时未声明 decision.engine.v1。' },
     getTitle: () => 'Judge 决策',
-    render: (_tab, context) => (
-      <RightDockJudgePanel threadId={context.review.activeSessionId} />
-    ),
+    render: (_tab, context) => <RightDockJudgePanel threadId={context.review.activeSessionId} />,
   },
   {
     kind: 'prompt-preview',

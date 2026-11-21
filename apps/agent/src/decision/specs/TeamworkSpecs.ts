@@ -11,7 +11,6 @@ import { prEventTriageSpec } from './PrEventTriage'
 
 export * from './PrEventTriage'
 
-
 export type ReviewSeverity = 'must' | 'should' | 'nit'
 
 export type ReviewFinding = {
@@ -112,7 +111,9 @@ export const reviewTriageSpec = defineDecision({
     }
   },
   fallback(input: ReviewTriageInput): ReviewTriageOutcome {
-    return { priorities: input.findings.map((finding) => reviewPriorityBySeverity(finding.severity)) }
+    return {
+      priorities: input.findings.map((finding) => reviewPriorityBySeverity(finding.severity)),
+    }
   },
 })
 
@@ -240,7 +241,8 @@ export const TEAMWORK_MANIFEST: readonly DecisionPointManifest[] = [
     group: 'teamwork',
     title: 'Review triage',
     titleZh: '评审分级',
-    summary: 'Grades review findings P0–P3 by behavior impact and attribution to the change under review.',
+    summary:
+      'Grades review findings P0–P3 by behavior impact and attribution to the change under review.',
     summaryZh: '按行为影响与改动归因为评审意见补充 P0–P3 分级。',
     defaultMode: 'shadow',
     feature: 'decision.teamwork',
@@ -250,7 +252,8 @@ export const TEAMWORK_MANIFEST: readonly DecisionPointManifest[] = [
     group: 'teamwork',
     title: 'Subagent routing',
     titleZh: '子 Agent 路由',
-    summary: 'Picks a display role and reasoning tier for delegated tasks without an explicit role or tier; never widens permissions.',
+    summary:
+      'Picks a display role and reasoning tier for delegated tasks without an explicit role or tier; never widens permissions.',
     summaryZh: '为未显式指定角色/档位的子 Agent 任务挑选展示角色与推理档位；绝不放宽权限。',
     defaultMode: 'shadow',
     feature: 'decision.teamwork',

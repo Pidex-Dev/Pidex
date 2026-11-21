@@ -124,15 +124,15 @@ const createFixture = async (
 describe('instruction.screen 信任边界', () => {
   test('仅筛查 workspace 与 plugin:// Skill，跳过 builtin 与用户全局目录', () => {
     expect(isUntrustedSkill({ origin: 'builtin', path: 'builtin://pdf/SKILL.md' })).toBe(false)
-    expect(isUntrustedSkill({ origin: 'user', path: 'C:/Users/me/.pidex/skills/my/SKILL.md' })).toBe(
-      false,
-    )
+    expect(
+      isUntrustedSkill({ origin: 'user', path: 'C:/Users/me/.pidex/skills/my/SKILL.md' }),
+    ).toBe(false)
     expect(
       isUntrustedSkill({ origin: 'workspace', path: 'F:/repo/.agents/skills/ext/SKILL.md' }),
     ).toBe(true)
-    expect(isUntrustedSkill({ origin: 'user', path: 'plugin://third-party/skills/foo/SKILL.md' })).toBe(
-      true,
-    )
+    expect(
+      isUntrustedSkill({ origin: 'user', path: 'plugin://third-party/skills/foo/SKILL.md' }),
+    ).toBe(true)
   })
 })
 

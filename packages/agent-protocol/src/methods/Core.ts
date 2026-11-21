@@ -1,9 +1,6 @@
 import { Model } from '@pidex/model-schema'
 import { AgentThread } from '@pidex/shared'
-import {
-  PermissionRuleInputSchema,
-  PermissionRuleSchema,
-} from '@pidex/shared/thread'
+import { PermissionRuleInputSchema, PermissionRuleSchema } from '@pidex/shared/thread'
 import { Schema } from 'effect'
 import { defineMethod, type MethodMap } from '../wire/Definition'
 import {

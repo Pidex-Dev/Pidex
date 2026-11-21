@@ -842,7 +842,10 @@ describe('审批范围与外部交互', () => {
         content: 'batch approval',
         taskMode: 'chat' as const,
         fallbackModel: invocation.model,
-        permissionConfig: { ...invocation.permissionConfig, approvalPolicy: 'auto_review' as const },
+        permissionConfig: {
+          ...invocation.permissionConfig,
+          approvalPolicy: 'auto_review' as const,
+        },
         signal: controller.signal,
         workspace,
         promptSections: [],

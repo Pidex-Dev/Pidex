@@ -84,7 +84,9 @@ describe('ConnectionLostPage', () => {
       createElement(
         MemoryRouter,
         {
-          initialEntries: [{ pathname: '/connection-lost', state: { returnTo: '/settings/general' } }],
+          initialEntries: [
+            { pathname: '/connection-lost', state: { returnTo: '/settings/general' } },
+          ],
         },
         createElement(ConnectionLostPage),
       ),

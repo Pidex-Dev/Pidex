@@ -219,7 +219,9 @@ export function ProviderModelsSection({
                   ? {
                       ...(meta?.inputCost !== undefined ? { input: meta.inputCost } : {}),
                       ...(meta?.outputCost !== undefined ? { output: meta.outputCost } : {}),
-                      ...(meta?.cacheReadCost !== undefined ? { cacheRead: meta.cacheReadCost } : {}),
+                      ...(meta?.cacheReadCost !== undefined
+                        ? { cacheRead: meta.cacheReadCost }
+                        : {}),
                       ...(meta?.cacheWriteCost !== undefined
                         ? { cacheWrite: meta.cacheWriteCost }
                         : {}),
@@ -238,13 +240,13 @@ export function ProviderModelsSection({
                 api: override?.api ?? meta?.providerApi ?? 'openai-completions',
                 enabled,
                 modelType: normalizedModelType,
-                ...(override?.contextWindow ?? meta?.contextWindow
+                ...((override?.contextWindow ?? meta?.contextWindow)
                   ? { contextWindow: override?.contextWindow ?? meta?.contextWindow }
                   : {}),
-                ...(override?.maxInputTokens ?? meta?.inputTokens
+                ...((override?.maxInputTokens ?? meta?.inputTokens)
                   ? { maxInputTokens: override?.maxInputTokens ?? meta?.inputTokens }
                   : {}),
-                ...(override?.maxTokens ?? meta?.outputTokens
+                ...((override?.maxTokens ?? meta?.outputTokens)
                   ? { maxTokens: override?.maxTokens ?? meta?.outputTokens }
                   : {}),
                 ...(override?.reasoning !== undefined || meta?.reasoning !== undefined
@@ -254,7 +256,7 @@ export function ProviderModelsSection({
                   ? { tools: override?.tools ?? meta?.toolCall }
                   : {}),
                 ...(input ? { input } : {}),
-                ...(override?.catalog ?? meta?.catalog
+                ...((override?.catalog ?? meta?.catalog)
                   ? { catalog: override?.catalog ?? meta?.catalog }
                   : {}),
                 ...(override?.optionSpecs ? { optionSpecs: override.optionSpecs } : {}),
@@ -556,7 +558,10 @@ export function ProviderModelsSection({
   )
 
   return (
-    <section className="model-center-models-section tw:grid tw:min-w-0 tw:gap-3" aria-label="模型列表">
+    <section
+      className="model-center-models-section tw:grid tw:min-w-0 tw:gap-3"
+      aria-label="模型列表"
+    >
       <header className="tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-3">
         <SearchHeading
           title={
@@ -654,7 +659,9 @@ export function ProviderModelsSection({
                 !provider.config ||
                 !editable
               }
-              logoURL={modelLogoURL(row.id, row.model.name ?? row.metadata?.name) ?? provider.logoURL}
+              logoURL={
+                modelLogoURL(row.id, row.model.name ?? row.metadata?.name) ?? provider.logoURL
+              }
               providerID={
                 modelLogoURL(row.id, row.model.name ?? row.metadata?.name)
                   ? undefined
@@ -687,9 +694,7 @@ export function ProviderModelsSection({
             panel.host,
           )
         : null}
-      {panel?.host &&
-      panel.tab?.providerId === provider.providerID &&
-      panel.tab.section === 'sync'
+      {panel?.host && panel.tab?.providerId === provider.providerID && panel.tab.section === 'sync'
         ? createPortal(
             <ProviderModelSyncPanel
               provider={provider}

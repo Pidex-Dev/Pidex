@@ -1,19 +1,13 @@
 import React, { useMemo, useState } from 'react'
 import { Check, RefreshCw, Scale, X } from 'lucide-react'
 import type { DecisionAnswer, DecisionOutcomeRecord } from '@pidex/shared/decision'
-import {
-  selectDecisionLedgerEntries,
-  type DecisionLedgerViewEntry,
-} from '@pidex/session-view'
+import { selectDecisionLedgerEntries, type DecisionLedgerViewEntry } from '@pidex/session-view'
 import { Button } from '../../../components/ui/Button.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { decisionErrorMessage } from '../../settings/DecisionSettingsModel.js'
-import {
-  WorkbenchPanelEmpty,
-  WorkbenchPanelUnavailable,
-} from '../panels/WorkbenchPanelStates.js'
+import { WorkbenchPanelEmpty, WorkbenchPanelUnavailable } from '../panels/WorkbenchPanelStates.js'
 import { useCanonicalThreadConversation } from '../../session/timeline/UseCanonicalThreadConversation.js'
 
 /**
@@ -21,11 +15,7 @@ import { useCanonicalThreadConversation } from '../../session/timeline/UseCanoni
  * `session-view`, with correct/wrong outcome marking through
  * `decision/markOutcome`.
  */
-export function RightDockJudgePanel({
-  threadId,
-}: {
-  threadId: string | null
-}): React.ReactNode {
+export function RightDockJudgePanel({ threadId }: { threadId: string | null }): React.ReactNode {
   const supported = useMemo(() => desktopClient.supportsDecisionEngine(), [])
   const conversation = useCanonicalThreadConversation(threadId)
   const [marking, setMarking] = useState<ReadonlySet<string>>(() => new Set())
@@ -145,7 +135,10 @@ function DecisionLedgerCard({
   return (
     <article className="tw:grid tw:min-w-0 tw:gap-2 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-3">
       <header className="tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
-        <span className="tw:truncate tw:type-2 tw:weight-medium tw:text-app-text" title={record.specId}>
+        <span
+          className="tw:truncate tw:type-2 tw:weight-medium tw:text-app-text"
+          title={record.specId}
+        >
           {record.specId}
         </span>
         <span className="tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:type-1 tw:text-app-text-meta">
@@ -200,10 +193,11 @@ function DecisionLedgerCard({
       {record.outcomes.length > 0 ? (
         <div className="tw:grid tw:gap-1 tw:type-1">
           {record.outcomes.map((outcome) => (
-            <div key={outcome.id} className="tw:flex tw:items-center tw:gap-2 tw:text-app-text-soft">
-              <span className="tw:shrink-0 tw:text-app-text-meta">
-                {outcomeKindLabel(outcome)}
-              </span>
+            <div
+              key={outcome.id}
+              className="tw:flex tw:items-center tw:gap-2 tw:text-app-text-soft"
+            >
+              <span className="tw:shrink-0 tw:text-app-text-meta">{outcomeKindLabel(outcome)}</span>
               <span className={outcomeVerdictClass(outcome.verdict)}>{outcome.verdict}</span>
               {outcome.note ? (
                 <span className="tw:min-w-0 tw:truncate" title={outcome.note}>
@@ -316,9 +310,7 @@ function formatPercent(value: number): string {
 
 function formatDecisionTime(createdAt: number): string {
   const date = new Date(createdAt)
-  return Number.isFinite(date.getTime())
-    ? date.toLocaleTimeString('zh-CN', { hour12: false })
-    : ''
+  return Number.isFinite(date.getTime()) ? date.toLocaleTimeString('zh-CN', { hour12: false }) : ''
 }
 
 function latestMarkOutcome(

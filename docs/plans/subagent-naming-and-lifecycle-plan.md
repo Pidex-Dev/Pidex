@@ -33,6 +33,7 @@
 ## 2. 分阶段实施步骤
 
 ### Phase 1：共享契约与 SQLite 向前兼容 Schema
+
 1. **`packages/shared/src/thread/Subagent.ts` & `Items.ts`**：
    - `SubagentTaskSchema` 与 `SubagentItemSchema` 新增 `title: Schema.optional(Schema.NullOr(Schema.String))`。
    - 导出辅助函数 `resolveSubagentDisplayParts({ displayName, title, profile, role, task })` 统一处理新旧数据的「智能体名」与「任务标题」解析。
@@ -41,6 +42,7 @@
    - `subagent_tasks` 新增可空列 `title TEXT`，`SchemaInitializer` 增加 `76 -> 77` 幂等迁移（`PRAGMA table_info` 检查后 `ALTER TABLE subagent_tasks ADD COLUMN title TEXT`）。
 
 ### Phase 2：Agent 命名规范、工具 Schema 与后台状态同步
+
 1. **`apps/agent/src/tool/Delegation/Definitions.ts`**：
    - `agentInputSchema` 与 `spawnAgentsInputSchema` 中补充/明确：`name` 为可选智能体名（省略时由宿主按 role/profile 自动命名）；`description` / `title` 为简短任务标题。
 2. **`apps/agent/src/orchestration/AgentRuntimeService.ts` & `apps/agent/src/subagent/SubagentService.ts` & `SubagentRepository.ts`**：
@@ -52,6 +54,7 @@
    - 后台子智能体进入 `waiting-permission` / `waiting-question` 或终态时通过 `backgroundNotifyHandler` / `subagent_background_notifications` 及时投递 `<task-notification>`（并增加后台无进展停滞提醒时钟，防止子智能体静默卡死）。
 
 ### Phase 3：Renderer 时间线、概览面板与独立右侧 Tab
+
 1. **`apps/desktop/renderer/src/features/session/timeline/CanonicalThreadView.tsx`**：
    - 将 `subagent` group 渲染为紧凑的逐条可点击行：`[SubagentAvatar] <agentName>  <taskTitle>`（含运行/成功/失败状态指示），点击触发 `onOpenSubagent(item.subagentTaskId)`。
 2. **`apps/desktop/renderer/src/features/session/summary/ThreadSummaryViewModel.ts` & `ThreadSummaryPanel.tsx`**：
@@ -64,5 +67,6 @@
    - `SubagentThreadPanel.tsx` 移除顶部 `<header>` 区域（不显示返回按钮、大标题与手动「重试」按钮）；保留 `SubagentDockContent.tsx` 中必要的运行结果/待审批卡片交互。
 
 ### Phase 4：测试与全仓门禁验证
+
 - 补充/更新 `apps/agent/test/` 与 `apps/desktop/renderer/` 相关单元测试（覆盖命名规则、SQLite 74→75 迁移、历史记录回退、后台状态通知、Tab 序列化与概览面板交互）。
 - 运行：`bun run --cwd packages/shared typecheck`、`bun run --cwd apps/agent typecheck && bun run --cwd apps/agent test`、`bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/renderer test`、`bun run typecheck`、`bun run arch:check`、`bun run lint:ratchet`、`bun run build:renderer`、`git diff --check`。

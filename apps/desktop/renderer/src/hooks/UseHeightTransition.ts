@@ -50,7 +50,11 @@ export function useHeightTransition(
       return
     }
     // INVARIANT: Skip synchronous layout reads on initial mount when ResizeObserver is available so first-mount commits never force style/layout recalculation.
-    if (previousHeight.current === null && height === null && typeof ResizeObserver !== 'undefined') {
+    if (
+      previousHeight.current === null &&
+      height === null &&
+      typeof ResizeObserver !== 'undefined'
+    ) {
       return
     }
 

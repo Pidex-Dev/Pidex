@@ -159,7 +159,9 @@ describe('decision RPC', () => {
     const reread = await call('decision/getConfig', {})
     expect(reread.result?.config.modes).toEqual({ 'tool.risk': 'shadow' })
     const raw = await config.read()
-    expect((raw.config.decision as Record<string, unknown>).modes).toEqual({ 'tool.risk': 'shadow' })
+    expect((raw.config.decision as Record<string, unknown>).modes).toEqual({
+      'tool.risk': 'shadow',
+    })
   })
 
   test('updateConfig 拒绝无效补丁且不落盘', async () => {
@@ -181,7 +183,11 @@ describe('decision RPC', () => {
       patch: [
         {
           keyPath: ['judges', 'qwen'],
-          value: { type: 'systemone', providerId: 'magpie', model: 'qwen-token-plan/decision-model-preview' },
+          value: {
+            type: 'systemone',
+            providerId: 'magpie',
+            model: 'qwen-token-plan/decision-model-preview',
+          },
         },
         { keyPath: ['tiers'], value: ['qwen'] },
         { keyPath: ['routes', 'tool.risk'], value: ['qwen'] },
@@ -227,7 +233,9 @@ describe('decision RPC', () => {
       createdAt: 1,
     })
     const listed = await call('decision/listLedger', { threadId: thread.id })
-    expect(listed.result?.records.map((record: { id: string }) => record.id)).toEqual(['decision:1'])
+    expect(listed.result?.records.map((record: { id: string }) => record.id)).toEqual([
+      'decision:1',
+    ])
     expect(listed.result?.outcomes).toEqual([])
 
     const markParams = {
@@ -253,7 +261,12 @@ describe('decision RPC', () => {
   test('probe 在未配置 Judge 时报告 auth，不泄露凭据', async () => {
     const { call } = await fixture()
     const probed = await call('decision/probe', {})
-    expect(probed.result).toEqual({ ok: false, providerId: 'none', latencyMs: 0, errorKind: 'auth' })
+    expect(probed.result).toEqual({
+      ok: false,
+      providerId: 'none',
+      latencyMs: 0,
+      errorKind: 'auth',
+    })
   })
 
   test('probe 失败时返回脱敏后的 httpStatus、endpoint 与 errorMessage', async () => {
@@ -262,7 +275,9 @@ describe('decision RPC', () => {
     globalThis.fetch = (async () =>
       new Response(
         JSON.stringify({
-          error: { message: 'Unsupported route for Bearer sk-live-secret on C:\\Users\\alice\\secret.txt' },
+          error: {
+            message: 'Unsupported route for Bearer sk-live-secret on C:\\Users\\alice\\secret.txt',
+          },
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } },
       )) as unknown as typeof fetch
@@ -435,11 +450,13 @@ describe('decision RPC', () => {
 
     const engine = await decisions.ensureEngine()
     expect(engine).not.toBeNull()
-    const scoped = await decisions.runWithOrigin({ threadId: thread.id, turnId: 'turn-origin-1' }, () =>
-      engine!.decide(inputPreflightSpec, {
-        userMessage: '执行 git status',
-        recentTurns: [],
-      }),
+    const scoped = await decisions.runWithOrigin(
+      { threadId: thread.id, turnId: 'turn-origin-1' },
+      () =>
+        engine!.decide(inputPreflightSpec, {
+          userMessage: '执行 git status',
+          recentTurns: [],
+        }),
     )
     expect(scoped.ledgerId).toBeDefined()
 
@@ -474,7 +491,9 @@ describe('decision RPC', () => {
     )
     expect(liveOutcomes).toHaveLength(1)
     const storedOutcomeEvents = db.sqlite
-      .query("SELECT COUNT(*) AS count FROM events WHERE thread_id = ? AND method = 'decision/outcomeRecorded'")
+      .query(
+        "SELECT COUNT(*) AS count FROM events WHERE thread_id = ? AND method = 'decision/outcomeRecorded'",
+      )
       .get(thread.id) as { count: number }
     expect(storedOutcomeEvents.count).toBe(1)
   })

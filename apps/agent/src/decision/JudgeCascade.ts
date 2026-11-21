@@ -7,7 +7,14 @@ import type {
   JudgeWarning,
 } from '@pidex/shared/decision'
 import { JudgeError, judgeErrorKindOf } from './DecisionErrors'
-import { addUsage, validateQuestions, type JudgeCall, type JudgeLike, type JudgeResult, type MutableJudgeUsage } from './Judge'
+import {
+  addUsage,
+  validateQuestions,
+  type JudgeCall,
+  type JudgeLike,
+  type JudgeResult,
+  type MutableJudgeUsage,
+} from './Judge'
 import { DEFAULT_NO_AT, DEFAULT_YES_AT, neutralAnswer } from './DecisionPolicy'
 
 /**
@@ -29,18 +36,17 @@ export const capabilityOf = (
   declared?: DecisionCapability,
 ): DecisionCapability => declared ?? (question.type === 'score' ? 'rate' : 'classify')
 
-export const isTrusted = (profile: JudgeProfile | undefined, capability: DecisionCapability): boolean =>
-  profile?.capabilities?.[capability] !== false
+export const isTrusted = (
+  profile: JudgeProfile | undefined,
+  capability: DecisionCapability,
+): boolean => profile?.capabilities?.[capability] !== false
 
 export interface CascadeTier {
   readonly judge: JudgeLike
   readonly profile?: JudgeProfile | undefined
 }
 
-export function isUncertain(
-  answer: DecisionAnswer,
-  profile: JudgeProfile = {},
-): boolean {
+export function isUncertain(answer: DecisionAnswer, profile: JudgeProfile = {}): boolean {
   if (answer.type === 'boolean') {
     const noAt = profile.noAt ?? DEFAULT_NO_AT
     const yesAt = profile.yesAt ?? DEFAULT_YES_AT
@@ -68,7 +74,9 @@ export class CascadeJudge implements JudgeLike {
     if (tiers.length === 0) throw new TypeError('A cascade needs at least one judge')
     this.tiers = tiers
     this.id =
-      tiers.length === 1 ? tiers[0]!.judge.id : `cascade(${tiers.map((tier) => tier.judge.id).join('>')})`
+      tiers.length === 1
+        ? tiers[0]!.judge.id
+        : `cascade(${tiers.map((tier) => tier.judge.id).join('>')})`
   }
 
   trusts(capability: DecisionCapability): boolean {
@@ -104,10 +112,19 @@ export class CascadeJudge implements JudgeLike {
 
       let result: JudgeResult
       try {
-        result = await tier.judge.evaluate({ state: request.state, questions, signal: request.signal })
+        result = await tier.judge.evaluate({
+          state: request.state,
+          questions,
+          signal: request.signal,
+        })
       } catch (error) {
         errors.push(error)
-        reports.push({ judgeId: tier.judge.id, asked: mine.length, kept: 0, error: judgeErrorKindOf(error) })
+        reports.push({
+          judgeId: tier.judge.id,
+          asked: mine.length,
+          kept: 0,
+          error: judgeErrorKindOf(error),
+        })
         continue
       }
 
@@ -128,7 +145,12 @@ export class CascadeJudge implements JudgeLike {
           kept += 1
         }
       }
-      reports.push({ judgeId: tier.judge.id, asked: mine.length, kept, latencyMs: result.latencyMs })
+      reports.push({
+        judgeId: tier.judge.id,
+        asked: mine.length,
+        kept,
+        latencyMs: result.latencyMs,
+      })
       pending = stillPending
     }
 
@@ -143,7 +165,8 @@ export class CascadeJudge implements JudgeLike {
     if (missing.length > 0) {
       if (reports.length > 0 && reports.every((report) => report.error !== undefined)) {
         const lasting = (error: unknown) =>
-          error instanceof JudgeError && (error.kind === 'auth' || error.kind === 'payment_required')
+          error instanceof JudgeError &&
+          (error.kind === 'auth' || error.kind === 'payment_required')
         const telling = [...errors].reverse().find((error) => !lasting(error)) ?? errors.at(-1)
         if (telling instanceof JudgeError) throw telling
         throw new JudgeError('unreachable', 'No judge in the cascade answered', { cause: telling })

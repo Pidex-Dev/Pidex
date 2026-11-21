@@ -61,8 +61,7 @@ export const isStandIn = (answer: { judge?: string } | undefined): boolean =>
 /** A maximally uncertain answer: every three-zone policy reads it as "unsure". */
 export function neutralAnswer(question: DecisionQuestion): DecisionAnswer {
   if (question.type === 'boolean') return { type: 'boolean', probability: 0.5 }
-  if (question.type === 'score')
-    return { type: 'score', score: (question.criteria.length - 1) / 2 }
+  if (question.type === 'score') return { type: 'score', score: (question.criteria.length - 1) / 2 }
   const options = Object.keys(question.criteria)
   return { type: 'choice', choice: options.find(isEscapeOption) ?? options[0]! }
 }
