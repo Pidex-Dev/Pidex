@@ -1,3 +1,5 @@
+import { isRecord as isObject, omitUndefined } from '@pidex/shared/guards'
+import { Model } from '@pidex/model-schema'
 import { ConfigServiceError, type ConfigService, type ConfigValue } from '../config/ConfigService'
 import { AgentError } from '../Domain'
 import {
@@ -12,26 +14,53 @@ import {
 import {
   listProviderModels,
   type ListableChatApi,
+  type ListedProviderModel,
   type ProviderModelFetch,
 } from './pi/PiModelListing'
 import type { PiModelService } from './pi/PiModelService'
 
 /** Protocol-shaped candidate returned by sync and discovery results. */
 export interface ProviderModelDefinition {
+  readonly catalog?: Model.CatalogDetails
   readonly id: string
   readonly name: string
   readonly api: ListableChatApi
   readonly enabled: boolean
-  readonly contextWindow: number
-  readonly maxTokens: number
-  readonly reasoning: boolean
-  readonly input: readonly 'text'[]
-  readonly cost: {
-    readonly input: number
-    readonly output: number
-    readonly cacheRead: number
-    readonly cacheWrite: number
-  }
+  /** 规格缺失表示上游与推荐目录都没有确定值；UI 不得猜测或默认导入。 */
+  readonly contextWindow?: number
+  readonly maxInputTokens?: number
+  readonly maxTokens?: number
+  readonly optionSpecs?: Model.OptionSpecs
+  readonly reasoning?: boolean
+  readonly tools?: boolean
+  readonly input?: readonly ('text' | 'image' | 'audio' | 'video')[]
+  readonly cost?:
+    | {
+        readonly input?: number | undefined
+        readonly output?: number | undefined
+        readonly cacheRead?: number | undefined
+        readonly cacheWrite?: number | undefined
+        readonly tiers?: readonly (typeof Model.PriceTier.Type)[] | undefined
+      }
+    | undefined
+  readonly smartConfig?: { readonly pinned: readonly Model.SmartConfigPinnedField[] }
+}
+
+export type ProviderModelMatchStatus =
+  'official' | 'provider' | 'unmatched' | 'ambiguous' | 'no-cache'
+
+/** 候选与推荐目录的匹配结果；规格来源随候选一起返回，供 UI 标注。 */
+export interface ProviderModelMatchInfo {
+  readonly id: string
+  readonly status: ProviderModelMatchStatus
+  readonly identity?: string
+  readonly candidates?: readonly string[]
+  readonly updatedAt?: number
+}
+
+export interface ProviderModelDiscovery {
+  readonly models: readonly ProviderModelDefinition[]
+  readonly matches: readonly ProviderModelMatchInfo[]
 }
 
 export interface ProviderModelSyncResult {
@@ -39,6 +68,7 @@ export interface ProviderModelSyncResult {
   readonly api: ListableChatApi
   readonly fetchedAt: number
   readonly candidates: readonly ProviderModelDefinition[]
+  readonly matches: readonly ProviderModelMatchInfo[]
   readonly removedModelIds: readonly string[]
   readonly baselineCreated: boolean
   readonly totalFetched: number
@@ -58,40 +88,12 @@ export interface ProviderModelSyncDraft {
   readonly apiKey?: string
 }
 
-export interface ProviderDraftModelDiscovery {
-  readonly models: readonly ProviderModelDefinition[]
+export interface ProviderDraftModelDiscovery extends ProviderModelDiscovery {
   readonly fetchedAt: number
 }
 
-const DEFAULT_CANDIDATE = {
-  contextWindow: 32_768,
-  maxTokens: 8_192,
-  reasoning: false,
-  input: ['text'] as const,
-  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-} as const
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
 const isListableChatApi = (value: unknown): value is ListableChatApi =>
   typeof value === 'string' && (CUSTOM_PROVIDER_APIS as readonly string[]).includes(value)
-
-const toModelDefinition = (
-  model: { readonly id: string; readonly name: string },
-  api: ListableChatApi,
-  enabled: boolean,
-): ProviderModelDefinition => ({
-  id: model.id,
-  name: model.name,
-  api,
-  enabled,
-  contextWindow: DEFAULT_CANDIDATE.contextWindow,
-  maxTokens: DEFAULT_CANDIDATE.maxTokens,
-  reasoning: DEFAULT_CANDIDATE.reasoning,
-  input: [...DEFAULT_CANDIDATE.input],
-  cost: { ...DEFAULT_CANDIDATE.cost },
-})
 
 /**
  * Immediate upstream model sync for saved custom providers.
@@ -135,9 +137,13 @@ export class ModelSyncService {
       : []
     const models = structuredClone(raw.models)
     for (const id of removedModelIds) delete models[id]
-    const candidates = listing.models
-      .filter((model) => !(model.id in raw.models))
-      .map((model) => toModelDefinition(model, api, false))
+    const discovered = await this.resolveModels(
+      providerId,
+      request.baseUrl,
+      listing.models.filter((model) => !(model.id in raw.models)),
+      api,
+      false,
+    )
     const modelSync: PiCustomModelSyncConfig = {
       fetchedAt: listing.fetchedAt,
       api,
@@ -177,7 +183,8 @@ export class ModelSyncService {
       providerId,
       api,
       fetchedAt: listing.fetchedAt,
-      candidates,
+      candidates: discovered.models,
+      matches: discovered.matches,
       removedModelIds,
       baselineCreated: baseline === undefined,
       totalFetched: listing.models.length,
@@ -189,14 +196,14 @@ export class ModelSyncService {
     providerId: string,
     api: ListableChatApi,
     options: ProviderModelSyncOptions = {},
-  ): Promise<readonly ProviderModelDefinition[]> {
+  ): Promise<ProviderModelDiscovery> {
     if (!isListableChatApi(api)) {
       throw new AgentError('INVALID_REQUEST', '不支持的模型列表协议', 400)
     }
     const provider = await this.customProvider(providerId)
     const request = await this.savedRequest(providerId, provider, api, options.fetch)
     const listing = await listProviderModels(request)
-    return listing.models.map((model) => toModelDefinition(model, api, true))
+    return this.resolveModels(providerId, request.baseUrl, listing.models, api, true)
   }
 
   /**
@@ -249,7 +256,7 @@ export class ModelSyncService {
     const apiKey = draft.auth === 'none' ? undefined : (draft.apiKey ?? savedAuth?.auth.apiKey)
     const hasAuthHeaders = Object.keys(savedAuthHeaders).length > 0
     if (draft.auth === 'api-key' && !apiKey && !hasAuthHeaders) {
-      throw new AgentError('PROVIDER_UNAVAILABLE', 'Provider 尚未提供可用的 API Key', 400)
+      throw new AgentError('CREDENTIAL_NOT_FOUND', 'Provider 尚未提供可用的 API Key', 400)
     }
     const listing = await listProviderModels({
       api,
@@ -258,10 +265,92 @@ export class ModelSyncService {
       ...(apiKey ? { apiKey } : {}),
       ...(input.fetch ? { fetch: input.fetch } : {}),
     })
-    return {
-      models: listing.models.map((model) => toModelDefinition(model, api, true)),
-      fetchedAt: listing.fetchedAt,
+    const discovered = await this.resolveModels(
+      input.providerId ?? '',
+      endpoint ?? baseUrl,
+      listing.models,
+      api,
+      true,
+    )
+    return { ...discovered, fetchedAt: listing.fetchedAt }
+  }
+
+  /**
+   * 统一解析候选规格：上游明确额度优先，其余字段取匹配到的推荐值。
+   * 同一批候选共享同一份目录索引快照；缺失字段保持缺失，绝不补 32K。
+   */
+  private async resolveModels(
+    providerId: string,
+    baseUrl: string,
+    models: readonly ListedProviderModel[],
+    api: ListableChatApi,
+    enabled: boolean,
+  ): Promise<ProviderModelDiscovery> {
+    const resolved: ProviderModelDefinition[] = []
+    const matches: ProviderModelMatchInfo[] = []
+    for (const model of models) {
+      const recommendation = await this.piModels.previewRecommendation({
+        providerId,
+        baseUrl,
+        modelId: model.id,
+        modelType: 'chat',
+      })
+      const recommended = recommendation.recommended
+      const contextWindow = model.contextWindow ?? recommended.contextWindow
+      const maxInputTokens = model.maxInputTokens ?? recommended.maxInputTokens
+      const maxTokens = model.maxTokens ?? recommended.maxTokens
+      // 上游明确档位是最精确的模型事实，覆盖推荐目录与静态规则的 values；
+      // 协议 map 仍沿用推荐合成结果，只替换值域。
+      const optionSpecs = model.reasoningLevels?.length
+        ? {
+            ...recommended.optionSpecs,
+            reasoningLevel: {
+              ...recommended.optionSpecs?.reasoningLevel,
+              values: [...model.reasoningLevels],
+            },
+          }
+        : recommendation.status === 'matched'
+          ? recommended.optionSpecs
+          : undefined
+      // 上游明确额度属于手动规格，其他完整推荐使用自动模式。
+      const smartConfig =
+        contextWindow !== undefined &&
+        maxTokens !== undefined &&
+        model.contextWindow === undefined &&
+        model.maxInputTokens === undefined &&
+        model.maxTokens === undefined
+          ? { pinned: [] }
+          : undefined
+      resolved.push({
+        id: model.id,
+        name: model.name,
+        api,
+        enabled,
+        ...omitUndefined({
+          contextWindow,
+          maxInputTokens,
+          maxTokens,
+          reasoning: recommended.reasoning,
+          tools: recommended.tools,
+        }),
+        ...(optionSpecs ? { optionSpecs } : {}),
+        ...(recommended.input ? { input: recommended.input } : {}),
+        ...(recommended.cost ? { cost: recommended.cost } : {}),
+        ...(recommended.catalog ? { catalog: recommended.catalog } : {}),
+        ...(smartConfig ? { smartConfig } : {}),
+      })
+      matches.push({
+        id: model.id,
+        status:
+          recommendation.status === 'matched'
+            ? (recommendation.source ?? 'official')
+            : recommendation.status,
+        ...(recommendation.identity ? { identity: recommendation.identity } : {}),
+        ...(recommendation.candidates ? { candidates: recommendation.candidates } : {}),
+        ...(recommendation.updatedAt ? { updatedAt: recommendation.updatedAt } : {}),
+      })
     }
+    return { models: resolved, matches }
   }
 
   private async customProvider(providerId: string): Promise<PiCustomProviderConfig> {
@@ -297,7 +386,7 @@ export class ModelSyncService {
       provider.auth === 'api-key' ? await this.piModels.pi.getAuth(providerId) : undefined
     if (provider.auth === 'api-key' && !auth) {
       throw new AgentError(
-        'PROVIDER_UNAVAILABLE',
+        'CREDENTIAL_NOT_FOUND',
         'Provider 尚未配置可用的 API Key，请先添加凭据',
         400,
       )

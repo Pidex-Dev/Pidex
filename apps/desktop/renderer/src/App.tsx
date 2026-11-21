@@ -6,7 +6,8 @@ import { TooltipProvider } from './components/ui/Tooltip.js'
 import { ButtonStyles } from './components/ui/Button.js'
 import { AppContextMenu } from './components/ui/AppContextMenu.js'
 import { EditCommandProvider } from './components/ui/EditCommandProvider.js'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useState } from 'react'
+import { useWindowEvent } from './hooks/UseExternalSubscription.js'
 import { useEverOpened } from './hooks/UsePresenceRetention.js'
 import { PageZoomCapsule } from './components/PageZoomCapsule.js'
 import { PET_OVERLAY_HASH_PREFIX } from './startup/StartupSplashHandoff.js'
@@ -24,41 +25,44 @@ function isResizeObserverLoopError(error: unknown): boolean {
 export function App(): React.ReactNode {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const errorModalMounted = useEverOpened(errorMessage !== null)
+  const windowTarget = typeof window === 'undefined' ? null : window
 
-  useEffect(() => {
-    const showError = (error: unknown): void => {
-      setErrorMessage(fullErrorMessage(error))
-    }
-    const handleError = (event: ErrorEvent): void => {
+  const showError = (error: unknown): void => {
+    setErrorMessage(fullErrorMessage(error))
+  }
+
+  useWindowEvent(
+    windowTarget,
+    'error',
+    (event) => {
       if (isResizeObserverLoopError(event.error) || isResizeObserverLoopError(event.message)) {
         event.preventDefault()
         return
       }
       event.preventDefault()
       showError(event.error ?? event.message)
-    }
-    const handleUnhandledRejection = (event: PromiseRejectionEvent): void => {
+    },
+    true,
+  )
+
+  useWindowEvent(
+    windowTarget,
+    'unhandledrejection',
+    (event) => {
       if (isResizeObserverLoopError(event.reason)) {
         event.preventDefault()
         return
       }
       event.preventDefault()
       showError(event.reason)
-    }
-    const handleDesktopError = (event: Event): void => {
-      const detail = event instanceof CustomEvent ? event.detail : null
-      showError(detail)
-    }
+    },
+    true,
+  )
 
-    window.addEventListener('error', handleError, true)
-    window.addEventListener('unhandledrejection', handleUnhandledRejection, true)
-    window.addEventListener('desktop:error', handleDesktopError)
-    return () => {
-      window.removeEventListener('error', handleError, true)
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
-      window.removeEventListener('desktop:error', handleDesktopError)
-    }
-  }, [])
+  useWindowEvent(windowTarget, 'desktop:error', (event) => {
+    const detail = event instanceof CustomEvent ? event.detail : null
+    showError(detail)
+  })
 
   return (
     <DesktopThemeProvider>

@@ -1,9 +1,12 @@
+import { toPiModel } from '../src/provider/pi/PiCustomProvider'
+import { ConfigService } from '../src/config/ConfigService'
+import { contextBudget } from '../src/context/ContextBudget'
 import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { Effect } from 'effect'
-import { normalizeContext } from '@earendil-works/pi-ai'
+import { normalizeContext, calculateCost } from '@earendil-works/pi-ai'
 import { removeFixturePaths } from './FixtureCleanup'
 import type { EncryptedCredentialRepository } from '../src/auth/EncryptedCredentialRepository'
 import { withPiBuiltinProviderOverrides } from '../src/provider/pi/PiBuiltinProviderOverrides'
@@ -855,4 +858,307 @@ describe('PiModelsFileStore', () => {
     await expect(store.write('another', { models: [] })).rejects.toThrow('unsupported format')
     expect(JSON.parse(await readFile(cachePath, 'utf8')).formatVersion).toBe(99)
   })
+})
+
+test('1.5 亿上下文经过配置序列化与预算计算仍保留完整额度', () => {
+  const serialized = serializePiProviderDefinition({
+    kind: 'custom',
+    id: 'large',
+    name: 'Large',
+    enabled: true,
+    baseUrl: 'https://example.com/v1',
+    auth: 'none',
+    env: [],
+    allowInsecureHttp: false,
+    headers: {},
+    models: [
+      {
+        id: 'large-context',
+        api: 'openai-completions',
+        contextWindow: 150_000_000,
+        maxInputTokens: 150_000_000,
+        maxTokens: 32768,
+      },
+    ],
+  })
+  const parsed = parsePiProviderCatalog({
+    providers: { large: JSON.parse(JSON.stringify(serialized.value)) },
+  })
+  expect(parsed.issues).toEqual([])
+  const provider = parsed.providers.large!
+  if (provider.kind !== 'custom') throw new Error('Expected custom provider')
+  const model = provider.models['large-context']!
+  expect(model.contextWindow).toBe(150_000_000)
+  expect(contextBudget(model).inputBudgetTokens).toBe(150_000_000 - 32768 - 4096)
+})
+
+test('供应商保存的模型启用与移除状态决定可选目录，重新启用后恢复', async () => {
+  const definition = (enabled: boolean, removed = false) =>
+    serializePiProviderDefinition({
+      kind: 'custom',
+      id: 'selection-test',
+      name: 'Selection',
+      enabled: true,
+      baseUrl: 'https://example.com/v1',
+      auth: 'none',
+      env: [],
+      allowInsecureHttp: false,
+      headers: {},
+      models: [
+        { id: 'kept', api: 'openai-completions', enabled: true },
+        ...(removed ? [] : [{ id: 'optional', api: 'openai-completions' as const, enabled }]),
+      ],
+    }).value
+  let value = definition(true)
+  const service = new PiModelService(repository, {
+    config: () => ({ providers: { 'selection-test': value } }),
+  })
+  const ids = async () =>
+    (await service.models('selection-test' as never)).map((model) => String(model.id))
+  expect(await ids()).toEqual(['kept', 'optional'])
+  value = definition(false)
+  await service.reload()
+  expect(await ids()).toEqual(['kept'])
+  value = definition(true, true)
+  await service.reload()
+  expect(await ids()).toEqual(['kept'])
+  value = definition(true)
+  await service.reload()
+  expect(await ids()).toEqual(['kept', 'optional'])
+})
+
+test('内置供应商只暴露明确添加的模型，发现目录不改变选择', async () => {
+  let models: Record<string, unknown> = {}
+  const service = new PiModelService(repository, {
+    config: () => ({ providers: { google: { kind: 'builtin', enabled: true, models } } }),
+  })
+  expect(await service.models('google' as never)).toEqual([])
+  const candidates = await service.discoverBuiltinModels('google')
+  expect(candidates.length).toBeGreaterThan(0)
+  expect(await service.models('google' as never)).toEqual([])
+  const id = candidates[0]!.id
+  models = { [id]: { enabled: true } }
+  await service.reload()
+  expect((await service.models('google' as never)).map((model) => String(model.id))).toEqual([id])
+  models = {}
+  await service.reload()
+  expect(await service.models('google' as never)).toEqual([])
+  expect((await service.discoverBuiltinModels('google')).some((model) => model.id === id)).toBe(
+    true,
+  )
+})
+
+test('内置和自定义模型增删经过真实配置落盘，重建服务后仍保持选择', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pidex-model-selection-'))
+  roots.push(root)
+  const path = join(root, 'config.json')
+  let config = new ConfigService(path)
+  await config.initialize()
+  const createService = () =>
+    new PiModelService(repository, {
+      config: () => ({ providers: config.snapshot().model_providers ?? {} }) as never,
+    })
+  let service = createService()
+  const builtinID = (await service.discoverBuiltinModels('google'))[0]!.id
+  const save = async (added: boolean) => {
+    const definitions = [
+      {
+        kind: 'builtin' as const,
+        id: 'google',
+        enabled: true,
+        allowModels: added ? [builtinID] : [],
+        denyModels: added ? [] : [builtinID],
+        models: added ? [{ id: builtinID, enabled: true }] : [],
+      },
+      {
+        kind: 'custom' as const,
+        id: 'persisted-selection',
+        name: 'Selection',
+        enabled: true,
+        baseUrl: 'https://example.com/v1',
+        auth: 'none' as const,
+        env: [],
+        allowInsecureHttp: false,
+        headers: {},
+        models: added
+          ? [{ id: 'selected', api: 'openai-completions' as const, enabled: true }]
+          : [],
+      },
+    ]
+    for (const definition of definitions) {
+      const serialized = serializePiProviderDefinition(definition)
+      await config.batchWrite({
+        edits: Object.entries(serialized.value).map(([key, value]) => ({
+          keyPath: ['model_providers', definition.id, key],
+          value: value as never,
+        })),
+      })
+    }
+    await service.reload()
+  }
+  const check = async (added: boolean) => {
+    const definitions = await service.providerDefinitions()
+    for (const [providerID, id] of [
+      ['google', builtinID],
+      ['persisted-selection', 'selected'],
+    ]) {
+      expect((await service.models(providerID as never)).map((model) => String(model.id))).toEqual(
+        added ? [id!] : [],
+      )
+      expect(
+        definitions.find((provider) => provider.id === providerID)?.models.map((model) => model.id),
+      ).toEqual(added ? [id!] : [])
+    }
+  }
+  const restart = async () => {
+    await service.dispose()
+    await config.dispose()
+    config = new ConfigService(path)
+    await config.initialize()
+    service = createService()
+  }
+  try {
+    await save(true)
+    await check(true)
+    await restart()
+    await check(true)
+    await save(false)
+    await check(false)
+    await restart()
+    await check(false)
+    await save(true)
+    await check(true)
+  } finally {
+    await service.dispose()
+    await config.dispose()
+  }
+})
+
+test('v1 阶梯价配置往返并复用 Pi 阈值计费，不追加音频或推理费用', () => {
+  const tier = { inputTokensAbove: 200000, input: 4, output: 6, cacheRead: 1, cacheWrite: 2 }
+  const saved = serializePiProviderDefinition({
+    kind: 'custom',
+    id: 'tiered',
+    name: 'Tiered',
+    enabled: true,
+    baseUrl: 'https://example.com/v1',
+    auth: 'none',
+    env: [],
+    allowInsecureHttp: false,
+    headers: {},
+    models: [
+      {
+        id: 'example',
+        api: 'openai-completions',
+        cost: { input: 2, output: 3, cacheRead: 0.5, cacheWrite: 1, tiers: [tier] },
+      },
+    ],
+  })
+  const parsed = parsePiProviderCatalog({ providers: { tiered: saved.value } })
+  expect(parsed.issues).toEqual([])
+  const provider = parsed.providers.tiered
+  if (provider?.kind !== 'custom') throw new Error('Missing custom provider')
+  expect(provider.models.example?.cost.tiers).toEqual([tier])
+  const model = toPiModel('tiered', provider, provider.models.example!)
+  const usage = {
+    input: 200000,
+    output: 100,
+    cacheRead: 0,
+    cacheWrite: 0,
+    totalTokens: 200100,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+  }
+  calculateCost(model, usage)
+  expect(usage.cost.input).toBeCloseTo(0.4)
+  usage.cacheRead = 1
+  calculateCost(model, usage)
+  expect(usage.cost.input).toBeCloseTo(0.8)
+  expect(usage.cost.output).toBeCloseTo(0.0006)
+})
+
+test('文档快照与原币规则通过原有配置往返，手动整份模式保留且不改旧美元单价', () => {
+  const pricing = {
+    currency: 'CNY' as const,
+    timeZone: 'Asia/Shanghai',
+    defaultPeriod: 'idle' as const,
+    idle: { input: 1, output: 4, cacheRead: 0.02, cacheWrite: null },
+    busy: { input: 2, output: 8, cacheRead: 0.04, cacheWrite: null },
+    rules: [],
+    dateOverrides: [],
+  }
+  const smartConfig = {
+    pinned: [],
+    source: 'document' as const,
+    enabled: false,
+    document: {
+      url: 'https://example.com/model',
+      extractor: { providerID: 'openai', id: 'model' },
+      extractedAt: 123,
+      data: { pricing, contextWindow: 150000000 },
+      evidence: ['source'],
+    },
+  }
+  const serialized = serializePiProviderDefinition({
+    kind: 'custom',
+    id: 'docs',
+    name: 'Docs',
+    enabled: true,
+    baseUrl: 'https://example.com/v1',
+    auth: 'none',
+    env: [],
+    allowInsecureHttp: false,
+    headers: {},
+    models: [
+      {
+        id: 'target',
+        api: 'openai-completions',
+        cost: { input: 0.5, output: 1, cacheRead: 0, cacheWrite: 0 },
+        pricing,
+        smartConfig,
+      },
+    ],
+  } as never)
+  const parsed = parsePiProviderCatalog({ providers: { docs: serialized.value } })
+  expect(parsed.issues).toEqual([])
+  const provider = parsed.providers.docs!
+  expect(provider.models.target).toMatchObject({ pricing, smartConfig, cost: { input: 0.5 } })
+  expect(toPiModel('docs', provider as never, provider.models.target as never)).toMatchObject({
+    pricing,
+  })
+  expect(() =>
+    serializePiProviderDefinition({
+      kind: 'custom',
+      id: 'bad',
+      name: 'Bad',
+      enabled: true,
+      baseUrl: 'https://example.com/v1',
+      auth: 'none',
+      env: [],
+      allowInsecureHttp: false,
+      headers: {},
+      models: [
+        {
+          id: 'target',
+          api: 'openai-completions',
+          pricing: {
+            ...pricing,
+            rules: [
+              {
+                period: 'busy',
+                weekdays: [1],
+                holiday: 'any',
+                intervals: [{ start: '09:00', end: '12:00' }],
+              },
+              {
+                period: 'idle',
+                weekdays: [1],
+                holiday: 'any',
+                intervals: [{ start: '10:00', end: '11:00' }],
+              },
+            ],
+          },
+        },
+      ],
+    } as never),
+  ).toThrow()
 })

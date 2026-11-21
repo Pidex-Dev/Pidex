@@ -5,6 +5,10 @@ export function sortSessionsByRecency<T extends SessionListItem>(sessions: reado
   return [...sessions].sort(compareSessionsByRecency)
 }
 
+export function sortSessionsByLastPrompt<T extends SessionListItem>(sessions: readonly T[]): T[] {
+  return [...sessions].sort(compareSessionsByLastPrompt)
+}
+
 export type SidebarSessionSortOptions = {
   sort: DesktopSidebarSort
   needsInputSessionIds: ReadonlySet<string>
@@ -20,13 +24,24 @@ export function sortSessionsForSidebar<T extends SessionListItem>(
   if (options.sort === 'manual') {
     return sortSessionsByManualOrder(sessions, options)
   }
-  // 普通列表只提供“最近更新 / 手动排序”；历史 priority 值按最近更新呈现。
+  if (options.sort === 'lastPrompt') {
+    return sortSessionsByLastPrompt(sessions)
+  }
+  // 历史 priority 值按最近更新呈现。
   return sortSessionsByRecency(sessions)
 }
 
 export function compareSessionsByRecency<T extends SessionListItem>(left: T, right: T): number {
   return (
     sessionRecencyMs(right) - sessionRecencyMs(left) ||
+    timestampMs(right.createdAt) - timestampMs(left.createdAt) ||
+    right.id.localeCompare(left.id)
+  )
+}
+
+export function compareSessionsByLastPrompt<T extends SessionListItem>(left: T, right: T): number {
+  return (
+    sessionLastPromptMs(right) - sessionLastPromptMs(left) ||
     timestampMs(right.createdAt) - timestampMs(left.createdAt) ||
     right.id.localeCompare(left.id)
   )
@@ -60,6 +75,10 @@ function sortSessionsByManualOrder<T extends SessionListItem>(
 
 function sessionRecencyMs(session: SessionListItem): number {
   return timestampMs(session.lastMessageAt ?? session.createdAt)
+}
+
+function sessionLastPromptMs(session: SessionListItem): number {
+  return timestampMs(session.lastUserMessageAt ?? session.createdAt)
 }
 
 function timestampMs(value: string | null | undefined): number {

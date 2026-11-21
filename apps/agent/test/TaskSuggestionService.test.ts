@@ -129,13 +129,26 @@ const workingGenerated: { suggestions: Array<Omit<TaskSuggestion, 'id'>> } = {
   ],
 }
 
+/** Memory bodies are files with frontmatter; index metadata is what reaches prompts. */
+const document = (name: string, description: string) =>
+  [
+    '---',
+    `name: ${name}`,
+    `description: ${description}`,
+    'type: project',
+    '---',
+    '',
+    description,
+    '',
+  ].join(String.fromCharCode(10))
+
 const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-suggestions-'))
   roots.push(root)
   await mkdir(join(root, 'workspace'), { recursive: true })
   const db = new AgentDatabase(join(root, 'agent.sqlite'))
   const project = db.createProject({ rootPath: join(root, 'workspace') })
-  const memory = new MemoryService(db, { enabled: true })
+  const memory = new MemoryService(db, { enabled: true, rootDirectory: join(root, 'memories') })
   const logger = new AgentLogger(join(root, 'logs'))
   return { root, db, project, memory, logger }
 }
@@ -148,14 +161,15 @@ describe('TaskSuggestionService', () => {
       smallFastModel: 'small',
       fastModel: 'fast',
     })
-    memory.remember({
-      scope: 'user',
-      content: '用户偏好简洁的变更。',
+    await memory.write({
+      namespace: { kind: 'user' },
+      path: 'preferences.md',
+      content: document('用户偏好', '用户偏好简洁的变更。'),
     })
-    memory.remember({
-      scope: 'project',
-      projectKey: 'project:key',
-      content: '项目使用 Bun，资料位于 C:\\private\\project-notes.md。',
+    await memory.write({
+      namespace: { kind: 'project', projectId: project.id },
+      path: 'stack.md',
+      content: document('项目技术栈', '项目使用 Bun，资料位于 C:\\private\\project-notes.md。'),
     })
     const attemptedModels: string[] = []
     const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
@@ -197,8 +211,8 @@ describe('TaskSuggestionService', () => {
       } as never,
     )
 
-    const first = await service.generate(params(project.id), 'project:key')
-    const second = await service.generate(params(project.id), 'project:key')
+    const first = await service.generate(params(project.id), project.id)
+    const second = await service.generate(params(project.id), project.id)
 
     expect(attemptedModels).toEqual(['small', 'fast', 'small', 'fast'])
     expect(prompts).toHaveLength(1)
@@ -208,12 +222,12 @@ describe('TaskSuggestionService', () => {
     expect(prompts[0]).not.toContain('C:\\private')
     expect(prompts[0]).toContain('<path>')
 
-    memory.remember({
-      scope: 'project',
-      projectKey: 'project:key',
-      content: '项目新增严格类型检查。',
+    await memory.write({
+      namespace: { kind: 'project', projectId: project.id },
+      path: 'typing.md',
+      content: document('类型检查', '项目新增严格类型检查。'),
     })
-    await service.generate(params(project.id), 'project:key')
+    await service.generate(params(project.id), project.id)
     expect(prompts).toHaveLength(2)
     db.close()
   })
@@ -224,11 +238,15 @@ describe('TaskSuggestionService', () => {
       providerID: 'provider:test',
       smallFastModel: 'fast',
     })
-    memory.remember({ scope: 'user', content: '用户记忆' })
-    memory.remember({
-      scope: 'project',
-      projectKey: 'other-project',
-      content: '不应出现的项目记忆',
+    await memory.write({
+      namespace: { kind: 'user' },
+      path: 'user.md',
+      content: document('用户记忆', '用户记忆'),
+    })
+    await memory.write({
+      namespace: { kind: 'project', projectId: 'other-project' },
+      path: 'other.md',
+      content: document('其他项目', '不应出现的项目记忆'),
     })
     const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
     let prompt = ''
@@ -307,9 +325,9 @@ describe('TaskSuggestionService', () => {
     const cachedWorking = await service.generate(params(project.id, 'working'))
 
     expect(systems).toHaveLength(2)
-    expect(systems[0]).toContain('编码任务建议')
-    expect(systems[1]).toContain('恰好返回 3 条')
-    expect(systems[1]).toContain('不得把所有结果都描述成编码任务')
+    expect(systems[0]).toContain('next coding-task suggestions')
+    expect(systems[1]).toContain('exactly 3 concrete tasks')
+    expect(systems[1]).toContain('do not frame all results as coding')
     expect(working.contextKey).not.toBe(coding.contextKey)
     expect(cachedWorking).toEqual(working)
     expect(working.suggestions).toHaveLength(3)

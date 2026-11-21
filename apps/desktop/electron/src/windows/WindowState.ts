@@ -9,8 +9,8 @@ import {
 } from './DebouncedAtomicJsonWriter.js'
 import { DEFAULT_PAGE_ZOOM_PERCENT, normalizePageZoomPercent } from './PageZoom.js'
 
-export const MAIN_WINDOW_MIN_WIDTH = 960
-export const MAIN_WINDOW_MIN_HEIGHT = 640
+export const MAIN_WINDOW_MIN_WIDTH = process.platform === 'win32' ? 720 : 960
+export const MAIN_WINDOW_MIN_HEIGHT = process.platform === 'win32' ? 520 : 640
 const DEFAULT_WINDOW_WIDTH = 1440
 const DEFAULT_WINDOW_HEIGHT = 920
 const WINDOW_STATE_VERSION = 1

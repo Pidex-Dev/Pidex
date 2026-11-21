@@ -69,8 +69,8 @@ const semanticSubmit = (content: string) => ({
   model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt-4o') }),
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
-    approvalsReviewer: 'user' as const,
+    approvalPolicy: 'auto_review' as const,
+    approvalsReviewer: 'auto_review' as const,
   },
   strategy: 'queue' as const,
   taskMode: 'chat' as const,
@@ -164,6 +164,42 @@ describe('数据库兼容与迁移', () => {
     })
     expect(reopened.getThread(thread.id)?.title).toBe('保留的会话')
     expect(reopened.repositories.sessionGroups.list()).toEqual([])
+    reopened.close()
+  })
+
+  test('v75 缺少子代理 Fork 与后台通知表时迁移到当前版本并保留已有数据', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'pidex-history-v75-incomplete-'))
+    paths.push(root)
+    const historyPath = join(root, 'agent.sqlite')
+    const profilePath = join(root, 'profile.sqlite')
+    const db = new AgentDatabase({ historyPath, profilePath })
+    const thread = db.createThread({ title: '保留的 v75 会话' })
+    db.sqlite.exec(`
+      DROP TABLE subagent_fork_contexts;
+      DROP TABLE subagent_background_notifications;
+      PRAGMA user_version = 75;
+    `)
+    db.close()
+
+    const reopened = new AgentDatabase({ historyPath, profilePath })
+    expect(reopened.sqlite.query('PRAGMA user_version').get()).toEqual({
+      user_version: SCHEMA_VERSION,
+    })
+    expect(reopened.getThread(thread.id)?.title).toBe('保留的 v75 会话')
+    expect(
+      reopened.sqlite
+        .query(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'subagent_fork_contexts'",
+        )
+        .get(),
+    ).toEqual({ name: 'subagent_fork_contexts' })
+    expect(
+      reopened.sqlite
+        .query(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'subagent_background_notifications'",
+        )
+        .get(),
+    ).toEqual({ name: 'subagent_background_notifications' })
     reopened.close()
   })
 
@@ -828,14 +864,14 @@ describe('数据库兼容与迁移', () => {
     reopened.close()
   })
 
-  test('读取旧 on-failure 审批策略时迁移为 on-request', async () => {
+  test('读取旧 on-failure 审批策略时迁移为 auto_review', async () => {
     const root = await mkdtemp(join(tmpdir(), 'pidex-on-failure-'))
     paths.push(root)
     const db = new AgentDatabase(join(root, 'agent.sqlite'))
     const thread = db.createThread('旧审批策略')
     db.sqlite.query("UPDATE threads SET approval_policy = 'on-failure' WHERE id = ?").run(thread.id)
 
-    expect(db.getThread(thread.id)?.settings.permissionConfig.approvalPolicy).toBe('on-request')
+    expect(db.getThread(thread.id)?.settings.permissionConfig.approvalPolicy).toBe('auto_review')
     db.close()
   })
 
@@ -1150,7 +1186,7 @@ describe('数据库兼容与迁移', () => {
     expect((legacy as Record<string, unknown>).creationSurface).toBeUndefined()
     const snap = projection.snapshot(existing.id)
     expect(snap?.thread.title).toBe('向前兼容会话')
-    expect((snap?.thread as Record<string, unknown>).creationSurface).toBeUndefined()
+    expect((snap?.thread as Record<string, unknown> | undefined)?.creationSurface).toBeUndefined()
     expect(probeThreadsStorageCapabilities(reopened.sqlite).creationSurface).toBe(false)
 
     // 步骤 6：create 路径不得写到不存在的列；显式传入 creationSurface 验证 repository 主动丢弃，

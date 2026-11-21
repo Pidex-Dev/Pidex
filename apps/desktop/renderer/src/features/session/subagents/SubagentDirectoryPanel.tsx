@@ -11,7 +11,12 @@ import {
 import { useCanonicalThreadConversation } from '../timeline/UseCanonicalThreadConversation.js'
 import { SubagentDockContent } from './SubagentDockContent.js'
 import { buildSubagentDirectory, type SubagentDirectoryRow } from './SubagentDirectoryRows.js'
-import { subagentAttentionLabel, subagentStatusLabel } from './SubagentStatusLabel.js'
+import {
+  formatElapsed,
+  subagentAttentionLabel,
+  subagentStatusLabel,
+  useRunningClock,
+} from './SubagentStatusLabel.js'
 import { SubagentAvatar } from './SubagentAvatar.js'
 import { useSubagentRead } from './UseSubagentRead.js'
 
@@ -29,28 +34,8 @@ export type SubagentDirectoryPanelProps = {
 }
 
 /** 运行中每秒推进耗时；无运行项时不挂定时器。 */
-function useRunningClock(running: boolean): number {
-  const [now, setNow] = React.useState(Date.now)
-  React.useEffect(() => {
-    if (!running) return
-    setNow(Date.now())
-    const interval = window.setInterval(() => setNow(Date.now()), 1_000)
-    return () => window.clearInterval(interval)
-  }, [running])
-  return now
-}
-
-function formatElapsed(since: number | null, now: number): string {
-  if (since == null) return '运行中'
-  const seconds = Math.max(0, Math.floor((now - since) / 1_000))
-  if (seconds < 60) return `${seconds}s`
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m`
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
-}
-
 const ROW_CLASS =
-  'tw:grid tw:min-w-0 tw:grid-cols-[24px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-body tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus'
+  'tw:grid tw:min-w-0 tw:grid-cols-[24px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-2 tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus'
 
 function DirectoryListRow({
   now,
@@ -71,23 +56,27 @@ function DirectoryListRow({
     ? formatSidebarSessionRelativeTime(new Date(row.sortKey).toISOString(), now)
     : formatElapsed(row.runningSince, now)
   return (
-    <div className="tw:grid tw:w-[calc(100%+16px)] tw:-mx-2 tw:grid-cols-[minmax(0,1fr)_max-content]">
-      <button className={ROW_CLASS} type="button" onClick={() => onOpen(row.taskId)}>
+    <div className="tw:relative tw:w-[calc(100%+16px)] tw:-mx-2">
+      <button
+        className={`${ROW_CLASS} tw:w-full${row.terminal ? '' : ' tw:pr-9'}`}
+        type="button"
+        onClick={() => onOpen(row.taskId)}
+      >
         <SubagentAvatar role={row.role} size="md" />
         <span className="tw:grid tw:min-w-0">
           <span className="tw:flex tw:min-w-0 tw:items-baseline tw:gap-2">
-            <strong className="tw:min-w-0 tw:truncate tw:type-weight-body">{row.name}</strong>
+            <strong className="tw:min-w-0 tw:truncate tw:weight-regular">{row.name}</strong>
             {attention ? (
-              <em className="tw:flex-none tw:not-italic tw:text-app-warning-fg tw:type-caption">
+              <em className="tw:flex-none tw:not-italic tw:text-app-warning-fg tw:type-1">
                 {attention}
               </em>
             ) : null}
           </span>
-          <small className="tw:min-w-0 tw:truncate tw:text-app-text-meta tw:type-caption">
+          <small className="tw:min-w-0 tw:truncate tw:text-app-text-meta tw:type-1">
             {row.summary}
           </small>
         </span>
-        <small className="tw:flex-none tw:whitespace-nowrap tw:text-app-text-meta tw:tabular-nums tw:type-caption">
+        <small className="tw:flex-none tw:whitespace-nowrap tw:text-app-text-meta tw:tabular-nums tw:type-1">
           {trailing}
         </small>
       </button>
@@ -95,11 +84,11 @@ function DirectoryListRow({
         <Tooltip content="停止该子智能体">
           <button
             aria-label={`停止 ${row.name}`}
-            className="tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+            className="tw:absolute tw:right-2 tw:top-1/2 tw:-translate-y-1/2 tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
             type="button"
             onClick={() => onStop(row.taskId)}
           >
-            <Square aria-hidden="true" size={APP_ICON_SIZES.sm} />
+            <Square className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
           </button>
         </Tooltip>
       )}
@@ -124,9 +113,9 @@ function DirectorySection({
 }): React.ReactNode {
   return (
     <section className="tw:grid tw:min-w-0 tw:gap-1 tw:pb-3">
-      <h3 className="tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-caption">{title}</h3>
+      <h3 className="tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1">{title}</h3>
       {rows.length === 0 ? (
-        <p className="tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-caption">{emptyText}</p>
+        <p className="tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-1">{emptyText}</p>
       ) : (
         rows.map((row) => (
           <DirectoryListRow key={row.taskId} now={now} onOpen={onOpen} onStop={onStop} row={row} />
@@ -177,9 +166,7 @@ export function SubagentDirectoryPanel({
       <SubagentDockContent
         availability={detail.availability}
         error={detail.error}
-        onBack={() => onSelectTask(null)}
         onError={onError}
-        onOpenParentSubagent={onOpenTask}
         onOpenPatchReview={onOpenPatchReview}
         onOpenSubagent={(item) => onOpenTask(item.subagentTaskId)}
         onPatchApplied={onRefreshDiff}

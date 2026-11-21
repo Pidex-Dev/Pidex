@@ -1,7 +1,6 @@
 import type {
   McpElicitationBooleanSchema,
   McpElicitationConstOption,
-  McpElicitationEnumSchema,
   McpElicitationMultiSelectEnumSchema,
   McpElicitationNumberSchema,
   McpElicitationPrimitiveSchema,

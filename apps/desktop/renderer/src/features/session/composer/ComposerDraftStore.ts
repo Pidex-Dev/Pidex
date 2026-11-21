@@ -219,6 +219,48 @@ export class ComposerDraftStore {
     )
   }
 
+  /**
+   * 新会话显式入口的窄范围模式复位：只把协作模式恢复为 `default`，并清除
+   * 目标模式与预算，避免下一次新建会话继承上一次的 plan/grill/goal。
+   * 文本、附件、技能、浏览器批注与发起设置等草稿内容全部保留。
+   * 仅在“新建会话”入口调用；不要放进通用会话激活流程（目录刷新/切会话也会触发）。
+   */
+  resetSessionModes(key: ComposerDraftKey): ComposerDraft {
+    const current = this.peek(key)
+    // 尚未产生任何草稿内容时无需复位，避免仅为复位而物化草稿。
+    if (!current) return this.get(key)
+    if (
+      current.collaborationMode === 'default' &&
+      current.goalModeEnabled === undefined &&
+      current.goalTokenBudget == null
+    ) {
+      return current
+    }
+    const next: ComposerDraft = { ...current, collaborationMode: 'default' }
+    delete next.goalModeEnabled
+    delete next.goalTokenBudget
+    return this.set(key, next)
+  }
+
+  /**
+   * 移走已提交的内容，但保留 `clientId`：正式会话的输入框从这一刻起只显示
+   * 可编辑草稿，后续 `completeSubmission` 仍按同一身份收尾。
+   */
+  clearSubmittedContent(key: ComposerDraftKey, consumedClientId: string): ComposerDraft {
+    const current = this.#read(key)
+    if (!current) return this.get(key)
+    if (current.clientId !== consumedClientId) return cloneDraft(current)
+    return this.set(key, {
+      ...current,
+      document: createComposerDocument(),
+      attachments: [],
+      skills: [],
+      skillInvocation: undefined,
+      goalModeEnabled: undefined,
+      goalTokenBudget: undefined,
+    })
+  }
+
   completeSubmission(
     key: ComposerDraftKey,
     consumedClientId: string,

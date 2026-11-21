@@ -1,12 +1,16 @@
+import { ModelPricingService } from './provider/ModelPricingService'
+import { DecisionService } from './decision/DecisionService'
+import { realUserMessages } from './decision/integrations/PermissionDecisionAdapter'
+import { INPUT_CONTEXT_MEMORY_TEAMWORK_MANIFEST, SAFETY_TURN_MANIFEST } from './decision/specs'
+import { ModelPricingRepository } from './storage/repositories/ModelPricingRepository'
 import { ModelRecommendationStore } from './provider/pi/ModelRecommendationStore'
 import { ProviderDirectoryStore } from './provider/pi/ProviderDirectoryStore'
 import { ComputerUseService } from './computer/ComputerUseService'
 import { LocalEnvironmentRepository } from './local-environment/LocalEnvironmentRepository'
 import { LocalEnvironmentCatalog } from './local-environment/LocalEnvironmentCatalog'
 import { computerToolDefinitions } from './tool/Computer/Definition'
-import { NodeReplService } from './nodeRepl/NodeReplService'
-import { nodeReplToolDefinition } from './nodeRepl/Definition'
-import { NODE_REPL_PLUGIN_ID, NODE_REPL_SERVER_NAME } from './nodeRepl/Association'
+import { createNodeReplBootstrap } from './nodeRepl/NodeReplBootstrapService'
+import { createScheduledTaskCheckRunner } from './calendar/ScheduledTaskCheckRunner'
 import { Effect } from 'effect'
 import { loadConfig } from './config/Config'
 import { ConfigService } from './config/ConfigService'
@@ -38,7 +42,7 @@ import { ThreadHistoryService } from './session/ThreadHistoryService'
 import { AgentRuntimeService } from './orchestration/AgentRuntimeService'
 import { ContextCompactionService } from './context/ContextCompactionService'
 import { EncryptedCredentialStore, PiModelService, PiModelsFileStore } from './provider/pi'
-import { generatePiObject } from './provider/pi/PiStructuredOutput'
+import { Model, Provider } from '@pidex/model-schema'
 import { resolveSpecializedPiModel } from './provider/pi/PiSpecializedModelResolver'
 import { createApp } from './transport/Server'
 import { AgentLogger } from './observability/AgentLogger'
@@ -63,9 +67,10 @@ import { ProjectService } from './project/ProjectService'
 import { MemoryService } from './memory/MemoryService'
 import { secretScrubber } from './security/SecretScrubber'
 import { HookService } from './hooks/HookService'
-import { z } from 'zod'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { homedir, tmpdir } from 'node:os'
+import { createHostHookRunner } from './hooks/HookHostRunner'
+import { createHooksManagement } from './hooks/HooksManagementService'
+import { HookSettingsRepository } from './storage/repositories/HookSettingsRepository'
+import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { BrowserService } from './browser/BrowserService'
 import { browserToolDefinitions } from './tool/Browser/Definition'
@@ -92,6 +97,7 @@ import { SkillManagementService } from './prompt/SkillManagementService'
 import { SkillSettingsRepository } from './storage/repositories/SkillSettingsRepository'
 import { PluginSettingsRepository } from './storage/repositories/PluginSettingsRepository'
 import { PluginManagementService } from './plugin/PluginManagementService'
+import { AppManagementService } from './plugin/AppManagementService'
 import { McpSettingsRepository } from './storage/repositories/McpSettingsRepository'
 import { McpConfigService } from './mcp/McpConfigService'
 import { McpElicitationService } from './mcp/McpElicitationService'
@@ -104,6 +110,7 @@ import { McpOAuthCoordinator } from './mcp/McpOAuthCoordinator'
 import { McpOAuthService } from './mcp/McpOAuthService'
 import { ThreadProjection } from './transport/ThreadProjection'
 import { TaskSuggestionService } from './suggestion/TaskSuggestionService'
+import { ComposerPredictionService } from './suggestion/ComposerPredictionService'
 import { ThreadTitleService } from './session/ThreadTitleService'
 import { UsageService } from './usage/UsageService'
 import { UsageRepository } from './storage/repositories/UsageRepository'
@@ -134,7 +141,6 @@ import {
   taskScheduleDefinitions,
   taskScheduleCheckDefinition,
 } from './tool/TaskSchedule/Definitions'
-import { normalizeScheduledPermission } from './automation/AutomationService'
 import { createSchedulePlanDefinition } from './tool/SchedulePlan/Definition'
 import {
   AutomationRunCoordinator,
@@ -154,6 +160,10 @@ import {
 } from './storage/database/StorageCapabilities'
 import { createThreadReadDefinition } from './tool/ThreadRead/Definition'
 import { createWorkgroupReadDefinition } from './tool/WorkgroupRead/Definition'
+import { createAttachPullRequestDefinition } from './tool/AttachPullRequest/Definition'
+import { createMemoryToolDefinitions } from './tool/Memory/Definition'
+import { createSelfManageTools } from './tool/SelfManage'
+import { createMemoryAgentRunner } from './memory/MemoryAgentRunner'
 import { ThreadReadViewRepository } from './session/ThreadReadViewRepository'
 import {
   BindingHandoffWorkspace,
@@ -170,6 +180,43 @@ import { SideChatService } from './session/side-chat/SideChatService'
 import { SideChatEnvironmentCleanup } from './session/side-chat/SideChatEnvironmentCleanup'
 
 registerBunOAuthFlows()
+
+/**
+ * Background memory work keeps the model that produced the task. Only a
+ * resolvable reference is returned so the caller can fall back explicitly.
+ */
+const inheritedTurnModel = async (
+  db: AgentDatabase,
+  threadId: string,
+  turnId: string | null,
+  kind: 'extract' | 'organize',
+): Promise<{ providerID: string; id: string } | null> => {
+  const row = turnId
+    ? (db.sqlite.query('SELECT model_ref FROM turns WHERE id = ?').get(turnId) as {
+        model_ref: string | null
+      } | null)
+    : null
+  const raw =
+    row?.model_ref ??
+    (
+      db.sqlite
+        .query(
+          kind === 'organize'
+            ? 'SELECT model_ref FROM turns WHERE thread_id = ? AND model_ref IS NOT NULL ORDER BY created_at DESC LIMIT 1'
+            : "SELECT model_ref FROM turns WHERE thread_id = ? AND status = 'completed' AND model_ref IS NOT NULL ORDER BY created_at DESC LIMIT 1",
+        )
+        .get(threadId) as { model_ref: string | null } | null
+    )?.model_ref
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as { providerID?: unknown; id?: unknown }
+    return typeof parsed.providerID === 'string' && typeof parsed.id === 'string'
+      ? { providerID: parsed.providerID, id: parsed.id }
+      : null
+  } catch {
+    return null
+  }
+}
 
 export interface BootstrapOptions {
   models?: Models
@@ -364,7 +411,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         ? (desktopSettings.tooling as Record<string, unknown>)
         : {}
     const configuredToolingPreferences = Object.fromEntries(
-      ['nodejs', 'python', 'git-bash', 'ripgrep'].flatMap((id) => {
+      ['nodejs', 'python'].flatMap((id) => {
         const preference = configuredTooling[id]
         return preference === 'managed' || preference === 'system' ? [[id, preference]] : []
       }),
@@ -399,7 +446,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           },
     )
     const pets = new PetService(config.petsDir)
-    const plugins = new PluginManagementService(new PluginSettingsRepository(db), {
+    const pluginSettings = new PluginSettingsRepository(db)
+    const plugins = new PluginManagementService(pluginSettings, {
       builtinPluginsRoot: config.builtinPluginsRoot,
       dataRoot: config.dataDir,
       userHome: homedir(),
@@ -472,6 +520,16 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       getCallbackURL: () =>
         config.port > 0 ? `http://127.0.0.1:${config.port}/auth/github/callback` : null,
     })
+    const apps = new AppManagementService(pluginSettings, plugins, async (provider) => {
+      if (provider !== 'github') return false
+      return Boolean(await github.optionalAccessToken())
+    })
+    plugins.setAppResolver((ref) => apps.resolveUsedApp(ref))
+    const unsubscribeApps = apps.subscribe((_appId, generation) => {
+      void publishAgentEvent(db, hub, null, null, 'plugins/updated', { generation }).catch(() =>
+        logger.warn('plugins.status.publish.failed', { error: 'APP_STATUS_PUBLISH_FAILED' }),
+      )
+    })
     const releaseNotes = new ReleaseNotesService({
       getAccessToken: () => github.optionalAccessToken(),
     })
@@ -492,7 +550,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     memoryManager.registerHook('sqlite', () => db.shrinkMemory())
     memoryManager.registerHook('git_review', () => review.shrink())
     const git = new GitWorkspaceService(db, undefined, github)
+    const modelPricing = new ModelPricingService(new ModelPricingRepository(db.sqlite))
+    void modelPricing.refresh()
     const piModels = new PiModelService(providerCredentialStore, {
+      pricing: modelPricing,
       logger,
       directory: new ProviderDirectoryStore(
         join(dirname(config.piModelCachePath), 'provider-directory.json'),
@@ -520,6 +581,19 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const modelSync = new ModelSyncService(piModels, configService)
     const protocolDetection = new ProtocolDetectionService(piModels)
     const apiKeys = new ApiKeyService(piModels, providerCredentialStore, modelHealth)
+    const decisions = new DecisionService(
+      db,
+      configService,
+      hub,
+      {
+        models: piModels,
+        apiKeys,
+        credentials,
+        config: configService,
+        db,
+      },
+      logger,
+    )
     const providerCredentials = new ProviderCredentialService(piModels, providerCredentialStore)
     const anthropicUsageModels = builtinModels({
       credentials: new EncryptedCredentialStore(credentials, {
@@ -570,14 +644,29 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     })
     const browser = new BrowserService(db, hub, configService)
     const tools = new ToolRegistry()
-    const computer = new ComputerUseService(configService, db, hub, plugins)
+    const registerWithAppGate = (
+      definition: Parameters<ToolRegistry['register']>[0],
+      appId: string,
+    ) => {
+      const baseAvailable = definition.available
+      tools.register({
+        ...definition,
+        available: () => apps.isEnabled(appId) && (baseAvailable ? baseAvailable() : true),
+      })
+    }
+    const computer = new ComputerUseService(configService, db, hub, plugins, undefined, logger)
     yield* Effect.promise(() => computer.initialize())
-    for (const definition of computerToolDefinitions(computer)) tools.register(definition)
+    for (const definition of computerToolDefinitions(computer)) {
+      registerWithAppGate(definition, 'computer-use')
+    }
     if (browser.available())
-      for (const definition of browserToolDefinitions(browser)) tools.register(definition)
+      for (const definition of browserToolDefinitions(browser)) {
+        registerWithAppGate(definition, 'browser')
+      }
     tools.register(createTerminalReadDefinition(terminalOutput))
     tools.register(createThreadReadDefinition(new ThreadReadViewRepository(db)))
     tools.register(createWorkgroupReadDefinition(sessionGroups))
+    registerWithAppGate(createAttachPullRequestDefinition(threadPullRequests), 'github')
     const mcpConfigs = new McpConfigService(new McpSettingsRepository(db), configService)
     const usage = new UsageService(new UsageRepository(db), providers, piModels, credentials, {
       subscriptionModels: anthropicUsageModels,
@@ -589,6 +678,17 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     )
     const mcpElicitations = new McpElicitationService(db, hub)
     yield* Effect.promise(() => mcpElicitations.restore())
+    const {
+      nodeRepl,
+      mcpAdapter: nodeReplMcpAdapter,
+      listStatus: listNodeReplStatus,
+      fallbackServers: nodeReplFallbackServers,
+    } = createNodeReplBootstrap({
+      plugins,
+      mcpConfigs,
+      computer,
+      getToolExecutor: () => toolExecutor,
+    })
     const mcpConnections = new McpConnectionManager(
       mcpConfigs,
       tools,
@@ -604,26 +704,16 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
       new McpDiagnosticContextProvider(new ThreadProjection(db)),
       mcpOAuthCoordinator,
+      nodeReplMcpAdapter,
     )
     const mcpOAuth = new McpOAuthService(mcpConfigs, mcpConnections, mcpOAuthCoordinator)
-    const mcp = new McpRuntimeService(mcpConfigs, mcpConnections, mcpOAuth, () => {
-      if (!plugins.isEnabled(NODE_REPL_PLUGIN_ID)) return []
-      const connected = computer.available()
-      return [
-        {
-          name: NODE_REPL_SERVER_NAME,
-          scope: 'host',
-          type: 'stdio',
-          state: connected ? 'connected' : 'starting',
-          auth: { source: 'none', canLogin: false, canLogout: false },
-          toolCount: connected ? 1 : 0,
-          resourceCount: 0,
-          promptCount: 0,
-          managedBy: 'host',
-          pluginId: NODE_REPL_PLUGIN_ID,
-        },
-      ]
-    })
+    const mcp = new McpRuntimeService(
+      mcpConfigs,
+      mcpConnections,
+      mcpOAuth,
+      listNodeReplStatus,
+      nodeReplFallbackServers,
+    )
     const guardianEvidence = new GuardianEvidenceService(async (threadID) => {
       try {
         return (await workspaceResolver.resolve(threadID)).workspace
@@ -651,58 +741,69 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         'taskMode' | 'permissionConfig' | 'model'
       >
     >()
+    const hookSettings = new HookSettingsRepository(db)
+    const pluginHookSources = async (workspaceRoot?: string) => {
+      const roots = await plugins.enabledHookRoots(workspaceRoot)
+      return roots.map((root) => ({
+        pluginId: root.pluginId,
+        pluginName: root.pluginName,
+        pluginRoot: root.pluginRoot,
+        scope: root.source === 'workspace' ? ('project' as const) : ('user' as const),
+        hooksPaths: root.hooksPaths,
+      }))
+    }
     const hooks = new HookService(
       db,
-      {
-        run: async (input) => {
-          if (!input.threadID || !input.turnID)
-            throw new Error('Hook command 缺少 thread/turn 上下文')
-          const turn = db.getTurnInput(input.turnID) ?? hostTurnInputs.get(input.turnID)
-          if (!turn) throw new Error('Hook command 无法解析权限快照')
-          const runtime = await workspaceResolver.resolve(input.threadID)
-          const workspace = runtime.workspace
-          const evidenceDir = await mkdtemp(join(tmpdir(), 'pidex-hook-evidence-'))
-          const evidencePath = join(evidenceDir, 'evidence.json')
-          await writeFile(evidencePath, input.evidence, 'utf8')
-          const quotedEvidencePath = evidencePath.replaceAll("'", "''")
-          try {
-            const result = await toolExecutor.execute<{
-              stdout: string
-              stderr: string
-            }>(
-              'PowerShell',
-              {
-                command: `Get-Content -Raw -LiteralPath '${quotedEvidencePath}' | & { ${input.command} }`,
-                timeout: input.timeoutMs,
-                description: `执行 Hook ${input.hookID}`,
-              },
-              {
-                threadID: input.threadID,
-                turnID: input.turnID,
-                taskMode: turn.taskMode,
-                signal: new AbortController().signal,
-                workspace,
-                defaultCwd: runtime.cwd,
-                permissionConfig: turn.permissionConfig,
-                model: turn.model,
-                taskSummary: `Hook ${input.hookID}`,
-                skipHooks: true,
-              },
-            )
+      createHostHookRunner({
+        dataDir: config.dataDir,
+        resolveContext: async ({ threadID, workspaceRoot }) => {
+          if (threadID) {
+            const runtime = await workspaceResolver.resolve(threadID)
             return {
-              output: `${result.stdout}${result.stderr ? `\n${result.stderr}` : ''}`.trim(),
+              cwd: runtime.cwd,
+              projectDir: runtime.workspace.rootPath,
             }
-          } finally {
-            await rm(evidenceDir, { recursive: true, force: true }).catch(() => undefined)
+          }
+          const fallback = workspaceRoot ?? process.cwd()
+          return {
+            cwd: fallback,
+            projectDir: fallback,
           }
         },
-      },
+      }),
       (value) => secretScrubber.scrubText(value),
       async (event) => {
         await Effect.runPromise(hub.publish(event))
       },
       configService,
+      {
+        dataRoot: config.dataDir,
+        userHome: homedir(),
+        settings: hookSettings,
+        pluginHookSources,
+      },
     )
+    const hooksManagement = createHooksManagement(
+      hooks,
+      configService,
+      hookSettings,
+      config.storage.hooksFile,
+      db,
+      {
+        dataRoot: config.dataDir,
+        userHome: homedir(),
+        pluginHookSources,
+      },
+    )
+    for (const definition of createSelfManageTools({
+      configService,
+      skillManagement: skills,
+      hooksManagement,
+      mcp,
+      plugins,
+    })) {
+      tools.register(definition)
+    }
     toolExecutor = new ToolExecutor(tools, {
       dataDir: config.dataDir,
       userConfigPath: config.storage.userConfig,
@@ -741,18 +842,23 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         const events = db.repositories.turnPatches.markIncomplete(threadID, turnID)
         for (const event of events) await Effect.runPromise(hub.publish(event))
       },
+      describeBrowserActionTarget: (tabId, operation) =>
+        browser.describeActionTarget(
+          tabId,
+          operation as Parameters<BrowserService['describeActionTarget']>[1],
+        ),
+      resolveRealUserMessages: (threadID) => realUserMessages(db, threadID),
     })
-    // Host-managed node_repl entry. Registered after the executor exists; it is
-    // never written to user MCP config and only the bundled computer-use plugin
-    // makes it available.
-    const nodeRepl = new NodeReplService()
-    tools.register(
-      nodeReplToolDefinition({ plugins, computer, service: nodeRepl, executor: toolExecutor }),
-    )
     const questions = new QuestionService(db, hub, false)
     const artifacts = yield* Effect.promise(() => ArtifactService.open(config.dataDir, db))
     tools.register(intelligentUiDefinition(artifacts))
     const contextCompaction = new ContextCompactionService(db)
+    toolExecutor.setArchiveToolOutput(async ({ name, text }) => {
+      const stored = await artifacts.archiveText(text)
+      return {
+        pointer: `[pidex-admission-archive] 完整输出已归档（${name}，sha256:${stored.sha256}），可按该哈希经 Artifact 通道读取。`,
+      }
+    })
     const orchestrator = new AgentRuntimeService({
       db,
       hub,
@@ -795,55 +901,96 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           true ||
         (configService.snapshot().desktop as Record<string, unknown> | undefined)?.enableMemory ===
           true,
+      rootDirectory: join(config.dataDir, 'memories'),
       scrub: (value) => secretScrubber.scrubText(value),
-      extractor: {
-        extract: async ({ transcript, projectKey, signal }) => {
-          const projectId = projectKey?.startsWith('project:')
-            ? projectKey.slice('project:'.length)
-            : undefined
-          const selected = await resolveSpecializedPiModel({
-            purpose: 'organization',
-            db,
-            models: piModels,
-            configService,
-            ...(projectId ? { projectId } : {}),
+      logger,
+      now: () => Date.now(),
+    })
+    // The runner re-enters the same service for file access, so it is attached
+    // after construction rather than through the constructor options.
+    memory.attachRunner(
+      createMemoryAgentRunner({
+        models: piModels.pi,
+        memory,
+        resolveModel: async ({ modelRef }) => {
+          const separator = modelRef.indexOf('/')
+          if (separator <= 0) return null
+          const ref = Model.Ref.make({
+            providerID: Provider.ID.make(modelRef.slice(0, separator)),
+            id: Model.ID.make(modelRef.slice(separator + 1)),
           })
-          if (!selected) return []
-          const object = await generatePiObject({
-            models: piModels.pi,
-            model: selected.model,
-            ...(signal ? { signal } : {}),
-            schema: z.object({
-              memories: z
-                .array(
-                  z.object({
-                    scope: z.enum(['user', 'project']),
-                    content: z.string().min(1).max(2_000),
-                  }),
-                )
-                .max(10),
-            }),
-            schemaName: 'local_memory_extraction',
-            system:
-              '从对话中只提炼长期稳定、未来有用的偏好或项目事实。不要保存凭据、临时错误、完整对话或大段源码。无法确定时返回空数组。',
-            prompt: `<untrusted_transcript project=${JSON.stringify(projectKey)}>${transcript}</untrusted_transcript>`,
-          })
-          return object.memories
+          try {
+            return { ref: modelRef, model: await piModels.getPiModel(ref) }
+          } catch {
+            return null
+          }
         },
-      },
+      }),
+    )
+    memory.attachModelResolver(async ({ namespace, kind, threadId, turnId }) => {
+      // Background work keeps the model that produced the task instead of
+      // silently switching providers mid-task.
+      if (threadId) {
+        const inherited = await inheritedTurnModel(db, threadId, turnId, kind)
+        if (inherited) {
+          try {
+            await piModels.getPiModel(
+              Model.Ref.make({
+                providerID: Provider.ID.make(inherited.providerID),
+                id: Model.ID.make(inherited.id),
+              }),
+            )
+            return `${inherited.providerID}/${inherited.id}`
+          } catch {
+            // Unavailable references fall through to the specialized resolver.
+          }
+        }
+      }
+      const selected = await resolveSpecializedPiModel({
+        purpose: 'organization',
+        db,
+        models: piModels,
+        configService,
+        ...(namespace.kind === 'user' ? {} : { projectId: namespace.projectId }),
+      })
+      return selected ? `${selected.ref.providerID}/${selected.ref.id}` : null
+    })
+    memory.attachIdleProbe(() => {
+      const active = db.sqlite
+        .query(
+          "SELECT 1 AS present FROM agent_executions WHERE status IN ('running','waiting_permission','waiting_question','waiting_subagents') LIMIT 1",
+        )
+        .get()
+      return !active
     })
     const suggestions = new TaskSuggestionService(db, piModels, memory, logger, {}, configService)
+    const composerPredictions = new ComposerPredictionService(
+      db,
+      piModels,
+      logger,
+      {},
+      configService,
+    )
     const sideChatEnvironmentCleanup = new SideChatEnvironmentCleanup(
       db.repositories.sideChats,
       environmentDeltas,
     )
     const localContextPaths = new LocalContextPathService(new LocalContextPathRepository(db))
-    const history = new ThreadHistoryService(db, hub, (threadID) => {
-      return sideChatEnvironmentCleanup.prepareSource(
-        threadID,
-        review.prepareThreadSnapshotCleanup(threadID),
-      )
-    })
+    const history = new ThreadHistoryService(
+      db,
+      hub,
+      (threadID) => {
+        const cleanup = sideChatEnvironmentCleanup.prepareSource(
+          threadID,
+          review.prepareThreadSnapshotCleanup(threadID),
+        )
+        return async () => {
+          await cleanup()
+          await nodeRepl.closeThread(threadID)
+        }
+      },
+      (threadID) => nodeRepl.closeThread(threadID),
+    )
     const threadTitles = new ThreadTitleService(db, history, piModels, logger, configService)
     const subagentWorkspaces = new SubagentWorkspaceCoordinator(db, config.storage.workspacesRoot)
     const resumeCheckpoints = new ResumeCheckpointResolver(db, approvals)
@@ -867,8 +1014,31 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       resumeCheckpoints,
       false,
       localContextPaths,
+      hooks,
     )
+    decisions.registerManifest([...SAFETY_TURN_MANIFEST, ...INPUT_CONTEXT_MEMORY_TEAMWORK_MANIFEST])
+    reviewer.setDecisionService(decisions)
+    approvals.setDecisionService(decisions)
+    toolExecutor.setDecisionService(decisions)
+    mcp.setDecisionService(decisions)
+    contextCompaction.attachDecisions(decisions)
+    memory.attachDecisions(decisions)
+    review.attachDecisions(decisions)
+    subagents.attachDecisions(decisions)
     resumeCheckpoints.setResolvedSubagentWait((turnID) => subagents.resolvedWaitCheckpoint(turnID))
+    // Memory tools resolve their namespace from host state (thread, project and
+    // the persisted subagent task), never from model-supplied arguments.
+    for (const definition of createMemoryToolDefinitions(memory, ({ threadID, profile }) => {
+      const task = subagents.memoryScopeForThread(threadID)
+      if (task) return task
+      const projectID = db.threadProjectID(threadID) ?? null
+      if (profile !== 'main' && !projectID) return null
+      return {
+        namespace: memory.namespaceFor({ projectId: projectID }) ?? { kind: 'user' },
+        writable: memory.defaultScopes(projectID),
+      }
+    }))
+      tools.register(definition)
     const threads = new ThreadService(
       db,
       hub,
@@ -898,6 +1068,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       threadGoals,
       computer,
       plugins,
+      threadPullRequests,
+      decisions,
     )
     approvals.setTurnInterruptHandler((threadID, turnID) => {
       // Never await the stop from inside approval evaluation: the turn is still
@@ -988,42 +1160,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         if (task.execution.targetThreadId)
           await workspaceResolver.resolve(task.execution.targetThreadId)
       },
-      check: async (check, occurrence, run) => {
-        const threadId = run?.threadId ?? occurrence.snapshot.execution?.targetThreadId
-        const turnId =
-          run?.turnId ?? (threadId ? db.repositories.taskSchedules.latestTurnId(threadId) : null)
-        const execution = run ?? occurrence.snapshot.execution
-        if (!threadId || !turnId || !execution) return false
-        const runtime = await workspaceResolver.resolve(threadId)
-        const context = {
-          threadID: threadId,
-          turnID: turnId,
-          toolCallID: `task-check:${occurrence.id}:${occurrence.resultVersion}:${occurrence.snapshot.checks.indexOf(check)}`,
-          taskMode: 'chat' as const,
-          signal: AbortSignal.timeout(120_000),
-          workspace: runtime.workspace,
-          defaultCwd: runtime.cwd,
-          permissionConfig: normalizeScheduledPermission(execution.permissionConfig),
-          model: execution.model,
-          taskSummary: '任务自动验收',
-        }
-        if (check.kind === 'command-exit-code') {
-          const result = await toolExecutor.execute<{ exitCode: number }>(
-            'PowerShell',
-            { command: check.command, timeout: 120_000, description: '任务自动验收' },
-            context,
-          )
-          return result.exitCode === check.expectedExitCode
-        }
-        return await toolExecutor.execute<boolean>(
-          'task_schedule_check',
-          {
-            file_path: check.path,
-            ...(check.kind === 'document-section' ? { section: check.section } : {}),
-          },
-          context,
-        )
-      },
+      check: createScheduledTaskCheckRunner({ db, workspaceResolver, toolExecutor }),
       feedback: async (occurrence, feedback) => {
         const run = occurrence.scheduledTaskId
           ? scheduledTaskRepository.read(occurrence.scheduledTaskId, true)
@@ -1076,6 +1213,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       threads,
       executor: automationExecutor,
       projectRoot: (id) => db.getProject(id)?.rootPath ?? null,
+      decisions,
       preferences: () => {
         const desktop = configService.snapshot().desktop as Record<string, unknown> | undefined
         return {
@@ -1342,6 +1480,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       authSessions,
       memory,
       hooks,
+      hooksManagement,
       logger,
       review,
       github,
@@ -1353,8 +1492,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       releaseNotes,
       skills,
       plugins,
+      apps,
       mcp,
       suggestions,
+      composerPredictions,
       usage,
       turnPatches,
       computer,
@@ -1380,6 +1521,15 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       scheduledTasks,
       schedulePlans,
       memoryManager,
+      decisions,
+    })
+    piModels.recommendations.startAutoRefresh(async () => {
+      if (disposed) return
+      await providers.reload()
+      if (disposed) return
+      await publishAgentEvent(db, hub, null, null, 'catalog/updated', {
+        catalogVersion: Math.max(1, providers.catalogRevision?.() ?? 0),
+      })
     })
     const initialCatalogRevision = providers.catalogRevision?.() ?? 0
     void providers
@@ -1398,7 +1548,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       disposed = true
       pets.dispose()
       computer.dispose()
+      await nodeRepl.dispose()
       unsubscribePlugins()
+      unsubscribeApps()
       browser.dispose()
       await speech.dispose()
       automationScheduler?.dispose()
@@ -1406,6 +1558,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       unsubscribeExecutionLogs()
       unsubscribeTooling()
       unsubscribeConfig()
+      decisions.dispose()
       await sideChats.discardAll(true)
       await orchestrator.dispose()
       memoryManager.dispose()

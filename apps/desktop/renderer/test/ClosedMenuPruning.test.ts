@@ -1,13 +1,15 @@
-import { test } from 'bun:test'
-import { runBrowserRegression, BROWSER_REGRESSION_TIMEOUT_MS } from './helpers/BrowserRegression'
+import { expect, test } from 'bun:test'
 
-test(
-  'closed popover and menu pruning eliminates list construction across pickers and command suggestions',
-  async () => {
-    await runBrowserRegression(
-      `${import.meta.dir}/ClosedMenuPruning.browser.ts`,
-      'ClosedMenuPruning regression passed',
-    )
-  },
-  BROWSER_REGRESSION_TIMEOUT_MS,
-)
+test('closed popover and menu pruning eliminates list construction across pickers and command suggestions', async () => {
+  const child = Bun.spawn([process.execPath, `${import.meta.dir}/ClosedMenuPruning.browser.ts`], {
+    stdout: 'pipe',
+    stderr: 'pipe',
+  })
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ])
+  expect({ exitCode, stderr }).toEqual({ exitCode: 0, stderr: '' })
+  expect(stdout).toContain('ClosedMenuPruning regression passed')
+}, 30_000)

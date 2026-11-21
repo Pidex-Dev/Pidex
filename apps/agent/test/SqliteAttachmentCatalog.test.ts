@@ -24,8 +24,8 @@ describe('SQLite 附件目录', () => {
       model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt-5') }),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'chat',
@@ -85,8 +85,8 @@ describe('SQLite 附件目录', () => {
         }),
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
         strategy: 'start',
         taskMode: 'chat',
@@ -136,8 +136,8 @@ describe('SQLite 附件目录', () => {
             }),
             permissionConfig: {
               sandboxMode: 'workspace-write',
-              approvalPolicy: 'on-request',
-              approvalsReviewer: 'user',
+              approvalPolicy: 'auto_review',
+              approvalsReviewer: 'auto_review',
             },
             strategy: 'start',
             taskMode: 'chat',

@@ -139,6 +139,36 @@ describe('语音输入设备设置', () => {
       })['desktop.voice.preferredInputDeviceId'],
     ).toBe('')
   })
+
+  test('语音语言、实时转写、快捷键、最近录音上限与词典归一化', () => {
+    const defaults = defaultDesktopStoredSettings()
+    expect(defaults['desktop.voice.language']).toBe('auto')
+    expect(defaults['desktop.voice.showLiveTranscript']).toBe(false)
+    expect(defaults['desktop.voice.dictationShortcut']).toBe('Ctrl+Shift+D')
+    expect(defaults['desktop.voice.handsFreeMode']).toBe('hold-or-double-tap')
+    expect(defaults['desktop.voice.recentRecordings']).toEqual([])
+    expect(defaults['desktop.voice.dictionary']).toEqual([])
+
+    const recordings = Array.from({ length: 25 }, (_, i) => ({
+      id: `rec-${i}`,
+      status: i % 2 === 0 ? 'saved' : 'cancelled',
+      createdAt: 1700000000000 + i,
+    }))
+    const normalized = normalizeDesktopStoredSettings({
+      'desktop.voice.language': 'zh',
+      'desktop.voice.showLiveTranscript': true,
+      'desktop.voice.dictationShortcut': '',
+      'desktop.voice.handsFreeMode': 'toggle',
+      'desktop.voice.recentRecordings': recordings as never,
+      'desktop.voice.dictionary': ['Pidex', '  Pidex ', 'TypeScript', ''] as never,
+    })
+    expect(normalized['desktop.voice.language']).toBe('zh')
+    expect(normalized['desktop.voice.showLiveTranscript']).toBe(true)
+    expect(normalized['desktop.voice.dictationShortcut']).toBe('')
+    expect(normalized['desktop.voice.handsFreeMode']).toBe('toggle')
+    expect(normalized['desktop.voice.recentRecordings']).toHaveLength(20)
+    expect(normalized['desktop.voice.dictionary']).toEqual(['Pidex', 'TypeScript'])
+  })
 })
 
 describe('宠物设置归一化', () => {
@@ -245,7 +275,7 @@ describe('高级权限设置归一化', () => {
     ).toBe('balanced')
   })
 
-  test('完整保存并回填 granular PermissionConfig', () => {
+  test('旧版 granular 与 on-request/untrusted/user 配置自动兼容迁移为 auto_review', () => {
     const granular = {
       type: 'granular' as const,
       sandboxApproval: false,
@@ -256,18 +286,16 @@ describe('高级权限设置归一化', () => {
       mcpElicitations: false,
     }
     const settings = normalizeDesktopStoredSettings({
-      permissionMode: 'custom',
+      permissionMode: 'custom' as never,
       sandboxMode: 'danger-full-access',
       permissionProfile: ':danger-full-access',
-      approvalPolicy: granular,
-      approvalsReviewer: 'auto_review',
+      approvalPolicy: granular as never,
+      approvalsReviewer: 'user' as never,
     })
-    expect(settings).toMatchObject({
-      permissionConfig: {
-        sandboxMode: 'danger-full-access',
-        approvalPolicy: granular,
-        approvalsReviewer: 'auto_review',
-      },
+    expect(settings.permissionConfig).toEqual({
+      sandboxMode: 'workspace-write',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     })
     expect(settings).not.toHaveProperty('permissionMode')
     expect(settings).not.toHaveProperty('permissionProfile')
@@ -276,22 +304,38 @@ describe('高级权限设置归一化', () => {
     expect(settings).not.toHaveProperty('approvalsReviewer')
   })
 
-  test('旧 permissionProfile 可回填 sandboxMode', () => {
+  test('旧 full-access 配置保留为完全访问且审批者归一化为 auto_review', () => {
     expect(
-      normalizeDesktopStoredSettings({ permissionMode: 'custom', permissionProfile: ':read-only' })
-        .permissionConfig.sandboxMode,
-    ).toBe('read-only')
+      normalizeDesktopStoredSettings({
+        permissionConfig: {
+          sandboxMode: 'danger-full-access',
+          approvalPolicy: 'never',
+          approvalsReviewer: 'user' as never,
+        },
+      }).permissionConfig,
+    ).toEqual({
+      sandboxMode: 'danger-full-access',
+      approvalPolicy: 'never',
+      approvalsReviewer: 'auto_review',
+    })
     expect(
-      normalizeDesktopStoredSettings({ permissionMode: 'custom', sandboxMode: 'full-access' })
-        .permissionConfig.sandboxMode,
-    ).toBe('danger-full-access')
+      normalizeDesktopStoredSettings({ permissionMode: 'full-access' }).permissionConfig,
+    ).toEqual({
+      sandboxMode: 'danger-full-access',
+      approvalPolicy: 'never',
+      approvalsReviewer: 'auto_review',
+    })
   })
 
-  test('旧 on-failure 审批策略迁移为 on-request', () => {
+  test('旧 on-failure / on-request 审批策略迁移为 auto_review', () => {
     expect(
-      normalizeDesktopStoredSettings({ approvalPolicy: 'on-failure' }).permissionConfig
+      normalizeDesktopStoredSettings({ approvalPolicy: 'on-failure' as never }).permissionConfig
         .approvalPolicy,
-    ).toBe('on-request')
+    ).toBe('auto_review')
+    expect(
+      normalizeDesktopStoredSettings({ approvalPolicy: 'on-request' as never }).permissionConfig
+        .approvalPolicy,
+    ).toBe('auto_review')
   })
 })
 

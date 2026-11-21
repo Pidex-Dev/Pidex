@@ -58,7 +58,7 @@ export function AnchoredPopover({
           }}
           aria-label={contentLabel}
           align={align}
-          className={cx('popover-surface', 'popover', 'tw:text-app-text', className)}
+          className={cx('popover-surface', 'popover', className)}
           collisionPadding={collisionPadding}
           role={contentRole}
           side={side}

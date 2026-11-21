@@ -1,4 +1,3 @@
-import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { ChevronRight, Pencil } from 'lucide-react'
 import type { Item } from '@pidex/shared/thread'
@@ -8,6 +7,7 @@ import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import { useDisclosureExpanded } from '../../../components/ui/KeyedDisclosureStore.js'
 import { cx } from '../../../utils/Cx.js'
 
+import { preserveTimelineAnchorPosition } from './PreserveTimelineAnchorPosition.js'
 import type { CanonicalItemDisclosure, ReadThreadPatchDiff } from './CanonicalItemRenderer.js'
 import {
   fileMutationLabel,
@@ -67,6 +67,7 @@ export function createThreadPatchDiffLoader(
 
 export function ExpandableFileMutationRow({
   diffMarkerStyle,
+  diffPath,
   disclosure,
   file,
   item,
@@ -74,6 +75,7 @@ export function ExpandableFileMutationRow({
   threadId,
 }: {
   diffMarkerStyle: DesktopDiffMarkerStyle
+  diffPath?: string
   disclosure: CanonicalItemDisclosure
   file: FileChangeDisplay
   item: ToolItem
@@ -90,17 +92,18 @@ export function ExpandableFileMutationRow({
     () => createThreadPatchDiffLoader(readThreadPatchDiff),
     [readThreadPatchDiff],
   )
-  const requestKey = `${threadId}:${item.callID}:${file.path}`
+  const targetDiffPath = diffPath ?? file.path
+  const requestKey = `${threadId}:${item.callID}:${targetDiffPath}`
   const contentId = React.useId()
 
   React.useEffect(() => {
     if (!expanded) return
     return loader.request(
       requestKey,
-      { threadId, toolCallId: item.callID, path: file.path },
+      { threadId, toolCallId: item.callID, path: targetDiffPath },
       setLoadState,
     )
-  }, [attempt, expanded, file.path, item.callID, loader, requestKey, threadId])
+  }, [attempt, expanded, item.callID, loader, requestKey, targetDiffPath, threadId])
 
   return (
     <div
@@ -112,18 +115,21 @@ export function ExpandableFileMutationRow({
         aria-controls={contentId}
         aria-expanded={expanded}
         className="cpx-agent-activity__item-header"
-        onClick={() => disclosure.store.setExpanded(disclosure.id, !expanded)}
+        onClick={(event) => {
+          preserveTimelineAnchorPosition(event.currentTarget)
+          disclosure.store.setExpanded(disclosure.id, !expanded)
+        }}
         type="button"
       >
         <Pencil
           size="var(--inline-icon-size, 1em)"
-          className="cpx-agent-activity__icon"
+          className="cpx-agent-activity__icon tw:size-[var(--inline-icon-size,1em)] tw:shrink-0"
           aria-hidden="true"
         />
         <span className="cpx-agent-activity__label" title={fileMutationTitle(file, workspacePath)}>
           {fileMutationLabel(item.state, file.path, file.operation)}
         </span>
-        <span className="cpx-agent-activity__review-indicator">
+        <span className="cpx-agent-activity__review-indicator tw:inline-flex tw:flex-none tw:items-center tw:gap-2">
           {file.additions !== null ? (
             <small className="canonical-diff-add">+{file.additions}</small>
           ) : null}
@@ -133,14 +139,14 @@ export function ExpandableFileMutationRow({
         </span>
         <ChevronRight
           size="var(--inline-icon-size, 1em)"
-          className="cpx-agent-activity__chevron"
+          className="cpx-agent-activity__chevron tw:size-[var(--inline-icon-size,1em)] tw:shrink-0"
           aria-hidden="true"
         />
       </button>
       <DisclosureContent
         contentClassName={cx(
           'cpx-agent-activity__details cpx-agent-activity__details--diff',
-          'tw:mx-0 tw:my-1 tw:max-h-[420px] tw:overflow-auto tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:mb-2',
+          'tw:my-1 tw:mr-0 tw:mb-2 tw:max-h-[420px] tw:overflow-auto tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel',
         )}
         expanded={expanded}
         id={contentId}

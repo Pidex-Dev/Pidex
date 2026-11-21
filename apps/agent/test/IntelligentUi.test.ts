@@ -37,8 +37,8 @@ const model = Model.Ref.make({
 })
 const permissionConfig = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 
 test('工具校验有界文档，未知版本保留为普通 JSON，预览不携带脚本', () => {

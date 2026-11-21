@@ -13,7 +13,7 @@ describe('whats new release notes', () => {
   test('provides fixed GitHub release fixtures in browser mock mode', async () => {
     const result = await createDesktopClient({}).listReleaseNotes()
 
-    expect(result.repository).toBe('codepilotx-dev/Pidex')
+    expect(result.repository).toBe('Pidex-Dev/Pidex')
     expect(result.currentReleaseFound).toBe(true)
     expect(result.releases[0]?.tagName).toBe(`v${result.currentVersion}`)
   })

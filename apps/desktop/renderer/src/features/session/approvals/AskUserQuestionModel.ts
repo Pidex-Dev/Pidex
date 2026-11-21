@@ -16,6 +16,7 @@ export const questionDrafts = new Map<
   {
     states: Record<string, QuestionState>
     index: number
+    isSummary?: boolean
   }
 >()
 export function reconcileQuestionDrafts(threadId: string, activeKeys: ReadonlySet<string>): void {
@@ -321,8 +322,22 @@ export function hasQuestionAnswer(state: QuestionState | undefined): boolean {
   )
 }
 
-function isQuestionComplete(state: QuestionState | undefined): boolean {
+export function isQuestionComplete(state: QuestionState | undefined): boolean {
   return state?.skipped === true || hasQuestionAnswer(state)
+}
+
+export function findNextPendingQuestionIndex(
+  questions: Array<{ id?: string; question: string }>,
+  questionStates: Record<string, QuestionState>,
+  fromIndex: number,
+): number {
+  for (let index = fromIndex + 1; index < questions.length; index += 1) {
+    if (!isQuestionComplete(questionStates[questionKey(questions[index]!)])) return index
+  }
+  for (let index = 0; index < fromIndex; index += 1) {
+    if (!isQuestionComplete(questionStates[questionKey(questions[index]!)])) return index
+  }
+  return -1
 }
 
 export function shouldDeferAskUserQuestionShortcutToTextEntry(

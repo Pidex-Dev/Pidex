@@ -495,3 +495,200 @@ export const analyzeShellRisk = (input: ShellReviewInput): ShellRiskAnalysis => 
     reason,
   }
 }
+
+const PURE_READ_ONLY_EXECUTABLES = new Set([
+  'get-content',
+  'gc',
+  'type',
+  'get-childitem',
+  'gci',
+  'dir',
+  'ls',
+  'select-string',
+  'sls',
+  'get-location',
+  'pwd',
+  'test-path',
+  'resolve-path',
+  'cat',
+  'head',
+  'tail',
+  'wc',
+  'nl',
+  'stat',
+  'file',
+  'basename',
+  'dirname',
+  'realpath',
+  'which',
+  'where',
+  'grep',
+  'egrep',
+  'fgrep',
+  'tree',
+])
+
+const SAFE_GIT_READ_SUBCOMMANDS = new Set([
+  'status',
+  'diff',
+  'log',
+  'show',
+  'rev-parse',
+  'ls-files',
+  'blame',
+  'grep',
+  'describe',
+  'shortlog',
+])
+
+const UNSAFE_FIND_FLAGS = new Set([
+  '-exec',
+  '-execdir',
+  '-ok',
+  '-okdir',
+  '-delete',
+  '-fls',
+  '-fprint',
+  '-fprint0',
+  '-fprintf',
+])
+
+const hasUnsafeReadOnlySyntax = (command: string): boolean => {
+  let quote: "'" | '"' | null = null
+  for (let index = 0; index < command.length; index += 1) {
+    const ch = command[index]!
+    const next = command[index + 1] ?? ''
+    if (quote === "'") {
+      if (ch === "'") quote = null
+      continue
+    }
+    if (ch === '`') return true
+    if (ch === '$' && (next === '(' || next === '{' || /[A-Za-z_]/.test(next))) return true
+    if (quote === '"') {
+      if (ch === '\\') {
+        index += 1
+        continue
+      }
+      if (ch === '"') quote = null
+      continue
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch
+      continue
+    }
+    if ('|&;(){}<>\r\n'.includes(ch)) return true
+  }
+  return quote !== null
+}
+
+const tokenizeSimpleCommand = (command: string): string[] | null => {
+  const tokens: string[] = []
+  let current = ''
+  let quote: "'" | '"' | null = null
+  let hasToken = false
+  for (let index = 0; index < command.length; index += 1) {
+    const ch = command[index]!
+    if (quote) {
+      if (quote === '"' && ch === '\\' && index + 1 < command.length) {
+        current += command[index + 1]!
+        index += 1
+        hasToken = true
+        continue
+      }
+      if (ch === quote) {
+        quote = null
+        hasToken = true
+        continue
+      }
+      current += ch
+      hasToken = true
+      continue
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch
+      hasToken = true
+      continue
+    }
+    if (/\s/.test(ch)) {
+      if (hasToken) {
+        tokens.push(current)
+        current = ''
+        hasToken = false
+      }
+      continue
+    }
+    current += ch
+    hasToken = true
+  }
+  if (quote !== null) return null
+  if (hasToken) tokens.push(current)
+  return tokens
+}
+
+const isSafeGitReadCommand = (args: readonly string[]): boolean => {
+  let subcommand: string | null = null
+  for (const arg of args) {
+    const lower = arg.toLowerCase()
+    if (
+      lower === '-c' ||
+      lower.startsWith('-c=') ||
+      lower.startsWith('--exec-path') ||
+      lower === '--ext-diff' ||
+      lower === '--output' ||
+      lower.startsWith('--output=')
+    ) {
+      return false
+    }
+    if (!subcommand && !arg.startsWith('-')) {
+      subcommand = lower
+    }
+  }
+  return subcommand !== null && SAFE_GIT_READ_SUBCOMMANDS.has(subcommand)
+}
+
+/**
+ * Conservatively identifies single-stage read-only inspection commands with no
+ * pipelines, chaining, subshells, redirections or mutating options.
+ */
+export const isKnownSafeReadOnlyCommand = (command: string): boolean => {
+  const trimmed = command.trim()
+  if (!trimmed || hasUnsafeReadOnlySyntax(trimmed)) return false
+  const segments = shellCommandSegments(trimmed)
+  if (segments.length !== 1) return false
+  const segment = segments[0]!
+  if (segment.separatorBefore !== null || segment.executableIsPath || !segment.executable) {
+    return false
+  }
+  const tokens = tokenizeSimpleCommand(trimmed)
+  if (!tokens || tokens.length === 0) return false
+  const executable = tokens[0]!.toLowerCase().replace(/\.(?:exe|cmd|bat|com)$/i, '')
+  const args = tokens.slice(1)
+  if (args.some((arg) => /^(?:hkcu|hklm|cert|env|wsman|alias|function|variable):/i.test(arg))) {
+    return false
+  }
+  if (args.some((arg) => /^(?:-o|--output|-outfile)(?:=|$)/i.test(arg))) {
+    return false
+  }
+  if (PURE_READ_ONLY_EXECUTABLES.has(executable)) return true
+  if (executable === 'rg') {
+    return !args.some((arg) => /^--pre(?:$|=|-glob)/i.test(arg))
+  }
+  if (executable === 'find') {
+    return !args.some((arg) => UNSAFE_FIND_FLAGS.has(arg.toLowerCase()))
+  }
+  if (executable === 'fd') {
+    return !args.some((arg) => /^(?:-x|-X|--exec(?:$|=)|--exec-batch(?:$|=))/i.test(arg))
+  }
+  if (executable === 'git') {
+    return isSafeGitReadCommand(args)
+  }
+  if (executable === 'sed') {
+    return (
+      args.length === 3 &&
+      args[0] === '-n' &&
+      /^\d+(?:,\d+)?p$/u.test(args[1]!) &&
+      !args[2]!.startsWith('-')
+    )
+  }
+  return false
+}

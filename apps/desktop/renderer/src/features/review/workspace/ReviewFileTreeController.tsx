@@ -61,7 +61,7 @@ export const ReviewFileTreeController = React.memo(function ReviewFileTreeContro
 
   if (rows.length === 0) {
     return (
-      <div className="review-empty-state tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm">
+      <div className="review-empty-state tw:px-4 tw:py-5 tw:text-app-text-meta tw:type-1">
         {emptyMessage}
       </div>
     )

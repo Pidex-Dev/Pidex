@@ -1,3 +1,4 @@
+import { useComputerSettings } from './UseComputerSettings.js'
 import { useMemo } from 'react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
@@ -20,17 +21,12 @@ import { NotFoundPage } from '../routing/NotFoundPage.js'
 import { useDesktopLayoutOutletContext } from '../layout/shell/DesktopLayoutOutletContext.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 
-type Props = {
-  activeTabOverride?: string
-}
-
-export function SettingsLayout({ activeTabOverride }: Props = {}): React.ReactNode {
+export function SettingsLayout(): React.ReactNode {
   const { tab, projectId } = useParams<{
     tab?: string
     projectId?: string
   }>()
-  const activeTab =
-    activeTabOverride ?? (tab ? decodeURIComponent(tab) : projectId ? 'environment' : '')
+  const activeTab = tab ? decodeURIComponent(tab) : projectId ? 'environment' : ''
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const subscribedDraftActions = useDesktopSettingsDraftActions()
@@ -49,14 +45,16 @@ export function SettingsLayout({ activeTabOverride }: Props = {}): React.ReactNo
   )
   const { t } = useLocale()
   const theme = useDesktopTheme()
-  const { workspacePath, useSkill } = useDesktopLayoutOutletContext()
+  const { workspacePath, useSkill, openJudgePanel } = useDesktopLayoutOutletContext()
   const navigate = useNavigate()
   const location = useLocation()
   const capabilityState = useSettingsCapabilityState()
+  const { state: computerState } = useComputerSettings()
   const activeItem = SETTINGS_ITEMS.find((item) => item.routeId === activeTab)
   const visibility = resolveSettingsSectionVisibility(activeItem?.requires, {
     workspacePath,
     capabilityState,
+    computerRuntimeInstalled: computerState.runtimeInstalled,
   })
 
   useEffect(() => {
@@ -88,9 +86,18 @@ export function SettingsLayout({ activeTabOverride }: Props = {}): React.ReactNo
 
   if (activeTab === 'environment' || activeTab === 'local-environment') {
     const query = new URLSearchParams(location.search)
-    query.set('tab', 'environments')
     if (projectId) query.set('projectId', projectId)
-    return <Navigate replace to={`/settings/worktrees?${query}`} />
+    return <Navigate replace to={`/settings/environments?${query}`} />
+  }
+
+  if (
+    activeTab === 'worktrees' &&
+    new URLSearchParams(location.search).get('tab') === 'environments'
+  ) {
+    const query = new URLSearchParams(location.search)
+    query.delete('tab')
+    if (projectId) query.set('projectId', projectId)
+    return <Navigate replace to={`/settings/environments?${query}`} />
   }
 
   if (!SETTINGS_ITEMS.some((item) => item.routeId === activeTab)) {
@@ -109,6 +116,7 @@ export function SettingsLayout({ activeTabOverride }: Props = {}): React.ReactNo
         activeTab={activeTab}
         workspacePath={workspacePath}
         onUseSkill={useSkill}
+        onOpenJudgePanel={openJudgePanel}
         onError={setErrorMessage}
         onNotice={setNoticeMessage}
       />

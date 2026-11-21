@@ -79,17 +79,17 @@ export function BillingCredentialConnection({
     <section className="model-center-account-connection tw:grid tw:min-w-0 tw:gap-3 tw:p-4">
       <header className="tw:flex tw:min-w-0 tw:items-start tw:justify-between tw:gap-3">
         <div>
-          <h4 className="tw:m-0 tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-md)] tw:type-weight-label">
+          <h4 className="tw:m-0 tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-2)] tw:weight-medium">
             {source.displayName}
           </h4>
-          <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
+          <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]">
             {connected && source.connection.maskedValue
               ? `已保存 ${source.connection.maskedValue}；输入框不会回显现有密钥。`
               : '独立管理凭据仅用于余额和账务查询，不会进入推理 Key 池。'}
           </p>
         </div>
         <span
-          className="tw:whitespace-nowrap tw:rounded-full tw:border tw:border-app-border-subtle tw:px-2 tw:py-1 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)] tw:data-[tone=success]:text-app-success"
+          className="tw:whitespace-nowrap tw:rounded-full tw:border tw:border-app-border-subtle tw:px-2 tw:py-1 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:data-[tone=success]:text-app-success"
           data-tone={connected ? 'success' : 'neutral'}
         >
           {connected ? '已连接' : '可连接'}
@@ -101,7 +101,7 @@ export function BillingCredentialConnection({
             className="model-center-account-field tw:grid tw:min-w-0 tw:gap-2"
             key={field.name}
           >
-            <span className="tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)] tw:type-weight-label">
+            <span className="tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:weight-medium">
               {field.label}
             </span>
             <Input
@@ -119,7 +119,7 @@ export function BillingCredentialConnection({
             />
           </label>
         ))}
-        <div className="model-center-account-actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:min-h-9 tw:self-end tw:[&_svg]:size-icon tw:@max-[720px]:justify-start">
+        <div className="model-center-account-actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:min-h-7 tw:self-end tw:[&_svg]:size-icon tw:@max-[720px]:justify-start">
           <Button
             color="primary"
             disabled={!fieldsComplete(source, values)}
@@ -137,7 +137,7 @@ export function BillingCredentialConnection({
       </div>
       {error ? (
         <p
-          className="model-center-account-error tw:m-0 tw:text-app-danger tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]"
+          className="model-center-account-error tw:m-0 tw:text-app-danger tw:[font-size:var(--cpx-sys-font-size-1)] tw:[line-height:var(--cpx-sys-line-height-1)]"
           role="status"
         >
           {error}

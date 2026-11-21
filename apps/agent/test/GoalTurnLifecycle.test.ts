@@ -63,8 +63,12 @@ for (const action of ['pause', 'stop', 'clear'] as const) {
       } as never,
       { listByBinding: async () => [] } as never,
       { dataRoot: root, userHome: root },
-      { recall: () => [], enqueue: () => null } as never,
-      { load: () => {}, run: async () => [] } as never,
+      {
+        inject: async () => ({ sections: [], ignored: false }),
+        defaultScopes: () => [{ kind: 'user' }],
+        enqueueExtract: () => null,
+      } as never,
+      { load: () => {}, loadWithPlugins: () => {}, run: async () => [] } as never,
       {
         resolve: async () => ({
           kind: 'projectless',
@@ -104,8 +108,8 @@ for (const action of ['pause', 'stop', 'clear'] as const) {
           model: { providerID: 'test', id: 'test' } as never,
           permissionConfig: {
             sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
-            approvalsReviewer: 'user',
+            approvalPolicy: 'auto_review',
+            approvalsReviewer: 'auto_review',
           },
           strategy: 'queue',
           taskMode: 'chat',

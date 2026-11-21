@@ -12,6 +12,7 @@ import type {
   PetInstallPreview,
 } from '@pidex/agent-protocol'
 import type { DesktopPetOverlayBridge } from '@pidex/shared/desktop-pet-overlay'
+import type { DesktopShellIpcBridge } from '@pidex/shared/desktop-shell-ipc'
 import type { DesktopDataLocationIpcBridge } from '@pidex/shared/desktop-data-location-ipc'
 import type { DesktopUpdateIpcBridge } from '@pidex/shared/desktop-update-ipc'
 import type { DesktopTerminalIpcBridge } from '@pidex/shared/desktop-terminal-ipc'
@@ -41,11 +42,9 @@ import type { AgentRpcSubscription } from '../AgentRpcClient.js'
 import type {
   DesktopApi,
   DesktopComposerAttachment,
-  DesktopGitStatus,
   DesktopReviewSource,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
-  DesktopSystemFontsResult,
   DesktopThemeSettings,
   DesktopThreadBookmarkList,
 } from '../../../shared/Types.js'
@@ -61,7 +60,6 @@ type DesktopClientWindow = {
     canRestorePreviousAppearance?(): Promise<boolean>
     restorePreviousAppearance?(): Promise<DesktopThemeSettings>
     applyNewDesignTheme?(): Promise<DesktopThemeSettings>
-    listSystemFonts?(): Promise<DesktopSystemFontsResult>
     getDesktopSettings?(): Promise<DesktopStoredSettings>
     saveDesktopSettings?(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
     onDesktopSettingsChange?(
@@ -87,10 +85,23 @@ type DesktopClientWindow = {
     Partial<DesktopUpdateIpcBridge> &
     Partial<DesktopAttachmentIpcBridge> &
     Partial<DesktopBrowserIpcBridge> &
-    Partial<DesktopMicrophoneIpcBridge>
+    Partial<DesktopMicrophoneIpcBridge> &
+    Partial<DesktopShellIpcBridge>
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
   dispatchEvent?: Window['dispatchEvent']
+}
+
+/**
+ * Window foreground probe used to decide whether a completion/failure of the
+ * currently viewed session may auto-clear its unread flag. The default reads the
+ * real DOM (`document.visibilityState` + focus); tests inject their own controller
+ * so the behavior is exercisable without a DOM.
+ */
+export type DesktopForegroundController = {
+  isForeground(): boolean
+  /** Registers a callback fired on visibility/focus changes; returns an unsubscribe. */
+  addChangeListener?(listener: () => void): () => void
 }
 
 export type DesktopClientEnvironment = {
@@ -101,6 +112,7 @@ export type DesktopClientEnvironment = {
   openExternal?: (url: string) => void | Promise<void>
   debugBridgePort?: number
   debugBridgeToken?: string
+  foreground?: DesktopForegroundController
 }
 
 export type DesktopReviewAgentFileSummary = {
@@ -442,6 +454,34 @@ export type DesktopCalendarApi = {
   ): Promise<RpcResult<'schedule-draft/feedback'>>
 }
 
+export type DesktopHooksApi = {
+  supportsHookManagement(): boolean
+  listHookGroups(cwd?: string | null): Promise<RpcResult<'hook/list'>>
+  setHookEnabled(
+    input: Omit<RpcParams<'hook/setEnabled'>, 'operationId'>,
+  ): Promise<RpcResult<'hook/setEnabled'>>
+  requireHookManagement(): void
+}
+
+/** Decision engine surface; gated on the `decision.engine.v1` runtime capability. */
+export type DesktopDecisionApi = {
+  supportsDecisionEngine(): boolean
+  getDecisionConfig(cwd?: string | null): Promise<RpcResult<'decision/getConfig'>>
+  updateDecisionConfig(
+    input: Omit<RpcParams<'decision/updateConfig'>, 'operationId'>,
+  ): Promise<RpcResult<'decision/updateConfig'>>
+  setDecisionJudgeApiKey(
+    input: Omit<RpcParams<'decision/setJudgeApiKey'>, 'operationId'>,
+  ): Promise<RpcResult<'decision/setJudgeApiKey'>>
+  probeDecisionJudge(input: RpcParams<'decision/probe'>): Promise<RpcResult<'decision/probe'>>
+  listDecisionLedger(
+    input: RpcParams<'decision/listLedger'>,
+  ): Promise<RpcResult<'decision/listLedger'>>
+  markDecisionOutcome(
+    input: Omit<RpcParams<'decision/markOutcome'>, 'operationId'>,
+  ): Promise<RpcResult<'decision/markOutcome'>>
+}
+
 export type DesktopTaskScheduleApi = {
   taskSchedule<M extends keyof typeof import('@pidex/agent-protocol').TaskScheduleRpcMethods>(
     method: M,
@@ -455,7 +495,10 @@ export type DesktopPluginApi = {
     kind: RpcParams<'plugin/readAsset'>['kind'],
     workspacePath?: string | null,
   ): Promise<RpcResult<'plugin/readAsset'> | null>
-  installPlugin(pluginId: string): Promise<RpcResult<'plugin/install'>>
+  installPlugin(
+    pluginId: string,
+    expectedCatalogRevision?: string,
+  ): Promise<RpcResult<'plugin/install'>>
   uninstallPlugin(pluginId: string): Promise<RpcResult<'plugin/uninstall'>>
   listPlugins(
     workspacePath?: string | null,
@@ -469,6 +512,8 @@ export type DesktopPluginApi = {
     pluginId: string,
     enabled: boolean,
   ): Promise<RpcResult<'plugin/setEnabled'>['plugin']>
+  listApps(workspacePath?: string | null): Promise<RpcResult<'app/list'>>
+  setAppEnabled(appId: string, enabled: boolean): Promise<RpcResult<'app/setEnabled'>['app']>
   onPluginsUpdated(callback: (generation: number) => void): () => void
 }
 
@@ -614,6 +659,8 @@ export type DesktopClient = DesktopApi &
   DesktopCalendarApi &
   DesktopTaskScheduleApi &
   DesktopPluginApi &
+  DesktopHooksApi &
+  DesktopDecisionApi &
   DesktopComputerApi &
   DesktopSessionGroupApi &
   DesktopAttachmentApi &

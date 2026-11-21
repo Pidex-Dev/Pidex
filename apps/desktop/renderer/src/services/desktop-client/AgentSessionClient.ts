@@ -1,21 +1,8 @@
 import { resolveSessionCreationExecution } from '../../features/session/TaskExecutionMode.js'
 import { reconcileQuestionDrafts } from '../../features/session/approvals/AskUserQuestionModel.js'
-import {
-  DESKTOP_AGENT_EVENT_CHANNEL,
-  DESKTOP_API_METHODS,
-  DESKTOP_SETTINGS_CHANGE_CHANNEL,
-  DESKTOP_SESSION_STORE_CHANGE_CHANNEL,
-  DESKTOP_UI_COMMAND_CHANNEL,
-  DESKTOP_WORKFLOW_EVENT_CHANNEL,
-  type DesktopApiMethod,
-} from '../../../shared/IpcChannels.js'
-import { encodeDesktopBridgeArgs } from '../../../shared/DesktopBridgeArgs.js'
 import { arePathsEqual } from '../../utils/PathUtils.js'
 import { toUserErrorMessage } from '../../utils/Errors.js'
-import {
-  defaultDesktopStoredSettings,
-  normalizeDesktopStoredSettings,
-} from '../../../shared/SettingsSchema.js'
+import { normalizeDesktopStoredSettings } from '../../../shared/SettingsSchema.js'
 import {
   collaborationModeFromPlanModeActive,
   planModeActiveFromCollaborationMode,
@@ -25,7 +12,6 @@ import type { CatalogProvider, ModelRef, Project } from '@pidex/shared'
 import { ModelRefSchema } from '@pidex/shared'
 import type {
   PermissionConfig,
-  SubagentProjection,
   ThreadListItem,
   ThreadSettings,
   ThreadSettingsPatch,
@@ -42,17 +28,11 @@ import {
   withSessionStatusOverride,
   type SessionStatusOverride,
 } from './SessionStatusOverrides.js'
-import {
-  DEFAULT_DESKTOP_THEME_SETTINGS,
-  isNewerDesktopThemeSettingsVersion,
-  normalizeDesktopThemeSettings,
-} from '../../../shared/Theme.js'
 import { formatCanonicalSkillInvocation } from '../../../shared/DesktopUserMessage.js'
 import { resolvePreferredOpenTarget } from './OpenTargetSelection.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
-  DesktopWorktreeEligibility,
   DesktopApi,
   DesktopMessageDelivery,
   DesktopFileEntry,
@@ -61,28 +41,20 @@ import type {
   DesktopFileSaveResult,
   DesktopModelSelection,
   DesktopModelProviderState,
-  DesktopModelProviderSummary,
   DesktopProviderCredential,
-  DesktopModelMetadata,
   DesktopPermissionDecision,
   DesktopPermissionMode,
-  DesktopReviewDiffResult,
   DesktopReviewSource,
-  DesktopSessionEvent,
   DesktopSessionCatalogStatus,
   DesktopSessionMetadataPatch,
-  DesktopRuntimeStatus,
   GenerateDesktopTaskSuggestionsInput,
+  GenerateDesktopComposerPredictionInput,
   DesktopProjectSource,
   DesktopProjectSourceReadResult,
-  DesktopSettingsChange,
   DesktopSessionStoreChange,
   DesktopSessionSnapshot,
-  DesktopStoredSettings,
-  DesktopThemeSettings,
-  DesktopSubagentRead,
+  DesktopSessionListItem,
   DesktopUserMessageInput,
-  DesktopWorkspace,
   ModelProviderID,
 } from '../../../shared/Types.js'
 import {
@@ -132,17 +104,17 @@ export const RENDERER_CAPABILITIES = [
   'model.preferences.v1',
   'interaction.questionPause.v1',
   'mcp.elicitation.v1',
-  'approval.retry.v1',
   'turn.admission.v1',
   'thread.editUserMessage.v1',
   'skills.invocation.v1',
   'plan.approval.v1',
+  'plan.approval.fresh.v1',
   'plan.structured.v1',
   'turn.steer.v1',
   'turn.queue.management.v1',
   'attachments.v1',
   'local-context.paths.v1',
-  'memory.v2',
+  'memory.v3',
   'pets.management.v1',
   'workspace.editor.v1',
   'thread.creation-surface.v1',
@@ -160,6 +132,7 @@ export const RENDERER_CAPABILITIES = [
   'context.compact.v1',
   'context.compact.lifecycle.v1',
   'hooks.trust.v1',
+  'hooks.management.v1',
   'subagents.v1',
   'subagents.recursive.v1',
   'subagents.followup.v1',
@@ -172,20 +145,27 @@ export const RENDERER_CAPABILITIES = [
   'model.media-input.v1',
   'provider.config.pi.v1',
   'provider.modelSync.v1',
+  'provider.modelSpecs.v1',
   'provider.protocolDetection.v1',
   'provider.builtinOverrides.v1',
   'provider.auth.pi.v1',
+  'model.documents.v1',
+  'project.edit.v1',
+  'project.restore.v1',
+  'task.schedule.v1',
   'tooling.management.v1',
   'skills.manage.v1',
   'plugins.manage.v1',
   'plugins.details.v1',
   'plugins.lifecycle.v1',
   'plugins.assets.v1',
+  'apps.manage.v1',
   'mcp.manage.v1',
   'mcp.oauth.v1',
   'config.manage.v1',
   'config.profiles.v1',
   'task-suggestions.v1',
+  'composer-predictions.v1',
   'release-notes.read.v1',
   'thread.side-chat.v1',
   'speech.transcription.v1',
@@ -196,10 +176,11 @@ export const RENDERER_CAPABILITIES = [
   'workflow.v1',
   'computer.use.v1' as ProtocolCapability,
   'computer.policy.v1' as ProtocolCapability,
+  'decision.engine.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',
-  memory: 'memory.v2',
+  memory: 'memory.v3',
   compact: 'context.compact.v1',
   hookTrust: 'hooks.trust.v1',
 } as const satisfies Record<string, ProtocolCapability>
@@ -268,6 +249,49 @@ export async function collectAllThreadPages(
   return threads
 }
 
+/**
+ * Default foreground probe. Uses the real DOM when present and degrades to
+ * "always foreground" in non-DOM environments (e.g. unit tests without a DOM),
+ * where tests inject their own controller through the client environment.
+ */
+function createDefaultForegroundController(
+  environment: DesktopClientEnvironment,
+): import('./Types.js').DesktopForegroundController {
+  const doc = typeof document !== 'undefined' ? document : undefined
+  const win =
+    environment.window ??
+    (typeof window !== 'undefined' ? (window as unknown as typeof environment.window) : undefined)
+  return {
+    isForeground() {
+      if (doc) {
+        if (doc.visibilityState === 'hidden') return false
+        if (typeof doc.hasFocus === 'function' && !doc.hasFocus()) return false
+      }
+      return true
+    },
+    addChangeListener(listener) {
+      const cleanups: Array<() => void> = []
+      if (doc) {
+        doc.addEventListener('visibilitychange', listener)
+        cleanups.push(() => doc.removeEventListener('visibilitychange', listener))
+      }
+      if (win?.addEventListener && win.removeEventListener) {
+        const onFocus = (): void => listener()
+        const onBlur = (): void => listener()
+        win.addEventListener('focus', onFocus)
+        win.addEventListener('blur', onBlur)
+        cleanups.push(() => {
+          win.removeEventListener?.('focus', onFocus)
+          win.removeEventListener?.('blur', onBlur)
+        })
+      }
+      return () => {
+        for (const cleanup of cleanups) cleanup()
+      }
+    },
+  }
+}
+
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi &
@@ -312,6 +336,7 @@ export function createAgentSessionDesktopClient(
   let readyProbe: Promise<boolean> | null = null
   let readinessError: unknown = null
   let projectsByIdCache: Map<string, Project> | null = null
+  let modelCatalogGeneration = 0
   let modelCatalogCache: RpcResult<'model/list'> | null = null
   let providerCatalogCache: RpcResult<'provider/list'> | null = null
   let providerCatalogRequest: Promise<RpcResult<'provider/list'>> | null = null
@@ -337,13 +362,31 @@ export function createAgentSessionDesktopClient(
   const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const confirmedReadThroughBySessionId = new Map<string, number>()
   const pendingReadThroughBySessionId = new Map<string, Map<string, number>>()
+  // One serial chain per session for every read-state mutation (manual read,
+  // manual unread and automatic clear) so operations land on the server in the
+  // exact order the user triggered them, and a later manual unread always wins.
+  const readOperationTailBySessionId = new Map<string, Promise<void>>()
+  // Coalesced automatic clear: repeated completion/failure events collapse into a
+  // single pending watermark equal to the largest read-through target.
+  const automaticReadTargetBySessionId = new Map<string, number>()
+  const automaticReadScheduledBySessionId = new Set<string>()
+  // A deferred (backgrounded) or failed automatic clear that must be retried on
+  // the next catalog refresh or foreground restore — never by an immediate,
+  // self-scheduled retry (that would spin against a failing backend).
+  const automaticReadRetryBySessionId = new Map<string, number>()
+  // Bumped when the user marks a session unread so any queued or in-flight
+  // automatic clear is invalidated and cannot wipe the fresh manual unread.
+  const automaticReadGenerationBySessionId = new Map<string, number>()
   const pendingSettingsUpdates = new Map<string, Promise<void>>()
-  const approvalRetryOperations = new Map<string, string>()
-  const pendingDesktopSettingsSaves = new Map<string, Promise<DesktopStoredSettings>>()
-  let desktopSettingsSaveTail: Promise<void> = Promise.resolve()
   let sessionStoreReconcile: Promise<void> | null = null
   let backgroundReconcileFailed = false
   const reconciliationErrorListeners = new Set<(error: unknown) => void>()
+  const foregroundController =
+    environment.foreground ?? createDefaultForegroundController(environment)
+  const isForeground = (): boolean => foregroundController.isForeground()
+  foregroundController.addChangeListener?.(() => {
+    if (isForeground()) retryPendingAutomaticReads()
+  })
 
   function notifyReconciliationError(error: unknown): void {
     if (backgroundReconcileFailed) return
@@ -473,9 +516,9 @@ export function createAgentSessionDesktopClient(
         ? CAPABILITY_ALIASES[name as keyof typeof CAPABILITY_ALIASES]
         : (name as ProtocolCapability)
     if (version <= 1 && agentCapabilities.has(capability)) return
-    if (version === 2 && (name === 'prompt' || name === 'memory')) {
-      if (agentCapabilities.has(capability)) return
-    }
+    if (version === 2 && name === 'prompt' && agentCapabilities.has(capability)) return
+    // memory.v3 replaced the SQLite entry surface; older versions are unsupported.
+    if (version === 3 && name === 'memory' && agentCapabilities.has(capability)) return
     const versionLabel = name.endsWith(`.v${version}`) ? name : `${name} v${version}`
     unsupportedAgentOperation(versionLabel)
   }
@@ -511,38 +554,8 @@ export function createAgentSessionDesktopClient(
     await pendingSettingsUpdates.get(sessionId)
   }
 
-  function queueDesktopSettingsSave(
-    settings: DesktopStoredSettings,
-  ): Promise<DesktopStoredSettings> {
-    const normalized = normalizeDesktopStoredSettings(settings)
-    const fingerprint = JSON.stringify(normalized)
-    const pending = pendingDesktopSettingsSaves.get(fingerprint)
-    if (pending) return pending
-
-    const operation = desktopSettingsSaveTail
-      .catch(() => undefined)
-      .then(async () => {
-        const saver = environment.window?.DesktopBridge?.saveDesktopSettings
-        if (!saver) return mockClient.saveDesktopSettings(normalized)
-        const saved = normalizeDesktopStoredSettings(await saver(normalized))
-        await mockClient.saveDesktopSettings(saved)
-        return saved
-      })
-    desktopSettingsSaveTail = operation.then(
-      () => undefined,
-      () => undefined,
-    )
-    pendingDesktopSettingsSaves.set(fingerprint, operation)
-    const clearPending = () => {
-      if (pendingDesktopSettingsSaves.get(fingerprint) === operation) {
-        pendingDesktopSettingsSaves.delete(fingerprint)
-      }
-    }
-    void operation.then(clearPending, clearPending)
-    return operation
-  }
-
   function invalidateModelCatalog(): void {
+    modelCatalogGeneration++
     modelCatalogCache = null
     providerCatalogCache = null
     providerCatalogRequest = null
@@ -556,11 +569,13 @@ export function createAgentSessionDesktopClient(
 
   async function loadModelCatalog(refresh = false): Promise<RpcResult<'model/list'>> {
     if (modelCatalogCache && !refresh) return modelCatalogCache
+    const generation = modelCatalogGeneration
     const result = refresh
       ? await rpc.call('model/refresh', {
           operationId: crypto.randomUUID(),
         })
       : await rpc.call('model/list', {})
+    if (generation !== modelCatalogGeneration) return loadModelCatalog()
     modelCatalogCache = {
       providers: [...result.providers],
       defaultModel: result.defaultModel,
@@ -574,9 +589,11 @@ export function createAgentSessionDesktopClient(
     await isAgentAvailable()
     if (providerCatalogCache && !refresh) return providerCatalogCache
     if (providerCatalogRequest && !refresh) return providerCatalogRequest
+    const generation = modelCatalogGeneration
     const pending = rpc
       .call('provider/list', {})
       .then((result) => {
+        if (generation !== modelCatalogGeneration) return loadProviderCatalog()
         providerCatalogCache = result
         return result
       })
@@ -594,6 +611,7 @@ export function createAgentSessionDesktopClient(
     limit?: number
     retryCatalogChange?: boolean
   }): Promise<RpcResult<'model/list'>> {
+    const generation = modelCatalogGeneration
     if (!agentCapabilities.has('model.catalog.paged.v1')) {
       const legacy = await loadModelCatalog()
       const provider = legacy.providers.find((item) => item.provider.id === options.providerID)
@@ -635,7 +653,10 @@ export function createAgentSessionDesktopClient(
       providerModelRequests.set(requestKey, pending)
     }
     const result = await pending
-    if (result.catalogVersion !== directory.catalogVersion) {
+    if (
+      generation !== modelCatalogGeneration ||
+      result.catalogVersion !== directory.catalogVersion
+    ) {
       invalidateModelCatalog()
       if (options.cursor || options.retryCatalogChange === false) {
         throw new Error('模型目录已更新，请重新查询。')
@@ -654,6 +675,7 @@ export function createAgentSessionDesktopClient(
   async function loadAllProviderModels(
     providerID: ModelProviderID,
   ): Promise<RpcResult<'model/list'>> {
+    const generation = modelCatalogGeneration
     const hadPrevious = providerModelCache.has(providerID)
     const previous = providerModelCache.get(providerID)
 
@@ -707,8 +729,10 @@ export function createAgentSessionDesktopClient(
       }
       throw new Error('模型目录加载失败。')
     } catch (error) {
-      if (hadPrevious && previous) providerModelCache.set(providerID, previous)
-      else providerModelCache.delete(providerID)
+      if (generation === modelCatalogGeneration) {
+        if (hadPrevious && previous) providerModelCache.set(providerID, previous)
+        else providerModelCache.delete(providerID)
+      }
       throw error
     }
   }
@@ -968,6 +992,9 @@ export function createAgentSessionDesktopClient(
       update.threadId,
       (lifecycleEpochBySessionId.get(update.threadId) ?? 0) + 1,
     )
+    // A completed/failed turn of the session the user is currently viewing should
+    // be marked read automatically (only while the window is in the foreground).
+    maybeAutoReadAfterLifecycle(update)
     const cached = sessionSnapshots.get(update.threadId)
     if (!cached) return
     const targetError =
@@ -1042,6 +1069,9 @@ export function createAgentSessionDesktopClient(
       sessionSnapshots.set(item.id, snapshot)
       return snapshot
     })
+    // A failed/deferred automatic clear is retried on the next catalog refresh for
+    // the currently viewed session (only when the window is in the foreground).
+    if (!archived) retryPendingAutomaticReads()
     return snapshots
   }
 
@@ -1097,13 +1127,6 @@ export function createAgentSessionDesktopClient(
     sessionSnapshots.set(sessionId, snapshot)
     await refreshAgentSessionStoreChange().catch(() => emitSessionStoreChange())
     return snapshot
-  }
-
-  async function restoreArchivedAgentSession(sessionId: string): Promise<void> {
-    const snapshot = await loadAgentSessionSnapshot(sessionId)
-    if (snapshot.item.archivedAt) {
-      await updateAgentSessionMetadata(sessionId, { archivedAt: null })
-    }
   }
 
   async function refreshAgentSessionStoreChange(
@@ -1585,23 +1608,203 @@ export function createAgentSessionDesktopClient(
   const operationError = (error: unknown) =>
     error instanceof Error ? error.message : String(error)
 
+  type ThreadCacheMode = 'metadata' | 'read-state'
   const cacheThreadListItem = async (
     rawThread: ThreadListItem,
+    mode: ThreadCacheMode = 'metadata',
   ): Promise<DesktopSessionSnapshot> => {
     const requestEpoch = lifecycleEpochBySessionId.get(rawThread.id) ?? 0
-    const thread = applySessionReadThrough(rawThread)
+    // Mutation responses use getListItem's narrow projection; preserve richer
+    // catalog/detail fields instead of overwriting them with adapter defaults.
+    const thread = mode === 'read-state' ? rawThread : applySessionReadThrough(rawThread)
     const projectsById = await loadProjectsById()
     const listSnapshot = agentThreadListItemToDesktopSnapshot(
       thread,
       thread.projectID ? projectsById.get(thread.projectID) : null,
     )
     const snapshot = sessionSnapshots.get(thread.id) ?? listSnapshot
-    snapshot.item = { ...snapshot.item, ...listSnapshot.item }
-    snapshot.updatedAt = listSnapshot.updatedAt
+    if (mode === 'read-state') {
+      snapshot.item = { ...snapshot.item, unreadAt: listSnapshot.item.unreadAt }
+    } else {
+      snapshot.item = {
+        ...snapshot.item,
+        sessionName: listSnapshot.item.sessionName,
+        customTitle: listSnapshot.item.customTitle,
+        aiTitle: listSnapshot.item.aiTitle,
+        archivedAt: listSnapshot.item.archivedAt,
+        unreadAt: listSnapshot.item.unreadAt,
+      }
+      snapshot.updatedAt = listSnapshot.updatedAt
+    }
     const reconciled = applyLifecycleSnapshotFreshness(snapshot, requestEpoch)
     sessionSnapshots.set(thread.id, reconciled)
     emitSessionStoreChange()
     return reconciled
+  }
+
+  /**
+   * Serializes every read-state mutation for one session. Manual read / manual
+   * unread / automatic clear all funnel through this chain, so the last user
+   * action is the last server call and its optimistic state is the final one.
+   */
+  function enqueueSessionReadOperation<T>(
+    sessionId: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const previous = readOperationTailBySessionId.get(sessionId) ?? Promise.resolve()
+    const result = previous.then(operation, operation)
+    readOperationTailBySessionId.set(
+      sessionId,
+      result.then(
+        () => undefined,
+        () => undefined,
+      ),
+    )
+    return result
+  }
+
+  /** Invalidates any queued or in-flight automatic clear for a session. */
+  function invalidateAutomaticRead(sessionId: string): void {
+    automaticReadGenerationBySessionId.set(
+      sessionId,
+      (automaticReadGenerationBySessionId.get(sessionId) ?? 0) + 1,
+    )
+    automaticReadTargetBySessionId.delete(sessionId)
+    automaticReadScheduledBySessionId.delete(sessionId)
+    automaticReadRetryBySessionId.delete(sessionId)
+  }
+
+  async function performMarkRead(
+    sessionId: string,
+    readThroughTimestamp: number,
+    options: { automatic: boolean; generation?: number },
+  ): Promise<DesktopSessionListItem | null> {
+    const requestId = crypto.randomUUID()
+    const pendingReadThrough = pendingReadThroughBySessionId.get(sessionId) ?? new Map()
+    pendingReadThrough.set(requestId, readThroughTimestamp)
+    pendingReadThroughBySessionId.set(sessionId, pendingReadThrough)
+    const cached = sessionSnapshots.get(sessionId)
+    const previousUnreadAt = cached?.item.unreadAt ?? null
+    if (
+      !options.automatic &&
+      cached?.item.unreadAt &&
+      Date.parse(cached.item.unreadAt) <= readThroughTimestamp
+    ) {
+      cached.item = { ...cached.item, unreadAt: null }
+      sessionSnapshots.set(sessionId, cached)
+      emitSessionStoreChange()
+    }
+    try {
+      const response = await rpc.call('thread/mark-read', {
+        threadId: sessionId,
+        readThroughAt: readThroughTimestamp,
+        operationId: requestId,
+      })
+      pendingReadThrough.delete(requestId)
+      if (pendingReadThrough.size === 0) pendingReadThroughBySessionId.delete(sessionId)
+      // The user may have marked the session unread while this automatic request
+      // was in flight. Discard its result so it can never hide the manual unread.
+      if (
+        options.automatic &&
+        (automaticReadGenerationBySessionId.get(sessionId) ?? 0) !== (options.generation ?? 0)
+      ) {
+        return null
+      }
+      confirmedReadThroughBySessionId.set(
+        sessionId,
+        Math.max(confirmedReadThroughBySessionId.get(sessionId) ?? 0, readThroughTimestamp),
+      )
+      return (await cacheThreadListItem(response.thread, 'read-state')).item
+    } catch (error) {
+      pendingReadThrough.delete(requestId)
+      if (pendingReadThrough.size === 0) pendingReadThroughBySessionId.delete(sessionId)
+      if (options.automatic) {
+        // Never let an unconfirmed read hide the row behind a permanent watermark:
+        // restore the optimistic value and leave a retry marker for the next
+        // catalog refresh / foreground restore instead of retrying immediately.
+        const current = sessionSnapshots.get(sessionId)
+        if (current && current.item.unreadAt == null && previousUnreadAt != null) {
+          current.item = { ...current.item, unreadAt: previousUnreadAt }
+          sessionSnapshots.set(sessionId, current)
+          emitSessionStoreChange()
+        }
+        throw error
+      }
+      await refreshAgentSessionStoreChange().catch(() => {})
+      throw error
+    }
+  }
+
+  /**
+   * Queues (and coalesces) an automatic mark-read for one session. Duplicate
+   * requests collapse to a single serial operation that reads through the largest
+   * target, so a burst of completion/failure events never issues a burst of RPCs.
+   */
+  function queueAutomaticRead(sessionId: string, readThroughTimestamp: number): void {
+    if (!Number.isFinite(readThroughTimestamp) || readThroughTimestamp <= 0) return
+    if (readThroughTimestamp <= (confirmedReadThroughBySessionId.get(sessionId) ?? 0)) {
+      automaticReadRetryBySessionId.delete(sessionId)
+      return
+    }
+    const pending = automaticReadTargetBySessionId.get(sessionId)
+    automaticReadTargetBySessionId.set(
+      sessionId,
+      pending === undefined ? readThroughTimestamp : Math.max(pending, readThroughTimestamp),
+    )
+    if (automaticReadScheduledBySessionId.has(sessionId)) return
+    automaticReadScheduledBySessionId.add(sessionId)
+    void enqueueSessionReadOperation(sessionId, async () => {
+      automaticReadScheduledBySessionId.delete(sessionId)
+      const target = automaticReadTargetBySessionId.get(sessionId)
+      automaticReadTargetBySessionId.delete(sessionId)
+      if (target === undefined) return
+      const generation = automaticReadGenerationBySessionId.get(sessionId) ?? 0
+      try {
+        await performMarkRead(sessionId, target, { automatic: true, generation })
+        if ((automaticReadGenerationBySessionId.get(sessionId) ?? 0) === generation) {
+          automaticReadRetryBySessionId.delete(sessionId)
+        }
+      } catch {
+        if ((automaticReadGenerationBySessionId.get(sessionId) ?? 0) === generation) {
+          const retry = automaticReadRetryBySessionId.get(sessionId) ?? 0
+          automaticReadRetryBySessionId.set(sessionId, Math.max(retry, target))
+        }
+      }
+    })
+  }
+
+  /**
+   * On foreground restore / catalog refresh, retry the pending automatic clear for
+   * the currently viewed session only. The retry target grows to cover any unread
+   * that accumulated while the window was in the background.
+   */
+  function retryPendingAutomaticReads(): void {
+    const sessionId = activeSessionId
+    if (!sessionId || !isForeground()) return
+    const retry = automaticReadRetryBySessionId.get(sessionId)
+    if (retry === undefined) return
+    const cachedUnreadAt = sessionSnapshots.get(sessionId)?.item.unreadAt
+    const cachedTimestamp = cachedUnreadAt ? Date.parse(cachedUnreadAt) : 0
+    const target = Math.max(retry, Number.isFinite(cachedTimestamp) ? cachedTimestamp : 0)
+    if (target <= 0) return
+    // Clear the marker before queueing so an in-flight retry is not scheduled
+    // again on every catalog refresh; a failure re-arms it.
+    automaticReadRetryBySessionId.delete(sessionId)
+    queueAutomaticRead(sessionId, target)
+  }
+
+  function maybeAutoReadAfterLifecycle(update: SessionLifecycleUpdate): void {
+    if (update.status !== 'completed' && update.status !== 'failed') return
+    if (update.threadId !== activeSessionId) return
+    if (!Number.isFinite(update.occurredAt) || update.occurredAt <= 0) return
+    if (!isForeground()) {
+      // Window hidden or unfocused: keep the unread and clear it when the user
+      // comes back to the currently viewed session.
+      const retry = automaticReadRetryBySessionId.get(update.threadId) ?? 0
+      automaticReadRetryBySessionId.set(update.threadId, Math.max(retry, update.occurredAt))
+      return
+    }
+    queueAutomaticRead(update.threadId, update.occurredAt)
   }
 
   type AgentReviewApi = ReturnType<(typeof import('./AgentReviewApi.js'))['createAgentReviewApi']>
@@ -1697,6 +1900,34 @@ export function createAgentSessionDesktopClient(
     return agentPluginApiPromise
   }
 
+  type AgentHooksApi = ReturnType<(typeof import('./AgentHooksApi.js'))['createAgentHooksApi']>
+  let agentHooksApiPromise: Promise<AgentHooksApi> | null = null
+  const loadAgentHooksApi = (): Promise<AgentHooksApi> => {
+    agentHooksApiPromise ??= import('./AgentHooksApi.js').then((module) =>
+      module.createAgentHooksApi({
+        hasAgentCapability: (capability) => agentCapabilities.has(capability),
+        requireAgentCapability,
+        rpc: { call: rpc.call },
+      }),
+    )
+    return agentHooksApiPromise
+  }
+
+  type AgentDecisionApi = ReturnType<
+    (typeof import('./AgentDecisionApi.js'))['createAgentDecisionApi']
+  >
+  let agentDecisionApiPromise: Promise<AgentDecisionApi> | null = null
+  const loadAgentDecisionApi = (): Promise<AgentDecisionApi> => {
+    agentDecisionApiPromise ??= import('./AgentDecisionApi.js').then((module) =>
+      module.createAgentDecisionApi({
+        hasAgentCapability: (capability) => agentCapabilities.has(capability),
+        requireAgentCapability,
+        rpc: { call: rpc.call },
+      }),
+    )
+    return agentDecisionApiPromise
+  }
+
   type AgentComputerApi = ReturnType<
     (typeof import('./AgentComputerApi.js'))['createAgentComputerApi']
   >
@@ -1768,6 +1999,62 @@ export function createAgentSessionDesktopClient(
       }),
     )
     return agentProviderModelSyncApiPromise
+  }
+
+  type AgentMemoryApi = ReturnType<(typeof import('./AgentMemoryApi.js'))['createAgentMemoryApi']>
+  let agentMemoryApiPromise: Promise<AgentMemoryApi> | null = null
+  const loadAgentMemoryApi = (): Promise<AgentMemoryApi> => {
+    agentMemoryApiPromise ??= import('./AgentMemoryApi.js').then((module) =>
+      module.createAgentMemoryApi({
+        loadProjectForPath,
+        mockClient,
+        requireAgentCapability,
+        rpc,
+        withAgentOrMock,
+      }),
+    )
+    return agentMemoryApiPromise
+  }
+
+  type AgentGoalSubagentApi = ReturnType<
+    (typeof import('./AgentGoalSubagentApi.js'))['createAgentGoalSubagentApi']
+  >
+  let agentGoalSubagentApiPromise: Promise<AgentGoalSubagentApi> | null = null
+  const loadAgentGoalSubagentApi = (): Promise<AgentGoalSubagentApi> => {
+    agentGoalSubagentApiPromise ??= import('./AgentGoalSubagentApi.js').then((module) =>
+      module.createAgentGoalSubagentApi({
+        emitSessionStoreChange,
+        findPendingInteraction,
+        hasGoalCapability: () => agentCapabilities.has('thread.goal.v1'),
+        loadAgentSessionSnapshot,
+        mockClient,
+        respondToInteraction,
+        respondToPermissionInteraction,
+        rpc,
+        runGoalMutation,
+        turnQueueClient,
+        unsupportedAgentOperation,
+        withAgentOrMock,
+      }),
+    )
+    return agentGoalSubagentApiPromise
+  }
+
+  type AgentConfigSettingsApi = ReturnType<
+    (typeof import('./AgentConfigSettingsApi.js'))['createAgentConfigSettingsApi']
+  >
+  let agentConfigSettingsApiPromise: Promise<AgentConfigSettingsApi> | null = null
+  const loadAgentConfigSettingsApi = (): Promise<AgentConfigSettingsApi> => {
+    agentConfigSettingsApiPromise ??= import('./AgentConfigSettingsApi.js').then((module) =>
+      module.createAgentConfigSettingsApi({
+        environment,
+        mockClient,
+        requireAgentCapability,
+        rpc,
+        withAgentOrMock,
+      }),
+    )
+    return agentConfigSettingsApiPromise
   }
 
   type AgentProtocolDetectionApi = ReturnType<
@@ -2127,6 +2414,60 @@ export function createAgentSessionDesktopClient(
               .filter((path): path is string => typeof path === 'string'),
           )
         : mockClient.chooseDataLocation(),
+    getStorageSummary: () =>
+      withAgentOrMock(
+        () => rpc.call('storage/summary', {}),
+        () => mockClient.getStorageSummary(),
+      ),
+    listOldChatsForStorage: (params) =>
+      withAgentOrMock(
+        () => rpc.call('storage/oldChats/list', params),
+        () => mockClient.listOldChatsForStorage(params),
+      ),
+    deleteOldChatsForStorage: (threadIds) =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call('storage/oldChats/delete', {
+            threadIds: [...threadIds],
+          })
+          for (const id of result.deletedIds) {
+            sessionSnapshots.delete(id)
+            clearSessionLifecycle(id)
+            if (activeSessionId === id) {
+              activeSessionId =
+                [...sessionSnapshots.keys()].find((candidate) => candidate !== id) ?? null
+            }
+          }
+          return result
+        },
+        () => mockClient.deleteOldChatsForStorage(threadIds),
+      ),
+    getUserDataStorageSummary: () =>
+      environment.window?.DesktopBridge?.getUserDataStorageSummary
+        ? environment.window.DesktopBridge.getUserDataStorageSummary()
+        : mockClient.getUserDataStorageSummary(),
+    openStorageDirectory: (targetPath) =>
+      environment.window?.DesktopBridge?.openDirectory
+        ? environment.window.DesktopBridge.openDirectory(targetPath)
+        : mockClient.openStorageDirectory(targetPath),
+    listAgentDownloadedResources: () =>
+      withAgentOrMock(
+        () => rpc.call('storage/resources/list', {}),
+        () => mockClient.listAgentDownloadedResources(),
+      ),
+    deleteAgentDownloadedResource: (resourceId) =>
+      withAgentOrMock(
+        () => rpc.call('storage/resources/delete', { resourceId }),
+        () => mockClient.deleteAgentDownloadedResource(resourceId),
+      ),
+    listUserDataDownloadedResources: () =>
+      environment.window?.DesktopBridge?.listUserDataDownloadedResources
+        ? environment.window.DesktopBridge.listUserDataDownloadedResources()
+        : mockClient.listUserDataDownloadedResources(),
+    deleteUserDataDownloadedResource: (resourceId) =>
+      environment.window?.DesktopBridge?.deleteUserDataDownloadedResource
+        ? environment.window.DesktopBridge.deleteUserDataDownloadedResource(resourceId)
+        : mockClient.deleteUserDataDownloadedResource(resourceId),
     listTooling: () => loadAgentToolingApi().then((api) => api.listTooling()),
     refreshTooling: () => loadAgentToolingApi().then((api) => api.refreshTooling()),
     setToolingPreference: (id, preference) =>
@@ -2157,11 +2498,15 @@ export function createAgentSessionDesktopClient(
       loadAgentPluginApi().then((api) => api.listPlugins(workspacePath, forceReload)),
     getPluginDetails: (pluginId, workspacePath) =>
       loadAgentPluginApi().then((api) => api.getPluginDetails(pluginId, workspacePath)),
-    installPlugin: (pluginId) => loadAgentPluginApi().then((api) => api.installPlugin(pluginId)),
+    installPlugin: (pluginId, expectedCatalogRevision) =>
+      loadAgentPluginApi().then((api) => api.installPlugin(pluginId, expectedCatalogRevision)),
     uninstallPlugin: (pluginId) =>
       loadAgentPluginApi().then((api) => api.uninstallPlugin(pluginId)),
     setPluginEnabled: (pluginId, enabled) =>
       loadAgentPluginApi().then((api) => api.setPluginEnabled(pluginId, enabled)),
+    listApps: (workspacePath) => loadAgentPluginApi().then((api) => api.listApps(workspacePath)),
+    setAppEnabled: (appId, enabled) =>
+      loadAgentPluginApi().then((api) => api.setAppEnabled(appId, enabled)),
     onPluginsUpdated: (callback) => {
       let disposed = false
       let dispose = () => {}
@@ -2174,6 +2519,22 @@ export function createAgentSessionDesktopClient(
         dispose()
       }
     },
+    supportsHookManagement: () => agentCapabilities.has('hooks.management.v1'),
+    requireHookManagement: () => requireAgentCapability('hooks.management.v1'),
+    listHookGroups: (cwd) => loadAgentHooksApi().then((api) => api.listHookGroups(cwd)),
+    setHookEnabled: (input) => loadAgentHooksApi().then((api) => api.setHookEnabled(input)),
+    supportsDecisionEngine: () => agentCapabilities.has('decision.engine.v1'),
+    getDecisionConfig: (cwd) => loadAgentDecisionApi().then((api) => api.getDecisionConfig(cwd)),
+    updateDecisionConfig: (input) =>
+      loadAgentDecisionApi().then((api) => api.updateDecisionConfig(input)),
+    setDecisionJudgeApiKey: (input) =>
+      loadAgentDecisionApi().then((api) => api.setDecisionJudgeApiKey(input)),
+    probeDecisionJudge: (input) =>
+      loadAgentDecisionApi().then((api) => api.probeDecisionJudge(input)),
+    listDecisionLedger: (input) =>
+      loadAgentDecisionApi().then((api) => api.listDecisionLedger(input)),
+    markDecisionOutcome: (input) =>
+      loadAgentDecisionApi().then((api) => api.markDecisionOutcome(input)),
     getComputerState: () => loadAgentComputerApi().then((api) => api.getComputerState()),
     discoverComputerApps: () => loadAgentComputerApi().then((api) => api.discoverComputerApps()),
     configureComputer: (input) =>
@@ -2775,388 +3136,71 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.unwatchWorkspaceFile(workspacePath, filePath),
       ),
-    readConfig: (params) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('config.manage.v1')
-          return rpc.call('config/read', params ?? {})
-        },
-        () => mockClient.readConfig(params),
-      ),
+    readConfig: (params) => loadAgentConfigSettingsApi().then((api) => api.readConfig(params)),
     pauseQuestion: (interactionId, expectedVersion) =>
       withRequiredAgent(async () => {
         requireAgentCapability('interaction.questionPause.v1')
         await rpc.call('interaction/questionPause', { interactionId, expectedVersion })
       }),
-    approvalReviewState: (threadId) =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('approval.retry.v1')
-        return rpc.call('approval/reviewState', { threadId })
-      }),
-    retryApproval: (threadId, reviewId) =>
-      withRequiredAgent(async () => {
-        requireAgentCapability('approval.retry.v1')
-        const key = `${threadId}:${reviewId}`
-        const state = await rpc.call('approval/reviewState', { threadId })
-        const operationId =
-          state.denials.find((denial) => denial.id === reviewId)?.retryOperationId ??
-          approvalRetryOperations.get(key) ??
-          crypto.randomUUID()
-        approvalRetryOperations.set(key, operationId)
-        const { input } = await rpc.call('approval/retry', { threadId, reviewId, operationId })
-        await turnQueueClient.submitMessage(threadId, { text: input }, 'start', {})
-        approvalRetryOperations.delete(key)
-      }),
-    listApprovalRules: (threadId) =>
+    listApprovalRules: (params = {}) =>
       withRequiredAgent(async () => {
         requireAgentCapability('permission.rules.v1')
-        return rpc.call('approval/rules/list', { threadId })
+        return rpc.call('approval/rules/list', params)
       }),
     upsertApprovalRule: (params) =>
       withRequiredAgent(async () => {
         requireAgentCapability('permission.rules.v1')
         return rpc.call('approval/rules/upsert', params)
       }),
-    revokeApprovalRule: (threadId, ruleId, expectedVersion) =>
+    revokeApprovalRule: (params) =>
       withRequiredAgent(async () => {
         requireAgentCapability('permission.rules.v1')
-        return rpc.call('approval/rules/revoke', {
-          threadId,
-          ruleId,
-          ...(expectedVersion ? { expectedVersion } : {}),
-        })
+        return rpc.call('approval/rules/revoke', params)
       }),
     writeConfigBatch: (params) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('config.manage.v1')
-          return rpc.call('config/batchWrite', params)
-        },
-        () => mockClient.writeConfigBatch(params),
-      ),
-    listConfigProfiles: () =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('config.profiles.v1')
-          return rpc.call('config/profile/list', {})
-        },
-        () => mockClient.listConfigProfiles(),
-      ),
+      loadAgentConfigSettingsApi().then((api) => api.writeConfigBatch(params)),
+    listConfigProfiles: () => loadAgentConfigSettingsApi().then((api) => api.listConfigProfiles()),
     selectConfigProfile: (profileId) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('config.profiles.v1')
-          return rpc.call('config/profile/select', { profileId })
-        },
-        () => mockClient.selectConfigProfile(profileId),
+      loadAgentConfigSettingsApi().then((api) => api.selectConfigProfile(profileId)),
+    getDesktopSettings: () => loadAgentConfigSettingsApi().then((api) => api.getDesktopSettings()),
+    getThemeSettings: () => loadAgentConfigSettingsApi().then((api) => api.getThemeSettings()),
+    saveThemeSettings: (settings) =>
+      loadAgentConfigSettingsApi().then((api) => api.saveThemeSettings(settings)),
+    canRestorePreviousAppearance: () =>
+      loadAgentConfigSettingsApi().then((api) => api.canRestorePreviousAppearance()),
+    restorePreviousAppearance: () =>
+      loadAgentConfigSettingsApi().then((api) => api.restorePreviousAppearance()),
+    applyNewDesignTheme: () =>
+      loadAgentConfigSettingsApi().then((api) => api.applyNewDesignTheme()),
+    saveDesktopSettings: (settings) =>
+      loadAgentConfigSettingsApi().then((api) => api.saveDesktopSettings(settings)),
+    listProjectMemories: (workspacePath, namespace) =>
+      loadAgentMemoryApi().then((api) => api.listProjectMemories(workspacePath, namespace)),
+    readProjectMemory: (workspacePath, relativePath, namespace) =>
+      loadAgentMemoryApi().then((api) =>
+        api.readProjectMemory(workspacePath, relativePath, namespace),
       ),
-    getDesktopSettings: async () => {
-      const getter = environment.window?.DesktopBridge?.getDesktopSettings
-      return getter
-        ? normalizeDesktopStoredSettings(await getter())
-        : mockClient.getDesktopSettings()
-    },
-    getThemeSettings: async () => {
-      try {
-        requireAgentCapability('config.manage.v1')
-        const result = await rpc.call('config/read', {})
-        const desktop =
-          result.config.desktop &&
-          typeof result.config.desktop === 'object' &&
-          !Array.isArray(result.config.desktop)
-            ? (result.config.desktop as Record<string, unknown>)
-            : {}
-        if (isNewerDesktopThemeSettingsVersion(desktop.appearance)) {
-          throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级读取。')
-        }
-        if (
-          desktop.appearance &&
-          typeof desktop.appearance === 'object' &&
-          !Array.isArray(desktop.appearance)
-        ) {
-          return normalizeDesktopThemeSettings(desktop.appearance)
-        }
-      } catch {
-        // The initial Electron value remains the upgrade fallback until Agent migration completes.
-      }
-      const getter = environment.window?.DesktopBridge?.getAppearanceSettings
-      return getter ? getter().then(normalizeDesktopThemeSettings) : mockClient.getThemeSettings()
-    },
-    saveThemeSettings: async (settings) => {
-      const normalized = normalizeDesktopThemeSettings(settings)
-      try {
-        requireAgentCapability('config.manage.v1')
-        const current = await rpc.call('config/read', { includeLayers: true })
-        const currentDesktop =
-          current.config.desktop &&
-          typeof current.config.desktop === 'object' &&
-          !Array.isArray(current.config.desktop)
-            ? (current.config.desktop as Record<string, unknown>)
-            : null
-        if (isNewerDesktopThemeSettingsVersion(currentDesktop?.appearance)) {
-          throw new Error('外观设置版本高于当前客户端支持版本，已拒绝降级保存。')
-        }
-        const version = current.layers?.find((layer) => layer.kind === 'user')?.version
-        const flatten = (
-          value: Record<string, unknown>,
-          prefix: string[],
-        ): Array<{ keyPath: string[]; value: never }> =>
-          Object.entries(value).flatMap(([key, child]) =>
-            child && typeof child === 'object' && !Array.isArray(child)
-              ? flatten(child as Record<string, unknown>, [...prefix, key])
-              : [{ keyPath: [...prefix, key], value: child as never }],
-          )
-        await rpc.call('config/batchWrite', {
-          edits: flatten(normalized as unknown as Record<string, unknown>, [
-            'desktop',
-            'appearance',
-          ]),
-          ...(version ? { expectedVersion: version } : {}),
-        })
-      } catch (error) {
-        if (
-          environment.window?.DesktopBridge &&
-          (!error ||
-            typeof error !== 'object' ||
-            !('code' in error) ||
-            error.code !== 'AGENT_OPERATION_UNSUPPORTED')
-        ) {
-          throw error
-        }
-      }
-      const saver = environment.window?.DesktopBridge?.saveAppearanceSettings
-      if (saver) {
-        await saver(normalized)
-        await mockClient.saveThemeSettings(normalized)
-        return
-      }
-      await mockClient.saveThemeSettings(normalized)
-    },
-    canRestorePreviousAppearance: async () => {
-      const checker = environment.window?.DesktopBridge?.canRestorePreviousAppearance
-      if (checker) {
-        return checker()
-      }
-      return mockClient.canRestorePreviousAppearance()
-    },
-    restorePreviousAppearance: async () => {
-      const restorer = environment.window?.DesktopBridge?.restorePreviousAppearance
-      if (restorer) {
-        const restored = await restorer()
-        const normalized = normalizeDesktopThemeSettings(restored)
-        await mockClient.saveThemeSettings(normalized)
-        return normalized
-      }
-      return mockClient.restorePreviousAppearance()
-    },
-    applyNewDesignTheme: async () => {
-      const applier = environment.window?.DesktopBridge?.applyNewDesignTheme
-      if (applier) {
-        const applied = await applier()
-        const normalized = normalizeDesktopThemeSettings(applied)
-        await mockClient.saveThemeSettings(normalized)
-        return normalized
-      }
-      return mockClient.applyNewDesignTheme()
-    },
-    saveDesktopSettings: queueDesktopSettingsSave,
-    listProjectMemories: (workspacePath) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 2)
-          const project = await loadProjectForPath(workspacePath)
-          const response = await rpc.call<{
-            entries: Array<{
-              id: string
-              scope: 'user' | 'project'
-              content: string
-              updatedAt: number
-            }>
-          }>('memory/list', { scope: 'project', projectId: project.id })
-          return {
-            memoryDir: 'Agent data directory / project memory',
-            entrypointPath: 'SQLite:memory_entries',
-            memories: response.entries.map((entry) => ({
-              relativePath: entry.id,
-              absolutePath: entry.id,
-              type: 'project' as const,
-              description: entry.content.slice(0, 120),
-              size: entry.content.length,
-              mtimeMs: entry.updatedAt,
-            })),
-          }
-        },
-        () => mockClient.listProjectMemories(workspacePath),
-      ),
-    readProjectMemory: (workspacePath, relativePath) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 2)
-          const project = await loadProjectForPath(workspacePath)
-          const response = await rpc.call<{
-            entry: { id: string; content: string; updatedAt: number }
-          }>('memory/read', { id: relativePath, scope: 'project', projectId: project.id })
-          return {
-            relativePath: response.entry.id,
-            absolutePath: response.entry.id,
-            type: 'project' as const,
-            description: response.entry.content.slice(0, 120),
-            size: response.entry.content.length,
-            mtimeMs: response.entry.updatedAt,
-            content: response.entry.content,
-          }
-        },
-        () => mockClient.readProjectMemory(workspacePath, relativePath),
-      ),
-    saveProjectMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 2)
-          const project = await loadProjectForPath(input.workspacePath)
-          const response = await rpc.call<{
-            entry: { id: string; content: string; updatedAt: number }
-          }>('memory/save', {
-            scope: 'project',
-            projectId: project.id,
-            ...(input.relativePath ? { id: input.relativePath } : {}),
-            content: input.content,
-            operationId: crypto.randomUUID(),
-          })
-          return {
-            relativePath: response.entry.id,
-            absolutePath: response.entry.id,
-            type: 'project' as const,
-            description: response.entry.content.slice(0, 120),
-            size: response.entry.content.length,
-            mtimeMs: response.entry.updatedAt,
-          }
-        },
-        () => mockClient.saveProjectMemory(input),
-      ),
+    saveProjectMemory: (input) => loadAgentMemoryApi().then((api) => api.saveProjectMemory(input)),
     deleteProjectMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 2)
-          const project = await loadProjectForPath(input.workspacePath)
-          await rpc.call('memory/delete', {
-            id: input.relativePath,
-            scope: 'project',
-            projectId: project.id,
-            operationId: crypto.randomUUID(),
-          })
-        },
-        () => mockClient.deleteProjectMemory(input),
-      ),
+      loadAgentMemoryApi().then((api) => api.deleteProjectMemory(input)),
     resetProjectMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 2)
-          const project = await loadProjectForPath(input.workspacePath)
-          await rpc.call('memory/reset', {
-            scope: 'project',
-            projectId: project.id,
-            includeEventLog: input.includeRecallLog === true,
-            operationId: crypto.randomUUID(),
-          })
-        },
-        () => mockClient.resetProjectMemory(input),
-      ),
-    listProjectMemoryRecalls: (workspacePath) =>
-      withAgentOrMock(
-        async () => ({ recallLogPath: 'SQLite prompt context fragments', recalls: [] }),
-        () => mockClient.listProjectMemoryRecalls(workspacePath),
-      ),
-    listUserMemories: () =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 2)
-          const response = await rpc.call<{
-            entries: Array<{ id: string; content: string; updatedAt: number }>
-          }>('memory/list', { scope: 'user' })
-          return {
-            memoryDir: 'Agent data directory / user memory',
-            profilePath: 'SQLite:memory_entries',
-            preferencesPath: 'SQLite:memory_entries',
-            eventsPath: 'SQLite:memory_jobs',
-            conversationIndexPath: 'SQLite:agent.sqlite',
-            memories: response.entries.map((entry) => ({
-              relativePath: entry.id,
-              absolutePath: entry.id,
-              type: 'user' as const,
-              description: entry.content.slice(0, 120),
-              size: entry.content.length,
-              mtimeMs: entry.updatedAt,
-            })),
-          }
-        },
-        () => mockClient.listUserMemories(),
-      ),
+      loadAgentMemoryApi().then((api) => api.resetProjectMemory(input)),
+    listMemoryUsage: (workspacePath, namespace) =>
+      loadAgentMemoryApi().then((api) => api.listMemoryUsage(workspacePath, namespace)),
+    listMemoryTasks: (workspacePath, namespace) =>
+      loadAgentMemoryApi().then((api) => api.listMemoryTasks(workspacePath, namespace)),
+    organizeMemory: (input) => loadAgentMemoryApi().then((api) => api.organizeMemory(input)),
+    readMemorySettings: (workspacePath, namespace) =>
+      loadAgentMemoryApi().then((api) => api.readMemorySettings(workspacePath, namespace)),
+    saveMemorySettings: (input) =>
+      loadAgentMemoryApi().then((api) => api.saveMemorySettings(input)),
+    listUserMemories: () => loadAgentMemoryApi().then((api) => api.listUserMemories()),
     readUserMemory: (relativePath) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 2)
-          const response = await rpc.call<{
-            entry: { id: string; content: string; updatedAt: number }
-          }>('memory/read', { id: relativePath, scope: 'user' })
-          return {
-            relativePath: response.entry.id,
-            absolutePath: response.entry.id,
-            type: 'user' as const,
-            description: response.entry.content.slice(0, 120),
-            size: response.entry.content.length,
-            mtimeMs: response.entry.updatedAt,
-            content: response.entry.content,
-          }
-        },
-        () => mockClient.readUserMemory(relativePath),
-      ),
-    saveUserMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 2)
-          const response = await rpc.call<{
-            entry: { id: string; content: string; updatedAt: number }
-          }>('memory/save', {
-            scope: 'user',
-            ...(input.relativePath ? { id: input.relativePath } : {}),
-            content: input.content,
-            operationId: crypto.randomUUID(),
-          })
-          return {
-            relativePath: response.entry.id,
-            absolutePath: response.entry.id,
-            type: 'user' as const,
-            description: response.entry.content.slice(0, 120),
-            size: response.entry.content.length,
-            mtimeMs: response.entry.updatedAt,
-          }
-        },
-        () => mockClient.saveUserMemory(input),
-      ),
-    deleteUserMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 2)
-          await rpc.call('memory/delete', {
-            id: input.relativePath,
-            scope: 'user',
-            operationId: crypto.randomUUID(),
-          })
-        },
-        () => mockClient.deleteUserMemory(input),
-      ),
-    resetUserMemory: (input) =>
-      withAgentOrMock(
-        async () => {
-          requireAgentCapability('memory', 2)
-          await rpc.call('memory/reset', {
-            scope: 'user',
-            includeEventLog: input.includeEventLog,
-            operationId: crypto.randomUUID(),
-          })
-        },
-        () => mockClient.resetUserMemory(input),
-      ),
+      loadAgentMemoryApi().then((api) => api.readUserMemory(relativePath)),
+    saveUserMemory: (input) => loadAgentMemoryApi().then((api) => api.saveUserMemory(input)),
+    deleteUserMemory: (input) => loadAgentMemoryApi().then((api) => api.deleteUserMemory(input)),
+    resetUserMemory: (input) => loadAgentMemoryApi().then((api) => api.resetUserMemory(input)),
+
     generateTaskSuggestions: (input: GenerateDesktopTaskSuggestionsInput) =>
       withRequiredAgent(async () => {
         requireAgentCapability('task-suggestions.v1')
@@ -3165,6 +3209,14 @@ export function createAgentSessionDesktopClient(
           ...(input.surface ? { surface: input.surface } : {}),
           workspace: project ? { kind: 'project', projectId: project.id } : { kind: 'projectless' },
           context: input.context,
+        })
+      }),
+    generateComposerPrediction: (input: GenerateDesktopComposerPredictionInput) =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('composer-predictions.v1')
+        return rpc.call('composer-prediction/generate', {
+          threadId: input.threadId,
+          turnId: input.turnId,
         })
       }),
     refreshModelProviders: (providerId) =>
@@ -3430,6 +3482,7 @@ export function createAgentSessionDesktopClient(
         operationId: crypto.randomUUID(),
       })
       invalidateModelCatalog()
+      notifyModelProviderChanged()
     },
     updateProvider: async (providerId, definition) => {
       await rpc.call('provider/update', {
@@ -3438,6 +3491,7 @@ export function createAgentSessionDesktopClient(
         operationId: crypto.randomUUID(),
       })
       invalidateModelCatalog()
+      notifyModelProviderChanged()
     },
     deleteProvider: async (providerId) => {
       await rpc.call('provider/delete', {
@@ -3445,8 +3499,19 @@ export function createAgentSessionDesktopClient(
         operationId: crypto.randomUUID(),
       })
       invalidateModelCatalog()
+      notifyModelProviderChanged()
     },
     modelRecommendations: {
+      documentsSupported: async () =>
+        (await isAgentAvailable()) && agentCapabilities.has('model.documents.v1'),
+      extractDocument: async (input) => {
+        requireAgentCapability('model.documents.v1')
+        return rpc.call('model/document/extract', input)
+      },
+      cancelDocument: async (operationId) => rpc.call('model/document/cancel', { operationId }),
+      refreshPricing: async (force = true) =>
+        rpc.call('model/pricing/refresh', { operationId: crypto.randomUUID(), force }),
+
       supported: async () =>
         (await isAgentAvailable()) && agentCapabilities.has('model.recommendations.v1'),
       preview: async (input) => {
@@ -3458,6 +3523,23 @@ export function createAgentSessionDesktopClient(
         const result = await rpc.call('model/recommendation/refresh', {
           operationId: crypto.randomUUID(),
         })
+        return result
+      },
+      specsSupported: async () =>
+        (await isAgentAvailable()) && agentCapabilities.has('provider.modelSpecs.v1'),
+      previewModelSpecs: async (providerId) => {
+        requireAgentCapability('provider.modelSpecs.v1')
+        return rpc.call('provider/model/specs/preview', {
+          providerId: providerId as RpcParams<'provider/model/specs/preview'>['providerId'],
+        })
+      },
+      applyModelSpecs: async (input) => {
+        requireAgentCapability('provider.modelSpecs.v1')
+        const result = await rpc.call('provider/model/specs/apply', {
+          ...input,
+          operationId: crypto.randomUUID(),
+        })
+        invalidateModelCatalog()
         return result
       },
     },
@@ -3547,6 +3629,7 @@ export function createAgentSessionDesktopClient(
             settings,
             ...(creationSurface ? { creationSurface } : {}),
             ...(options.workflowId ? { workflowId: options.workflowId } : {}),
+            ...(options.threadId ? { threadId: options.threadId } : {}),
             title: options.sessionName,
             operationId: options.operationId ?? crypto.randomUUID(),
           })
@@ -3588,53 +3671,27 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.synchronizeSession(sessionId),
       ),
-    listSubagents: async (threadId) => {
-      const response = await rpc.call<{ subagents: SubagentProjection[] }>('subagent/list', {
-        threadId,
-      })
-      return response.subagents
-    },
-    readSubagent: (taskId) => rpc.call<DesktopSubagentRead>('subagent/read', { taskId }),
-    stopSubagent: (taskId) =>
-      rpc.call('subagent/stop', { taskId, operationId: crypto.randomUUID() }),
-    retrySubagent: (taskId) =>
-      rpc.call('subagent/retry', { taskId, operationId: crypto.randomUUID() }),
+    listSubagents: (threadId) =>
+      loadAgentGoalSubagentApi().then((api) => api.listSubagents(threadId)),
+    readSubagent: (taskId) => loadAgentGoalSubagentApi().then((api) => api.readSubagent(taskId)),
+    stopSubagent: (taskId) => loadAgentGoalSubagentApi().then((api) => api.stopSubagent(taskId)),
+    retrySubagent: (taskId) => loadAgentGoalSubagentApi().then((api) => api.retrySubagent(taskId)),
     sendSubagent: (taskId, message) =>
-      rpc.call('subagent/send', { taskId, message, operationId: crypto.randomUUID() }),
+      loadAgentGoalSubagentApi().then((api) => api.sendSubagent(taskId, message)),
     followupSubagent: (taskId, message) =>
-      rpc.call('subagent/followup', { taskId, message, operationId: crypto.randomUUID() }),
+      loadAgentGoalSubagentApi().then((api) => api.followupSubagent(taskId, message)),
     applySubagentWorktree: (taskId) =>
-      rpc.call('subagent/worktree/apply', { taskId, operationId: crypto.randomUUID() }),
+      loadAgentGoalSubagentApi().then((api) => api.applySubagentWorktree(taskId)),
     discardSubagentWorktree: (taskId) =>
-      rpc.call('subagent/worktree/discard', { taskId, operationId: crypto.randomUUID() }),
+      loadAgentGoalSubagentApi().then((api) => api.discardSubagentWorktree(taskId)),
     restoreSubagentWorkspace: (taskId) =>
-      rpc.call('subagent/workspace/restore', { taskId, operationId: crypto.randomUUID() }),
-    respondSubagentApproval: async (approval, decision) => {
-      const interaction = await findPendingInteraction(
-        (candidate) =>
-          candidate.kind === 'approval' &&
-          (candidate.interactionId === approval.id || candidate.toolCallId === approval.toolCallID),
-        approval.threadId,
-      )
-      if (interaction.kind !== 'approval') return
-      await respondToInteraction(interaction, {
-        kind: 'approval',
-        decision,
-      })
-    },
-    respondSubagentPermission: async (approval, behavior, grantScope) => {
-      const interaction = await findPendingInteraction(
-        (candidate) =>
-          candidate.kind === 'permission' &&
-          (candidate.interactionId === approval.id || candidate.toolCallId === approval.toolCallID),
-        approval.threadId,
-      )
-      if (interaction.kind !== 'permission') return
-      await respondToPermissionInteraction(interaction, {
-        behavior,
-        ...(behavior === 'allow' ? { grantScope } : {}),
-      })
-    },
+      loadAgentGoalSubagentApi().then((api) => api.restoreSubagentWorkspace(taskId)),
+    respondSubagentApproval: (approval, decision) =>
+      loadAgentGoalSubagentApi().then((api) => api.respondSubagentApproval(approval, decision)),
+    respondSubagentPermission: (approval, behavior, grantScope) =>
+      loadAgentGoalSubagentApi().then((api) =>
+        api.respondSubagentPermission(approval, behavior, grantScope),
+      ),
     getActiveSessionId: () =>
       withAgentOrMock(
         async () => activeSessionId,
@@ -3643,8 +3700,14 @@ export function createAgentSessionDesktopClient(
     setActiveSession: (sessionId) =>
       withAgentOrMock(
         async () => {
+          const previous = activeSessionId
           activeSessionId = sessionId
           emitSessionStoreChange()
+          // If this session accrued a deferred automatic clear while the window was
+          // backgrounded, clear it now that the user is viewing it again.
+          if (sessionId && sessionId !== previous && isForeground()) {
+            if (automaticReadRetryBySessionId.has(sessionId)) retryPendingAutomaticReads()
+          }
         },
         () => mockClient.setActiveSession(sessionId),
       ),
@@ -3660,39 +3723,10 @@ export function createAgentSessionDesktopClient(
           if (!Number.isFinite(readThroughTimestamp)) {
             throw new Error('INVALID_READ_THROUGH_AT')
           }
-          const requestId = crypto.randomUUID()
-          const pendingReadThrough = pendingReadThroughBySessionId.get(sessionId) ?? new Map()
-          pendingReadThrough.set(requestId, readThroughTimestamp)
-          pendingReadThroughBySessionId.set(sessionId, pendingReadThrough)
-          const cached = sessionSnapshots.get(sessionId)
-          if (cached?.item.unreadAt && Date.parse(cached.item.unreadAt) <= readThroughTimestamp) {
-            cached.item = { ...cached.item, unreadAt: null }
-            sessionSnapshots.set(sessionId, cached)
-            emitSessionStoreChange()
-          }
-          try {
-            const response = await rpc.call('thread/mark-read', {
-              threadId: sessionId,
-              readThroughAt: readThroughTimestamp,
-              operationId: requestId,
-            })
-            confirmedReadThroughBySessionId.set(
-              sessionId,
-              Math.max(confirmedReadThroughBySessionId.get(sessionId) ?? 0, readThroughTimestamp),
-            )
-            pendingReadThrough.delete(requestId)
-            if (pendingReadThrough.size === 0) {
-              pendingReadThroughBySessionId.delete(sessionId)
-            }
-            return (await cacheThreadListItem(response.thread)).item
-          } catch (error) {
-            pendingReadThrough.delete(requestId)
-            if (pendingReadThrough.size === 0) {
-              pendingReadThroughBySessionId.delete(sessionId)
-            }
-            await refreshAgentSessionStoreChange().catch(() => {})
-            throw error
-          }
+          const item = await enqueueSessionReadOperation(sessionId, () =>
+            performMarkRead(sessionId, readThroughTimestamp, { automatic: false }),
+          )
+          return item as DesktopSessionListItem
         },
         () => mockClient.markSessionRead(sessionId, readThroughAt),
       ),
@@ -3703,28 +3737,40 @@ export function createAgentSessionDesktopClient(
           if (!Number.isFinite(unreadTimestamp) || unreadTimestamp < 0) {
             throw new Error('INVALID_UNREAD_AT')
           }
-          const requestId = crypto.randomUUID()
-          const cached = sessionSnapshots.get(sessionId)
-          if (cached) {
-            const currentTimestamp = cached.item.unreadAt ? Date.parse(cached.item.unreadAt) : 0
-            cached.item = {
-              ...cached.item,
-              unreadAt: new Date(Math.max(currentTimestamp, unreadTimestamp)).toISOString(),
+          // Invalidate automatic clearing *before* the manual unread is enqueued so
+          // any queued or in-flight automatic mark-read can no longer clear it. Both
+          // operations share the same serial chain, so this unread lands last.
+          invalidateAutomaticRead(sessionId)
+          return enqueueSessionReadOperation(sessionId, async () => {
+            const requestId = crypto.randomUUID()
+            const cached = sessionSnapshots.get(sessionId)
+            if (cached) {
+              const currentTimestamp = cached.item.unreadAt ? Date.parse(cached.item.unreadAt) : 0
+              cached.item = {
+                ...cached.item,
+                unreadAt: new Date(Math.max(currentTimestamp, unreadTimestamp)).toISOString(),
+              }
+              sessionSnapshots.set(sessionId, cached)
+              emitSessionStoreChange()
             }
-            sessionSnapshots.set(sessionId, cached)
-            emitSessionStoreChange()
-          }
-          try {
-            const response = await rpc.call('thread/mark-unread', {
-              threadId: sessionId,
-              unreadAt: unreadTimestamp,
-              operationId: requestId,
-            })
-            return (await cacheThreadListItem(response.thread)).item
-          } catch (error) {
-            await refreshAgentSessionStoreChange().catch(() => {})
-            throw error
-          }
+            try {
+              const response = await rpc.call('thread/mark-unread', {
+                threadId: sessionId,
+                unreadAt: unreadTimestamp,
+                operationId: requestId,
+              })
+              // A previously confirmed read watermark must not re-hide this manual
+              // unread on the next catalog merge.
+              const confirmed = confirmedReadThroughBySessionId.get(sessionId)
+              if (confirmed !== undefined && confirmed >= unreadTimestamp) {
+                confirmedReadThroughBySessionId.set(sessionId, unreadTimestamp - 1)
+              }
+              return (await cacheThreadListItem(response.thread, 'read-state')).item
+            } catch (error) {
+              await refreshAgentSessionStoreChange().catch(() => {})
+              throw error
+            }
+          })
         },
         () => mockClient.markSessionUnread(sessionId, unreadAt),
       ),
@@ -3989,138 +4035,11 @@ export function createAgentSessionDesktopClient(
     rollbackSession: (input) =>
       withUnsupportedAgentFallback('rollbackSession', () => mockClient.rollbackSession(input)),
     getSessionGoal: (sessionId) =>
-      withAgentOrMock(
-        async () => {
-          if (!agentCapabilities.has('thread.goal.v1'))
-            unsupportedAgentOperation('getSessionGoal (thread.goal.v1)')
-          return (await rpc.call('thread/goal/get', { threadId: sessionId })).goal
-        },
-        () => mockClient.getSessionGoal(sessionId),
-      ),
-    setSessionGoal: (sessionId, input) => {
-      let originalGoal: { id: string; objective: string } | null | undefined
-      return withAgentOrMock(
-        async () =>
-          runGoalMutation(
-            sessionId,
-            async () => {
-              if (!agentCapabilities.has('thread.goal.v1'))
-                unsupportedAgentOperation('setSessionGoal (thread.goal.v1)')
-              const current = (await rpc.call('thread/goal/get', { threadId: sessionId })).goal
-              if (
-                originalGoal !== undefined &&
-                (originalGoal?.id !== current?.id || originalGoal?.objective !== current?.objective)
-              )
-                throw Object.assign(new Error('目标已被替换，已刷新，请确认新目标后重试。'), {
-                  code: 'GOAL_VERSION_CONFLICT',
-                })
-              originalGoal = current
-              if (
-                current &&
-                input.tokenBudget !== undefined &&
-                input.tokenBudget !== current.tokenBudget &&
-                !input.budgetBaseline
-              )
-                throw new Error('修改已有目标预算需要当前目标与预算基准，请刷新后重试。')
-              // A budget edit is computed from the budget the panel showed. Re-read
-              // that baseline before writing, so a concurrent replacement or budget
-              // change is reported instead of applying a total derived from stale data.
-              if (input.budgetBaseline) {
-                const baseline = input.budgetBaseline
-                if (
-                  current?.id !== baseline.goalId ||
-                  (current?.tokenBudget ?? null) !== baseline.tokenBudget
-                ) {
-                  await loadAgentSessionSnapshot(sessionId).catch(() => null)
-                  emitSessionStoreChange()
-                  throw Object.assign(new Error('目标或预算已被更新，已刷新，请确认后重试。'), {
-                    code: 'GOAL_VERSION_CONFLICT',
-                  })
-                }
-              }
-              const snapshot = input.objective?.trim()
-                ? (await rpc.call('thread/read', { threadId: sessionId })).snapshot
-                : null
-              const running = snapshot?.turns.some((turn) =>
-                [
-                  'queued',
-                  'running',
-                  'waiting-permission',
-                  'waiting-question',
-                  'waiting-subagents',
-                ].includes(turn.status),
-              )
-              if (!current && input.objective?.trim() && input.status !== 'paused' && !running) {
-                await turnQueueClient.submitMessage(
-                  sessionId,
-                  { text: input.objective.trim() },
-                  'start',
-                  {
-                    goal: {
-                      objective: input.objective.trim(),
-                      expectedVersion: current?.version ?? null,
-                      ...(input.tokenBudget === undefined
-                        ? {}
-                        : { tokenBudget: input.tokenBudget }),
-                    },
-                  },
-                )
-                return (await rpc.call('thread/goal/get', { threadId: sessionId })).goal!
-              }
-              const result = await rpc.call('thread/goal/set', {
-                threadId: sessionId,
-                expectedVersion: current?.version ?? null,
-                operationId: crypto.randomUUID(),
-                ...(input.objective === undefined ? {} : { objective: input.objective }),
-                ...(input.status === undefined ? {} : { status: input.status }),
-                ...(input.tokenBudget === undefined ? {} : { tokenBudget: input.tokenBudget }),
-              })
-              await loadAgentSessionSnapshot(sessionId)
-              emitSessionStoreChange()
-              return result.goal
-            },
-            input.objective === undefined && input.tokenBudget === undefined,
-          ),
-        () => mockClient.setSessionGoal(sessionId, input),
-      )
-    },
-    clearSessionGoal: (sessionId) => {
-      let originalGoal: { id: string; objective: string } | null | undefined
-      return withAgentOrMock(
-        async () =>
-          runGoalMutation(
-            sessionId,
-            async () => {
-              if (!agentCapabilities.has('thread.goal.v1'))
-                unsupportedAgentOperation('clearSessionGoal (thread.goal.v1)')
-              const current = (await rpc.call('thread/goal/get', { threadId: sessionId })).goal
-              if (!current) {
-                await loadAgentSessionSnapshot(sessionId)
-                emitSessionStoreChange()
-                return true
-              }
-              if (
-                originalGoal &&
-                (originalGoal.id !== current.id || originalGoal.objective !== current.objective)
-              )
-                throw Object.assign(new Error('目标已被替换，已刷新，请确认新目标后重试。'), {
-                  code: 'GOAL_VERSION_CONFLICT',
-                })
-              originalGoal = current
-              await rpc.call('thread/goal/clear', {
-                threadId: sessionId,
-                expectedVersion: current.version,
-                operationId: crypto.randomUUID(),
-              })
-              await loadAgentSessionSnapshot(sessionId)
-              emitSessionStoreChange()
-              return true
-            },
-            true,
-          ),
-        () => mockClient.clearSessionGoal(sessionId),
-      )
-    },
+      loadAgentGoalSubagentApi().then((api) => api.getSessionGoal(sessionId)),
+    setSessionGoal: (sessionId, input) =>
+      loadAgentGoalSubagentApi().then((api) => api.setSessionGoal(sessionId, input)),
+    clearSessionGoal: (sessionId) =>
+      loadAgentGoalSubagentApi().then((api) => api.clearSessionGoal(sessionId)),
     listThreadBookmarks: (sessionId) =>
       withAgentOrMock(
         async () => {
@@ -4176,7 +4095,7 @@ export function createAgentSessionDesktopClient(
               : 'workspace-write'
           const permissionConfig: PermissionConfig = {
             sandboxMode,
-            approvalPolicy: approvalPolicy ?? 'on-request',
+            approvalPolicy: approvalPolicy ?? 'auto_review',
             approvalsReviewer: current.settings.permissionConfig.approvalsReviewer,
           }
           const response = await rpc.call('thread/settings/update', {

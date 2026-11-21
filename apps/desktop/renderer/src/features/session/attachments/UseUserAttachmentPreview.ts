@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { UserAttachmentPreviewTab } from '../../layout/dock/RightDockState.js'
 
+import { isMediaPreviewKind } from './AttachmentPreviewSupport.js'
+
 export type LoadedUserAttachment = {
   attachment: UserAttachmentPreviewTab['attachment']
   data: string
@@ -117,7 +119,7 @@ export function useUserAttachmentPreview(
             attachment: {
               id: result.attachment.id,
               kind:
-                result.attachment.kind === 'image' || result.attachment.kind === 'text'
+                result.attachment.kind === 'text' || isMediaPreviewKind(result.attachment.kind)
                   ? result.attachment.kind
                   : 'binary',
               name: result.attachment.name,

@@ -9,8 +9,8 @@ test('Goal 队列冻结附件和设置，不携带旧目标版本且不调用目
   const model = { providerID: 'openai', id: 'test-model' }
   const permissions = {
     sandboxMode: 'workspace-write',
-    approvalPolicy: 'on-request',
-    approvalsReviewer: 'user',
+    approvalPolicy: 'auto_review',
+    approvalsReviewer: 'auto_review',
   }
   const frozenPermissions = { ...permissions }
   const snapshot = {

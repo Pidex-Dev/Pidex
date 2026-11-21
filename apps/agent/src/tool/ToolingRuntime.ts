@@ -38,19 +38,6 @@ export const resolveManagedTool: ToolingResolver = (id, options) =>
 export const resolveToolingEnvironment: ToolingEnvironmentResolver = (required, options) =>
   getToolingManager().resolveEnvironment(required, options)
 
-export const environmentWithToolingPath = (
-  pathEntries: readonly string[],
-  base: NodeJS.ProcessEnv = process.env,
-): NodeJS.ProcessEnv => {
-  if (pathEntries.length === 0) return { ...base }
-  const environment = { ...base }
-  const pathKey = Object.keys(environment).find((key) => key.toLowerCase() === 'path') ?? 'PATH'
-  environment[pathKey] = [...new Set(pathEntries), environment[pathKey]]
-    .filter(Boolean)
-    .join(process.platform === 'win32' ? ';' : ':')
-  return environment
-}
-
 export const toolingPathOverride = (
   pathEntries: readonly string[],
   base: NodeJS.ProcessEnv = process.env,

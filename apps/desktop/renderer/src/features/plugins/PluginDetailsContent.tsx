@@ -88,7 +88,7 @@ export function PluginDetailsMetadata({
                 onClick={() => void desktopClient.openExternalURL(url)}
               >
                 打开{label}
-                <ExternalLink aria-hidden="true" size={APP_ICON_SIZE} />
+                <ExternalLink className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               </Button>
             </dd>
           </div>
@@ -115,7 +115,7 @@ export function PluginDetailsPrimaryAction({
 
   if (action.kind === 'toggle-plugin') {
     return (
-      <span className="plugin-details-primary-toggle tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption tw:whitespace-nowrap">
+      <span className="plugin-details-primary-toggle tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1 tw:whitespace-nowrap">
         <span>{action.checked ? '已启用' : '已禁用'}</span>
         <ToggleSwitch
           ref={toggleRef}
@@ -140,7 +140,12 @@ export function PluginDetailsPrimaryAction({
     >
       {action.label}
       {action.kind === 'open-external' ? (
-        <ExternalLink aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <ExternalLink
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       ) : null}
     </Button>
   )

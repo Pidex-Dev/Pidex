@@ -18,7 +18,8 @@ const rendererDist = resolve(repositoryRoot, 'dist/renderer')
 const rawDirectory = resolve(repositoryRoot, 'performance-results', 'raw', 'electron')
 
 test.describe('packaged Electron desktop performance', () => {
-  test('measures startup, long history, switching, input and sidebar drag', async ({}, testInfo) => {
+  test('measures startup, long history, switching, input and sidebar drag', async () => {
+    const testInfo = test.info()
     const sample = testInfo.repeatEachIndex + 1
     const root = await mkdtemp(join(tmpdir(), 'pidex-electron-performance-'))
     const userDataDirectory = join(root, 'user-data')

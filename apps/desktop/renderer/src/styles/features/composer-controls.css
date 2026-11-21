@@ -15,7 +15,7 @@
   }
 
   .context-meter-dot {
-    border-radius: var(--cpx-sys-radius-2xs);
+    border-radius: var(--cpx-sys-radius-1);
     background: var(--cpx-sys-color-border-default);
     transition:
       background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
@@ -25,17 +25,18 @@
 
   .context-meter-bar {
     display: flex;
+    flex-direction: row;
     align-items: center;
     gap: calc(var(--cpx-sys-space-1) / 2);
     width: 100%;
     height: 40px;
-    border-radius: var(--cpx-sys-radius-sm);
+    border-radius: var(--cpx-sys-radius-3);
     background: transparent;
   }
 
   .context-meter-segment {
     height: 100%;
-    border-radius: var(--cpx-sys-radius-2xs);
+    border-radius: var(--cpx-sys-radius-1);
     border: 0;
     padding: 0;
     transition:
@@ -44,13 +45,13 @@
   }
 
   .context-meter-segment:first-child {
-    border-top-left-radius: var(--cpx-sys-radius-sm);
-    border-bottom-left-radius: var(--cpx-sys-radius-sm);
+    border-top-left-radius: var(--cpx-sys-radius-3);
+    border-bottom-left-radius: var(--cpx-sys-radius-3);
   }
 
   .context-meter-segment:last-child {
-    border-top-right-radius: var(--cpx-sys-radius-sm);
-    border-bottom-right-radius: var(--cpx-sys-radius-sm);
+    border-top-right-radius: var(--cpx-sys-radius-3);
+    border-bottom-right-radius: var(--cpx-sys-radius-3);
   }
 
   .context-meter-limit {
@@ -92,8 +93,6 @@
    */
   .chip-dot {
     display: block;
-    width: 100%;
-    height: 100%;
   }
 
   .chip-dot-track,
@@ -105,28 +104,5 @@
 
   .chip-dot-track {
     stroke-opacity: 0.2;
-  }
-
-  .composer .chip-button:hover:not(:disabled) {
-    background: var(--cpx-sys-color-hover);
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
-  .composer .chip-button[aria-expanded='true'] {
-    background: var(--cpx-sys-color-selected);
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
-  .composer .chip-button[aria-expanded='true'] > svg:last-child {
-    transform: rotate(180deg);
-  }
-
-  .composer .chip-button > svg:last-child:not(.chip-button-spinner) {
-    transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
-  }
-
-  .composer-plan-mode-chip.active,
-  .composer-plan-mode-chip:hover {
-    color: var(--cpx-sys-color-accent-fg);
   }
 }

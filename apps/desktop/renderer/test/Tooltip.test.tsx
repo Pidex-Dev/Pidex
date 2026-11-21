@@ -270,7 +270,7 @@ describe('Tooltip variants and visual styling', () => {
     expect(html).toContain('position:fixed')
   })
 
-  test('default variant includes CPX raised surface, subtle border and floating shadow', () => {
+  test('default variant includes CPX raised surface, subtle border and outer-only tooltip shadow', () => {
     const html = renderToStaticMarkup(
       <Tooltip content="帮助文本" defaultOpen variant="default">
         <button>触发器</button>
@@ -279,8 +279,9 @@ describe('Tooltip variants and visual styling', () => {
     expect(html).toContain('tw:bg-app-raised')
     expect(html).toContain('tw:text-app-text')
     expect(html).toContain('tw:border-app-border-subtle')
-    expect(html).toContain('tw:shadow-lg')
-    expect(html).toContain('tw:type-caption')
+    expect(html).toContain('tw:shadow-tooltip')
+    expect(html).not.toContain('tw:shadow-lg')
+    expect(html).toContain('tw:type-1')
     expect(html).toContain('tooltip-presence')
     expect(html).toContain('tooltip-content')
     expect(html).not.toContain('tooltip-arrow')
@@ -404,8 +405,8 @@ describe('InfoTooltip specifications', () => {
     expect(html).toContain('tw:cursor-help')
     expect(html).toContain('tw:rounded-full')
     // 交互热区统一为 24px（Commit fdecc9559），图标本身仍是 16px。
-    expect(html).toContain('tw:w-6')
-    expect(html).toContain('tw:h-6')
+    expect(html).toContain('tw:w-5')
+    expect(html).toContain('tw:h-5')
     // Lucide Info icon renders svg with width="16" and stroke-width="1.6" (APP_ICON_STROKE_WIDTH)
     expect(html).toContain(`width="${APP_ICON_SIZE}"`)
     expect(html).toContain(`height="${APP_ICON_SIZE}"`)
@@ -524,9 +525,12 @@ describe('Tooltip interaction & lifecycle regressions', () => {
 
   test('delay priority: delayDuration overrides delay, delay overrides provider, fallback to 120', () => {
     let capturedDelay: number | undefined
+    const captureDelay = (delay: number) => {
+      capturedDelay = delay
+    }
     function DelaySpy() {
       const ctx = useTooltipContext()
-      capturedDelay = ctx.delayDuration
+      captureDelay(ctx.delayDuration)
       return null
     }
 
@@ -657,10 +661,8 @@ describe('Tooltip interaction & lifecycle regressions', () => {
   })
 
   test('trigger click and escape key handlers dismissal contract', () => {
-    let openState = true
     function ControlledDismiss() {
       const [open, setOpen] = useState(true)
-      openState = open
       return (
         <Tooltip content="点按测试" open={open} onOpenChange={setOpen}>
           <button id="click-trigger">动作按钮</button>

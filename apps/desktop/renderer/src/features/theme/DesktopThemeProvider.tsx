@@ -1,4 +1,4 @@
-import { desktopClient } from '../../services/desktop-client/index.js'
+import { CONFIG_UPDATED_EVENT, desktopClient } from '../../services/desktop-client/index.js'
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
@@ -14,6 +14,9 @@ import {
 } from '../../../shared/Theme.js'
 import { deriveThemeVariables } from './ThemeVariables.js'
 import { applyThemeFontFaceStyles } from './ThemeFontFaces.js'
+import { ensureExternalFontLoaded } from './ThemeExternalFonts.js'
+import { findExternalFontByFamily } from '@pidex/shared/desktop-external-fonts'
+import { DESKTOP_UI_DENSITY_SCALING, normalizeDesktopUiDensity } from '@pidex/shared/desktop-theme'
 import {
   resolveStartupThemeSettings,
   withStartupThemeSeed,
@@ -29,16 +32,16 @@ const SETTINGS_THEME_VARIABLES = [
   '--cpx-sys-font-family-mono',
   '--cpx-sys-font-size-ui',
   '--cpx-sys-font-size-code',
-  '--cpx-sys-font-size-xs',
-  '--cpx-sys-font-size-sm',
-  '--cpx-sys-font-size-md',
-  '--cpx-sys-font-size-lg',
-  '--cpx-sys-font-size-xl',
-  '--cpx-sys-font-size-2xl',
-  '--cpx-sys-font-size-3xl',
-  '--cpx-sys-font-size-4xl',
-  '--cpx-sys-font-family-mono',
-  '--cpx-sys-font-family-sans',
+  '--cpx-sys-scaling',
+  '--cpx-sys-font-size-1',
+  '--cpx-sys-font-size-2',
+  '--cpx-sys-font-size-3',
+  '--cpx-sys-font-size-4',
+  '--cpx-sys-font-size-5',
+  '--cpx-sys-font-size-6',
+  '--cpx-sys-font-size-7',
+  '--cpx-sys-font-size-8',
+  '--cpx-sys-font-size-9',
 ]
 
 export function DesktopThemeProvider({ children }: { children: React.ReactNode }): React.ReactNode {
@@ -57,19 +60,46 @@ export function DesktopThemeProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     let mounted = true
-    void desktopClient
-      .getThemeSettings()
-      .then((next) => {
-        if (!mounted) return
-        const normalized = normalizeDesktopThemeSettings(next)
-        committedSettingsRef.current = normalized
-        draftSettingsRef.current = normalized
-        setSettings(normalized)
-        setDraftSettings(normalized)
-      })
-      .catch(() => undefined)
+    const syncThemeSettings = (event?: Event) => {
+      if (event instanceof CustomEvent) {
+        const detail = event.detail as { changedKeyPaths?: unknown } | undefined
+        const changedKeyPaths = detail?.changedKeyPaths
+        const touchesAppearance =
+          !Array.isArray(changedKeyPaths) ||
+          changedKeyPaths.length === 0 ||
+          changedKeyPaths.some(
+            (path) =>
+              Array.isArray(path) &&
+              path[0] === 'desktop' &&
+              (path.length === 1 || path[1] === 'appearance'),
+          )
+        if (!touchesAppearance) return
+      }
+      if (pendingSavesRef.current > 0) return
+      void desktopClient
+        .getThemeSettings()
+        .then((next) => {
+          if (!mounted || pendingSavesRef.current > 0) return
+          const normalized = normalizeDesktopThemeSettings(next)
+          const hasUnsavedDraft = !desktopThemeSettingsEqual(
+            draftSettingsRef.current,
+            committedSettingsRef.current,
+          )
+          committedSettingsRef.current = normalized
+          setSettings(normalized)
+          if (!hasUnsavedDraft) {
+            draftSettingsRef.current = normalized
+            setDraftSettings(normalized)
+          }
+        })
+        .catch(() => undefined)
+    }
+
+    syncThemeSettings()
+    window.addEventListener(CONFIG_UPDATED_EVENT, syncThemeSettings)
     return () => {
       mounted = false
+      window.removeEventListener(CONFIG_UPDATED_EVENT, syncThemeSettings)
     }
   }, [])
 
@@ -142,6 +172,43 @@ export function DesktopThemeProvider({ children }: { children: React.ReactNode }
     const codeFace = config.theme.fonts.codeFace ?? null
     applyThemeFontFaceStyles(uiFace, codeFace)
   }, [draftResolvedVariant, draftSettings])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.DesktopBridge?.getExternalFontCss) return
+    let cancelled = false
+    const uiExternal = findExternalFontByFamily(draftSettings.fonts.ui)
+    const codeExternal = findExternalFontByFamily(draftSettings.fonts.code)
+    if (!uiExternal && !codeExternal) return
+
+    void (async () => {
+      const [uiLoaded, codeLoaded] = await Promise.all([
+        uiExternal ? ensureExternalFontLoaded(uiExternal.id) : Promise.resolve(true),
+        codeExternal ? ensureExternalFontLoaded(codeExternal.id) : Promise.resolve(true),
+      ])
+      if (cancelled) return
+      const missingUi = Boolean(uiExternal && !uiLoaded)
+      const missingCode = Boolean(codeExternal && !codeLoaded)
+      if (!missingUi && !missingCode) return
+
+      const current = draftSettingsRef.current
+      const nextFonts = {
+        ...current.fonts,
+        ...(missingUi && current.fonts.ui === uiExternal?.family ? { ui: null, uiFace: null } : {}),
+        ...(missingCode && current.fonts.code === codeExternal?.family
+          ? { code: null, codeFace: null }
+          : {}),
+      }
+      const nextSettings = normalizeDesktopThemeSettings({ ...current, fonts: nextFonts })
+      if (!desktopThemeSettingsEqual(current, nextSettings)) {
+        draftSettingsRef.current = nextSettings
+        setDraftSettings(nextSettings)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [draftSettings.fonts.code, draftSettings.fonts.ui])
 
   const persistSettings = useCallback(
     async (nextSettings: DesktopThemeSettings): Promise<DesktopThemeSettings> => {
@@ -323,6 +390,15 @@ export function DesktopThemeProvider({ children }: { children: React.ReactNode }
   return <DesktopThemeContext.Provider value={value}>{children}</DesktopThemeContext.Provider>
 }
 
+export function applyDesktopUiDensity(
+  root: HTMLElement,
+  densityValue: DesktopThemeSettings['uiDensity'],
+): void {
+  const density = normalizeDesktopUiDensity(densityValue)
+  root.dataset.uiDensity = density
+  root.style.setProperty('--cpx-sys-scaling', String(DESKTOP_UI_DENSITY_SCALING[density]))
+}
+
 function applyDesktopTheme(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
@@ -349,6 +425,8 @@ function applyDesktopTheme(
     root.style.removeProperty(variable)
   }
 
+  applyDesktopUiDensity(root, settings.uiDensity)
+
   const config = getDesktopThemeForSelection(settings, variant)
   root.dataset.codeThemeId = getCodeThemeSelectionForVariant(settings, variant)
   for (const [name, value] of Object.entries(deriveThemeVariables(config))) {
@@ -358,14 +436,15 @@ function applyDesktopTheme(
   const uiFontSize = clamp(settings.fontSizes.ui, 11, 16)
   const codeFontSize = clamp(settings.fontSizes.code, 8, 24)
   const scale = {
-    xs: 12,
-    sm: 13,
-    md: 14,
-    lg: 16,
-    xl: 18,
-    '2xl': 20,
-    '3xl': 24,
-    '4xl': 28,
+    1: 12,
+    2: 14,
+    3: 16,
+    4: 18,
+    5: 20,
+    6: 24,
+    7: 28,
+    8: 35,
+    9: 60,
   }
 
   root.style.setProperty('--cpx-sys-font-size-ui', `${uiFontSize}px`)

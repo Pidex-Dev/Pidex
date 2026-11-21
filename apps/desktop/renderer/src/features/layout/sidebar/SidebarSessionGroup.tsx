@@ -1,7 +1,6 @@
 import { chooseSessionGroupForThread } from '../../session-groups/SessionGroupActions.js'
 import { buildThreadDeepLink } from '@pidex/shared/thread-reference'
-import type React from 'react'
-import {
+import React, {
   lazy,
   memo,
   Suspense,
@@ -13,6 +12,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react'
+import { useMountEffect } from '../../../hooks/UseMountEffect.js'
 import {
   Archive,
   CircleAlert,
@@ -34,7 +34,7 @@ import {
 } from 'lucide-react'
 import { SidebarDropList, useOptionalSidebarDragController } from './SidebarDragContext.js'
 import { resolveSidebarDisplayOrder } from './SidebarDragRules.js'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { ProjectAppearanceGlyph } from '../../projects/ProjectAppearance.js'
 import {
   sessionResolvedTitle,
@@ -73,6 +73,7 @@ import { useSidebarActivityPreview } from './UseSidebarActivityPreview.js'
 import type { ThreadPullRequestSummary } from '@pidex/shared/thread'
 import {
   applyThreadPullRequestList,
+  observeThreadPullRequestUpdates,
   useThreadPullRequestEnvironments,
   useThreadPullRequestLifecycle,
   useThreadPullRequests,
@@ -101,6 +102,8 @@ type Props = {
   sessionFallbackTitles: Record<string, string>
   sessions: SessionListItem[]
   showConversationIcon?: boolean
+  /** 上层读取一次的 `gitShowPrIconsInSidebar` 设置；false 时隐藏会话行 PR 图标。 */
+  showPullRequestIcons?: boolean
   /** 'preserve' 表示调用方已排好序，不再重排（时间线优先任务组使用） */
   sort?: DesktopSidebarSort | 'preserve'
   manualOrderByScope?: Record<string, string[]>
@@ -141,6 +144,7 @@ function SidebarSessionGroupComponent({
   sessionFallbackTitles,
   sessions,
   showConversationIcon = false,
+  showPullRequestIcons = true,
   sort = 'priority',
   manualOrderByScope = {},
   presentation = 'compact',
@@ -165,7 +169,6 @@ function SidebarSessionGroupComponent({
 }: Props): React.ReactNode {
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null)
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null)
-  const [confirmArchiveSessionId, setConfirmArchiveSessionId] = useState<string | null>(null)
   const [paging, setPaging] = useState(() =>
     createSidebarSessionPagingState({ groupKey, initialLimit }),
   )
@@ -276,6 +279,9 @@ function SidebarSessionGroupComponent({
   )
   const pullRequests = useThreadPullRequests(displayedSessionIds)
   useThreadPullRequestLifecycle()
+  // `thread/pull-requests/updated` 持久事件到达时直接回填 PR store，
+  // 不等待下一轮轮询，也不触发目录全量刷新。
+  useMountEffect(observeThreadPullRequestUpdates)
   useThreadPullRequestEnvironments(
     useMemo(
       () =>
@@ -409,13 +415,13 @@ function SidebarSessionGroupComponent({
         {
           kind: 'item',
           label: '重命名',
-          icon: <Pencil size={APP_ICON_SIZE} />,
+          icon: <Pencil className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
           onSelect: () => requestRenameDialog(session),
         },
         {
           kind: 'item',
           label: '复制会话 ID',
-          icon: <Copy size={APP_ICON_SIZE} />,
+          icon: <Copy className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
           onSelect: () => {
             void desktopClipboard.writeText(session.id)
           },
@@ -423,7 +429,7 @@ function SidebarSessionGroupComponent({
         {
           kind: 'item',
           label: '复制会话链接',
-          icon: <Link size={APP_ICON_SIZE} />,
+          icon: <Link className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
           onSelect: () => {
             void desktopClipboard.writeText(buildThreadDeepLink(session.id))
           },
@@ -432,7 +438,7 @@ function SidebarSessionGroupComponent({
           ? {
               kind: 'item' as const,
               label: '复制工作目录',
-              icon: <Folder size={APP_ICON_SIZE} />,
+              icon: <Folder className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
               onSelect: () => {
                 void desktopClipboard.writeText(session.workspacePath)
               },
@@ -441,7 +447,11 @@ function SidebarSessionGroupComponent({
         {
           kind: 'item',
           label: sessionReadStatusActionLabel(session),
-          icon: session.unreadAt ? <Eye size={APP_ICON_SIZE} /> : <EyeOff size={APP_ICON_SIZE} />,
+          icon: session.unreadAt ? (
+            <Eye className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+          ) : (
+            <EyeOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+          ),
           onSelect: () => onToggleSessionUnread(session),
         },
         pullRequests.supported === false
@@ -449,7 +459,7 @@ function SidebarSessionGroupComponent({
           : {
               kind: 'item' as const,
               label: '关联 Pull Request',
-              icon: <GitPullRequest size={APP_ICON_SIZE} />,
+              icon: <GitPullRequest className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
               onSelect: () => requestPullRequestLink(session.id),
             },
         { kind: 'separator' },
@@ -457,26 +467,26 @@ function SidebarSessionGroupComponent({
           ? {
               kind: 'item' as const,
               label: '取消置顶',
-              icon: <PinOff size={APP_ICON_SIZE} />,
+              icon: <PinOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
               onSelect: () => onUnpinSession(session),
             }
           : {
               kind: 'item' as const,
               label: '置顶',
-              icon: <Pin size={APP_ICON_SIZE} />,
+              icon: <Pin className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
               onSelect: () => onPinSession(session),
             },
         {
           kind: 'item',
           label: '归档',
-          icon: <Archive size={APP_ICON_SIZE} />,
-          onSelect: () => setConfirmArchiveSessionId(session.id),
+          icon: <Archive className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
+          onSelect: () => void onArchiveSessions([session]),
         },
         { kind: 'separator' },
         {
           kind: 'sub',
           label: '移动到分组',
-          icon: <FolderInput size={APP_ICON_SIZE} />,
+          icon: <FolderInput className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />,
           layout: 'flex',
           children: moveToSectionActions,
         },
@@ -486,6 +496,7 @@ function SidebarSessionGroupComponent({
     [
       currentSectionId,
       customSections,
+      onArchiveSessions,
       onMoveToDefault,
       onMoveToSection,
       onPinSession,
@@ -502,7 +513,6 @@ function SidebarSessionGroupComponent({
   const sessionRows = visibleSessions.map((session, index) => (
     <SidebarSessionRow
       buildActions={buildSessionContextMenuActions}
-      confirmingArchive={confirmArchiveSessionId === session.id}
       dropIndexBase={dropIndexBase}
       fallbackTitle={sessionFallbackTitles[session.id]}
       focused={focusedSessionId === session.id}
@@ -523,6 +533,7 @@ function SidebarSessionGroupComponent({
       session={session}
       sessionIndent={sessionIndent}
       showConversationIcon={showConversationIcon}
+      showPullRequestIcons={showPullRequestIcons}
       titleRegenerating={titleLoadingIds.has(session.id)}
       unlinkPullRequest={unlinkPullRequest}
       onArchiveSessions={onArchiveSessions}
@@ -533,7 +544,6 @@ function SidebarSessionGroupComponent({
       onSelectSession={onSelectSession}
       onToggleSessionUnread={onToggleSessionUnread}
       onUnpinSession={onUnpinSession}
-      onRequestArchive={setConfirmArchiveSessionId}
       onRequestPullRequestLink={requestPullRequestLink}
       onRequestRenameDialog={requestRenameDialog}
     />
@@ -579,7 +589,7 @@ function SidebarSessionGroupComponent({
           {hasOverflow ? (
             <div
               className={cx(
-                'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
+                'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-6 tw:items-center tw:gap-x-1 tw:rounded-3 tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
                 sessionIndent === 'gutter' && !showConversationIcon
                   ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
                   : 'tw:grid-cols-[var(--sidebar-row-columns)]',
@@ -588,18 +598,10 @@ function SidebarSessionGroupComponent({
               {sessionIndent !== 'gutter' || showConversationIcon ? (
                 <span
                   aria-hidden="true"
-                  className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:size-6 tw:w-6 tw:min-w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:items-center tw:justify-center"
+                  className="sidebar-row-leading sidebar-row-leading-spacer"
                 />
               ) : null}
-              <div
-                className={cx(
-                  'sidebar-row-main',
-                  'tw:min-w-0',
-                  'tw:flex',
-                  'tw:items-center',
-                  'tw:gap-4',
-                )}
-              >
+              <div className="sidebar-row-main tw:gap-4">
                 {canShowMore ? (
                   <Button
                     aria-expanded={canCollapse}
@@ -694,7 +696,6 @@ export const SidebarSessionGroup = memo(SidebarSessionGroupComponent)
 
 type SidebarSessionRowProps = {
   buildActions: (session: SessionListItem) => ContextMenuAction[]
-  confirmingArchive: boolean
   dropIndexBase: number
   fallbackTitle: string
   focused: boolean
@@ -713,6 +714,7 @@ type SidebarSessionRowProps = {
   session: SessionListItem
   sessionIndent: 'content' | 'gutter'
   showConversationIcon: boolean
+  showPullRequestIcons: boolean
   titleRegenerating: boolean
   unlinkPullRequest: (sessionId: string, item: ThreadPullRequestSummary) => Promise<void>
   moveSessionByKeyboard: (sessionId: string, offset: -1 | 1) => void
@@ -724,7 +726,6 @@ type SidebarSessionRowProps = {
   onSelectSession: (session: SessionListItem) => void
   onToggleSessionUnread: (session: SessionListItem) => void
   onUnpinSession: (session: SessionListItem) => void
-  onRequestArchive: Dispatch<SetStateAction<string | null>>
   onRequestPullRequestLink: (sessionId: string) => void
   onRequestRenameDialog: (session: SessionListItem) => void
 }
@@ -735,7 +736,6 @@ type SidebarSessionRowProps = {
  */
 function SidebarSessionRowComponent({
   buildActions,
-  confirmingArchive,
   dropIndexBase,
   fallbackTitle,
   focused,
@@ -754,6 +754,7 @@ function SidebarSessionRowComponent({
   session,
   sessionIndent,
   showConversationIcon,
+  showPullRequestIcons,
   titleRegenerating,
   unlinkPullRequest,
   moveSessionByKeyboard,
@@ -765,7 +766,6 @@ function SidebarSessionRowComponent({
   onSelectSession,
   onToggleSessionUnread,
   onUnpinSession,
-  onRequestArchive,
   onRequestPullRequestLink,
   onRequestRenameDialog,
 }: SidebarSessionRowProps): React.ReactNode {
@@ -785,16 +785,15 @@ function SidebarSessionRowComponent({
   const hideInputPill = waitingForInput && isActive
   const indicatorState = hideInputPill ? (session.unreadAt ? 'unread' : 'idle') : visualState
   const showActions = hovered || focused
-  const showIndicators = !showActions && !confirmingArchive
+  const showIndicators = !showActions
   const metaClassName = cx(
     'sidebar-session-meta',
     'tw:flex',
     'tw:items-center',
     'tw:justify-end',
     'tw:w-auto',
-    'tw:min-w-0 tw:gap-1',
+    'tw:min-w-0',
     indicatorState === 'needs-input' && 'sidebar-session-meta--approval',
-    confirmingArchive && 'confirming-archive',
   )
   // 双行（标题 + 工作区）行高由两行内容决定，时间线行沿用 48px 基准。
   const rowHeightClass = presentation !== 'compact' ? 'tw:[--sidebar-row-height:48px]' : null
@@ -827,7 +826,7 @@ function SidebarSessionRowComponent({
       >
         {titleRegenerating ? (
           <SkeletonBlock
-            className="sidebar-session-title sidebar-session-title--loading tw:h-[var(--cpx-sys-font-size-sm)] tw:max-h-[var(--cpx-sys-font-size-sm)] tw:min-h-[var(--cpx-sys-font-size-sm)] tw:w-[min(7.5rem,72%)] tw:flex-none tw:rounded-sm"
+            className="sidebar-session-title sidebar-session-title--loading tw:h-[var(--cpx-sys-font-size-1)] tw:max-h-[var(--cpx-sys-font-size-1)] tw:min-h-[var(--cpx-sys-font-size-1)] tw:w-[min(7.5rem,72%)] tw:flex-none tw:rounded-3"
             label="正在更新会话标题"
           />
         ) : (
@@ -877,7 +876,9 @@ function SidebarSessionRowComponent({
       indent={showConversationIcon || sessionIndent === 'gutter' ? 'none' : 'session'}
       layout="grid"
       leading={
-        showConversationIcon ? <MessageCircle aria-hidden="true" size={APP_ICON_SIZE} /> : undefined
+        showConversationIcon ? (
+          <MessageCircle className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
+        ) : undefined
       }
       leadingMode={showConversationIcon ? 'icon' : sessionIndent === 'gutter' ? 'none' : 'spacer'}
       onMouseOver={(event) => {
@@ -889,7 +890,6 @@ function SidebarSessionRowComponent({
         if (getDraggingSession()) return
         if (containsRelatedTarget(event.currentTarget, event.relatedTarget)) return
         onHoverChange((current) => (current === session.id ? null : current))
-        onRequestArchive((current) => (current === session.id ? null : current))
       }}
       onFocusCapture={(event) => {
         if (!containsRelatedTarget(event.currentTarget, event.target)) return
@@ -903,102 +903,97 @@ function SidebarSessionRowComponent({
         <div className={metaClassName}>
           {showIndicators && session.executionEnvironment?.kind === 'worktree' && (
             <span
-              className="sidebar-indicator tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-md"
+              className="sidebar-indicator tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm"
               role="img"
               aria-label="工作树会话"
               title="工作树会话"
             >
-              <GitFork aria-hidden="true" size={APP_ICON_SIZE} />
+              <GitFork className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
             </span>
           )}
           {showIndicators && session.isFork && (
             <span
-              className="sidebar-indicator tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-md"
+              className="sidebar-indicator tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm"
               role="img"
               aria-label="分叉会话"
               title="分叉会话"
             >
-              <Split aria-hidden="true" size={APP_ICON_SIZE} />
+              <Split className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
             </span>
           )}
           {showIndicators && session.hasScheduledRun && (
             <span
-              className="sidebar-indicator tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-md"
+              className="sidebar-indicator tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm"
               role="img"
               aria-label="日程运行过的会话"
               title="日程运行过的会话"
             >
-              <Clock3 aria-hidden="true" size={APP_ICON_SIZE} />
+              <Clock3 className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
             </span>
           )}
-          {showIndicators && primaryPullRequest && PrimaryPullRequestIcon && (
-            <button
-              aria-label={`Pull Request #${primaryPullRequest.number}`}
-              className={cx(
-                'sidebar-indicator sidebar-pull-request tw:inline-flex tw:size-6 tw:flex-none tw:cursor-pointer tw:items-center tw:justify-center tw:border-0 tw:bg-transparent tw:p-0 tw:[&>svg]:size-icon-md',
-                primaryPullRequestVisual?.className,
-              )}
-              title={threadPullRequestTitle(
-                primaryPullRequest.number,
-                primaryPullRequest.title,
-                primaryPullRequest.status,
-              )}
-              type="button"
-              onClick={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                void desktopClient.openExternalURL(primaryPullRequest.url)
-              }}
-            >
-              <PrimaryPullRequestIcon aria-hidden="true" size={APP_ICON_SIZE} />
-            </button>
-          )}
-          {confirmingArchive ? (
-            <button
-              className="sidebar-session-confirm-archive-button tw:w-full tw:rounded-md tw:bg-app-danger-subtle tw:px-2 tw:text-app-danger tw:whitespace-nowrap tw:[line-height:var(--cpx-sys-line-height-tight)]"
-              onClick={() => void onArchiveSessions([session])}
-              title="确认归档"
-              type="button"
-            >
-              确认
-            </button>
-          ) : showActions ? (
-            <div className="sidebar-session-actions tw:flex tw:w-full tw:items-center tw:justify-end tw:gap-1">
+          {showPullRequestIcons &&
+            showIndicators &&
+            primaryPullRequest &&
+            PrimaryPullRequestIcon && (
+              <button
+                aria-label={pullRequestItems
+                  .map((item) => `Pull Request #${item.number}`)
+                  .join(', ')}
+                className="sidebar-indicator sidebar-pull-request tw:inline-flex tw:size-5 tw:flex-none tw:cursor-pointer tw:items-center tw:justify-center tw:border-0 tw:bg-transparent tw:p-0 tw:[&>svg]:size-icon-sm"
+                title={pullRequestItems
+                  .map((item) => threadPullRequestTitle(item.number, item.title, item.status))
+                  .join('\n')}
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  void desktopClient.openExternalURL(primaryPullRequest.url)
+                }}
+              >
+                {React.createElement(PrimaryPullRequestIcon, {
+                  'aria-hidden': 'true',
+                  className: primaryPullRequestVisual?.className,
+                  size: APP_ICON_SIZES.sm,
+                })}
+              </button>
+            )}
+          {showActions ? (
+            <div className="sidebar-session-actions tw:flex tw:w-full tw:items-center tw:justify-end">
               {session.pinnedAt ? (
                 <Button
                   isIconOnly
                   className="sidebar-session-action-button"
                   variant="text"
-                  iconSize="md"
+                  iconSize="sm"
                   onClick={() => onUnpinSession(session)}
                   size="compact"
                   title="取消置顶"
                 >
-                  <PinOff size={APP_ICON_SIZE} />
+                  <PinOff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </Button>
               ) : (
                 <Button
                   isIconOnly
                   className="sidebar-session-action-button"
                   variant="text"
-                  iconSize="md"
+                  iconSize="sm"
                   onClick={() => onPinSession(session)}
                   size="compact"
                   title="置顶"
                 >
-                  <Pin size={APP_ICON_SIZE} />
+                  <Pin className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </Button>
               )}
               <Button
                 isIconOnly
                 className="sidebar-session-action-button"
                 variant="text"
-                iconSize="md"
-                onClick={() => onRequestArchive(session.id)}
+                iconSize="sm"
+                onClick={() => void onArchiveSessions([session])}
                 size="compact"
                 title="归档"
               >
-                <Archive size={APP_ICON_SIZE} />
+                <Archive className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
               </Button>
             </div>
           ) : indicatorState === 'needs-input' ? (
@@ -1006,13 +1001,13 @@ function SidebarSessionRowComponent({
           ) : indicatorState === 'unread' ||
             indicatorState === 'running' ||
             indicatorState === 'error' ? (
-            <span className="sidebar-indicator tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-md">
+            <span className="sidebar-indicator tw:inline-flex tw:size-5 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-sm">
               <span className="sidebar-status-icon tw:inline-flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center">
                 {indicatorState === 'error' ? (
                   <CircleAlert
                     aria-label="任务执行失败"
-                    className="sidebar-session-error tw:text-app-danger"
-                    size={APP_ICON_SIZE}
+                    className="tw:size-icon-sm sidebar-session-error tw:text-app-danger"
+                    size={APP_ICON_SIZES.sm}
                   />
                 ) : indicatorState === 'unread' ? (
                   <span
@@ -1026,7 +1021,7 @@ function SidebarSessionRowComponent({
                       reducedMotion && 'tw:animate-none',
                     )}
                     label="处理中"
-                    size="medium"
+                    size="small"
                   />
                 ) : null}
               </span>
@@ -1112,7 +1107,7 @@ function SidebarSessionSubtitle({ session }: { session: SessionListItem }): Reac
 function SidebarActivitySubtitle({ session }: { session: SessionListItem }): React.ReactNode {
   const preview = useSidebarActivityPreview(session)
   return preview ? (
-    <span className="tw:block tw:min-w-0 tw:truncate tw:type-caption tw:text-app-text-meta">
+    <span className="tw:block tw:min-w-0 tw:truncate tw:type-1 tw:text-app-text-meta">
       {preview}
     </span>
   ) : (
@@ -1123,9 +1118,9 @@ function SidebarActivitySubtitle({ session }: { session: SessionListItem }): Rea
 function SidebarSessionWorkspaceMeta({ session }: { session: SessionListItem }): React.ReactNode {
   if (session.standalone) {
     return (
-      <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
+      <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
         <MessageSquare
-          className="sidebar-session-workspace-meta__icon tw:flex-none"
+          className="sidebar-session-workspace-meta__icon tw:size-[var(--inline-icon-size,1em)] tw:shrink-0"
           size="var(--inline-icon-size, 1em)"
         />
         <span className="sidebar-session-workspace-meta__name tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">
@@ -1136,7 +1131,7 @@ function SidebarSessionWorkspaceMeta({ session }: { session: SessionListItem }):
   }
   if (session.projectId) {
     return (
-      <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
+      <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
         <ProjectAppearanceGlyph
           className="sidebar-session-workspace-meta__glyph tw:flex-none"
           size={APP_ICON_SIZES.sm}
@@ -1148,9 +1143,9 @@ function SidebarSessionWorkspaceMeta({ session }: { session: SessionListItem }):
     )
   }
   return (
-    <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
+    <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
       <Folder
-        className="sidebar-session-workspace-meta__icon tw:flex-none"
+        className="sidebar-session-workspace-meta__icon tw:size-[var(--inline-icon-size,1em)] tw:shrink-0"
         size="var(--inline-icon-size, 1em)"
       />
       <span className="sidebar-session-workspace-meta__name tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">

@@ -1,18 +1,21 @@
 # 统一权限控制
 
-权限由“访问范围 × 审批策略 × 审批者”组成，三者独立配置；Plan 与 Grill 只约束任务行为（调查而非实施），不再覆盖文件访问范围或审批策略。共享预设集中在 `packages/shared/src/thread/Permission.ts`：请求批准为 workspace-write/on-request/user，帮我批准为 workspace-write/on-request/auto_review，完全访问为 danger-full-access/never/user。三个持久化字段必须同时匹配预设；任一不同（包括完全访问搭配自动审查者）都显示为自定义。旧的 untrusted/on-failure 继续兼容读取。
+权限预设集中在 `packages/shared/src/thread/Permission.ts`，交互层仅保留两个预设：帮我批准（`auto-review`：workspace-write/auto_review/auto_review，默认）与完全访问（`full-access`：danger-full-access/never/auto_review）。Plan 与 Grill 只约束任务行为（调查而非实施），不覆盖存储权限配置；内部子 Agent 与定时任务仍支持 `read-only` 等文件范围。历史库或配置文件中的 `on-request`、`untrusted`、`on-failure`、`granular` 与 `approvalsReviewer: 'user'` 继续在读取边界兼容映射（SQLite 基线列与 `on-request` 编码保持向前兼容）。
 
 `approval/rules/list`、`approval/rules/revoke` 与 `approval/rules/upsert` 通过 `permission.rules.v1` capability 暴露规则管理。规则效果为 allow/ask/deny，范围为用户、当前项目、当前聊天；匹配对象为已注册工具、宿主解析后的真实文件读写目标、完整命令或安全 argv 前缀、精确网络域名、具体 MCP server/tool。用户与项目规则保存到 config.json 的 `permission_rules`（key-path 局部编辑，保留未知内容）；聊天规则与旧聊天授权撤销记录使用独立表并通过前向迁移建立。项目规则仅在项目受信任时生效；高版本未知库缺少可选表时隐藏 capability，不修改库。旧项目授权与旧聊天授权继续按 Allow 展示和撤销，撤销不删除审批历史。
 
 ## 判权顺序
 
-参数、能力可用性、模式调查范围与显式只读限制先校验。完全访问随后直接通过权限门禁，不运行权限规则、静态风险拒绝或 Guardian；Plan 与 Grill 不享受该捷径，完全访问也必须继续遵守显式拒绝、受保护资源、Hook 与硬拒绝。其余配置按 Deny → Ask → 匹配的 Allow/已有授权 → 预设与风险判断执行；自定义 never 只拒绝剩余需要审批的请求。
+参数、能力可用性、模式调查范围与显式只读限制先校验。完全访问随后直接通过权限门禁，不运行权限规则、静态风险拒绝或 Guardian；Plan 与 Grill 不享受该捷径，完全访问也必须继续遵守显式拒绝、受保护资源、Hook 与硬拒绝。其余配置按 Deny → Ask → 匹配的 Allow/已有授权 → 预设与风险判断执行；定时任务/子 Agent 的非完全访问 `never` 组合只拒绝剩余需要审批的请求。
 
-- 请求批准：工作区内低风险操作直接执行；编辑外部文件、外部目录执行命令、检测到联网及中高风险/未知操作询问用户。普通外部读取仅在检测到敏感风险时询问。
-- 帮我批准：低风险操作直接执行，包括工作区外低风险操作；联网与风险/未知操作交独立 Guardian，无法判断或不可用时询问用户。
+- 帮我批准：工作区内低风险操作直接执行；工作区外写与命令、检测到联网及中高风险/未知操作交独立 Guardian，高风险、无法判断或不可用时转人工确认。普通外部读取仅在检测到敏感风险时审查。
 - 工具、MCP 和 Skill 按实际风险处理，来源本身不构成强制审批。显式 Ask 和 Hook 要求询问不能被普通 Allow 覆盖；完全访问跳过权限性质的 Ask/Deny，保留 Hook 输入改写和生命周期。
 - Plan 与 Grill 共用一套调查权限：可以读取、搜索、执行只读调查命令，以及不修改受版本控制文件的测试、构建和检查；Write、Edit、补丁、权限提升和其他实施性外部副作用仍被拒绝。工具注册元数据中的 `readOnly` 只由宿主内建定义声明，模型输入、MCP 注解和插件元数据不能据此获得调查放行。
 - 完全访问不改变 Plan/Grill 的调查边界，也不关闭输入校验、取消处理、凭据保护或工具自身功能约束。
+
+### 记忆工具
+
+`memory_list`、`memory_read`、`memory_write`、`memory_delete` 走同一注册、暴露、判权与执行链。命名空间（用户、当前项目、命名 Agent）与可写范围由宿主根据线程、项目以及已持久化的子 Agent 任务推导，模型参数只提供相对文件名；越出绑定范围按 `PERMISSION_DENIED` 拒绝，绝对路径、目录分隔符与未知标识直接拒绝而不是规范化合并。`memory_write`/`memory_delete` 声明 `externalState` 且非只读，因此 Plan/Grill、只读文件访问范围、显式拒绝、Hook 与父任务权限上限继续生效；`memory_list`/`memory_read` 是只读工具。后台提取与整理使用同一组受管记忆工具和同一命名空间，不经过前台会话的工具表，也不扩大其范围。
 
 ## 执行链与授权
 
@@ -28,7 +31,7 @@ WorkspaceService 仅为本次文件调用开放目标路径，实际执行仍等
 
 Guardian 异步评分按 turn 保存失效代际：作废、拒绝、转人工、turn 结束或授权版本变化后，迟到的低风险结果不得恢复有效；缓存与等待共用同一套校验，同时核对动作 hash、授权版本、turn、有效代际和取消信号。同一调用 ID 更换命令后不得使用旧评分；当前动作已有高风险评分时不得被旧 low 覆盖。新增权限、敏感动作、强制人工审批与受保护资源不走低风险快速放行。同步审查结论同样绑定请求开始时的授权版本。
 
-授权证据只来自宿主确认的用户操作和当前聊天真实用户消息；子聊天同时读取根聊天授权上下文。仓库文件（包括 `AGENTS.md`）、工具参数、任务摘要和模型理由都是不可信证据。Guardian 不可用、超时、输出无效或证据不足时，`on-request` 转人工；`never`、不允许该类审批的 granular 与 untrusted 保守策略拒绝。用户取消立即终止，不创建新的人工审批；保留精确重试、熔断中断、事务 outbox 和 checkpoint 恢复链路。
+授权证据只来自宿主确认的用户操作和当前聊天真实用户消息；子聊天同时读取根聊天授权上下文。仓库文件（包括 `AGENTS.md`）、工具参数、任务摘要和模型理由都是不可信证据。Guardian 不可用、超时或输出无效时，`auto_review` 转人工；`never` 或熔断器打开时保守拒绝。用户取消立即终止，不创建新的人工审批；保留精确重试、熔断中断、事务 outbox 和 checkpoint 恢复链路。
 
 ## 来源与适配
 

@@ -64,33 +64,6 @@ const mapStatus = (status: string): ReviewFileSummary['status'] => {
   }
 }
 
-export const parseNameStatus = (value: string): NameStatus[] => {
-  const fields = value.split('\0')
-  const result: NameStatus[] = []
-  for (let index = 0; index < fields.length;) {
-    const rawStatus = fields[index++]
-    if (!rawStatus) continue
-    const firstPath = fields[index++]
-    if (!firstPath) continue
-    if (rawStatus.startsWith('R') || rawStatus.startsWith('C')) {
-      const destination = fields[index++]
-      if (!destination) continue
-      result.push({
-        path: validateRelativePath(destination),
-        previousPath: validateRelativePath(firstPath),
-        status: mapStatus(rawStatus),
-      })
-    } else {
-      result.push({
-        path: validateRelativePath(firstPath),
-        previousPath: null,
-        status: mapStatus(rawStatus),
-      })
-    }
-  }
-  return result
-}
-
 export const parseRawDiff = (value: string): RawDiffEntry[] => {
   const fields = value.split('\0')
   const result: RawDiffEntry[] = []

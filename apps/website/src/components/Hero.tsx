@@ -11,7 +11,7 @@ export const Hero: React.FC = () => {
           <span className="text-xs font-medium text-white/80">{HERO_CONTENT.eyebrow}</span>
         </div>
 
-        <h1 className="animate-fade-up-2 mx-auto mt-7 max-w-[920px] text-[40px] font-normal tracking-[-0.04em] text-[#f7f3ef] sm:text-[52px] lg:text-[58px] leading-[1.08]">
+        <h1 className="animate-fade-up-2 mx-auto mt-7 max-w-[920px] text-[clamp(38px,11vw,52px)] font-normal tracking-[-0.04em] text-[#f7f3ef] md:text-[52px] lg:text-[58px] leading-[1.08]">
           Give every coding task
           <br />
           its own place to move forward.
@@ -38,8 +38,8 @@ export const Hero: React.FC = () => {
         <ProductPlaceholder
           label="Pidex desktop workbench"
           aspectRatio="16:10"
+          frame="hero"
           windowTitle="Pidex"
-          className="hero-product-window"
         />
       </div>
     </section>

@@ -7,10 +7,7 @@ import {
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
-  type Api,
   type JsonObject,
-  type Model as PiModel,
-  type Models,
 } from '@earendil-works/pi-ai'
 import { executeHarnessRun } from '../src/orchestration/pi/ExecuteHarnessRun'
 import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
@@ -20,6 +17,7 @@ import {
   structuredPlanDomainFields,
   structuredPlanParameters,
 } from '../src/orchestration/plan/StructuredPlan'
+import { scheduleDraftParameters } from '../src/orchestration/plan/ScheduleDraft'
 import type {
   ActiveHarness,
   HarnessRuntimeOptions,
@@ -163,11 +161,21 @@ describe('structured plan module', () => {
       expect(String(error)).not.toContain('sk-sensitive-value')
     }
   })
-  test('模型可见参数 schema 覆盖共享领域全部字段', () => {
+  test('模型可见参数 schema 覆盖共享领域全部字段且不包含 pattern 正则约束', () => {
     const exposed = Object.keys(
       (structuredPlanParameters as { properties?: Record<string, unknown> }).properties ?? {},
     ).sort()
     expect(exposed).toEqual(structuredPlanDomainFields)
+
+    const hasPatternKeyword = (node: unknown): boolean => {
+      if (!node || typeof node !== 'object') return false
+      if (Array.isArray(node)) return node.some(hasPatternKeyword)
+      const record = node as Record<string, unknown>
+      if ('pattern' in record) return true
+      return Object.values(record).some(hasPatternKeyword)
+    }
+    expect(hasPatternKeyword(structuredPlanParameters)).toBe(false)
+    expect(hasPatternKeyword(scheduleDraftParameters)).toBe(false)
   })
 
   test('缺字段、空字符串和额外字段都被拒绝且不回显字段值', () => {
@@ -302,7 +310,7 @@ describe('submit_plan runtime delivery', () => {
     const submitted = setup.finished.filter((entry) => entry.tool === 'submit_plan')
     expect(submitted).toHaveLength(2)
     expect(submitted[0]!.isError).toBe(true)
-    expect(submitted[0]!.result).toContain('唯一的工具调用')
+    expect(submitted[0]!.result).toContain('only tool call')
     expect(submitted[1]!.isError).toBe(false)
     expect(hostInputs).toHaveLength(1)
     await setup.runtime.dispose()

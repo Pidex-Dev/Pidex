@@ -174,10 +174,19 @@ describe('server request interactions', () => {
     expect(decode(request)).toEqual(request)
     const { affectedPaths: _affectedPaths, reviewSummary: _reviewSummary, ...legacy } = request
     expect(decode(legacy)).toEqual(legacy)
-    expect(() =>
+    expect(
       decode({
         ...request,
         affectedPaths: [{ path: 'src/a.ts', operation: 'delete' }],
+      }),
+    ).toEqual({
+      ...request,
+      affectedPaths: [{ path: 'src/a.ts', operation: 'delete' }],
+    })
+    expect(() =>
+      decode({
+        ...request,
+        affectedPaths: [{ path: 'src/a.ts', operation: 'write' }],
       }),
     ).toThrow()
   })

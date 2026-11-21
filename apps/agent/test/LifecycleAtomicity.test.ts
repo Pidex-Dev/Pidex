@@ -19,8 +19,8 @@ const input = {
   model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
   permissionConfig: {
     sandboxMode: 'workspace-write',
-    approvalPolicy: 'on-request',
-    approvalsReviewer: 'user',
+    approvalPolicy: 'auto_review',
+    approvalsReviewer: 'auto_review',
   },
   strategy: 'queue',
   taskMode: 'chat',

@@ -3,6 +3,10 @@
  * flattening its nesting: the renderer no longer compiles Sass.
  */
 @layer features {
+  .composer-footer-secondary-chevron {
+    display: inline-flex;
+  }
+
   @container composer-footer (width <= 475px) {
     .composer-footer-label {
       display: none;
@@ -66,7 +70,7 @@
   }
 
   .composer-utility-bar {
-    border-radius: var(--cpx-sys-radius-lg) var(--cpx-sys-radius-lg) 0 0;
+    border-radius: var(--cpx-sys-radius-4) var(--cpx-sys-radius-4) 0 0;
   }
 
   /* The home (Working / Coding new-session) bars pin their own corner silhouette:
@@ -78,13 +82,16 @@
 
   .composer-stack[data-composer-utility-bar-variant='home'][data-surface='coding']
     .composer-utility-bar {
-    border-radius: var(--cpx-sys-radius-lg) var(--cpx-sys-radius-lg) 0 0;
+    border-radius: var(--cpx-sys-radius-4) var(--cpx-sys-radius-4) 0 0;
   }
 
   /* ProseMirror mounts the editor content; all placements share its resting height. */
   .composer-stack .composer-editor-content {
     min-height: 44px;
-    font: var(--cpx-sys-type-reading);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
   }
 
   /* `corner-shape` has no utility in the design set and needs the modern-syntax

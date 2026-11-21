@@ -311,11 +311,10 @@ function runPrepare(newVersion: string, stable: boolean) {
       const entryRe = new RegExp(
         `("${wsKey}":\\s*\\{\\s*"name":\\s*"[^"]+",\\s*"version":\\s*")[^"]+(")`,
       )
-      const next = lockRaw.replace(entryRe, `$1${pkg.version}$2`)
-      if (next === lockRaw) {
+      if (!entryRe.test(lockRaw)) {
         errExit(`lockfile 中未找到 ${wsKey} 的 workspace 版本条目，无法对齐版本`)
       }
-      lockRaw = next
+      lockRaw = lockRaw.replace(entryRe, `$1${pkg.version}$2`)
     }
     writeFile(LOCKFILE, lockRaw)
     ok('lockfile 已刷新')

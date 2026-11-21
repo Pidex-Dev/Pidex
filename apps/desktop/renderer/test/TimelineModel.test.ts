@@ -28,6 +28,7 @@ function navTurn({
     id,
     turn: { status: 'completed' },
     userItems: inputs,
+    inlineInputs: [],
     userInputs: userTexts.map((content, index) => ({
       id: `${id}-input-${index}`,
       content,
@@ -111,8 +112,11 @@ describe('canonical conversation navigation', () => {
   test('excludes goal continuation and emphasizes only the last visible running input', () => {
     const entry = navTurn({ id: 'running', userTexts: ['', '追加要求', '系统继续'] })
     entry.turn = { ...entry.turn, status: 'running' }
-    entry.userItems[0] = { ...entry.userItems[0]!, attachmentIds: ['attachment-1'] }
-    entry.userItems[2] = { ...entry.userItems[2]!, origin: 'goal-continuation' }
+    entry.userInputs[0] = { ...entry.userInputs[0]!, attachmentIds: ['attachment-1'] }
+    entry.userInputs[2] = { ...entry.userInputs[2]!, origin: 'goal-continuation' }
+    entry.inlineInputs = [{ ...entry.userInputs[1]!, delivery: 'steer' }]
+    entry.userInputs[1] = entry.inlineInputs[0]!
+    entry.userItems = [entry.userInputs[0]!, entry.userInputs[2]!]
     expect(deriveConversationTurnNavItems([entry])).toMatchObject([
       { id: 'running-input-0', userText: '', isRunning: false },
       { id: 'running-input-1', userText: '追加要求', isRunning: true },

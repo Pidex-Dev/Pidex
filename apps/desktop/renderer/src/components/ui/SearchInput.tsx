@@ -51,12 +51,12 @@ function stripModeFields(props: Record<string, unknown>): Record<string, unknown
  * class stays as a query hook, and never carries the Tailwind classes itself.
  */
 const SIZE_BOX_CLASSES: Record<SearchInputSize, string> = {
-  sm: 'tw:h-7 tw:min-h-7 tw:px-2.5',
-  md: 'tw:h-9 tw:min-h-9 tw:px-3.5',
+  sm: 'tw:h-[28px] tw:min-h-[28px] tw:px-3',
+  md: 'tw:h-[36px] tw:min-h-[36px] tw:px-3',
 }
 
 const DEFAULT_VARIANT_SIZE_CLASSES: Record<SearchInputVariant, string> = {
-  outlined: 'tw:h-7 tw:px-2.5',
+  outlined: 'tw:h-[28px] tw:min-h-[28px] tw:px-3',
   standard: 'tw:py-control-block tw:px-control-inline',
   compact: 'tw:py-1 tw:px-control-inline',
   embedded: 'tw:py-control-block tw:px-control-inline',
@@ -64,17 +64,20 @@ const DEFAULT_VARIANT_SIZE_CLASSES: Record<SearchInputVariant, string> = {
 
 const DEFAULT_VARIANT_RADIUS_CLASSES: Record<SearchInputVariant, string> = {
   outlined: 'tw:rounded-control',
-  standard: 'tw:rounded-md',
-  compact: 'tw:rounded-md',
+  standard: 'tw:rounded-3',
+  compact: 'tw:rounded-3',
   embedded: 'tw:rounded-none',
 }
 
 const VARIANT_BASE_CLASSES: Record<SearchInputVariant, string> = {
   outlined:
-    'search-input--outlined tw:bg-app-control tw:type-secondary tw:has-[:focus-visible]:outline-none',
-  standard: 'search-input--standard tw:type-control',
-  compact: 'search-input--compact tw:type-control',
-  embedded: 'search-input--embedded tw:border-0 tw:bg-transparent tw:type-body-sm',
+    'search-input--outlined tw:border tw:border-app-border-subtle tw:bg-app-control tw:type-1 tw:has-[input:enabled]:hover:border-app-border-strong tw:has-[:focus-visible]:border-app-focus tw:has-[:focus-visible]:outline-none',
+  standard:
+    'search-input--standard tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:type-2 tw:weight-medium tw:has-[input:enabled]:hover:border-app-border-strong tw:has-[:focus-visible]:border-app-focus tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus',
+  compact:
+    'search-input--compact tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:type-2 tw:weight-medium tw:has-[input:enabled]:hover:border-app-border-strong tw:has-[:focus-visible]:border-app-focus tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus',
+  embedded:
+    'search-input--embedded tw:border-0 tw:bg-transparent tw:type-1 tw:has-[:focus-visible]:shadow-none tw:has-[:focus-visible]:outline-none',
 }
 
 export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(function SearchInput(
@@ -160,10 +163,8 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
   return (
     <div
       className={cx(
-        'search-input tw:type-control tw:inline-flex tw:min-w-0 tw:items-center tw:gap-control-gap tw:border tw:border-app-border-subtle tw:bg-app-canvas',
+        'search-input tw:inline-flex tw:min-w-0 tw:items-center tw:gap-control-gap',
         'tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard',
-        'tw:hover:border-app-border-strong',
-        'tw:has-[:focus-visible]:border-app-focus tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus',
         'tw:has-[input:disabled]:cursor-default tw:has-[input:disabled]:bg-app-panel tw:has-[input:disabled]:outline-none tw:has-[input:disabled]:opacity-55',
         VARIANT_BASE_CLASSES[variant],
         sizeClass,

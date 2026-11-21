@@ -10,7 +10,7 @@
 - `shared`：定义跨进程复用的应用领域模型；`shared/src/thread/` 按 permission、settings、items、queue、subagent 和 transport/domain boundary 维护，不拥有 RPC 编排类型。
 - `agent-protocol`：Desktop 与未来 CLI/TUI 的唯一 v4 method、event、wire error、capability 和 runtime dispatcher 协议来源；`src/` 按 `methods/`、`wire/`、`runtime/` 维护。表面差异通过 capability、可选字段和客户端 adapter 表达，禁止复制协议类型或建立 Desktop/CLI 两套事件。
 - `session-view`：所有交互客户端的唯一 canonical projection 与 thread projection 纯转换层（`src/` 保持 canonical 与 thread 分离）。客户端只能在投影结果上附加自身操作和展示，禁止重新解释 durable snapshot 或 transport event，禁止新增旧 timeline 兼容层。
-- 依赖方向：依赖必须沿公开契约单向流动，禁止复制底层 schema 或制造循环依赖；`shared`、`agent-protocol` 和 `session-view` 不得依赖 Electron、DOM、React、终端渲染库或具体 CLI 参数解析器。
+- 依赖方向：依赖必须沿公开契约单向流动，禁止复制底层 schema 或制造循环依赖。
 
 ## Provider 与上游代码 (`pi-ai`)
 
@@ -26,6 +26,4 @@
 
 ## 验证
 
-- 运行受影响 package 的 typecheck；只有行为变化或存在相关回归风险时才运行 package 测试。
-- 公共契约变化时，必须同时验证所有受影响的 Agent、Electron 和 Renderer（及未来 CLI）消费者，并运行根目录 `bun run typecheck`。
-- 仅当修改协议、兼容层、导出或相关路径时，搜索对应 v3、legacy、migration export 和旧路径残留。
+- 运行受影响 package 的 typecheck；只有行为变化或存在相关回归风险时才运行 package 测试（跨 workspace 契约变更的消费者验证与旧路径排查按根文件执行）。

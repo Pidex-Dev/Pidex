@@ -35,7 +35,7 @@ const task = (
   permissionConfig: {
     sandboxMode: 'workspace-write',
     approvalPolicy: 'never',
-    approvalsReviewer: 'user',
+    approvalsReviewer: 'auto_review',
   },
   scheduledFor,
   timeZone: 'Asia/Shanghai',
@@ -57,7 +57,7 @@ const setup = async () => {
     permissionConfig: {
       sandboxMode: 'workspace-write',
       approvalPolicy: 'never',
-      approvalsReviewer: 'user',
+      approvalsReviewer: 'auto_review',
     },
     strategy: 'queue',
     taskMode: 'chat',
@@ -151,7 +151,7 @@ describe('SchedulePlanProposalRepository', () => {
         permissionConfig: {
           sandboxMode: 'workspace-write' as const,
           approvalPolicy: 'never' as const,
-          approvalsReviewer: 'user' as const,
+          approvalsReviewer: 'auto_review' as const,
         },
         timeZone: 'Asia/Shanghai',
         notificationPolicy: 'all' as const,
@@ -218,5 +218,19 @@ describe('SchedulePlanProposalRepository', () => {
     ).toEqual(committed)
     expect(proposals.findByToolCall('tool:1')?.id).toBe(proposal.id)
     expect(proposals.findByCommitOperation('proposal:commit:1')?.id).toBe(proposal.id)
+
+    db.sqlite.query('UPDATE scheduled_tasks SET permission_config = ? WHERE id = ?').run(
+      JSON.stringify({
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+      }),
+      'scheduled:proposal',
+    )
+    expect(db.repositories.scheduledTasks.read('scheduled:proposal')?.permissionConfig).toEqual({
+      sandboxMode: 'workspace-write',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
+    })
   })
 })

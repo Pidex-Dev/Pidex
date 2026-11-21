@@ -11,12 +11,14 @@ import {
 } from '../settings/AppearanceSettingsStore.js'
 import type { WindowAppearanceController } from '../windows/Appearance.js'
 import { resolveStartupPageTheme } from '../windows/StartupPage.js'
+import type { ExternalFontService } from '../settings/ExternalFontService.js'
 
 export function registerAppearanceIpc(
   initialSettings: DesktopThemeSettingsV8,
   appearance: WindowAppearanceController,
   store: AppearanceSettingsStore,
   isMainWindowSender: (sender: Electron.WebContents) => boolean,
+  externalFonts?: ExternalFontService,
 ): void {
   let settings = normalizeAppearanceSettings(initialSettings)
   ipcMain.on(DESKTOP_APPEARANCE_IPC_CHANNELS.getStartupThemeSeed, (event) => {
@@ -61,5 +63,38 @@ export function registerAppearanceIpc(
     appearance.broadcastAppearanceSettings(next)
     return next
   })
+  ipcMain.handle(DESKTOP_APPEARANCE_IPC_CHANNELS.listExternalFonts, async (event) => {
+    if (!isMainWindowSender(event.sender) || !externalFonts) return []
+    return externalFonts.listStates()
+  })
+  ipcMain.handle(
+    DESKTOP_APPEARANCE_IPC_CHANNELS.downloadExternalFont,
+    async (event, fontId: unknown) => {
+      if (!isMainWindowSender(event.sender) || !externalFonts || typeof fontId !== 'string') {
+        return {
+          ok: false,
+          state: {
+            id: typeof fontId === 'string' ? fontId : '',
+            family: '',
+            displayName: '',
+            kind: 'ui',
+            status: 'error',
+            error: '无效的字体请求',
+          },
+          error: '无效的字体请求',
+        }
+      }
+      return externalFonts.downloadFont(fontId)
+    },
+  )
+  ipcMain.handle(
+    DESKTOP_APPEARANCE_IPC_CHANNELS.getExternalFontCss,
+    async (event, fontId: unknown) => {
+      if (!isMainWindowSender(event.sender) || !externalFonts || typeof fontId !== 'string') {
+        return null
+      }
+      return externalFonts.getFontCss(fontId)
+    },
+  )
   appearance.registerThemeBroadcast()
 }

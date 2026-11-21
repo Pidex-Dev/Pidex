@@ -365,6 +365,7 @@ describe('provider management store', () => {
     expect(configurationReads).toBe(1)
     expect(sourceReads).toBe(1)
 
+    expect(store.getState().catalogRevision).toBe(0)
     // 事件突发合并：三次事件只触发一轮刷新，且每个事件都记入诊断。
     configurationReads = 0
     sourceReads = 0
@@ -377,6 +378,10 @@ describe('provider management store', () => {
     expect(configurationReads).toBe(1)
     expect(sourceReads).toBe(1)
     expect(store.getDiagnostics().filter((entry) => entry.trigger === 'event').length).toBe(2)
+    await waitFor(() => store.getState().catalogRevision === 1)
+    await callback?.([event('provider/credential/updated', 'credential-only')])
+    await waitFor(() => configurationReads === 2)
+    expect(store.getState().catalogRevision).toBe(1)
     release = null
     store.dispose()
   })

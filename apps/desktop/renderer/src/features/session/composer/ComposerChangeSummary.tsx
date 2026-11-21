@@ -101,7 +101,7 @@ export function ComposerChangeSummary({
 
   return (
     <div
-      className="composer-change-summary tw:relative tw:flex tw:w-full tw:max-w-full tw:items-center tw:justify-center tw:self-center tw:gap-2 tw:box-border tw:rounded-xl tw:pointer-events-auto"
+      className="composer-change-summary tw:relative tw:flex tw:w-full tw:max-w-full tw:items-center tw:justify-center tw:self-center tw:gap-2 tw:box-border tw:rounded-5 tw:pointer-events-auto"
       ref={summaryRef}
     >
       {hasPlan || changedFileCount > 0 ? (
@@ -112,7 +112,7 @@ export function ComposerChangeSummary({
         >
           <div
             aria-label="任务变更摘要"
-            className="composer-change-summary__bar tw:relative tw:inline-flex tw:z-1 tw:h-8 tw:min-h-8 tw:w-auto tw:min-w-0 tw:max-w-full tw:flex-[1_1_auto] tw:items-center tw:justify-center tw:gap-0 tw:box-border tw:overflow-hidden tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-0 tw:text-app-text tw:type-body-sm tw:shadow-lg tw:backdrop-blur-md"
+            className="composer-change-summary__bar tw:relative tw:inline-flex tw:z-1 tw:h-6 tw:min-h-6 tw:w-auto tw:min-w-0 tw:max-w-full tw:flex-[1_1_auto] tw:items-center tw:justify-center tw:gap-0 tw:box-border tw:overflow-hidden tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-0 tw:text-app-text tw:type-1 tw:shadow-floating-outer tw:backdrop-blur-md"
             role="group"
           >
             {hasPlan ? (
@@ -150,7 +150,7 @@ export function ComposerChangeSummary({
                   <TooltipContent
                     align="center"
                     aria-label="执行计划"
-                    className="composer-change-summary__plan-popover tw:z-tooltip tw:box-border tw:w-max tw:min-w-[min(16rem,calc(100vw-var(--cpx-sys-space-4)))] tw:max-w-[min(22rem,calc(100vw-var(--cpx-sys-space-4)))] tw:overflow-hidden tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text tw:shadow-lg tw:backdrop-blur-md"
+                    className="composer-change-summary__plan-popover tw:z-tooltip tw:box-border tw:w-max tw:min-w-[min(16rem,calc(100vw-var(--cpx-sys-space-4)))] tw:max-w-[min(22rem,calc(100vw-var(--cpx-sys-space-4)))] tw:overflow-hidden tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text tw:shadow-lg tw:backdrop-blur-md"
                     id={planPanelId}
                     ref={planPopoverRef}
                     side="top"
@@ -214,7 +214,7 @@ export function ComposerChangeSummary({
                         aria-hidden="true"
                         className="composer-change-summary__diff tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:tabular-nums"
                       >
-                        <strong className="tw:text-app-success tw:type-weight-label">
+                        <strong className="tw:text-app-success tw:weight-medium">
                           +{formattedAdditions}
                         </strong>
                         <em className="tw:text-app-danger tw:not-italic">-{formattedDeletions}</em>
@@ -226,7 +226,7 @@ export function ComposerChangeSummary({
                   <TooltipContent
                     align="center"
                     aria-label="修改文件"
-                    className="composer-change-summary__files-popover tw:z-tooltip tw:box-border tw:w-max tw:min-w-[min(16rem,calc(100vw-var(--cpx-sys-space-4)))] tw:max-w-[min(22rem,calc(100vw-var(--cpx-sys-space-4)))] tw:overflow-hidden tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text tw:shadow-lg tw:backdrop-blur-md"
+                    className="composer-change-summary__files-popover tw:z-tooltip tw:box-border tw:w-max tw:min-w-[min(16rem,calc(100vw-var(--cpx-sys-space-4)))] tw:max-w-[min(22rem,calc(100vw-var(--cpx-sys-space-4)))] tw:overflow-hidden tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text tw:shadow-lg tw:backdrop-blur-md"
                     id={filesPanelId}
                     ref={filesPopoverRef}
                     side="top"
@@ -243,7 +243,7 @@ export function ComposerChangeSummary({
                     }}
                   >
                     <div
-                      className="composer-change-summary__files-list tw:grid tw:w-full tw:max-h-[min(18rem,calc(100vh-var(--cpx-sys-space-8)))] tw:gap-1 tw:overflow-y-auto tw:[scrollbar-gutter:stable] tw:p-1.5 tw:[&>[role=listitem]]:w-full tw:[&>[role=listitem]]:min-w-0"
+                      className="composer-change-summary__files-list tw:grid tw:w-full tw:max-h-[min(18rem,calc(100vh-var(--cpx-sys-space-8)))] tw:gap-1 tw:overflow-y-auto tw:[scrollbar-gutter:stable] tw:p-1 tw:[&>[role=listitem]]:w-full tw:[&>[role=listitem]]:min-w-0"
                       role="list"
                     >
                       {changedFiles.map((file) => {
@@ -268,9 +268,9 @@ export function ComposerChangeSummary({
                               {statsAvailable ? (
                                 <span
                                   aria-hidden="true"
-                                  className="composer-change-summary__file-diff tw:inline-flex tw:flex-none tw:ms-auto tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption tw:tabular-nums"
+                                  className="composer-change-summary__file-diff tw:inline-flex tw:flex-none tw:ms-auto tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1 tw:tabular-nums"
                                 >
-                                  <strong className="tw:text-app-success tw:type-weight-label">
+                                  <strong className="tw:text-app-success tw:weight-medium">
                                     +{formatSummaryNumber(file.additions ?? 0)}
                                   </strong>
                                   <em className="tw:text-app-danger tw:not-italic">
@@ -353,7 +353,7 @@ function ComposerReturnToBottomPresence({
       ref={presenceRef}
       animate={{ opacity: 1, scale: 1 }}
       aria-hidden={!interactive ? true : undefined}
-      className="composer-change-summary__return-presence tw:flex tw:h-8 tw:w-8 tw:min-w-8 tw:flex-[0_0_32px] tw:items-center tw:justify-center tw:origin-center"
+      className="composer-change-summary__return-presence tw:flex tw:h-6 tw:w-6 tw:min-w-6 tw:flex-[0_0_32px] tw:items-center tw:justify-center tw:origin-center"
       exit={{
         opacity: 0,
         scale: 0.72,
@@ -381,7 +381,7 @@ function ComposerReturnToBottomPresence({
         {running ? <EllipsisAnimationIcon /> : null}
         <ArrowDown
           aria-hidden="true"
-          className="composer-change-summary__down-arrow"
+          className="tw:size-icon-md composer-change-summary__down-arrow"
           size={APP_ICON_SIZE}
           strokeWidth={APP_ICON_STROKE_WIDTH}
         />
@@ -451,9 +451,19 @@ function ExecutionPlanStatusIcon({
       role="img"
     >
       {status === 'failed' ? (
-        <CircleX aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <CircleX
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       ) : status === 'completed' ? (
-        <Check aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <Check
+          className="tw:size-icon-sm"
+          aria-hidden="true"
+          size={APP_ICON_SIZES.sm}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       ) : (
         <svg
           aria-hidden="true"

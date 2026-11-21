@@ -1,13 +1,28 @@
+import React from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { DiscoveredModelRow } from '../src/features/models/provider-management/ProviderModelSyncPanel.js'
+import { ModelRowItem } from '../src/features/models/provider-management/ProviderModelsSection.js'
+import { ProviderModelListRow } from '../src/features/models/provider-management/ProviderModelListRow.js'
+import {
+  GENERIC_MODEL_CONTEXT_WINDOW,
+  GENERIC_MODEL_MAX_TOKENS,
+  resolveCandidateImportModel,
+} from '../src/features/models/provider-management/ModelCandidateImport.js'
+import {
+  filterDiscoveredModels,
+  resolveModelCapabilities,
+  resolveModelContextWindow,
+  resolveModelVendor,
+} from '../src/features/models/provider-management/ModelSyncHelpers.js'
+import {
+  ModelCatalogDetails,
+  modelPrice,
+} from '../src/features/models/provider-management/ModelCatalogDetails.js'
 import { describe, expect, it } from 'bun:test'
 import type {
   DesktopModelProviderSummary,
   DesktopProviderModelDefinition,
 } from '../shared/Types.js'
-import {
-  resolveModelCapabilities,
-  resolveModelContextWindow,
-  resolveModelVendor,
-} from '../src/features/models/provider-management/ProviderModelsSection.js'
 
 describe('DiscoveredModelCard helpers', () => {
   const mockProvider: DesktopModelProviderSummary = {
@@ -19,13 +34,13 @@ describe('DiscoveredModelCard helpers', () => {
   }
 
   describe('resolveModelVendor', () => {
-    it('resolves vendor from model group when present', () => {
+    it('ignores saved model groups when resolving vendor', () => {
       const model: DesktopProviderModelDefinition = {
-        id: 'some-model',
+        id: 'deepseek-v4-pro',
         group: 'Anthropic',
         api: 'openai-completions',
       }
-      expect(resolveModelVendor(model, mockProvider)).toBe('Anthropic')
+      expect(resolveModelVendor(model, mockProvider)).toBe('DeepSeek')
     })
 
     it('resolves vendor from model id prefix with slash', () => {
@@ -140,26 +155,209 @@ describe('DiscoveredModelCard helpers', () => {
       expect(resolveModelContextWindow(model)).toBe(65536)
     })
 
-    it('parses context length from model id pattern', () => {
-      const modelK: DesktopProviderModelDefinition = {
-        id: 'model-128k',
-        api: 'openai-completions',
-      }
-      expect(resolveModelContextWindow(modelK)).toBe(128 * 1024)
-
-      const modelM: DesktopProviderModelDefinition = {
-        id: 'model-1m',
-        api: 'openai-completions',
-      }
-      expect(resolveModelContextWindow(modelM)).toBe(1024 * 1024)
+    it('does not infer context length from the model id', () => {
+      expect(resolveModelContextWindow({ id: 'model-128k', api: 'openai-completions' })).toBeNull()
+      expect(resolveModelContextWindow({ id: 'model-1m', api: 'openai-completions' })).toBeNull()
     })
 
-    it('falls back to default 32768', () => {
+    it('does not fall back to a 32K placeholder', () => {
       const model: DesktopProviderModelDefinition = {
         id: 'unknown-context',
         api: 'openai-completions',
       }
-      expect(resolveModelContextWindow(model)).toBe(32768)
+      expect(resolveModelContextWindow(model)).toBeNull()
     })
   })
+})
+
+it('点击行展开详情且不触发添加，右侧按钮独立触发添加/移除且无左侧折叠箭头或拖拽添加', () => {
+  expect(modelPrice(undefined)).toBe('未知')
+  expect(modelPrice(0)).toBe('免费')
+  let toggles = 0
+  let expands = 0
+  const wrapper = DiscoveredModelRow({
+    model: {
+      id: 'example',
+      api: 'openai-completions',
+      cost: { input: 0 },
+      catalog: {
+        input: ['text', 'pdf'],
+        output: ['text'],
+        priceSource: { kind: 'reference', providerId: 'maker' },
+      },
+    },
+    provider: { providerID: 'gateway', kind: 'custom', defaultModels: [], apiKeyConfigured: true },
+    isAdded: false,
+    isToggling: false,
+    expanded: true,
+    onToggleModel: () => {
+      toggles++
+    },
+    onToggleExpand: () => {
+      expands++
+    },
+  }) as React.ReactElement<React.ComponentProps<typeof ProviderModelListRow>>
+  const row = ProviderModelListRow(wrapper.props) as React.ReactElement<{
+    draggable?: boolean
+    children: [
+      React.ReactElement<{
+        children: [React.ReactElement, React.ReactElement, React.ReactElement]
+      }>,
+      React.ReactElement | null,
+    ]
+  }>
+  expect(row.props.draggable).toBeUndefined()
+  const [header] = row.props.children
+  const [, expandBtn, actionTooltip] = header.props.children
+  ;(expandBtn.props as { onClick: () => void }).onClick()
+  expect(expands).toBe(1)
+  expect(toggles).toBe(0)
+  const actionBtn = (actionTooltip as React.ReactElement<{ children: React.ReactElement }>).props
+    .children
+  ;(actionBtn.props as { onClick: () => void }).onClick()
+  expect(toggles).toBe(1)
+  expect(expands).toBe(1)
+  const html = renderToStaticMarkup(wrapper)
+  expect(html).toContain('aria-expanded="true"')
+  expect(html).toContain('aria-label="添加模型 example"')
+  expect(html).not.toContain('draggable="true"')
+  expect(html).not.toContain('role="checkbox"')
+  expect(html).toContain('原厂参考价')
+  expect(html).toContain('当前客户端暂未支持原生发送')
+  expect(html).toContain('输出 未知')
+  expect(html).toContain('128K')
+  expect(html).toContain('8K')
+})
+
+it('左侧已配置模型行共用同款展开详情与能力徽章，且点击行不误触编辑', () => {
+  let expands = 0
+  let edits = 0
+  let removes = 0
+  const wrapper = ModelRowItem({
+    modelId: 'example',
+    model: {
+      id: 'example',
+      name: 'Example Pro',
+      api: 'openai-completions',
+      reasoning: true,
+      cost: { input: 2, output: 8 },
+    },
+    disabled: false,
+    enabled: false,
+    expanded: true,
+    onToggleExpand: () => {
+      expands++
+    },
+    onTest: () => {},
+    onEdit: () => {
+      edits++
+    },
+    onRemove: () => {
+      removes++
+    },
+    editingDisabled: false,
+  }) as React.ReactElement<React.ComponentProps<typeof ProviderModelListRow>>
+  const row = ProviderModelListRow(wrapper.props) as React.ReactElement<{
+    children: [
+      React.ReactElement<{
+        children: [React.ReactElement, React.ReactElement, React.ReactElement]
+      }>,
+      React.ReactElement | null,
+    ]
+  }>
+  const [header] = row.props.children
+  const [, expandBtn, actionGroup] = header.props.children
+  ;(expandBtn.props as { onClick: () => void }).onClick()
+  expect(expands).toBe(1)
+  expect(edits).toBe(0)
+  const actionTooltips = (
+    actionGroup as React.ReactElement<{
+      children: [
+        null | React.ReactElement,
+        React.ReactElement,
+        React.ReactElement,
+        React.ReactElement,
+      ]
+    }>
+  ).props.children
+  const editBtn = (actionTooltips[2] as React.ReactElement<{ children: React.ReactElement }>).props
+    .children
+  ;(editBtn.props as { onClick: () => void }).onClick()
+  expect(edits).toBe(1)
+  const removeBtn = (actionTooltips[3] as React.ReactElement<{ children: React.ReactElement }>)
+    .props.children
+  ;(removeBtn.props as { onClick: () => void }).onClick()
+  expect(removes).toBe(1)
+  const html = renderToStaticMarkup(wrapper)
+  expect(html).toContain('model-center-model-row')
+  expect(html).toContain('aria-expanded="true"')
+  expect(html).toContain('aria-label="编辑模型 example"')
+  expect(html).toContain('aria-label="移除模型 example"')
+  expect(html).toContain('已停用')
+  expect(html).toContain('未知 / 未知')
+  expect(html).toContain('输入 $2 / 输出 $8')
+})
+
+it('未匹配或缺失规格候选保留已知字段并补齐通用默认参数', () => {
+  const partial = resolveCandidateImportModel({
+    id: 'auto/dfmodel',
+    api: 'openai-completions',
+    contextWindow: 1_000_000,
+    reasoning: true,
+  })
+  expect(partial.contextWindow).toBe(1_000_000)
+  expect(partial.maxTokens).toBe(GENERIC_MODEL_MAX_TOKENS)
+  expect(partial.reasoning).toBe(true)
+  expect(partial.tools).toBe(true)
+  expect(partial.input).toEqual(['text'])
+
+  const bare = resolveCandidateImportModel({
+    id: 'embed-model',
+    modelType: 'embedding',
+    api: 'openai-completions',
+  })
+  expect(bare.contextWindow).toBe(GENERIC_MODEL_CONTEXT_WINDOW)
+  expect(bare.maxTokens).toBe(GENERIC_MODEL_MAX_TOKENS)
+  expect(bare.tools).toBe(false)
+})
+
+it('支持状态与能力组合筛选', () => {
+  const provider: DesktopModelProviderSummary = {
+    providerID: 'gateway',
+    kind: 'custom',
+    displayName: 'Gateway',
+    defaultModels: [],
+    apiKeyConfigured: true,
+  }
+  const models: DesktopProviderModelDefinition[] = [
+    { id: 'deepseek-r1', api: 'openai-completions', reasoning: true },
+    { id: 'qwen-vl', api: 'openai-completions', input: ['text', 'image'] },
+    { id: 'glm-5', api: 'openai-completions', reasoning: true, input: ['text', 'image'] },
+  ]
+  const filtered = filterDiscoveredModels(models, {
+    query: '',
+    statusFilter: 'unadded',
+    capabilityFilters: new Set(['reasoning', 'vision']),
+    addedIds: new Set(['deepseek-r1']),
+    provider,
+    modelMetadata: {},
+  })
+  expect(filtered.map((m) => m.id)).toEqual(['glm-5'])
+})
+
+it('模型资料只渲染安全链接，独立音频单价明确标注估算限制', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ModelCatalogDetails, {
+      model: {
+        id: 'example',
+        api: 'openai-completions',
+        catalog: {
+          inputAudioCost: 5,
+          links: [{ url: 'javascript:alert(1)', label: 'unsafe' }],
+        },
+      },
+    }),
+  )
+  expect(html).not.toContain('href="javascript:')
+  expect(html).toContain('未作为额外分项加入当前费用估算')
 })

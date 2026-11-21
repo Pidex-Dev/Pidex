@@ -7,6 +7,7 @@ import { InfoTooltip } from '../../../components/ui/InfoTooltip.js'
 import { StopSlider } from '../../../components/ui/StopSlider.js'
 import { cx } from '../../../utils/Cx.js'
 import { resolveThinkingLabel } from './ThinkingLevelPopover.js'
+import { formatCompactNumber } from '../../../utils/UsageFormatters.js'
 
 export type ContextLimitPreset = {
   label: string
@@ -28,6 +29,9 @@ export type ModelRuntimeParametersPopoverProps = {
   physicalWindow?: number
   /** 模型物理输入上界（扣除输出预留与安全余量），预设与自定义值按它过滤/夹紧。 */
   physicalInputLimit?: number
+  /** 本次请求实际可用的输入预算与输出预留，来自统一 contextBudget 结果。 */
+  inputBudgetTokens?: number
+  outputReserveTokens?: number
   minimumContextTokens?: number
   maxContextTokens?: number | null
   onMaxContextTokensChange: (tokens: number | null) => void
@@ -46,9 +50,9 @@ export type ModelRuntimeParametersPopoverProps = {
   trigger?: React.ReactElement
 }
 
-const SECTION_TITLE_CLASS = 'tw:type-label tw:text-app-text'
+const SECTION_TITLE_CLASS = 'tw:type-1 tw:weight-medium tw:text-app-text'
 const HEADING_ROW_CLASS = 'tw:flex tw:items-center tw:justify-between tw:gap-2'
-const HEADING_VALUE_CLASS = 'tw:type-caption tw:text-app-text-soft'
+const HEADING_VALUE_CLASS = 'tw:type-1 tw:text-app-text-soft'
 
 export function formatContextLimitLabel(tokens: number | null | undefined): string {
   return tokens == null ? '模型默认' : `${tokens / 1000}K`
@@ -63,15 +67,25 @@ export function ModelRuntimeParametersSummary({
   ModelRuntimeParametersPopoverProps,
   'maxContextTokens' | 'thinkingMode' | 'thinkingOptions' | 'showThinkingOptions'
 >): React.ReactElement {
+  const hasContextBadge = maxContextTokens != null
   return (
-    <span className="tw:inline-flex tw:h-7 tw:shrink-0 tw:items-center tw:gap-2 tw:px-2 tw:whitespace-nowrap tw:type-control">
+    <span
+      className={cx(
+        'tw:inline-flex tw:h-5 tw:shrink-0 tw:items-center tw:justify-center tw:gap-2 tw:whitespace-nowrap tw:type-2 tw:weight-medium',
+        hasContextBadge ? 'tw:px-2' : 'tw:min-w-5 tw:px-0',
+      )}
+    >
       {showThinkingOptions ? (
         <span>{resolveThinkingLabel(thinkingOptions, thinkingMode)}</span>
       ) : null}
       {maxContextTokens != null ? (
         <Chip variant="info">{formatContextLimitLabel(maxContextTokens)}</Chip>
       ) : !showThinkingOptions ? (
-        <SlidersHorizontal size={APP_ICON_SIZES.md} aria-hidden="true" />
+        <SlidersHorizontal
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZES.md}
+          aria-hidden="true"
+        />
       ) : null}
     </span>
   )
@@ -80,6 +94,8 @@ export function ModelRuntimeParametersSummary({
 export type ModelRuntimeParametersContentProps = {
   physicalWindow?: number
   physicalInputLimit?: number
+  inputBudgetTokens?: number
+  outputReserveTokens?: number
   minimumContextTokens?: number
   maxContextTokens?: number | null
   onMaxContextTokensChange: (tokens: number | null) => void
@@ -92,6 +108,8 @@ export type ModelRuntimeParametersContentProps = {
 export function ModelRuntimeParametersContent({
   physicalWindow,
   physicalInputLimit,
+  inputBudgetTokens,
+  outputReserveTokens,
   minimumContextTokens,
   maxContextTokens,
   onMaxContextTokensChange,
@@ -162,7 +180,7 @@ export function ModelRuntimeParametersContent({
     }
   }, [maxContextTokens, isCustomValue, isCustomMode])
 
-  const maxK = Math.min(physicalInputLimit ?? physicalWindow ?? 10_000_000, 10_000_000) / 1000
+  const maxK = (physicalInputLimit ?? physicalWindow ?? Number.MAX_SAFE_INTEGER) / 1000
   const rangeHint =
     minimumTokens > maxK * 1000
       ? '可用空间不足，请调整模型或工具配置'
@@ -305,19 +323,17 @@ export function ModelRuntimeParametersContent({
             }}
           />
         ) : (
-          <span className="tw:type-caption tw:text-app-text-meta">
-            当前模型不支持配置推理思考强度
-          </span>
+          <span className="tw:type-1 tw:text-app-text-meta">当前模型不支持配置推理思考强度</span>
         )}
       </div>
 
       {/* Divider */}
-      <div className="tw:my-3.5 tw:h-px tw:bg-app-border-subtle" />
+      <div className="tw:my-3 tw:h-px tw:bg-app-border-subtle" />
 
       {/* Lower Section: Max Context Tokens */}
       <div className="tw:flex tw:flex-col tw:gap-2">
         <div className={HEADING_ROW_CLASS}>
-          <div className="tw:flex tw:items-center tw:gap-1.5">
+          <div className="tw:flex tw:items-center tw:gap-1">
             <span className={SECTION_TITLE_CLASS}>上下文预算</span>
             <InfoTooltip
               content="控制单次请求上下文规模，超限时触发压缩或暂停。发送前自动检查预算是否充足；修改从下一轮生效，当前轮次沿用已有预算。"
@@ -340,6 +356,7 @@ export function ModelRuntimeParametersContent({
               onChange={(e) => setCustomKInput(e.target.value)}
               onBlur={handleCommitCustomK}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return
                 if (e.key === 'Escape') {
                   e.preventDefault()
                   e.stopPropagation()
@@ -354,14 +371,14 @@ export function ModelRuntimeParametersContent({
                 }
               }}
               className={cx(
-                'tw:h-6 tw:w-20 tw:rounded-indicator tw:border tw:border-app-border-subtle tw:bg-transparent',
-                'tw:px-2 tw:type-caption tw:text-app-text tw:outline-none tw:text-right',
+                'tw:h-5 tw:w-[5rem] tw:rounded-indicator tw:border tw:border-app-border-subtle tw:bg-transparent',
+                'tw:px-2 tw:type-1 tw:text-app-text tw:outline-none tw:text-right',
                 'tw:transition-colors tw:duration-feedback tw:ease-standard',
                 'tw:focus:border-app-focus tw:focus:outline-none',
                 'tw:disabled:cursor-default tw:disabled:opacity-60',
               )}
             />
-            {showKUnit ? <span className="tw:type-caption tw:text-app-text-soft">k</span> : null}
+            {showKUnit ? <span className="tw:type-1 tw:text-app-text-soft">k</span> : null}
           </div>
         </div>
 
@@ -376,16 +393,22 @@ export function ModelRuntimeParametersContent({
           />
         </div>
 
+        {inputBudgetTokens !== undefined && outputReserveTokens !== undefined ? (
+          <span className="tw:type-1 tw:text-app-text-meta">
+            {`实际输入预算 ${formatCompactNumber(inputBudgetTokens)} · 输出预留 ${formatCompactNumber(outputReserveTokens)}`}
+          </span>
+        ) : null}
+
         {inputError ? (
           <span
             id={`${customInputId}-error`}
             role="alert"
-            className="tw:type-caption tw:text-app-warning"
+            className="tw:type-1 tw:text-app-warning"
           >
             {inputError}
           </span>
         ) : maxContextTokens !== null && maxContextTokens < minimumTokens ? (
-          <span role="alert" className="tw:type-caption tw:text-app-warning">
+          <span role="alert" className="tw:type-1 tw:text-app-warning">
             {`系统必要开销约 ${minimumTokens / 1000}K，预算不能低于此值。`}
           </span>
         ) : null}
@@ -398,6 +421,8 @@ export function ModelRuntimeParametersPopover({
   modelName,
   physicalWindow,
   physicalInputLimit,
+  inputBudgetTokens,
+  outputReserveTokens,
   minimumContextTokens,
   maxContextTokens,
   onMaxContextTokensChange,
@@ -438,8 +463,8 @@ export function ModelRuntimeParametersPopover({
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       className={cx(
-        'composer-signal-trigger-btn tw:inline-flex tw:h-7 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:p-0',
-        'tw:rounded-pill tw:border-0 tw:bg-transparent tw:text-app-text-soft',
+        'composer-signal-trigger-btn tw:inline-flex tw:h-5 tw:min-w-5 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:p-0',
+        'tw:rounded-3 tw:border-0 tw:bg-transparent tw:text-app-text-soft',
         'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
         'tw:hover:bg-app-hover tw:hover:text-app-text',
         'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-2',
@@ -459,23 +484,22 @@ export function ModelRuntimeParametersPopover({
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>{customTrigger ?? defaultTrigger}</Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content
-          side={side}
-          align={align}
-          sideOffset={sideOffset}
-          className="composer-runtime-params-popover-content tw:w-80 tw:p-3.5"
-        >
-          <ModelRuntimeParametersContent
-            physicalWindow={physicalWindow}
-            physicalInputLimit={physicalInputLimit}
-            minimumContextTokens={minimumContextTokens}
-            maxContextTokens={maxContextTokens}
-            onMaxContextTokensChange={onMaxContextTokensChange}
-            showThinkingOptions={showThinkingOptions}
-            thinkingMode={thinkingMode}
-            thinkingOptions={thinkingOptions}
-            onThinkingChange={onThinkingChange}
-          />
+        <Popover.Content asChild side={side} align={align} sideOffset={sideOffset}>
+          <div className="composer-runtime-params-popover-content tw:w-[16.25rem] tw:p-2">
+            <ModelRuntimeParametersContent
+              physicalWindow={physicalWindow}
+              physicalInputLimit={physicalInputLimit}
+              inputBudgetTokens={inputBudgetTokens}
+              outputReserveTokens={outputReserveTokens}
+              minimumContextTokens={minimumContextTokens}
+              maxContextTokens={maxContextTokens}
+              onMaxContextTokensChange={onMaxContextTokensChange}
+              showThinkingOptions={showThinkingOptions}
+              thinkingMode={thinkingMode}
+              thinkingOptions={thinkingOptions}
+              onThinkingChange={onThinkingChange}
+            />
+          </div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -489,7 +513,7 @@ export function parseContextLimitK(
 ): number | null {
   if (!value.trim()) return null
   const tokens = Number(value) * 1000
-  if (!Number.isFinite(tokens) || !Number.isInteger(tokens) || tokens < 1) return null
-  const bounded = Math.min(tokens, maxTokens, 10_000_000)
+  if (!Number.isSafeInteger(tokens) || tokens < 1) return null
+  const bounded = Math.min(tokens, maxTokens)
   return bounded < minimumTokens ? null : bounded
 }

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 
 /*
@@ -83,39 +83,52 @@ export type ComposerFooterNodeRefs = {
   modelIcon: RefObject<HTMLElement | null>
 }
 
-function sameMetrics(previous: ComposerFooterMetrics | null, next: ComposerFooterMetrics): boolean {
-  if (!previous) return false
-  return (
-    Math.abs(previous.footerWidth - next.footerWidth) < 0.5 &&
-    Math.abs(previous.leftWidth - next.leftWidth) < 0.5 &&
-    Math.abs(previous.toolbarGap - next.toolbarGap) < 0.5 &&
-    Math.abs(previous.rightGap - next.rightGap) < 0.5 &&
-    Math.abs(previous.sendWidth - next.sendWidth) < 0.5 &&
-    Math.abs(previous.modelTextWidth - next.modelTextWidth) < 0.5 &&
-    Math.abs(previous.modelIconWidth - next.modelIconWidth) < 0.5
-  )
+export type ComposerFooterFitOptions = {
+  hasRing: boolean
+  holdModel: boolean
+  holdRing: boolean
+}
+
+function sameFit(previous: ComposerFooterFit, next: ComposerFooterFit): boolean {
+  return previous.modelMode === next.modelMode && previous.showRing === next.showRing
 }
 
 /**
- * One ResizeObserver over the footer's fixed nodes; measurements coalesce into
- * animation frames and stop when the unmeasured parts do not move. Returns
- * `null` until the first measurement; measure before paint so the initial
- * toolbar already uses the available space.
+ * One ResizeObserver over the footer's fixed nodes; publishes only discrete fit
+ * state (`modelMode` / `showRing`) so continuous panel resize animations do not
+ * re-render the composer tree on every frame.
  */
 export function useComposerFooterFit(
   nodes: ComposerFooterNodeRefs,
   reflowKey: unknown,
-): ComposerFooterMetrics | null {
-  const [metrics, setMetrics] = useState<ComposerFooterMetrics | null>(null)
+  options: ComposerFooterFitOptions,
+): ComposerFooterFit {
+  const [fit, setFit] = useState<ComposerFooterFit>({ modelMode: 'text', showRing: true })
   const nodesRef = useRef(nodes)
+  const metricsRef = useRef<ComposerFooterMetrics | null>(null)
+  const optionsRef = useRef(options)
+  const heldModelModeRef = useRef<'text' | 'icon'>('text')
   nodesRef.current = nodes
+  optionsRef.current = options
+
+  const commitFit = useCallback((nextMetrics: ComposerFooterMetrics | null): void => {
+    const nextFit = resolveComposerFooterFit(nextMetrics, {
+      ...optionsRef.current,
+      heldModelMode: heldModelModeRef.current,
+    })
+    if (nextFit.modelMode !== 'hidden') heldModelModeRef.current = nextFit.modelMode
+    setFit((previous) => (sameFit(previous, nextFit) ? previous : nextFit))
+  }, [])
+
+  useLayoutEffect(() => {
+    commitFit(metricsRef.current)
+  }, [commitFit, options.hasRing, options.holdModel, options.holdRing])
+
   useLayoutEffect(() => {
     if (typeof ResizeObserver === 'undefined') return
     const current = nodesRef.current
     if (!current.footer.current) return
-    let frame = 0
     const measure = (): void => {
-      frame = 0
       const footer = current.footer.current
       const left = current.left.current
       const right = current.right.current
@@ -133,18 +146,17 @@ export function useComposerFooterFit(
         modelTextWidth: widthOf(current.modelText.current),
         modelIconWidth: widthOf(current.modelIcon.current),
       }
-      setMetrics((previous) => (sameMetrics(previous, next) ? previous : next))
+      metricsRef.current = next
+      commitFit(next)
     }
-    const observer = new ResizeObserver(() => {
-      if (frame) return
-      frame = requestAnimationFrame(measure)
-    })
+    // INVARIANT: ResizeObserver fires post-layout; measuring directly avoids deferring layout reads into the next rAF after animation style writes.
+    const observer = new ResizeObserver(measure)
     for (const ref of Object.values(current)) if (ref.current) observer.observe(ref.current)
     measure()
     return () => {
-      if (frame) cancelAnimationFrame(frame)
       observer.disconnect()
     }
-  }, [reflowKey])
-  return metrics
+  }, [commitFit, reflowKey])
+
+  return fit
 }

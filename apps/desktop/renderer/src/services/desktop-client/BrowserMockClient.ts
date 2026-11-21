@@ -1,38 +1,10 @@
-import {
-  DESKTOP_AGENT_EVENT_CHANNEL,
-  DESKTOP_API_METHODS,
-  DESKTOP_SETTINGS_CHANGE_CHANNEL,
-  DESKTOP_SESSION_STORE_CHANGE_CHANNEL,
-  DESKTOP_UI_COMMAND_CHANNEL,
-  DESKTOP_UPDATE_STATUS_CHANNEL,
-  DESKTOP_WORKFLOW_EVENT_CHANNEL,
-  type DesktopApiMethod,
-} from '../../../shared/IpcChannels.js'
-import { encodeDesktopBridgeArgs } from '../../../shared/DesktopBridgeArgs.js'
-import {
-  defaultDesktopStoredSettings,
-  normalizeDesktopStoredSettings,
-} from '../../../shared/SettingsSchema.js'
-import {
-  collaborationModeFromPlanModeActive,
-  planModeActiveFromCollaborationMode,
-  resolveCollaborationMode,
-} from '../../shims/core/agent/SessionContract.js'
-import type { CatalogProvider, ModelRef, Project } from '@pidex/shared'
+import { defaultDesktopStoredSettings } from '../../../shared/SettingsSchema.js'
+import { collaborationModeFromPlanModeActive } from '../../shims/core/agent/SessionContract.js'
+import type { ModelRef } from '@pidex/shared'
 import { threadGoalBudgetViolation } from '@pidex/shared/thread'
-import type {
-  PermissionConfig,
-  PermissionRule,
-  SubagentProjection,
-  ThreadListItem,
-  ThreadSettings,
-  ThreadSettingsPatch,
-  ThreadSnapshot,
-} from '@pidex/shared/thread'
+import type { PermissionRule } from '@pidex/shared/thread'
 import {
-  type EventEnvelope,
   type JsonValue,
-  type ProtocolCapability,
   type PluginSummary,
   type RpcParams,
   type RpcResult,
@@ -41,68 +13,30 @@ import {
   DEFAULT_DESKTOP_THEME_SETTINGS,
   normalizeDesktopThemeSettings,
 } from '../../../shared/Theme.js'
-import { desktopUserMessageInputToPreviewText } from '../../../shared/DesktopUserMessage.js'
 import type {
-  CreateDesktopSessionOptions,
-  CreateDesktopSessionResult,
   DesktopApi,
   DesktopBrowserState,
   DesktopDataLocationMigrationResult,
   DesktopDataLocationState,
   DesktopFileEntry,
-  DesktopFilePreview,
-  DesktopFileRevision,
-  DesktopFileSaveResult,
-  DesktopModelSelection,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
-  DesktopApiKeySummary,
-  DesktopModelMetadata,
-  DesktopPermissionDecision,
-  DesktopPermissionMode,
-  DesktopReviewDiffResult,
-  DesktopReviewSource,
-  DesktopSessionEvent,
-  DesktopSessionCatalogStatus,
-  DesktopSessionMetadataPatch,
-  DesktopRuntimeStatus,
   DesktopGithubAuthMode,
-  DesktopGithubAuthStatus,
-  DesktopGithubLoginStatus,
-  DesktopGithubProfileOverviewResult,
-  DesktopGithubRepositoryListResult,
-  DesktopGitStatus,
-  DesktopGitOperationResult,
-  DesktopPullRequestResult,
   DesktopSettingsChange,
   DesktopSessionStoreChange,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
   DesktopThemeSettings,
-  DesktopSubagentRead,
-  DesktopUpdateStatus,
-  DesktopUserMessageInput,
   DesktopProviderModelDefinition,
-  DesktopWorkspace,
   ModelProviderID,
 } from '../../../shared/Types.js'
-import {
-  agentEventsFromNotification,
-  agentQuestionIdFromRequestId,
-  agentThreadListItemToDesktopSnapshot,
-  agentThreadSnapshotToDesktop,
-  desktopPermissionModeToPermissionConfig,
-  projectToDesktopWorkspace,
-} from '../AgentThreadAdapter.js'
-import { createAgentRpcClient, type AgentRpcSubscription } from '../AgentRpcClient.js'
-
+import { desktopPermissionModeToPermissionConfig } from '../AgentThreadAdapter.js'
 import {
   cleanGitStatus,
   createBrowserPerformanceFixture,
   createBrowserVisualFixture,
   emptyBrowserState,
   emptyReviewDiff,
-  githubLoginFailure,
   mockCopilotLogin,
   mockGithubLogin,
   mockModelProvider,
@@ -117,7 +51,6 @@ import type {
   DesktopAttachmentApi,
   DesktopAutomationApi,
   DesktopCalendarApi,
-  DesktopClientEnvironment,
   DesktopComputerApi,
   DesktopLocalContextApi,
   DesktopModelProviderRefreshApi,
@@ -462,13 +395,13 @@ export function createBrowserMockDesktopClient(
     getRuntimeCapabilities: async () =>
       (await import('@pidex/agent-protocol/capabilities')).Capabilities,
     pauseQuestion: async () => {},
-    approvalReviewState: async () => ({ manualAllows: 0, denials: [], reviews: [] }),
-    retryApproval: async () => {},
-    listApprovalRules: async (threadId) => ({
-      rules: [...(approvalRules.get(threadId) ?? [])],
-    }),
-    upsertApprovalRule: async ({ threadId, expectedVersion, rule }) => {
-      const current = approvalRules.get(threadId) ?? []
+    listApprovalRules: async (params) => {
+      const key = params?.threadId ?? params?.cwd ?? '__global__'
+      return { rules: [...(approvalRules.get(key) ?? [])] }
+    },
+    upsertApprovalRule: async ({ threadId, cwd, expectedVersion, rule }) => {
+      const key = threadId ?? cwd ?? '__global__'
+      const current = approvalRules.get(key) ?? []
       const existing = rule.id ? current.find((entry) => entry.id === rule.id) : undefined
       if (rule.id && !existing) throw new Error('CONFLICT: 规则已被删除，请刷新后重试')
       if (expectedVersion && existing?.version && expectedVersion !== existing.version)
@@ -484,19 +417,20 @@ export function createBrowserMockDesktopClient(
         version: String(mockApprovalRuleVersion++),
       }
       approvalRules.set(
-        threadId,
+        key,
         existing ? current.map((entry) => (entry.id === id ? next : entry)) : [next, ...current],
       )
       return { rule: next }
     },
-    revokeApprovalRule: async (threadId, ruleId, expectedVersion) => {
-      const current = approvalRules.get(threadId) ?? []
+    revokeApprovalRule: async ({ threadId, cwd, ruleId, expectedVersion }) => {
+      const key = threadId ?? cwd ?? '__global__'
+      const current = approvalRules.get(key) ?? []
       const existing = current.find((entry) => entry.id === ruleId)
       if (!existing) return { revoked: false }
       if (expectedVersion && existing.version && expectedVersion !== existing.version)
         throw new Error('CONFLICT: 规则版本已变化，请刷新后重试')
       approvalRules.set(
-        threadId,
+        key,
         current.filter((entry) => entry.id !== ruleId),
       )
       return { revoked: true }
@@ -684,10 +618,13 @@ export function createBrowserMockDesktopClient(
       emitSettingsChange()
       return settings
     },
-    listProjectMemories: async (workspacePath) => ({
-      memoryDir: `${workspacePath || 'mock'}/.pidex-memory/`,
-      entrypointPath: `${workspacePath || 'mock'}/.pidex-memory/MEMORY.md`,
+    listProjectMemories: async () => ({
+      namespace: { kind: 'user' },
+      memoryDir: 'mock/memories/',
+      entrypointPath: 'MEMORY.md',
       memories: [],
+      diagnostics: [],
+      indexContent: '',
     }),
     readProjectMemory: async (_workspacePath, relativePath) => ({
       relativePath,
@@ -695,6 +632,9 @@ export function createBrowserMockDesktopClient(
       description: null,
       size: 0,
       mtimeMs: 0,
+      revision: '',
+      nextOffset: null,
+      truncated: false,
       content: '',
     }),
     saveProjectMemory: async (input) => ({
@@ -703,19 +643,30 @@ export function createBrowserMockDesktopClient(
       description: null,
       size: input.content.length,
       mtimeMs: Date.now(),
+      revision: '',
+      indexed: false,
     }),
     deleteProjectMemory: async () => {},
     resetProjectMemory: async () => {},
-    listProjectMemoryRecalls: async (workspacePath) => ({
-      recallLogPath: `${workspacePath || 'mock'}/.pidex-memory/.recall-events.jsonl`,
-      recalls: [],
+    listMemoryUsage: async () => [],
+    listMemoryTasks: async () => ({ tasks: [], autoOrganize: true }),
+    organizeMemory: async () => ({ taskId: null, queued: false }),
+    readMemorySettings: async () => ({
+      autoOrganize: true,
+      memoryDir: 'mock/memories/',
+      namedAgents: [],
+    }),
+    saveMemorySettings: async (input) => ({
+      autoOrganize: input.autoOrganize,
+      memoryDir: 'mock/memories/',
+      namedAgents: [],
     }),
     listUserMemories: async () => ({
-      memoryDir: 'mock/user-memory/',
-      profilePath: 'mock/user-memory/profile.memory.md',
-      preferencesPath: 'mock/user-memory/preferences.json',
-      eventsPath: 'mock/user-memory/memory_events.jsonl',
-      conversationIndexPath: 'mock/user-memory/conversation_index.sqlite',
+      memoryDir: 'mock/memories/user/',
+      profilePath: 'MEMORY.md',
+      preferencesPath: 'MEMORY.md',
+      eventsPath: 'memory_usage',
+      conversationIndexPath: 'history.sqlite',
       memories: [],
     }),
     readUserMemory: async (relativePath) => ({
@@ -724,6 +675,9 @@ export function createBrowserMockDesktopClient(
       description: null,
       size: 0,
       mtimeMs: 0,
+      revision: '',
+      nextOffset: null,
+      truncated: false,
       content: '',
     }),
     saveUserMemory: async (input) => ({
@@ -732,12 +686,16 @@ export function createBrowserMockDesktopClient(
       description: null,
       size: input.content.length,
       mtimeMs: Date.now(),
+      revision: '',
+      indexed: false,
     }),
     deleteUserMemory: async () => {},
     resetUserMemory: async () => {},
+
     generateTaskSuggestions: async () => {
       throw new Error('TASK_SUGGESTIONS_UNAVAILABLE')
     },
+    generateComposerPrediction: async () => ({ prediction: null }),
     exportUserMemory: async () => ({
       memoryDir: 'mock/user-memory/',
       files: [],
@@ -795,6 +753,14 @@ export function createBrowserMockDesktopClient(
       mockPluginGeneration += 1
       mockTaskPlanningPlugin = { ...mockTaskPlanningPlugin, enabled }
       return mockTaskPlanningPlugin
+    },
+    listApps: async () => ({
+      apps: [],
+      generation: mockPluginGeneration,
+      updatedAt: Date.now(),
+    }),
+    setAppEnabled: async () => {
+      throw new Error('PLUGIN_NOT_FOUND')
     },
     onPluginsUpdated: () => () => {},
     getComputerState: async () => mockComputerState,
@@ -1096,11 +1062,13 @@ export function createBrowserMockDesktopClient(
     createProvider: async () => undefined,
     updateProvider: async () => undefined,
     deleteProvider: async () => undefined,
-    discoverProviderModels: async (input) =>
-      [
+    discoverProviderModels: async (input) => ({
+      models: [
         { id: 'mock-sync-model', name: 'Mock Sync Model', api: input.api, enabled: false },
         { id: 'mock-sync-model-2', api: input.api, enabled: false },
       ] as unknown as DesktopProviderModelDefinition[],
+      matches: [],
+    }),
     startAuthSession: async (target) =>
       ({
         id: crypto.randomUUID(),
@@ -1665,6 +1633,57 @@ export function createBrowserMockDesktopClient(
       isEnvControlled: false,
     }),
     chooseDataLocation: async (): Promise<DesktopDataLocationMigrationResult | null> => null,
+    getStorageSummary: async () => ({
+      dataDir: 'C:\\Users\\Mock\\.pidex',
+      defaultWorktreeRoot: 'C:\\Users\\Mock\\.pidex\\managed-worktrees',
+      configuredWorktreeRoot: null,
+      breakdown: {
+        chatBytes: 120 * 1024 * 1024,
+        worktreeBytes: 420 * 1024 * 1024,
+        artifactsBytes: 36 * 1024 * 1024,
+        otherBytes: 48 * 1024 * 1024,
+      },
+      chatDetails: {
+        messagesBytes: 86 * 1024 * 1024,
+        attachmentsBytes: 18 * 1024 * 1024,
+        archivedBytes: 24 * 1024 * 1024,
+        sqliteOverheadBytes: 16 * 1024 * 1024,
+      },
+      folders: {
+        dataDirBytes: 624 * 1024 * 1024,
+        customWorktreeRootBytes: null,
+      },
+      computedAt: Date.now(),
+    }),
+    listOldChatsForStorage: async () => ({
+      items: [],
+      totalCount: 0,
+      totalSubagentCount: 0,
+      hasMore: false,
+    }),
+    deleteOldChatsForStorage: async () => ({
+      deletedIds: [],
+      failed: [],
+      reclaimedBytes: 0,
+      vacuumed: false,
+    }),
+    getUserDataStorageSummary: async () => ({
+      userDataDir: 'C:\\Users\\Mock\\AppData\\Roaming\\Pidex',
+      totalBytes: 64 * 1024 * 1024,
+      runtimesBytes: 42 * 1024 * 1024,
+      otherBytes: 22 * 1024 * 1024,
+    }),
+    openStorageDirectory: async () => {},
+    listAgentDownloadedResources: async () => ({ items: [] }),
+    deleteAgentDownloadedResource: async (resourceId: string) => ({
+      resourceId,
+      reclaimedBytes: 0,
+    }),
+    listUserDataDownloadedResources: async () => [],
+    deleteUserDataDownloadedResource: async (resourceId: string) => ({
+      resourceId,
+      reclaimedBytes: 0,
+    }),
     onAgentEvent: () => noop,
     onWorkflowEvent: () => noop,
     onUiCommand: () => noop,

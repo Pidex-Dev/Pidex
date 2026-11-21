@@ -97,10 +97,10 @@ export function LocalEnvironmentProjectSettings({
     return <p role="status">正在加载项目…</p>
   if (projectId && environmentId && project)
     return (
-      <div className="tw:grid tw:gap-8">
+      <div className="tw:grid tw:gap-6">
         <nav
           aria-label="环境面包屑"
-          className="tw:flex tw:items-center tw:gap-2 tw:type-caption tw:text-app-text-meta"
+          className="tw:flex tw:items-center tw:gap-2 tw:type-1 tw:text-app-text-meta"
         >
           <Button
             color="ghostSecondary"
@@ -109,7 +109,7 @@ export function LocalEnvironmentProjectSettings({
           >
             环境
           </Button>
-          <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+          <ChevronRight className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
           <Button
             color="ghostSecondary"
             size="toolbar"
@@ -119,7 +119,7 @@ export function LocalEnvironmentProjectSettings({
           </Button>
           {editing ? (
             <>
-              <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+              <ChevronRight className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               <span className="tw:text-app-text">编辑</span>
             </>
           ) : null}
@@ -142,7 +142,7 @@ export function LocalEnvironmentProjectSettings({
   return (
     <div className="tw:grid tw:gap-3">
       <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-        <h3 className="tw:m-0 tw:type-row-title tw:text-app-text">选择项目</h3>
+        <h3 className="tw:m-0 tw:type-2 tw:weight-medium tw:text-app-text">选择项目</h3>
         <Button
           color="secondary"
           onClick={() =>
@@ -209,9 +209,12 @@ function ProjectCard({
       setBusy(false)
     }
   }
+  const subEnvironments = catalog?.environments.filter((item) => item.exists) ?? []
+  const hasChildren = subEnvironments.length > 0 || Boolean(error)
+
   return (
-    <article className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4">
-      <div className="tw:flex tw:items-center tw:gap-3">
+    <article className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-2">
+      <div className={`tw:flex tw:items-center tw:gap-3 ${hasChildren ? 'tw:mb-2' : ''}`}>
         <button
           type="button"
           disabled={!defaultEnvironment || busy}
@@ -222,9 +225,9 @@ function ProjectCard({
           }
         >
           <Folder aria-hidden="true" size="var(--inline-icon-size, 1em)" />
-          <span className="tw:min-w-0 tw:type-row-title">
+          <span className="tw:min-w-0 tw:type-2 tw:weight-medium">
             {project.name}
-            <span className="tw:block tw:truncate tw:type-caption tw:text-app-text-meta">
+            <span className="tw:block tw:truncate tw:type-1 tw:text-app-text-meta">
               {project.path}
             </span>
           </span>
@@ -237,30 +240,30 @@ function ProjectCard({
           disabled={busy || !catalog}
           onClick={() => void add()}
         >
-          <Plus size={APP_ICON_SIZE} />
+          <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />
         </Button>
       </div>
-      {catalog?.environments
-        .filter((item) => item.exists)
-        .map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="tw:mt-3 tw:flex tw:w-full tw:cursor-pointer tw:items-center tw:justify-between tw:gap-3 tw:border-0 tw:border-t tw:border-app-border-subtle tw:bg-transparent tw:pt-3 tw:text-left tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
-            onClick={() => onOpen(projectId, item.id, false)}
-          >
-            <span className="tw:min-w-0 tw:type-row-title">
-              {item.name}
-              <span className="tw:block tw:truncate tw:type-caption tw:text-app-text-meta">
-                {item.inherited ? '继承 · ' : ''}
-                {item.path.split(/[\\/]/).pop()}
-              </span>
+      {subEnvironments.map((item, index) => (
+        <button
+          key={item.id}
+          type="button"
+          className={`tw:flex tw:w-full tw:cursor-pointer tw:items-center tw:justify-between tw:gap-3 tw:border-0 tw:border-t tw:border-app-border-subtle tw:bg-transparent tw:pt-2 tw:text-left tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus ${
+            index < subEnvironments.length - 1 ? 'tw:pb-2' : ''
+          }`}
+          onClick={() => onOpen(projectId, item.id, false)}
+        >
+          <span className="tw:min-w-0 tw:type-2 tw:weight-medium">
+            {item.name}
+            <span className="tw:block tw:truncate tw:type-1 tw:text-app-text-meta">
+              {item.inherited ? '继承 · ' : ''}
+              {item.path.split(/[\\/]/).pop()}
             </span>
-            <ChevronRight size="var(--inline-icon-size, 1em)" />
-          </button>
-        ))}
+          </span>
+          <ChevronRight size="var(--inline-icon-size, 1em)" />
+        </button>
+      ))}
       {error ? (
-        <div role="alert" className="tw:mt-3 tw:type-caption tw:text-app-danger">
+        <div role="alert" className="tw:mt-3 tw:type-1 tw:text-app-danger">
           {error}
           <Button color="ghostSecondary" size="toolbar" onClick={() => void refresh()}>
             重试

@@ -1,5 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react'
-import './Chip.css'
+import { cx } from '../../utils/Cx.js'
 
 export type ChipVariant = 'accent' | 'success' | 'danger' | 'warning' | 'skill' | 'info'
 
@@ -20,7 +20,11 @@ export interface ChipProps extends HTMLAttributes<HTMLSpanElement> {
 export function Chip({ variant = 'accent', className, children, ...props }: ChipProps) {
   return (
     <span
-      className={`chip-semantic ${VARIANT_CLASSES[variant]}${className ? ` ${className}` : ''}`}
+      className={cx(
+        'chip-semantic tw:inline-flex tw:items-center tw:gap-1 tw:px-2 tw:py-[calc(var(--cpx-sys-space-1)/2)] tw:rounded-full tw:border tw:type-1 tw:weight-medium tw:[&>svg]:block tw:[&>svg]:size-[var(--inline-icon-size,1em)] tw:[&>svg]:shrink-0',
+        VARIANT_CLASSES[variant],
+        className,
+      )}
       {...props}
     >
       {children}

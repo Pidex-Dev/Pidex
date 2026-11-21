@@ -1,5 +1,5 @@
 import React from 'react'
-import { CirclePlus, LoaderCircle } from 'lucide-react'
+import { CirclePlus } from 'lucide-react'
 import type { VirtualizerHandle } from 'virtua'
 import type {
   DesktopPermissionMode,
@@ -10,6 +10,7 @@ import { Button } from '../../../components/ui/Button.js'
 import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { WorkbenchTabDescriptor } from '../../layout/dock/RightDockState.js'
+import { WorkbenchPanelLoading } from '../../layout/panels/WorkbenchPanelStates.js'
 import { InlineApprovalCard } from '../approvals/InlineApprovalCard.js'
 import { PlanApprovalCard } from '../approvals/PlanApprovalCard.js'
 import { usePlanApprovalResponse } from '../approvals/UsePlanApprovalResponse.js'
@@ -117,7 +118,7 @@ export function SideChatThreadPanel({
   return (
     <section
       aria-label={tab.title}
-      className="right-dock-side-chat tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:bg-app-dock"
+      className="right-dock-side-chat tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:flex-auto tw:flex-col tw:overflow-hidden tw:bg-app-dock"
       data-side-chat-thread-id={tab.threadId}
     >
       <ThreadScrollLayout
@@ -172,47 +173,40 @@ export function SideChatThreadPanel({
         scrollRef={scrollRef}
       >
         {creating ? (
-          <div
-            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body"
-            role="status"
-          >
-            <LoaderCircle size={APP_ICON_SIZES.lg} className="canonical-spin" aria-hidden="true" />
-            <strong>正在启动侧边聊天</strong>
-          </div>
+          <WorkbenchPanelLoading label="正在启动侧边聊天…" />
         ) : expired ? (
           <div
-            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body"
+            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
             role="status"
           >
-            <CirclePlus size={APP_ICON_SIZES.lg} aria-hidden="true" />
-            <strong>侧边聊天已过期</strong>
-            <span>此临时侧边聊天已不可用；请新建一个侧边聊天以继续。</span>
-            <Button color="primary" onClick={() => onRecreate(tab)}>
+            <CirclePlus className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} aria-hidden="true" />
+            <strong className="tw:mt-4 tw:text-app-text tw:type-4 tw:weight-bold">
+              侧边聊天已过期
+            </strong>
+            <span className="tw:mt-2 tw:type-1">
+              此临时侧边聊天已不可用；请新建一个侧边聊天以继续。
+            </span>
+            <Button className="tw:mt-4" color="primary" onClick={() => onRecreate(tab)}>
               开始新的侧边聊天
             </Button>
           </div>
         ) : conversation.loading && visibleTurnCount === 0 ? (
-          <div
-            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body"
-            role="status"
-          >
-            <LoaderCircle size={APP_ICON_SIZES.lg} className="canonical-spin" aria-hidden="true" />
-            <strong>正在启动侧边聊天</strong>
-          </div>
+          <WorkbenchPanelLoading label="正在启动侧边聊天…" />
         ) : visibleTurnCount === 0 && !conversation.error ? (
           <div
-            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body"
+            className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-5 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-2"
             role="status"
           >
-            <span className="right-dock-side-chat__empty-icon">
+            <span className="right-dock-side-chat__empty-icon tw:grid tw:size-[42px] tw:place-items-center tw:rounded-full tw:bg-app-underlay">
               <CirclePlus
+                className="tw:size-icon-lg"
                 aria-hidden="true"
                 size={APP_ICON_SIZES.lg}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             </span>
-            <strong>侧边聊天</strong>
-            <span>侧边聊天是临时聊天，关闭应用后会消失。</span>
+            <strong className="tw:mt-4 tw:text-app-text tw:type-4 tw:weight-bold">侧边聊天</strong>
+            <span className="tw:mt-2 tw:type-1">侧边聊天是临时聊天，关闭应用后会消失。</span>
           </div>
         ) : (
           <ConversationItemContext.Provider value={itemContext(status)}>

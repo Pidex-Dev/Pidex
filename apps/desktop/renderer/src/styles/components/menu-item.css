@@ -41,7 +41,7 @@
   .menubar-item {
     display: grid;
     grid-template-columns: minmax(0, 1fr) max-content;
-    column-gap: calc(var(--cpx-comp-row-gap) + var(--cpx-comp-row-gap));
+    column-gap: var(--cpx-comp-row-gap);
     align-items: center;
   }
 
@@ -49,6 +49,13 @@
   .permission-select-item {
     display: flex;
     gap: var(--cpx-comp-row-gap);
+    align-items: center;
+  }
+
+  .chat-input__dropdown-item {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) max-content;
+    column-gap: var(--cpx-sys-space-2);
     align-items: center;
   }
 

@@ -350,7 +350,7 @@ export class ContextRepository {
         context_window_tokens, input_tokens, output_tokens, source, created_at
       FROM context_usage_samples
       WHERE thread_id = ?
-      ORDER BY created_at DESC, id DESC LIMIT ?
+      ORDER BY created_at DESC, rowid DESC LIMIT ?
     `,
       )
       .all(threadID, limit) as ContextUsageRow[]
@@ -365,7 +365,7 @@ export class ContextRepository {
         context_window_tokens, input_tokens, output_tokens, source, created_at
       FROM context_usage_samples
       WHERE thread_id = ? AND context_fingerprint = ? AND source = 'measured'
-      ORDER BY created_at DESC, id DESC LIMIT 1
+      ORDER BY created_at DESC, rowid DESC LIMIT 1
     `,
       )
       .get(threadID, contextFingerprint) as ContextUsageRow | null

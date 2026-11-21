@@ -13,9 +13,7 @@
     "overrides"
   ],
   "directStyleImportAllowlist": [
-    "src/components/ui/Chip.tsx -> src/components/ui/Chip.css",
     "src/components/ui/DatePicker.tsx -> src/components/ui/DatePicker.css",
-    "src/components/ui/Input.tsx -> src/components/ui/Input.css",
     "src/components/ui/ScrollArea.tsx -> src/components/ui/ScrollArea.css",
     "src/components/ui/SearchInput.tsx -> src/components/ui/SearchInput.css",
     "src/components/ui/SidebarRow.tsx -> src/components/ui/SidebarRow.css",
@@ -30,9 +28,7 @@
     "src/styles/lazy/terminal.css": "vendor"
   },
   "componentStyleEntrypoints": {
-    "src/components/ui/Chip.css": "primitives",
     "src/components/ui/DatePicker.css": "primitives",
-    "src/components/ui/Input.css": "primitives",
     "src/components/ui/ScrollArea.css": "primitives",
     "src/components/ui/SearchInput.css": "primitives",
     "src/components/ui/SidebarRow.css": "primitives",
@@ -43,8 +39,7 @@
   "customPropertyReferenceAllowlist": [
     "--radix-menubar-content-transform-origin",
     "--radix-menubar-content-available-height",
-    "--radix-collapsible-content-height",
-    "--sidebar-collapse-target-size"
+    "--radix-collapsible-content-height"
   ],
   "forbiddenCustomPropertyPatterns": [
     "^--color-bg(?:-|$)",
@@ -106,6 +101,150 @@
     ],
     "literalSpacingExceptions": []
   },
+  "deadSelectorAllowlist": ["sidebar-session-list-extra"],
+  "multiFileClassAllowlist": {
+    "appearance-color-popover": ["src/styles/popover.css", "src/styles/primitives/overlays.css"],
+    "attachment-image-tile": [
+      "src/styles/primitives/composer.css",
+      "src/styles/primitives/conversation.css"
+    ],
+    "attachment-image-tile__image": [
+      "src/styles/primitives/composer.css",
+      "src/styles/primitives/conversation.css"
+    ],
+    "chat-input__dropdown-item": [
+      "src/styles/components/interactive-row.css",
+      "src/styles/components/menu-item.css",
+      "src/styles/popover.css"
+    ],
+    "composer": ["src/styles/features/composer-shell.css", "src/styles/primitives/composer.css"],
+    "composer-editor": [
+      "src/styles/primitives/composer.css",
+      "src/styles/primitives/conversation.css"
+    ],
+    "composer-editor-content": [
+      "src/styles/features/composer-shell.css",
+      "src/styles/primitives/composer.css",
+      "src/styles/primitives/conversation.css"
+    ],
+    "composer-utility-bar": [
+      "src/styles/features/composer-shell.css",
+      "src/styles/primitives/composer.css"
+    ],
+    "conversation-page": [
+      "src/styles/primitives/conversation.css",
+      "src/styles/primitives/session.css"
+    ],
+    "execution-plan-card__edge-fade": [
+      "src/styles/features/conversation-reasoning.css",
+      "src/styles/primitives/conversation.css"
+    ],
+    "md-body": [
+      "src/styles/markdown.css",
+      "src/styles/primitives/conversation.css",
+      "src/styles/primitives/session.css"
+    ],
+    "md-code-block": [
+      "src/styles/markdown.css",
+      "src/styles/primitives/conversation.css",
+      "src/styles/primitives/right-dock.css"
+    ],
+    "md-code-header": ["src/styles/markdown.css", "src/styles/primitives/right-dock.css"],
+    "md-lead-description__detail": ["src/styles/markdown.css", "src/styles/primitives/session.css"],
+    "menubar-item": [
+      "src/styles/components/interactive-row.css",
+      "src/styles/components/menu-item.css",
+      "src/styles/popover.css"
+    ],
+    "permission-select-content": ["src/styles/popover.css", "src/styles/primitives/overlays.css"],
+    "permission-select-item": [
+      "src/styles/components/interactive-row.css",
+      "src/styles/components/menu-item.css",
+      "src/styles/popover.css"
+    ],
+    "permission-select-scroll-area": [
+      "src/styles/components/interactive-row.css",
+      "src/styles/popover.css"
+    ],
+    "popover": [
+      "src/styles/popover.css",
+      "src/styles/primitives/overlays.css",
+      "src/styles/primitives/session.css"
+    ],
+    "popover-item-arrow": ["src/components/ui/SidebarRow.css", "src/styles/popover.css"],
+    "popover-item-label": ["src/styles/components/menu-item.css", "src/styles/popover.css"],
+    "popover-surface": ["src/styles/popover.css", "src/styles/primitives/overlays.css"],
+    "quick-chat-view": [
+      "src/styles/primitives/conversation.css",
+      "src/styles/primitives/session.css"
+    ],
+    "reasoning-node__shimmer": [
+      "src/styles/features/conversation-reasoning.css",
+      "src/styles/primitives/conversation.css"
+    ],
+    "review-codex-diff": [
+      "src/styles/primitives/conversation.css",
+      "src/styles/primitives/review.css"
+    ],
+    "session-timeline-container": [
+      "src/styles/features/layout-right-dock-panels.css",
+      "src/styles/primitives/conversation.css"
+    ],
+    "settings-dropdown-content": [
+      "src/styles/popover.css",
+      "src/styles/primitives/overlays.css",
+      "src/styles/primitives/settings.css"
+    ],
+    "settings-dropdown-item": [
+      "src/styles/components/interactive-row.css",
+      "src/styles/components/menu-item.css",
+      "src/styles/popover.css"
+    ],
+    "sidebar-context-menu-content": [
+      "src/styles/popover.css",
+      "src/styles/primitives/overlays.css"
+    ],
+    "sidebar-context-menu-item": [
+      "src/styles/components/interactive-row.css",
+      "src/styles/components/menu-item.css",
+      "src/styles/popover.css"
+    ],
+    "sidebar-context-menu-label": ["src/styles/components/menu-item.css", "src/styles/popover.css"],
+    "sidebar-context-menu-leading": [
+      "src/styles/components/menu-item.css",
+      "src/styles/popover.css"
+    ],
+    "sidebar-context-menu-sub-trigger": [
+      "src/styles/components/interactive-row.css",
+      "src/styles/components/menu-item.css",
+      "src/styles/popover.css"
+    ],
+    "sidebar-hover-card-surface": ["src/styles/popover.css", "src/styles/primitives/sidebar.css"],
+    "sidebar-resizer": ["src/styles/base.css", "src/styles/primitives/sidebar.css"],
+    "sidebar-row": ["src/components/ui/SidebarRow.css", "src/styles/primitives/sidebar.css"],
+    "sidebar-row-leading": ["src/components/ui/SidebarRow.css", "src/styles/popover.css"],
+    "sidebar-row-leading-spacer": ["src/components/ui/SidebarRow.css", "src/styles/popover.css"],
+    "sidebar-row-main": ["src/components/ui/SidebarRow.css", "src/styles/popover.css"],
+    "sidebar-row-trailing": [
+      "src/components/ui/SidebarRow.css",
+      "src/styles/popover.css",
+      "src/styles/primitives/sidebar.css"
+    ],
+    "thread-scroll-layout": [
+      "src/styles/primitives/conversation.css",
+      "src/styles/primitives/session.css"
+    ],
+    "thread-scroll-layout__footer": [
+      "src/styles/primitives/conversation.css",
+      "src/styles/primitives/session.css"
+    ],
+    "thread-summary-popover": ["src/styles/popover.css", "src/styles/primitives/overlays.css"],
+    "ui-dialog-backdrop": ["src/styles/modal.css", "src/styles/primitives/overlays.css"],
+    "ui-dialog-surface": ["src/styles/modal.css", "src/styles/primitives/overlays.css"],
+    "ui-dialog-surface--centered": ["src/styles/modal.css", "src/styles/primitives/overlays.css"],
+    "ui-dialog-surface--side-right": ["src/styles/modal.css", "src/styles/primitives/overlays.css"]
+  },
+  "cssTailwindCollisionAllowlist": {},
   "interactionContract": {
     "interactiveRowAllowedFiles": ["src/features/session/summary/ThreadSummaryPanel.tsx"]
   }

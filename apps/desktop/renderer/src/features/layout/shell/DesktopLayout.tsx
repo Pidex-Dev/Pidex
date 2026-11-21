@@ -8,10 +8,7 @@ import {
   restoreFailedArchiveAssignments,
 } from '../sidebar/SidebarCustomization.js'
 import { DEFAULT_SIDEBAR_CUSTOMIZATION } from '../../../../shared/SettingsSchema.js'
-import {
-  notifyProjectCatalogChanged,
-  subscribeProjectRestores,
-} from '../../projects/ProjectCatalogEvents.js'
+import { notifyProjectCatalogChanged } from '../../projects/ProjectCatalogEvents.js'
 import { mergeBrowserWorkbench } from '../../browser/BrowserWorkbenchState.js'
 import { mergeComposerAttachments } from '../../session/composer/ComposerAttachmentSelection.js'
 import { ConversationProjectDetails } from '../../projects/ConversationProjectDetails.js'
@@ -30,6 +27,7 @@ import { normalizePathForComparison } from '../../../utils/PathUtils.js'
 import type { SessionBoundComposerProps } from '../../session/composer/SessionBoundComposer.js'
 import { getDesktopComposerBranchName } from '../../session/composer/ComposerWorkspacePresentation.js'
 import { composerDraftStore } from '../../session/composer/ComposerDraftStore.js'
+import { selectLatestCompletedTurnId } from '../../session/composer/ComposerPrediction.js'
 import { isBuiltinSkill } from '../../plugins/BuiltinSkillPresentation.js'
 import { listRuntimeSkills } from '../../settings/plugins/SkillClientAdapter.js'
 import type { ComposerDraftKey } from '../../session/composer/ComposerTypes.js'
@@ -57,6 +55,16 @@ import {
   type ConversationUiState,
   type ReviewTabUiState,
 } from '../tabs/ConversationUiState.js'
+import {
+  closeTitlebarSessionTab,
+  mergeTitlebarSessionTabIdsFromSettings,
+  openTitlebarSessionTab,
+  pruneTitlebarSessionTabs,
+  readStoredTitlebarSessionTabSnapshots,
+  writeStoredTitlebarSessionTabSnapshots,
+  type StoredTitlebarSessionTabSnapshot,
+  type TitlebarSessionTabItem,
+} from '../tabs/TitlebarSessionTabsState.js'
 import { DesktopSidebar } from '../DesktopSidebar.js'
 import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
@@ -66,10 +74,13 @@ import { SidebarPluginsPane } from '../sidebar/SidebarPluginsPane.js'
 import { SidebarProvidersPane } from '../sidebar/SidebarProvidersPane.js'
 import { SidebarPetsPane } from '../sidebar/SidebarPetsPane.js'
 import { SIDEBAR_RAIL_WIDTH, sidebarPaneForRoute } from '../sidebar/SidebarNavigation.js'
+import { pageTitle, resolveAppPage } from '../../routing/PageDefinitions.js'
 import { useSidebarCapabilities } from '../sidebar/SidebarTopNav.js'
 import { AutomationControllerProvider } from '../../automation/AutomationControllerProvider.js'
 import { MenuBar } from '../MenuBar.js'
 import { useAppMenuActions } from './UseAppMenuActions.js'
+import { useDesktopGlobalShortcuts } from './UseDesktopGlobalShortcuts.js'
+import { useDesktopLayoutSettings } from './UseDesktopLayoutSettings.js'
 import { QuickChatContext } from '../../session/QuickChatContext.js'
 import {
   sessionDisplayTitle,
@@ -78,13 +89,13 @@ import {
   type SessionListItem,
 } from '../../../UiTypes.js'
 import { resolveModelPresetId } from '../../../ModelPresets.js'
-import { useDesktopRuntimeSettingsField } from '../../settings/UseDesktopSettings.js'
 import { useSystemNotifications } from '../../notifications/UseSystemNotifications.js'
 import { Button } from '../../../components/ui/Button.js'
 import { TaskConversationLinks } from '../../automation/TaskConversationLinks.js'
 import { NO_WORKSPACE_DIFF } from '../../workspace/UseWorkspaceState.js'
 import { shouldRestoreLastWorkspace } from '../../workspace/LastWorkspaceRestore.js'
 import { useSessionState } from '../../session/state/UseSessionState.js'
+import { pendingSubmissionStore } from '../../session/state/PendingSubmissionStore.js'
 import { useSessionTitleRegeneration } from '../../session/state/UseSessionTitleRegeneration.js'
 import { useDesktopCommands } from '../../session/UseDesktopCommands.js'
 import { useEverOpened, useLastNonNull } from '../../../hooks/UsePresenceRetention.js'
@@ -98,7 +109,12 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkspace,
 } from '../../../../shared/Types.js'
-import type { Attachment, LocalContextReference } from '@pidex/shared/thread'
+import {
+  resolveSubagentDisplayParts,
+  type Attachment,
+  type LocalContextReference,
+} from '@pidex/shared/thread'
+import { resolveSubagentRole } from '../../session/subagents/SubagentRole.js'
 import {
   lazy,
   Suspense,
@@ -112,6 +128,8 @@ import {
 } from 'react'
 import {
   QUICK_CHAT_PATH,
+  appendPanelQuery,
+  resolveJudgePanelTargetPath,
   sessionPath,
   useWorkbenchRouteController,
 } from './UseWorkbenchRouteController.js'
@@ -122,10 +140,7 @@ import {
   scopedProviderManagementTab,
 } from '../../models/provider-management/ProviderManagementPanelState.js'
 import { useWorkbenchShellController } from './UseWorkbenchShellController.js'
-import {
-  isTerminalKeyboardTarget,
-  useIntegratedTerminalController,
-} from './UseIntegratedTerminalController.js'
+import { useIntegratedTerminalController } from './UseIntegratedTerminalController.js'
 import { useWorkbenchWorkspaceController } from './UseWorkbenchWorkspaceController.js'
 import {
   isDeepSeekThinkingModel,
@@ -137,7 +152,6 @@ import { useSideChatController } from '../dock/UseSideChatController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
 import { WorkbenchPanelPresence } from '../panels/WorkbenchPanelPresence.js'
 import type { ResizePhase } from '../UseSidebarResizeCollapseConfirm.js'
-import { resolveSidebarEscapeAction } from '../SidebarShellState.js'
 import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../../markdown/index.js'
 import { MARKDOWN_THREAD_NAVIGATION_EVENT } from '../../markdown/MarkdownMessage.js'
 import {
@@ -150,16 +164,19 @@ import {
 import { SettingsSidebarContent } from '../../settings/SettingsSidebarContent.js'
 import { WorkbenchPanel } from '../dock/RightDock.js'
 import { AuxiliaryWindowsHost } from '../auxiliary/AuxiliaryWindowsHost.js'
-import type { WorkbenchTabRenderContext } from '../tabs/WorkbenchTabRegistry.js'
+import {
+  getWorkbenchRouteLaunchers,
+  type WorkbenchTabRenderContext,
+} from '../tabs/WorkbenchTabRegistry.js'
 import { createWorkspaceFileTabId } from '../tabs/WorkspaceFileTabId.js'
 import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
 import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
-import { buildCommandMenuTasks } from '../../search/CommandMenuModel.js'
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
 import { toastStore } from '../../../components/toast/ToastState.js'
 import { Archive } from 'lucide-react'
 import { toUserErrorMessage } from '../../../utils/Errors.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { MediaViewerHost } from '../../session/attachments/MediaViewer.js'
 import type { ThreadArtifactPreviewInput } from '../../session/attachments/AttachmentPreviewDescriptor.js'
 import { desktopBrowserClient } from '../../../services/desktop-client/DesktopBrowserClient.js'
 
@@ -199,15 +216,6 @@ const EXTERNAL_FILE_EXTENSIONS = new Set([
   'xlsm',
   'xlsx',
 ])
-
-function isTextEntryTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false
-  return target.closest('input, textarea, select, [contenteditable="true"]') !== null
-}
-
-function hasOpenDialog(): boolean {
-  return document.querySelector('[role="dialog"], [role="alertdialog"], dialog[open]') !== null
-}
 
 function resolveWorkspaceFileReference(
   workspacePath: string,
@@ -263,20 +271,6 @@ function shouldOpenFileExternally(path: string): boolean {
   return extension ? EXTERNAL_FILE_EXTENSIONS.has(extension) : false
 }
 
-function routeAccessibilityLabel(pathname: string): string {
-  if (pathname === '/new') return '新对话'
-  if (pathname.startsWith('/threads/')) return '会话'
-  if (pathname.startsWith('/projects')) return '项目'
-  if (pathname === '/git') return 'Git 看板'
-  if (pathname === '/plugins') return '插件与技能'
-  if (pathname === '/providers') return '供应商'
-  if (pathname === '/pull-requests') return '拉取请求'
-  if (pathname === '/automations') return '已安排'
-  if (pathname === '/pets') return '宠物'
-  if (pathname.startsWith('/settings/')) return '设置'
-  return 'Pidex Desktop'
-}
-
 function normalizePathForCompare(path: string): string {
   return normalizePathForComparison(path)
 }
@@ -295,6 +289,10 @@ export function DesktopLayout(): React.ReactNode {
   const [providerManagementTab, setProviderManagementTab] = useState<ProviderManagementTab | null>(
     null,
   )
+  const [providerPanelTabs, setProviderPanelTabs] = useState<Record<string, ProviderManagementTab>>(
+    {},
+  )
+  const [providerPanelOpen, setProviderPanelOpen] = useState(false)
   const [providerManagementHost, setProviderManagementHost] = useState<HTMLElement | null>(null)
   const [providerManagementOwner, setProviderManagementOwner] = useState<string | null>(null)
   const providerBeforeChange = useRef<(() => Promise<boolean>) | null>(null)
@@ -302,206 +300,66 @@ export function DesktopLayout(): React.ReactNode {
   const isProviderDetailRoute =
     providerRouteId !== null && providerManagementOwner === providerRouteId
   const visibleProviderTab =
-    providerManagementOwner === providerRouteId
+    providerManagementOwner === providerRouteId && providerPanelOpen
       ? scopedProviderManagementTab(providerManagementTab, location.pathname, location.search)
       : null
   useEffect(() => {
     if (!providerRouteId || !providerManagementOwner) setProviderManagementTab(null)
   }, [providerRouteId, providerManagementOwner])
+  const providerPanelVisible = isProviderDetailRoute && providerPanelOpen
+  useEffect(() => {
+    setProviderPanelTabs({})
+    setProviderManagementTab(null)
+    setProviderPanelOpen(false)
+  }, [providerRouteId])
   const openProviderManagement = useCallback(
-    (providerId: string, section: ProviderManagementSection) => {
-      if (providerRouteId !== providerId || providerManagementOwner !== providerId) return
-      void (providerBeforeChange.current?.() ?? Promise.resolve(true)).then((allowed) => {
-        if (allowed)
-          setProviderManagementTab({
-            id: 'provider-management',
-            kind: 'provider-management',
-            providerId,
-            section,
-          })
-      })
+    async (providerId: string, section: ProviderManagementSection) => {
+      if (providerRouteId !== providerId || providerManagementOwner !== providerId) return false
+      const allowed = await (providerBeforeChange.current?.() ?? Promise.resolve(true))
+      if (allowed) {
+        const tab: ProviderManagementTab =
+          section === 'model'
+            ? { id: 'provider-model', kind: 'provider-model', providerId, section }
+            : section === 'sync'
+              ? { id: 'provider-sync', kind: 'provider-sync', providerId, section }
+              : { id: 'provider-management', kind: 'provider-management', providerId, section }
+        setProviderPanelTabs((tabs) => ({ ...tabs, [tab.id]: tab }))
+        setProviderManagementTab(tab)
+        setProviderPanelOpen(true)
+      }
+      return allowed
     },
-    [providerRouteId, providerManagementOwner, providerManagementTab],
+    [providerRouteId, providerManagementOwner],
   )
-  const closeProviderManagement = useCallback(() => {
+  const retainProviderTabs = async (ids: readonly string[]) => {
+    if (!(await (providerBeforeChange.current?.() ?? Promise.resolve(true)))) return
+    const tabs = Object.fromEntries(
+      Object.entries(providerPanelTabs).filter(([id]) => ids.includes(id)),
+    )
+    setProviderPanelTabs(tabs)
+    setProviderManagementTab((active) =>
+      active && tabs[active.id] ? active : (Object.values(tabs).at(-1) ?? null),
+    )
+    const launchers = providerRouteId
+      ? getWorkbenchRouteLaunchers({ page: 'providers', providerId: providerRouteId })
+      : []
+    if (Object.keys(tabs).length === 0 && launchers.length <= 1) {
+      setProviderPanelOpen(false)
+    }
+  }
+  const closeProviderManagement = (tabId?: string) => {
+    void retainProviderTabs(
+      Object.keys(providerPanelTabs).filter((id) => id !== (tabId ?? providerManagementTab?.id)),
+    )
+  }
+  const hideProviderManagement = () => {
     void (providerBeforeChange.current?.() ?? Promise.resolve(true)).then((allowed) => {
-      if (allowed) setProviderManagementTab(null)
+      if (allowed) setProviderPanelOpen(false)
     })
-  }, [])
-  const routeLabel = routeAccessibilityLabel(location.pathname)
-  const subscribedSidebarTimelineEnabled = useDesktopRuntimeSettingsField(
-    (s) => s.values.sidebarTimelineEnabled,
-  )
-  const subscribedNotifications = useDesktopRuntimeSettingsField((s) => s.values.notifications)
-  const subscribedLastActiveWorkspacePath = useDesktopRuntimeSettingsField(
-    (s) => s.values.lastActiveWorkspacePath,
-  )
-  const subscribedRemovedWorkspaces = useDesktopRuntimeSettingsField(
-    (s) => s.values.removedWorkspaces,
-  )
-  const subscribedPermissionConfig = useDesktopRuntimeSettingsField(
-    (s) => s.values.permissionConfig,
-  )
-  const subscribedPet = useDesktopRuntimeSettingsField((s) => s.values.pet)
-  const subscribedSidebarCustomization = useDesktopRuntimeSettingsField(
-    (s) => s.values.sidebarCustomization,
-  )
-  const subscribedModel = useDesktopRuntimeSettingsField((s) => s.values.model)
-  const subscribedCodingModel = useDesktopRuntimeSettingsField((s) => s.values.codingModel)
-  const subscribedSessionName = useDesktopRuntimeSettingsField((s) => s.values.sessionName)
-  const subscribedThinkingMode = useDesktopRuntimeSettingsField((s) => s.values.thinkingMode)
-  const subscribedSystemPrompt = useDesktopRuntimeSettingsField((s) => s.values.systemPrompt)
-  const subscribedAppendSystemPrompt = useDesktopRuntimeSettingsField(
-    (s) => s.values.appendSystemPrompt,
-  )
-  const subscribedAdditionalDirectories = useDesktopRuntimeSettingsField(
-    (s) => s.values.additionalDirectories,
-  )
-  const subscribedInstallPidexDependencies = useDesktopRuntimeSettingsField(
-    (s) => s.values.installPidexDependencies,
-  )
-  const subscribedEnableMemory = useDesktopRuntimeSettingsField((s) => s.values.enableMemory)
-  const subscribedRustSearchAndDiffKernels = useDesktopRuntimeSettingsField(
-    (s) => s.values.rustSearchAndDiffKernels,
-  )
-  const subscribedEnableAutoReviewPermissionMode = useDesktopRuntimeSettingsField(
-    (s) => s.values.enableAutoReviewPermissionMode,
-  )
-  const subscribedEnableFullAccessPermissionMode = useDesktopRuntimeSettingsField(
-    (s) => s.values.enableFullAccessPermissionMode,
-  )
-  const subscribedRecentWorkspaces = useDesktopRuntimeSettingsField(
-    (s) => s.values.recentWorkspaces,
-  )
-  const subscribedProviderID = useDesktopRuntimeSettingsField((s) => s.values.providerID)
-  const subscribedProviderBaseURL = useDesktopRuntimeSettingsField((s) => s.values.providerBaseURL)
-  const subscribedShowContextUsage = useDesktopRuntimeSettingsField(
-    (s) => s.values.showContextUsage,
-  )
-  const subscribedContextUsageView = useDesktopRuntimeSettingsField(
-    (s) => s.values.contextUsageView,
-  )
-  const subscribedDiffMarkerStyle = useDesktopRuntimeSettingsField((s) => s.values.diffMarkerStyle)
-  const subscribedReviewView = useDesktopRuntimeSettingsField((s) => s.values.reviewView)
-  const subscribedGitBranchPrefix = useDesktopRuntimeSettingsField((s) => s.values.gitBranchPrefix)
-  const subscribedAllowForcePush = useDesktopRuntimeSettingsField((s) => s.values.allowForcePush)
-  const subscribedCommitMessagePrompt = useDesktopRuntimeSettingsField(
-    (s) => s.values.commitMessagePrompt,
-  )
-  const subscribedPullRequestPrompt = useDesktopRuntimeSettingsField(
-    (s) => s.values.pullRequestPrompt,
-  )
-  const subscribedSidebarSessionPins = useDesktopRuntimeSettingsField(
-    (s) => s.values.sidebarSessionPins,
-  )
-  const subscribedSyncExternalSettingsPatch = useDesktopRuntimeSettingsField(
-    (s) => s.syncExternalSettingsPatch,
-  )
-  const subscribedSetSidebarCustomization = useDesktopRuntimeSettingsField(
-    (s) => s.setSidebarCustomization,
-  )
-  const subscribedPermissionMode = useDesktopRuntimeSettingsField((s) => s.permissionMode)
-  const subscribedSettingsLoaded = useDesktopRuntimeSettingsField((s) => s.settingsLoaded)
-  const subscribedSetPermissionMode = useDesktopRuntimeSettingsField((s) => s.setPermissionMode)
-  const subscribedSetRecentWorkspaces = useDesktopRuntimeSettingsField((s) => s.setRecentWorkspaces)
-  const subscribedSetDrawerTab = useDesktopRuntimeSettingsField((s) => s.setDrawerTab)
-  const subscribedSetReviewView = useDesktopRuntimeSettingsField((s) => s.setReviewView)
-  const subscribedSetSidebarSessionPins = useDesktopRuntimeSettingsField(
-    (s) => s.setSidebarSessionPins,
-  )
-  const subscribedSetSidebarTimelineEnabled = useDesktopRuntimeSettingsField(
-    (s) => s.setSidebarTimelineEnabled,
-  )
-  const settings = useMemo(
-    () => ({
-      values: {
-        sidebarTimelineEnabled: subscribedSidebarTimelineEnabled,
-        notifications: subscribedNotifications,
-        lastActiveWorkspacePath: subscribedLastActiveWorkspacePath,
-        removedWorkspaces: subscribedRemovedWorkspaces,
-        permissionConfig: subscribedPermissionConfig,
-        pet: subscribedPet,
-        sidebarCustomization: subscribedSidebarCustomization,
-        model: subscribedModel,
-        codingModel: subscribedCodingModel,
-        sessionName: subscribedSessionName,
-        thinkingMode: subscribedThinkingMode,
-        systemPrompt: subscribedSystemPrompt,
-        appendSystemPrompt: subscribedAppendSystemPrompt,
-        additionalDirectories: subscribedAdditionalDirectories,
-        installPidexDependencies: subscribedInstallPidexDependencies,
-        enableMemory: subscribedEnableMemory,
-        rustSearchAndDiffKernels: subscribedRustSearchAndDiffKernels,
-        enableAutoReviewPermissionMode: subscribedEnableAutoReviewPermissionMode,
-        enableFullAccessPermissionMode: subscribedEnableFullAccessPermissionMode,
-        recentWorkspaces: subscribedRecentWorkspaces,
-        providerID: subscribedProviderID,
-        providerBaseURL: subscribedProviderBaseURL,
-        showContextUsage: subscribedShowContextUsage,
-        contextUsageView: subscribedContextUsageView,
-        diffMarkerStyle: subscribedDiffMarkerStyle,
-        reviewView: subscribedReviewView,
-        gitBranchPrefix: subscribedGitBranchPrefix,
-        allowForcePush: subscribedAllowForcePush,
-        commitMessagePrompt: subscribedCommitMessagePrompt,
-        pullRequestPrompt: subscribedPullRequestPrompt,
-        sidebarSessionPins: subscribedSidebarSessionPins,
-      },
-      syncExternalSettingsPatch: subscribedSyncExternalSettingsPatch,
-      setSidebarCustomization: subscribedSetSidebarCustomization,
-      permissionMode: subscribedPermissionMode,
-      settingsLoaded: subscribedSettingsLoaded,
-      setPermissionMode: subscribedSetPermissionMode,
-      setRecentWorkspaces: subscribedSetRecentWorkspaces,
-      setDrawerTab: subscribedSetDrawerTab,
-      setReviewView: subscribedSetReviewView,
-      setSidebarSessionPins: subscribedSetSidebarSessionPins,
-      setSidebarTimelineEnabled: subscribedSetSidebarTimelineEnabled,
-    }),
-    [
-      subscribedSidebarTimelineEnabled,
-      subscribedNotifications,
-      subscribedLastActiveWorkspacePath,
-      subscribedRemovedWorkspaces,
-      subscribedPermissionConfig,
-      subscribedPet,
-      subscribedSidebarCustomization,
-      subscribedModel,
-      subscribedCodingModel,
-      subscribedSessionName,
-      subscribedThinkingMode,
-      subscribedSystemPrompt,
-      subscribedAppendSystemPrompt,
-      subscribedAdditionalDirectories,
-      subscribedInstallPidexDependencies,
-      subscribedEnableMemory,
-      subscribedRustSearchAndDiffKernels,
-      subscribedEnableAutoReviewPermissionMode,
-      subscribedEnableFullAccessPermissionMode,
-      subscribedRecentWorkspaces,
-      subscribedProviderID,
-      subscribedProviderBaseURL,
-      subscribedShowContextUsage,
-      subscribedContextUsageView,
-      subscribedDiffMarkerStyle,
-      subscribedReviewView,
-      subscribedGitBranchPrefix,
-      subscribedAllowForcePush,
-      subscribedCommitMessagePrompt,
-      subscribedPullRequestPrompt,
-      subscribedSidebarSessionPins,
-      subscribedSyncExternalSettingsPatch,
-      subscribedSetSidebarCustomization,
-      subscribedPermissionMode,
-      subscribedSettingsLoaded,
-      subscribedSetPermissionMode,
-      subscribedSetRecentWorkspaces,
-      subscribedSetDrawerTab,
-      subscribedSetReviewView,
-      subscribedSetSidebarSessionPins,
-      subscribedSetSidebarTimelineEnabled,
-    ],
-  )
+  }
+  const currentPage = resolveAppPage(location.pathname)
+  const routeLabel = pageTitle(currentPage)
+  const settings = useDesktopLayoutSettings()
   const activeSidebarPane = sidebarPaneForRoute(
     location.pathname,
     settings.values.sidebarTimelineEnabled,
@@ -519,8 +377,7 @@ export function DesktopLayout(): React.ReactNode {
       installPidexDependencies,
       enableMemory,
       rustSearchAndDiffKernels,
-      enableAutoReviewPermissionMode,
-      enableFullAccessPermissionMode,
+      'desktop.composer_predictions': composerPredictionsEnabled,
       recentWorkspaces,
       providerID: defaultProviderID,
       providerBaseURL,
@@ -533,6 +390,7 @@ export function DesktopLayout(): React.ReactNode {
       commitMessagePrompt,
       pullRequestPrompt,
       sidebarSessionPins,
+      titlebarSessionTabIds: storedTitlebarSessionTabIds,
     },
     permissionMode,
     settingsLoaded,
@@ -541,6 +399,7 @@ export function DesktopLayout(): React.ReactNode {
     setDrawerTab,
     setReviewView,
     setSidebarSessionPins,
+    setTitlebarSessionTabIds: persistTitlebarSessionTabIds,
     setSidebarTimelineEnabled,
   } = settings
   const taskNotificationState = useSystemNotifications(
@@ -558,6 +417,16 @@ export function DesktopLayout(): React.ReactNode {
   const [whatsNewDialogOpen, setWhatsNewDialogOpen] = useState(false)
   const [whatsNewRestoreFocusElement, setWhatsNewRestoreFocusElement] =
     useState<HTMLElement | null>(null)
+  const [initialTitlebarTabSnapshots] = useState<StoredTitlebarSessionTabSnapshot[]>(() =>
+    readStoredTitlebarSessionTabSnapshots(),
+  )
+  const [titlebarSessionTabIds, setTitlebarSessionTabIds] = useState<string[]>(() =>
+    initialTitlebarTabSnapshots.map((tab) => tab.id),
+  )
+  const [titlebarTabSnapshotsById, setTitlebarTabSnapshotsById] = useState<
+    Record<string, StoredTitlebarSessionTabSnapshot>
+  >(() => Object.fromEntries(initialTitlebarTabSnapshots.map((tab) => [tab.id, tab])))
+  const titlebarTabsSettingsHydratedRef = useRef(false)
   const browserState = useStore(desktopBrowserClient.tabsStore, (state) =>
     state.displayTabId ? (state.tabs.get(state.displayTabId) ?? null) : null,
   )
@@ -588,8 +457,9 @@ export function DesktopLayout(): React.ReactNode {
     settingsActiveTab,
     handleSettingsTabChange,
     handleSettingsBack,
+    getSettingsReturnPath,
   } = useWorkbenchRouteController()
-  const isHomeOrConversationRoute = isQuickChatPage || isConversationRoute
+  const isHomeOrConversationRoute = currentPage?.workspace ?? false
   const {
     sidebarCollapsed,
     sidebarWidth,
@@ -602,16 +472,12 @@ export function DesktopLayout(): React.ReactNode {
     workbenchLayoutState,
     workbenchPanelState,
     setWorkbenchPanelState,
-    workspaceView,
     workspaceLayout,
-    committedWorkspaceLayout,
-    setWorkspaceLayout,
     stepWorkspaceLayout,
     rightDockState,
     bottomPanelState,
     bottomPanelVisible,
     workspaceRef,
-    workspaceWidth,
     rightDockVisible,
     rightDockMinWidth,
     rightDockMaxWidth,
@@ -649,7 +515,7 @@ export function DesktopLayout(): React.ReactNode {
   } = useWorkbenchShellController({
     activePane: activeSidebarPane,
     panelRouteActive: isHomeOrConversationRoute,
-    temporaryRightPanelOpen: visibleProviderTab !== null,
+    temporaryRightPanelOpen: providerPanelVisible,
   })
   const [rightResizePhase, setRightResizePhase] = useState<ResizePhase>('idle')
   const mainRouteRef = useRef<HTMLDivElement>(null)
@@ -657,13 +523,6 @@ export function DesktopLayout(): React.ReactNode {
   useEffect(() => {
     document.title = `${routeLabel} · Pidex Desktop`
   }, [routeLabel])
-  const visibleRightDockState = useMemo(
-    () => ({
-      ...rightDockState,
-      open: workspaceLayout !== 'chat',
-    }),
-    [rightDockState, workspaceLayout],
-  )
   const lastErrorRef = useRef<{ message: string; timestamp: number } | null>(null)
   const handleErrorMessage = useCallback((raw: unknown): void => {
     if (!raw) {
@@ -703,7 +562,6 @@ export function DesktopLayout(): React.ReactNode {
     workspace: currentWorkspace,
     files: workspaceFiles,
     selectedFile,
-    runtimeStatus,
     setActiveSessionId,
     refreshWorkspace,
     chooseWorkspace,
@@ -723,7 +581,29 @@ export function DesktopLayout(): React.ReactNode {
   }, [gitStatus?.upstream])
   const [homePlanModeActive, setHomePlanModeActive] = useState(false)
   const [homeGrillModeActive, setHomeGrillModeActive] = useState(false)
-  const [homeLocalRouterMode, setHomeLocalRouterMode] = useState<'off'>('off')
+  const [homeLocalRouterMode] = useState<'off'>('off')
+
+  /**
+   * 新建会话时的模式复位：清掉首页 plan/grill 页面态与草稿中的协作模式、
+   * 目标模式与预算，但保留文本、附件、技能等草稿内容。互斥逻辑仍在
+   * handlePlanModeChange / handleGrillModeChange 中，这里只做整体清零。
+   */
+  const resetHomeComposerModes = useCallback((): void => {
+    setHomePlanModeActive(false)
+    setHomeGrillModeActive(false)
+    composerDraftStore.resetSessionModes('home')
+  }, [])
+
+  // 显式进入新会话页（侧栏“新建/新聊天”、产品模式切换、返回首页等）时复位模式。
+  // 目录刷新与普通切会话不改变路由，不会触发；已停留在首页时的重复点击由
+  // 各自的显式入口（handleNewConversation / handleCreateSession / handleUseSkill）复位。
+  const previousPathnameRef = useRef(location.pathname)
+  useEffect(() => {
+    const enteredQuickChat = isQuickChatPage && previousPathnameRef.current !== QUICK_CHAT_PATH
+    previousPathnameRef.current = location.pathname
+    if (!enteredQuickChat) return
+    resetHomeComposerModes()
+  }, [isQuickChatPage, location.pathname, resetHomeComposerModes])
 
   const session = useSessionState({
     permissionMode,
@@ -775,7 +655,9 @@ export function DesktopLayout(): React.ReactNode {
     appendComposerAttachmentsForDraft,
     removeComposerAttachmentForDraft,
     clearComposerDraftIfUnchanged,
+    restoreComposerDraftIfEmpty,
     activateSessionById,
+    markActiveSessionRead,
     createSessionForWorkspace,
     submitToSession,
     interrupt,
@@ -798,8 +680,77 @@ export function DesktopLayout(): React.ReactNode {
     registerActivitySessions(sessions)
   }, [registerActivitySessions, sessions])
 
+  const lastSyncedSettingsTabIdsRef = useRef<readonly string[]>(storedTitlebarSessionTabIds)
+
+  // 从 DesktopSettings (L2 后端) 水合或同步外部变更的顶部会话标签列表
+  useEffect(() => {
+    if (!settingsLoaded) return
+    if (!titlebarTabsSettingsHydratedRef.current) {
+      titlebarTabsSettingsHydratedRef.current = true
+      lastSyncedSettingsTabIdsRef.current = storedTitlebarSessionTabIds
+      setTitlebarSessionTabIds((current) => {
+        const merged = mergeTitlebarSessionTabIdsFromSettings(
+          current,
+          storedTitlebarSessionTabIds,
+          routedSessionId,
+        )
+        if (merged.shouldWriteBackToSettings) {
+          lastSyncedSettingsTabIdsRef.current = merged.nextIds
+          persistTitlebarSessionTabIds(merged.nextIds)
+        }
+        return merged.nextIds.length === current.length &&
+          merged.nextIds.every((id, index) => id === current[index])
+          ? current
+          : merged.nextIds
+      })
+      return
+    }
+
+    const prevSettings = lastSyncedSettingsTabIdsRef.current
+    const settingsChanged =
+      storedTitlebarSessionTabIds.length !== prevSettings.length ||
+      storedTitlebarSessionTabIds.some((id, index) => id !== prevSettings[index])
+    if (settingsChanged) {
+      lastSyncedSettingsTabIdsRef.current = storedTitlebarSessionTabIds
+      setTitlebarSessionTabIds((current) => {
+        const next = routedSessionId
+          ? openTitlebarSessionTab(storedTitlebarSessionTabIds, routedSessionId)
+          : [...storedTitlebarSessionTabIds]
+        if (next.length === current.length && next.every((id, index) => id === current[index])) {
+          return current
+        }
+        return next
+      })
+    }
+  }, [persistTitlebarSessionTabIds, routedSessionId, settingsLoaded, storedTitlebarSessionTabIds])
+
+  // 本地标签顺序/增删变化时同步回写到 DesktopSettings (L2 后端)
+  useEffect(() => {
+    if (!settingsLoaded || !titlebarTabsSettingsHydratedRef.current) return
+    const prevSettings = lastSyncedSettingsTabIdsRef.current
+    const changed =
+      titlebarSessionTabIds.length !== prevSettings.length ||
+      titlebarSessionTabIds.some((id, index) => id !== prevSettings[index])
+    if (!changed) return
+    lastSyncedSettingsTabIdsRef.current = titlebarSessionTabIds
+    persistTitlebarSessionTabIds(titlebarSessionTabIds)
+  }, [persistTitlebarSessionTabIds, settingsLoaded, titlebarSessionTabIds])
+
+  // 当处于会话路由时，自动将其加入顶部会话标签
+  useEffect(() => {
+    if (!routedSessionId) return
+    setTitlebarSessionTabIds((current) => openTitlebarSessionTab(current, routedSessionId))
+  }, [routedSessionId])
+
+  // 当会话列表加载完毕且目录就绪后，清理已被归档或不存在的会话 ID（保护当前路由）
+  useEffect(() => {
+    if (!sessionsHydrated || catalogStatus.state !== 'ready') return
+    const valid = new Set(sessions.filter((item) => !item.archivedAt).map((item) => item.id))
+    setTitlebarSessionTabIds((current) => pruneTitlebarSessionTabs(current, valid, routedSessionId))
+  }, [catalogStatus.state, routedSessionId, sessions, sessionsHydrated])
+
   const effectiveRightDockVisible =
-    (isHomeOrConversationRoute && rightDockVisible) || visibleProviderTab !== null
+    (isHomeOrConversationRoute && rightDockVisible) || providerPanelVisible
   const effectiveBottomPanelVisible = isHomeOrConversationRoute && bottomPanelVisible
 
   const { terminalAvailable, terminalVisible, toggleIntegratedTerminal } =
@@ -932,11 +883,17 @@ export function DesktopLayout(): React.ReactNode {
       unknownRoutedSessionRef.current = null
     }
     if (!routedSessionId) {
-      activateSessionById(null)
+      // 设置页是覆盖在会话之上的独立路由：从会话进入设置时保留活动会话，
+      // 否则设置页内的「当前任务」上下文（完整提示词诊断、审批规则）会读到空。
+      if (!isSettingsRoute) {
+        activateSessionById(null)
+      }
       return
     }
 
     const routedSession = sessions.find((item) => item.id === routedSessionId)
+    // 本次首条消息的会话还在创建中：路由先于目录存在，不能按“找不到对话”处理。
+    if (!routedSession && pendingSubmissions[routedSessionId]) return
     if (!routedSession) {
       activateSessionById(null)
       setWorkspaceState(null)
@@ -991,6 +948,7 @@ export function DesktopLayout(): React.ReactNode {
   }, [
     activateSessionById,
     beginConversationSwitch,
+    isSettingsRoute,
     navigate,
     refreshWorkspace,
     routedSessionId,
@@ -1050,6 +1008,7 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const handleClearWorkspace = useCallback((): void => {
+    resetHomeComposerModes()
     navigate(QUICK_CHAT_PATH)
     activateSessionById(null)
     setWorkspaceState(null)
@@ -1061,6 +1020,7 @@ export function DesktopLayout(): React.ReactNode {
     activateSessionById,
     inputBinding,
     navigate,
+    resetHomeComposerModes,
     setDiffState,
     setSelectedFile,
     setWorkspaceState,
@@ -1106,6 +1066,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleCreateSession = useCallback(
     async (target?: DesktopWorkspace | null): Promise<void> => {
+      resetHomeComposerModes()
       if (target === null) {
         navigate(QUICK_CHAT_PATH)
         activateSessionById(null)
@@ -1133,6 +1094,7 @@ export function DesktopLayout(): React.ReactNode {
       handleOpenRecentWorkspace,
       inputBinding,
       navigate,
+      resetHomeComposerModes,
       setDiffState,
       setSelectedFile,
       setWorkspaceState,
@@ -1219,7 +1181,7 @@ export function DesktopLayout(): React.ReactNode {
         })
       })
       .catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error)))
-  }, [openRightDockTab, sessionId])
+  }, [browserAvailability, openRightDockTab, sessionId])
 
   const handleOpenFilesDock = useCallback((): void => {
     openRightDockTab({ id: 'file-browser', kind: 'file-browser' })
@@ -1311,15 +1273,44 @@ export function DesktopLayout(): React.ReactNode {
   const handleOpenGoalDock = useCallback((): void => {
     openRightDockTab({ id: 'goal', kind: 'goal', ...(sessionId ? { threadId: sessionId } : {}) })
   }, [openRightDockTab, sessionId])
-  useEffect(() => {
-    const currentGoal = activeSessionItem?.threadGoal ?? null
-    if (
-      (!currentGoal || currentGoal.status === 'complete') &&
-      rightDockState.tabIds.includes('goal')
-    ) {
-      closePanelTab('right', 'goal')
+  const handledJudgeDeepLinkRef = useRef<string | null>(null)
+  const closePreviewForJudge = sidebarShell.closePreview
+  const handleOpenJudgePanel = useCallback((): void => {
+    closePreviewForJudge()
+    const targetPath = resolveJudgePanelTargetPath(getSettingsReturnPath(), sessionId)
+    navigate(appendPanelQuery(targetPath, 'judge'))
+  }, [closePreviewForJudge, getSettingsReturnPath, navigate, sessionId])
+  const judgePanelRequested = new URLSearchParams(location.search).get('panel') === 'judge'
+  const judgeDeepLink = useCallback(() => {
+    if (!judgePanelRequested) {
+      handledJudgeDeepLinkRef.current = null
+      return
     }
-  }, [activeSessionItem?.threadGoal, closePanelTab, rightDockState.tabIds])
+    const requestKey = `${location.key}:${location.pathname}${location.search}`
+    // INVARIANT: Consume each ?panel=judge navigation once so an urgent rightDockState commit before router replace never re-triggers the effect.
+    if (handledJudgeDeepLinkRef.current === requestKey) return
+    handledJudgeDeepLinkRef.current = requestKey
+    if (desktopClient.supportsDecisionEngine()) {
+      openRightDockTab({
+        id: 'judge',
+        kind: 'judge',
+        ...(sessionId ? { threadId: sessionId } : {}),
+      })
+    }
+    const params = new URLSearchParams(location.search)
+    params.delete('panel')
+    const query = params.toString()
+    navigate(`${location.pathname}${query ? `?${query}` : ''}${location.hash}`, { replace: true })
+  }, [
+    judgePanelRequested,
+    location.hash,
+    location.key,
+    location.pathname,
+    location.search,
+    navigate,
+    openRightDockTab,
+    sessionId,
+  ])
   const handleGoalClear = useCallback(async (): Promise<void> => {
     if (!sessionId) return
     try {
@@ -1592,11 +1583,37 @@ export function DesktopLayout(): React.ReactNode {
       }
       void desktopClient
         .readSubagent(taskId)
-        .then((read) => openSubagentDirectory(read.task.parentThreadId, taskId))
+        .then((read) => {
+          const { agentName, taskTitle } = resolveSubagentDisplayParts({
+            displayName: read.task.displayName,
+            title: read.task.title,
+            profile: read.task.profile,
+            role: read.task.role,
+            task: read.task.task,
+          })
+          const role = resolveSubagentRole({
+            role: read.task.role,
+            displayName: read.task.displayName,
+            task: read.task.task,
+          })
+          openRightDockTab({
+            id: `subagent-thread:${taskId}`,
+            kind: 'subagent-thread',
+            taskId,
+            parentThreadId: read.task.parentThreadId,
+            title: taskTitle || agentName,
+            role,
+          })
+        })
         .catch((error) => handleErrorMessage(error))
     },
-    [handleErrorMessage, openSubagentDirectory],
+    [handleErrorMessage, openRightDockTab],
   )
+
+  const handleOpenSubagentDirectory = useCallback((): void => {
+    if (!activeSessionItem) return
+    openSubagentDirectory(activeSessionItem.id, null)
+  }, [activeSessionItem, openSubagentDirectory])
 
   const handleSubmitEditedUserMessage = useCallback(
     async (
@@ -1623,14 +1640,17 @@ export function DesktopLayout(): React.ReactNode {
   }, [])
 
   const handleNewConversation = useCallback(async (): Promise<void> => {
+    resetHomeComposerModes()
     activateSessionById(null)
     inputBinding.replace('')
     setComposerAttachments([])
     navigate(QUICK_CHAT_PATH)
-  }, [activateSessionById, inputBinding, navigate, setComposerAttachments])
+  }, [activateSessionById, inputBinding, navigate, resetHomeComposerModes, setComposerAttachments])
 
   const handleUseSkill = useCallback(
     (skill: DesktopInstalledSkill): void => {
+      // 技能入口属于新建会话：先复位模式（不动技能），再设置所选技能。
+      resetHomeComposerModes()
       activateSessionById(null)
       inputBinding.replace('')
       setComposerAttachments([])
@@ -1640,7 +1660,7 @@ export function DesktopLayout(): React.ReactNode {
       })
       navigate(QUICK_CHAT_PATH)
     },
-    [activateSessionById, inputBinding, navigate, setComposerAttachments],
+    [activateSessionById, inputBinding, navigate, resetHomeComposerModes, setComposerAttachments],
   )
 
   const handleOpenSkillPreview = useCallback(
@@ -1697,6 +1717,7 @@ export function DesktopLayout(): React.ReactNode {
       workspacePath: currentWorkspace?.path ?? null,
       useSkill: handleUseSkill,
       openSkillPreview: handleOpenSkillPreview,
+      openJudgePanel: handleOpenJudgePanel,
       providerManagement: {
         tab: visibleProviderTab,
         host: providerManagementHost,
@@ -1708,6 +1729,7 @@ export function DesktopLayout(): React.ReactNode {
     }),
     [
       currentWorkspace?.path,
+      handleOpenJudgePanel,
       handleOpenSkillPreview,
       handleUseSkill,
       visibleProviderTab?.providerId,
@@ -1754,6 +1776,10 @@ export function DesktopLayout(): React.ReactNode {
   )
   const uiSnapshotRef = useRef<ConversationUiState>(createDefaultConversationUiState())
   const restoredConversationUiIdentityRef = useRef<string | null>(null)
+  /**
+   * 正在交接首条消息的真实会话：布局沿用临时页的工作台状态，不按该会话
+   * 自己的默认 UI 快照恢复。快照被正式投影接管后自动失效。
+   */
   const currentWorkspaceUiIdentity = currentWorkspace
     ? [
         currentWorkspace.projectId ?? '',
@@ -1817,6 +1843,10 @@ export function DesktopLayout(): React.ReactNode {
     restoredConversationUiIdentityRef.current = restoreIdentity
 
     prevSessionIdRef.current = currentId
+
+    // 首条消息建立会话时沿用当前工作台布局：路由没有变化，右栏与输入区
+    // 不应该在这个瞬间跳回该会话的默认状态。快照移走后恢复正常切换逻辑。
+    if (currentId && pendingSubmissions[currentId]) return
 
     const restoreAttachmentPreview = (
       restored: ReturnType<typeof createDefaultWorkbenchTabsState>,
@@ -1898,6 +1928,18 @@ export function DesktopLayout(): React.ReactNode {
     })
   }, [sessionId, sideChatTabsForSource])
 
+  // INVARIANT: Runs after the per-session workbench restore effect so ?panel=judge is never overwritten on thread switch.
+  useEffect(() => {
+    judgeDeepLink()
+    const currentGoal = activeSessionItem?.threadGoal ?? null
+    if (
+      (!currentGoal || currentGoal.status === 'complete') &&
+      rightDockState.tabIds.includes('goal')
+    ) {
+      closePanelTab('right', 'goal')
+    }
+  }, [activeSessionItem?.threadGoal, closePanelTab, judgeDeepLink, rightDockState.tabIds])
+
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
       const currentSessionId = sessionId ?? '__home__'
@@ -1916,129 +1958,26 @@ export function DesktopLayout(): React.ReactNode {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [sessionId])
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (!event.ctrlKey || event.metaKey || event.repeat) return
-      const key = event.key.toLowerCase()
-      const commandShortcutAllowed =
-        !event.defaultPrevented &&
-        !event.isComposing &&
-        event.keyCode !== 229 &&
-        !event.altKey &&
-        (commandMenuOpen || !hasOpenDialog())
-      if (
-        isHomeOrConversationRoute &&
-        commandShortcutAllowed &&
-        !event.shiftKey &&
-        !event.altKey &&
-        event.code === 'Backquote'
-      ) {
-        event.preventDefault()
-        toggleIntegratedTerminal()
-        return
-      }
-      if (
-        isTerminalKeyboardTarget(event.target) &&
-        !(
-          commandShortcutAllowed &&
-          ((!event.shiftKey && key === 'k') || (event.shiftKey && key === 'p'))
-        )
-      )
-        return
-      if (
-        commandShortcutAllowed &&
-        ((!event.shiftKey && key === 'k') || (event.shiftKey && key === 'p'))
-      ) {
-        event.preventDefault()
-        if (commandMenuOpen) {
-          commandMenuInputRef.current?.focus()
-          commandMenuInputRef.current?.select()
-        } else {
-          setCommandMenuOpen(true)
-        }
-      } else if (
-        isHomeOrConversationRoute &&
-        commandShortcutAllowed &&
-        !event.shiftKey &&
-        key === 'p' &&
-        currentWorkspace !== null
-      ) {
-        event.preventDefault()
-        setCommandMenuOpen(false)
-        handleOpenFilesDock()
-      } else if (isHomeOrConversationRoute && event.shiftKey && !event.altKey && key === 'g') {
-        event.preventDefault()
-        handleOpenReview()
-      } else if (isHomeOrConversationRoute && !event.shiftKey && event.altKey && key === 's') {
-        event.preventDefault()
-        handleOpenSideChat()
-      } else if (
-        !event.defaultPrevented &&
-        !event.isComposing &&
-        event.keyCode !== 229 &&
-        !hasOpenDialog() &&
-        !event.shiftKey &&
-        event.altKey &&
-        key === 'u'
-      ) {
-        event.preventDefault()
-        setSidebarTimelineEnabled((current) => !current)
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [
+  useDesktopGlobalShortcuts({
+    currentPage,
+    hasWorkspace: currentWorkspace !== null,
+    browserAvailable,
+    browserOpen: Boolean(browserState?.open),
+    sideChatSupported,
     commandMenuOpen,
-    currentWorkspace,
+    setCommandMenuOpen,
+    commandMenuInputRef,
+    toggleIntegratedTerminal,
     handleOpenFilesDock,
     handleOpenReview,
     handleOpenSideChat,
-    isHomeOrConversationRoute,
-    toggleIntegratedTerminal,
-  ])
-
-  useEffect(() => {
-    const preventMouseNavigationDefault = (event: MouseEvent): void => {
-      if (event.button !== 3 && event.button !== 4) return
-      event.preventDefault()
-      event.stopPropagation()
-    }
-    const handleMouseNavigation = (event: MouseEvent): void => {
-      preventMouseNavigationDefault(event)
-      if (event.button === 3) {
-        navigateBack()
-      } else if (event.button === 4) {
-        navigateForward()
-      }
-    }
-
-    window.addEventListener('mousedown', preventMouseNavigationDefault, true)
-    window.addEventListener('mouseup', handleMouseNavigation, true)
-    window.addEventListener('auxclick', preventMouseNavigationDefault, true)
-    return () => {
-      window.removeEventListener('mousedown', preventMouseNavigationDefault, true)
-      window.removeEventListener('mouseup', handleMouseNavigation, true)
-      window.removeEventListener('auxclick', preventMouseNavigationDefault, true)
-    }
-  }, [navigateBack, navigateForward])
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') return
-      const action = resolveSidebarEscapeAction({
-        defaultPrevented: event.defaultPrevented,
-        isDialogOpen: hasOpenDialog(),
-        isSettingsRoute,
-        isTextEntry: isTextEntryTarget(event.target),
-        mode: sidebarShell.mode,
-      })
-      if (action === 'none') return
-      event.preventDefault()
-      handleSettingsBack()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [handleSettingsBack, isSettingsRoute, sidebarShell.mode])
+    setSidebarTimelineEnabled,
+    navigateBack,
+    navigateForward,
+    isSettingsRoute,
+    sidebarShellMode: sidebarShell.mode,
+    handleSettingsBack,
+  })
 
   const openWhatsNewDialog = useCallback((restoreFocusElement: HTMLElement | null): void => {
     setWhatsNewRestoreFocusElement(restoreFocusElement)
@@ -2052,16 +1991,19 @@ export function DesktopLayout(): React.ReactNode {
         bridge: window.DesktopBridge,
         browserAvailable,
         browserOpen: Boolean(browserState?.open),
+        page: currentPage,
+        hasWorkspace: currentWorkspace !== null,
+        sideChatSupported,
         canNavigateBack,
         canNavigateForward,
         navigate,
         newChat: handleCreateSession,
         openFolder: handleChooseWorkspace,
         toggleSidebar: toggleSidebarCollapsed,
-        togglePanel: isHomeOrConversationRoute ? togglePanel : () => undefined,
-        stepWorkspaceLayout: isHomeOrConversationRoute ? stepWorkspaceLayout : () => undefined,
-        openFiles: isHomeOrConversationRoute ? handleOpenFilesDock : () => undefined,
-        openBrowser: isHomeOrConversationRoute ? handleOpenBrowser : () => undefined,
+        togglePanel,
+        stepWorkspaceLayout,
+        openFiles: handleOpenFilesDock,
+        openBrowser: handleOpenBrowser,
         reloadBrowser: handleReloadBrowser,
         navigateBack,
         navigateForward,
@@ -2072,13 +2014,15 @@ export function DesktopLayout(): React.ReactNode {
       [
         browserAvailable,
         browserState?.open,
+        currentPage,
+        currentWorkspace,
+        sideChatSupported,
         canNavigateBack,
         canNavigateForward,
         navigate,
         handleCreateSession,
         handleChooseWorkspace,
         toggleSidebarCollapsed,
-        isHomeOrConversationRoute,
         togglePanel,
         stepWorkspaceLayout,
         handleOpenFilesDock,
@@ -2266,37 +2210,20 @@ export function DesktopLayout(): React.ReactNode {
   const isConversationLoading =
     isConversationRoute &&
     (!sessionsHydrated || sessionId !== routedSessionId || gitDetection === 'loading')
-  // pending 页没有真实会话：不等工作区就绪就直接显示已提交消息与启动状态。
-  const isPendingSubmissionRoute = location.pathname.startsWith('/pending/')
+  // 首条消息在会话建立前就已经在这条路由上，输入区要全程保持可用。
+  const pendingSubmissions = useStore(pendingSubmissionStore.store, (state) => state.submissions)
+  const hasPendingSubmission = Boolean(routedSessionId && pendingSubmissions[routedSessionId])
   const branchName = getDesktopComposerBranchName(currentWorkspace)
-  const quickChatRecentTasks = useMemo(() => {
-    const workspaceKey = currentWorkspace?.path.replace(/\\/g, '/').toLowerCase() ?? null
-    return sessions
-      .filter((item) => {
-        if (item.archivedAt) return false
-        if (!workspaceKey) return item.standalone === true
-        return item.workspacePath.replace(/\\/g, '/').toLowerCase() === workspaceKey
-      })
-      .slice(0, 5)
-      .map((item) => ({
-        id: item.id,
-        title: sessionDisplayTitle(item),
-        firstPrompt: item.firstPrompt ?? null,
-        status: item.status,
-        updatedAt: Date.parse(item.lastMessageAt ?? item.createdAt),
-      }))
-  }, [currentWorkspace?.path, sessions])
   const composerContextTasks = useMemo(
     () =>
-      buildCommandMenuTasks(
-        sessions.filter((item) => item.id !== routedSessionId),
-        '',
-      ).map((item) => ({
-        id: item.id,
-        title: item.title,
-        workspaceName: item.workspaceName,
-      })),
-    [routedSessionId, sessions],
+      sessions
+        .filter((item) => !item.archivedAt)
+        .map((item) => ({
+          id: item.id,
+          title: sessionDisplayTitle(item),
+          workspaceName: item.workspaceName,
+        })),
+    [sessions],
   )
   const composerBrowserContext = useMemo(() => {
     if (!browserState?.open || !/^https?:\/\//u.test(browserState.url)) return null
@@ -2332,31 +2259,6 @@ export function DesktopLayout(): React.ReactNode {
       [sessionId]: activeSessionFallbackTitle,
     }
   }, [activeSessionFallbackTitle, sessionFallbackTitles, sessionId])
-  useEffect(
-    () =>
-      subscribeProjectRestores((project, selected) => {
-        setRemovedWorkspaces((current) => {
-          const next = current.filter((entry) =>
-            project.projectId && entry.projectId
-              ? entry.projectId !== project.projectId
-              : entry.path !== project.path,
-          )
-          settings.syncExternalSettingsPatch({ removedWorkspaces: next })
-          return next
-        })
-        setRecentWorkspaces((current) => [
-          ...current.filter((entry) =>
-            project.projectId ? entry.projectId !== project.projectId : entry.path !== project.path,
-          ),
-          project,
-        ])
-        if (selected && !currentWorkspace) {
-          setWorkspaceState(project)
-          void refreshWorkspace(project, { force: true })
-        }
-      }),
-    [currentWorkspace, refreshWorkspace, settings, setRecentWorkspaces, setWorkspaceState],
-  )
 
   const handleRemoveWorkspace = useCallback(
     (target: DesktopWorkspace): void => {
@@ -2463,6 +2365,107 @@ export function DesktopLayout(): React.ReactNode {
     }
   }, [])
 
+  const handleCloseTitlebarSessionTab = useCallback(
+    (targetSessionId: string): void => {
+      let nextActive: string | null | undefined
+      setTitlebarSessionTabIds((current) => {
+        const result = closeTitlebarSessionTab(current, targetSessionId, routedSessionId)
+        nextActive = result.nextActiveSessionId
+        return result.nextTabIds
+      })
+      if (nextActive !== undefined) {
+        if (nextActive === null) {
+          navigate(QUICK_CHAT_PATH)
+        } else {
+          navigate(sessionPath(nextActive))
+        }
+      }
+    },
+    [navigate, routedSessionId],
+  )
+
+  const titlebarSessionTabs = useMemo<TitlebarSessionTabItem[]>(() => {
+    const sessionMap = new Map<string, SessionListItem>(sessions.map((s) => [s.id, s]))
+
+    // 统计当前打开标签中涉及的工作区集合（以 workspacePath 为标识）
+    const workspacesInTabs = new Set<string>()
+    for (const id of titlebarSessionTabIds) {
+      const item = sessionMap.get(id)
+      if (item?.workspacePath) {
+        workspacesInTabs.add(item.workspacePath)
+      } else if (id === sessionId && currentWorkspace?.path) {
+        workspacesInTabs.add(currentWorkspace.path)
+      }
+    }
+    const hasMultipleWorkspaces = workspacesInTabs.size > 1
+
+    return titlebarSessionTabIds.map((id) => {
+      const item = sessionMap.get(id)
+      const cached = titlebarTabSnapshotsById[id]
+      let title = cached?.title || id
+      let subtitle: string | null = cached?.subtitle ?? null
+
+      if (item) {
+        const fallback = id === sessionId ? activeSessionFallbackTitle : sessionFallbackTitles[id]
+        title = sessionDisplayTitle(item, fallback)
+        const workspaceLabel =
+          item.workspaceName ||
+          (item.workspacePath ? (item.workspacePath.split(/[\\/]/).pop() ?? null) : null)
+        subtitle = hasMultipleWorkspaces ? workspaceLabel : null
+      } else if (id === sessionId && quickChatSessionTitle) {
+        title = quickChatSessionTitle
+        const workspaceLabel =
+          currentWorkspace?.name ||
+          (currentWorkspace?.path ? (currentWorkspace.path.split(/[\\/]/).pop() ?? null) : null)
+        subtitle = hasMultipleWorkspaces ? workspaceLabel : null
+      }
+
+      return {
+        id,
+        title,
+        subtitle,
+        active: id === routedSessionId,
+      }
+    })
+  }, [
+    activeSessionFallbackTitle,
+    currentWorkspace?.name,
+    currentWorkspace?.path,
+    quickChatSessionTitle,
+    routedSessionId,
+    sessionId,
+    sessionFallbackTitles,
+    sessions,
+    titlebarSessionTabIds,
+    titlebarTabSnapshotsById,
+  ])
+
+  // 将最新的标签列表及标题/项目名快照同步到 localStorage (L1 缓存)
+  useEffect(() => {
+    const nextSnapshots: StoredTitlebarSessionTabSnapshot[] = titlebarSessionTabs.map((tab) => {
+      const hasResolvedTitle = tab.title !== tab.id
+      return {
+        id: tab.id,
+        ...(hasResolvedTitle ? { title: tab.title } : {}),
+        ...(tab.subtitle ? { subtitle: tab.subtitle } : { subtitle: null }),
+      }
+    })
+    writeStoredTitlebarSessionTabSnapshots(nextSnapshots)
+
+    setTitlebarTabSnapshotsById((current) => {
+      const nextMap: Record<string, StoredTitlebarSessionTabSnapshot> = {}
+      let changed = Object.keys(current).length !== nextSnapshots.length
+      for (const snap of nextSnapshots) {
+        nextMap[snap.id] = snap
+        const prev = current[snap.id]
+        if (!prev || prev.title !== snap.title || prev.subtitle !== snap.subtitle) {
+          changed = true
+        }
+      }
+      return changed ? nextMap : current
+    })
+  }, [titlebarSessionTabs])
+
   const menuBar = useMemo(
     () => (
       <MenuBar
@@ -2470,6 +2473,9 @@ export function DesktopLayout(): React.ReactNode {
         isMaximized={isWindowMaximized}
         canNavigateBack={canNavigateBack}
         canNavigateForward={canNavigateForward}
+        sessionTabs={titlebarSessionTabs}
+        onSelectSessionTab={(targetId) => navigate(sessionPath(targetId))}
+        onCloseSessionTab={handleCloseTitlebarSessionTab}
         onToggleSidebar={toggleSidebarCollapsed}
         onClose={() => {
           void desktopClient.closeWindow()
@@ -2488,6 +2494,9 @@ export function DesktopLayout(): React.ReactNode {
       isWindowMaximized,
       canNavigateBack,
       canNavigateForward,
+      titlebarSessionTabs,
+      navigate,
+      handleCloseTitlebarSessionTab,
       toggleSidebarCollapsed,
       setIsWindowMaximized,
       menuActions,
@@ -2626,8 +2635,6 @@ export function DesktopLayout(): React.ReactNode {
         sessionStatus={sideChatContext.status}
         permissionMode={sideSettings.permissionMode}
         planModeActive={sideChatContext.planModeActive ?? sideSettings.planModeActive}
-        enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
-        enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
         codingModel={codingModel}
         modelSelectionError={sideModelError}
         onError={handleErrorMessage}
@@ -2710,8 +2717,6 @@ export function DesktopLayout(): React.ReactNode {
         onSkillTokenActivate={(invocation) => {
           void handleActivateComposerSkill(invocation)
         }}
-        onBranchSelect={handleBranchSelect}
-        onCreateBranch={handleCreateBranch}
         capabilities={{ goals: false, review: false, status: false }}
         onPermissionChange={async (value) => {
           try {
@@ -2864,8 +2869,9 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleOpenMarkdownFileReference = useCallback(
     (reference: MarkdownFileReference, options: MarkdownFileOpenOptions): void => {
-      if (!currentWorkspace) return
-      const resolved = resolveWorkspaceFileReference(currentWorkspace.path, reference.path)
+      const resolved = currentWorkspace
+        ? resolveWorkspaceFileReference(currentWorkspace.path, reference.path)
+        : null
       if (!resolved) {
         // Not a workspace path — open with system
         if (/^(?:[a-zA-Z]:[\\/]|\\\\|\/)/u.test(reference.path)) {
@@ -2875,6 +2881,7 @@ export function DesktopLayout(): React.ReactNode {
         }
         return
       }
+      if (!currentWorkspace) return
 
       // Workspace root directory — open file-browser tab
       if (resolved.relativePath === '.') {
@@ -3090,13 +3097,13 @@ export function DesktopLayout(): React.ReactNode {
   }, [openPanelTab, workbenchPanelState.bottom.tabIds, workbenchPanelState.tabsById])
 
   const renderWorkbenchPanel = (target: WorkbenchPanelTarget): React.ReactNode => {
-    const providerMode = target === 'right' && visibleProviderTab !== null
+    const providerMode = target === 'right' && providerPanelVisible
     const state = providerMode
       ? {
           ...rightDockState,
           open: true,
-          activeTabId: 'provider-management' as const,
-          tabIds: ['provider-management' as const],
+          activeTabId: visibleProviderTab?.id ?? null,
+          tabIds: Object.values(providerPanelTabs).map((tab) => tab.id),
         }
       : target === 'right'
         ? rightDockState
@@ -3109,10 +3116,11 @@ export function DesktopLayout(): React.ReactNode {
         panelContext={auxiliaryPanelContext}
         target={target}
         state={state}
-        tabsById={
+        tabsById={providerMode ? providerPanelTabs : workbenchPanelState.tabsById}
+        panelRoute={
           providerMode
-            ? { 'provider-management': visibleProviderTab! }
-            : workbenchPanelState.tabsById
+            ? { page: 'providers', providerId: providerRouteId! }
+            : { page: 'conversation' }
         }
         providerManagement={
           providerMode ? (
@@ -3140,7 +3148,7 @@ export function DesktopLayout(): React.ReactNode {
         height={bottomPanelHeight}
         onClose={() => {
           if (providerMode) {
-            closeProviderManagement()
+            hideProviderManagement()
             return
           }
           void saveTabsBeforeClose(state.tabIds, {
@@ -3151,7 +3159,7 @@ export function DesktopLayout(): React.ReactNode {
         }}
         onCloseTab={(tabId) => {
           if (providerMode) {
-            closeProviderManagement()
+            closeProviderManagement(tabId)
             return
           }
           void saveTabsBeforeClose([tabId]).then(async (saved) => {
@@ -3172,7 +3180,10 @@ export function DesktopLayout(): React.ReactNode {
           })
         }}
         onCloseOtherTabs={(tabId) => {
-          if (providerMode) return
+          if (providerMode) {
+            void retainProviderTabs([tabId])
+            return
+          }
           const closing = state.tabIds.filter((id) => id !== tabId)
           void saveTabsBeforeClose(closing).then(async (saved) => {
             if (!saved) return
@@ -3194,7 +3205,10 @@ export function DesktopLayout(): React.ReactNode {
           })
         }}
         onCloseTabsToRight={(tabId) => {
-          if (providerMode) return
+          if (providerMode) {
+            void retainProviderTabs(state.tabIds.slice(0, state.tabIds.indexOf(tabId) + 1))
+            return
+          }
           const index = state.tabIds.indexOf(tabId)
           const closing = index < 0 ? [] : state.tabIds.slice(index + 1)
           void saveTabsBeforeClose(closing).then(async (saved) => {
@@ -3218,7 +3232,11 @@ export function DesktopLayout(): React.ReactNode {
         }}
         onFileLoadError={handleFileLoadError}
         onOpenTab={(tab) => {
-          if (providerMode) return
+          if (providerMode) {
+            if (tab.kind === 'provider-management')
+              void openProviderManagement(tab.providerId, tab.section)
+            return
+          }
           if (tab.kind === 'browser') {
             if (browserAvailability !== 'available') {
               setErrorMessage('当前桌面运行环境没有提供内置浏览器能力。')
@@ -3239,7 +3257,10 @@ export function DesktopLayout(): React.ReactNode {
         onResetHeight={handleResetBottomPanelHeight}
         onResetWidth={handleResetRightDockWidth}
         onSelectTab={(tabId) => {
-          if (!providerMode) handleSelectPanelTab(target, tabId)
+          if (providerMode) {
+            const tab = providerPanelTabs[tabId]
+            if (tab) void openProviderManagement(tab.providerId, tab.section)
+          } else handleSelectPanelTab(target, tabId)
         }}
         onMoveTab={providerMode ? () => {} : movePanelTab}
         onPopOutTab={providerMode ? undefined : popOutPanelTab}
@@ -3479,6 +3500,7 @@ export function DesktopLayout(): React.ReactNode {
         unavailableWorkspacePaths={unavailableWorkspacePaths}
         workspace={currentWorkspace}
         onChooseWorkspace={() => void handleChooseWorkspace()}
+        onNewChat={resetHomeComposerModes}
         onCreateSession={(workspaceItem) => {
           closeSidebarPreview()
           void handleCreateSession(workspaceItem)
@@ -3619,10 +3641,16 @@ export function DesktopLayout(): React.ReactNode {
     </SidebarFrame>
   )
 
+  const composerPredictionTurnId = useMemo(() => {
+    if (!composerPredictionsEnabled || !routedSessionId) return null
+    return selectLatestCompletedTurnId(events, activeSessionItem?.latestTurnStatus ?? null)
+  }, [activeSessionItem?.latestTurnStatus, composerPredictionsEnabled, events, routedSessionId])
+
   const composerProps = useMemo<SessionBoundComposerProps | null>(
     () =>
       isQuickChatPage || isConversationRoute
         ? {
+            previewComposer: true,
             inputBinding,
             messages: isConversationRoute ? [] : messages,
             placement: isQuickChatPage ? 'new-session' : 'thread',
@@ -3631,12 +3659,12 @@ export function DesktopLayout(): React.ReactNode {
             utilityBarVariant: isQuickChatPage ? 'home' : 'default',
             draftKey: mainComposerDraftKey,
             routedSessionId,
+            composerPredictionsEnabled,
+            predictionTurnId: composerPredictionTurnId,
             sessionStatus,
             permissionMode: effectivePermissionMode,
             planModeActive,
             grillModeActive,
-            enableAutoReviewPermissionMode: enableAutoReviewPermissionMode ?? false,
-            enableFullAccessPermissionMode: enableFullAccessPermissionMode ?? false,
             codingModel,
             thinkingMode: session.modelSelection?.thinkingMode ?? 'default',
             modelVariant: selectedVariant,
@@ -3678,6 +3706,8 @@ export function DesktopLayout(): React.ReactNode {
             onRemoveAttachmentForDraft: removeComposerAttachmentForDraft,
             onOpenAttachment: handleOpenDraftAttachment,
             onDraftAccepted: clearComposerDraftIfUnchanged,
+            onDraftCleared: clearComposerDraftIfUnchanged,
+            onDraftRestore: restoreComposerDraftIfEmpty,
             onChooseWorkspace: handleChooseWorkspace,
             onInputChange: inputBinding.replace,
             onInterrupt: interrupt,
@@ -3698,8 +3728,6 @@ export function DesktopLayout(): React.ReactNode {
             onSkillTokenActivate: (invocation) => {
               void handleActivateComposerSkill(invocation)
             },
-            onBranchSelect: handleBranchSelect,
-            onCreateBranch: handleCreateBranch,
             onStartReview: handleStartAiReview,
             onPermissionChange: handlePermissionChange,
             onPlanModeChange: handlePlanModeChange,
@@ -3726,8 +3754,6 @@ export function DesktopLayout(): React.ReactNode {
       effectivePermissionMode,
       planModeActive,
       grillModeActive,
-      enableAutoReviewPermissionMode,
-      enableFullAccessPermissionMode,
       codingModel,
       session.modelSelection?.thinkingMode,
       selectedVariant,
@@ -3768,6 +3794,7 @@ export function DesktopLayout(): React.ReactNode {
       removeComposerAttachmentForDraft,
       handleOpenDraftAttachment,
       clearComposerDraftIfUnchanged,
+      restoreComposerDraftIfEmpty,
       handleChooseWorkspace,
       interrupt,
       location,
@@ -3796,6 +3823,8 @@ export function DesktopLayout(): React.ReactNode {
       handleFollowUpEdit,
       handleFollowUpRemove,
       handleFollowUpResume,
+      composerPredictionsEnabled,
+      composerPredictionTurnId,
     ],
   )
 
@@ -3839,7 +3868,6 @@ export function DesktopLayout(): React.ReactNode {
           ? publishedReviewSummary?.snapshot
           : null,
       recentWorkspaces,
-      recentTasks: quickChatRecentTasks,
       onArchiveSession: () => {
         if (!activeSessionItem) return
         void handleArchiveSessions([activeSessionItem.id])
@@ -3878,6 +3906,7 @@ export function DesktopLayout(): React.ReactNode {
       onOpenSideChat: handleOpenSideChat,
       sideChatAvailable: sideChatSupported,
       onOpenSubagent: handleOpenSubagent,
+      onOpenSubagentDirectory: handleOpenSubagentDirectory,
       onAddComposerFiles: handleAddComposerFiles,
       onRefreshDiff: handleRefreshDiff,
       onRenameSession: async (title) => {
@@ -3919,7 +3948,7 @@ export function DesktopLayout(): React.ReactNode {
       planModeActive,
       providerModelOptions,
       sessionStatus,
-      composerProps: isConversationLoading && !isPendingSubmissionRoute ? null : composerProps,
+      composerProps: isConversationLoading && !hasPendingSubmission ? null : composerProps,
       composerDraft: {
         store: inputBinding.store,
         replace: inputBinding.replace,
@@ -3953,7 +3982,6 @@ export function DesktopLayout(): React.ReactNode {
       gitDetection,
       reviewTabState.source,
       publishedReviewSummary,
-      quickChatRecentTasks,
       handleCreateBranch,
       navigate,
       handleOpenWorkspacePath,
@@ -3977,6 +4005,7 @@ export function DesktopLayout(): React.ReactNode {
       handleOpenSideChat,
       sideChatSupported,
       handleOpenSubagent,
+      handleOpenSubagentDirectory,
       handleAddComposerFiles,
       handleRefreshDiff,
       renameSession,
@@ -3998,7 +4027,7 @@ export function DesktopLayout(): React.ReactNode {
       planModeActive,
       providerModelOptions,
       sessionStatus,
-      isPendingSubmissionRoute,
+      hasPendingSubmission,
       composerProps,
       inputBinding,
       effectiveBottomPanelVisible,
@@ -4012,7 +4041,7 @@ export function DesktopLayout(): React.ReactNode {
   const rightDockNode = renderWorkbenchPanel('right')
   const bottomPanelNode = renderWorkbenchPanel('bottom')
 
-  return (
+  const desktop = (
     <AutomationControllerProvider
       enabled={location.pathname === '/automations' || scheduledSidebarMounted}
     >
@@ -4197,18 +4226,36 @@ export function DesktopLayout(): React.ReactNode {
                         <div className="workspace-shell-controls">
                           <Button
                             isIconOnly
-                            aria-pressed={visibleProviderTab !== null}
+                            aria-pressed={providerPanelVisible}
                             className="workspace-shell-control-button"
                             color="ghostSecondary"
                             size="toolbar"
-                            title={visibleProviderTab ? '隐藏右侧边栏' : '显示右侧边栏'}
+                            title={providerPanelVisible ? '隐藏右侧边栏' : '显示右侧边栏'}
                             onClick={() => {
-                              if (visibleProviderTab) closeProviderManagement()
-                              else if (providerRouteId)
-                                openProviderManagement(providerRouteId, 'credentials')
+                              if (providerPanelVisible) {
+                                hideProviderManagement()
+                                return
+                              }
+                              if (!providerRouteId) return
+                              if (Object.keys(providerPanelTabs).length > 0) {
+                                setProviderPanelOpen(true)
+                                return
+                              }
+                              const launchers = getWorkbenchRouteLaunchers({
+                                page: 'providers',
+                                providerId: providerRouteId,
+                              })
+                              if (launchers.length === 1) {
+                                const onlyTab = launchers[0]?.createTab()
+                                if (onlyTab?.kind === 'provider-management') {
+                                  void openProviderManagement(onlyTab.providerId, onlyTab.section)
+                                  return
+                                }
+                              }
+                              setProviderPanelOpen(true)
                             }}
                           >
-                            <RightPanelToggleIcon open={visibleProviderTab !== null} />
+                            <RightPanelToggleIcon open={providerPanelVisible} />
                           </Button>
                         </div>
                       )
@@ -4220,7 +4267,7 @@ export function DesktopLayout(): React.ReactNode {
                 <div
                   aria-label="主要内容"
                   ref={mainRouteRef}
-                  className="desktop-main-route tw:flex tw:min-w-0 tw:min-h-0 tw:flex-auto tw:flex-col tw:overflow-hidden"
+                  className="desktop-main-route tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:flex-col tw:overflow-hidden"
                   id="desktop-main-content"
                   tabIndex={-1}
                   role="region"
@@ -4306,6 +4353,7 @@ export function DesktopLayout(): React.ReactNode {
               bottomPanelVisible={effectiveBottomPanelVisible}
               workspaceLayout={workspaceLayout}
               resizeActive={rightResizePhase !== 'idle'}
+              onWorkspaceInteraction={markActiveSessionRead}
             />
           </WorkspaceHeaderProvider>
         </QuickChatContext.Provider>
@@ -4317,6 +4365,11 @@ export function DesktopLayout(): React.ReactNode {
         />
       </div>
     </AutomationControllerProvider>
+  )
+  return (
+    <MediaViewerHost onOpenInDock={openRightDockTab} sessionId={sessionId}>
+      {desktop}
+    </MediaViewerHost>
   )
 }
 

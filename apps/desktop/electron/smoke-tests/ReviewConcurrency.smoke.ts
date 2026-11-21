@@ -65,7 +65,8 @@ test.describe('真实 Agent/Electron 并发 Review', () => {
   let application: ElectronApplication | undefined
   let page: Page | undefined
 
-  test.afterEach(async ({}, testInfo) => {
+  test.afterEach(async () => {
+    const testInfo = test.info()
     if (application && page && testInfo.status !== testInfo.expectedStatus) {
       await mkdir(dirname(testInfo.outputPath('failure.png')), {
         recursive: true,
@@ -157,7 +158,8 @@ test.describe('真实 Agent/Electron 并发 Review', () => {
     expect(state.maxActiveFileDiffRequests).toBeLessThanOrEqual(2)
   })
 
-  test('大 Diff 与长会话并发更新期间所有 Review 面板真实重排', async ({}, testInfo) => {
+  test('大 Diff 与长会话并发更新期间所有 Review 面板真实重排', async () => {
+    const testInfo = test.info()
     await setBatchCapability(true)
     await clearReviewConcurrencyEvents()
     const workspaceRoot = join(isolatedRoot, 'repository')
@@ -225,7 +227,7 @@ test.describe('真实 Agent/Electron 并发 Review', () => {
           permissionConfig: {
             sandboxMode: 'danger-full-access',
             approvalPolicy: 'never',
-            approvalsReviewer: 'user',
+            approvalsReviewer: 'auto_review',
           },
           taskMode: 'chat',
         }),

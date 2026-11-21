@@ -15,7 +15,6 @@ import {
   PermissionConfigSchema,
   PermissionGrantScopeSchema,
   RiskCategorySchema,
-  ShellInputSchema,
   ShellReviewSchema,
 } from './Permission'
 import { TaskModeSchema } from './Settings'
@@ -577,6 +576,7 @@ export const SubagentItemSchema = Schema.Struct({
   runId: Schema.String,
   childThreadId: Schema.String,
   displayName: Schema.String,
+  title: Schema.optional(Schema.NullOr(Schema.String)),
   profile: SubagentProfileSchema,
   /** 派生自 task.role，仅供时间线独立渲染；不单独持久化。 */
   role: Schema.optional(SubagentRoleSchema),
@@ -604,7 +604,7 @@ export type Item = typeof ItemSchema.Type
 
 export const ToolAffectedPathSchema = Schema.Struct({
   path: Schema.String,
-  operation: Schema.Literals(['create', 'update']),
+  operation: Schema.Literals(['create', 'update', 'delete']),
 })
 export type ToolAffectedPath = typeof ToolAffectedPathSchema.Type
 

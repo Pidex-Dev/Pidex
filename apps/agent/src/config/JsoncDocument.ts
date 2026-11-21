@@ -1,3 +1,4 @@
+import { isRecord as isObject } from '@pidex/shared/guards'
 import {
   applyEdits,
   modify,
@@ -19,9 +20,6 @@ export class JsoncDocumentError extends Error {
     this.name = 'JsoncDocumentError'
   }
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const mergeObject = (current: ConfigObject, incoming: ConfigObject): ConfigObject => {
   const output = structuredClone(current)

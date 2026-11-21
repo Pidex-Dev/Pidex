@@ -21,6 +21,7 @@ import type {
   Input,
   Item,
   Message,
+  PermissionConfig,
   SubagentProjection,
   Thread,
   ThreadExecutionEnvironment,
@@ -35,7 +36,7 @@ import { resolve } from 'node:path'
 import {
   ContextUsageBreakdownSourceSchema,
   readMessagePhase,
-  decodeApprovalPolicy,
+  decodePermissionConfig,
   decodeStructuredPlan,
   InteractionQuestionSchema,
   InteractionQuestionAnswerSchema,
@@ -53,6 +54,12 @@ import { SubagentRepository } from '../subagent/SubagentRepository'
 import { classifyToolActivity, storedToolActivity } from '../tool/ToolActivityClassifier'
 
 const parse = <T>(value: string): T => JSON.parse(value) as T
+const projectPermissionConfig = (row: Record<string, string | number | null>): PermissionConfig =>
+  decodePermissionConfig({
+    sandboxMode: row.sandbox_mode,
+    approvalPolicy: row.approval_policy,
+    approvalsReviewer: row.approvals_reviewer ?? undefined,
+  })
 const isQuestionGroup = Schema.is(Schema.Array(InteractionQuestionSchema))
 const isSubagentRoleValue = Schema.is(SubagentRoleSchema)
 const isQuestionAnswers = Schema.is(Schema.Array(InteractionQuestionAnswerSchema))
@@ -90,7 +97,7 @@ const turnStatus = (status: string): Turn['status'] => {
 
 const inputState = (status: string): Input['state'] => {
   if (status === 'queued') return 'queued'
-  if (status === 'mailbox' || status === 'consumed') return 'merged'
+  if (status === 'consumed') return 'merged'
   if (status === 'cancelled') return 'cancelled'
   if (status === 'completed') return 'completed'
   return 'active'
@@ -488,15 +495,7 @@ export class ThreadProjection {
       ...(workspace ? { workspace } : {}),
       settings: {
         taskMode: decodeStoredTaskMode(row.task_mode),
-        permissionConfig: {
-          sandboxMode: String(
-            row.sandbox_mode,
-          ) as Thread['settings']['permissionConfig']['sandboxMode'],
-          approvalPolicy: decodeApprovalPolicy(String(row.approval_policy)),
-          approvalsReviewer: String(
-            row.approvals_reviewer,
-          ) as Thread['settings']['permissionConfig']['approvalsReviewer'],
-        },
+        permissionConfig: projectPermissionConfig(row),
         ...(row.max_context_tokens != null
           ? { maxContextTokens: Number(row.max_context_tokens) }
           : {}),
@@ -563,13 +562,7 @@ export class ThreadProjection {
       ...(row.origin ? { origin: String(row.origin) as Input['origin'] } : {}),
       mode: decodeStoredTaskMode(row.task_mode),
       model: parse(String(row.model_ref)),
-      permissionConfig: {
-        sandboxMode: String(row.sandbox_mode) as Input['permissionConfig']['sandboxMode'],
-        approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-        approvalsReviewer: String(
-          row.approvals_reviewer,
-        ) as Input['permissionConfig']['approvalsReviewer'],
-      },
+      permissionConfig: projectPermissionConfig(row),
       attachmentIds,
       contextReferenceIds,
       state: inputState(String(row.status)),
@@ -592,13 +585,7 @@ export class ThreadProjection {
       status: turnStatus(status),
       mode: decodeStoredTaskMode(row.mode),
       model: parse(String(row.model_ref)),
-      permissionConfig: {
-        sandboxMode: String(row.sandbox_mode) as Turn['permissionConfig']['sandboxMode'],
-        approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-        approvalsReviewer: String(
-          row.approvals_reviewer,
-        ) as Turn['permissionConfig']['approvalsReviewer'],
-      },
+      permissionConfig: projectPermissionConfig(row),
       rootAgentId: String(row.root_agent_id),
       mergedInputIDs: inputs.slice(1).map((input) => input.id),
       queuePosition: row.queue_position == null ? null : Number(row.queue_position),
@@ -805,13 +792,7 @@ export class ThreadProjection {
       ...(row.origin ? { origin: String(row.origin) as Input['origin'] } : {}),
       mode: decodeStoredTaskMode(row.task_mode),
       model: parse(String(row.model_ref)),
-      permissionConfig: {
-        sandboxMode: String(row.sandbox_mode) as Input['permissionConfig']['sandboxMode'],
-        approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-        approvalsReviewer: String(
-          row.approvals_reviewer,
-        ) as Input['permissionConfig']['approvalsReviewer'],
-      },
+      permissionConfig: projectPermissionConfig(row),
       attachmentIds: attachmentIDsByInput.get(String(row.id)) ?? [],
       contextReferenceIds: contextIDsByInput.get(String(row.id)) ?? [],
       state: inputState(String(row.status)),
@@ -836,13 +817,7 @@ export class ThreadProjection {
         status: turnStatus(turnStatusStr),
         mode: decodeStoredTaskMode(row.mode),
         model: parse(String(row.model_ref)),
-        permissionConfig: {
-          sandboxMode: String(row.sandbox_mode) as Turn['permissionConfig']['sandboxMode'],
-          approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-          approvalsReviewer: String(
-            row.approvals_reviewer,
-          ) as Turn['permissionConfig']['approvalsReviewer'],
-        },
+        permissionConfig: projectPermissionConfig(row),
         rootAgentId: String(row.root_agent_id),
         mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
         queuePosition: row.queue_position == null ? null : Number(row.queue_position),
@@ -904,27 +879,12 @@ export class ThreadProjection {
         )
         .all(threadId) as Array<Record<string, string | number | null>>
     ).map((row) => this.approval(row))
-    for (const payload of this.db.repositories.interactions.pendingMcpElicitations(threadId)) {
-      approvals.push({
-        id: String(payload.interactionId),
-        threadId,
-        turnId: String(payload.turnId),
-        agentId: String(payload.agentId),
-        toolCallID: String(payload.toolCallId),
-        tool: 'McpElicitation',
-        command: null,
-        cwd: null,
-        paths: [],
-        requestedPermissions: {},
-        review: null,
-        risk: 'medium',
-        reason: String((payload.request as Record<string, unknown>).message ?? 'MCP 请求输入'),
-        status: 'pending',
-        createdAt: Number(payload.createdAt),
-        input: { serverName: payload.server, request: payload.request },
-        toolIdentity: { server: String(payload.server), tool: String(payload.tool) },
-      })
+    for (const row of this.db.repositories.interactions.listMcpElicitationsByThread(threadId)) {
+      approvals.push(this.mcpElicitation(threadId, row))
     }
+    approvals.sort(
+      (left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id),
+    )
     const inactive = new Set(
       (hasThreadEditStorage(this.db)
         ? (this.db.sqlite
@@ -1086,13 +1046,7 @@ export class ThreadProjection {
       ...(row.origin ? { origin: String(row.origin) as Input['origin'] } : {}),
       mode: decodeStoredTaskMode(row.task_mode),
       model: parse(String(row.model_ref)),
-      permissionConfig: {
-        sandboxMode: String(row.sandbox_mode) as Input['permissionConfig']['sandboxMode'],
-        approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-        approvalsReviewer: String(
-          row.approvals_reviewer,
-        ) as Input['permissionConfig']['approvalsReviewer'],
-      },
+      permissionConfig: projectPermissionConfig(row),
       attachmentIds: attachmentIDsByInput.get(String(row.id)) ?? [],
       contextReferenceIds: contextIDsByInput.get(String(row.id)) ?? [],
       state: inputState(String(row.status)),
@@ -1116,13 +1070,7 @@ export class ThreadProjection {
         status: turnStatus(turnStatusStr),
         mode: decodeStoredTaskMode(row.mode),
         model: parse(String(row.model_ref)),
-        permissionConfig: {
-          sandboxMode: String(row.sandbox_mode) as Turn['permissionConfig']['sandboxMode'],
-          approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-          approvalsReviewer: String(
-            row.approvals_reviewer,
-          ) as Turn['permissionConfig']['approvalsReviewer'],
-        },
+        permissionConfig: projectPermissionConfig(row),
         rootAgentId: String(row.root_agent_id),
         mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
         queuePosition: row.queue_position == null ? null : Number(row.queue_position),
@@ -1188,7 +1136,12 @@ export class ThreadProjection {
           )
           .all(...selectedTurnIDs) as Array<Record<string, string | number | null>>)
       : []
-    const approvals = approvalRows.map((row) => this.approval(row))
+    const approvals = [
+      ...approvalRows.map((row) => this.approval(row)),
+      ...this.db.repositories.interactions
+        .listMcpElicitationsByTurns(selectedTurnIDs)
+        .map((row) => this.mcpElicitation(threadId, row)),
+    ].sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
 
     const turns = selectedTurnRows.map(mapTurn)
     this.appendContextCompactions(threadId, turns, agents, items)
@@ -1313,6 +1266,7 @@ export class ThreadProjection {
           ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting-permission', 'waiting_question', 'waiting-question', 'waiting_subagents', 'waiting-subagents') THEN 0 WHEN u.status != 'queued' THEN 1 ELSE 2 END,
             u.created_at DESC, u.id DESC LIMIT 1) AS latest_turn_error,
         ${this.db.repositories.planApprovals.available() ? "EXISTS (SELECT 1 FROM plan_approvals WHERE thread_id = t.id AND status = 'pending')" : '0'} AS pending_plan_approval,
+        (SELECT MAX(m.created_at) FROM messages AS m WHERE m.thread_id = t.id AND m.role = 'user') AS last_user_message_at,
         ${hasLimits ? 'l.max_context_tokens' : 'NULL AS max_context_tokens'}
       FROM threads AS t
       LEFT JOIN thread_read_state AS read_state ON read_state.thread_id = t.id
@@ -1362,21 +1316,15 @@ export class ThreadProjection {
         goal: this.db.repositories.threadGoals.get(id),
         settings: {
           taskMode: decodeStoredTaskMode(row.task_mode),
-          permissionConfig: {
-            sandboxMode: String(
-              row.sandbox_mode,
-            ) as ThreadListItem['settings']['permissionConfig']['sandboxMode'],
-            approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-            approvalsReviewer: String(
-              row.approvals_reviewer,
-            ) as ThreadListItem['settings']['permissionConfig']['approvalsReviewer'],
-          },
+          permissionConfig: projectPermissionConfig(row),
           ...(row.max_context_tokens != null
             ? { maxContextTokens: Number(row.max_context_tokens) }
             : {}),
         },
         createdAt: Number(row.created_at),
         updatedAt: Number(row.updated_at),
+        lastUserMessageAt:
+          row.last_user_message_at == null ? null : Number(row.last_user_message_at),
       }
     })
   }
@@ -1806,6 +1754,49 @@ export class ThreadProjection {
     }
   }
 
+  private mcpElicitation(
+    threadId: string,
+    row: {
+      payload: Record<string, unknown>
+      status: string
+      response: Record<string, unknown> | null
+    },
+  ): ApprovalRequest {
+    const payload = row.payload
+    const request =
+      payload.request && typeof payload.request === 'object' && !Array.isArray(payload.request)
+        ? (payload.request as Record<string, unknown>)
+        : {}
+    const action = row.response?.action
+    const status: ApprovalRequest['status'] =
+      row.status === 'pending'
+        ? 'pending'
+        : action === 'accept'
+          ? 'allowed'
+          : action === 'cancel'
+            ? 'cancelled'
+            : 'denied'
+    return {
+      id: String(payload.interactionId),
+      threadId,
+      turnId: String(payload.turnId),
+      agentId: String(payload.agentId),
+      toolCallID: String(payload.toolCallId),
+      tool: 'McpElicitation',
+      command: null,
+      cwd: null,
+      paths: [],
+      requestedPermissions: {},
+      review: null,
+      risk: 'medium',
+      reason: String(request.message ?? 'MCP 请求输入'),
+      status,
+      createdAt: Number(payload.createdAt),
+      input: { serverName: payload.server, request },
+      toolIdentity: { server: String(payload.server), tool: String(payload.tool) },
+    }
+  }
+
   private projectEventPayload(
     event: EventEnvelope,
     source: Record<string, unknown>,
@@ -1828,7 +1819,20 @@ export class ThreadProjection {
     }
     if (event.method === 'thread/settings/updated') {
       const thread = threadId ? this.projectThread(threadId) : null
-      return thread ? { threadId, settings: source.settings, version: thread.updatedAt } : null
+      if (!thread) return null
+      const rawSettings = source.settings
+      const settings =
+        rawSettings && typeof rawSettings === 'object' && !Array.isArray(rawSettings)
+          ? {
+              ...(rawSettings as Record<string, unknown>),
+              ...('permissionConfig' in rawSettings &&
+              rawSettings.permissionConfig &&
+              typeof rawSettings.permissionConfig === 'object'
+                ? { permissionConfig: decodePermissionConfig(rawSettings.permissionConfig) }
+                : {}),
+            }
+          : rawSettings
+      return { threadId, settings, version: thread.updatedAt }
     }
     if (event.method === 'agent/upserted') {
       const agent =

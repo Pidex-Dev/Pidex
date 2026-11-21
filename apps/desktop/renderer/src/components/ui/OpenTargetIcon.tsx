@@ -47,18 +47,43 @@ export function OpenTargetIcon({
   if (src) {
     return <img alt="" className={className} src={src} />
   }
+  const iconClassName = className ? `tw:size-icon ${className}` : 'tw:size-icon'
   if (kind === 'file-explorer') {
     return (
-      <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      <FolderOpen
+        aria-hidden="true"
+        className={iconClassName}
+        size={APP_ICON_SIZE}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
     )
   }
   if (kind === 'terminal') {
     return (
-      <SquareTerminal aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      <SquareTerminal
+        aria-hidden="true"
+        className={iconClassName}
+        size={APP_ICON_SIZE}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
     )
   }
   if (kind === 'editor') {
-    return <Code2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    return (
+      <Code2
+        aria-hidden="true"
+        className={iconClassName}
+        size={APP_ICON_SIZE}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
+    )
   }
-  return <File aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+  return (
+    <File
+      aria-hidden="true"
+      className={iconClassName}
+      size={APP_ICON_SIZE}
+      strokeWidth={APP_ICON_STROKE_WIDTH}
+    />
+  )
 }

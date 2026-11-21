@@ -3,7 +3,11 @@ import type { ChildProcessWithoutNullStreams, SpawnOptionsWithoutStdio } from 'n
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import type { DesktopLogger } from '../src/logging/DesktopLogger'
-import { SidecarSupervisor, type SidecarSupervisorDependencies } from '../src/sidecar/Supervisor'
+import {
+  DEFAULT_MAX_CONNECT_ATTEMPTS,
+  SidecarSupervisor,
+  type SidecarSupervisorDependencies,
+} from '../src/sidecar/Supervisor'
 import { SidecarTerminationError } from '../src/sidecar/FailureDiagnostics'
 
 const originalManagedOrigin = process.env.PIDEX_AGENT_URL
@@ -281,6 +285,35 @@ describe('SidecarSupervisor owned 生命周期', () => {
     expect(harness.children).toHaveLength(0)
     await supervisor.stop()
     expect(harness.fetchPaths).toHaveLength(0)
+  })
+
+  test('自动连接超过上限次数后停止并交由手动重试，手动再次连接重新计数', async () => {
+    delete process.env.PIDEX_AGENT_URL
+    let attempts = 0
+    let shouldFail = true
+    let sleepCalls = 0
+    const harness = createHarness({
+      waitForReady: async () => {
+        attempts += 1
+        if (shouldFail) throw new Error('fetch failed')
+      },
+      sleep: async () => {
+        sleepCalls += 1
+      },
+    })
+    const supervisor = harness.supervisor()
+
+    await expect(supervisor.connect(async () => undefined)).rejects.toThrow('fetch failed')
+    expect(attempts).toBe(DEFAULT_MAX_CONNECT_ATTEMPTS)
+    expect(sleepCalls).toBe(DEFAULT_MAX_CONNECT_ATTEMPTS - 1)
+
+    shouldFail = false
+    const connection = await supervisor.connect(async () => undefined)
+    expect(connection.port).toBe(4312)
+    expect(attempts).toBe(DEFAULT_MAX_CONNECT_ATTEMPTS + 1)
+
+    harness.children[harness.children.length - 1]?.exitOnSignal()
+    await supervisor.stop()
   })
 })
 

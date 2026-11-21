@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { Plus } from 'lucide-react'
 import type { UsageSourceDescriptor } from '@pidex/agent-protocol'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { DesktopApiKeySummary, DesktopModelProviderSummary } from '../shared/Types.js'
@@ -6,49 +7,22 @@ import {
   ProviderCatalog,
   type ProviderCatalogItem,
 } from '../src/features/models/ProviderCatalog.js'
-import { getProviderConnectionChoices } from '../src/features/models/provider-management/ProviderConnectionDialog.js'
 import {
   ProviderCredentialUsageCard,
   envInferenceConnections,
   usageCredentialName,
 } from '../src/features/models/provider-management/ProviderConnectionSection.js'
+import {
+  PROVIDER_PANEL_CONTAINER_CLASS,
+  ProviderPanelActionButton,
+} from '../src/features/models/provider-management/ProviderPanelActionButton.js'
 import type {
   ProviderConnection,
   ProviderUsageSource,
 } from '../src/features/provider-management/index.js'
 
 describe('model center account management', () => {
-  test('OpenAI 同时提供 ChatGPT 登录和 API Key，选项 ID 独立', () => {
-    const provider: DesktopModelProviderSummary = {
-      ...modelProvider('openai', 'OpenAI'),
-      authMethods: ['api-key', 'oauth'],
-    }
-    const choices = getProviderConnectionChoices(provider, [])
-    expect(choices.map((choice) => choice.kind)).toEqual(['inference-oauth', 'inference-key'])
-    expect(new Set(choices.map((choice) => choice.id)).size).toBe(2)
-    expect(
-      getProviderConnectionChoices({ ...provider, authMethods: ['api-key'] }, []).map(
-        (choice) => choice.kind,
-      ),
-    ).toEqual(['inference-key'])
-    expect(
-      getProviderConnectionChoices({ ...provider, authMethods: ['oauth'] }, []).map(
-        (choice) => choice.kind,
-      ),
-    ).toEqual(['inference-oauth'])
-  })
-
-  test('offers billing and OAuth choices while configured catalog cards link to accounts', () => {
-    const choices = getProviderConnectionChoices(
-      { ...modelProvider('anthropic', 'Anthropic'), authMethods: ['oauth'] },
-      [billingSource(), subscriptionSource()],
-    )
-    expect(choices.map((choice) => choice.kind)).toEqual([
-      'inference-oauth',
-      'billing',
-      'usage-oauth',
-    ])
-
+  test('configured catalog cards link to accounts', () => {
     const html = renderToStaticMarkup(
       <ProviderCatalog
         providers={[
@@ -74,10 +48,10 @@ describe('model center account management', () => {
     expect(html).not.toContain('>查看<')
     expect(html).not.toContain('>连接<')
     expect(html).toMatch(
-      /<span class="provider-card-logo settings-management-row-icon"><span class="ui-remote-image\b/,
+      /<span class="provider-card-logo settings-management-row-icon[^"]*"><span class="ui-remote-image\b/,
     )
     expect(html).not.toContain('class="ui-remote-image provider-card-logo"')
-    expect(html.match(/class="provider-card-logo settings-management-row-icon"/g)).toHaveLength(2)
+    expect(html.match(/class="provider-card-logo settings-management-row-icon\b/g)).toHaveLength(2)
   })
 
   test('模型卡标题仅由独立 disclosure button 控制展开', async () => {
@@ -198,6 +172,39 @@ describe('provider connection environment and balance', () => {
         apiKeys,
       ),
     ).toBeUndefined()
+  })
+
+  test('ProviderPanelActionButton 在容器窄态下先淡出文字再收拢为纯图标并保留无障碍提示', () => {
+    const html = renderToStaticMarkup(
+      <div className={PROVIDER_PANEL_CONTAINER_CLASS}>
+        <ProviderPanelActionButton icon={<Plus aria-hidden="true" />} label="新增 API Key" />
+        <ProviderPanelActionButton
+          icon={<Plus aria-hidden="true" />}
+          label="恢复默认图标"
+          title="没有自定义图标"
+          disabled
+        />
+      </div>,
+    )
+    expect(html).toContain('tw:@container/provider-panel')
+    expect(html).toContain('aria-label="新增 API Key"')
+    expect(html).toContain('title="新增 API Key"')
+    expect(html).toContain('title="没有自定义图标"')
+    expect(html).toContain('tw:[min-inline-size:var(--button-box-size)]')
+    expect(html).toContain('tw:@max-[380px]/provider-panel:gap-0')
+    expect(html).toContain('tw:@max-[380px]/provider-panel:px-0')
+    expect(html).toContain('tw:transition-[grid-template-columns,opacity]')
+    expect(html).toContain('tw:@max-[380px]/provider-panel:grid-cols-[0fr]')
+    expect(html).toContain('tw:@max-[380px]/provider-panel:opacity-0')
+    expect(html).toContain(
+      'tw:@max-[380px]/provider-panel:[transition-delay:var(--cpx-sys-motion-feedback),var(--cpx-sys-motion-instant)]',
+    )
+    expect(html).toContain(
+      '<span class="tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">新增 API Key</span>',
+    )
+    expect(html).toContain('data-variant="secondary"')
+    expect(html).toContain('data-shape="round"')
+    expect(html).toContain('data-size="sm"')
   })
 })
 

@@ -19,19 +19,19 @@ import {
  * enter/exit transform, so only the static anchoring geometry lives here.
  */
 const DROPDOWN_CLASS = cx(
-  'popover-surface chat-input__dropdown tw:absolute tw:left-0 tw:z-popover',
+  'popover-surface chat-input__dropdown tw:absolute tw:left-0',
   'tw:bottom-[calc(100%+var(--cpx-sys-space-1))]',
 )
 const DROPDOWN_SUGGESTION_CLASS = cx(
-  'popover-surface chat-input__dropdown chat-input__dropdown--suggestion tw:absolute tw:left-0 tw:z-popover tw:w-full tw:max-w-full',
+  'popover-surface chat-input__dropdown chat-input__dropdown--suggestion tw:absolute tw:left-0 tw:[--popover-width:100%] tw:[--popover-max-width:100%]',
   'tw:bottom-[calc(100%+var(--cpx-sys-space-2))]',
 )
 const DROPDOWN_BOTTOM_CLASS = cx(
-  'popover-surface chat-input__dropdown chat-input__dropdown--bottom tw:absolute tw:left-0 tw:z-popover',
+  'popover-surface chat-input__dropdown chat-input__dropdown--bottom tw:absolute tw:left-0',
   'tw:bottom-auto tw:top-[calc(100%+var(--cpx-sys-space-1))]',
 )
 const DROPDOWN_SUGGESTION_BOTTOM_CLASS = cx(
-  'popover-surface chat-input__dropdown chat-input__dropdown--bottom chat-input__dropdown--suggestion tw:absolute tw:left-0 tw:z-popover tw:w-full tw:max-w-full',
+  'popover-surface chat-input__dropdown chat-input__dropdown--bottom chat-input__dropdown--suggestion tw:absolute tw:left-0 tw:[--popover-width:100%] tw:[--popover-max-width:100%]',
   'tw:bottom-auto tw:top-[calc(100%+var(--cpx-sys-space-2))]',
 )
 
@@ -137,7 +137,7 @@ export function ChatInputDropdown({
     }
   }, [open, onClose])
 
-  const style: React.CSSProperties = buildPopoverSizingStyle({ size })
+  const style: React.CSSProperties = suggestion ? {} : buildPopoverSizingStyle({ size })
   if (maxHeight !== null) {
     style.maxHeight = `${maxHeight}px`
     style.overflowY = suggestion ? 'hidden' : 'auto'

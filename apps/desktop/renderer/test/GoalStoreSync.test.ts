@@ -22,8 +22,8 @@ const snapshotWithGoal = (goal: unknown): ThreadSnapshot =>
         taskMode: 'chat',
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
       },
       createdAt: 1,

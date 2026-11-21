@@ -16,14 +16,14 @@ describe('workbench chrome contract', () => {
     const tokens = readRendererFile('src/styles/design-system/tokens.css')
     const tailwind = readRendererFile('src/styles/tailwind.css')
 
-    // 36px 菜单栏高度来自 --chrome-h，经 tw:h-chrome 作用到菜单栏与其标题栏。
-    expectSourceContains(tokens, '--chrome-h: 36px')
+    // 40px 菜单栏高度来自 --chrome-h，经 tw:h-chrome 作用到菜单栏与其标题栏。
+    expectSourceContains(tokens, '--chrome-h: 40px')
     expectSourceContains(tailwind, '--height-chrome: var(--chrome-h)')
     expectSourceContains(shell, 'desktop-menubar tw:h-chrome tw:shrink-0 tw:bg-app-titlebar')
     expectSourceContains(menuBar, 'menubar-titlebar tw:flex tw:h-chrome')
     expectSourceNotContains(shell, 'updateTitleBarOverlay')
     expectSourceNotContains(shell, 'getBoundingClientRect().height')
-    expectSourceContains(tokens, '--application-menubar-height: 36px')
+    expectSourceContains(tokens, '--application-menubar-height: 40px')
     expectSourceNotContains(tokens, 'env(titlebar-area-height')
   })
 
@@ -61,18 +61,38 @@ describe('workbench chrome contract', () => {
 
     expectSourceNotContains(menuBar, 'workspaceHeader')
     expectSourceNotContains(menuBar, 'menubar-workspace-header')
+    expectSourceNotContains(menuBar, 'label="窗口"')
+    expectSourceNotContains(menuBar, "w: 'window'")
+    const viewMenu = menuBar.slice(menuBar.indexOf('label="视图"'), menuBar.indexOf('label="帮助"'))
+    for (const action of ['minimize', 'zoom', 'close']) {
+      expectSourceContains(viewMenu, `onWindowMenuAction('${action}')`)
+    }
     expect(windowControlsIndex).toBeGreaterThan(menuBar.indexOf('</Menubar.Root>'))
-    for (const label of ['文件', '编辑', '查看', '窗口', '帮助']) {
+    for (const label of ['文件', '编辑', '视图', '帮助']) {
       expectSourceContains(menuBar, `label="${label}"`)
     }
   })
 
+  test('uses fixed sidebar minimum width without coupling to menu bar button bounds', () => {
+    const menuBar = readRendererFile('src/features/layout/MenuBar.tsx')
+    const controller = readRendererFile('src/features/layout/shell/UseWorkbenchShellController.ts')
+    const layout = readRendererFile('src/features/layout/shell/DesktopLayout.tsx')
+
+    expectSourceNotContains(menuBar, 'onSidebarBoundaryChange')
+    expectSourceNotContains(layout, 'setSidebarMenuBoundary')
+    expectSourceNotContains(controller, 'sidebarMenuBoundary')
+    expectSourceContains(controller, 'sidebarMinWidth: MODERN_SIDEBAR_MIN_WIDTH')
+    expectSourceContains(controller, 'sidebarMaxWidth: SIDEBAR_MAX_WIDTH')
+  })
+
   test('keeps high-frequency edit and settings drafts out of the workbench shell', () => {
     const layout = readRendererFile('src/features/layout/shell/DesktopLayout.tsx')
+    const layoutSettings = readRendererFile('src/features/layout/shell/UseDesktopLayoutSettings.ts')
     const menuBar = readRendererFile('src/features/layout/MenuBar.tsx')
 
-    expectSourceContains(layout, 'useDesktopRuntimeSettingsField(')
+    expectSourceContains(layoutSettings, 'useDesktopRuntimeSettingsField(')
     expectSourceNotContains(layout, 'useDesktopSettings()')
+    expectSourceNotContains(layoutSettings, 'useDesktopSettings()')
     expectSourceNotContains(layout, 'useEditCommands()')
     expectSourceContains(menuBar, 'useEditCommands()')
   })

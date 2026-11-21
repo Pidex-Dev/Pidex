@@ -71,10 +71,7 @@ export function createAgentToolingApi({
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false
     const status = value as Partial<ToolingStatus>
     return (
-      (status.id === 'nodejs' ||
-        status.id === 'python' ||
-        status.id === 'git-bash' ||
-        status.id === 'ripgrep') &&
+      (status.id === 'nodejs' || status.id === 'python') &&
       (status.preference === 'managed' || status.preference === 'system') &&
       typeof status.pinnedVersion === 'string'
     )

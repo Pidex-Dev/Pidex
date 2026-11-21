@@ -11,12 +11,10 @@ import {
   isDynamicDirectiveMessage,
   buildContinuationPrompt,
   getRootThreadId,
-  GoalBudgetLimitError,
 } from '../src/session/GoalDirectiveService'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { ThreadGoalService } from '../src/session/ThreadGoalService'
 import { ThreadService } from '../src/session/ThreadService'
-import { WorkspaceService } from '../src/workspace/WorkspaceService'
 import { SubagentService } from '../src/subagent/SubagentService'
 import { AgentError } from '../src/Domain'
 import type { ThreadGoal } from '@pidex/shared/thread'
@@ -130,8 +128,8 @@ const defaultTurnInput = {
   model: { providerID: 'test', id: 'test' } as never,
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
-    approvalsReviewer: 'user' as const,
+    approvalPolicy: 'auto_review' as const,
+    approvalsReviewer: 'auto_review' as const,
   },
   strategy: 'queue' as const,
   taskMode: 'chat' as const,
@@ -328,7 +326,11 @@ test('提高受限预算恢复 active 并解挂队列，缺核验证据不机械
     } as never,
     { listByBinding: async () => [] } as never,
     { dataRoot: root, userHome: root },
-    { recall: () => [], enqueue: () => null } as never,
+    {
+      inject: async () => ({ sections: [], ignored: false }),
+      defaultScopes: () => [{ kind: 'user' }],
+      enqueueExtract: () => null,
+    } as never,
     { load: () => {}, run: async () => [] } as never,
     {
       resolve: async () => ({

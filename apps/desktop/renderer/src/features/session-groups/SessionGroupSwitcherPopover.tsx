@@ -73,7 +73,7 @@ export function SessionGroupSwitcherPopover({
       footer={
         onCreate ? (
           <SearchablePopoverAction
-            icon={<Plus size={APP_ICON_SIZE} />}
+            icon={<Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             withArrow
             onClick={() => {
               onCreate()
@@ -94,9 +94,9 @@ export function SessionGroupSwitcherPopover({
           leading={
             <span className="popover-item-icon">
               {option.group ? (
-                <MessagesSquare size={APP_ICON_SIZE} />
+                <MessagesSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />
               ) : (
-                <Unlink size={APP_ICON_SIZE} />
+                <Unlink className="tw:size-icon-md" size={APP_ICON_SIZE} />
               )}
             </span>
           }
@@ -111,7 +111,7 @@ export function SessionGroupSwitcherPopover({
           }
         >
           {option.group ? (
-            <span className="popover-item-label popover-item-label--rich tw:w-full tw:min-w-0">
+            <span className="popover-item-label popover-item-label--rich tw:w-full">
               <span className="popover-item-title">{option.group.name}</span>
               <span className="popover-item-description">
                 {option.group.memberCount} 个会话 · {option.group.projectLabels.length} 个项目

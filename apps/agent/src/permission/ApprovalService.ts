@@ -1,4 +1,3 @@
-import { isFullAccessPermissionConfig, isReadOnlyTaskMode } from '@pidex/shared/thread'
 import { Effect } from 'effect'
 import { createHash } from 'node:crypto'
 import { AgentError, type PermissionDecision, type ToolInvocation } from '../Domain'
@@ -12,7 +11,6 @@ import type { InteractionOperationInput } from '../storage/repositories/Interact
 import type { ToolRegistry } from '../tool/ToolRegistry'
 import {
   PermissionDecisionEngine,
-  hasRequestedPermissions,
   requestedPermissions,
   type ResolvedPermissionDecision,
 } from './PermissionDecisionEngine'
@@ -29,6 +27,13 @@ import {
   type GuardianReview,
 } from './Guardian'
 import type { GuardianScoreService } from './GuardianScoreService'
+import type { DecisionService } from '../decision/DecisionService'
+import {
+  approvalAssistDecision,
+  evaluateApprovalAssist,
+  type ApprovalAssist,
+  type ApprovalAssistAllow,
+} from '../decision/integrations/PermissionDecisionAdapter'
 
 export type Reviewer = (
   invocation: ToolInvocation,
@@ -117,6 +122,8 @@ export class ApprovalService {
   private readonly interruptedTurns = new Set<string>()
   private turnInterruptHandler?: (threadID: string, turnID: string) => void
   private agentStatusHandler?: (agentID: string, status: 'waiting_permission' | 'running') => void
+  private decisionService: DecisionService | null = null
+  private readonly approvalLedgers = new Map<string, string>()
 
   constructor(
     private readonly db: AgentDatabase,
@@ -172,6 +179,41 @@ export class ApprovalService {
     this.agentStatusHandler = handler
   }
 
+  setDecisionService(service: DecisionService | null): void {
+    this.decisionService = service
+  }
+
+  private recordDecisionOutcome(
+    threadID: string,
+    ledgerId: string | undefined,
+    verdict: string,
+    payload?: import('../decision/DecisionSpec').JsonValue,
+  ): void {
+    if (!ledgerId) return
+    const outcome = {
+      id: crypto.randomUUID(),
+      ledgerId,
+      threadId: threadID,
+      kind: 'permission' as const,
+      verdict,
+      ...(payload ? { payload } : {}),
+      createdAt: Date.now(),
+    }
+    try {
+      if (this.decisionService) {
+        void this.decisionService.recordOutcome(outcome).catch(() => {})
+      } else {
+        this.db.repositories.decisionLedger.appendOutcome(outcome)
+      }
+    } catch {
+      // SAFETY: outcome bookkeeping must never change the approval result.
+    }
+    if (this.approvalLedgers.size > 1_024) {
+      const oldest = this.approvalLedgers.keys().next().value
+      if (oldest !== undefined) this.approvalLedgers.delete(oldest)
+    }
+  }
+
   /**
    * Wired by the composition root after the live turn service exists. The
    * handler must only schedule the stop; awaiting it here would deadlock the
@@ -181,23 +223,10 @@ export class ApprovalService {
     this.turnInterruptHandler = handler
   }
 
-  private async emit(threadID: string, turnID: string, method: string, params: unknown) {
-    const event = this.db.insertEvent(threadID, turnID, method, params)
-    await Effect.runPromise(this.hub.publish(event))
-    return event
-  }
-
   async authorize(invocation: ToolInvocation, signal: AbortSignal): Promise<PermissionDecision> {
     if (signal.aborted) return { decision: 'deny', risk: 'low', reason: '操作已取消' }
     const tool = (invocation.toolPolicy ??
       this.tools.get(invocation.name)) as import('../tool/ToolRegistry').ToolCatalogEntry
-    if (
-      !isReadOnlyTaskMode(invocation.taskMode) &&
-      isFullAccessPermissionConfig(invocation.permissionConfig)
-    ) {
-      const decision = this.decisions.evaluate(invocation, tool)
-      return { decision: decision.decision, risk: decision.risk, reason: decision.reason }
-    }
     if (typeof invocation.input.command === 'string' && !invocation.permissionFacts?.risk) {
       const workspaceRoot = this.rules.workspace(invocation)?.root
       const analysis = analyzeShellRisk({
@@ -247,18 +276,24 @@ export class ApprovalService {
     const forceHumanApproval = resolved.forceHumanApproval
     if (resolved.reviewer === 'auto_review' && !forceHumanApproval && this.reviewer) {
       const fingerprint = this.retryFingerprint(invocation)
-      const retryAuthorization = this.db.repositories.interactions.claimApprovalRetry(
-        invocation.threadID,
-        fingerprint,
-      )
-      const reviewed = await this.reviewWithGuardian(
-        reviewerInvocation({
-          ...safeInvocation,
-          ...(retryAuthorization ? { retryAuthorization } : {}),
-        }),
-        resolved,
+      const assist = await evaluateApprovalAssist(this.decisionService, this.db, invocation, {
         signal,
-      )
+      }).catch(() => null)
+      const adopted = assist ? approvalAssistDecision(this.db, invocation, assist) : null
+      let reviewed: PermissionDecision
+      if (adopted && assist) {
+        reviewed = {
+          ...adopted,
+          decisionLedgerId: assist.decision.ledgerId,
+        } as ApprovalAssistAllow
+      } else {
+        reviewed = await this.reviewWithGuardian(
+          reviewerInvocation(safeInvocation),
+          resolved,
+          signal,
+          assist,
+        )
+      }
       if (signal.aborted) return { decision: 'deny', risk: resolved.risk, reason: '操作已取消' }
       const reviewedAfterVersion = this.rebindReviewToAuthorization(
         reviewed,
@@ -266,6 +301,22 @@ export class ApprovalService {
         invocation,
         authorizationVersionAtStart,
       )
+      const assistLedgerId = assist?.decision.ledgerId
+      if (assistLedgerId) {
+        this.recordDecisionOutcome(
+          invocation.threadID,
+          assistLedgerId,
+          reviewedAfterVersion.decision,
+          {
+            adopted: adopted !== null && reviewedAfterVersion.decision === 'allow',
+            judged: assist!.decision.outcome,
+            actionHash: assist!.actionHash,
+            authorizationVersion: assist!.authorizationVersion,
+          },
+        )
+        if (reviewedAfterVersion.decision === 'ask')
+          this.approvalLedgers.set(invocation.id, assistLedgerId)
+      }
       const event = this.db.repositories.interactions.recordApprovalReview(
         safeInvocation,
         fingerprint,
@@ -279,6 +330,7 @@ export class ApprovalService {
     }
     if (
       resolved.reviewer === 'auto_review' &&
+      !forceHumanApproval &&
       invocation.permissionConfig.approvalPolicy === 'never'
     ) {
       this.guardianScores?.invalidateAction(invocation)
@@ -344,54 +396,27 @@ export class ApprovalService {
     }
   }
   /**
-   * Guardian failure policy: on-request falls back to a human, while never,
-   * untrusted and a granular policy that disables the required category denies.
+   * Guardian failure policy: auto_review falls back to a human, while never denies.
    */
   private guardianFailureDecision(
-    invocation: ToolInvocation,
+    _invocation: ToolInvocation,
     resolved: Extract<ResolvedPermissionDecision, { action: 'review' }>,
     status: 'unavailable' | 'timeout' | 'circuit_open',
     reason: string,
   ): PermissionDecision {
-    const fallback = guardianFallbackDecision({
+    return guardianFallbackDecision({
       risk: resolved.risk,
       status,
       reason,
-      approvalPolicy: invocation.permissionConfig.approvalPolicy,
-      approvalCategories: this.guardianApprovalCategories(invocation),
+      approvalPolicy: _invocation.permissionConfig.approvalPolicy,
     })
-    return fallback
-  }
-
-  private guardianApprovalCategories(
-    invocation: ToolInvocation,
-  ): Array<keyof import('@pidex/shared/thread').GranularApprovalConfig> {
-    const tool = invocation.toolPolicy ?? this.tools.get(invocation.name)
-    const categories = new Set(invocation.permissionFacts?.approvalCategories ?? [])
-    if (
-      invocation.permissionFacts?.ruleRequiresApproval ||
-      invocation.permissionFacts?.destructive ||
-      invocation.permissionFacts?.hookRequiresApproval ||
-      invocation.authorizationScope?.ruleRequiresApproval
-    )
-      categories.add('rules')
-    if (tool.sdkName === 'request_permissions') categories.add('requestPermissions')
-    if (invocation.permissionFacts?.skillScript === true) categories.add('skillApproval')
-    if (tool.origin?.kind === 'mcp') categories.add('mcpTools')
-    if (
-      tool.capabilities.readOnly !== true &&
-      (tool.capabilities.process || tool.capabilities.filesystem === 'host-write')
-    )
-      categories.add('sandboxApproval')
-    if (hasRequestedPermissions(invocation.input) && tool.sdkName !== 'request_permissions')
-      categories.add('sandboxApproval')
-    return [...categories]
   }
 
   private async reviewWithGuardian(
     invocation: ToolInvocation,
     resolved: Extract<ResolvedPermissionDecision, { action: 'review' }>,
     signal: AbortSignal,
+    assist?: ApprovalAssist | null,
   ): Promise<PermissionDecision> {
     const circuit = this.guardianCircuit.check(invocation.threadID, invocation.turnID)
     if (circuit.open) {
@@ -406,9 +431,7 @@ export class ApprovalService {
       )
     }
 
-    const cached = invocation.retryAuthorization
-      ? null
-      : this.guardianScores?.cachedAllow(invocation, signal)
+    const cached = this.guardianScores?.cachedAllow(invocation, signal)
     if (cached) return this.finishGuardianReview(invocation, cached)
     if (!this.reviewer) {
       return this.finishGuardianReview(
@@ -449,20 +472,32 @@ export class ApprovalService {
     )
 
     try {
-      if (!this.guardianScores || invocation.retryAuthorization)
+      if (!this.guardianScores)
         return await this.finishGuardianReview(invocation, await reviewPromise)
-      const winner = await Promise.race([
+      const assistPromise = assist
+        ? Promise.resolve(approvalAssistDecision(this.db, invocation, assist)).then((decision) => ({
+            kind: 'approval' as const,
+            decision,
+          }))
+        : null
+      const racers: Promise<
+        | { kind: 'review'; decision: PermissionDecision }
+        | { kind: 'score'; decision: PermissionDecision | null }
+        | { kind: 'approval'; decision: PermissionDecision | null }
+      >[] = [
         reviewPromise.then((decision) => ({ kind: 'review' as const, decision })),
         this.guardianScores
           .waitForLowRisk(invocation, signal, 2_500)
           .then((decision) => ({ kind: 'score' as const, decision })),
-      ])
-      if (winner.kind === 'score' && winner.decision) {
+        ...(assistPromise ? [assistPromise] : []),
+      ]
+      const winner = await Promise.race(racers)
+      if (winner.kind !== 'review' && winner.decision) {
         controller.abort(new Error('Guardian fast path won'))
         void reviewPromise.catch(() => {})
         return this.finishGuardianReview(invocation, winner.decision)
       }
-      return this.finishGuardianReview(invocation, winner.decision ?? (await reviewPromise))
+      return this.finishGuardianReview(invocation, await reviewPromise)
     } finally {
       signal.removeEventListener('abort', abort)
     }
@@ -556,9 +591,6 @@ export class ApprovalService {
         }),
       )
       .digest('hex')
-  }
-  requestRetry(threadID: string, reviewID: string, operationID: string) {
-    return this.db.repositories.interactions.authorizeApprovalRetry(threadID, reviewID, operationID)
   }
 
   prepare(
@@ -801,6 +833,13 @@ export class ApprovalService {
     if (result.state !== 'resolved')
       throw new AgentError('APPROVAL_CHECKPOINT_INVALID', '审批 checkpoint 状态无效', 409)
     const checkpoint = result.checkpoint
+    const pendingLedgerId = this.approvalLedgers.get(checkpoint.toolCallID)
+    if (pendingLedgerId) {
+      this.approvalLedgers.delete(checkpoint.toolCallID)
+      this.recordDecisionOutcome(checkpoint.threadID, pendingLedgerId, decision, {
+        resolvedBy: 'human',
+      })
+    }
     try {
       if (grantRule) await this.rules.persistGrant(checkpoint.threadID, grantRule)
     } catch {

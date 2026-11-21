@@ -102,7 +102,7 @@ test('WCAG 2.2 AA: dropdown and menubar open states', async ({ page }, testInfo)
   await expectNoWcagViolations(page, testInfo)
   await page.keyboard.press('Escape')
 
-  const menubarTrigger = page.getByRole('menuitem', { name: '编辑' })
+  const menubarTrigger = page.getByRole('menuitem', { name: '应用菜单' })
   await menubarTrigger.click()
   await expect(page.getByRole('menu')).toBeVisible()
   await expectNoWcagViolations(page, testInfo)

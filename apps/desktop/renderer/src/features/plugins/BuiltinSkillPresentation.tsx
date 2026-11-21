@@ -1,4 +1,4 @@
-import { ListChecks } from 'lucide-react'
+import { Lightbulb } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
 import type { DesktopInstalledSkill } from '../../../shared/Types.js'
@@ -46,7 +46,7 @@ export function BuiltinSkillIcon({
 
   if (!presentation || failed) {
     return (
-      <ListChecks
+      <Lightbulb
         aria-hidden="true"
         className={className}
         size={size}

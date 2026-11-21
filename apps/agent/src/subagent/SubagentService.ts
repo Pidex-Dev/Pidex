@@ -1,8 +1,10 @@
+import type { HookService } from '../hooks/HookService'
 import { ThreadGoalControlRepository } from '../storage/repositories/ThreadGoalControlRepository'
 import type { Model } from '@pidex/model-schema'
 import {
   MAX_SUBAGENT_DEPTH,
   isReadOnlyTaskMode,
+  resolveDefaultSubagentName,
   type PermissionConfig,
   type SubagentProfile,
   type SubagentRole,
@@ -17,16 +19,23 @@ import {
   type DelegationController,
   type PendingApproval,
   type PlanCheckpoint,
+  type SubagentForkSnapshot,
 } from '../orchestration/AgentRuntimeTypes'
+import type { SessionTreeEntry } from '../orchestration/harness/Types'
+import {
+  SqlitePiSessionRepo,
+  type SqlitePiSessionStorage,
+} from '../storage/pi-session/SqlitePiSession'
 import type { ApprovalService } from '../permission/ApprovalService'
 import type { QuestionService } from '../session/QuestionService'
 import { ResumeCheckpointResolver, toPlanCheckpoint } from '../interaction/ResumeCheckpointResolver'
-import { executionPolicyFromV4 } from '../permission/ExecutionPolicy'
+import { formatPermissionInstructions } from '../prompt/PermissionInstructions'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import { globalEventSequence } from '../storage/events/EventPublisher'
 import { WorkspaceService } from '../workspace/WorkspaceService'
 import { SubagentCollaborationRepository } from './SubagentCollaborationRepository'
+import { formatSubagentHandback } from './HandbackFormat'
 import { SubagentRepository, type SpawnSubagentInput } from './SubagentRepository'
 import { probeThreadContextLimitsStorageCapabilities } from '../storage/database/StorageCapabilities'
 import type { AttachmentService } from './AttachmentService'
@@ -38,13 +47,26 @@ import {
   type PromptBundle,
 } from '../prompt'
 import type { SkillManagementService } from '../prompt/SkillManagementService'
-import { projectMemoryKey, type MemoryService } from '../memory/MemoryService'
+import {
+  memoryIndexPrompts,
+  type MemoryService,
+  type MemoryToolScope,
+} from '../memory/MemoryService'
+import { normalizeMemoryKey, type MemoryNamespace } from '../memory/MemoryFiles'
 import { ContextManager, type ContextFragment } from '../context/ContextManager'
 import type { McpConnectionManager, McpTurnLease } from '../mcp/McpConnectionManager'
 import { createMcpInstructionSections } from '../mcp/McpPromptSections'
 import type { ProjectSourceService } from '../project/ProjectSourceService'
 import { secretScrubber } from '../security/SecretScrubber'
 import { getRootThreadId } from '../session/GoalDirectiveService'
+import { createHash } from 'node:crypto'
+import type { DecisionService } from '../decision/DecisionService'
+import { routeSubagentSpawn } from '../decision/integrations/TeamworkDecisionAdapter'
+import {
+  screenLoadedSkill,
+  screenProjectInstructions,
+  screenSkillCatalog,
+} from '../decision/integrations/InstructionScreenAdapter'
 
 const terminal = new Set(['completed', 'failed', 'stopped', 'interrupted'])
 export const pausedSubagentStatus = (kind: PendingApproval['kind'] | null) =>
@@ -123,8 +145,11 @@ export class SubagentService {
   readonly collaboration: SubagentCollaborationRepository
   private readonly executing = new Map<string, Promise<void>>()
   private readonly stoppingThreads = new Set<string>()
+  private readonly backgroundStallTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private backgroundStallNotifyMs = 15 * 60_000
   private scheduling = false
   private readonly resumeCheckpoints: ResumeCheckpointResolver
+  private decisions: DecisionService | null = null
 
   constructor(
     private readonly db: AgentDatabase,
@@ -143,6 +168,7 @@ export class SubagentService {
     resumeCheckpoints?: ResumeCheckpointResolver,
     recoverOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
+    private readonly hooks?: HookService,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals)
     this.resumeCheckpoints.setResolvedSubagentWait((turnID) => this.resolvedWaitCheckpoint(turnID))
@@ -159,6 +185,11 @@ export class SubagentService {
 
   recoverStartup() {
     return this.recoverLegacyWorktrees()
+  }
+
+  // INVARIANT: Optional judge plane; without it spawn keeps today's behavior.
+  attachDecisions(decisions: DecisionService | null) {
+    this.decisions = decisions
   }
 
   private async recoverLegacyWorktrees() {
@@ -200,12 +231,19 @@ export class SubagentService {
         : this.repository.setRunning(execution.subagentRunID)
     if (!run) return
     const task = this.repository.task(run.taskId)
-    if (task)
+    if (task) {
       await this.emit(task.parentThreadId, task.parentTurnId, 'subagent/updated', {
         task,
         run,
         childThreadId: task.childThreadId,
       })
+      if (status === 'waiting_permission') {
+        this.clearBackgroundStallTimer(run.id)
+        await this.notifyBackgroundStatus(task.id, run.id, 'waiting_permission')
+      } else {
+        this.armBackgroundStallTimer(task.id, run.id)
+      }
+    }
   }
 
   delegationFor(root: RootContext): DelegationController {
@@ -234,13 +272,56 @@ export class SubagentService {
       report: (input) => this.report(root, input.message, input.operationID),
       list: async () => ({
         agents: this.list(root.threadID),
-        notices: this.collaboration.notices(root.threadID),
+        notices: this.collaborationNotices(root.threadID),
       }),
     }
   }
 
   list(parentThreadID: string) {
     return this.repository.projectionForThread(parentThreadID)
+  }
+
+  /**
+   * 合并持久化的协作通知与当前仍在运行/阻塞子智能体的实时状态摘要，
+   * 确保父 Agent 在多步回合中每次模型请求前都能及时感知每个子智能体状态。
+   */
+  collaborationNotices(parentThreadID: string) {
+    const persisted = this.collaboration.notices(parentThreadID)
+    const activeStatuses = new Set([
+      'queued',
+      'preparing',
+      'running',
+      'steering',
+      'waiting-permission',
+      'waiting-question',
+    ])
+    const now = Date.now()
+    const live = this.repository
+      .projectionForThread(parentThreadID, false)
+      .flatMap((projection) => {
+        const run = projection.currentRun
+        if (!run) return []
+        const blocked = run.status === 'waiting-permission' || run.status === 'waiting-question'
+        if (!activeStatuses.has(run.status) && !projection.task.waitingForDescendants) return []
+        return [
+          {
+            id: `status:${projection.task.id}:${run.id}:${run.status}`,
+            kind: blocked ? 'blocked' : 'status',
+            message: JSON.stringify({
+              taskId: projection.task.id,
+              name: projection.task.displayName,
+              ...(projection.task.title ? { title: projection.task.title } : {}),
+              profile: projection.task.profile,
+              status: run.status,
+              ...(run.queueReason ? { queueReason: run.queueReason } : {}),
+              ...(projection.task.waitingForDescendants ? { waitingForDescendants: true } : {}),
+              ...(run.startedAt ? { elapsedMs: Math.max(0, now - run.startedAt) } : {}),
+            }),
+            created_at: run.updatedAt,
+          },
+        ]
+      })
+    return [...persisted, ...live]
   }
 
   canFollowup(taskID: string) {
@@ -381,11 +462,16 @@ export class SubagentService {
     root: RootContext,
     agents: Array<{
       name?: string
+      title?: string
       profile: 'default' | 'explorer' | 'worker'
       task: string
       role?: SubagentRole
+      /** Optional stable named-memory identity, scoped to the parent project. */
+      memoryKey?: string
       workspaceMode?: 'shared' | 'worktree'
       model?: Model.Ref
+      fork?: SubagentForkSnapshot
+      background?: boolean
     }>,
   ) {
     if (!agents.length || agents.length > 4)
@@ -396,6 +482,16 @@ export class SubagentService {
     const parent = this.db.getAgentExecution(root.agentID)
     if (!parent || parent.depth >= MAX_SUBAGENT_DEPTH)
       throw new AgentError('SUBAGENT_DEPTH_EXCEEDED', '子 Agent 已达到最大深度', 409)
+    if (parent.subagentRunID && agents.some((agent) => Boolean(agent.fork))) {
+      const parentTaskID = this.repository.run(parent.subagentRunID)?.taskId
+      if (parentTaskID && this.collaboration.forkContext(parentTaskID)) {
+        throw new AgentError(
+          'FORK_NOT_ALLOWED',
+          'Fork 子代理禁止递归 Fork；请直接完成任务或显式指定 subagent_type。',
+          400,
+        )
+      }
+    }
     this.assertAdmission(root.threadID)
     const rootThreadId = getRootThreadId(this.db, root.threadID)
     const goal = this.db.repositories.threadGoalLedger.visibleGoal(rootThreadId)
@@ -409,7 +505,49 @@ export class SubagentService {
     if (agents.some((agent) => !agent.task.trim()))
       throw new AgentError('SUBAGENT_TASK_REQUIRED', '子 Agent 任务不能为空', 400)
     this.collaboration.assertCapacity(root.turnID, agents.length, agents.length)
-    await Promise.all(agents.map((requested) => this.resolveModel(requested.model ?? root.model)))
+    const projectID = this.db.threadProjectID(root.threadID) ?? null
+    // An invalid key is rejected outright; it is never normalized into a
+    // different identity that would silently share another agent's memory.
+    for (const requested of agents) {
+      if (requested.memoryKey === undefined) continue
+      if (!normalizeMemoryKey(requested.memoryKey) || !projectID)
+        throw new AgentError(
+          'MEMORY_KEY_INVALID',
+          'memoryKey 必须是 1–64 位 ASCII 字母、数字、下划线或连字符，且仅在项目任务中可用',
+          400,
+        )
+    }
+    const resolvedModels = await Promise.all(
+      agents.map((requested) => this.resolveModel(requested.model ?? root.model)),
+    )
+    // SAFETY: 路由只补充缺失的展示角色与既有模型的推理档位；权限上限、profile、
+    // SAFETY: 工具与工作区仍完全由宿主决定，路由失败或不启用时保持原输入。
+    const routed = this.decisions
+      ? await Promise.all(
+          agents.map(async (requested, index) => {
+            const base = requested.model ?? root.model
+            const route = await routeSubagentSpawn(
+              this.decisions,
+              {
+                task: requested.task,
+                modelRef: base,
+                roleMissing: requested.role === undefined,
+                reasoningLevels: resolvedModels[index]!.variants.map((entry) => String(entry.id)),
+              },
+              { origin: { threadId: root.threadID, turnId: root.turnID } },
+            ).catch(() => null)
+            if (!route) return null
+            if (route.model.variant !== base.variant) {
+              const validated = await this.resolveModel(route.model).then(
+                () => true,
+                () => false,
+              )
+              if (!validated) return { ...route, model: base }
+            }
+            return route
+          }),
+        )
+      : null
     const parentTools = parent.subagentRunID
       ? this.collaboration.allowedTools(this.repository.run(parent.subagentRunID)!.taskId)
       : undefined
@@ -417,33 +555,28 @@ export class SubagentService {
       root.allowedTools && parentTools
         ? root.allowedTools.filter((name) => parentTools.includes(name))
         : (root.allowedTools ?? parentTools)
-    const generated = new Map<string, number>()
-    const existingCounts = new Map<string, number>()
-    const inputs = agents.map((requested): SpawnSubagentInput => {
+    const inputs = agents.map((requested, index): SpawnSubagentInput => {
       const profile = requested.profile as Exclude<SubagentProfile, 'main'>
-      const model = requested.model ?? root.model
-      const existing =
-        existingCounts.get(profile) ??
-        (
-          this.db.sqlite
-            .query(
-              'SELECT COUNT(*) AS count FROM subagent_tasks WHERE parent_agent_id = ? AND profile = ?',
-            )
-            .get(root.agentID, profile) as { count: number }
-        ).count
-      existingCounts.set(profile, existing)
-      const generatedIndex = (generated.get(profile) ?? 0) + 1
-      generated.set(profile, generatedIndex)
+      const routing = routed?.[index] ?? null
+      const model = routing ? routing.model : (requested.model ?? root.model)
+      const role = requested.role ?? routing?.role
       const displayName =
         requested.name?.trim() ||
-        `${profile === 'explorer' ? 'Explorer' : profile === 'worker' ? 'Worker' : 'Agent'} ${existing + generatedIndex}`
+        resolveDefaultSubagentName({
+          profile,
+          role,
+          isFork: Boolean(requested.fork),
+        })
+      const title = requested.title?.trim() || null
       return {
         parentThreadID: root.threadID,
         parentTurnID: root.turnID,
         parentAgentID: root.agentID,
         displayName,
+        title,
         profile,
-        ...(requested.role ? { role: requested.role } : {}),
+        ...(role ? { role } : {}),
+        ...(requested.memoryKey ? { memoryKey: normalizeMemoryKey(requested.memoryKey)! } : {}),
         task: requested.task.trim(),
         model,
         ...(allowedTools ? { allowedTools } : {}),
@@ -458,6 +591,7 @@ export class SubagentService {
         // Grill interviews delegate read-only research; the child runs as a Plan
         // explorer so it never inherits the interview protocol as its own mode.
         taskMode: root.taskMode === 'grill' ? 'plan' : root.taskMode,
+        ...(requested.fork ? { isFork: true } : {}),
       }
     })
     // Repository creation is synchronous; wrapping the complete batch ensures
@@ -469,10 +603,48 @@ export class SubagentService {
       )
     )
       throw new AgentError('CONFLICT', '父代理本轮已结束', 409)
+    const isMainParent = !parent.subagentRunID
     const rows = this.db.transaction(() => {
       this.collaboration.assertCapacity(root.turnID, agents.length, agents.length)
-      return inputs.map((input) => this.repository.create(input))
+      const createdRows = inputs.map((input) => this.repository.create(input))
+      if (isMainParent) {
+        createdRows.forEach((row, index) => {
+          const requested = agents[index]
+          if (requested?.background || requested?.fork) {
+            this.collaboration.registerBackgroundNotification(
+              row.task.id,
+              root.threadID,
+              root.turnID,
+            )
+          }
+        })
+      }
+      return createdRows
     })
+    const piSessions = new SqlitePiSessionRepo(this.db)
+    for (const [index, row] of rows.entries()) {
+      const fork = agents[index]?.fork
+      if (!fork) continue
+      this.collaboration.saveForkContext(row.task.id, {
+        bundle: fork.bundle as unknown as Record<string, unknown>,
+        exposurePlan: fork.exposurePlan,
+      })
+      const childSession = await piSessions.create({
+        id: row.agent.sessionID,
+        threadID: row.task.childThreadId,
+        agentID: row.agent.id,
+      })
+      const storage = childSession.getStorage() as SqlitePiSessionStorage
+      for (const entry of (fork.entries ?? []) as SessionTreeEntry[]) {
+        await storage.appendEntry(entry)
+      }
+      for (const message of (fork.placeholderMessages ?? []) as Array<
+        Parameters<typeof childSession.appendMessage>[0]
+      >) {
+        await childSession.appendMessage(message)
+      }
+      storage.flush()
+    }
     const created = []
     for (const [index, row] of rows.entries()) {
       await this.publish(row.events)
@@ -484,11 +656,34 @@ export class SubagentService {
         runId: row.run.id,
         childThreadId: row.task.childThreadId,
         displayName: input.displayName,
+        ...(input.title ? { title: input.title } : {}),
         profile: input.profile,
       })
     }
     void this.schedule()
     return { agents: created }
+  }
+
+  /**
+   * The bound identity comes from the persisted task row, never from model
+   * input at execution time, so a subagent cannot switch or widen its namespace.
+   */
+  memoryKeyForTask(task: { childThreadId: string }) {
+    return this.repository.taskForChildThread(task.childThreadId)?.memoryKey ?? null
+  }
+
+  /** Host binding used by the memory tools for a subagent thread. */
+  memoryScopeForThread(threadID: string): MemoryToolScope | null {
+    const task = this.repository.taskForChildThread(threadID)
+    if (!task) return null
+    const projectID = this.db.threadProjectID(task.parentThreadId) ?? null
+    if (!projectID) return null
+    const namespace: MemoryNamespace = task.memoryKey
+      ? { kind: 'agent', projectId: projectID, memoryKey: task.memoryKey }
+      : { kind: 'project', projectId: projectID }
+    // Writes stay profile-gated by the tool catalog; the scope only names what
+    // this subagent may see.
+    return { namespace, writable: [namespace] }
   }
 
   isWaitSatisfied(runIDs: string[], mode: 'all' | 'any') {
@@ -527,6 +722,7 @@ export class SubagentService {
       checkpoint.events.map((event) => Effect.runPromise(this.hub.publish(event))),
     )
     void this.schedule()
+    void this.resumeSatisfiedParents()
   }
 
   resolvedWaitCheckpoint(turnID: string): PlanCheckpoint | null {
@@ -746,6 +942,7 @@ export class SubagentService {
     const parent = this.db.getAgentExecution(parentAgentID)
     if (!parent) return
     this.stoppingThreads.add(parent.threadID)
+    this.collaboration.discardBackgroundNotificationsForThread(parent.threadID)
     try {
       for (const child of this.collaboration.children(parent.threadID))
         await this.stop(child.id, crypto.randomUUID())
@@ -840,14 +1037,15 @@ export class SubagentService {
       const localContextReferences =
         this.localContextPaths?.repository.listAuthorized(task.parentThreadId) ?? []
       workspace.grantReadOnlyPaths(localContextReferences.map(({ path, kind }) => ({ path, kind })))
-      mcpLease = await this.mcp?.acquire(workspace.rootPath)
+      const forkContext = this.collaboration.forkContext(taskID)
+      const isForkChild = Boolean(forkContext)
+      mcpLease = isForkChild ? undefined : await this.mcp?.acquire(workspace.rootPath)
       const permissionConfig = run.permissionConfig
       for (const ancestor of this.collaboration.ancestors(task.childThreadId)) {
         const active = this.db.activeTurn(ancestor)
         const input = active ? this.db.getTurnInput(active.id) : null
         if (input) this.assertPermissionCeiling(input.permissionConfig, permissionConfig)
       }
-      const executionPolicy = executionPolicyFromV4(permissionConfig)
       const input = this.db.getTurnInput(agent.turnID)
       if (!input) throw new Error(`Subagent turn ${agent.turnID} 没有输入`)
       const acquiredResume = this.resumeCheckpoints.acquire(
@@ -908,56 +1106,129 @@ export class SubagentService {
           )
           .run(task.childThreadId, inheritedLimit, Date.now())
       }
-      const instructionSources = await new InstructionDiscoveryService().discover(
-        workspace.rootPath,
+      const skipDiscovery = isForkChild || task.profile === 'explorer'
+      const rawInstructionSources = skipDiscovery
+        ? { sources: [] }
+        : await new InstructionDiscoveryService().discover(workspace.rootPath)
+      const instructionSources = await screenProjectInstructions(
+        this.decisions,
+        rawInstructionSources,
+        { threadId: task.childThreadId, turnId: agent.turnID, cwd: workspace.rootPath },
       )
       const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
-      const skillCatalog = this.promptStorage
-        ? await skillService.scan({
-            workspaceRoot: workspace.rootPath,
-            dataRoot: this.promptStorage.dataRoot,
-            userHome: this.promptStorage.userHome,
+      const rawSkillCatalog =
+        this.promptStorage && !skipDiscovery
+          ? await skillService.scan({
+              workspaceRoot: workspace.rootPath,
+              dataRoot: this.promptStorage.dataRoot,
+              userHome: this.promptStorage.userHome,
+            })
+          : { skills: [], shadowed: [] }
+      const skillCatalog = {
+        ...rawSkillCatalog,
+        skills: screenSkillCatalog(this.decisions, rawSkillCatalog.skills, {
+          threadId: task.childThreadId,
+          cwd: workspace.rootPath,
+        }),
+      }
+      const invokedSkillData = isForkChild
+        ? []
+        : await skillService.invocationData(input.content, [], {
+            screenLoaded: (loaded) =>
+              screenLoadedSkill(this.decisions, loaded, {
+                threadId: task.childThreadId,
+                turnId: agent.turnID,
+                cwd: workspace.rootPath,
+              }),
           })
-        : { skills: [], shadowed: [] }
-      const invokedSkillData = await skillService.invocationData(input.content)
       workspace = workspace.withReadOnlyPaths(
         skillCatalog.skills.map((skill) => ({ path: skill.root, kind: 'directory' as const })),
       )
       const projectSourceCatalog =
-        parentWorkspace?.kind === 'project'
+        !isForkChild && parentWorkspace?.kind === 'project'
           ? ((await this.projectSources?.catalog(parentWorkspace.projectID)) ?? null)
           : null
-      const memories =
-        this.memory?.recall({
-          query: input.content,
-          ...(parentWorkspace?.kind === 'project'
-            ? { projectKey: projectMemoryKey(parentWorkspace.projectID) }
-            : {}),
-          subagent: true,
-        }) ?? []
-      const promptSections = createPromptSections({
-        permissionInstructions: `子 Agent resolved file access=${executionPolicy.fileAccess}; Shell environment=${executionPolicy.shellEnvironment}; approval=${JSON.stringify(permissionConfig.approvalPolicy)}; reviewer=${permissionConfig.approvalsReviewer}。只能收紧，不能提升父任务 ceiling。`,
-        mode: parentMode,
-        profile: task.profile,
-        environment: `工作区：${workspace.rootPath}`,
-        projectInstructions: instructionSources.sources,
-        skills: skillCatalog.skills,
-        memories: memories.map((entry) => `可能过期的项目参考记忆：${entry.content}`),
-        stableExternalData:
-          projectSourceCatalog && projectSourceCatalog.total > 0
-            ? [projectSourceCatalog.content]
-            : [],
-        externalData: [
-          ...localContextReferences.map(
-            (reference) =>
-              `<local_context kind=${JSON.stringify(reference.kind)} path=${JSON.stringify(reference.path)}>${reference.name.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</local_context>`,
-          ),
-          ...invokedSkillData,
-        ],
-        userMessage: input.content,
-      })
-      const projectSettingsInstructions = project?.settings.instructions.trim()
-      if (projectSettingsInstructions) {
+      // Subagents never read global user memory: they see the project index plus
+      // their own bound named-memory index when the spawner set a memoryKey.
+      const memoryInjection =
+        !isForkChild && this.memory
+          ? await this.memory.inject({
+              projectId: parentWorkspace?.kind === 'project' ? parentWorkspace.projectID : null,
+              ...(this.memoryKeyForTask(task) ? { memoryKey: this.memoryKeyForTask(task)! } : {}),
+              userMessage: input.content,
+              threadId: task.childThreadId,
+              turnId: agent.turnID,
+            })
+          : { sections: [], ignored: false }
+      const subagentHookResults = this.hooks
+        ? await (async () => {
+            const projectRoot =
+              parentWorkspace?.kind === 'project'
+                ? (parentWorkspace.runtimeWorkspaceRoots[0]?.path ?? workspace.rootPath)
+                : undefined
+            await this.hooks!.loadWithPlugins({
+              ...(projectRoot
+                ? { projectRoot, includeProjectHooks: true }
+                : { includeProjectHooks: false }),
+            })
+            return this.hooks!.run(
+              'subagent_start',
+              {
+                threadID: task.childThreadId,
+                parentThreadID: task.parentThreadId,
+                turnID: task.parentTurnId,
+                agentID: agent.id,
+                role: task.role,
+                profile: task.profile,
+                ...(projectRoot ? { workspace: projectRoot } : {}),
+              },
+              {
+                threadID: task.parentThreadId,
+                turnID: task.parentTurnId,
+                ...(projectRoot ? { workspaceRoot: projectRoot } : {}),
+                matcherValue: task.profile ?? task.role,
+              },
+            )
+          })()
+        : []
+      const subagentHookFeedback = subagentHookResults.flatMap(({ hook, result }) => [
+        ...(result.additionalContext ? [result.additionalContext] : []),
+        ...(result.suggestions ?? []).map(
+          (suggestion) => `Hook ${hook.id} suggestion: ${suggestion}`,
+        ),
+      ])
+      const promptSections = isForkChild
+        ? []
+        : createPromptSections({
+            permissionInstructions: formatPermissionInstructions(
+              permissionConfig,
+              parentMode,
+              task.profile,
+            ),
+            mode: parentMode,
+            profile: task.profile,
+            environment: `Workspace: ${workspace.rootPath}`,
+            projectInstructions: instructionSources.sources,
+            skills: skillCatalog.skills,
+            memories: memoryIndexPrompts(memoryInjection),
+            stableExternalData:
+              projectSourceCatalog && projectSourceCatalog.total > 0
+                ? [projectSourceCatalog.content]
+                : [],
+            externalData: [
+              ...localContextReferences.map(
+                (reference) =>
+                  `<local_context kind=${JSON.stringify(reference.kind)} path=${JSON.stringify(reference.path)}>${reference.name.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</local_context>`,
+              ),
+              ...subagentHookFeedback,
+              ...invokedSkillData,
+            ],
+            userMessage: input.content,
+          })
+      const projectSettingsInstructions = skipDiscovery
+        ? undefined
+        : project?.settings.instructions.trim()
+      if (!isForkChild && projectSettingsInstructions) {
         const projectInstructionIndex = promptSections.findIndex(({ id }) =>
           id.startsWith('project-instruction.'),
         )
@@ -974,11 +1245,13 @@ export class SubagentService {
           },
         )
       }
-      promptSections.splice(
-        promptSections.length - 1,
-        0,
-        ...createMcpInstructionSections(mcpLease?.serverInstructions ?? []),
-      )
+      if (!isForkChild) {
+        promptSections.splice(
+          promptSections.length - 1,
+          0,
+          ...createMcpInstructionSections(mcpLease?.serverInstructions ?? []),
+        )
+      }
       await this.resolveModel(run.model)
       const piModel = await this.providers.getModel(run.model)
       const contextManager = new ContextManager(this.db)
@@ -992,6 +1265,15 @@ export class SubagentService {
         sessionID: agent.sessionID,
         profile: task.profile,
         depth: agent.depth,
+        ...(forkContext
+          ? {
+              isForkChild: true,
+              forkContext: {
+                bundle: forkContext.bundle as unknown as PromptBundle,
+                exposurePlan: forkContext.exposurePlan,
+              },
+            }
+          : {}),
         delegation: this.delegationFor({
           threadID: task.childThreadId,
           turnID: agent.turnID,
@@ -1005,7 +1287,7 @@ export class SubagentService {
           ? { allowedTools: this.collaboration.allowedTools(taskID)! }
           : {}),
         collaborationEnabled: this.collaboration.available,
-        collaborationMessages: () => this.collaboration.notices(task.childThreadId),
+        collaborationMessages: () => this.collaborationNotices(task.childThreadId),
         content: input.content,
         taskMode: parentMode,
         fallbackModel: run.model,
@@ -1030,6 +1312,7 @@ export class SubagentService {
         ...(checkpoint ? { resume: checkpoint.approval } : {}),
         resolveModel: async () => ({ ref: run.model, model: piModel }),
         onPromptComposed: async (bundle) => {
+          this.armBackgroundStallTimer(taskID, runID)
           composedBundle = bundle
           const timestamp = Date.now()
           const previous = contextManager.state(task.childThreadId)
@@ -1065,6 +1348,7 @@ export class SubagentService {
           else contextManager.appendFragments(task.childThreadId, fragments, bundle.contextHash)
         },
         onUsage: async (usage) => {
+          this.armBackgroundStallTimer(taskID, runID)
           if (!composedBundle) return
           contextManager.recordMeasuredUsage({
             threadID: task.childThreadId,
@@ -1100,9 +1384,13 @@ export class SubagentService {
         },
       })
       if (result.status === 'paused') {
+        this.clearBackgroundStallTimer(runID)
         if (acquiredResumeLeaseID) this.resumeCheckpoints.complete(acquiredResumeLeaseID)
-        if (pausedKind !== 'subagents')
-          this.repository.setWaiting(runID, pausedSubagentStatus(pausedKind))
+        if (pausedKind !== 'subagents') {
+          const pausedStatus = pausedSubagentStatus(pausedKind)
+          this.repository.setWaiting(runID, pausedStatus)
+          await this.notifyBackgroundStatus(taskID, runID, pausedStatus)
+        }
         await this.emit(task.parentThreadId, task.parentTurnId, 'subagent/updated', {
           task: this.repository.task(taskID),
           run: this.repository.run(runID),
@@ -1141,6 +1429,18 @@ export class SubagentService {
       await mcpLease?.release()
       mcpLease = undefined
       await this.completeChild(taskID, runID, agent.turnID, agent.id, result, controller.signal)
+      // Only writable subagents with a bound identity leave durable memory work;
+      // explorers stay read-only and never auto-promote into the project namespace.
+      const memoryKey = this.memoryKeyForTask(task)
+      const parentProjectID = this.db.threadProjectID(task.parentThreadId) ?? null
+      if (this.memory && memoryKey && parentProjectID && task.profile !== 'explorer') {
+        this.memory.enqueueExtract({
+          namespace: { kind: 'agent', projectId: parentProjectID, memoryKey },
+          threadId: task.childThreadId,
+          turnId: agent.turnID,
+          modelRef: JSON.stringify(run.model),
+        })
+      }
       startupGateSafe = true
     } catch (cause) {
       if (cause instanceof AgentError && cause.code === 'HOOK_TRUST_REQUIRED') return
@@ -1203,6 +1503,7 @@ export class SubagentService {
           this.resumeCheckpoints.complete(startupGate.leaseID)
       }
       await mcpLease?.release()
+      this.clearBackgroundStallTimer(runID)
       this.controllers.delete(runID)
       await this.notifySettled(runID)
       if (!this.stoppingThreads.has(task.childThreadId)) this.repository.promoteFollowup(taskID)
@@ -1219,14 +1520,35 @@ export class SubagentService {
     result: AgentRuntimeResult,
     signal: AbortSignal,
   ) {
-    const structured = result.status === 'completed' ? result.result : undefined
-    if (!structured)
-      throw new AgentError('SUBAGENT_RESULT_INVALID', '子 Agent 未返回合法的结构化结果', 422)
+    if (result.status !== 'completed')
+      throw new AgentError('SUBAGENT_RESULT_INVALID', '子 Agent 未返回合法的结果', 422)
+    const isFork = Boolean(this.collaboration.forkContext(taskID))
+    const rawText = result.output.trim()
+    const summaryText =
+      rawText.length === 0
+        ? isFork
+          ? 'Fork 子代理已完成。'
+          : '子代理已完成。'
+        : rawText.length <= 240
+          ? rawText
+          : `${rawText.slice(0, 239)}…`
+    const structured = result.result ?? {
+      outcome: 'succeeded' as const,
+      summary: summaryText,
+      ...(rawText ? { reportText: rawText } : {}),
+      ...(result.stats ? { stats: result.stats } : {}),
+      findings: [],
+      changedFiles: [],
+      validation: [],
+      risks: [],
+      references: [],
+    }
     const task = this.requireTask(taskID)
     if (task.workspace.baselineRef) await this.workspaces?.finalize(taskID)
     if (signal.aborted) return
     const canonicalResult = {
       ...structured,
+      ...(result.stats && !structured.stats ? { stats: result.stats } : {}),
       changedFiles: this.canonicalChangedFiles(runID, structured.changedFiles),
     }
     const finished = this.repository.finish(runID, 'completed', canonicalResult, null)
@@ -1282,6 +1604,10 @@ export class SubagentService {
 
   private async resumeSatisfiedParents() {
     for (const completion of this.collaboration.completions()) {
+      if (this.collaboration.isTurnInactive(completion.turn_id)) {
+        this.collaboration.clear(completion.turn_id)
+        continue
+      }
       if (
         this.stoppingThreads.has(completion.thread_id) ||
         this.collaboration.pending(completion.thread_id).length
@@ -1313,9 +1639,26 @@ export class SubagentService {
   }
 
   private parentResumeHandler?: (threadID: string, turnID: string) => void
+  private backgroundNotifyHandler?: (
+    threadID: string,
+    sourceTurnID: string,
+    prompt: string,
+    inputID: string,
+  ) => Promise<void> | void
 
   setParentResumeHandler(handler: (threadID: string, turnID: string) => void) {
     this.parentResumeHandler = handler
+  }
+
+  setBackgroundNotifyHandler(
+    handler: (
+      threadID: string,
+      sourceTurnID: string,
+      prompt: string,
+      inputID: string,
+    ) => Promise<void> | void,
+  ) {
+    this.backgroundNotifyHandler = handler
   }
 
   private assertAdmission(threadID: string) {
@@ -1324,6 +1667,129 @@ export class SubagentService {
       this.collaboration.completions().some((entry) => entry.thread_id === threadID)
     )
       throw new AgentError('CONFLICT', '该 Agent 正在停止或等待后代结算', 409)
+  }
+
+  setBackgroundStallNotifyMs(ms: number) {
+    this.backgroundStallNotifyMs = Math.max(10, Math.floor(ms))
+  }
+
+  private clearBackgroundStallTimer(runID: string) {
+    const timer = this.backgroundStallTimers.get(runID)
+    if (!timer) return
+    clearTimeout(timer)
+    this.backgroundStallTimers.delete(runID)
+  }
+
+  private armBackgroundStallTimer(taskID: string, runID: string) {
+    this.clearBackgroundStallTimer(runID)
+    if (!this.backgroundNotifyHandler) return
+    if (!this.collaboration.pendingBackgroundNotificationSourceTurn(taskID)) return
+    const timer = setTimeout(() => {
+      this.backgroundStallTimers.delete(runID)
+      void this.notifyBackgroundStatus(taskID, runID, 'stalled').catch(() => undefined)
+    }, this.backgroundStallNotifyMs)
+    timer.unref?.()
+    this.backgroundStallTimers.set(runID, timer)
+  }
+
+  private async notifyBackgroundStatus(
+    taskID: string,
+    runID: string,
+    kind: 'waiting_permission' | 'waiting_question' | 'stalled',
+  ) {
+    if (!this.backgroundNotifyHandler) return
+    const task = this.repository.task(taskID)
+    const run = this.repository.run(runID)
+    if (!task || !run || terminal.has(run.status)) return
+    if (this.stoppingThreads.has(task.parentThreadId)) return
+    const sourceTurnID = this.collaboration.pendingBackgroundNotificationSourceTurn(taskID)
+    if (!sourceTurnID) return
+    const reason =
+      kind === 'stalled'
+        ? `Background subagent has made no new model/tool progress for ${Math.max(1, Math.round(this.backgroundStallNotifyMs / 60_000))} min.`
+        : kind === 'waiting_permission'
+          ? 'Background subagent is paused waiting for permission approval.'
+          : 'Background subagent is paused waiting for a user question response.'
+    const header = [`taskId=${task.id}`, `name=${task.displayName}`]
+    if (task.title) header.push(`title=${task.title}`)
+    header.push(`status=${run.status}`, `runId=${run.id}`)
+    const prompt = [
+      `<task-notification taskId="${task.id}" status="${run.status}" event="${kind}">`,
+      `[Subagent status (${header.join(', ')})]`,
+      `  ${reason}`,
+      `  Use send_agent(taskID="${task.id}", message="...") to steer or wake it if needed, or stop_agent(taskID="${task.id}") to cancel.`,
+      '</task-notification>',
+    ].join('\n')
+    try {
+      await this.backgroundNotifyHandler(
+        task.parentThreadId,
+        sourceTurnID,
+        prompt,
+        `subagent-status:${task.id}:${run.id}:${kind}:${Date.now()}`,
+      )
+    } catch {
+      // INVARIANT: Background status reminders are best-effort and must not fail child execution.
+    }
+  }
+
+  // INVARIANT: 后台通知至少一次投递——claim 只读 pending 终态行，seal 在 enqueue 成功之后；handler 抛错行保持 pending 等下次 notifySettled 重试，重复由确定性 inputID 在 duplicateAdmission 收敛。
+  private async dispatchBackgroundNotifications(parentThreadID: string) {
+    if (this.stoppingThreads.has(parentThreadID)) {
+      this.collaboration.discardBackgroundNotificationsForThread(parentThreadID)
+      return
+    }
+    if (!this.backgroundNotifyHandler) return
+    const claimed = this.collaboration.claimReadyBackgroundNotifications(parentThreadID)
+    if (!claimed.length) return
+    const blocks = claimed
+      .map((item) => {
+        const current = this.repository.task(item.taskID)
+        if (!current?.currentRun) return null
+        const handback = formatSubagentHandback({
+          taskId: current.id,
+          runId: current.currentRun.id,
+          displayName: current.displayName,
+          ...(current.title ? { title: current.title } : {}),
+          profile: current.profile,
+          status: current.currentRun.status,
+          ...(current.currentRun.result !== undefined
+            ? { result: secretScrubber.scrub(current.currentRun.result) }
+            : {}),
+          ...(current.currentRun.error
+            ? { error: secretScrubber.scrubText(current.currentRun.error) }
+            : {}),
+        })
+        return [
+          `<task-notification taskId="${current.id}" status="${current.currentRun.status}">`,
+          handback,
+          '</task-notification>',
+        ].join('\n')
+      })
+      .filter((block): block is string => Boolean(block))
+    if (!blocks.length) return
+    const sourceTurnID = claimed[claimed.length - 1]!.parentTurnID
+    const batchHash = createHash('sha256')
+      .update(
+        claimed
+          .map((item) => item.taskID)
+          .sort()
+          .join('\n'),
+      )
+      .digest('hex')
+      .slice(0, 16)
+    const inputID = `subagent-notify:${sourceTurnID}:${batchHash}`
+    // INVARIANT: 本批仍是 pending，remaining 需扣除本批，避免把已结算任务算进“仍在运行”。
+    const remaining = Math.max(
+      0,
+      this.collaboration.pendingBackgroundNotifications(parentThreadID) - claimed.length,
+    )
+    const closing =
+      remaining > 0
+        ? `${remaining} background subagent(s) are still running. Integrate or report these settled results cleanly without duplicating running work.`
+        : 'All background subagents have completed. Synthesize these verified results and respond directly to the user.'
+    const prompt = [...blocks, '', closing].join('\n')
+    await this.backgroundNotifyHandler(parentThreadID, sourceTurnID, prompt, inputID)
+    this.collaboration.sealBackgroundNotifications(claimed.map((item) => item.taskID))
   }
 
   async deferCompletion(threadID: string, turnID: string, result: AgentRuntimeResult) {
@@ -1424,19 +1890,24 @@ export class SubagentService {
   }
 
   private async notifySettled(runID: string) {
-    if (!this.collaboration.available) return
     const run = this.repository.run(runID)
     if (!run || !terminal.has(run.status)) return
-    const id = `settled:${runID}`
-    const message = secretScrubber.scrubText(
-      JSON.stringify({ runId: runID, status: run.status, result: run.result, error: run.error }),
-    )
-    if (this.collaboration.replay(id, run.taskId, 'settled', message)) return
-    const events = this.db.transaction(() => {
-      this.collaboration.record(id, run.taskId, 'settled', message, { messageId: id })
-      return this.repository.eventsForUpdate(run.taskId)
-    })
-    await this.publish(events)
+    const task = this.repository.task(run.taskId)
+    if (this.collaboration.available) {
+      const id = `settled:${runID}`
+      const message = secretScrubber.scrubText(
+        JSON.stringify({ runId: runID, status: run.status, result: run.result, error: run.error }),
+      )
+      if (!this.collaboration.replay(id, run.taskId, 'settled', message)) {
+        const events = this.db.transaction(() => {
+          this.collaboration.record(id, run.taskId, 'settled', message, { messageId: id })
+          return this.repository.eventsForUpdate(run.taskId)
+        })
+        await this.publish(events)
+      }
+    }
+    // INVARIANT: dispatch 失败必须在此收敛——行保持 pending 等下次 notifySettled 重试；向上传播会中断启动恢复（fatal stage）或 execute finally 的收尾链。
+    if (task) await this.dispatchBackgroundNotifications(task.parentThreadId).catch(() => undefined)
   }
 
   private async resolveModel(ref: Model.Ref) {
@@ -1457,39 +1928,7 @@ export class SubagentService {
     }
     const ceilingPolicy = ceiling.approvalPolicy
     const requestedPolicy = requested.approvalPolicy
-    if (typeof ceilingPolicy === 'object') {
-      if (typeof requestedPolicy === 'object') {
-        const keys = [
-          'sandboxApproval',
-          'rules',
-          'skillApproval',
-          'requestPermissions',
-          'mcpTools',
-          'mcpElicitations',
-        ] as const
-        if (keys.some((key) => requestedPolicy[key] && !ceilingPolicy[key])) {
-          throw new AgentError(
-            'PERMISSION_CEILING_EXCEEDED',
-            '子 Agent granular 审批能力超过任务上限',
-            403,
-          )
-        }
-      } else if (requestedPolicy !== 'never') {
-        throw new AgentError(
-          'PERMISSION_CEILING_EXCEEDED',
-          '子 Agent 不能扩大 granular 审批策略',
-          403,
-        )
-      }
-      return
-    }
-    const allowed: Record<string, ReadonlySet<string>> = {
-      untrusted: new Set(['untrusted', 'never']),
-      'on-failure': new Set(['on-failure', 'untrusted', 'never']),
-      'on-request': new Set(['on-request', 'untrusted', 'never']),
-      never: new Set(['never']),
-    }
-    if (typeof requestedPolicy === 'object' || !allowed[ceilingPolicy]?.has(requestedPolicy)) {
+    if (ceilingPolicy === 'never' && requestedPolicy !== 'never') {
       throw new AgentError('PERMISSION_CEILING_EXCEEDED', '子 Agent 审批能力超过任务上限', 403)
     }
   }

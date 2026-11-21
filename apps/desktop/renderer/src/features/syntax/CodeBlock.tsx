@@ -28,6 +28,8 @@ export type CodeBlockProps = {
   code: string
   language?: string | null
   streaming?: boolean
+  /** 围栏未闭合（流式内容中 ``` 开启但未关闭）时隐藏复制按钮，闭合后恢复显示。 */
+  fenceOpen?: boolean
   onChangeCode?: (code: string) => void
   onChangeLanguage?: (language: string) => void
 }
@@ -44,6 +46,7 @@ export function CodeBlock({
   code,
   language,
   streaming = false,
+  fenceOpen = false,
   onChangeCode,
   onChangeLanguage,
 }: CodeBlockProps): ReactNode {
@@ -140,7 +143,6 @@ export function CodeBlock({
         'tw:m-0',
         'tw:max-w-full',
         'tw:font-mono',
-        !wrapContent && 'tw:overflow-x-auto',
         wrapped ? 'tw:whitespace-pre-wrap' : 'tw:whitespace-pre',
         onChangeCode && !isEditingCode && 'tw:cursor-text',
       )}
@@ -149,11 +151,13 @@ export function CodeBlock({
         <textarea
           ref={textareaRef}
           aria-label="编辑代码内容"
-          className="md-code-editor-textarea tw:m-0 tw:w-full tw:resize-y tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-inherit tw:text-app-text tw:whitespace-pre tw:overflow-x-auto"
+          className={cx(
+            'md-code-editor-textarea tw:block tw:box-border tw:m-0 tw:w-full tw:min-w-full tw:resize-y tw:border-0 tw:rounded-none tw:outline-none tw:bg-transparent tw:p-0 tw:font-mono tw:text-app-text tw:overflow-x-auto',
+            wrapped ? 'tw:whitespace-pre-wrap tw:wrap-anywhere' : 'tw:whitespace-pre',
+          )}
           style={{
             ...codeStyle,
             minHeight: `${Math.max(2, editCodeValue.split('\n').length) * 1.5}em`,
-            fontFamily: 'inherit',
             fontSize: 'inherit',
             lineHeight: 'inherit',
           }}
@@ -202,21 +206,19 @@ export function CodeBlock({
       aria-label={ariaLabel ?? `${languageLabel} 代码块`}
       className={cx(
         'md-code-block',
-        surface === 'standalone' && 'md-code-surface',
-        'tw:mx-0',
+        surface === 'standalone' ? 'md-code-surface' : 'tw:overflow-hidden',
         'tw:w-full',
         'tw:max-w-full',
-        'tw:overflow-hidden',
         className,
       )}
     >
       {headerLabel !== null ? (
-        <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:type-caption tw:text-app-text-soft">
+        <figcaption className="md-code-header tw:flex tw:h-6 tw:items-center tw:justify-between tw:type-1 tw:text-app-text-soft">
           {isEditingLang ? (
             <input
               autoFocus
               aria-label="输入代码语言"
-              className="md-code-lang-input tw:h-6 tw:w-28 tw:border tw:border-app-accent tw:bg-app-raised tw:px-1.5 tw:font-mono tw:text-app-text tw:outline-none"
+              className="md-code-lang-input tw:h-5 tw:w-[7rem] tw:border tw:border-app-accent tw:bg-app-raised tw:px-1 tw:font-mono tw:text-app-text tw:outline-none"
               placeholder="语言 (如 ts, json)"
               value={editLangValue}
               onBlur={commitLanguageChange}
@@ -224,6 +226,7 @@ export function CodeBlock({
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
                 e.stopPropagation()
+                if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return
                 if (e.key === 'Enter') {
                   e.preventDefault()
                   commitLanguageChange()
@@ -238,7 +241,7 @@ export function CodeBlock({
           ) : onChangeLanguage ? (
             <button
               aria-label={`修改代码语言：当前为 ${languageLabel}`}
-              className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-6 tw:items-center tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+              className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-5 tw:items-center tw:px-1 tw:font-mono tw:tracking-normal tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
               title="点击直接修改代码语言"
               type="button"
               onClick={(e) => {
@@ -251,14 +254,16 @@ export function CodeBlock({
               <span>{languageLabel}</span>
             </button>
           ) : (
-            <span className="md-code-lang tw:font-mono">{headerLabel ?? languageLabel}</span>
+            <span className="md-code-lang tw:font-mono tw:tracking-normal">
+              {headerLabel ?? languageLabel}
+            </span>
           )}
         </figcaption>
       ) : null}
       <span className="md-code-actions tw:flex tw:items-center">
         {showWrapControl ? (
           <button
-            className="md-code-wrap tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:text-app-text-soft tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+            className="md-code-wrap tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
             type="button"
             aria-label="代码自动换行"
             title="代码自动换行"
@@ -266,6 +271,7 @@ export function CodeBlock({
             onClick={() => setWrapPreference(!wrapPreference)}
           >
             <WrapText
+              className="tw:size-icon-sm"
               aria-hidden="true"
               size={APP_ICON_SIZES.sm}
               strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -285,32 +291,41 @@ export function CodeBlock({
             }}
           >
             <Pencil
+              className="tw:size-icon-sm"
               aria-hidden="true"
               size={APP_ICON_SIZES.sm}
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
           </Button>
         ) : null}
-        <Button
-          isIconOnly
-          className="md-code-copy tw:transition-colors tw:duration-exit"
-          variant="ghost"
-          size="xs"
-          aria-label={copied ? '已复制代码' : copyLabel}
-          title={copied ? '已复制代码' : copyLabel}
-          type="button"
-          onClick={() => void handleCopy()}
-        >
-          {copied ? (
-            <Check
-              aria-hidden="true"
-              size={APP_ICON_SIZES.sm}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
-          ) : (
-            <Copy aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          )}
-        </Button>
+        {fenceOpen ? null : (
+          <Button
+            isIconOnly
+            className="md-code-copy tw:transition-colors tw:duration-exit"
+            variant="ghost"
+            size="xs"
+            aria-label={copied ? '已复制代码' : copyLabel}
+            title={copied ? '已复制代码' : copyLabel}
+            type="button"
+            onClick={() => void handleCopy()}
+          >
+            {copied ? (
+              <Check
+                className="tw:size-icon-sm"
+                aria-hidden="true"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            ) : (
+              <Copy
+                className="tw:size-icon-sm"
+                aria-hidden="true"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            )}
+          </Button>
+        )}
       </span>
       {collapsible ? (
         <details className="md-code-disclosure">

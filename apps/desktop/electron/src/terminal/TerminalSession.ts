@@ -57,7 +57,6 @@ const OUTPUT_FLUSH_BYTES = 65_536
  * 读取，而不是把积压留在 IPC 队列或主进程内存里。
  */
 const OUTPUT_CREDIT_HIGH_CHARACTERS = 262_144
-const OUTPUT_CREDIT_LOW_CHARACTERS = 65_536
 /**
  * 消费者活跃判定：面板隐藏/卸载后不再有 ack，此时不应因窗口打满而暂停 PTY，
  * 否则后台构建会被静默卡住；改为只保留有界缓冲与截断提示。

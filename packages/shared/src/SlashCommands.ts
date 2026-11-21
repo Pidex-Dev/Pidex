@@ -39,12 +39,7 @@ export function parseGoalTaskFromInput(input: string): string | null {
   return parseCommandTask(input, 'goal')
 }
 
-/**
- * 提取 `/name <task>` 的任务正文并去掉首尾空白。
- *
- * 不用 `^\/name\s+([\s\S]*\S)\s*$/`：该写法在大量空白输入上有二次回溯。
- * 这里按前缀匹配后直接用 trim，行为等价且为线性时间。
- */
+// SAFETY: Prefix match plus trim avoids quadratic regex backtracking on long whitespace input.
 function parseCommandTask(input: string, command: string): string | null {
   const prefix = `/${command}`
   if (!input.slice(0, prefix.length).toLowerCase().startsWith(prefix)) return null

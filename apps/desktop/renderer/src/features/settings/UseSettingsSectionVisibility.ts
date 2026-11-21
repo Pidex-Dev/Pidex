@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useExternalSubscription } from '../../hooks/UseExternalSubscription.js'
 import type { ProtocolCapability } from '@pidex/agent-protocol'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type { SettingsSectionRequirement } from './SettingsRegistry.js'
@@ -41,24 +41,28 @@ function loadRuntimeCapabilities(): void {
     })
 }
 
+function subscribeCapabilityState(onStoreChange: () => void): () => void {
+  capabilityStateListeners.add(onStoreChange)
+  loadRuntimeCapabilities()
+  return () => {
+    capabilityStateListeners.delete(onStoreChange)
+  }
+}
+
+function getCapabilityStateSnapshot(): SettingsCapabilityState {
+  return sharedCapabilityState
+}
+
 /**
  * 设置侧栏与内容区共用的运行时能力状态。模块级共享一份查询结果，
  * 避免导航与路由两处各自请求 desktopClient.getRuntimeCapabilities()。
  */
 export function useSettingsCapabilityState(): SettingsCapabilityState {
-  const [state, setState] = useState<SettingsCapabilityState>(sharedCapabilityState)
-  useEffect(() => {
-    const listener = (): void => {
-      setState(sharedCapabilityState)
-    }
-    capabilityStateListeners.add(listener)
-    loadRuntimeCapabilities()
-    if (sharedCapabilityState.status !== 'unknown') listener()
-    return () => {
-      capabilityStateListeners.delete(listener)
-    }
-  }, [])
-  return state
+  return useExternalSubscription(
+    subscribeCapabilityState,
+    getCapabilityStateSnapshot,
+    getCapabilityStateSnapshot,
+  )
 }
 
 /**
@@ -72,9 +76,12 @@ export function resolveSettingsSectionVisibility(
   context: {
     workspacePath: string | null
     capabilityState: SettingsCapabilityState
+    computerRuntimeInstalled?: boolean
   },
 ): SettingsSectionVisibility {
   if (requires == null) return { visible: true, pending: false }
+  if (requires.computerRuntimeInstalled && !context.computerRuntimeInstalled)
+    return { visible: false, pending: false }
   if (requires.workspace === true && (context.workspacePath ?? '').trim().length === 0) {
     return { visible: false, pending: false }
   }

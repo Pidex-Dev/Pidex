@@ -80,14 +80,14 @@ export function CommandMenuDialog({
       id: 'new-task',
       label: '新建对话',
       shortcut: 'Ctrl+N',
-      icon: <SquarePen aria-hidden="true" size={APP_ICON_SIZE} />,
+      icon: <SquarePen className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />,
       action: onCreateTask,
     },
     {
       id: 'open-folder',
       label: '打开文件夹',
       shortcut: 'Ctrl+O',
-      icon: <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} />,
+      icon: <FolderOpen className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />,
       action: onOpenFolder,
     },
     {
@@ -95,7 +95,7 @@ export function CommandMenuDialog({
       label: '搜索文件',
       description: hasWorkspace ? undefined : '请先打开文件夹',
       shortcut: 'Ctrl+P',
-      icon: <FileSearch aria-hidden="true" size={APP_ICON_SIZE} />,
+      icon: <FileSearch className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />,
       disabled: !hasWorkspace,
       action: onSearchFiles,
     },
@@ -107,7 +107,8 @@ export function CommandMenuDialog({
         <Dialog.Overlay className="ui-dialog-backdrop command-menu-backdrop tw:fixed tw:inset-0 tw:z-modal tw:flex tw:items-center tw:justify-center tw:bg-app-scrim tw:backdrop-blur-none tw:@max-[560px]:px-2" />
         <Dialog.Content
           aria-describedby="command-menu-description"
-          className="ui-dialog-surface ui-dialog-surface--centered command-menu-dialog tw:w-[min(520px,92vw)] tw:max-h-[calc(100vh-clamp(6rem,16vh,10rem))] tw:overflow-hidden tw:rounded-none tw:border tw:border-app-border-subtle tw:bg-app-raised tw:shadow-none tw:text-app-text tw:outline-none tw:[-webkit-app-region:no-drag] tw:forced-colors:border-[CanvasText] tw:@max-[560px]:w-full"
+          className="ui-dialog-surface ui-dialog-surface--centered command-menu-dialog tw:w-[min(520px,92vw)] tw:max-h-[calc(100vh-clamp(6rem,16vh,10rem))] tw:overflow-hidden tw:text-app-text tw:outline-none tw:[-webkit-app-region:no-drag] tw:@max-[560px]:w-full"
+          data-surface="command"
           onCloseAutoFocus={onCloseAutoFocus}
           onOpenAutoFocus={(event) => {
             event.preventDefault()
@@ -125,17 +126,17 @@ export function CommandMenuDialog({
             shouldFilter={false}
             vimBindings={false}
           >
-            <div className="command-menu-search tw:flex tw:min-h-8 tw:flex-none tw:items-center tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-3 tw:text-app-text-soft tw:focus-within:shadow-[var(--cpx-sys-focus-ring-inset)] tw:forced-colors:focus-within:shadow-none tw:forced-colors:focus-within:outline-offset-[-2px] tw:forced-colors:focus-within:[outline:2px_solid_Highlight]">
+            <div className="command-menu-search tw:flex tw:min-h-6 tw:flex-none tw:items-center tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-3 tw:text-app-text-soft tw:focus-within:shadow-[var(--cpx-sys-focus-ring-inset)] tw:forced-colors:focus-within:shadow-none tw:forced-colors:focus-within:outline-offset-[-2px] tw:forced-colors:focus-within:[outline:2px_solid_Highlight]">
               <Search
                 aria-hidden="true"
-                className="command-menu-search-icon tw:flex-none"
+                className="tw:size-icon-md command-menu-search-icon tw:flex-none"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
               <input
                 aria-keyshortcuts="Control+K Control+Shift+P"
                 aria-label="搜索任务"
-                className="command-menu-input tw:min-h-8 tw:min-w-0 tw:flex-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:type-body tw:outline-none tw:placeholder:text-app-text-meta tw:forced-colors:focus:outline-offset-[-2px] tw:forced-colors:focus:[outline:2px_solid_Highlight]"
+                className="command-menu-input tw:min-h-6 tw:min-w-0 tw:flex-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:type-2 tw:outline-none tw:placeholder:text-app-text-meta tw:forced-colors:focus:outline-offset-[-2px] tw:forced-colors:focus:[outline:2px_solid_Highlight]"
                 defaultValue={query}
                 onChange={(event) => setQuery(event.currentTarget.value)}
                 placeholder="搜索任务"
@@ -143,7 +144,7 @@ export function CommandMenuDialog({
                 type="search"
               />
             </div>
-            <Command.List className="command-menu-list tw:max-h-110 tw:min-h-0 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:p-2 tw:scroll-py-2">
+            <Command.List className="command-menu-list tw:max-h-[27.5rem] tw:min-h-0 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:p-2 tw:scroll-py-2">
               <CommandMenuTaskGroup
                 catalogStatus={catalogStatus}
                 query={query}
@@ -166,7 +167,7 @@ export function CommandMenuDialog({
                 >
                   {recommendations.map((recommendation) => (
                     <Command.Item
-                      className="command-menu-item command-menu-recommendation tw:grid-cols-[var(--cpx-sys-space-4)_minmax(0,1fr)_auto] tw:grid tw:min-h-7 tw:w-full tw:min-w-0 tw:cursor-default tw:select-none tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-body tw:outline-none tw:data-[selected=true]:bg-app-selected tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:data-[disabled=true]:text-app-text-disabled tw:data-[disabled=true]:opacity-68 tw:forced-colors:data-[selected=true]:outline-offset-[-2px] tw:forced-colors:data-[selected=true]:[outline:2px_solid_Highlight] tw:forced-colors:focus-visible:shadow-none tw:forced-colors:focus-visible:outline-offset-[-2px] tw:forced-colors:focus-visible:[outline:2px_solid_Highlight]"
+                      className="command-menu-item command-menu-recommendation tw:grid-cols-[var(--cpx-sys-space-4)_minmax(0,1fr)_auto] tw:grid tw:min-h-6 tw:w-full tw:min-w-0 tw:cursor-default tw:select-none tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:outline-none tw:data-[selected=true]:bg-app-selected tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:data-[disabled=true]:text-app-text-disabled tw:data-[disabled=true]:opacity-68 tw:forced-colors:data-[selected=true]:outline-offset-[-2px] tw:forced-colors:data-[selected=true]:[outline:2px_solid_Highlight] tw:forced-colors:focus-visible:shadow-none tw:forced-colors:focus-visible:outline-offset-[-2px] tw:forced-colors:focus-visible:[outline:2px_solid_Highlight]"
                       disabled={recommendation.disabled}
                       key={recommendation.id}
                       onSelect={() => {
@@ -184,12 +185,12 @@ export function CommandMenuDialog({
                           {recommendation.label}
                         </span>
                         {recommendation.description ? (
-                          <span className="command-menu-item-description tw:truncate tw:type-caption tw:text-app-text-meta">
+                          <span className="command-menu-item-description tw:truncate tw:type-1 tw:text-app-text-meta">
                             {recommendation.description}
                           </span>
                         ) : null}
                       </span>
-                      <kbd className="command-menu-shortcut tw:min-w-max tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-surface-control)_72%,transparent)] tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta tw:forced-colors:border-[CanvasText]">
+                      <kbd className="command-menu-shortcut tw:min-w-max tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-surface-control)_72%,transparent)] tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta tw:forced-colors:border-[CanvasText]">
                         {recommendation.shortcut}
                       </kbd>
                     </Command.Item>
@@ -230,7 +231,7 @@ function CommandMenuActionGroups({
           const description = action.disabledReason ?? action.description
           return (
             <Command.Item
-              className="command-menu-item command-menu-recommendation tw:grid-cols-[var(--cpx-sys-space-4)_minmax(0,1fr)_auto] tw:grid tw:min-h-7 tw:w-full tw:min-w-0 tw:cursor-default tw:select-none tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-body tw:outline-none tw:data-[selected=true]:bg-app-selected tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:data-[disabled=true]:text-app-text-disabled tw:data-[disabled=true]:opacity-68 tw:forced-colors:data-[selected=true]:outline-offset-[-2px] tw:forced-colors:data-[selected=true]:[outline:2px_solid_Highlight] tw:forced-colors:focus-visible:shadow-none tw:forced-colors:focus-visible:outline-offset-[-2px] tw:forced-colors:focus-visible:[outline:2px_solid_Highlight]"
+              className="command-menu-item command-menu-recommendation tw:grid-cols-[var(--cpx-sys-space-4)_minmax(0,1fr)_auto] tw:grid tw:min-h-6 tw:w-full tw:min-w-0 tw:cursor-default tw:select-none tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:outline-none tw:data-[selected=true]:bg-app-selected tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:data-[disabled=true]:text-app-text-disabled tw:data-[disabled=true]:opacity-68 tw:forced-colors:data-[selected=true]:outline-offset-[-2px] tw:forced-colors:data-[selected=true]:[outline:2px_solid_Highlight] tw:forced-colors:focus-visible:shadow-none tw:forced-colors:focus-visible:outline-offset-[-2px] tw:forced-colors:focus-visible:[outline:2px_solid_Highlight]"
               disabled={disabled}
               key={action.id}
               onSelect={() => {
@@ -250,7 +251,7 @@ function CommandMenuActionGroups({
                   {action.label}
                 </span>
                 {description ? (
-                  <span className="command-menu-item-description tw:truncate tw:type-caption tw:text-app-text-meta">
+                  <span className="command-menu-item-description tw:truncate tw:type-1 tw:text-app-text-meta">
                     {description}
                   </span>
                 ) : null}
@@ -294,7 +295,7 @@ export function CommandMenuTaskGroup({
       ) : (
         tasks.map((task) => (
           <Command.Item
-            className="command-menu-item command-menu-task tw:grid tw:min-h-7 tw:w-full tw:min-w-0 tw:cursor-default tw:grid-cols-[var(--cpx-sys-space-4)_minmax(0,1fr)_auto] tw:select-none tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-body tw:outline-none tw:data-[selected=true]:bg-app-selected tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:data-[disabled=true]:text-app-text-disabled tw:data-[disabled=true]:opacity-68 tw:forced-colors:data-[selected=true]:outline-offset-[-2px] tw:forced-colors:data-[selected=true]:[outline:2px_solid_Highlight] tw:forced-colors:focus-visible:shadow-none tw:forced-colors:focus-visible:outline-offset-[-2px] tw:forced-colors:focus-visible:[outline:2px_solid_Highlight]"
+            className="command-menu-item command-menu-task tw:grid tw:min-h-6 tw:w-full tw:min-w-0 tw:cursor-default tw:grid-cols-[var(--cpx-sys-space-4)_minmax(0,1fr)_auto] tw:select-none tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-2 tw:outline-none tw:data-[selected=true]:bg-app-selected tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:data-[disabled=true]:text-app-text-disabled tw:data-[disabled=true]:opacity-68 tw:forced-colors:data-[selected=true]:outline-offset-[-2px] tw:forced-colors:data-[selected=true]:[outline:2px_solid_Highlight] tw:forced-colors:focus-visible:shadow-none tw:forced-colors:focus-visible:outline-offset-[-2px] tw:forced-colors:focus-visible:[outline:2px_solid_Highlight]"
             key={task.id}
             onSelect={() => onSelectTask(task)}
             value={`task:${task.id}`}
@@ -305,10 +306,10 @@ export function CommandMenuTaskGroup({
                 {task.title}
               </span>
             </span>
-            <span className="command-menu-workspace tw:max-w-36 tw:truncate tw:type-caption tw:text-app-text-meta tw:@max-[560px]:max-w-24">
+            <span className="command-menu-workspace tw:max-w-[9rem] tw:truncate tw:type-1 tw:text-app-text-meta tw:@max-[560px]:max-w-[6rem]">
               {task.workspaceName}
             </span>
-            <kbd className="command-menu-shortcut tw:min-w-max tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-surface-control)_72%,transparent)] tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta tw:forced-colors:border-[CanvasText]">
+            <kbd className="command-menu-shortcut tw:min-w-max tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-surface-control)_72%,transparent)] tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta tw:forced-colors:border-[CanvasText]">
               {task.shortcutLabel}
             </kbd>
           </Command.Item>
@@ -328,7 +329,7 @@ function CommandMenuStatus({
   return (
     <Command.Item
       aria-busy={busy || undefined}
-      className="command-menu-status tw:flex tw:min-h-[calc(var(--cpx-sys-space-7)+var(--cpx-sys-space-2))] tw:items-center tw:justify-center tw:gap-2 tw:p-3 tw:text-center tw:type-body-sm tw:text-app-text-meta"
+      className="command-menu-status tw:flex tw:min-h-[calc(var(--cpx-sys-space-7)+var(--cpx-sys-space-2))] tw:items-center tw:justify-center tw:gap-2 tw:p-3 tw:text-center tw:type-1 tw:text-app-text-meta"
       disabled
       value="command-menu-status"
     >
@@ -359,7 +360,7 @@ function TaskStatus({ task }: { task: CommandMenuTask }): React.ReactNode {
       >
         <span
           aria-hidden="true"
-          className="command-menu-unread-dot tw:size-1.5 tw:rounded-full tw:bg-app-accent tw:forced-colors:bg-[Highlight]"
+          className="command-menu-unread-dot tw:size-2 tw:rounded-full tw:bg-app-accent tw:forced-colors:bg-[Highlight]"
         />
       </span>
     )

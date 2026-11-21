@@ -10,8 +10,8 @@ import type { PerformanceSample } from './Metrics.js'
 
 const permissionConfig = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 const model = { providerID: 'openai', id: 'performance' }
 

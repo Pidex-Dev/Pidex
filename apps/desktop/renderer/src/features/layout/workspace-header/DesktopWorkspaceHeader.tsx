@@ -154,7 +154,7 @@ function HeaderSlot({
       >
         {alignedItems.map((item) => (
           <div
-            className="desktop-workspace-header-item tw:flex tw:h-full tw:min-w-0 tw:max-w-full tw:items-center tw:pointer-events-auto tw:text-app-text-soft tw:type-control"
+            className="desktop-workspace-header-item tw:flex tw:h-full tw:min-w-0 tw:max-w-full tw:items-center tw:pointer-events-auto tw:text-app-text-soft tw:type-2 tw:weight-medium"
             key={`${item.routeScope}:${item.id}`}
           >
             {item.node}

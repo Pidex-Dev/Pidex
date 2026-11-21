@@ -4,7 +4,7 @@ import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { SearchHeading } from '../../../components/ui/SearchHeading.js'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { BrainCircuit, Plus, Store } from 'lucide-react'
-import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { useLocale } from '../../i18n/LocaleProvider.js'
 import {
@@ -68,9 +68,11 @@ export function SidebarProvidersPane(): React.ReactNode {
 
   return (
     <div className="sidebar-providers-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
-      <header className="sidebar-pane-heading tw:flex tw:min-h-9 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
+      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
         <SearchHeading
-          title={<h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{t('供应商')}</h2>}
+          title={
+            <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('供应商')}</h2>
+          }
           search={
             <SearchInput
               variant="outlined"
@@ -87,7 +89,7 @@ export function SidebarProvidersPane(): React.ReactNode {
           active={onMarketRoute}
           asChild
           layout="grid"
-          leading={<Store aria-hidden size={APP_ICON_SIZE} />}
+          leading={<Store className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
         >
           <button
             type="button"
@@ -101,7 +103,7 @@ export function SidebarProvidersPane(): React.ReactNode {
           active={creatingProvider}
           asChild
           layout="grid"
-          leading={<Plus aria-hidden size={APP_ICON_SIZE} />}
+          leading={<Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />}
         >
           <button
             type="button"
@@ -114,15 +116,12 @@ export function SidebarProvidersPane(): React.ReactNode {
       </div>
       <ScrollArea
         className="sidebar-providers-scroll tw:min-h-0 tw:flex-1 tw:overflow-x-hidden tw:scroll-pb-2"
-        contentClassName="tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2 tw:pb-2"
+        contentClassName="tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1 tw:pb-2"
       >
         {loading ? (
           <SidebarEmptyRow role="status">{t('正在加载供应商…')}</SidebarEmptyRow>
         ) : error ? (
-          <div
-            className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-body-sm"
-            role="status"
-          >
+          <div className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-1" role="status">
             {error}
           </div>
         ) : items.length === 0 ? (
@@ -130,7 +129,7 @@ export function SidebarProvidersPane(): React.ReactNode {
         ) : (
           [true, false].map((configured) => (
             <div key={String(configured)} className="tw:flex tw:flex-col tw:sidebar-row-gap">
-              <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:items-center tw:px-2 tw:text-app-text-meta tw:type-body">
+              <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:items-center tw:px-1 tw:text-app-text-meta tw:type-2">
                 {t(configured ? '已配置' : '未配置')}
               </h3>
               {items
@@ -141,7 +140,7 @@ export function SidebarProvidersPane(): React.ReactNode {
                     <SidebarRow
                       active={selected}
                       asChild
-                      className="sidebar-nav-link tw:type-row-title tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus"
+                      className="sidebar-nav-link tw:type-2 tw:weight-medium tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus"
                       key={provider.providerID}
                       labelClassName="sidebar-item-label tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap"
                       layout="grid"
@@ -149,7 +148,13 @@ export function SidebarProvidersPane(): React.ReactNode {
                         <span className="tw:flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center">
                           <ProviderIcon
                             className="tw:size-4 tw:shrink-0"
-                            fallback={<BrainCircuit aria-hidden size={APP_ICON_SIZE} />}
+                            fallback={
+                              <BrainCircuit
+                                className="tw:size-icon-sm"
+                                aria-hidden
+                                size={APP_ICON_SIZES.sm}
+                              />
+                            }
                             imageClassName="tw:object-contain tw:[.dark-theme_&]:invert tw:[.dark-theme_&]:hue-rotate-180"
                             logoURL={provider.logoURL}
                             providerID={provider.providerID}

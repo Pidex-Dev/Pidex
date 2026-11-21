@@ -16,8 +16,7 @@ import {
   Settings,
   Sparkles,
 } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
-import { buildPopoverSizingStyle } from '../../../components/ui/PopoverSizing.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
@@ -212,23 +211,23 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
 
   const accountAvatar = (
     <span
-      className="sidebar-account-avatar tw:relative tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
+      className="sidebar-account-avatar tw:relative tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
       aria-hidden="true"
     >
       {!githubAuthenticated ? (
         compact ? (
-          <CircleUser data-icon-kind="artwork" size={14} />
+          <CircleUser className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />
         ) : (
-          <Settings data-icon-kind="artwork" size={14} />
+          <Settings className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />
         )
       ) : githubUser?.avatarUrl ? (
         <RemoteImage
           alt=""
-          fallback={<CircleUser data-icon-kind="artwork" size={14} />}
+          fallback={<CircleUser className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />}
           src={githubUser.avatarUrl}
         />
       ) : (
-        <CircleUser data-icon-kind="artwork" size={14} />
+        <CircleUser className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />
       )}
       {!compact && updateIndicator.visible ? (
         <span
@@ -245,13 +244,14 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         'sidebar-footer tw:flex tw:w-full tw:flex-none tw:min-w-0 tw:items-center tw:gap-1 tw:mt-1',
         compact
           ? 'sidebar-footer--rail tw:flex-col tw:border-t-0 tw:p-0'
-          : 'tw:border-t tw:border-t-app-border-subtle tw:px-2 tw:pt-1',
+          : 'tw:border-t tw:border-t-app-border-subtle tw:px-1 tw:pt-1',
       )}
       ref={ref}
     >
       {compact && updateIndicator.visible ? (
         <Button
           isIconOnly
+          iconSize={compact ? 'md' : 'sm'}
           variant="ghost"
           size="md"
           aria-label={t(updateIndicator.ariaLabel)}
@@ -266,13 +266,14 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             })
           }}
         >
-          <Download size={APP_ICON_SIZE} />
+          <Download className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         </Button>
       ) : null}
       <PopoverMenu
-        className="popover-menu--grid"
+        className="popover-menu--grid sidebar-account-menu"
         open={menuOpen}
         side={compact ? 'right' : 'top'}
+        sideOffset={compact ? 10 : 4}
         align="end"
         size="sm"
 
@@ -280,6 +281,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           compact ? (
             <Button
               isIconOnly
+              iconSize="md"
               variant="ghost"
               size="md"
               active={settingsActive || menuOpen}
@@ -296,10 +298,10 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               ref={accountMenuTriggerRef}
               asChild
               className={cx(
-                'sidebar-settings-link tw:text-app-text tw:type-body tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus',
-                'tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:min-w-0 tw:grow tw:shrink tw:basis-auto',
+                'sidebar-settings-link tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus',
+                'tw:grow tw:shrink tw:basis-auto',
               )}
-              labelClassName={cx('sidebar-settings-label', 'tw:min-w-0')}
+              labelClassName="sidebar-settings-label"
               layout="flex"
               leading={accountAvatar}
             >
@@ -323,24 +325,26 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           <PopoverItem
             icon={
               <span
-                className="popover-account-avatar tw:relative tw:inline-flex tw:size-full tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
+                className="popover-account-avatar tw:relative tw:inline-flex tw:size-icon-md tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
                 aria-hidden="true"
               >
                 {githubUser?.avatarUrl ? (
                   <RemoteImage
                     alt=""
-                    fallback={<CircleUser data-icon-kind="artwork" size={14} />}
+                    fallback={
+                      <CircleUser className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />
+                    }
                     src={githubUser.avatarUrl}
                   />
                 ) : (
-                  <CircleUser data-icon-kind="artwork" size={14} />
+                  <CircleUser className="tw:size-icon-sm" data-icon-kind="artwork" size={14} />
                 )}
               </span>
             }
             description={
               githubAuthenticated
                 ? githubUser?.name && githubUser.name !== githubUser.login
-                  ? `@${githubUser.login}`
+                  ? undefined
                   : t('GitHub 账户')
                 : t('未登录')
             }
@@ -360,7 +364,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 className="popover-item popover-sub-trigger"
                 leading={
                   <span className="popover-item-icon">
-                    <Gauge size={APP_ICON_SIZE} />
+                    <Gauge className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                   </span>
                 }
                 trailing={<ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />}
@@ -374,22 +378,20 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   size="sm"
                   data-theme-component="dropdown-surface"
                   aria-label={t('剩余用量详情')}
-                  className="popover-surface popover popover-sub-content popover-usage-submenu tw:p-1 tw:[--popover-overflow-y:hidden]"
+                  className="popover-surface popover popover-usage-submenu tw:[--popover-overflow-y:hidden]"
                   collisionPadding={6}
-                  sideOffset={4}
-                  style={buildPopoverSizingStyle({ size: 'sm' })}
                 >
-                  <div className="popover-usage-content tw:flex tw:min-w-0 tw:flex-col tw:gap-1">
+                  <div className="popover-usage-content popover-menu-list tw:min-w-0">
                     {usage.loading ? (
                       <div
-                        className="popover-usage-empty tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-meta tw:type-body-sm tw:whitespace-nowrap"
+                        className="popover-usage-empty tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-meta tw:type-1 tw:whitespace-nowrap"
                         role="status"
                       >
                         {t('正在查询用量…')}
                       </div>
                     ) : usage.error ? (
                       <div
-                        className="popover-usage-empty popover-usage-empty-error tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-soft tw:type-body-sm tw:whitespace-nowrap"
+                        className="popover-usage-empty popover-usage-empty-error tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-soft tw:type-1 tw:whitespace-nowrap"
                         role="status"
                       >
                         {usage.error}
@@ -402,14 +404,14 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                       >
                         {usageRows.map((row) => (
                           <div
-                            className="popover-usage-row tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-body"
+                            className="popover-usage-row tw:items-center tw:gap-2 tw:rounded-3 tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-2"
                             key={row.id}
                           >
-                            <span className="popover-usage-label tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:type-weight-label tw:whitespace-nowrap">
+                            <span className="popover-usage-label menu-column-label tw:truncate tw:text-app-text tw:weight-medium">
                               {row.label}
                             </span>
-                            <span className="popover-usage-value tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-end tw:gap-2 tw:text-right">
-                              <span className="popover-usage-amount tw:text-app-text tw:type-label tw:tabular-nums tw:whitespace-nowrap">
+                            <span className="popover-usage-value menu-column-trailing tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-end tw:gap-2 tw:text-right">
+                              <span className="popover-usage-amount tw:text-app-text tw:type-1 tw:weight-medium tw:tabular-nums tw:whitespace-nowrap">
                                 {row.usage}
                               </span>
                             </span>
@@ -418,7 +420,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                       </div>
                     ) : (
                       <div
-                        className="popover-usage-empty tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-meta tw:type-body-sm tw:whitespace-nowrap"
+                        className="popover-usage-empty tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-meta tw:type-1 tw:whitespace-nowrap"
                         role="status"
                       >
                         {t('当前提供商未返回用量数据')}
@@ -426,7 +428,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                     )}
                     <div className="popover-usage-divider tw:mx-2 tw:my-1 tw:h-px tw:bg-app-border-subtle" />
                     <DropdownMenu.Item
-                      className="popover-usage-action tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-left tw:text-app-text tw:type-body tw:cursor-pointer tw:transition-colors tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:focus-visible:bg-app-hover tw:focus-visible:outline-none tw:data-[highlighted]:bg-app-hover tw:data-[highlighted]:outline-none"
+                      className="popover-usage-action tw:w-full tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-left tw:text-app-text tw:type-2 tw:cursor-pointer tw:transition-colors tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:focus-visible:bg-app-hover tw:focus-visible:outline-none tw:data-[highlighted]:bg-app-hover tw:data-[highlighted]:outline-none"
                       tabIndex={-1}
                       onSelect={() => {
                         openSettings('/settings/billing')
@@ -435,15 +437,15 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                       <span
                         className={cx(
                           'popover-usage-action-label',
+                          'menu-column-label',
                           'tw:flex-1',
-                          'tw:min-w-0',
                           'tw:overflow-hidden tw:whitespace-nowrap',
                         )}
                       >
                         {t('了解更多')}
                       </span>
                       <ArrowUpRight
-                        className="popover-usage-action-icon tw:size-[var(--inline-icon-size,1em)] tw:flex-none tw:text-app-text-meta"
+                        className="popover-usage-action-icon menu-column-trailing tw:size-[var(--inline-icon-size,1em)] tw:flex-none tw:text-app-text-meta"
                         size="var(--inline-icon-size, 1em)"
                       />
                     </DropdownMenu.Item>
@@ -454,7 +456,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           ) : null}
           <PopoverItem
             disabled={petToggleBusy}
-            icon={<Egg size={APP_ICON_SIZE} />}
+            icon={<Egg className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
             onClick={() => {
               void togglePet()
             }}
@@ -463,7 +465,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           </PopoverItem>
           <PopoverItem
             active={settingsActive}
-            icon={<Settings size={APP_ICON_SIZE} />}
+            icon={<Settings className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
             shortcut="Ctrl+,"
             onClick={() => openSettings('/settings/general')}
           >
@@ -478,7 +480,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               className="popover-item popover-sub-trigger"
               leading={
                 <span className="popover-item-icon">
-                  <HelpCircle size={APP_ICON_SIZE} />
+                  <HelpCircle className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </span>
               }
               trailing={<ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />}
@@ -492,13 +494,11 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 size="sm"
                 data-theme-component="dropdown-surface"
                 aria-label={t('帮助')}
-                className="popover-surface popover popover-sub-content popover-menu--grid"
+                className="popover-surface popover popover-menu--grid sidebar-account-menu"
                 collisionPadding={6}
-                sideOffset={4}
-                style={buildPopoverSizingStyle({ size: 'sm' })}
               >
                 <PopoverItem
-                  icon={<Sparkles size={APP_ICON_SIZE} />}
+                  icon={<Sparkles className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                   onClick={() => {
                     setMenuOpen(false)
                     onOpenWhatsNew(accountMenuTriggerRef.current)
@@ -507,13 +507,13 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   {t('新特性')}
                 </PopoverItem>
                 <PopoverItem
-                  icon={<Keyboard size={APP_ICON_SIZE} />}
+                  icon={<Keyboard className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                   onClick={() => openSettings('/settings/shortcuts')}
                 >
                   {t('键盘快捷键')}
                 </PopoverItem>
                 <PopoverItem
-                  icon={<Download size={APP_ICON_SIZE} />}
+                  icon={<Download className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                   description={updateIndicator.visible ? t(updateIndicator.ariaLabel) : undefined}
                   disabled={updateIndicator.disabled}
                   onClick={() => {
@@ -532,7 +532,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           </DropdownMenu.Sub>
           {githubAuthenticated ? (
             <PopoverItem
-              icon={<LogOut size={APP_ICON_SIZE} />}
+              icon={<LogOut className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
               onClick={() => {
                 setMenuOpen(false)
                 setLogoutConfirmOpen(true)

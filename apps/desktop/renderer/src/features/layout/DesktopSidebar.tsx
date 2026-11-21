@@ -7,7 +7,7 @@ import type {
   DesktopSessionCatalogStatus,
   DesktopWorkspace,
 } from '../../../shared/Types.js'
-import type { AppView, SessionListItem } from '../../UiTypes.js'
+import type { SessionListItem } from '../../UiTypes.js'
 import { SidebarBody } from './sidebar/SidebarBody.js'
 import { useSidebarActivity } from './sidebar/UseSidebarActivity.js'
 import { archiveSidebarActivity, sessionNeedsStop } from './sidebar/SidebarActivityActions.js'
@@ -61,7 +61,6 @@ import {
   renameSidebarSection,
   captureSidebarAssignments,
   restoreFailedArchiveAssignments,
-  restoreSidebarAssignments,
   setSidebarSectionCollapsed,
   setSidebarSectionItems,
   setSidebarSectionSort,
@@ -86,6 +85,7 @@ type Props = {
   workspace: DesktopWorkspace | null
   onChooseWorkspace: () => void
   onCreateSession: (workspace?: DesktopWorkspace | null) => void
+  onNewChat?: () => void
   onOpenCommandMenu: () => void
   onOpenWhatsNew: (restoreFocusElement: HTMLElement | null) => void
   onPinWorkspace: (workspace: DesktopWorkspace) => void
@@ -129,6 +129,7 @@ export function DesktopSidebar({
   workspace,
   onChooseWorkspace,
   onCreateSession,
+  onNewChat,
   onOpenCommandMenu,
   onOpenWhatsNew,
   onPinWorkspace,
@@ -151,7 +152,6 @@ export function DesktopSidebar({
 }: Props): React.ReactNode {
   const { isDragActive, dropHandlers } = useSidebarFolderDrop(active, onError ?? onReport)
   const [relativeNow, setRelativeNow] = useState(() => Date.now())
-  const [sidebarScrollOverlapping, setSidebarScrollOverlapping] = useState(false)
   const sidebarScrollPositionsRef = useRef<Map<SidebarScrollModeKey, number>>(new Map())
   const {
     settingsLoaded,
@@ -172,7 +172,6 @@ export function DesktopSidebar({
     sidebarProjectSort,
     sidebarSort,
     setSidebarSort,
-    sidebarTimelineEnabled,
     sidebarProductMode,
     sidebarTimelinePriorityEnabled,
     setSidebarTimelinePriorityEnabled,
@@ -184,6 +183,7 @@ export function DesktopSidebar({
     setSidebarActivityShowChat,
     sidebarActivityShowPinned,
     setSidebarActivityShowPinned,
+    gitShowPrIconsInSidebar,
     syncExternalSettingsPatch,
   } = useDesktopSettingsField(useShallow(sidebarSettingsSelector))
   const sidebarCustomizationRef = useRef(sidebarCustomization)
@@ -708,14 +708,13 @@ export function DesktopSidebar({
         }}
       />
       <SidebarHeader
+        onNewChat={onNewChat}
         showActions={active}
         hasUnread={hasUnread}
         unreadActivityCount={unreadActivityCount}
         onOpenCommandMenu={onOpenCommandMenu}
-        scrollOverlapping={sidebarScrollOverlapping}
       />
       <SidebarBody
-        onScrollOverlapChange={setSidebarScrollOverlapping}
         projectCatalogState={projectCatalogState}
         scrollModeKey={sidebarScrollModeKey}
         scrollPositions={sidebarScrollPositionsRef.current}
@@ -724,6 +723,7 @@ export function DesktopSidebar({
         titleLoadingIds={titleLoadingIds}
         disclosureStore={sidebarDisclosureState.store}
         organization={sidebarOrganization}
+        showPullRequestIcons={gitShowPrIconsInSidebar}
         timeline={timeline}
         showActivityPriority={sidebarTimelinePriorityEnabled}
         onShowActivityPriorityChange={setSidebarTimelinePriorityEnabled}
@@ -901,14 +901,14 @@ function SidebarLoadingSkeleton(): React.ReactNode {
       label="正在加载侧栏"
       shimmer
     >
-      <div className="sidebar-header tw:mx-2 tw:my-0 tw:flex tw:h-9 tw:min-h-9 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
-        <SkeletonBlock className="tw:h-4 tw:w-20 tw:rounded-sm" />
+      <div className="sidebar-header tw:mx-1 tw:my-0 tw:flex tw:h-6 tw:min-h-6 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
+        <SkeletonBlock className="tw:h-4 tw:w-[5rem] tw:rounded-3" />
         <div className="tw:flex tw:shrink-0 tw:items-center tw:gap-1">
-          <SkeletonBlock className="tw:size-7 tw:rounded-md" />
-          <SkeletonBlock className="tw:size-7 tw:rounded-md" />
+          <SkeletonBlock className="tw:size-6 tw:rounded-3" />
+          <SkeletonBlock className="tw:size-6 tw:rounded-3" />
         </div>
       </div>
-      <div className="tw:mx-2 tw:mt-4 tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-6">
+      <div className="tw:mx-1 tw:mt-4 tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-5">
         <SidebarSkeletonListGroup />
         <SidebarSkeletonListGroup />
       </div>
@@ -921,10 +921,10 @@ const SIDEBAR_SKELETON_ROW_WIDTHS = ['tw:w-[88%]', 'tw:w-[64%]', 'tw:w-[76%]'] a
 function SidebarSkeletonListGroup(): React.ReactNode {
   return (
     <div className="tw:flex tw:min-w-0 tw:flex-col tw:gap-px">
-      <SkeletonBlock className="tw:mx-1 tw:mb-1.5 tw:h-3 tw:w-16 tw:flex-none tw:rounded-sm" />
+      <SkeletonBlock className="tw:mx-1 tw:mb-1 tw:h-3 tw:w-9 tw:flex-none tw:rounded-3" />
       {SIDEBAR_SKELETON_ROW_WIDTHS.map((widthClassName) => (
         <SkeletonBlock
-          className={`tw:h-[var(--sidebar-row-height)] tw:rounded-md ${widthClassName}`}
+          className={`tw:h-[var(--sidebar-row-height)] tw:rounded-3 ${widthClassName}`}
           key={widthClassName}
         />
       ))}
@@ -965,6 +965,7 @@ function sidebarSettingsSelector(settings: UseDesktopSettingsResult) {
     setSidebarActivityShowChat: settings.setSidebarActivityShowChat,
     sidebarActivityShowPinned: settings.sidebarActivityShowPinned,
     setSidebarActivityShowPinned: settings.setSidebarActivityShowPinned,
+    gitShowPrIconsInSidebar: settings.gitShowPrIconsInSidebar,
     syncExternalSettingsPatch: settings.syncExternalSettingsPatch,
   }
 }

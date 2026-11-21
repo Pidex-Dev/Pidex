@@ -27,6 +27,7 @@ export type SessionTimelineViewProps<T> = {
   listRef?: React.RefObject<VirtualizerHandle | null>
   /** Commands used by overlays that navigate within the virtual timeline. */
   navigationRef?: React.Ref<ThreadTimelineNavigationHandle>
+  onRevealInput?: (target: { turnId: string; inputId: string; rowIndex: number }) => void
   /** The single overflow element owned by ThreadScrollLayout. */
   scrollRef: React.RefObject<HTMLElement | null>
   /** Called when the user scrolls (for scroll-position persistence). */
@@ -65,6 +66,7 @@ export function SessionTimelineView<T>({
   renderItem,
   listRef: externalListRef,
   navigationRef,
+  onRevealInput,
   scrollRef,
   onScroll,
   onCanReturnToBottomChange,
@@ -134,6 +136,7 @@ export function SessionTimelineView<T>({
         const handle = listHandle.current
         if (!root || !handle) return false
         pauseFollowing()
+        onRevealInput?.(target)
         const alignInput = (): boolean => {
           const input = [...root.querySelectorAll<HTMLElement>('[data-input-navigation-id]')].find(
             (node) =>
@@ -202,6 +205,7 @@ export function SessionTimelineView<T>({
     }),
     [
       cancelNavigation,
+      onRevealInput,
       listHandle,
       reducedMotion,
       scrollRef,
@@ -224,7 +228,7 @@ export function SessionTimelineView<T>({
 
   return (
     <div
-      className="session-timeline-container tw:relative tw:flex-auto tw:mx-auto tw:min-w-0 tw:max-w-none tw:w-[var(--session-timeline-width,var(--session-content-w,100%))]"
+      className="session-timeline-container tw:relative tw:flex-auto tw:mx-auto tw:min-w-0 tw:max-w-none"
       data-component="session-timeline"
       data-session-key={sessionKey}
       data-scroll-mode={scrollController.mode}
@@ -243,7 +247,7 @@ export function SessionTimelineView<T>({
       <div
         aria-hidden="true"
         className={cx(
-          'session-timeline-bottom-sentinel tw:relative tw:w-full tw:flex-none tw:h-[calc(var(--thread-scroll-footer-height)+var(--thread-scroll-footer-fade-height)+var(--thread-scroll-content-bottom-gap))] tw:pointer-events-none',
+          'session-timeline-bottom-sentinel tw:relative tw:w-full tw:flex-none tw:h-[calc(var(--thread-scroll-footer-fade-height)+var(--thread-scroll-content-bottom-gap))] tw:pointer-events-none',
           scrollController.mode === 'static'
             ? 'tw:[overflow-anchor:none]'
             : 'tw:[overflow-anchor:auto]',

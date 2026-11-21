@@ -82,17 +82,19 @@ export function ProviderEditorNavigationGuard({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog ${SETTINGS_MANAGEMENT_DIALOG_SIZE.navigationGuard}`}
+          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:min-w-0 tw:flex-col tw:overflow-hidden tw:text-app-text ${SETTINGS_MANAGEMENT_DIALOG_SIZE.navigationGuard}`}
         >
-          <header className="settings-management-dialog-header">
-            <div className="settings-management-dialog-heading">
-              <Dialog.Title>供应商有未保存修改</Dialog.Title>
-              <Dialog.Description>
+          <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:p-5">
+            <div className="settings-management-dialog-heading tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
+              <Dialog.Title className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
+                供应商有未保存修改
+              </Dialog.Title>
+              <Dialog.Description className="tw:m-0 tw:text-app-text-soft tw:type-1">
                 保存后离开，或放弃本次修改。密钥的独立保存操作不受影响。
               </Dialog.Description>
             </div>
           </header>
-          <footer className="settings-management-dialog-footer">
+          <footer className="settings-management-dialog-footer tw:flex tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4">
             <Button
               size="md"
               color="secondary"

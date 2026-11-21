@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { AgentError } from '../Domain'
 import { ContentBlobStore, contentSha256 } from '../storage/ContentBlobStore'
+import { detectImageMimeType } from '../workspace/WorkspaceService'
 
 export const ATTACHMENT_LIMITS = {
   maxCount: 8,
@@ -231,26 +232,6 @@ export const normalizeAttachmentMimeType = (kind: AttachmentKind, value: string)
   return mimeType
 }
 
-const hasImageSignature = (mimeType: string, data: Uint8Array) => {
-  if (mimeType === 'image/png') {
-    return (
-      data.length >= 8 &&
-      [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => data[index] === byte)
-    )
-  }
-  if (mimeType === 'image/jpeg')
-    return data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff
-  if (mimeType === 'image/gif') {
-    const header = new TextDecoder().decode(data.subarray(0, 6))
-    return header === 'GIF87a' || header === 'GIF89a'
-  }
-  return (
-    data.length >= 12 &&
-    new TextDecoder().decode(data.subarray(0, 4)) === 'RIFF' &&
-    new TextDecoder().decode(data.subarray(8, 12)) === 'WEBP'
-  )
-}
-
 export const attachmentUploadBytes = (upload: AttachmentUpload, mimeType: string) => {
   if ((upload.kind === 'audio' || upload.kind === 'video') && typeof upload.data === 'string')
     throw new AgentError('INVALID_REQUEST', '音视频附件必须使用二进制数据', 400)
@@ -267,7 +248,7 @@ export const attachmentUploadBytes = (upload: AttachmentUpload, mimeType: string
     } catch {
       throw new AgentError('ATTACHMENT_UTF8_INVALID', '文本附件不是有效 UTF-8', 400)
     }
-  } else if (upload.kind === 'image' && !hasImageSignature(mimeType, data)) {
+  } else if (upload.kind === 'image' && detectImageMimeType(data) !== mimeType) {
     throw new AgentError('ATTACHMENT_IMAGE_INVALID', '图片内容与 MIME 类型不匹配', 400)
   }
   if (upload.kind === 'audio' || upload.kind === 'video') {

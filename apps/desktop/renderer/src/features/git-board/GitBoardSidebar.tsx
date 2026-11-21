@@ -1,12 +1,13 @@
 import { useShallow } from 'zustand/react/shallow'
 import { useState } from 'react'
-import { Github, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import type { DesktopWorkspace } from '../../../shared/Types.js'
 import type { SessionListItem } from '../../UiTypes.js'
 import { Tooltip } from '../../components/ui/Tooltip.js'
 import { Button } from '../../components/ui/Button.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
 import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
+import { GithubIcon } from '../../components/ui/GithubIcon.js'
 import { SidebarEmptyRow, SidebarRow } from '../../components/ui/SidebarRow.js'
 import { sortProjectsForSidebar } from '../layout/sidebar/SidebarViewModel.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
@@ -63,8 +64,8 @@ export function GitBoardSidebar(_props?: {
       aria-busy={ready === false}
       className="sidebar-git-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2"
     >
-      <header className="sidebar-pane-heading tw:flex tw:min-h-9 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
-        <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{t('Git 看板')}</h2>
+      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
+        <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('Git 看板')}</h2>
         <Tooltip content={t('刷新所有项目仓库')}>
           <Button
             nativeTitle={false}
@@ -75,12 +76,12 @@ export function GitBoardSidebar(_props?: {
             disabled={refreshing}
             onClick={refresh}
           >
-            <RefreshCw size={APP_ICON_SIZE} />
+            <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
           </Button>
         </Tooltip>
       </header>
       {storageError && (
-        <p role="alert" className="tw:m-0 tw:px-3 tw:type-caption">
+        <p role="alert" className="tw:m-0 tw:px-3 tw:type-1">
           {t('看板保存失败，本次修改仅在当前窗口有效')}
         </p>
       )}
@@ -88,12 +89,12 @@ export function GitBoardSidebar(_props?: {
         <SidebarRow
           active={githubViewActive}
           layout="flex"
-          leading={<Github aria-hidden size={APP_ICON_SIZE} />}
+          leading={<GithubIcon size={APP_ICON_SIZE} />}
         >
           <button
             type="button"
             aria-current={githubViewActive ? 'page' : undefined}
-            className="tw:w-full tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:type-body"
+            className="tw:w-full tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:type-2"
             onClick={openRemoteView}
           >
             <span>{t('GitHub 仓库')}</span>

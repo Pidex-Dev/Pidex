@@ -200,7 +200,7 @@ export function VisualizationView({
   }
   return (
     <section
-      className="tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4"
+      className="tw:grid tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4"
       aria-label={`交互界面：${title}`}
     >
       <header className="tw:grid tw:gap-1">

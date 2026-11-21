@@ -30,8 +30,8 @@ const setup = () => {
     model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     },
     strategy: 'queue',
     taskMode: 'chat',
@@ -178,8 +178,8 @@ describe('执行恢复不变量', () => {
         input: { command: 'test' },
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
         model: Model.Ref.make({
           providerID: Provider.ID.make('openai'),
@@ -542,8 +542,8 @@ describe('执行恢复不变量', () => {
       model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'chat',
@@ -615,8 +615,8 @@ describe('执行恢复不变量', () => {
       model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'chat',

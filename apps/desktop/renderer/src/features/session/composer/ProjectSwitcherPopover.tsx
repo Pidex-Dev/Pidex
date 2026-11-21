@@ -74,7 +74,7 @@ export function ProjectSwitcherPopover({
       footer={
         <>
           <SearchablePopoverAction
-            icon={<FolderPlus size={APP_ICON_SIZE} />}
+            icon={<FolderPlus className="tw:size-icon-md" size={APP_ICON_SIZE} />}
             withArrow
             onClick={() => {
               onChooseWorkspace()
@@ -85,7 +85,7 @@ export function ProjectSwitcherPopover({
           </SearchablePopoverAction>
           {onCloneGithub ? (
             <SearchablePopoverAction
-              icon={<GitFork size={APP_ICON_SIZE} />}
+              icon={<GitFork className="tw:size-icon-md" size={APP_ICON_SIZE} />}
               withArrow
               onClick={() => {
                 onCloneGithub()
@@ -107,9 +107,9 @@ export function ProjectSwitcherPopover({
           leading={
             <span className="popover-item-icon">
               {option.workspace ? (
-                <Folder size={APP_ICON_SIZE} />
+                <Folder className="tw:size-icon-md" size={APP_ICON_SIZE} />
               ) : (
-                <FolderX size={APP_ICON_SIZE} />
+                <FolderX className="tw:size-icon-md" size={APP_ICON_SIZE} />
               )}
             </span>
           }

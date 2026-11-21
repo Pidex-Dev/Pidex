@@ -1,14 +1,17 @@
-import type {
-  SubagentProfile,
-  SubagentProjection,
-  SubagentRole,
-  SubagentStatus,
+import {
+  resolveSubagentDisplayParts,
+  type SubagentProfile,
+  type SubagentProjection,
+  type SubagentRole,
+  type SubagentStatus,
 } from '@pidex/shared/thread'
 import { isTerminalSubagentStatus } from './SubagentStatusLabel.js'
 import { resolveSubagentRole } from './SubagentRole.js'
 
 export type SubagentDirectoryRow = {
   taskId: string
+  agentName: string
+  taskTitle: string
   name: string
   summary: string
   status: SubagentStatus
@@ -26,9 +29,18 @@ export function toSubagentDirectoryRow({
   currentRun,
 }: SubagentProjection): SubagentDirectoryRow {
   const status: SubagentStatus = currentRun?.status ?? 'interrupted'
+  const { agentName, taskTitle } = resolveSubagentDisplayParts({
+    displayName: task.displayName,
+    title: task.title,
+    profile: task.profile,
+    role: task.role,
+    task: task.task,
+  })
   return {
     taskId: task.id,
-    name: task.displayName,
+    agentName,
+    taskTitle,
+    name: taskTitle || agentName,
     summary: currentRun?.result?.summary ?? currentRun?.error ?? task.task,
     status,
     profile: task.profile,

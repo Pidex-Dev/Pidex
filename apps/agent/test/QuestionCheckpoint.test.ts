@@ -9,7 +9,14 @@ import { createLifecycleTools } from '../src/orchestration/pi/PiToolAdapter'
 import { EventHub } from '../src/storage/events/EventHub'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { Model, Provider } from '@pidex/model-schema'
-import { interactionQuestions, requestUserInputSchema } from '../src/session/QuestionInput'
+import { ApprovalService } from '../src/permission/ApprovalService'
+import { ResumeCheckpointResolver } from '../src/interaction/ResumeCheckpointResolver'
+import { ToolRegistry } from '../src/tool/ToolRegistry'
+import {
+  formatQuestionAnswerForModel,
+  interactionQuestions,
+  requestUserInputSchema,
+} from '../src/session/QuestionInput'
 import { QUESTION_CHOICES_WRITE_MAX } from '@pidex/shared/thread'
 import { QuestionAutoResolutionScheduler } from '../src/interaction/QuestionAutoResolutionScheduler'
 
@@ -30,8 +37,8 @@ describe('问题 checkpoint', () => {
       model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'plan',
@@ -124,8 +131,8 @@ describe('问题 checkpoint', () => {
         }),
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
         strategy: 'queue',
         taskMode: 'plan',
@@ -322,8 +329,8 @@ describe('问题 checkpoint', () => {
       model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'plan',
@@ -388,8 +395,15 @@ describe('问题 checkpoint', () => {
       ]),
     ).rejects.toMatchObject({ code: 'INVALID_QUESTION_ANSWER' })
     await questions.reply(id, request.response.answers)
-    const checkpoint = questions.claimResolvedCheckpoint(turn.turnID)
-    expect(JSON.parse(checkpoint!.approval.answer!)).toEqual({
+    const resolved = db.repositories.interactions.resolvedQuestionForResume(turn.turnID)!
+    const resolver = new ResumeCheckpointResolver(
+      db,
+      new ApprovalService(db, hub, new ToolRegistry()),
+    )
+    const acquired = resolver.acquire(turn.turnID, 'main', crypto.randomUUID())
+    expect(acquired?.checkpoint.kind).toBe('question')
+    if (!acquired || acquired.checkpoint.kind !== 'question') throw new Error('expected question')
+    const expectedAnswer = {
       resolution: 'user',
       answers: [
         {
@@ -402,7 +416,11 @@ describe('问题 checkpoint', () => {
         },
         { ...answers[1], question: '是否持久化？', selectedChoices: [] },
       ],
-    })
+    }
+    expect(JSON.parse(acquired.checkpoint.answer!)).toEqual(expectedAnswer)
+    expect(JSON.parse(formatQuestionAnswerForModel(resolved.payload, resolved.answer)!)).toEqual(
+      expectedAnswer,
+    )
   })
 
   test('回复持久化 RunState 并触发恢复回调，不依赖内存 Promise', async () => {
@@ -415,8 +433,8 @@ describe('问题 checkpoint', () => {
       model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'plan',
@@ -457,8 +475,8 @@ describe('问题 checkpoint', () => {
       model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'plan',
@@ -552,8 +570,8 @@ describe('问题 checkpoint', () => {
     })
     const permissionConfig = {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     } as const
     const askQuestions = [
       {
@@ -656,8 +674,8 @@ describe('问题 checkpoint', () => {
       model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
       permissionConfig: {
         sandboxMode: 'workspace-write' as const,
-        approvalPolicy: 'on-request' as const,
-        approvalsReviewer: 'user' as const,
+        approvalPolicy: 'auto_review' as const,
+        approvalsReviewer: 'auto_review' as const,
       },
       strategy: 'queue' as const,
       taskMode: 'chat' as const,

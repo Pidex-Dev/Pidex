@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 import { defineMethod, type MethodMap } from '../wire/Definition'
-import { EmptyParamsSchema, NonNegativeIntSchema, OperationParamsSchema } from '../wire/Primitives'
+import { NonNegativeIntSchema, OperationParamsSchema } from '../wire/Primitives'
 
 export const SpeechStateSchema = Schema.Literals([
   'unsupported',

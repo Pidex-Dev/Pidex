@@ -28,7 +28,7 @@ function run(
     model: { providerID: 'test', modelID: 'test' },
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       reviewers: [],
     },
     result: null,
@@ -55,7 +55,7 @@ function task(
     task: overrides.task ?? '审阅仓库',
     permissionCeiling: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       reviewers: [],
     },
     workspace: { mode: 'shared', state: 'ready', rootPath: null, baselineRef: null },

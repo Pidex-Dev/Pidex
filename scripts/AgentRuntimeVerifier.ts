@@ -275,7 +275,6 @@ async function assertPackagedRpcCatalogs(
     Array.isArray(group.models) ? (group.models as Array<Record<string, unknown>>) : [],
   )
   if (
-    models.length === 0 ||
     models.some((model) => {
       const api = model.api
       return !api || typeof api !== 'object' || (api as Record<string, unknown>).type !== 'pi'
@@ -283,7 +282,27 @@ async function assertPackagedRpcCatalogs(
   ) {
     throw new Error('打包 Agent 未能从 Pi 加载模型目录')
   }
-  return { providerCount: providers.length, modelCount: models.length }
+  if (models.length > 0) {
+    return { providerCount: providers.length, modelCount: models.length }
+  }
+  const probeProvider =
+    providers.find((provider) => provider.id === 'openai') ??
+    providers.find((provider) => typeof provider.id === 'string' && provider.id.length > 0)
+  const probeProviderId = typeof probeProvider?.id === 'string' ? probeProvider.id : ''
+  if (!probeProviderId) {
+    throw new Error('打包 Agent 未能从 Pi 加载模型目录')
+  }
+  const discoveredResult = await call('provider/model/discover', {
+    providerId: probeProviderId,
+    api: 'openai-responses',
+  })
+  const discoveredModels = Array.isArray(discoveredResult.models)
+    ? (discoveredResult.models as Array<Record<string, unknown>>)
+    : []
+  if (discoveredModels.length === 0) {
+    throw new Error('打包 Agent 未能从 Pi 加载模型目录')
+  }
+  return { providerCount: providers.length, modelCount: discoveredModels.length }
 }
 
 async function waitForPackagedAgent(child: ChildProcess, readyTimeoutMs: number): Promise<string> {

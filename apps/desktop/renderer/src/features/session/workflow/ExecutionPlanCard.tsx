@@ -21,17 +21,17 @@ export function ExecutionPlanCard({ item }: { item: ExecutionPlanItem }): React.
   return (
     <article aria-label="执行计划" className={EXECUTION_PLAN_CARD_CLASS} data-status={item.status}>
       <div
-        className="execution-plan-card__edge-fade tw:relative tw:min-w-0 tw:[--edge-fade-distance:var(--cpx-sys-space-4)]"
+        className="execution-plan-card__edge-fade tw:[--edge-fade-distance:var(--cpx-sys-space-4)]"
         data-at-end={edge.atEnd}
         data-at-start={edge.atStart}
         data-scrollable={edge.scrollable}
       >
         <div
-          className="execution-plan-card__steps-scroller tw:max-h-[min(20rem,calc(100vh-var(--cpx-sys-space-8)))] tw:overflow-y-auto tw:[scrollbar-gutter:stable] tw:p-2.5"
+          className="execution-plan-card__steps-scroller tw:max-h-[min(20rem,calc(100vh-var(--cpx-sys-space-8)))] tw:overflow-y-auto tw:[scrollbar-gutter:stable] tw:p-2"
           ref={stepsScrollerRef}
         >
           <ol
-            className="execution-plan-card__steps tw:m-0 tw:grid tw:list-none tw:gap-2.5 tw:p-0"
+            className="execution-plan-card__steps tw:m-0 tw:grid tw:list-none tw:gap-2 tw:p-0"
             ref={stepsRef}
           >
             {item.steps.map((step, index) => (
@@ -57,25 +57,25 @@ function ExecutionPlanStepView({
   return (
     <li
       aria-label={`第 ${index + 1} 步，${step.step}，${label}`}
-      className="tw:grid tw:min-h-4 tw:grid-cols-[var(--cpx-sys-space-4)_minmax(0,1fr)] tw:items-start tw:gap-2 tw:text-app-text-meta tw:[line-height:var(--cpx-sys-line-height-tight)]"
+      className="tw:grid tw:min-h-4 tw:grid-cols-[var(--cpx-sys-space-4)_minmax(0,1fr)] tw:items-start tw:gap-2 tw:text-app-text-meta tw:[line-height:var(--cpx-sys-line-height-1)]"
       data-status={step.status}
     >
       <span
         className={
           step.status === 'in_progress'
-            ? 'execution-plan-card__step-icon tw:mt-0.5 tw:inline-flex tw:items-center tw:justify-center tw:text-app-accent-fg tw:[&>svg]:size-[var(--inline-icon-size,1em)]'
+            ? 'execution-plan-card__step-icon tw:mt-1 tw:inline-flex tw:items-center tw:justify-center tw:text-app-accent-fg tw:[&>svg]:size-[var(--inline-icon-size,1em)]'
             : step.status === 'completed'
-              ? 'execution-plan-card__step-icon tw:mt-0.5 tw:inline-flex tw:items-center tw:justify-center tw:text-app-success tw:[&>svg]:size-[var(--inline-icon-size,1em)]'
-              : 'execution-plan-card__step-icon tw:mt-0.5 tw:inline-flex tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-[var(--inline-icon-size,1em)]'
+              ? 'execution-plan-card__step-icon tw:mt-1 tw:inline-flex tw:items-center tw:justify-center tw:text-app-success tw:[&>svg]:size-[var(--inline-icon-size,1em)]'
+              : 'execution-plan-card__step-icon tw:mt-1 tw:inline-flex tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-[var(--inline-icon-size,1em)]'
         }
         aria-hidden="true"
       >
         {step.status === 'completed' ? (
-          <CircleCheck size={APP_ICON_SIZES.sm} />
+          <CircleCheck className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         ) : step.status === 'in_progress' ? (
-          <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" />
+          <LoaderCircle size={APP_ICON_SIZES.sm} className="tw:size-icon-sm canonical-spin" />
         ) : (
-          <Circle size={APP_ICON_SIZES.sm} />
+          <Circle className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         )}
       </span>
       <span
@@ -83,7 +83,7 @@ function ExecutionPlanStepView({
           step.status === 'completed'
             ? 'execution-plan-card__step-text tw:min-w-0 tw:wrap-anywhere tw:text-app-text-meta'
             : step.status === 'in_progress'
-              ? 'execution-plan-card__step-text tw:min-w-0 tw:wrap-anywhere tw:text-app-text tw:type-weight-medium'
+              ? 'execution-plan-card__step-text tw:min-w-0 tw:wrap-anywhere tw:text-app-text tw:weight-medium'
               : 'execution-plan-card__step-text tw:min-w-0 tw:wrap-anywhere tw:text-app-text-meta'
         }
       >

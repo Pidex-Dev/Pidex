@@ -24,13 +24,13 @@ export function RouteErrorPageContent({ error }: RouteErrorPageContentProps): Re
       ref={startupSurfaceReadyRef}
       role="alert"
     >
-      <span aria-hidden="true" className="tw:text-app-text-meta tw:type-title-xl">
+      <span aria-hidden="true" className="tw:text-app-text-meta tw:type-7 tw:weight-bold">
         !
       </span>
-      <h1 className="tw:m-0 tw:text-app-text tw:type-title-sm">
+      <h1 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
         {isDynamicModuleError ? '界面模块未加载完成' : '页面暂时无法显示'}
       </h1>
-      <p className="tw:m-0 tw:max-w-[440px] tw:text-app-text-soft tw:type-body-sm">
+      <p className="tw:m-0 tw:max-w-[440px] tw:text-app-text-soft tw:type-1">
         {isDynamicModuleError
           ? '应用可能正在更新，请重新加载后继续。'
           : '应用遇到临时问题，请重新加载后继续。'}

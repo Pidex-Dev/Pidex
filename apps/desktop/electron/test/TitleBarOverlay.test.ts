@@ -13,6 +13,6 @@ describe('Windows title bar overlay', () => {
       height: WINDOWS_TITLE_BAR_HEIGHT,
     })
     expect(WINDOWS_TITLE_BAR_TRANSPARENT).toBe('#00000000')
-    expect(WINDOWS_TITLE_BAR_HEIGHT).toBe(36)
+    expect(WINDOWS_TITLE_BAR_HEIGHT).toBe(40)
   })
 })

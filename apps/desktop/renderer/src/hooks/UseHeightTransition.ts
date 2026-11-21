@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { useMountEffect } from './UseMountEffect.js'
 import { getEffectiveReducedMotion } from './UsePrefersReducedMotion.js'
 
 export function useHeightTransition(
@@ -13,6 +14,25 @@ export function useHeightTransition(
   const previousHeight = React.useRef<number | null>(null)
   const [height, setHeight] = React.useState<number | null>(null)
   const [transitioning, setTransitioning] = React.useState(false)
+  const enabledRef = React.useRef(enabled)
+  const transitioningRef = React.useRef(false)
+  enabledRef.current = enabled
+  transitioningRef.current = transitioning
+
+  useMountEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry || !enabledRef.current || transitioningRef.current) return
+      const blockSize = entry.borderBoxSize?.[0]?.blockSize
+      previousHeight.current =
+        typeof blockSize === 'number' && blockSize > 0
+          ? blockSize
+          : el.getBoundingClientRect().height
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  })
 
   React.useLayoutEffect(() => {
     const el = ref.current
@@ -23,6 +43,20 @@ export function useHeightTransition(
       setTransitioning(false)
       return
     }
+    if (getEffectiveReducedMotion()) {
+      previousHeight.current = null
+      setHeight(null)
+      setTransitioning(false)
+      return
+    }
+    // INVARIANT: Skip synchronous layout reads on initial mount when ResizeObserver is available so first-mount commits never force style/layout recalculation.
+    if (
+      previousHeight.current === null &&
+      height === null &&
+      typeof ResizeObserver !== 'undefined'
+    ) {
+      return
+    }
 
     const startHeight =
       height === null
@@ -31,7 +65,7 @@ export function useHeightTransition(
     const targetHeight = outerContentHeight(el)
     previousHeight.current = targetHeight
 
-    if (Math.abs(startHeight - targetHeight) < 1 || getEffectiveReducedMotion()) {
+    if (Math.abs(startHeight - targetHeight) < 1) {
       setHeight(null)
       setTransitioning(false)
       return

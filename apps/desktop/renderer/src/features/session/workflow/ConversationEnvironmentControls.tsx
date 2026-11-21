@@ -392,7 +392,9 @@ export function ConversationEnvironmentControls({
       label: action.name,
       description: '在当前任务的集成终端中运行',
       keywords: ['action', '环境', '终端', action.name],
-      icon: action.icon || <Play aria-hidden="true" size={APP_ICON_SIZE} />,
+      icon: action.icon || (
+        <Play className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
+      ),
       order: 100 + index,
       availability: busy || action.availability !== 'available' ? 'disabled' : 'available',
       disabledReason: busy
@@ -437,7 +439,7 @@ export function ConversationEnvironmentControls({
       label: '移交当前任务…',
       description: '将任务、工作区修改和界面状态迁移到其他环境',
       keywords: ['handoff', '移交', '迁移', 'local', 'worktree'],
-      icon: <GitFork aria-hidden="true" size={APP_ICON_SIZE} />,
+      icon: <GitFork className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />,
       order: 500,
       availability: busy || !gitAvailable ? 'disabled' : 'available',
       disabledReason: busy
@@ -476,15 +478,15 @@ export function ConversationEnvironmentControls({
         <Dialog.Portal>
           <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
           <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:grid tw:w-[min(38rem,100%)] tw:gap-4 tw:p-6"
+            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:grid tw:w-[min(38rem,100%)] tw:gap-4 tw:p-5"
             onCloseAutoFocus={onCloseAutoFocus}
           >
             <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
               <div className="tw:grid tw:gap-1">
                 <Dialog.Title asChild>
-                  <h2 className="tw:m-0 tw:type-title-md tw:text-app-text">移交当前任务</h2>
+                  <h2 className="tw:m-0 tw:type-5 tw:weight-bold tw:text-app-text">移交当前任务</h2>
                 </Dialog.Title>
-                <Dialog.Description className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">
+                <Dialog.Description className="tw:m-0 tw:type-1 tw:text-app-text-soft">
                   移交会停止并归档当前任务，再把修改和界面状态迁移到目标环境。
                 </Dialog.Description>
               </div>
@@ -496,28 +498,33 @@ export function ConversationEnvironmentControls({
                   size="toolbar"
                   title="关闭移交对话框"
                 >
-                  <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <X
+                    className="tw:size-icon-md"
+                    aria-hidden="true"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 </Button>
               </Dialog.Close>
             </header>
 
             {handoff && busy ? (
               <div
-                className="tw:grid tw:min-h-24 tw:place-content-center tw:gap-2 tw:text-center"
+                className="tw:grid tw:min-h-[6rem] tw:place-content-center tw:gap-2 tw:text-center"
                 role="status"
               >
                 <Spinner className="tw:mx-auto" size="medium" />
-                <strong className="tw:type-control tw:text-app-text">
+                <strong className="tw:type-2 tw:weight-medium tw:text-app-text">
                   {stepLabel[handoff.step]}
                 </strong>
-                <span className="tw:type-caption tw:text-app-text-soft">
+                <span className="tw:type-1 tw:text-app-text-soft">
                   {completedHandoffStepCount(handoff)}/{HANDOFF_PROGRESS_STEPS.length}
                 </span>
               </div>
             ) : (
               <div className="tw:grid tw:gap-2">
                 {!gitAvailable ? (
-                  <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">仅 Git 项目可用。</p>
+                  <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">仅 Git 项目可用。</p>
                 ) : null}
                 <Button
                   size="md"
@@ -578,7 +585,7 @@ export function ConversationEnvironmentControls({
                 disabled={busy}
                 onClick={() => void refresh()}
               >
-                <RefreshCw aria-hidden="true" size={APP_ICON_SIZE} />
+                <RefreshCw className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
                 刷新
               </Button>
             </div>

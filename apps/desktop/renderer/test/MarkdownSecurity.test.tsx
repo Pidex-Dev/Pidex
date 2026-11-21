@@ -117,6 +117,32 @@ describe('Markdown file references', () => {
     expect(html).toContain('/etc/hosts')
     expect(html).not.toContain('<code>')
   })
+
+  test('renders custom file link labels without native title and avoids nested buttons for backticked labels', () => {
+    const custom = renderToStaticMarkup(
+      <MarkdownMessage
+        cwd="C:\\repo"
+        text="[23:20 首条消息失败恢复报告](C:\\Users\\XiaoHi\\.pidex\\reports\\retest.md)"
+      />,
+    )
+    expect(custom).toContain('data-file-reference=""')
+    expect(custom).toContain('23:20 首条消息失败恢复报告')
+    expect(custom).not.toContain(' title="')
+
+    const samePath = renderToStaticMarkup(
+      <MarkdownMessage
+        cwd="C:\\repo"
+        text="[C:\\Users\\XiaoHi\\.pidex\\reports\\retest.md](C:\\Users\\XiaoHi\\.pidex\\reports\\retest.md)"
+      />,
+    )
+    expect(withoutBreakOpportunities(samePath)).toContain('>retest.md<')
+
+    const backtickLabel = renderToStaticMarkup(
+      <MarkdownMessage cwd="C:\\repo" text="[`src/a.ts`](C:\\repo\\src\\a.ts#L12)" />,
+    )
+    expect(backtickLabel.match(/<button\b/gu)).toHaveLength(1)
+    expect(withoutBreakOpportunities(backtickLabel)).toContain('src/a.ts (line 12)')
+  })
 })
 
 describe('Markdown tables and accessibility', () => {

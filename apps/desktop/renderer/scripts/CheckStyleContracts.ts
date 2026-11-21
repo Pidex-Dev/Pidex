@@ -1,6 +1,13 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
+import postcss, {
+  type AtRule as PostcssAtRule,
+  type Container as PostcssContainer,
+  type Document as PostcssDocument,
+  type Rule as PostcssRule,
+} from 'postcss'
+import selectorParser from 'postcss-selector-parser'
 import ts from 'typescript'
 import { selectorBlock, transitionProperties } from './StyleAnimationContracts.js'
 
@@ -44,6 +51,14 @@ type FeatureTokenRegistryEntry = {
   used: boolean
 }
 
+type CssTailwindCollisionException = {
+  file: string
+  cssClass?: string
+  twClass?: string
+  category?: string
+  reason: string
+}
+
 type StyleContractManifest = {
   styleEntrypoint: string
   styleEntrypointImporter: string
@@ -64,6 +79,10 @@ type StyleContractManifest = {
   dataThemeSelectorAllowlist: Record<string, number>
   literalLineHeightAllowlist: Record<string, number>
   tailwindLeadingAllowlist: Record<string, number>
+  deadSelectorAllowlist?: string[]
+  multiFileClassAllowlist?: Record<string, string[]>
+  cssTailwindCollisionAllowlist?: Record<string, number>
+  cssTailwindCollisionExceptions?: CssTailwindCollisionException[]
   featureColorContract: {
     roots: string[]
     componentTokenExceptions: Array<{ file: string; token: string; reason: string }>
@@ -1240,6 +1259,7 @@ for (const file of featureTokenScriptFiles) {
   const visitJsxStyles = (node: ts.Node): void => {
     if (
       ts.isJsxAttribute(node) &&
+      ts.isIdentifier(node.name) &&
       node.name.text === 'style' &&
       node.initializer &&
       ts.isJsxExpression(node.initializer) &&
@@ -1350,6 +1370,23 @@ for (const file of featureTokenScriptFiles) {
         `feature TSX must use a semantic typography role instead of ${className}: ${path}:${lineNumberAt(match.index)}`,
       )
     }
+  }
+}
+
+/*
+ * Decimal spacing utility rule: UI components must use the integer Radix 9-step
+ * spacing scale (1..9) and never decimal spacing utilities (0.5, 1.5, 2.5, 3.5).
+ */
+const tailwindDecimalSpacingPattern =
+  /\btw:(?:[a-z-]+:)*(?:p|px|py|pt|pr|pb|pl|ps|pe|m|mx|my|mt|mr|mb|ml|ms|me|gap|gap-x|gap-y|space-x|space-y|w|h|min-w|min-h|max-w|max-h|size)-\d+\.\d+\b/g
+for (const file of featureTokenScriptFiles) {
+  const script = featureTokenScriptSources.get(file)
+  if (!script || !script.path.startsWith('src/components/')) continue
+  const { source, path, lineNumberAt } = script
+  for (const match of source.matchAll(tailwindDecimalSpacingPattern)) {
+    errors.push(
+      `component TSX must not use decimal spacing utility ${match[0]}: ${path}:${lineNumberAt(match.index)}`,
+    )
   }
 }
 
@@ -1844,6 +1881,1127 @@ for (const [category, registry] of featureTokenRegistry) {
   }
 }
 
+/*
+ * Stage 4 static style-governance gates:
+ * 1. Dead CSS selector detection ([dead-css-selector])
+ * 2. Multi-file CSS class definition ratchet ([multi-file-class])
+ * 3. Same-element CSS vs Tailwind (`tw:*`) property-category collision ([css-tw-collision])
+ */
+type CssPropertyCategory =
+  | 'display'
+  | 'position'
+  | 'width'
+  | 'min-width'
+  | 'max-width'
+  | 'height'
+  | 'min-height'
+  | 'max-height'
+  | 'padding-top'
+  | 'padding-right'
+  | 'padding-bottom'
+  | 'padding-left'
+  | 'margin-top'
+  | 'margin-right'
+  | 'margin-bottom'
+  | 'margin-left'
+  | 'gap'
+  | 'row-gap'
+  | 'column-gap'
+  | 'flex-direction'
+  | 'flex-grow'
+  | 'flex-shrink'
+  | 'flex-basis'
+  | 'align-items'
+  | 'align-self'
+  | 'align-content'
+  | 'justify-content'
+  | 'justify-items'
+  | 'justify-self'
+  | 'grid-template-columns'
+  | 'grid-template-rows'
+  | 'grid-column'
+  | 'grid-row'
+  | 'order'
+  | 'font-family'
+  | 'font-size'
+  | 'line-height'
+  | 'letter-spacing'
+  | 'font-weight'
+  | 'text-align'
+  | 'white-space'
+  | 'word-break'
+  | 'overflow-wrap'
+  | 'text-overflow'
+  | 'font-variant-numeric'
+  | 'text-decoration'
+  | 'text-transform'
+  | 'color'
+  | 'background'
+  | 'border-top'
+  | 'border-right'
+  | 'border-bottom'
+  | 'border-left'
+  | 'radius'
+  | 'overflow-x'
+  | 'overflow-y'
+  | 'overscroll-behavior'
+  | 'z-index'
+  | 'opacity'
+  | 'transition'
+  | 'cursor'
+  | 'pointer-events'
+  | 'user-select'
+  | 'touch-action'
+  | 'resize'
+  | 'appearance'
+
+type CssSelectorRuleProfile = {
+  requiredClasses: string[]
+  excludedClasses: string[]
+  pseudoStates: Set<string>
+  categories: Set<CssPropertyCategory>
+}
+
+type CssTailwindCollisionRecord = {
+  file: string
+  line: number
+  cssClass: string
+  twClass: string
+  category: CssPropertyCategory
+}
+
+const vendorClassPattern =
+  /^(?:ProseMirror(?:-|$)|cm-|xterm(?:-|$)|katex(?:-|$)|hljs(?:-|$)|language-|lucide(?:-|$))/
+const pureStateClasses = new Set([
+  'active',
+  'selected',
+  'open',
+  'disabled',
+  'checked',
+  'danger',
+  'dragging',
+  'resizing',
+  'loading',
+  'error',
+  'empty',
+  'hidden',
+  'visible',
+  'compact',
+  'rich',
+  'expanded',
+  'collapsed',
+  'focused',
+  'highlighted',
+  'pressed',
+])
+const statePseudoClasses = new Set([
+  'hover',
+  'focus',
+  'focus-visible',
+  'focus-within',
+  'active',
+  'disabled',
+  'checked',
+])
+const pseudoElementPattern =
+  /^::|^:(?:before|after|first-line|first-letter|marker|placeholder|selection)$/i
+const classTokenHelperNames = new Set(['cx', 'joinClassNames', 'clsx', 'cn'])
+
+function isPureStateClass(className: string): boolean {
+  return pureStateClasses.has(className) || /^(?:is|has)-[a-z0-9-]+$/.test(className)
+}
+
+function isRuleInsideAtRule(rule: PostcssRule, namePattern: RegExp, paramToken?: string): boolean {
+  let current: PostcssContainer | PostcssDocument | undefined = rule.parent
+  while (current) {
+    if (current.type === 'atrule') {
+      const atRule = current as PostcssAtRule
+      if (namePattern.test(atRule.name)) {
+        if (paramToken === undefined) return true
+        const params = atRule.params
+          .trim()
+          .split(/[\s,]+/)
+          .filter(Boolean)
+        if (params.includes(paramToken)) return true
+      }
+    }
+    current = current.parent
+  }
+  return false
+}
+
+function resolveEffectiveSelector(rule: PostcssRule): string {
+  let parentRule: PostcssRule | null = null
+  let current: PostcssContainer | PostcssDocument | undefined = rule.parent
+  while (current) {
+    if (current.type === 'rule') {
+      parentRule = current as PostcssRule
+      break
+    }
+    current = current.parent
+  }
+  if (!parentRule) return rule.selector
+  const parentSelector = resolveEffectiveSelector(parentRule)
+  if (rule.selector.includes('&')) {
+    return rule.selector.replace(/&/g, `:is(${parentSelector})`)
+  }
+  return `:is(${parentSelector}) ${rule.selector}`
+}
+
+function collectClassesFromSubjectNodes(
+  nodes: selectorParser.Node[],
+  classes: Set<string>,
+  pseudoStates: Set<string>,
+): void {
+  for (const node of nodes) {
+    if (node.type === 'class') {
+      classes.add(node.value)
+    } else if (node.type === 'pseudo') {
+      const pseudoName = node.value.replace(/^:+/, '').toLowerCase()
+      if (statePseudoClasses.has(pseudoName)) pseudoStates.add(pseudoName)
+      if ((node.value === ':is' || node.value === ':where') && node.nodes) {
+        for (const innerSelector of node.nodes) {
+          collectClassesFromSubjectNodes(innerSelector.nodes, classes, pseudoStates)
+        }
+      }
+    }
+  }
+}
+
+type SubjectVariant = {
+  requiredClasses: string[]
+  excludedClasses: string[]
+  pseudoStates: Set<string>
+}
+
+function mergeSubjectVariants(left: SubjectVariant[], right: SubjectVariant[]): SubjectVariant[] {
+  const merged: SubjectVariant[] = []
+  for (const a of left) {
+    for (const b of right) {
+      merged.push({
+        requiredClasses: [...new Set([...a.requiredClasses, ...b.requiredClasses])],
+        excludedClasses: [...new Set([...a.excludedClasses, ...b.excludedClasses])],
+        pseudoStates: new Set([...a.pseudoStates, ...b.pseudoStates]),
+      })
+    }
+  }
+  return merged
+}
+
+function expandSubjectNodeVariants(nodes: selectorParser.Node[]): SubjectVariant[] {
+  let variants: SubjectVariant[] = [
+    { requiredClasses: [], excludedClasses: [], pseudoStates: new Set() },
+  ]
+  for (const node of nodes) {
+    if (node.type === 'class') {
+      variants = variants.map((variant) => ({
+        ...variant,
+        requiredClasses: variant.requiredClasses.includes(node.value)
+          ? variant.requiredClasses
+          : [...variant.requiredClasses, node.value],
+      }))
+    } else if (node.type === 'pseudo') {
+      const pseudoName = node.value.replace(/^:+/, '').toLowerCase()
+      if (statePseudoClasses.has(pseudoName)) {
+        for (const variant of variants) variant.pseudoStates.add(pseudoName)
+      }
+      if (pseudoName === 'has') {
+        for (const variant of variants) variant.pseudoStates.add('has-state')
+      }
+      if ((node.value === ':is' || node.value === ':where') && node.nodes) {
+        const innerVariants: SubjectVariant[] = []
+        for (const innerSelector of node.nodes) {
+          innerVariants.push(...expandSubjectNodeVariants(innerSelector.nodes))
+        }
+        if (innerVariants.length > 0) {
+          variants = mergeSubjectVariants(variants, innerVariants)
+        }
+      } else if (node.value === ':not' && node.nodes) {
+        const excluded = new Set<string>()
+        for (const innerSelector of node.nodes) {
+          const hasCombinator = innerSelector.nodes.some((child) => child.type === 'combinator')
+          if (hasCombinator) continue
+          for (const child of innerSelector.nodes) {
+            if (child.type === 'class') excluded.add(child.value)
+          }
+        }
+        if (excluded.size > 0) {
+          variants = variants.map((variant) => ({
+            ...variant,
+            excludedClasses: [...new Set([...variant.excludedClasses, ...excluded])],
+          }))
+        }
+      }
+    }
+  }
+  return variants
+}
+
+function selectorNodesContainHas(nodes: selectorParser.Node[]): boolean {
+  for (const node of nodes) {
+    if (node.type === 'pseudo') {
+      if (node.value.toLowerCase() === ':has') return true
+      if (node.nodes?.some((inner) => selectorNodesContainHas(inner.nodes))) return true
+    }
+  }
+  return false
+}
+
+function extractSelectorSubjectRules(selectorText: string): SubjectVariant[] {
+  let ast: selectorParser.Root
+  try {
+    ast = selectorParser().astSync(selectorText)
+  } catch {
+    return []
+  }
+  const results: SubjectVariant[] = []
+  for (const selector of ast.nodes) {
+    let subjectStart = 0
+    for (let index = selector.nodes.length - 1; index >= 0; index -= 1) {
+      if (selector.nodes[index].type === 'combinator') {
+        subjectStart = index + 1
+        break
+      }
+    }
+    const ancestorNodes = selector.nodes.slice(0, subjectStart)
+    const subjectNodes = selector.nodes.slice(subjectStart)
+    if (
+      subjectNodes.some((node) => node.type === 'pseudo' && pseudoElementPattern.test(node.value))
+    ) {
+      continue
+    }
+    const ancestorHasState = selectorNodesContainHas(ancestorNodes)
+    for (const variant of expandSubjectNodeVariants(subjectNodes)) {
+      if (variant.requiredClasses.length === 0) continue
+      if (ancestorHasState) variant.pseudoStates.add('has-state')
+      results.push(variant)
+    }
+  }
+  return results
+}
+
+function extractSelectorClasses(
+  selectorText: string,
+  mode: 'all' | 'subject-all' | 'subject-element-only',
+): { classes: Set<string>; pseudoStates: Set<string> } {
+  const classes = new Set<string>()
+  const pseudoStates = new Set<string>()
+  let ast: selectorParser.Root
+  try {
+    ast = selectorParser().astSync(selectorText)
+  } catch {
+    return { classes, pseudoStates }
+  }
+  if (mode === 'all') {
+    ast.walkClasses((node) => {
+      classes.add(node.value)
+    })
+    return { classes, pseudoStates }
+  }
+  for (const selector of ast.nodes) {
+    let subjectStart = 0
+    for (let index = selector.nodes.length - 1; index >= 0; index -= 1) {
+      if (selector.nodes[index].type === 'combinator') {
+        subjectStart = index + 1
+        break
+      }
+    }
+    const subjectNodes = selector.nodes.slice(subjectStart)
+    if (
+      mode === 'subject-element-only' &&
+      subjectNodes.some((node) => node.type === 'pseudo' && pseudoElementPattern.test(node.value))
+    ) {
+      continue
+    }
+    collectClassesFromSubjectNodes(subjectNodes, classes, pseudoStates)
+  }
+  return { classes, pseudoStates }
+}
+
+function cssPropertyToCategories(property: string): CssPropertyCategory[] {
+  const prop = property.toLowerCase()
+  if (prop.startsWith('--')) return []
+  if (prop === 'display') return ['display']
+  if (
+    prop === 'position' ||
+    prop === 'inset' ||
+    prop === 'inset-block' ||
+    prop === 'inset-block-start' ||
+    prop === 'inset-block-end' ||
+    prop === 'inset-inline' ||
+    prop === 'inset-inline-start' ||
+    prop === 'inset-inline-end' ||
+    prop === 'top' ||
+    prop === 'right' ||
+    prop === 'bottom' ||
+    prop === 'left'
+  ) {
+    return ['position']
+  }
+  if (prop === 'width' || prop === 'inline-size') return ['width']
+  if (prop === 'min-width' || prop === 'min-inline-size') return ['min-width']
+  if (prop === 'max-width' || prop === 'max-inline-size') return ['max-width']
+  if (prop === 'height' || prop === 'block-size') return ['height']
+  if (prop === 'min-height' || prop === 'min-block-size') return ['min-height']
+  if (prop === 'max-height' || prop === 'max-block-size') return ['max-height']
+  if (prop === 'padding') return ['padding-top', 'padding-right', 'padding-bottom', 'padding-left']
+  if (prop === 'padding-block') return ['padding-top', 'padding-bottom']
+  if (prop === 'padding-inline') return ['padding-left', 'padding-right']
+  if (prop === 'padding-top' || prop === 'padding-block-start') return ['padding-top']
+  if (prop === 'padding-bottom' || prop === 'padding-block-end') return ['padding-bottom']
+  if (prop === 'padding-left' || prop === 'padding-inline-start') return ['padding-left']
+  if (prop === 'padding-right' || prop === 'padding-inline-end') return ['padding-right']
+  if (prop === 'margin') return ['margin-top', 'margin-right', 'margin-bottom', 'margin-left']
+  if (prop === 'margin-block') return ['margin-top', 'margin-bottom']
+  if (prop === 'margin-inline') return ['margin-left', 'margin-right']
+  if (prop === 'margin-top' || prop === 'margin-block-start') return ['margin-top']
+  if (prop === 'margin-bottom' || prop === 'margin-block-end') return ['margin-bottom']
+  if (prop === 'margin-left' || prop === 'margin-inline-start') return ['margin-left']
+  if (prop === 'margin-right' || prop === 'margin-inline-end') return ['margin-right']
+  if (prop === 'gap') return ['row-gap', 'column-gap']
+  if (prop === 'row-gap') return ['row-gap']
+  if (prop === 'column-gap') return ['column-gap']
+  if (prop === 'flex') return ['flex-grow', 'flex-shrink', 'flex-basis']
+  if (prop === 'flex-direction') return ['flex-direction']
+  if (prop === 'flex-grow') return ['flex-grow']
+  if (prop === 'flex-shrink') return ['flex-shrink']
+  if (prop === 'flex-basis') return ['flex-basis']
+  if (prop === 'align-items') return ['align-items']
+  if (prop === 'align-self') return ['align-self']
+  if (prop === 'align-content') return ['align-content']
+  if (prop === 'justify-content') return ['justify-content']
+  if (prop === 'justify-items') return ['justify-items']
+  if (prop === 'justify-self') return ['justify-self']
+  if (prop === 'place-items') return ['align-items', 'justify-items']
+  if (prop === 'place-content') return ['align-content', 'justify-content']
+  if (prop === 'place-self') return ['align-self', 'justify-self']
+  if (prop === 'grid-template-columns') return ['grid-template-columns']
+  if (prop === 'grid-template-rows') return ['grid-template-rows']
+  if (prop === 'grid-column') return ['grid-column']
+  if (prop === 'grid-row') return ['grid-row']
+  if (prop === 'order') return ['order']
+  if (prop === 'font') return ['font-family', 'font-size', 'line-height', 'font-weight']
+  if (prop === 'font-family') return ['font-family']
+  if (prop === 'font-size') return ['font-size']
+  if (prop === 'line-height') return ['line-height']
+  if (prop === 'letter-spacing') return ['letter-spacing']
+  if (prop === 'font-weight') return ['font-weight']
+  if (prop === 'text-align') return ['text-align']
+  if (prop === 'white-space') return ['white-space']
+  if (prop === 'word-break') return ['word-break']
+  if (prop === 'overflow-wrap') return ['overflow-wrap']
+  if (prop === 'text-overflow') return ['text-overflow']
+  if (prop === 'font-variant-numeric') return ['font-variant-numeric']
+  if (prop === 'text-decoration' || prop.startsWith('text-decoration-')) return ['text-decoration']
+  if (prop === 'text-transform') return ['text-transform']
+  if (prop === 'color') return ['color']
+  if (prop === 'background' || prop.startsWith('background-')) return ['background']
+  if (prop.includes('radius')) return ['radius']
+  if (prop === 'border') return ['border-top', 'border-right', 'border-bottom', 'border-left']
+  if (prop === 'border-block') return ['border-top', 'border-bottom']
+  if (prop === 'border-inline') return ['border-left', 'border-right']
+  if (prop.startsWith('border-top')) return ['border-top']
+  if (prop.startsWith('border-right')) return ['border-right']
+  if (prop.startsWith('border-bottom')) return ['border-bottom']
+  if (prop.startsWith('border-left')) return ['border-left']
+  if (prop === 'border-color' || prop === 'border-width' || prop === 'border-style') {
+    return ['border-top', 'border-right', 'border-bottom', 'border-left']
+  }
+  if (prop === 'overflow') return ['overflow-x', 'overflow-y']
+  if (prop === 'overflow-x' || prop === 'overflow-inline') return ['overflow-x']
+  if (prop === 'overflow-y' || prop === 'overflow-block') return ['overflow-y']
+  if (prop.startsWith('overscroll-behavior')) return ['overscroll-behavior']
+  if (prop === 'z-index') return ['z-index']
+  if (prop === 'opacity') return ['opacity']
+  if (prop.startsWith('transition') || prop.startsWith('animation')) return ['transition']
+  if (prop === 'cursor') return ['cursor']
+  if (prop === 'pointer-events') return ['pointer-events']
+  if (prop === 'user-select' || prop === '-webkit-user-select') return ['user-select']
+  if (prop === 'touch-action') return ['touch-action']
+  if (prop === 'resize') return ['resize']
+  if (prop === 'appearance') return ['appearance']
+  return []
+}
+
+function splitTopLevelColons(input: string): string[] {
+  const parts: string[] = []
+  let start = 0
+  let bracketDepth = 0
+  let parenDepth = 0
+  for (let index = 0; index < input.length; index += 1) {
+    const ch = input[index]
+    if (ch === '[') bracketDepth += 1
+    else if (ch === ']') bracketDepth = Math.max(0, bracketDepth - 1)
+    else if (ch === '(') parenDepth += 1
+    else if (ch === ')') parenDepth = Math.max(0, parenDepth - 1)
+    else if (ch === ':' && bracketDepth === 0 && parenDepth === 0) {
+      parts.push(input.slice(start, index))
+      start = index + 1
+    }
+  }
+  parts.push(input.slice(start))
+  return parts
+}
+
+const typographyTextUtilityPattern =
+  /^text-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|[1-9]|code|left|center|right|justify|start|end|wrap|nowrap|balance|pretty|ellipsis|clip)$/
+
+function tailwindUtilityCategories(utilityToken: string): CssPropertyCategory[] {
+  const utility = utilityToken.replace(/^!/, '').replace(/^-/, '')
+  if (
+    /^(?:block|inline-block|inline|flex|inline-flex|grid|inline-grid|inline-table|table|table-caption|table-cell|table-column|table-column-group|table-footer-group|table-header-group|table-row-group|table-row|flow-root|contents|list-item|hidden)$/.test(
+      utility,
+    )
+  ) {
+    return ['display']
+  }
+  if (
+    /^(?:static|fixed|absolute|relative|sticky|inset-|top-|right-|bottom-|left-|start-|end-)/.test(
+      utility,
+    )
+  ) {
+    return ['position']
+  }
+  if (/^size-/.test(utility)) return ['width', 'height']
+  if (/^w-/.test(utility)) return ['width']
+  if (/^min-w-/.test(utility)) return ['min-width']
+  if (/^max-w-/.test(utility)) return ['max-width']
+  if (/^h-/.test(utility)) return ['height']
+  if (/^min-h-/.test(utility)) return ['min-height']
+  if (/^max-h-/.test(utility)) return ['max-height']
+  if (/^p-/.test(utility)) return ['padding-top', 'padding-right', 'padding-bottom', 'padding-left']
+  if (/^px-/.test(utility)) return ['padding-left', 'padding-right']
+  if (/^py-/.test(utility)) return ['padding-top', 'padding-bottom']
+  if (/^(?:pt)-/.test(utility)) return ['padding-top']
+  if (/^(?:pr|pe)-/.test(utility)) return ['padding-right']
+  if (/^(?:pb)-/.test(utility)) return ['padding-bottom']
+  if (/^(?:pl|ps)-/.test(utility)) return ['padding-left']
+  if (/^m-/.test(utility)) return ['margin-top', 'margin-right', 'margin-bottom', 'margin-left']
+  if (/^mx-/.test(utility)) return ['margin-left', 'margin-right']
+  if (/^my-/.test(utility)) return ['margin-top', 'margin-bottom']
+  if (/^mt-/.test(utility)) return ['margin-top']
+  if (/^(?:mr|me)-/.test(utility)) return ['margin-right']
+  if (/^mb-/.test(utility)) return ['margin-bottom']
+  if (/^(?:ml|ms)-/.test(utility)) return ['margin-left']
+  if (/^gap-x-/.test(utility)) return ['column-gap']
+  if (/^gap-y-/.test(utility)) return ['row-gap']
+  if (/^gap-/.test(utility)) return ['row-gap', 'column-gap']
+  if (/^flex-(?:row|col)(?:-reverse)?$/.test(utility)) return ['flex-direction']
+  if (utility === 'flex-1' || utility === 'flex-auto') {
+    return ['flex-grow', 'flex-shrink', 'flex-basis']
+  }
+  if (utility === 'flex-none' || utility === 'flex-initial') {
+    return ['flex-grow', 'flex-shrink']
+  }
+  if (/^grow(?:$|-)/.test(utility)) return ['flex-grow']
+  if (/^shrink(?:$|-)/.test(utility)) return ['flex-shrink']
+  if (/^basis-/.test(utility)) return ['flex-basis']
+  if (/^items-/.test(utility)) return ['align-items']
+  if (/^self-/.test(utility)) return ['align-self']
+  if (/^content-/.test(utility)) return ['align-content']
+  if (/^justify-items-/.test(utility)) return ['justify-items']
+  if (/^justify-self-/.test(utility)) return ['justify-self']
+  if (/^justify-/.test(utility)) return ['justify-content']
+  if (/^place-items-/.test(utility)) return ['align-items', 'justify-items']
+  if (/^place-content-/.test(utility)) return ['align-content', 'justify-content']
+  if (/^grid-cols-/.test(utility)) return ['grid-template-columns']
+  if (/^grid-rows-/.test(utility)) return ['grid-template-rows']
+  if (/^col-/.test(utility)) return ['grid-column']
+  if (/^row-/.test(utility)) return ['grid-row']
+  if (/^order-/.test(utility)) return ['order']
+  if (/^type-/.test(utility)) return ['font-family', 'font-size', 'line-height', 'letter-spacing']
+  if (/^weight-/.test(utility)) return ['font-weight']
+  if (utility === 'font-sans' || utility === 'font-mono' || utility === 'font-serif') {
+    return ['font-family']
+  }
+  if (
+    /^font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$/.test(utility)
+  ) {
+    return ['font-weight']
+  }
+  if (/^text-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|[1-9]|code)$/.test(utility)) {
+    return ['font-size', 'line-height']
+  }
+  if (/^text-(?:left|center|right|justify|start|end)$/.test(utility)) return ['text-align']
+  if (utility === 'text-ellipsis' || utility === 'text-clip') return ['text-overflow']
+  if (utility === 'truncate') return ['overflow-x', 'overflow-y', 'text-overflow', 'white-space']
+  if (/^leading-/.test(utility)) return ['line-height']
+  if (/^tracking-/.test(utility)) return ['letter-spacing']
+  if (/^whitespace-/.test(utility)) return ['white-space']
+  if (/^break-/.test(utility)) return ['word-break', 'overflow-wrap']
+  if (utility === 'wrap-anywhere' || utility === 'wrap-break-word') return ['overflow-wrap']
+  if (utility === 'tabular-nums') return ['font-variant-numeric']
+  if (/^(?:underline|overline|line-through|no-underline)$/.test(utility)) return ['text-decoration']
+  if (/^(?:uppercase|lowercase|capitalize|normal-case)$/.test(utility)) return ['text-transform']
+  if (utility.startsWith('text-[')) {
+    const bracket = utility.slice(6, -1)
+    if (/^(?:length:|[\d.]+(?:px|rem|em|%))|--cpx-sys-font-size-/.test(bracket)) {
+      return ['font-size']
+    }
+    return ['color']
+  }
+  if (utility.startsWith('text-')) return ['color']
+  if (utility.startsWith('bg-')) return ['background']
+  if (utility === 'rounded' || utility.startsWith('rounded-')) return ['radius']
+  if (utility.startsWith('border-t')) return ['border-top']
+  if (utility.startsWith('border-r') || utility.startsWith('border-e')) return ['border-right']
+  if (utility.startsWith('border-b')) return ['border-bottom']
+  if (utility.startsWith('border-l') || utility.startsWith('border-s')) return ['border-left']
+  if (
+    utility === 'border' ||
+    (utility.startsWith('border-') && !utility.startsWith('border-spacing'))
+  ) {
+    return ['border-top', 'border-right', 'border-bottom', 'border-left']
+  }
+  if (utility.startsWith('overflow-x-')) return ['overflow-x']
+  if (utility.startsWith('overflow-y-')) return ['overflow-y']
+  if (utility.startsWith('overflow-')) return ['overflow-x', 'overflow-y']
+  if (utility.startsWith('overscroll-')) return ['overscroll-behavior']
+  if (utility.startsWith('z-')) return ['z-index']
+  if (utility.startsWith('opacity-')) return ['opacity']
+  if (
+    utility === 'transition' ||
+    /^(?:transition-|duration-|ease-|delay-|animate-)/.test(utility)
+  ) {
+    return ['transition']
+  }
+  if (/^cursor-/.test(utility)) return ['cursor']
+  if (/^pointer-events-/.test(utility)) return ['pointer-events']
+  if (/^select-/.test(utility)) return ['user-select']
+  if (/^touch-/.test(utility)) return ['touch-action']
+  if (/^resize(?:$|-)/.test(utility)) return ['resize']
+  if (/^appearance-/.test(utility)) return ['appearance']
+  return []
+}
+
+function parseTailwindToken(
+  rawToken: string,
+): { stateVariant: string | null; categories: CssPropertyCategory[] } | null {
+  if (!rawToken.startsWith('tw:')) return null
+  const segments = splitTopLevelColons(rawToken.slice(3))
+  const utility = segments[segments.length - 1]
+  if (!utility) return null
+  const variants = segments.slice(0, -1)
+  if (variants.length === 0) {
+    const categories = tailwindUtilityCategories(utility)
+    return categories.length > 0 ? { stateVariant: null, categories } : null
+  }
+  if (variants.length === 1 && statePseudoClasses.has(variants[0])) {
+    const categories = tailwindUtilityCategories(utility)
+    return categories.length > 0 ? { stateVariant: variants[0], categories } : null
+  }
+  return null
+}
+
+function splitClassWhitespace(value: string): string[] {
+  return value.trim().split(/\s+/).filter(Boolean)
+}
+
+function combineTokenBranches(left: string[][], right: string[][]): string[][] {
+  const maxBranches = 16
+  if (left.length * right.length <= maxBranches) {
+    const combined: string[][] = []
+    for (const leftBranch of left) {
+      for (const rightBranch of right) {
+        combined.push([...leftBranch, ...rightBranch])
+      }
+    }
+    return combined
+  }
+  const mergedLeft = [...new Set(left.flat())]
+  const mergedRight = [...new Set(right.flat())]
+  return [[...mergedLeft, ...mergedRight]]
+}
+
+function collectClassBranches(
+  expression: ts.Expression,
+  variableInitializers: Map<string, ts.Expression>,
+  visited: Set<ts.Node>,
+): string[][] {
+  const current = unwrapInlineStyleExpression(expression)
+  if (visited.has(current)) return [[]]
+  const nextVisited = new Set(visited)
+  nextVisited.add(current)
+
+  if (ts.isStringLiteral(current) || ts.isNoSubstitutionTemplateLiteral(current)) {
+    return [splitClassWhitespace(current.text)]
+  }
+  if (ts.isIdentifier(current)) {
+    const initializer = variableInitializers.get(current.text)
+    return initializer ? collectClassBranches(initializer, variableInitializers, nextVisited) : [[]]
+  }
+  if (ts.isConditionalExpression(current)) {
+    return [
+      ...collectClassBranches(current.whenTrue, variableInitializers, nextVisited),
+      ...collectClassBranches(current.whenFalse, variableInitializers, nextVisited),
+    ]
+  }
+  if (ts.isBinaryExpression(current)) {
+    const kind = current.operatorToken.kind
+    if (kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+      return collectClassBranches(current.right, variableInitializers, nextVisited)
+    }
+    if (kind === ts.SyntaxKind.BarBarToken || kind === ts.SyntaxKind.QuestionQuestionToken) {
+      return [
+        ...collectClassBranches(current.left, variableInitializers, nextVisited),
+        ...collectClassBranches(current.right, variableInitializers, nextVisited),
+      ]
+    }
+    if (kind === ts.SyntaxKind.PlusToken) {
+      return combineTokenBranches(
+        collectClassBranches(current.left, variableInitializers, nextVisited),
+        collectClassBranches(current.right, variableInitializers, nextVisited),
+      )
+    }
+    return [[]]
+  }
+  if (ts.isTemplateExpression(current)) {
+    let branches: string[][] = [splitClassWhitespace(current.head.text)]
+    for (const span of current.templateSpans) {
+      const exprBranches = collectClassBranches(span.expression, variableInitializers, nextVisited)
+      branches = combineTokenBranches(branches, exprBranches)
+      branches = combineTokenBranches(branches, [splitClassWhitespace(span.literal.text)])
+    }
+    return branches
+  }
+  if (ts.isArrayLiteralExpression(current)) {
+    let branches: string[][] = [[]]
+    for (const element of current.elements) {
+      if (ts.isSpreadElement(element)) continue
+      branches = combineTokenBranches(
+        branches,
+        collectClassBranches(element, variableInitializers, nextVisited),
+      )
+    }
+    return branches
+  }
+  if (
+    ts.isCallExpression(current) &&
+    ts.isIdentifier(current.expression) &&
+    classTokenHelperNames.has(current.expression.text)
+  ) {
+    let branches: string[][] = [[]]
+    for (const arg of current.arguments) {
+      if (ts.isSpreadElement(arg)) continue
+      branches = combineTokenBranches(
+        branches,
+        collectClassBranches(arg, variableInitializers, nextVisited),
+      )
+    }
+    return branches
+  }
+  return [[]]
+}
+
+const stage4CssFiles = styleFiles.filter(
+  (file) =>
+    extname(file) === '.css' &&
+    file !== entrypoint &&
+    workspacePath(file) !== 'src/styles/tailwind.css',
+)
+
+const definedCssClassLocations = new Map<string, Set<string>>()
+const multiFileClassTargets = new Map<string, Set<string>>()
+const classCssProfiles = new Map<string, CssSelectorRuleProfile[]>()
+
+for (const file of stage4CssFiles) {
+  const source = await readFile(file, 'utf8')
+  const path = workspacePath(file)
+  let root: ReturnType<typeof postcss.parse>
+  try {
+    root = postcss.parse(source, { from: file })
+  } catch (error) {
+    errors.push(
+      `[style-contracts] CSS parse error in ${path}: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    continue
+  }
+  root.walkRules((rule) => {
+    if (isRuleInsideAtRule(rule, /^(?:-\w+-)?keyframes$/i)) return
+    const effectiveSelector = resolveEffectiveSelector(rule)
+    const line = rule.source?.start?.line ?? 1
+    const location = `${path}:${line}`
+
+    const allSelector = extractSelectorClasses(effectiveSelector, 'all')
+    for (const className of allSelector.classes) {
+      const locations = definedCssClassLocations.get(className) ?? new Set<string>()
+      locations.add(location)
+      definedCssClassLocations.set(className, locations)
+    }
+
+    const hasDeclaration = rule.nodes?.some((node) => node.type === 'decl') ?? false
+    if (!hasDeclaration) return
+
+    const subjectAll = extractSelectorClasses(effectiveSelector, 'subject-all')
+    for (const className of subjectAll.classes) {
+      const files = multiFileClassTargets.get(className) ?? new Set<string>()
+      files.add(path)
+      multiFileClassTargets.set(className, files)
+    }
+
+    if (isRuleInsideAtRule(rule, /^layer$/i, 'overrides')) return
+    if (isRuleInsideAtRule(rule, /^media$/i, '(forced-colors:')) return
+    let inForcedColors = false
+    let ancestor: PostcssContainer | PostcssDocument | undefined = rule.parent
+    while (ancestor) {
+      if (
+        ancestor.type === 'atrule' &&
+        /^media$/i.test((ancestor as PostcssAtRule).name) &&
+        /forced-colors\s*:/i.test((ancestor as PostcssAtRule).params)
+      ) {
+        inForcedColors = true
+        break
+      }
+      ancestor = ancestor.parent
+    }
+    if (inForcedColors) return
+
+    const categories = new Set<CssPropertyCategory>()
+    rule.each((node) => {
+      if (node.type !== 'decl') return
+      for (const category of cssPropertyToCategories(node.prop)) categories.add(category)
+    })
+    if (categories.size === 0) return
+
+    for (const variant of extractSelectorSubjectRules(effectiveSelector)) {
+      for (const className of variant.requiredClasses) {
+        if (isPureStateClass(className)) continue
+        const entries = classCssProfiles.get(className) ?? []
+        entries.push({
+          requiredClasses: variant.requiredClasses,
+          excludedClasses: variant.excludedClasses,
+          pseudoStates: variant.pseudoStates,
+          categories,
+        })
+        classCssProfiles.set(className, entries)
+      }
+    }
+  })
+}
+
+const scriptAsts = new Map<string, { sourceFile: ts.SourceFile; path: string }>()
+const referencedScriptTokens = new Set<string>()
+const dynamicModifierPrefixes = new Set<string>()
+const dynamicTemplateSuffixes = new Set<string>()
+
+function collectStringTextTokens(text: string): void {
+  for (const match of text.matchAll(/[A-Za-z_][\w-]*/g)) {
+    referencedScriptTokens.add(match[0])
+  }
+  const trailingPrefix = text.match(/([A-Za-z_][\w-]*--)$/)
+  if (trailingPrefix) dynamicModifierPrefixes.add(trailingPrefix[1])
+}
+
+for (const file of scriptFiles) {
+  const source = await readFile(file, 'utf8')
+  const path = workspacePath(file)
+  const sourceFile = ts.createSourceFile(
+    path,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    extname(path).toLowerCase() === '.tsx' ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  )
+  scriptAsts.set(file, { sourceFile, path })
+
+  const collectReferences = (node: ts.Node): void => {
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      collectStringTextTokens(node.text)
+    } else if (ts.isTemplateHead(node)) {
+      collectStringTextTokens(node.text)
+    } else if (ts.isTemplateMiddle(node)) {
+      collectStringTextTokens(node.text)
+      const suffixMatch = node.text.match(/^(-[A-Za-z0-9_-]+)/)
+      if (suffixMatch) dynamicTemplateSuffixes.add(suffixMatch[1])
+    } else if (ts.isTemplateTail(node)) {
+      collectStringTextTokens(node.text)
+      const suffixMatch = node.text.match(/^(-[A-Za-z0-9_-]+)/)
+      if (suffixMatch) dynamicTemplateSuffixes.add(suffixMatch[1])
+    }
+    ts.forEachChild(node, collectReferences)
+  }
+  collectReferences(sourceFile)
+}
+
+function isClassReferencedInScripts(className: string): boolean {
+  if (referencedScriptTokens.has(className)) return true
+  const bemIndex = className.indexOf('--')
+  if (bemIndex > 0) {
+    const prefix = className.slice(0, bemIndex + 2)
+    if (dynamicModifierPrefixes.has(prefix)) return true
+  }
+  for (const suffix of dynamicTemplateSuffixes) {
+    if (className.endsWith(suffix) && className.length > suffix.length) {
+      const stem = className.slice(0, -suffix.length)
+      if (referencedScriptTokens.has(stem)) return true
+    }
+  }
+  return false
+}
+
+// Gate 1: Dead CSS selector check
+const deadSelectorAllowlistConfigured = manifest.deadSelectorAllowlist !== undefined
+const deadSelectorAllowlist = new Set(manifest.deadSelectorAllowlist ?? [])
+let deadSelectorCount = 0
+for (const [className, locations] of [...definedCssClassLocations.entries()].sort((a, b) =>
+  a[0].localeCompare(b[0]),
+)) {
+  if (isClassReferencedInScripts(className)) continue
+  if (deadSelectorAllowlist.has(className)) continue
+  if (vendorClassPattern.test(className)) continue
+  deadSelectorCount += 1
+  errors.push(
+    `[dead-css-selector] .${className} is never referenced in src/**/*.{ts,tsx} (${[...locations].sort().join(', ')})`,
+  )
+}
+if (deadSelectorAllowlistConfigured) {
+  for (const allowedClass of [...deadSelectorAllowlist].sort()) {
+    if (!definedCssClassLocations.has(allowedClass) || isClassReferencedInScripts(allowedClass)) {
+      errors.push(`[dead-css-selector] stale deadSelectorAllowlist entry: ${allowedClass}`)
+    }
+  }
+}
+
+// Gate 2: Multi-file CSS class definition ratchet
+const multiFileAllowlistConfigured = manifest.multiFileClassAllowlist !== undefined
+const multiFileAllowlist = manifest.multiFileClassAllowlist ?? {}
+let multiFileClassCount = 0
+for (const [className, fileSet] of [...multiFileClassTargets.entries()].sort((a, b) =>
+  a[0].localeCompare(b[0]),
+)) {
+  if (fileSet.size <= 1) continue
+  if (isPureStateClass(className) || vendorClassPattern.test(className)) continue
+  multiFileClassCount += 1
+  const observedFiles = [...fileSet].sort()
+  const allowedEntries = multiFileAllowlist[className]
+  if (allowedEntries !== undefined) {
+    const allowedSet = new Set(allowedEntries.map(normalizeFeatureTokenFile))
+    for (const file of observedFiles) {
+      if (!allowedSet.has(file)) {
+        errors.push(
+          `[multi-file-class] .${className} is targeted with declarations in non-allowlisted CSS file ${file} (allowlisted: ${[...allowedSet].sort().join(', ')})`,
+        )
+      }
+    }
+    for (const allowedFile of [...allowedSet].sort()) {
+      if (!fileSet.has(allowedFile)) {
+        errors.push(
+          `[multi-file-class] stale multiFileClassAllowlist file for .${className}: ${allowedFile}`,
+        )
+      }
+    }
+  } else {
+    errors.push(
+      `[multi-file-class] .${className} is targeted with declarations across ${observedFiles.length} CSS files: ${observedFiles.join(', ')}`,
+    )
+  }
+}
+if (multiFileAllowlistConfigured) {
+  for (const className of Object.keys(multiFileAllowlist).sort()) {
+    const observed = multiFileClassTargets.get(className)
+    if (!observed || observed.size <= 1) {
+      errors.push(`[multi-file-class] stale multiFileClassAllowlist entry: ${className}`)
+    }
+  }
+}
+
+// Gate 3: Same-element CSS vs Tailwind (tw:*) property-category collision check
+const observedCollisions: CssTailwindCollisionRecord[] = []
+const seenCollisionKeys = new Set<string>()
+
+function recordBranchCollisions(path: string, line: number, branches: string[][]): void {
+  for (const branch of branches) {
+    const branchSet = new Set(branch)
+    const cssClasses = branch.filter(
+      (token) => !token.startsWith('tw:') && classCssProfiles.has(token),
+    )
+    const twTokens = branch.filter((token) => token.startsWith('tw:'))
+    if (cssClasses.length === 0 || twTokens.length === 0) continue
+
+    for (const cssClass of cssClasses) {
+      const ruleProfiles = classCssProfiles.get(cssClass)
+      if (!ruleProfiles) continue
+      for (const rule of ruleProfiles) {
+        if (!rule.requiredClasses.every((requiredClass) => branchSet.has(requiredClass))) continue
+        if (rule.excludedClasses.some((excludedClass) => branchSet.has(excludedClass))) continue
+        for (const twClass of twTokens) {
+          const parsed = parseTailwindToken(twClass)
+          if (!parsed) continue
+          const matchesState =
+            parsed.stateVariant === null
+              ? rule.pseudoStates.size === 0
+              : rule.pseudoStates.has(parsed.stateVariant)
+          if (!matchesState) continue
+          for (const category of parsed.categories) {
+            if (!rule.categories.has(category)) continue
+            const key = `${path}:${line}:${cssClass}:${twClass}:${category}`
+            if (seenCollisionKeys.has(key)) continue
+            seenCollisionKeys.add(key)
+            observedCollisions.push({ file: path, line, cssClass, twClass, category })
+          }
+        }
+      }
+    }
+  }
+}
+
+for (const { sourceFile, path } of scriptAsts.values()) {
+  if (!sourceFile.text.includes('tw:')) continue
+  const variableInitializers = new Map<string, ts.Expression>()
+  const collectVariableInitializers = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      variableInitializers.set(node.name.text, node.initializer)
+    }
+    ts.forEachChild(node, collectVariableInitializers)
+  }
+  collectVariableInitializers(sourceFile)
+
+  const coveredNodes = new Set<ts.Node>()
+  const markSubtreeCovered = (node: ts.Node): void => {
+    coveredNodes.add(node)
+    ts.forEachChild(node, markSubtreeCovered)
+  }
+
+  const visitClassExpressions = (node: ts.Node): void => {
+    if (coveredNodes.has(node)) return
+
+    if (
+      ts.isJsxAttribute(node) &&
+      ts.isIdentifier(node.name) &&
+      /className$/i.test(node.name.text) &&
+      node.initializer
+    ) {
+      const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1
+      if (ts.isStringLiteral(node.initializer)) {
+        recordBranchCollisions(path, line, [splitClassWhitespace(node.initializer.text)])
+        markSubtreeCovered(node.initializer)
+        return
+      }
+      if (ts.isJsxExpression(node.initializer) && node.initializer.expression) {
+        const branches = collectClassBranches(
+          node.initializer.expression,
+          variableInitializers,
+          new Set(),
+        )
+        recordBranchCollisions(path, line, branches)
+        markSubtreeCovered(node.initializer)
+        return
+      }
+    }
+
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      classTokenHelperNames.has(node.expression.text)
+    ) {
+      const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1
+      const branches = collectClassBranches(node, variableInitializers, new Set())
+      recordBranchCollisions(path, line, branches)
+      markSubtreeCovered(node)
+      return
+    }
+
+    if (
+      (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
+      node.text.includes('tw:')
+    ) {
+      const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1
+      recordBranchCollisions(path, line, [splitClassWhitespace(node.text)])
+      coveredNodes.add(node)
+      return
+    }
+
+    if (ts.isTemplateExpression(node)) {
+      const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1
+      const branches = collectClassBranches(node, variableInitializers, new Set())
+      if (branches.some((branch) => branch.some((token) => token.startsWith('tw:')))) {
+        recordBranchCollisions(path, line, branches)
+        markSubtreeCovered(node)
+        return
+      }
+    }
+
+    ts.forEachChild(node, visitClassExpressions)
+  }
+  visitClassExpressions(sourceFile)
+}
+
+const collisionExceptions = (manifest.cssTailwindCollisionExceptions ?? []).map((exception) => {
+  const normalizedFile = normalizeFeatureTokenFile(exception.file)
+  const descriptor = `${normalizedFile} -> ${exception.cssClass ?? '*'} vs ${exception.twClass ?? '*'}`
+  if (exception.reason.trim().length < 16) {
+    errors.push(`[css-tw-collision] exception needs a concrete reason: ${descriptor}`)
+  }
+  return {
+    file: normalizedFile,
+    cssClass: exception.cssClass?.trim(),
+    twClass: exception.twClass?.trim(),
+    category: exception.category?.trim(),
+    descriptor,
+    used: false,
+  }
+})
+
+const unexemptedCollisions: CssTailwindCollisionRecord[] = []
+for (const collision of observedCollisions) {
+  const matched = collisionExceptions.find(
+    (exception) =>
+      exception.file === collision.file &&
+      (exception.cssClass === undefined || exception.cssClass === collision.cssClass) &&
+      (exception.twClass === undefined || exception.twClass === collision.twClass) &&
+      (exception.category === undefined || exception.category === collision.category),
+  )
+  if (matched) {
+    matched.used = true
+  } else {
+    unexemptedCollisions.push(collision)
+  }
+}
+
+for (const exception of collisionExceptions) {
+  if (!exception.used) {
+    errors.push(
+      `[css-tw-collision] stale cssTailwindCollisionExceptions entry: ${exception.descriptor}`,
+    )
+  }
+}
+
+if (manifest.cssTailwindCollisionAllowlist !== undefined) {
+  const observedCounts: Record<string, number> = {}
+  for (const collision of unexemptedCollisions) {
+    observedCounts[collision.file] = (observedCounts[collision.file] ?? 0) + 1
+  }
+  const allCollisionFiles = new Set([
+    ...Object.keys(manifest.cssTailwindCollisionAllowlist).map(normalizeFeatureTokenFile),
+    ...Object.keys(observedCounts),
+  ])
+  for (const file of [...allCollisionFiles].sort()) {
+    const expected = manifest.cssTailwindCollisionAllowlist[file] ?? 0
+    const observed = observedCounts[file] ?? 0
+    if (observed > expected) {
+      const fileHits = unexemptedCollisions.filter((hit) => hit.file === file)
+      for (const hit of fileHits) {
+        errors.push(
+          `[css-tw-collision] ${hit.file}:${hit.line} ${hit.cssClass} conflicts with ${hit.twClass} on "${hit.category}"`,
+        )
+      }
+      errors.push(
+        `[css-tw-collision] collision count exceeded in ${file}: expected ${expected}, observed ${observed}`,
+      )
+    } else if (observed < expected) {
+      errors.push(
+        `[css-tw-collision] stale cssTailwindCollisionAllowlist count in ${file}: expected ${expected}, observed ${observed}`,
+      )
+    }
+  }
+} else {
+  for (const hit of unexemptedCollisions) {
+    errors.push(
+      `[css-tw-collision] ${hit.file}:${hit.line} ${hit.cssClass} conflicts with ${hit.twClass} on "${hit.category}"`,
+    )
+  }
+}
+
 if (errors.length > 0) {
   console.error('[style-contracts] failed')
   for (const error of errors) console.error(`- ${error}`)
@@ -1851,5 +3009,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `[style-contracts] ok: ${styleFiles.length} style files, ${customPropertyReferences.size} custom property references, ${Object.values(observedImportantDeclarations).reduce((sum, count) => sum + count, 0)} allowlisted !important declarations, ${Object.values(observedDataThemeSelectors).reduce((sum, count) => sum + count, 0)} data-theme selectors, ${Object.values(observedLiteralLineHeights).reduce((sum, count) => sum + count, 0)} allowlisted literal line-heights, ${Object.values(observedTailwindLeading).reduce((sum, count) => sum + count, 0)} allowlisted tw:leading-*, ${featureTokenStyleDeclarations.size} feature style files scanned, ${featureTokenScriptSources.size} feature script files scanned`,
+  `[style-contracts] ok: ${styleFiles.length} style files, ${customPropertyReferences.size} custom property references, ${Object.values(observedImportantDeclarations).reduce((sum, count) => sum + count, 0)} allowlisted !important declarations, ${Object.values(observedDataThemeSelectors).reduce((sum, count) => sum + count, 0)} data-theme selectors, ${Object.values(observedLiteralLineHeights).reduce((sum, count) => sum + count, 0)} allowlisted literal line-heights, ${Object.values(observedTailwindLeading).reduce((sum, count) => sum + count, 0)} allowlisted tw:leading-*, ${featureTokenStyleDeclarations.size} feature style files scanned, ${featureTokenScriptSources.size} feature script files scanned, ${deadSelectorCount} dead selectors, ${multiFileClassCount} multi-file classes, ${unexemptedCollisions.length} css-tw collisions`,
 )

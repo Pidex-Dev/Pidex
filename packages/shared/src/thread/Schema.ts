@@ -177,6 +177,7 @@ export const ThreadListItemSchema = Schema.Struct({
   settings: ThreadSettingsSchema,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
+  lastUserMessageAt: Schema.optional(Schema.NullOr(Schema.Number)),
 })
 export type ThreadListItem = typeof ThreadListItemSchema.Type
 

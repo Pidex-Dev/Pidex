@@ -14,7 +14,6 @@ import {
   quotaRemainingPercent,
   sumDecimalAmounts,
   usageStatusLabel,
-  type ProviderQuotaWindow,
   type ProviderUsageSource,
 } from '../../../utils/UsageFormatters.js'
 import { ProviderBalanceCards } from './ProviderBalanceCards.js'
@@ -118,16 +117,18 @@ export function ProviderUsagePanel({
   return (
     <div
       aria-labelledby="usage-accounts-tab"
-      className="usage-panel"
+      className="usage-panel tw:grid tw:gap-4"
       id="usage-accounts-panel"
       role="tabpanel"
     >
-      <div className="usage-panel-toolbar">
+      <div className="usage-panel-toolbar tw:flex tw:items-center tw:justify-between tw:gap-4 tw:@max-[900px]:flex-col tw:@max-[900px]:items-stretch">
         <div>
-          <h3>账户用量与成本</h3>
-          <p>汇总已配置账户的远端历史用量与成本；余额、套餐和凭据请到账户连接管理。</p>
+          <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">账户用量与成本</h3>
+          <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
+            汇总已配置账户的远端历史用量与成本；余额、套餐和凭据请到账户连接管理。
+          </p>
         </div>
-        <div className="usage-toolbar-actions">
+        <div className="usage-toolbar-actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:@max-[900px]:justify-start">
           <Button
             color="secondary"
             loading={isRefreshingAll || (loading && refreshingSourceIds.length === 0)}
@@ -144,7 +145,10 @@ export function ProviderUsagePanel({
       </div>
 
       {hasFilter ? (
-        <div className="usage-active-filter" role="status">
+        <div
+          className="usage-active-filter tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3 tw:text-app-text-soft tw:type-1 tw:@max-[900px]:flex-col tw:@max-[900px]:items-stretch tw:@max-[900px]:justify-start"
+          role="status"
+        >
           <span>
             当前筛选：
             {activeSource?.displayName ?? selectedProviderId ?? selectedSourceId}
@@ -156,26 +160,40 @@ export function ProviderUsagePanel({
       ) : null}
 
       {error ? (
-        <div className="usage-inline-error" role="status">
+        <div
+          className="usage-inline-error tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-4 tw:text-app-danger tw:type-1 tw:shadow-none"
+          role="status"
+        >
           {error}
         </div>
       ) : null}
       {loading && summaryResults.length === 0 ? <ProviderUsageSkeleton /> : null}
 
       {!loading && descriptors.length === 0 ? (
-        <div className="usage-empty-state" role="status">
-          <h3>还没有已配置的厂商</h3>
-          <p>请先从供应商目录完成连接，这里只展示已配置账户的用量与成本。</p>
-          <Link className="usage-text-link" to="/providers">
+        <div
+          className="usage-empty-state tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-4 tw:text-app-text-soft tw:type-1 tw:shadow-none"
+          role="status"
+        >
+          <h3 className="tw:m-0 tw:mb-1 tw:text-app-text tw:type-2">还没有已配置的厂商</h3>
+          <p className="tw:m-0 tw:mb-3">
+            请先从供应商目录完成连接，这里只展示已配置账户的用量与成本。
+          </p>
+          <Link
+            className="usage-text-link tw:w-fit tw:text-app-accent-fg tw:type-1 tw:no-underline tw:hover:underline tw:focus-visible:rounded-3 tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+            to="/providers"
+          >
             前往供应商
           </Link>
         </div>
       ) : null}
 
       {!loading && noMatchingFilter ? (
-        <div className="usage-empty-state" role="status">
-          <h3>没有匹配的已配置来源</h3>
-          <p>当前深链筛选可能已失效，清除后可查看其他账户。</p>
+        <div
+          className="usage-empty-state tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-4 tw:text-app-text-soft tw:type-1 tw:shadow-none"
+          role="status"
+        >
+          <h3 className="tw:m-0 tw:mb-1 tw:text-app-text tw:type-2">没有匹配的已配置来源</h3>
+          <p className="tw:m-0 tw:mb-3">当前深链筛选可能已失效，清除后可查看其他账户。</p>
           <Button color="secondary" onClick={onClearFilter}>
             清除筛选
           </Button>
@@ -184,7 +202,7 @@ export function ProviderUsagePanel({
 
       {visibleAnalytics.length > 0 ? <UsageSummary totals={totals} /> : null}
 
-      <div className="provider-usage-list">
+      <div className="provider-usage-list tw:grid tw:gap-4">
         {visibleAnalytics.map((descriptor) => {
           const range = sourceRanges[descriptor.sourceId] ?? '7d'
           const isSourceLoading =
@@ -217,23 +235,34 @@ function UsageSummary({
   totals: ReturnType<typeof summarizeSources>
 }): React.ReactNode {
   return (
-    <dl className="usage-account-summary">
-      <div>
-        <dt>总 Token</dt>
-        <dd>{formatCompactCount(totals.tokens)}</dd>
+    <dl className="usage-account-summary tw:m-0 tw:grid tw:grid-cols-4 tw:gap-3 tw:@max-[1100px]:grid-cols-2 tw:@max-[900px]:grid-cols-1">
+      <div className="tw:grid tw:min-w-0 tw:gap-1 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3">
+        <dt className="tw:text-app-text-soft tw:type-1">总 Token</dt>
+        <dd className="tw:m-0 tw:text-app-text tw:type-4 tw:tabular-nums">
+          {formatCompactCount(totals.tokens)}
+        </dd>
       </div>
-      <div>
-        <dt>请求数</dt>
-        <dd>{formatCount(totals.requests)}</dd>
+      <div className="tw:grid tw:min-w-0 tw:gap-1 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3">
+        <dt className="tw:text-app-text-soft tw:type-1">请求数</dt>
+        <dd className="tw:m-0 tw:text-app-text tw:type-4 tw:tabular-nums">
+          {formatCount(totals.requests)}
+        </dd>
       </div>
-      <div>
-        <dt>有数据的来源</dt>
-        <dd>{formatCount(totals.sources)}</dd>
+      <div className="tw:grid tw:min-w-0 tw:gap-1 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3">
+        <dt className="tw:text-app-text-soft tw:type-1">有数据的来源</dt>
+        <dd className="tw:m-0 tw:text-app-text tw:type-4 tw:tabular-nums">
+          {formatCount(totals.sources)}
+        </dd>
       </div>
       {totals.costs.map((cost) => (
-        <div key={cost.currency}>
-          <dt>{cost.currency} 成本</dt>
-          <dd>{formatAmount(cost.currency, cost.amount)}</dd>
+        <div
+          className="tw:grid tw:min-w-0 tw:gap-1 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3"
+          key={cost.currency}
+        >
+          <dt className="tw:text-app-text-soft tw:type-1">{cost.currency} 成本</dt>
+          <dd className="tw:m-0 tw:text-app-text tw:type-4 tw:tabular-nums">
+            {formatAmount(cost.currency, cost.amount)}
+          </dd>
         </div>
       ))}
     </dl>
@@ -242,9 +271,12 @@ function UsageSummary({
 
 function ProviderUsageSkeleton(): React.ReactNode {
   return (
-    <SkeletonRegion className="usage-loading" label="正在查询账户用量与成本">
+    <SkeletonRegion className="usage-loading tw:grid tw:gap-3" label="正在查询账户用量与成本">
       {Array.from({ length: 3 }, (_, index) => (
-        <SkeletonBlock className="usage-loading-provider" key={index} />
+        <SkeletonBlock
+          className="usage-loading-provider tw:h-[180px] tw:w-full tw:rounded-4"
+          key={index}
+        />
       ))}
     </SkeletonRegion>
   )
@@ -275,32 +307,41 @@ function ProviderUsageCard({
   )
   return (
     <article
-      className="provider-usage-card"
+      className="provider-usage-card tw:grid tw:min-w-0 tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4 tw:shadow-none tw:data-[status=exhausted]:border-app-danger-border"
       data-status={status}
       data-stability={descriptor.stability}
     >
-      <header className="provider-usage-header">
+      <header className="provider-usage-header tw:flex tw:items-start tw:justify-between tw:gap-4 tw:@max-[900px]:flex-col tw:@max-[900px]:items-stretch">
         <div>
-          <div className="provider-usage-title">
-            <h3>
+          <div className="provider-usage-title tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+            <h3 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">
               <Link
+                className="tw:w-fit tw:text-inherit tw:no-underline tw:hover:underline tw:focus-visible:rounded-3 tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
                 title="前往账户连接"
                 to={`/providers?provider=${encodeURIComponent(providerId)}`}
               >
                 {descriptor.displayName}
               </Link>
             </h3>
-            <span className="usage-badge">{scopeLabel(descriptor.scope)}</span>
-            <span className="usage-badge" data-stability={descriptor.stability}>
+            <span className="usage-badge tw:inline-flex tw:min-h-[20px] tw:items-center tw:rounded-full tw:px-2 tw:py-1 tw:type-1">
+              {scopeLabel(descriptor.scope)}
+            </span>
+            <span
+              className="usage-badge tw:inline-flex tw:min-h-[20px] tw:items-center tw:rounded-full tw:px-2 tw:py-1 tw:type-1"
+              data-stability={descriptor.stability}
+            >
               {descriptor.stability === 'official' ? '官方接口' : '实验性'}
             </span>
-            <span className="usage-badge" data-status={status}>
+            <span
+              className="usage-badge tw:inline-flex tw:min-h-[20px] tw:items-center tw:rounded-full tw:px-2 tw:py-1 tw:type-1"
+              data-status={status}
+            >
               {usageStatusLabel(status)}
             </span>
           </div>
-          <p>
+          <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
             <Link
-              className="usage-text-link"
+              className="usage-text-link tw:w-fit tw:text-app-accent-fg tw:type-1 tw:no-underline tw:hover:underline tw:focus-visible:rounded-3 tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
               to={`/providers?provider=${encodeURIComponent(providerId)}`}
             >
               {providerName}
@@ -311,7 +352,7 @@ function ProviderUsageCard({
             {formatCheckedAt(source?.checkedAt)}
           </p>
         </div>
-        <div className="provider-usage-card-actions">
+        <div className="provider-usage-card-actions tw:flex tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
           {hasTimeSeries && onRangeChange ? (
             <SegmentedControl
               ariaLabel={`${descriptor.displayName} 时间范围`}
@@ -327,23 +368,29 @@ function ProviderUsageCard({
       </header>
 
       {descriptor.queryPolicy === 'metered' ? (
-        <div className="usage-cost-notice" role="note">
+        <div
+          className="usage-cost-notice tw:rounded-4 tw:bg-app-raised tw:p-4 tw:text-app-text-soft tw:type-1 tw:shadow-none"
+          role="note"
+        >
           Reporting API 为计费查询，价格以官方为准；Pidex 使用一小时缓存且不会后台轮询。
         </div>
       ) : null}
       {descriptor.stability === 'experimental' ? (
-        <div className="usage-experimental-note">
+        <div className="usage-experimental-note tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3 tw:text-app-text-soft tw:type-1 tw:shadow-none">
           实验性来源可能随官方客户端端点变化；失败只影响此卡片。
         </div>
       ) : null}
       {source?.error ? (
-        <div className="usage-source-error" role="status">
+        <div
+          className="usage-source-error tw:grid tw:gap-1 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-4 tw:text-app-danger tw:type-1 tw:shadow-none"
+          role="status"
+        >
           <strong>{source.error.message}</strong>
           <span>
             {source.error.retryable ? '可以稍后重试。' : errorCategoryLabel(source.error.category)}
           </span>
           <Link
-            className="usage-text-link"
+            className="usage-text-link tw:w-fit tw:text-app-accent-fg tw:type-1 tw:no-underline tw:hover:underline tw:focus-visible:rounded-3 tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
             to={`/providers?provider=${encodeURIComponent(providerId)}`}
           >
             修复账户连接
@@ -352,13 +399,13 @@ function ProviderUsageCard({
       ) : null}
 
       {source?.groups.length ? (
-        <div className="provider-usage-groups">
+        <div className="provider-usage-groups tw:grid tw:gap-3">
           {source.groups.map((group) => (
             <ProviderUsageGroupCard group={group} key={group.id} />
           ))}
         </div>
       ) : (
-        <p className="usage-chart-empty">
+        <p className="usage-chart-empty tw:m-0 tw:py-4 tw:text-center tw:text-app-text-soft tw:type-1">
           {loading ? '正在查询此来源。' : '当前时间范围没有可展示的历史用量。'}
         </p>
       )}
@@ -372,35 +419,50 @@ function ProviderUsageGroupCard({
   group: ProviderUsageSource['groups'][number]
 }): React.ReactNode {
   return (
-    <section className="provider-usage-group">
-      <h4>{group.label}</h4>
+    <section className="provider-usage-group tw:grid tw:gap-3 tw:border-t tw:border-t-app-border-subtle tw:pt-3">
+      <h4 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">{group.label}</h4>
       {group.balances && group.balances.length > 0 ? (
         <ProviderBalanceCards balances={group.balances} />
       ) : null}
       {group.quotaWindows && group.quotaWindows.length > 0 ? (
-        <div aria-label="额度与重置" className="provider-quotas" role="group">
+        <div
+          aria-label="额度与重置"
+          className="provider-quotas tw:grid tw:grid-cols-[repeat(auto-fit,minmax(240px,1fr))] tw:gap-3 tw:@max-[900px]:grid-cols-1"
+          role="group"
+        >
           {group.quotaWindows.map((quota) => {
             const percent = quotaRemainingPercent(quota)
             const resetText =
               quota.state === 'unlimited' ? '不重置' : formatResetTime(quota.resetsAt)
             return (
-              <div className="provider-quota-card" data-state={quota.state} key={quota.id}>
-                <div className="provider-quota-header">
-                  <span className="provider-quota-label">{quota.label}</span>
-                  <span className="provider-quota-reset" title="重置时间">
+              <div
+                className="provider-quota-card tw:group tw:grid tw:min-w-0 tw:gap-2 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3 tw:data-[state=exhausted]:border-app-danger-border"
+                data-state={quota.state}
+                key={quota.id}
+              >
+                <div className="provider-quota-header tw:flex tw:items-center tw:justify-between tw:gap-2">
+                  <span className="provider-quota-label tw:min-w-0 tw:truncate tw:text-app-text tw:type-2 tw:weight-medium">
+                    {quota.label}
+                  </span>
+                  <span
+                    className="provider-quota-reset tw:shrink-0 tw:whitespace-nowrap tw:text-app-text-meta tw:type-1 tw:tabular-nums"
+                    title="重置时间"
+                  >
                     {resetText}
                   </span>
                 </div>
-                <div className="provider-quota-progress">
-                  <div className="provider-quota-bar-track">
+                <div className="provider-quota-progress tw:min-w-0">
+                  <div className="provider-quota-bar-track tw:h-1 tw:w-full tw:overflow-hidden tw:rounded-full tw:bg-app-border-subtle">
                     <div
-                      className="provider-quota-bar-fill"
+                      className="provider-quota-bar-fill tw:h-full tw:rounded-full"
                       style={{ '--usage-ratio': percent / 100 } as React.CSSProperties}
                     />
                   </div>
                 </div>
-                <div className="provider-quota-meta">
-                  <span className="provider-quota-value">{formatQuotaValue(quota)}</span>
+                <div className="provider-quota-meta tw:flex tw:items-center tw:justify-between tw:gap-2">
+                  <span className="provider-quota-value tw:text-app-text-soft tw:type-1 tw:tabular-nums tw:group-data-[state=exhausted]:text-app-danger">
+                    {formatQuotaValue(quota)}
+                  </span>
                 </div>
               </div>
             )
@@ -408,41 +470,61 @@ function ProviderUsageGroupCard({
         </div>
       ) : null}
       {group.totals ? (
-        <dl className="provider-totals">
-          <div>
-            <dt>输入 Token</dt>
-            <dd>{formatCompactCount(group.totals.inputTokens)}</dd>
+        <dl className="provider-totals tw:m-0 tw:grid tw:grid-cols-3 tw:gap-3 tw:@max-[1100px]:grid-cols-2 tw:@max-[900px]:grid-cols-1">
+          <div className="tw:grid tw:min-w-0 tw:gap-1 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3">
+            <dt className="tw:text-app-text-soft tw:type-1">输入 Token</dt>
+            <dd className="tw:m-0 tw:text-app-text tw:type-2 tw:tabular-nums">
+              {formatCompactCount(group.totals.inputTokens)}
+            </dd>
           </div>
-          <div>
-            <dt>输出 Token</dt>
-            <dd>{formatCompactCount(group.totals.outputTokens)}</dd>
+          <div className="tw:grid tw:min-w-0 tw:gap-1 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3">
+            <dt className="tw:text-app-text-soft tw:type-1">输出 Token</dt>
+            <dd className="tw:m-0 tw:text-app-text tw:type-2 tw:tabular-nums">
+              {formatCompactCount(group.totals.outputTokens)}
+            </dd>
           </div>
-          <div>
-            <dt>缓存 Token</dt>
-            <dd>{formatCompactCount(group.totals.cachedTokens)}</dd>
+          <div className="tw:grid tw:min-w-0 tw:gap-1 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3">
+            <dt className="tw:text-app-text-soft tw:type-1">缓存 Token</dt>
+            <dd className="tw:m-0 tw:text-app-text tw:type-2 tw:tabular-nums">
+              {formatCompactCount(group.totals.cachedTokens)}
+            </dd>
           </div>
-          <div>
-            <dt>请求数</dt>
-            <dd>{formatCount(group.totals.requests)}</dd>
+          <div className="tw:grid tw:min-w-0 tw:gap-1 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3">
+            <dt className="tw:text-app-text-soft tw:type-1">请求数</dt>
+            <dd className="tw:m-0 tw:text-app-text tw:type-2 tw:tabular-nums">
+              {formatCount(group.totals.requests)}
+            </dd>
           </div>
           {group.totals.costs.map((cost) => (
-            <div key={cost.currency}>
-              <dt>{cost.currency} 成本</dt>
-              <dd>{formatAmount(cost.currency, cost.amount)}</dd>
+            <div
+              className="tw:grid tw:min-w-0 tw:gap-1 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3"
+              key={cost.currency}
+            >
+              <dt className="tw:text-app-text-soft tw:type-1">{cost.currency} 成本</dt>
+              <dd className="tw:m-0 tw:text-app-text tw:type-2 tw:tabular-nums">
+                {formatAmount(cost.currency, cost.amount)}
+              </dd>
             </div>
           ))}
         </dl>
       ) : null}
       {group.series && group.series.length > 0 ? <ProviderSeries points={group.series} /> : null}
       {group.breakdown && group.breakdown.length > 0 ? (
-        <ol className="provider-breakdown">
+        <ol className="provider-breakdown tw:m-0 tw:grid tw:w-full tw:list-none tw:gap-0 tw:p-0">
           {group.breakdown.map((item) => (
-            <li key={`${item.kind}/${item.id}`}>
-              <span>
-                <strong>{item.label}</strong>
-                <small>{item.kind === 'model' ? '模型' : '工具'}</small>
+            <li
+              className="tw:flex tw:items-center tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:py-2"
+              key={`${item.kind}/${item.id}`}
+            >
+              <span className="tw:mr-auto tw:grid tw:min-w-0">
+                <strong className="tw:truncate tw:text-app-text tw:type-1">{item.label}</strong>
+                <small className="tw:block tw:text-app-text-soft tw:type-1">
+                  {item.kind === 'model' ? '模型' : '工具'}
+                </small>
               </span>
-              <span>{formatBreakdownUsage(item)}</span>
+              <span className="tw:text-right tw:text-app-text-soft tw:type-1 tw:tabular-nums">
+                {formatBreakdownUsage(item)}
+              </span>
             </li>
           ))}
         </ol>
@@ -452,7 +534,9 @@ function ProviderUsageGroupCard({
       !group.breakdown?.length &&
       !group.quotaWindows?.length &&
       !group.balances?.length ? (
-        <p className="usage-chart-empty">当前时间范围没有返回数据。</p>
+        <p className="usage-chart-empty tw:m-0 tw:py-4 tw:text-center tw:text-app-text-soft tw:type-1">
+          当前时间范围没有返回数据。
+        </p>
       ) : null}
     </section>
   )
@@ -484,9 +568,10 @@ function ProviderSeries({
   const max = Math.max(1, ...values)
   const width = Math.max(240, points.length * 18)
   return (
-    <div className="provider-series">
+    <div className="provider-series tw:min-w-0 tw:overflow-x-auto">
       <svg
         aria-label="来源每日用量趋势"
+        className="tw:block tw:h-[64px] tw:w-full tw:min-w-[240px]"
         preserveAspectRatio="none"
         role="img"
         viewBox={`0 0 ${width} 64`}

@@ -11,10 +11,12 @@ export function CollapsibleContent({
   contentClassName,
   children,
   expanded,
+  variant = 'default',
   ...props
 }: React.ComponentProps<typeof Primitive.Content> & {
   expanded: boolean
   contentClassName?: string
+  variant?: 'default' | 'slide'
 }): React.ReactNode {
   const reducedMotion = usePrefersReducedMotion()
   return (
@@ -23,6 +25,7 @@ export function CollapsibleContent({
       aria-hidden={!expanded}
       inert={!expanded ? true : undefined}
       data-reduced-motion={reducedMotion ? 'true' : 'false'}
+      data-variant={variant}
       className={cx('ui-collapsible-content tw:min-w-0 tw:overflow-hidden', className)}
     >
       {/* Keep content spacing inside Radix's measured animation layer. */}

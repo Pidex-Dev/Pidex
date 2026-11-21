@@ -6,8 +6,6 @@ import { removeFixturePaths } from './FixtureCleanup'
 import { TOOLING_CATALOG, ToolingManager, type ToolingStatus } from '../src/tool/ToolingManager'
 
 const roots: string[] = []
-const originalGitBash = process.env.PIDEX_GIT_BASH_PATH
-const originalRipgrep = process.env.PIDEX_RIPGREP_PATH
 const originalNodejs = process.env.PIDEX_NODEJS_PATH
 const originalPython = process.env.PIDEX_PYTHON_PATH
 
@@ -18,8 +16,6 @@ const temporaryRoot = async () => {
 }
 
 afterEach(async () => {
-  process.env.PIDEX_GIT_BASH_PATH = originalGitBash
-  process.env.PIDEX_RIPGREP_PATH = originalRipgrep
   process.env.PIDEX_NODEJS_PATH = originalNodejs
   process.env.PIDEX_PYTHON_PATH = originalPython
   await removeFixturePaths(roots.splice(0))
@@ -27,8 +23,6 @@ afterEach(async () => {
 
 describe('ToolingManager', () => {
   test('catalog 固定版本、国内镜像优先、官方源兜底并保留归档摘要', () => {
-    expect(TOOLING_CATALOG['git-bash'].version).toBe('2.55.0.3')
-    expect(TOOLING_CATALOG.ripgrep.version).toBe('15.2.0')
     expect(TOOLING_CATALOG.nodejs).toMatchObject({
       version: '24.18.0',
       archiveSha256: '0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821',
@@ -47,24 +41,24 @@ describe('ToolingManager', () => {
 
   test('国内镜像失败后自动尝试官方源且仍校验同一摘要', async () => {
     const root = await temporaryRoot()
-    process.env.PIDEX_RIPGREP_PATH = join(root, 'missing-rg.exe')
+    process.env.PIDEX_NODEJS_PATH = join(root, 'missing-node.exe')
     const requested: string[] = []
     const manager = new ToolingManager({
       root,
       fetch: (async (input: string | URL | Request) => {
         const url = String(input)
         requested.push(url)
-        if (url === TOOLING_CATALOG.ripgrep.url) {
+        if (url === TOOLING_CATALOG.nodejs.url) {
           return new Response('official but invalid in unit test', { status: 200 })
         }
         return new Response(null, { status: 503 })
       }) as unknown as typeof fetch,
     })
 
-    await expect(manager.install('ripgrep', { force: true })).rejects.toThrow('SHA-256')
+    await expect(manager.install('nodejs', { force: true })).rejects.toThrow('SHA-256')
     expect(requested).toEqual([
-      ...(TOOLING_CATALOG.ripgrep.mirrors ?? []),
-      TOOLING_CATALOG.ripgrep.url,
+      ...(TOOLING_CATALOG.nodejs.mirrors ?? []),
+      TOOLING_CATALOG.nodejs.url,
     ])
   })
 
@@ -78,14 +72,12 @@ describe('ToolingManager', () => {
 
     const manager = new ToolingManager({ root })
     await expect(
-      (manager as any).extract(TOOLING_CATALOG.ripgrep, archive, destination),
+      (manager as any).extract(TOOLING_CATALOG.nodejs, archive, destination),
     ).resolves.toBeUndefined()
   })
 
   test('默认使用托管版并将独立来源偏好持久化到 tooling home', async () => {
     const root = await temporaryRoot()
-    process.env.PIDEX_GIT_BASH_PATH = join(root, 'missing-bash.exe')
-    process.env.PIDEX_RIPGREP_PATH = join(root, 'missing-rg.exe')
     process.env.PIDEX_NODEJS_PATH = join(root, 'missing-node.exe')
     process.env.PIDEX_PYTHON_PATH = join(root, 'missing-python.exe')
     const manager = new ToolingManager({ root })
@@ -94,26 +86,16 @@ describe('ToolingManager', () => {
     expect(initial.map((status) => [status.id, status.preference])).toEqual([
       ['nodejs', 'managed'],
       ['python', 'managed'],
-      ['git-bash', 'managed'],
-      ['ripgrep', 'managed'],
     ])
-    await Promise.all([
-      manager.setPreference('nodejs', 'system'),
-      manager.setPreference('python', 'system'),
-      manager.setPreference('git-bash', 'system'),
-    ])
+    await manager.setPreference('nodejs', 'system')
 
     const reloaded = new ToolingManager({ root })
     expect((await reloaded.getStatus('nodejs')).preference).toBe('system')
-    expect((await reloaded.getStatus('python')).preference).toBe('system')
-    expect((await reloaded.getStatus('git-bash')).preference).toBe('system')
-    expect((await reloaded.getStatus('ripgrep')).preference).toBe('managed')
+    expect((await reloaded.getStatus('python')).preference).toBe('managed')
     const saved = JSON.parse(await readFile(join(root, 'v2', 'settings.json'), 'utf8'))
     expect(saved.preferences).toEqual({
       nodejs: 'system',
-      python: 'system',
-      'git-bash': 'system',
-      ripgrep: 'managed',
+      python: 'managed',
     })
   })
 
@@ -149,10 +131,10 @@ describe('ToolingManager', () => {
     releaseProbe?.()
     const [refreshed, listed] = await Promise.all([startupRefresh, initialList])
 
-    expect(probeCount).toBe(4)
+    expect(probeCount).toBe(2)
     expect(listed).toEqual(refreshed)
     expect(await manager.listStatuses()).toEqual(refreshed)
-    expect(probeCount).toBe(4)
+    expect(probeCount).toBe(2)
 
     generation = 1
     probeGate = new Promise<void>((resolve) => {
@@ -164,7 +146,7 @@ describe('ToolingManager', () => {
     releaseProbe?.()
     const [firstResult, secondResult] = await Promise.all([firstManualRefresh, secondManualRefresh])
 
-    expect(probeCount).toBe(8)
+    expect(probeCount).toBe(4)
     expect(secondResult).toEqual(firstResult)
     expect(firstResult.every((status) => status.pinnedVersion === 'test-1')).toBe(true)
   })
@@ -195,7 +177,7 @@ describe('ToolingManager', () => {
     expect(await manager.listStatuses()).toEqual(cached)
   })
 
-  test('v1 偏好与旧统一依赖开关会迁移到四项 v2 设置', async () => {
+  test('v1 偏好与旧统一依赖开关会迁移到两项 v2 设置并忽略已移除条目', async () => {
     const root = await temporaryRoot()
     await mkdir(join(root, 'v1'), { recursive: true })
     await writeFile(
@@ -212,8 +194,6 @@ describe('ToolingManager', () => {
     expect(Object.fromEntries(statuses.map((status) => [status.id, status.preference]))).toEqual({
       nodejs: 'system',
       python: 'system',
-      'git-bash': 'system',
-      ripgrep: 'managed',
     })
   })
 
@@ -224,18 +204,15 @@ describe('ToolingManager', () => {
     expect(Object.fromEntries(statuses.map((status) => [status.id, status.preference]))).toEqual({
       nodejs: 'system',
       python: 'system',
-      'git-bash': 'managed',
-      ripgrep: 'managed',
     })
   })
 
-  test('四项偏好并发更新时按顺序原子持久化且互不覆盖', async () => {
+  test('偏好并发更新时按顺序原子持久化且互不覆盖', async () => {
     const root = await temporaryRoot()
     const manager = new ToolingManager({ root })
     await Promise.all([
       manager.setPreference('nodejs', 'system'),
       manager.setPreference('python', 'system'),
-      manager.setPreference('git-bash', 'system'),
     ])
 
     const reloaded = new ToolingManager({ root })
@@ -243,8 +220,6 @@ describe('ToolingManager', () => {
     expect(Object.fromEntries(statuses.map((status) => [status.id, status.preference]))).toEqual({
       nodejs: 'system',
       python: 'system',
-      'git-bash': 'system',
-      ripgrep: 'managed',
     })
   })
 
@@ -265,7 +240,7 @@ describe('ToolingManager', () => {
 
   test('并发安装共用下载且摘要失败不会留下 staging 半成品', async () => {
     const root = await temporaryRoot()
-    process.env.PIDEX_RIPGREP_PATH = join(root, 'missing-rg.exe')
+    process.env.PIDEX_NODEJS_PATH = join(root, 'missing-node.exe')
     let requests = 0
     const manager = new ToolingManager({
       root,
@@ -279,12 +254,96 @@ describe('ToolingManager', () => {
     })
 
     const results = await Promise.allSettled([
-      manager.install('ripgrep', { force: true }),
-      manager.install('ripgrep', { force: true }),
+      manager.install('nodejs', { force: true }),
+      manager.install('nodejs', { force: true }),
     ])
-    expect(requests).toBe((TOOLING_CATALOG.ripgrep.mirrors?.length ?? 0) + 1)
+    expect(requests).toBe((TOOLING_CATALOG.nodejs.mirrors?.length ?? 0) + 1)
     expect(results.every((result) => result.status === 'rejected')).toBe(true)
-    expect((await manager.getStatus('ripgrep')).error?.code).toBe('TOOLING_CHECKSUM_MISMATCH')
+    expect((await manager.getStatus('nodejs')).error?.code).toBe('TOOLING_CHECKSUM_MISMATCH')
     expect(await readdir(join(root, '.staging'))).toEqual([])
+  })
+
+  test('managed 偏好在托管版未安装时优先复用有效本机版并缓存命中，避免每次工具调用阻塞下载', async () => {
+    const root = await temporaryRoot()
+    const fakeSystemExe = join(root, 'fake-node.exe')
+    await writeFile(fakeSystemExe, 'stub')
+    process.env.PIDEX_NODEJS_PATH = fakeSystemExe
+
+    let fetchCalls = 0
+    let findSystemCalls = 0
+    const manager = new ToolingManager({
+      root,
+      fetch: (async () => {
+        fetchCalls += 1
+        throw new Error('unexpected download')
+      }) as unknown as typeof fetch,
+    })
+
+    const internal = manager as unknown as {
+      findManaged(id: ToolingStatus['id']): Promise<{
+        available: true
+        source: 'managed'
+        id: ToolingStatus['id']
+        path: string
+        version: string | null
+      } | null>
+      findSystem(id: ToolingStatus['id']): Promise<{
+        available: true
+        source: 'system'
+        id: ToolingStatus['id']
+        path: string
+        version: string | null
+      } | null>
+    }
+    internal.findManaged = async () => null
+    internal.findSystem = async (id) => {
+      findSystemCalls += 1
+      return {
+        available: true,
+        source: 'system',
+        id,
+        path: process.env.PIDEX_NODEJS_PATH ?? fakeSystemExe,
+        version: '24.18.0',
+      }
+    }
+
+    const first = await manager.resolve('nodejs')
+    const second = await manager.resolve('nodejs')
+    expect(first).toMatchObject({ available: true, source: 'system', path: fakeSystemExe })
+    expect(second).toEqual(first)
+    expect(fetchCalls).toBe(0)
+    expect(findSystemCalls).toBe(1)
+
+    const nextSystemExe = join(root, 'fake-node-v2.exe')
+    await writeFile(nextSystemExe, 'stub-v2')
+    process.env.PIDEX_NODEJS_PATH = nextSystemExe
+    const third = await manager.resolve('nodejs')
+    expect(third).toMatchObject({ available: true, source: 'system', path: nextSystemExe })
+    expect(findSystemCalls).toBe(2)
+  })
+
+  test('自动安装失败后进入冷却期不重复拉取网络，显式 install 或切换偏好会清除冷却与缓存', async () => {
+    const root = await temporaryRoot()
+    process.env.PIDEX_NODEJS_PATH = join(root, 'missing-node.exe')
+    let fetchCalls = 0
+    const manager = new ToolingManager({
+      root,
+      fetch: (async () => {
+        fetchCalls += 1
+        return new Response('unavailable', { status: 503 })
+      }) as unknown as typeof fetch,
+    })
+
+    const first = await manager.resolve('nodejs')
+    expect(first.available).toBe(false)
+    const callsAfterFirst = fetchCalls
+    expect(callsAfterFirst).toBeGreaterThan(0)
+
+    const second = await manager.resolve('nodejs')
+    expect(second.available).toBe(false)
+    expect(fetchCalls).toBe(callsAfterFirst)
+
+    await expect(manager.install('nodejs', { force: true })).rejects.toThrow()
+    expect(fetchCalls).toBeGreaterThan(callsAfterFirst)
   })
 })

@@ -2,7 +2,7 @@ import { Component, Fragment } from 'react'
 import type React from 'react'
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { Button } from '../../../components/ui/Button.js'
-import { Spinner } from '../../../components/ui/Spinner.js'
+import { FullScreenWhaleLoading } from '../../../components/ui/FullScreenWhaleLoading.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -51,19 +51,19 @@ function WorkbenchPanelStateSurface({
         <span
           aria-hidden="true"
           className={cx(
-            'workbench-panel-state__icon tw:grid tw:size-9 tw:place-items-center tw:rounded-full tw:bg-app-hover tw:[&>svg]:size-icon-lg',
+            'workbench-panel-state__icon tw:grid tw:size-7 tw:place-items-center tw:rounded-full tw:bg-app-hover tw:[&>svg]:size-icon-lg',
             tone === 'warning' ? 'tw:text-app-warning' : 'tw:text-app-text-meta',
           )}
         >
           {icon}
         </span>
       ) : null}
-      <strong className="tw:text-app-text tw:type-row-title">{title}</strong>
+      <strong className="tw:text-app-text tw:type-2 tw:weight-medium">{title}</strong>
       {description ? (
-        <span className="tw:max-w-full tw:wrap-anywhere tw:type-body-sm">{description}</span>
+        <span className="tw:max-w-full tw:wrap-anywhere tw:type-1">{description}</span>
       ) : null}
       {children ? (
-        <div className="workbench-panel-state__actions tw:mt-1 tw:flex tw:min-h-7 tw:items-center tw:justify-center tw:gap-2">
+        <div className="workbench-panel-state__actions tw:mt-1 tw:flex tw:min-h-6 tw:items-center tw:justify-center tw:gap-2">
           {children}
         </div>
       ) : null}
@@ -73,9 +73,9 @@ function WorkbenchPanelStateSurface({
 
 export function WorkbenchPanelLoading({ label }: { label: string }): React.ReactNode {
   return (
-    <WorkbenchPanelStateSurface title={label}>
-      <Spinner className="workbench-panel-state__spinner tw:text-app-text" />
-    </WorkbenchPanelStateSurface>
+    <div className="workbench-panel-loading tw:flex tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:flex-1 tw:self-stretch">
+      <FullScreenWhaleLoading label={label} showLabel={false} variant="contained" />
+    </div>
   )
 }
 
@@ -99,7 +99,13 @@ export function WorkbenchPanelUnavailable({
     <WorkbenchPanelStateSurface
       title={title}
       description={description}
-      icon={<AlertTriangle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+      icon={
+        <AlertTriangle
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      }
       tone="warning"
     />
   )
@@ -122,40 +128,26 @@ export function WorkbenchPanelError({
     <WorkbenchPanelStateSurface
       title={title}
       description={code ? `${message}（${code}）` : message}
-      icon={<AlertTriangle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+      icon={
+        <AlertTriangle
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      }
       role="alert"
       tone="warning"
     >
       {retryable && onRetry ? (
         <Button color="secondary" size="compact" onClick={onRetry}>
-          <RotateCcw size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <RotateCcw
+            className="tw:size-icon-sm"
+            size={APP_ICON_SIZES.sm}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
           重试
         </Button>
       ) : null}
-    </WorkbenchPanelStateSurface>
-  )
-}
-
-export function WorkbenchPanelTooLarge({
-  title,
-  description,
-}: Pick<StateSurfaceProps, 'title' | 'description'>): React.ReactNode {
-  return <WorkbenchPanelStateSurface title={title} description={description} />
-}
-
-export function WorkbenchPanelWarning({
-  title,
-  description,
-  children,
-}: Pick<StateSurfaceProps, 'title' | 'description' | 'children'>): React.ReactNode {
-  return (
-    <WorkbenchPanelStateSurface
-      title={title}
-      description={description}
-      icon={<AlertTriangle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
-      tone="warning"
-    >
-      {children}
     </WorkbenchPanelStateSurface>
   )
 }
@@ -180,10 +172,10 @@ export function WorkbenchPanelLauncher({
       aria-label="可用面板标签"
       className="right-panel-tabs-empty-state tw:flex tw:h-full tw:w-full tw:min-h-0 tw:flex-col tw:justify-center tw:overflow-x-hidden tw:overflow-y-auto tw:bg-app-dock tw:p-2 tw:select-none"
     >
-      <div className="right-panel-tabs-empty-state__actions tw:mx-auto tw:grid tw:w-full tw:max-w-144 tw:gap-1">
+      <div className="right-panel-tabs-empty-state__actions tw:mx-auto tw:grid tw:w-full tw:max-w-[36rem] tw:gap-1">
         {actions.map((action) => (
           <button
-            className="right-panel-tabs-empty-state__item tw:grid tw:min-h-10 tw:w-full tw:grid-cols-[var(--cpx-sys-space-6)_minmax(0,1fr)_auto] tw:items-center tw:gap-3 tw:rounded-md tw:border-0 tw:bg-transparent tw:py-2 tw:px-3 tw:text-left tw:text-app-text tw:transition-colors tw:duration-state tw:ease-standard tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:disabled:text-app-text-disabled"
+            className="right-panel-tabs-empty-state__item tw:grid tw:min-h-7 tw:w-full tw:grid-cols-[var(--cpx-sys-space-6)_minmax(0,1fr)_auto] tw:items-center tw:gap-3 tw:rounded-3 tw:border-0 tw:bg-transparent tw:py-2 tw:px-3 tw:text-left tw:text-app-text tw:transition-colors tw:duration-state tw:ease-standard tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:disabled:text-app-text-disabled"
             disabled={action.disabled}
             key={action.id}
             title={action.reason}
@@ -193,11 +185,11 @@ export function WorkbenchPanelLauncher({
             <span className="right-panel-tabs-empty-state__icon tw:inline-flex tw:items-center tw:justify-center tw:text-app-text-meta">
               {action.icon}
             </span>
-            <strong className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:type-row-title">
+            <strong className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:type-2 tw:weight-medium">
               {action.label}
             </strong>
             {action.shortcut ? (
-              <kbd className="tw:rounded-full tw:bg-app-selected tw:px-2 tw:py-1 tw:type-meta tw:text-app-text-meta tw:whitespace-nowrap">
+              <kbd className="tw:rounded-full tw:bg-app-selected tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta tw:whitespace-nowrap">
                 {action.shortcut}
               </kbd>
             ) : null}
@@ -216,22 +208,31 @@ type WorkbenchTabErrorBoundaryProps = {
 type WorkbenchTabErrorBoundaryState = {
   error: Error | null
   retryKey: number
+  tabId: WorkbenchTabId
 }
 
 export class WorkbenchTabErrorBoundary extends Component<
   WorkbenchTabErrorBoundaryProps,
   WorkbenchTabErrorBoundaryState
 > {
-  state: WorkbenchTabErrorBoundaryState = { error: null, retryKey: 0 }
+  state: WorkbenchTabErrorBoundaryState = {
+    error: null,
+    retryKey: 0,
+    tabId: this.props.tabId,
+  }
 
   static getDerivedStateFromError(error: Error): Partial<WorkbenchTabErrorBoundaryState> {
     return { error }
   }
 
-  componentDidUpdate(previous: WorkbenchTabErrorBoundaryProps): void {
-    if (previous.tabId !== this.props.tabId && this.state.error) {
-      this.setState({ error: null })
+  static getDerivedStateFromProps(
+    props: WorkbenchTabErrorBoundaryProps,
+    state: WorkbenchTabErrorBoundaryState,
+  ): Partial<WorkbenchTabErrorBoundaryState> | null {
+    if (props.tabId !== state.tabId) {
+      return { error: null, tabId: props.tabId }
     }
+    return null
   }
 
   render(): React.ReactNode {

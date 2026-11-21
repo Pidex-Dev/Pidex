@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach } from 'bun:test'
 import {
+  DEFAULT_DURATION_MS,
   createToastStore,
   calculateCardTransform,
   toastExpiryDelayMs,
@@ -102,7 +103,7 @@ describe('toastState & transform calculations', () => {
     })
   })
 
-  describe('createToastStore - 手动关闭规则与容量机制', () => {
+  describe('createToastStore - 自动消失规则与多条机制', () => {
     let store: ReturnType<typeof createToastStore>
 
     beforeEach(() => {
@@ -113,22 +114,60 @@ describe('toastState & transform calculations', () => {
       store._clearTimer()
     })
 
-    it('通知取消自动消失，等待用户手动逐条关闭', async () => {
-      store.show({ message: '常驻消息', duration: 40 })
-      expect(store.getState().toasts.length).toBe(1)
-
-      // 超过原先 40ms/50ms 倒计时，通知依然常驻，不自动消失
-      await new Promise((r) => setTimeout(r, 80))
-      expect(store.getState().toasts.length).toBe(1)
+    it('默认自动关闭倒计时为 5000ms', () => {
+      expect(DEFAULT_DURATION_MS).toBe(5000)
+      const defaultStore = createToastStore()
+      defaultStore.show({ message: '默认时长' })
+      expect(defaultStore.getState().toasts[0]?.duration).toBe(5000)
+      defaultStore._clearTimer()
     })
 
-    it('多条通知均常驻，不自动消失', async () => {
+    it('单条 Toast 会在倒计时后自动消失', async () => {
+      store.show({ message: '单个消息' })
+      expect(store.getState().toasts.length).toBe(1)
+
+      await new Promise((r) => setTimeout(r, 80))
+      expect(store.getState().toasts.length).toBe(0)
+    })
+
+    it('存活 Toast > 1 时，取消自动消失（保持常驻）', async () => {
       store.show({ message: '消息一', duration: 30 })
       store.show({ message: '消息二', duration: 30 })
       expect(store.getState().toasts.length).toBe(2)
 
-      await new Promise((r) => setTimeout(r, 80))
+      // 超过默认 50ms 持续等待
+      await new Promise((r) => setTimeout(r, 90))
+      // 仍然有 2 条，不会自动消失！
       expect(store.getState().toasts.length).toBe(2)
+    })
+
+    it('手动关闭至剩 1 条时，恢复最后 1 条的自动消失倒计时', async () => {
+      store.show({ message: '消息一' })
+      const id2 = store.show({ message: '消息二' })
+      expect(store.getState().toasts.length).toBe(2)
+
+      // 关掉其中 1 条
+      store.dismiss(id2)
+      expect(store.getState().toasts.length).toBe(1)
+
+      // 剩下的 1 条在 50ms 后自动消失
+      await new Promise((r) => setTimeout(r, 80))
+      expect(store.getState().toasts.length).toBe(0)
+    })
+
+    it('鼠标悬停时暂停自动消失倒计时，移开后恢复', async () => {
+      store.show({ message: '消息一' })
+      store.setHovered(true)
+
+      // 悬停中等待 70ms，不应消失
+      await new Promise((r) => setTimeout(r, 70))
+      expect(store.getState().toasts.length).toBe(1)
+
+      // 移开鼠标
+      store.setHovered(false)
+      // 移开后等待 70ms，自动消失
+      await new Promise((r) => setTimeout(r, 70))
+      expect(store.getState().toasts.length).toBe(0)
     })
 
     it('手动 dismiss 关闭单个 Toast 并触发 onDismiss', () => {

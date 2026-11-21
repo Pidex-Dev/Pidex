@@ -1561,8 +1561,8 @@ describe('RPC v4 Router', () => {
         providerId: 'google',
       })
       expect(result.error).toMatchObject({
-        message: '模型目录刷新失败，请检查提供商连接、凭据和模型接口后重试。',
-        data: { code: 'PROVIDER_UNAVAILABLE', retryable: true },
+        message: '模型目录刷新失败，请检查供应商配置和连接。',
+        data: { code: 'PROVIDER_UNAVAILABLE', retryable: false },
       })
       expect(JSON.stringify(result)).not.toContain('private')
     } finally {
@@ -1578,7 +1578,14 @@ describe('RPC v4 Router', () => {
             'CATALOG_REFRESH_FAILED',
             'private upstream failure',
             { cause: new Error('private credential') },
-            ['openai：凭据鉴权失败（HTTP 401）'],
+            [
+              {
+                providerId: 'openai',
+                code: 'PROVIDER_AUTH_FAILED',
+                retryable: false,
+                httpStatus: 401,
+              },
+            ],
           )
         },
       } as unknown as RpcRouterDependencies['providers'],
@@ -1590,8 +1597,12 @@ describe('RPC v4 Router', () => {
         providerId: 'openai',
       })
       expect(result.error).toMatchObject({
-        message: '模型目录刷新失败（1 个提供商）：openai：凭据鉴权失败（HTTP 401）。',
-        data: { code: 'PROVIDER_UNAVAILABLE', retryable: true },
+        message: '模型目录刷新失败',
+        data: {
+          code: 'PROVIDER_AUTH_FAILED',
+          retryable: false,
+          details: { providerId: 'openai', httpStatus: 401 },
+        },
       })
       expect(JSON.stringify(result)).not.toContain('private')
     } finally {
@@ -2241,6 +2252,58 @@ describe('RPC v4 Router', () => {
     expect(subscription?.streams.get('global')).toBe(retained.id)
     expect(subscription?.acknowledged.get('global')).toBe(retained.id)
     db.close()
+  })
+
+  test('hook/* 在未装配管理服务时返回 INTERNAL_ERROR，装配后转发并映射声明错误', async () => {
+    const unconfigured = await fixture()
+    await unconfigured.initialize()
+    expect((await unconfigured.call('hook/list', {})).error).toMatchObject({
+      data: { code: 'INTERNAL_ERROR' },
+    })
+    unconfigured.db.close()
+
+    const calls: string[] = []
+    const configured = await fixture({
+      hooksManagement: {
+        listSources: async () => {
+          calls.push('list')
+          return { groups: [], generation: 1, updatedAt: 1 }
+        },
+        setEnabled: async () => {
+          calls.push('setEnabled')
+          throw new AgentError('CONFLICT', '版本冲突', 409)
+        },
+        listRuns: async () => {
+          calls.push('runs')
+          return { runs: [], generation: 1 }
+        },
+      } as unknown as RpcRouterDependencies['hooksManagement'],
+    } as unknown as Partial<RpcRouterDependencies>)
+    await configured.initialize()
+    expect((await configured.call('hook/list', {})).result).toEqual({
+      groups: [],
+      generation: 1,
+      updatedAt: 1,
+    })
+    expect(
+      (
+        await configured.call('hook/setEnabled', {
+          identity: 'a'.repeat(64),
+          enabled: false,
+          operationId: 'op-1',
+        })
+      ).error,
+    ).toMatchObject({ data: { code: 'CONFLICT' }, message: '版本冲突' })
+    // The wire schema rejects incomplete params before the handler runs.
+    expect((await configured.call('hook/setEnabled', { enabled: false })).error).toMatchObject({
+      code: -32602,
+    })
+    expect((await configured.call('hook/runs/list', { limit: 5 })).result).toEqual({
+      runs: [],
+      generation: 1,
+    })
+    expect(calls).toEqual(['list', 'setEnabled', 'runs'])
+    configured.db.close()
   })
 
   test('recovers and idempotently resolves hook trust through the unified interaction methods', async () => {

@@ -24,6 +24,96 @@ export const SubagentRoleSchema = Schema.Literals([
 ])
 export type SubagentRole = typeof SubagentRoleSchema.Type
 
+const ROLE_DISPLAY_NAMES: Readonly<Record<Exclude<SubagentRole, 'general'>, string>> = {
+  frontend: 'Frontend',
+  backend: 'Backend',
+  devops: 'DevOps',
+  qa: 'QA',
+  designer: 'Designer',
+  data: 'Data',
+  docs: 'Docs',
+  product: 'Product',
+}
+
+const PROFILE_DISPLAY_NAMES: Readonly<Record<Exclude<SubagentProfile, 'main'>, string>> = {
+  default: 'General Purpose',
+  explorer: 'Explorer',
+  worker: 'Worker',
+}
+
+/**
+ * Derive a clean default agent name from `role` and `profile` when no explicit name was provided.
+ */
+export function resolveDefaultSubagentName(input: {
+  profile: Exclude<SubagentProfile, 'main'> | string
+  role?: SubagentRole | null | undefined
+  isFork?: boolean | undefined
+}): string {
+  if (input.role && input.role !== 'general') {
+    return ROLE_DISPLAY_NAMES[input.role]
+  }
+  if (input.isFork) {
+    return 'Context Fork'
+  }
+  if (input.profile === 'explorer' || input.profile === 'worker' || input.profile === 'default') {
+    return PROFILE_DISPLAY_NAMES[input.profile]
+  }
+  return 'General Purpose'
+}
+
+const LEGACY_GENERATED_NAME_PATTERN = /^(?:Explorer|Worker|Agent) \d+$/
+
+function summarizeFallbackTaskTitle(task: string | null | undefined): string {
+  const firstLine = (task ?? '')
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0)
+  if (!firstLine) return ''
+  return firstLine.length > 80 ? `${firstLine.slice(0, 77)}…` : firstLine
+}
+
+/**
+ * Resolve the agent's own name and short task title for UI and handback display,
+ * preserving clean separation for both new records (`title` set) and legacy records.
+ */
+export function resolveSubagentDisplayParts(input: {
+  displayName?: string | null | undefined
+  title?: string | null | undefined
+  profile: Exclude<SubagentProfile, 'main'> | string
+  role?: SubagentRole | null | undefined
+  task?: string | null | undefined
+  isFork?: boolean | undefined
+}): { agentName: string; taskTitle: string } {
+  const defaultName = resolveDefaultSubagentName({
+    profile: input.profile,
+    role: input.role,
+    isFork: input.isFork,
+  })
+  const explicitTitle = input.title?.trim() ?? ''
+  const rawDisplayName = input.displayName?.trim() ?? ''
+  if (explicitTitle) {
+    return {
+      agentName: rawDisplayName || defaultName,
+      taskTitle: explicitTitle,
+    }
+  }
+  // INVARIANT: Legacy rows stored the short task title in `displayName` with `title` unset.
+  if (
+    rawDisplayName &&
+    rawDisplayName !== defaultName &&
+    !LEGACY_GENERATED_NAME_PATTERN.test(rawDisplayName)
+  ) {
+    return {
+      agentName: defaultName,
+      taskTitle: rawDisplayName,
+    }
+  }
+  return {
+    agentName: rawDisplayName || defaultName,
+    taskTitle: summarizeFallbackTaskTitle(input.task) || rawDisplayName || defaultName,
+  }
+}
+
 export const SubagentWorkspaceSchema = Schema.Struct({
   mode: Schema.Literals(['shared', 'worktree']),
   state: Schema.Literals(['ready', 'preparing', 'conflict', 'applied', 'discarded']),
@@ -78,9 +168,18 @@ export const SubagentReferenceSchema = Schema.Struct({
 })
 export type SubagentReference = typeof SubagentReferenceSchema.Type
 
+export const SubagentStatsSchema = Schema.Struct({
+  durationMs: Schema.optional(Schema.Number),
+  toolUseCount: Schema.optional(Schema.Number),
+  totalTokens: Schema.optional(Schema.Number),
+})
+export type SubagentStats = typeof SubagentStatsSchema.Type
+
 export const SubagentResultSchema = Schema.Struct({
   outcome: Schema.Literals(['succeeded', 'partial', 'blocked']),
   summary: Schema.String,
+  reportText: Schema.optional(Schema.String),
+  stats: Schema.optional(SubagentStatsSchema),
   findings: Schema.Array(SubagentFindingSchema),
   changedFiles: Schema.Array(SubagentChangedFileSchema),
   validation: Schema.Array(SubagentValidationSchema),
@@ -128,9 +227,12 @@ export const SubagentTaskSchema = Schema.Struct({
   waitingForDescendants: Schema.optional(Schema.Boolean),
   queuedFollowups: Schema.optional(Schema.Number),
   displayName: Schema.String,
+  title: Schema.optional(Schema.NullOr(Schema.String)),
   profile: Schema.Literals(['default', 'explorer', 'worker']),
   /** 显式指派的展示职能；缺失表示没有显式角色。 */
   role: Schema.optional(SubagentRoleSchema),
+  /** 可选的命名记忆身份（1–64 位 ASCII，宿主统一小写）；缺失表示不使用命名记忆。 */
+  memoryKey: Schema.optional(Schema.String),
   task: Schema.String,
   permissionCeiling: PermissionConfigSchema,
   workspace: SubagentWorkspaceSchema,

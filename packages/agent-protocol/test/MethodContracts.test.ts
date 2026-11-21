@@ -6,7 +6,11 @@ import { defaultTaskSchedule } from '@pidex/shared/task-schedule'
 import { RpcMethods, type RpcMethod, type RpcParams, type RpcResult } from '../src/methods/index'
 import { AllRpcMethods } from '../src/methods/Host'
 import { Capabilities, ProtocolCapabilitySchema } from '../src/runtime/Capabilities'
-import { ModelHealthItemSchema, ModelHealthRunSchema } from '../src/methods/Extended'
+import {
+  ProviderModelDefinitionSchema,
+  ModelHealthItemSchema,
+  ModelHealthRunSchema,
+} from '../src/methods/Extended'
 import { EventManifest } from '../src/wire/Events'
 
 const providerId = Schema.decodeUnknownSync(Provider.ID)('provider:test')
@@ -20,8 +24,8 @@ const modelRef = {
 
 const permissionConfig = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 
 const threadSettings = {
@@ -135,12 +139,12 @@ const sandboxStatus = {
 } as const
 
 const toolingStatus = {
-  id: 'git-bash',
+  id: 'nodejs',
   preference: 'managed',
   phase: 'ready',
   activeSource: 'managed',
-  pinnedVersion: '2.55.0.3',
-  managed: { installed: true, version: '2.55.0.3' },
+  pinnedVersion: '24.18.0',
+  managed: { installed: true, version: '24.18.0' },
   system: { available: false, version: null, path: null },
 } as const
 
@@ -163,17 +167,30 @@ const localContextReference = {
   createdAt: 1,
 } as const
 
-const memoryEntry = {
-  id: 'memory:1',
-  scope: 'project',
-  projectId: project.id,
-  content: 'Use Bun for this project.',
-  sourceThreadId: threadListItem.id,
-  createdAt: 1,
+const memoryNamespace = { kind: 'project', projectId: project.id } as const
+
+const memoryFile = {
+  path: 'stack.md',
+  name: 'stack',
+  description: 'Use Bun for this project.',
+  type: 'project',
+  revision: 'a'.repeat(64),
+  size: 128,
   updatedAt: 1,
+  indexed: true,
+  source: { threadId: threadListItem.id, turnId: null, updatedAt: 1 },
+  diagnostics: [],
 } as const
 
+const memoryIndexContent = ['# 索引', '', '- [stack](stack.md)'].join(String.fromCharCode(10))
+const memoryBodyContent = ['---', 'name: stack', '---', '', 'Use Bun.'].join(
+  String.fromCharCode(10),
+)
+
 const promptPreview = {
+  previewKind: 'frozen',
+  turnId: 'turn-fixture',
+  compositionId: 'rc:turn-fixture',
   instructions: 'Fixture instructions',
   contextItems: [],
   diagnostics: [],
@@ -919,6 +936,21 @@ function taskScheduleFixtures() {
   }
 }
 const fixtures = {
+  'model/document/extract': methodFixture(
+    'model/document/extract',
+    { operationId: 'document-1', url: 'https://example.com/models', modelId: 'example' },
+    { candidates: [] },
+  ),
+  'model/document/cancel': methodFixture(
+    'model/document/cancel',
+    { operationId: 'document-1' },
+    { cancelled: true },
+  ),
+  'model/pricing/refresh': methodFixture(
+    'model/pricing/refresh',
+    { operationId: 'pricing-1' },
+    { calendarYear: 2026, calendarAvailable: false },
+  ),
   'model/recommendation/preview': {
     params: { providerId: 'relay', modelId: 'example', modelType: 'chat' },
     result: { status: 'matched', recommended: { contextWindow: 128000 }, updatedAt: 1 },
@@ -926,6 +958,41 @@ const fixtures = {
   'model/recommendation/refresh': {
     params: { operationId: 'recommendations:1' },
     result: { updatedAt: 1 },
+  },
+  'provider/model/specs/preview': {
+    params: { providerId: providerId },
+    result: {
+      providerId,
+      configVersion: 'version-1',
+      catalogUpdatedAt: 1,
+      items: [
+        {
+          modelId,
+          name: 'Example',
+          match: { status: 'official', identity: modelId, updatedAt: 1 },
+          fields: [
+            {
+              field: 'contextWindow',
+              current: 32_768,
+              suggested: 128_000,
+              pinned: false,
+              noRepair: false,
+              defaultSelected: true,
+            },
+          ],
+        },
+      ],
+    },
+  },
+  'provider/model/specs/apply': {
+    params: {
+      providerId,
+      expectedConfigVersion: 'version-1',
+      expectedCatalogUpdatedAt: 1,
+      selections: [{ modelId, fields: ['contextWindow', 'maxTokens'] }],
+      operationId: 'operation:specs',
+    },
+    result: { providerId, updatedModels: 1, updatedFields: 2 },
   },
   'model/embed': methodFixture(
     'model/embed',
@@ -1083,16 +1150,6 @@ const fixtures = {
         version: '4',
       },
     },
-  ),
-  'approval/reviewState': methodFixture(
-    'approval/reviewState',
-    { threadId: 'thread:1' },
-    { manualAllows: 3, denials: [], reviews: [] },
-  ),
-  'approval/retry': methodFixture(
-    'approval/retry',
-    { threadId: 'thread:1', reviewId: 'review:1', operationId: 'operation:1' },
-    { input: '重试这个操作' },
   ),
   'browser/history/list': methodFixture(
     'browser/history/list',
@@ -2474,7 +2531,7 @@ const fixtures = {
   'tooling/setPreference': methodFixture(
     'tooling/setPreference',
     {
-      id: 'git-bash',
+      id: 'nodejs',
       preference: 'managed',
       operationId: 'operation:tooling-preference',
     },
@@ -2483,7 +2540,7 @@ const fixtures = {
   'tooling/install': methodFixture(
     'tooling/install',
     {
-      id: 'git-bash',
+      id: 'nodejs',
       force: false,
       operationId: 'operation:tooling-install',
     },
@@ -2638,6 +2695,63 @@ const fixtures = {
       },
       generation: 2,
       updatedAt: 2,
+    },
+  ),
+  'hook/list': methodFixture(
+    'hook/list',
+    { cwd: 'C:\\workspace' },
+    {
+      groups: [
+        {
+          id: 'config:user',
+          kind: 'config',
+          scope: 'user',
+          displayName: '用户配置',
+          scopeLabel: '所有项目',
+          hooks: [
+            {
+              identity: 'a'.repeat(64),
+              id: 'audit-shell',
+              event: 'pre_tool_use',
+              command: 'node hook.js',
+              matcher: 'Shell',
+              timeoutMs: 10_000,
+              filePath: 'C:\\Users\\fixture\\.pidex\\hooks.json',
+              enabled: true,
+            },
+          ],
+          diagnostics: [],
+        },
+      ],
+      generation: 1,
+      updatedAt: 1,
+    },
+  ),
+  'hook/setEnabled': methodFixture(
+    'hook/setEnabled',
+    {
+      identity: 'a'.repeat(64),
+      enabled: false,
+      operationId: 'op-1',
+    },
+    { identity: 'a'.repeat(64), enabled: false, generation: 2, updatedAt: 2 },
+  ),
+  'hook/runs/list': methodFixture(
+    'hook/runs/list',
+    { cwd: 'C:\\workspace', hookId: 'audit-shell', limit: 20 },
+    {
+      runs: [
+        {
+          id: 'run:1',
+          hookId: 'audit-shell',
+          event: 'pre_tool_use',
+          status: 'completed',
+          startedAt: 10,
+          finishedAt: 12,
+          durationMs: 2,
+        },
+      ],
+      generation: 1,
     },
   ),
   'minimaxCli/status': methodFixture(
@@ -3031,53 +3145,108 @@ const fixtures = {
   ),
   'memory/list': methodFixture(
     'memory/list',
+    { namespace: memoryNamespace, cursor: 'cursor:1', limit: 20 },
     {
-      scope: 'project',
-      projectId: project.id,
-      cursor: 'cursor:1',
-      limit: 20,
+      namespace: memoryNamespace,
+      files: [memoryFile],
+      index: { content: memoryIndexContent, revision: 'b'.repeat(64), exists: true },
+      diagnostics: [],
+      nextCursor: null,
     },
-    { entries: [memoryEntry], nextCursor: null },
   ),
   'memory/read': methodFixture(
     'memory/read',
+    { namespace: memoryNamespace, path: memoryFile.path, offset: 0 },
     {
-      scope: 'project',
-      projectId: project.id,
-      id: memoryEntry.id,
+      namespace: memoryNamespace,
+      file: { ...memoryFile, content: memoryBodyContent },
+      nextOffset: null,
+      truncated: false,
     },
-    { entry: memoryEntry },
   ),
   'memory/save': methodFixture(
     'memory/save',
     {
-      scope: 'project',
-      projectId: project.id,
-      id: memoryEntry.id,
-      content: memoryEntry.content,
+      namespace: memoryNamespace,
+      path: memoryFile.path,
+      content: memoryBodyContent,
+      expectedRevision: memoryFile.revision,
       operationId: 'operation:memory-save',
     },
-    { entry: memoryEntry },
+    {
+      namespace: memoryNamespace,
+      path: memoryFile.path,
+      revision: 'c'.repeat(64),
+      created: false,
+    },
   ),
   'memory/delete': methodFixture(
     'memory/delete',
     {
-      scope: 'project',
-      projectId: project.id,
-      id: memoryEntry.id,
+      namespace: memoryNamespace,
+      path: memoryFile.path,
+      expectedRevision: memoryFile.revision,
       operationId: 'operation:memory-delete',
     },
-    { deleted: true, id: memoryEntry.id },
+    { namespace: memoryNamespace, path: memoryFile.path, deleted: true },
   ),
   'memory/reset': methodFixture(
     'memory/reset',
-    {
-      scope: 'project',
-      projectId: project.id,
-      includeEventLog: true,
-      operationId: 'operation:memory-reset',
-    },
+    { namespace: memoryNamespace, operationId: 'operation:memory-reset' },
     { deleted: 1 },
+  ),
+  'memory/organize': methodFixture(
+    'memory/organize',
+    { namespace: memoryNamespace, operationId: 'operation:memory-organize' },
+    { taskId: 'task:memory-organize', queued: true },
+  ),
+  'memory/tasks': methodFixture(
+    'memory/tasks',
+    { namespace: memoryNamespace, limit: 20 },
+    {
+      tasks: [
+        {
+          id: 'task:memory-organize',
+          namespace: memoryNamespace,
+          kind: 'organize',
+          status: 'queued',
+          trigger: 'manual',
+          threadId: null,
+          turnId: null,
+          error: null,
+          createdAt: 1,
+          startedAt: null,
+          finishedAt: null,
+        },
+      ],
+      autoOrganize: true,
+    },
+  ),
+  'memory/usage': methodFixture(
+    'memory/usage',
+    { namespace: memoryNamespace, cursor: 'cursor:1', limit: 20 },
+    {
+      records: [
+        {
+          id: 'usage:1',
+          namespace: memoryNamespace,
+          kind: 'index',
+          threadId: threadListItem.id,
+          turnId: null,
+          path: 'MEMORY.md',
+          revision: 'b'.repeat(64),
+          truncated: false,
+          bytes: 64,
+          createdAt: 1,
+        },
+      ],
+      nextCursor: null,
+    },
+  ),
+  'memory/settings': methodFixture(
+    'memory/settings',
+    { namespace: memoryNamespace, autoOrganize: true, operationId: 'operation:memory-settings' },
+    { autoOrganize: true, directory: 'C:/data/memories/projects/p1', namedAgents: ['reviewer'] },
   ),
   'task-suggestion/generate': methodFixture(
     'task-suggestion/generate',
@@ -3149,6 +3318,14 @@ const fixtures = {
         },
       ],
     },
+  ),
+  'composer-prediction/generate': methodFixture(
+    'composer-prediction/generate',
+    {
+      threadId: threadListItem.id,
+      turnId: 'turn:1',
+    },
+    { prediction: '继续实现输入预测的灰字提示' },
   ),
   'subagent/list': methodFixture(
     'subagent/list',
@@ -6197,6 +6374,271 @@ const fixtures = {
       freedRssBytes: 15_000_000,
     },
   ),
+  'app/list': methodFixture(
+    'app/list',
+    { workspace: 'F:/CodeProject/CodePilotX' },
+    {
+      apps: [
+        {
+          id: 'pets',
+          name: 'Pets',
+          description: 'Manage desktop companion pets.',
+          developerName: 'Pidex',
+          source: 'builtin',
+          enabled: true,
+          canUninstall: false,
+          tools: [{ name: 'pets_list', description: 'List installed pets.', mode: 'read' }],
+        },
+      ],
+      generation: 1,
+      updatedAt: 1700000000000,
+    },
+  ),
+  'app/setEnabled': methodFixture(
+    'app/setEnabled',
+    { appId: 'pets', enabled: false, operationId: 'op-app-1' },
+    {
+      app: {
+        id: 'pets',
+        name: 'Pets',
+        description: 'Manage desktop companion pets.',
+        developerName: 'Pidex',
+        source: 'builtin',
+        enabled: false,
+        canUninstall: false,
+        tools: [{ name: 'pets_list', description: 'List installed pets.', mode: 'read' }],
+      },
+      generation: 2,
+      updatedAt: 1700000000001,
+    },
+  ),
+  'storage/summary': methodFixture(
+    'storage/summary',
+    {},
+    {
+      dataDir: '/tmp/.pidex',
+      defaultWorktreeRoot: '/tmp/.pidex/managed-worktrees',
+      configuredWorktreeRoot: null,
+      breakdown: {
+        chatBytes: 1024,
+        worktreeBytes: 2048,
+        artifactsBytes: 512,
+        otherBytes: 256,
+      },
+      chatDetails: {
+        messagesBytes: 768,
+        attachmentsBytes: 128,
+        archivedBytes: 256,
+        sqliteOverheadBytes: 256,
+      },
+      folders: {
+        dataDirBytes: 3840,
+        customWorktreeRootBytes: null,
+      },
+      computedAt: 1700000000001,
+    },
+  ),
+  'storage/oldChats/list': methodFixture(
+    'storage/oldChats/list',
+    {
+      olderThanDays: 90,
+      scope: 'archived',
+      limit: 20,
+      offset: 0,
+    },
+    {
+      items: [
+        {
+          threadId: 'thread-1',
+          title: '旧对话',
+          updatedAt: 1700000000000,
+          archivedAt: 1700000000001,
+          estimatedBytes: 4096,
+          subagentCount: 1,
+          subagentBytes: 1024,
+        },
+      ],
+      totalCount: 1,
+      totalSubagentCount: 1,
+      hasMore: false,
+    },
+  ),
+  'storage/oldChats/delete': methodFixture(
+    'storage/oldChats/delete',
+    {
+      threadIds: ['thread-1'],
+    },
+    {
+      deletedIds: ['thread-1'],
+      failed: [],
+      reclaimedBytes: 4096,
+      vacuumed: true,
+    },
+  ),
+  'storage/resources/list': methodFixture(
+    'storage/resources/list',
+    {},
+    {
+      items: [
+        {
+          id: 'speech:sensevoice',
+          name: 'SenseVoice 本地语音模型',
+          category: 'speech',
+          description: '本地离线语音转写模型与运行时',
+          path: '/tmp/.pidex/speech/sensevoice-llamacpp',
+          sizeBytes: 2048,
+        },
+      ],
+    },
+  ),
+  'storage/resources/delete': methodFixture(
+    'storage/resources/delete',
+    {
+      resourceId: 'speech:sensevoice',
+    },
+    {
+      resourceId: 'speech:sensevoice',
+      reclaimedBytes: 2048,
+    },
+  ),
+  'decision/getConfig': methodFixture(
+    'decision/getConfig',
+    { cwd: 'F:\\workspace\\project' },
+    {
+      config: {
+        tiers: ['fast', 'deep'],
+        judges: {
+          fast: { type: 'classifier', model: 'typesafe-system-one' },
+          deep: { type: 'openai', model: 'gpt-6-luna', credentialId: 'credential:1' },
+        },
+        modes: { 'tool.risk': 'shadow' },
+        routes: { 'tool.approval': ['fast', 'deep'] },
+        features: {},
+        recordState: false,
+      },
+      manifest: [
+        {
+          id: 'tool.risk',
+          group: 'safety',
+          title: 'Tool risk',
+          titleZh: '工具风险',
+          summary: 'Judge whether a risky command was explicitly requested.',
+          summaryZh: '判断风险命令是否由用户明确请求。',
+          defaultMode: 'shadow',
+          feature: 'tool.risk',
+        },
+      ],
+      effectiveProviders: [
+        {
+          name: 'fast',
+          type: 'classifier',
+          providerId: 'classifier',
+          modelId: 'typesafe-system-one',
+        },
+        {
+          name: 'deep',
+          type: 'openai',
+          providerId: 'openai',
+          modelId: 'gpt-6-luna',
+          apiKeyMasked: '••••1234',
+        },
+      ],
+    },
+  ),
+  'decision/updateConfig': methodFixture(
+    'decision/updateConfig',
+    {
+      scope: 'user',
+      patch: [{ keyPath: ['modes', 'tool.risk'], value: 'active' }],
+      operationId: 'operation:decision-update-config',
+    },
+    {
+      config: {
+        tiers: [],
+        judges: {},
+        modes: { 'tool.risk': 'active' },
+        routes: {},
+        features: {},
+        recordState: false,
+      },
+      version: 'a'.repeat(64),
+    },
+  ),
+  'decision/setJudgeApiKey': methodFixture(
+    'decision/setJudgeApiKey',
+    {
+      judgeName: 'deep',
+      apiKey: 'sk-decision-fixture',
+      operationId: 'operation:decision-set-judge-api-key',
+    },
+    {
+      judgeName: 'deep',
+      credentialId: 'credential:1',
+      apiKeyMasked: '••••ture',
+    },
+  ),
+  'decision/probe': methodFixture(
+    'decision/probe',
+    { judgeName: 'fast' },
+    { ok: true, providerId: 'classifier', modelId: 'typesafe-system-one', latencyMs: 120 },
+  ),
+  'decision/listLedger': methodFixture(
+    'decision/listLedger',
+    { threadId: 'thread:1', limit: 20 },
+    {
+      records: [
+        {
+          id: 'decision:1',
+          threadId: 'thread:1',
+          specId: 'tool.risk',
+          specVersion: 1,
+          mode: 'shadow',
+          providerId: 'classifier',
+          outcome: 'confirm',
+          source: 'fallback',
+          reason: 'shadow',
+          judged: 'allow',
+          answers: { requested: { type: 'boolean', probability: 0.92 } },
+          latencyMs: 80,
+          usage: { inputTokens: 120, outputTokens: 8 },
+          stateDigest: 'b'.repeat(64),
+          createdAt: 1,
+        },
+      ],
+      outcomes: [
+        {
+          id: 'decision-outcome:1',
+          ledgerId: 'decision:1',
+          threadId: 'thread:1',
+          kind: 'mark',
+          verdict: 'correct',
+          createdAt: 2,
+        },
+      ],
+      nextCursor: 'decision:0',
+    },
+  ),
+  'decision/markOutcome': methodFixture(
+    'decision/markOutcome',
+    {
+      ledgerId: 'decision:1',
+      threadId: 'thread:1',
+      verdict: 'wrong',
+      note: '命令并非用户请求',
+      operationId: 'operation:decision-mark-outcome',
+    },
+    {
+      outcome: {
+        id: 'decision-outcome:2',
+        ledgerId: 'decision:1',
+        threadId: 'thread:1',
+        kind: 'mark',
+        verdict: 'wrong',
+        note: '命令并非用户请求',
+        createdAt: 3,
+      },
+    },
+  ),
 } satisfies MethodFixtures
 
 describe('RPC method schema contracts', () => {
@@ -6319,7 +6761,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(351)
+    expect(methods).toHaveLength(375)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -6687,7 +7129,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(330)
+    expect(Object.keys(RpcMethods)).toHaveLength(354)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })
@@ -6851,30 +7293,44 @@ describe('RPC method schema contracts', () => {
     })
   })
 
-  test('requires authorized projectId instead of internal projectKey for project memory', () => {
+  test('memory RPC uses an explicit namespace and relative path, never projectKey', () => {
     for (const method of [
       'memory/list',
       'memory/read',
       'memory/save',
       'memory/delete',
       'memory/reset',
+      'memory/organize',
+      'memory/tasks',
+      'memory/usage',
+      'memory/settings',
     ] as const) {
-      const invalid: Record<string, unknown> = {
-        ...(fixtures[method].params as Record<string, unknown>),
-        projectKey: 'F:\\private-workspace',
+      const params = fixtures[method].params as Record<string, unknown>
+      expect(params, method).not.toHaveProperty('projectKey')
+      expect(params, method).not.toHaveProperty('workspacePath')
+      if (params.namespace !== undefined) {
+        const namespace = params.namespace as Record<string, unknown>
+        expect(namespace, method).not.toHaveProperty('projectKey')
+        // A workspace path is never a valid memory identity.
+        expect(
+          () =>
+            Schema.decodeUnknownSync(RpcMethods[method].params)({
+              ...params,
+              namespace: { kind: 'project', projectId: 'F:/private-workspace' },
+            }),
+          `${method} namespace`,
+        ).toThrow()
       }
-      delete invalid.projectId
-      expect(() => Schema.decodeUnknownSync(RpcMethods[method].params)(invalid), method).toThrow()
     }
 
-    for (const method of ['memory/list', 'memory/read', 'memory/save'] as const) {
+    for (const method of ['memory/list', 'memory/read'] as const) {
       const result = structuredClone(fixtures[method].result) as Record<string, unknown>
       const entry =
         method === 'memory/list'
-          ? (result.entries as Array<Record<string, unknown>>)[0]
-          : (result.entry as Record<string, unknown>)
+          ? (result.files as Array<Record<string, unknown>>)[0]
+          : (result.file as Record<string, unknown>)
       if (entry === undefined) throw new Error(`Missing ${method} fixture entry`)
-      entry.projectKey = 'F:\\private-workspace'
+      entry.projectKey = 'F:/private-workspace'
       expect(
         () =>
           Schema.decodeUnknownSync(RpcMethods[method].result, { onExcessProperty: 'error' })(
@@ -7295,4 +7751,22 @@ test('消息阶段为可选字段，未知阶段降级且事件按独立能力�
   expect(
     Schema.decodeUnknownSync(event.payload)({ item: { ...item, phase: 'final_answer' } }).item.id,
   ).toBe('text')
+})
+
+test('模型规格与推荐契约允许 1.5 亿上下文，拒绝不安全整数', () => {
+  expect(
+    Schema.decodeUnknownSync(ProviderModelDefinitionSchema)({
+      id: modelId,
+      api: 'google-generative-ai',
+      contextWindow: 150_000_000,
+      maxInputTokens: 150_000_000,
+      maxTokens: 32768,
+    }).contextWindow,
+  ).toBe(150_000_000)
+  expect(
+    Schema.decodeUnknownSync(Model.Recommendation)({ contextWindow: 150_000_000 }).contextWindow,
+  ).toBe(150_000_000)
+  expect(() =>
+    Schema.decodeUnknownSync(Model.Recommendation)({ contextWindow: Number.MAX_SAFE_INTEGER + 1 }),
+  ).toThrow()
 })

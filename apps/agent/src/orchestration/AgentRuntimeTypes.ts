@@ -8,6 +8,7 @@ import type {
   PermissionConfig,
   SubagentProfile,
   SubagentResult,
+  SubagentStats,
   TaskMode,
 } from '../Domain'
 import type { WorkspaceService } from '../workspace/WorkspaceService'
@@ -61,6 +62,19 @@ export interface PendingApproval {
   toolCallID?: string
 }
 
+export interface SubagentForkSnapshot {
+  bundle: PromptBundle
+  exposurePlan: {
+    eager: readonly string[]
+    deferred: readonly string[]
+    exposed: readonly string[]
+  }
+  /** Serialized Pi session entries (parent path) copied into child session. */
+  entries?: unknown[]
+  /** Identical placeholder tool-result messages appended after parent assistant toolCalls. */
+  placeholderMessages?: unknown[]
+}
+
 export interface DelegationController {
   spawn(
     input: {
@@ -69,8 +83,11 @@ export interface DelegationController {
         profile: 'default' | 'explorer' | 'worker'
         task: string
         role?: SubagentRole
+        memoryKey?: string
         workspaceMode?: 'shared' | 'worktree'
         model?: ModelRef
+        fork?: SubagentForkSnapshot
+        background?: boolean
       }>
     },
     policy?: { permissionConfig: PermissionConfig; allowedTools?: readonly string[] },
@@ -128,6 +145,10 @@ export interface AgentRuntimeRequest {
   defaultCwd?: string
   maxContextTokens?: number | null
   resume?: PlanCheckpoint
+  /** True when this turn runs inside an implicit conversation fork child. */
+  isForkChild?: boolean
+  /** Pre-frozen parent bundle and tool exposure reused by an implicit fork child for prompt-cache parity. */
+  forkContext?: Omit<SubagentForkSnapshot, 'entries'>
   /** Durable gate acquired before starting a fresh runtime (for example Hook trust). */
   startupGateLeaseID?: string
   defaultModeRequestUserInput?: boolean
@@ -164,7 +185,7 @@ export interface AgentRuntimeRequest {
 }
 
 export type AgentRuntimeResult =
-  | { status: 'completed'; output: string; result?: SubagentResult }
+  | { status: 'completed'; output: string; result?: SubagentResult; stats?: SubagentStats }
   | { status: 'paused'; output: string }
 
 export interface AgentRuntime {

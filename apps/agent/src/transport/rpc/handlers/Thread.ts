@@ -187,6 +187,9 @@ export const threadHandlers = {
             ...(typeof params.title === 'string' ? { title: params.title } : {}),
             ...(settings ? { settings } : {}),
             workspace,
+            ...(typeof params.threadId === 'string' && params.threadId
+              ? { threadID: params.threadId }
+              : {}),
             operationID: stringParam(params, 'operationId'),
             ...(typeof params.workflowId === 'string'
               ? { sessionGroupID: params.workflowId }
@@ -363,6 +366,7 @@ export const threadHandlers = {
       case 'turn/start': {
         const start = decodeParams(decodeTurnStart, rawParams, 'turn/start')
         const threadId = start.threadId
+        threads.noteIncomingMessage?.(threadId, start.content)
         const submitted = await threads.startTurn(
           threadId,
           submitMessage(start),
@@ -446,6 +450,7 @@ export const threadHandlers = {
       }
       case 'queue/add': {
         const request = decodeParams(decodeQueueAdd, rawParams, 'queue/add')
+        threads.noteIncomingMessage?.(request.threadId, request.content)
         const submitted = await threads.enqueueFollowUp(
           request.threadId,
           {

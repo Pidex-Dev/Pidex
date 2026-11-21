@@ -12,7 +12,7 @@ import { Input } from '../../../components/ui/Input.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
-import { fullErrorMessage } from '../../../utils/Errors.js'
+import { toUserErrorMessage } from '../../../utils/Errors.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { headersToText, parseHeaders } from './ProviderEditorForm.js'
 import {
@@ -21,6 +21,7 @@ import {
   type DetectionResultLike,
 } from './ProtocolDetectionApply.js'
 import { DEEPSEEK_PROTOCOL_OPTIONS } from './DeepseekProtocol.js'
+import { ProviderPanelActionButton } from './ProviderPanelActionButton.js'
 
 type RequestDraftModel = {
   id: string
@@ -117,7 +118,11 @@ function requestDraft(provider: DesktopModelProviderSummary) {
 
 export function ProviderRequestSettingsForm({
   footerHost,
+  nameHost,
   provider,
+  isDraft = false,
+  draftApiKey,
+  primaryAction,
   saveRef,
   resetRef,
   onDraftChange,
@@ -127,8 +132,17 @@ export function ProviderRequestSettingsForm({
   onCancel,
   onDelete,
 }: {
+  nameHost?: HTMLElement | null
   footerHost?: HTMLElement | null
   provider: DesktopModelProviderSummary
+  isDraft?: boolean
+  draftApiKey?: string
+  primaryAction?: {
+    label: string
+    loading?: boolean
+    disabled?: boolean
+    onClick: () => void
+  }
   saveRef: RefObject<(() => Promise<boolean>) | null>
   resetRef: RefObject<(() => void) | null>
   onDraftChange: (dirty: boolean) => void
@@ -334,7 +348,7 @@ export function ProviderRequestSettingsForm({
       )
       return true
     } catch (error) {
-      setError(fullErrorMessage(error))
+      setError(toUserErrorMessage(error))
       return false
     } finally {
       setSaving(false)
@@ -399,8 +413,16 @@ export function ProviderRequestSettingsForm({
     setError(null)
     try {
       const result = await desktopClient.detectProviderProtocols({
-        draft: requestDraftValue,
-        providerId: provider.providerID as RpcParams<'provider/protocol/detect'>['providerId'],
+        draft: {
+          ...requestDraftValue,
+          ...(isDraft && draftApiKey?.trim() ? { apiKey: draftApiKey.trim() } : {}),
+        },
+        ...(isDraft
+          ? {}
+          : {
+              providerId:
+                provider.providerID as RpcParams<'provider/protocol/detect'>['providerId'],
+            }),
       })
       if (result.models.some((row) => row.cells.some((cell) => cell.status === 'success'))) {
         await applyDetection(result as DetectionResultLike)
@@ -408,7 +430,7 @@ export function ProviderRequestSettingsForm({
         setError('未检测到可用端点，请检查地址、凭据或稍后重试。')
       }
     } catch (detectError) {
-      setError(fullErrorMessage(detectError))
+      setError(toUserErrorMessage(detectError))
     } finally {
       setDetecting(false)
     }
@@ -445,10 +467,27 @@ export function ProviderRequestSettingsForm({
 
   const footer = (
     <footer className="tw:flex tw:shrink-0 tw:justify-end tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-4 tw:py-4">
-      <Button color="secondary" size="sm" shape="default" disabled={saving} onClick={onCancel}>
+      <Button
+        color="secondary"
+        size="sm"
+        shape="default"
+        disabled={saving || primaryAction?.loading}
+        onClick={onCancel}
+      >
         关闭
       </Button>
-      {onDelete ? (
+      {primaryAction ? (
+        <Button
+          color="primary"
+          size="sm"
+          shape="default"
+          loading={primaryAction.loading}
+          disabled={saving || primaryAction.disabled || primaryAction.loading}
+          onClick={primaryAction.onClick}
+        >
+          {primaryAction.label}
+        </Button>
+      ) : onDelete ? (
         <Button
           variant="danger"
           size="sm"
@@ -474,54 +513,46 @@ export function ProviderRequestSettingsForm({
         className="tw:m-0 tw:grid tw:min-h-0 tw:min-w-0 tw:content-start tw:gap-4 tw:border-0 tw:p-0"
       >
         <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-          <h3 className="tw:m-0 tw:type-title-sm">请求配置</h3>
-          <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
+          <h3 className="tw:m-0 tw:shrink-0 tw:whitespace-nowrap tw:type-4 tw:weight-bold">
+            请求配置
+          </h3>
+          <div className="tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-2">
             {!oauthOnly ? (
-              <Button
-                size="sm"
-                shape="default"
-                color="secondary"
+              <ProviderPanelActionButton
+                icon={
+                  <Activity
+                    className="tw:size-icon-sm"
+                    aria-hidden="true"
+                    size={APP_ICON_SIZES.sm}
+                  />
+                }
+                label="检测协议"
                 disabled={saving || detecting}
                 loading={detecting}
                 onClick={() => void detectProtocols()}
-              >
-                <Activity aria-hidden="true" size={APP_ICON_SIZES.sm} />
-                检测协议
-              </Button>
+              />
             ) : null}
             {!addingEndpoint ? (
-              <Button
-                size="sm"
-                shape="default"
-                variant="outline"
+              <ProviderPanelActionButton
+                icon={
+                  <Plus className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
+                }
+                label="添加端点"
                 disabled={!availableEndpoints.length}
                 onClick={() => {
                   setEndpointProtocol(availableEndpoints[0]!.value)
                   setAddingEndpoint(true)
                 }}
-              >
-                <Plus aria-hidden="true" size={APP_ICON_SIZES.sm} />
-                添加端点
-              </Button>
+              />
             ) : null}
           </div>
         </header>
-        {provider.config?.kind === 'custom' ? (
-          <label className="tw:grid tw:gap-2 tw:type-label">
-            供应商名称
-            <Input
-              onBlur={() => void save()}
-              value={draft.name}
-              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-            />
-          </label>
-        ) : null}
         {Object.keys(draft.endpoints).length > 0 ? (
           endpointOptions
             .filter((option) => option.value in draft.endpoints)
             .map((option) => (
-              <div key={option.value} className="tw:grid tw:gap-2 tw:type-label">
-                <span className="tw:flex tw:items-center tw:gap-2">
+              <div key={option.value} className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
+                <span className="tw:flex tw:items-center tw:justify-between tw:gap-2">
                   {option.label}
                   {!['openai-embeddings', 'jina-rerank'].includes(option.value) ? (
                     <Button
@@ -537,6 +568,7 @@ export function ProviderRequestSettingsForm({
                 </span>
                 <Input
                   onBlur={() => void save()}
+                  placeholder="https://example.com/v1"
                   aria-label={
                     draft.protocol === option.value ? 'API 地址' : `${option.label} API 地址`
                   }
@@ -556,10 +588,11 @@ export function ProviderRequestSettingsForm({
               </div>
             ))
         ) : (
-          <label className="tw:grid tw:gap-2 tw:type-label">
+          <label className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
             API 地址
             <Input
               aria-label="API 地址"
+              placeholder="https://example.com/v1"
               onBlur={() => void save()}
               value={draft.address}
               onChange={(event) => setDraft({ ...draft, address: event.target.value })}
@@ -614,7 +647,7 @@ export function ProviderRequestSettingsForm({
         <div className="tw:grid tw:gap-3">
           <button
             type="button"
-            className="tw:flex tw:items-center tw:justify-start tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-app-text-soft tw:type-body-sm tw:hover:text-app-text tw:focus-visible:outline-app-focus"
+            className="tw:flex tw:items-center tw:justify-start tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-app-text-soft tw:type-1 tw:hover:text-app-text tw:focus-visible:outline-app-focus"
             aria-expanded={advanced}
             aria-controls={advancedId}
             onClick={() => setAdvanced(!advanced)}
@@ -632,7 +665,7 @@ export function ProviderRequestSettingsForm({
             expanded={advanced}
             contentClassName="tw:grid tw:gap-4"
           >
-            <div className="tw:flex tw:items-center tw:justify-between tw:type-body-sm">
+            <div className="tw:flex tw:items-center tw:justify-between tw:type-1">
               <span>允许非本地明文 HTTP</span>
               <ToggleSwitch
                 ariaLabel="允许远程 HTTP"
@@ -642,7 +675,7 @@ export function ProviderRequestSettingsForm({
             </div>
             {provider.config?.kind === 'builtin' ? (
               <>
-                <label className="tw:grid tw:gap-2 tw:type-body-sm">
+                <label className="tw:grid tw:gap-2 tw:type-1">
                   允许模型（逗号分隔，留空表示全部）
                   <Input
                     onBlur={() => void save()}
@@ -650,7 +683,7 @@ export function ProviderRequestSettingsForm({
                     onChange={(event) => setDraft({ ...draft, allowModels: event.target.value })}
                   />
                 </label>
-                <label className="tw:grid tw:gap-2 tw:type-body-sm">
+                <label className="tw:grid tw:gap-2 tw:type-1">
                   排除模型（逗号分隔）
                   <Input
                     onBlur={() => void save()}
@@ -662,7 +695,7 @@ export function ProviderRequestSettingsForm({
             ) : null}
             {provider.config?.kind === 'custom' ? (
               <>
-                <label className="tw:grid tw:gap-2 tw:type-label">
+                <label className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
                   认证方式
                   <SettingsDropdown
                     ariaLabel="认证方式"
@@ -674,7 +707,7 @@ export function ProviderRequestSettingsForm({
                     onChange={(auth) => commit({ ...draft, auth: auth as 'api-key' | 'none' })}
                   />
                 </label>
-                <label className="tw:grid tw:gap-2 tw:type-label">
+                <label className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
                   环境变量（逗号分隔）
                   <Input
                     onBlur={() => void save()}
@@ -685,10 +718,10 @@ export function ProviderRequestSettingsForm({
               </>
             ) : null}
             {provider.config?.kind === 'custom' ? (
-              <label className="tw:grid tw:gap-2 tw:type-label">
+              <label className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
                 自定义请求头
                 <textarea
-                  className="tw:min-h-24 tw:rounded-md tw:border tw:border-app-border tw:bg-app-control tw:p-3 tw:type-code"
+                  className="tw:min-h-[6rem] tw:rounded-3 tw:border tw:border-app-border tw:bg-app-control tw:p-3 tw:type-code"
                   aria-label="自定义请求头"
                   placeholder="每行 name: value"
                   onBlur={() => void save()}
@@ -700,11 +733,26 @@ export function ProviderRequestSettingsForm({
           </DisclosureContent>
         </div>
         {error ? (
-          <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-body-sm">
+          <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-1">
             {error}
           </p>
         ) : null}
       </fieldset>
+      {nameHost && provider.config?.kind === 'custom'
+        ? createPortal(
+            <label className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
+              供应商名称
+              <Input
+                disabled={detecting}
+                placeholder={isDraft ? '如：Ollama 本地服务' : undefined}
+                onBlur={() => void save()}
+                value={draft.name}
+                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+              />
+            </label>,
+            nameHost,
+          )
+        : null}
       {footerHost ? createPortal(footer, footerHost) : footer}
     </form>
   )

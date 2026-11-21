@@ -112,10 +112,6 @@
   transform: translateX(-50%);
 }
 
-.hero-product-window {
-  border-radius: 20px 20px 0 0;
-}
-
 .landscape-layer {
   position: absolute;
   inset: 0;
@@ -171,61 +167,6 @@
 main > section:not(.hero-section),
 main > .hero-canvas + section {
   background: #050505;
-}
-
-/* The marketing surface stays fully dark after the immersive hero. The
-   existing semantic utility classes remain reusable while their website
-   presentation is translated into a restrained charcoal palette here. */
-.site-shell :where(main > section, footer) {
-  color: #f3f1ec;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.site-shell :where(main > section, footer) [class*='text-[#17211D]'] {
-  color: #f3f1ec !important;
-}
-
-.site-shell :where(main > section, footer) [class*='text-[#55625D]'] {
-  color: #a9ada9 !important;
-}
-
-.site-shell :where(main > section, footer) [class*='text-[#63715A]'] {
-  color: #9daa94 !important;
-}
-
-.site-shell :where(main > section, footer) [class*='text-[#C9936E]'] {
-  color: #cf9d7d !important;
-}
-
-.site-shell :where(main > section, footer) [class*='bg-[#FCFAF5]'] {
-  background-color: #121313 !important;
-}
-
-.site-shell :where(main > section, footer) [class*='bg-[#F4F0E7]'] {
-  background-color: #0a0b0b !important;
-}
-
-.site-shell :where(main > section, footer) [class*='bg-[#DCD6CB]'] {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-.site-shell :where(main > section, footer) [class*='bg-[#17211D]'] {
-  background-color: #ecebe7 !important;
-  color: #111313 !important;
-}
-
-.site-shell :where(main > section, footer) [class*='border-[#DCD6CB]'] {
-  border-color: rgba(255, 255, 255, 0.11) !important;
-}
-
-.site-shell :where(main > section, footer) [class*='border-[#17211D]'] {
-  border-color: rgba(255, 255, 255, 0.35) !important;
-}
-
-.site-shell :where(main > section, footer) .product-media {
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  background: #101111 !important;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
 }
 
 /* Subtle dot grid pattern for technical clarity */
@@ -286,17 +227,9 @@ main > .hero-canvas + section {
     padding-top: 116px;
   }
 
-  .hero-copy h1 {
-    font-size: clamp(38px, 11vw, 52px);
-  }
-
   .hero-product {
     bottom: -2%;
     width: min(620px, 88vw);
-  }
-
-  .hero-landscape {
-    height: 49%;
   }
 
   .landscape-front {

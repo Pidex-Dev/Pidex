@@ -120,7 +120,7 @@ export function PrWatchSettings(): React.ReactNode {
       description="选择项目和 PR 后持续检查 CI 与审查要求，需要修复时复用独立聊天与工作树。"
     >
       {error && (
-        <p role="alert" className="tw:type-caption tw:text-app-danger tw:p-3">
+        <p role="alert" className="tw:type-1 tw:text-app-danger tw:p-3">
           {error}
         </p>
       )}
@@ -222,11 +222,11 @@ export function PrWatchSettings(): React.ReactNode {
             key={watch.id}
             className="tw:grid tw:gap-2 tw:border-t tw:border-app-border-subtle tw:py-3"
           >
-            <span className="tw:type-row-title">
+            <span className="tw:type-2 tw:weight-medium">
               {watch.automation.name} · {watch.automation.status === 'active' ? '运行中' : '已暂停'}
             </span>
             {watch.reason && (
-              <span className="tw:type-caption tw:text-app-text-soft">{watch.reason}</span>
+              <span className="tw:type-1 tw:text-app-text-soft">{watch.reason}</span>
             )}
             <div className="tw:flex tw:flex-wrap tw:gap-2">
               <Button

@@ -1,3 +1,4 @@
+import { omitUndefined } from '@pidex/shared/guards'
 import { isAbsolute, normalize } from 'node:path'
 import type { AgentHarnessEvent } from '../orchestration/harness/Types'
 import type { EventEnvelope } from '../Domain'
@@ -66,7 +67,9 @@ const affectedPaths = (value: unknown) => {
     return [
       {
         path,
-        ...(operation === 'create' || operation === 'update' ? { operation } : {}),
+        ...(operation === 'create' || operation === 'update' || operation === 'delete'
+          ? { operation }
+          : {}),
       },
     ]
   })
@@ -82,9 +85,8 @@ const toolDetails = (
     const command = text(input.command) ?? text(data.command)
     const timeoutMs = nonNegativeInteger(input.timeoutMs ?? input.timeout)
     return {
-      ...(command === undefined ? {} : { commandBytes: Buffer.byteLength(command, 'utf8') }),
+      ...omitUndefined({ commandBytes: byteLength(command), timeoutMs }),
       cwdScope: cwdScope(input.cwd ?? data.cwd),
-      ...(timeoutMs === undefined ? {} : { timeoutMs }),
     }
   }
 
@@ -93,7 +95,7 @@ const toolDetails = (
     const contentBytes = byteLength(input.content)
     return {
       ...(path ? { path, fileCount: 1 } : {}),
-      ...(contentBytes === undefined ? {} : { contentBytes }),
+      ...omitUndefined({ contentBytes }),
     }
   }
 
@@ -123,15 +125,15 @@ const toolDetails = (
       metric('createCount') ?? files.filter((file) => file.operation === 'create').length
     const updateCount =
       metric('updateCount') ?? files.filter((file) => file.operation === 'update').length
+    const deleteCount =
+      metric('deleteCount') ?? files.filter((file) => file.operation === 'delete').length
     return {
       ...(files.length ? { affectedPaths: files } : {}),
       fileCount,
       createCount,
       updateCount,
-      ...(patchBytes === undefined ? {} : { patchBytes }),
-      ...(hunkCount === undefined ? {} : { hunkCount }),
-      ...(additions === undefined ? {} : { additions }),
-      ...(deletions === undefined ? {} : { deletions }),
+      deleteCount,
+      ...omitUndefined({ patchBytes, hunkCount, additions, deletions }),
     }
   }
 
@@ -168,7 +170,7 @@ const toolRecord = (
     details: {
       tool,
       ...(text(item.status) ? { status: text(item.status) } : {}),
-      ...(durationMs === undefined ? {} : { durationMs }),
+      ...omitUndefined({ durationMs }),
       ...toolDetails(tool, input, data),
     },
   }

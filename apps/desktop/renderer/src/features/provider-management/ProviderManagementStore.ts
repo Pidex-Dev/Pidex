@@ -110,6 +110,7 @@ const DIAGNOSTICS_LIMIT = 100
 const USAGE_PARTITION_LIMIT = 8
 
 const INITIAL_STATE: ProviderManagementState = {
+  catalogRevision: 0,
   configuration: {
     loaded: false,
     loading: false,
@@ -742,12 +743,14 @@ export function createProviderManagementStore(
   }
 
   const handleEvents = async (events: readonly EventEnvelope[]): Promise<void> => {
+    let catalogChanged = false
     let configurationEventId: string | null = null
     let sourcesEventId: string | null = null
     let credentialProviderId: string | null = null
     let credentialChanged = false
     for (const event of events) {
       if (event.type === 'catalog/updated') {
+        catalogChanged = true
         configurationEventId = event.eventId
       } else if (event.type === 'provider/credential/updated') {
         configurationEventId = event.eventId
@@ -764,6 +767,9 @@ export function createProviderManagementStore(
       tasks.push(readUsageSources('event', sourcesEventId ?? configurationEventId, false))
     }
     await Promise.all(tasks)
+    if (catalogChanged && !disposed) {
+      commit((state) => ({ ...state, catalogRevision: state.catalogRevision + 1 }))
+    }
   }
 
   const ensureEventSubscription = (): void => {
@@ -809,7 +815,7 @@ export function createProviderManagementStore(
             active.id,
             'catalog.refresh',
             'configuration',
-            safeMessage(error, CONFIGURATION_FALLBACK),
+            `刷新模型列表失败：${safeMessage(error, CONFIGURATION_FALLBACK)}`,
           )
         }
         await Promise.all([

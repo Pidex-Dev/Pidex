@@ -13,8 +13,8 @@ import { canRegenerateConversationTitle } from '../src/features/session/conversa
 
 const permissionConfig = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 const model = { providerID: 'openai', id: 'gpt-5' }
 
@@ -673,8 +673,8 @@ describe('canonical latest plan identity', () => {
       workspace: {
         kind: 'projectless',
         projectID: null,
-        workspaceRoot: 'C:\workspace',
-        cwd: 'C:\workspace',
+        workspaceRoot: 'C:\\workspace',
+        cwd: 'C:\\workspace',
         outputDirectory: null,
       },
       settings: { taskMode: 'plan', permissionConfig },

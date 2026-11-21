@@ -34,34 +34,65 @@ export function ApiKeyQuickAdd({
 }) {
   const [key, setKey] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const submitting = useRef(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   return (
     <form
-      className="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2"
+      className="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1"
       onSubmit={async (event) => {
         event.preventDefault()
-        if (busy || submitting.current || !key.trim()) return
+        if (busy || submitting.current) return
+        // 以输入框的真实值为准：受控状态可能尚未同步（自动填充、辅助技术等写入路径），
+        // 只读 state 会把已可见的输入静默丢弃。
+        const submitted = (inputRef.current?.value ?? key).trim()
+        if (!submitted) return
         submitting.current = true
         setSaving(true)
+        setError(null)
         try {
-          if (await onAdd(key.trim())) setKey('')
+          if (await onAdd(submitted)) {
+            setKey('')
+            if (inputRef.current) inputRef.current.value = ''
+          } else {
+            setError('API Key 保存失败，请检查输入后重试。')
+          }
+        } catch {
+          setError('API Key 保存失败，请检查输入后重试。')
         } finally {
           submitting.current = false
           setSaving(false)
         }
       }}
     >
-      <Input
-        onBlur={(event) => event.currentTarget.form?.requestSubmit()}
-        aria-label="新增 API 密钥"
-        type="password"
-        autoComplete="new-password"
-        value={key}
-        onChange={(event) => setKey(event.target.value)}
-        disabled={busy || saving}
-        placeholder={maskedValue ? `当前：${maskedValue}；输入新 Key` : '输入 API Key'}
-        className="tw:min-w-0 tw:flex-1 tw:type-code"
-      />
+      <div className="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
+        <Input
+          ref={inputRef}
+          onBlur={(event) => event.currentTarget.form?.requestSubmit()}
+          aria-label="新增 API 密钥"
+          type="password"
+          autoComplete="new-password"
+          value={key}
+          onChange={(event) => {
+            setKey(event.target.value)
+            if (error) setError(null)
+          }}
+          disabled={busy || saving}
+          aria-invalid={error ? true : undefined}
+          placeholder={maskedValue ? `当前：${maskedValue}；输入新 Key` : '输入 API Key'}
+          className="tw:min-w-0 tw:flex-1 tw:type-code"
+        />
+        {saving ? (
+          <span role="status" className="tw:shrink-0 tw:text-app-text-soft tw:type-1">
+            正在保存…
+          </span>
+        ) : null}
+      </div>
+      {error ? (
+        <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-1">
+          {error}
+        </p>
+      ) : null}
     </form>
   )
 }
@@ -180,14 +211,14 @@ export function ApiKeyEditorForm({
         className={
           embedded
             ? 'tw:grid tw:gap-3'
-            : 'settings-management-dialog-card model-center-key-dialog-fields tw:m-5 tw:gap-0'
+            : 'settings-management-dialog-card model-center-key-dialog-fields tw:m-5 tw:grid tw:min-w-0 tw:gap-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel'
         }
       >
         {!hideProvider ? (
-          <label className="settings-management-dialog-row model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-body tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full">
+          <label className="settings-management-dialog-row model-center-field tw:grid tw:min-w-0 tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:gap-2 tw:px-4 tw:py-3 tw:text-app-text tw:type-2 tw:max-[640px]:grid-cols-1 tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full">
             <span>Provider</span>
             {editing ? (
-              <div className="model-center-key-dialog-provider tw:flex tw:min-h-9 tw:items-center tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:text-app-text-soft">
+              <div className="model-center-key-dialog-provider tw:flex tw:min-h-7 tw:items-center tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:text-app-text-soft">
                 {providerName ?? currentApiKey?.providerId}
               </div>
             ) : (
@@ -209,8 +240,9 @@ export function ApiKeyEditorForm({
         ) : null}
         <label
           className={cx(
-            !embedded && 'settings-management-dialog-row',
-            'model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-body tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full',
+            !embedded &&
+              'settings-management-dialog-row tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:px-4 tw:py-3 tw:max-[640px]:grid-cols-1',
+            'model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-2 tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full',
           )}
         >
           <span>名称</span>
@@ -225,8 +257,9 @@ export function ApiKeyEditorForm({
         </label>
         <label
           className={cx(
-            !embedded && 'settings-management-dialog-row',
-            'model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-body tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full',
+            !embedded &&
+              'settings-management-dialog-row tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:px-4 tw:py-3 tw:max-[640px]:grid-cols-1',
+            'model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-2 tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full',
           )}
         >
           <span>{editing ? '更换 Key（可选）' : 'API Key'}</span>
@@ -246,7 +279,7 @@ export function ApiKeyEditorForm({
         </label>
       </div>
       {error ? (
-        <p role="alert" className="tw:text-app-danger tw:type-body-sm">
+        <p role="alert" className="tw:text-app-danger tw:type-1">
           {error}
         </p>
       ) : null}
@@ -255,7 +288,7 @@ export function ApiKeyEditorForm({
         className={
           embedded
             ? 'tw:flex tw:justify-end tw:gap-2 tw:pt-3'
-            : 'settings-management-dialog-footer model-center-key-dialog-actions tw:flex-wrap'
+            : 'settings-management-dialog-footer model-center-key-dialog-actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4'
         }
       >
         {onCancel ? (
@@ -306,21 +339,24 @@ export function ApiKeyEditorDialog({
         <Dialog.Content
           aria-describedby={descriptionId}
           aria-labelledby={titleId}
-          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog tw:overflow-x-hidden ${SETTINGS_MANAGEMENT_DIALOG_SIZE.credential}`}
+          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog tw:flex tw:min-w-0 tw:flex-col tw:overflow-hidden tw:text-app-text ${SETTINGS_MANAGEMENT_DIALOG_SIZE.credential}`}
           onCloseAutoFocus={onCloseAutoFocus}
         >
           <header className="settings-management-dialog-header model-center-key-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:p-5">
-            <div className="settings-management-dialog-heading model-center-key-dialog-heading tw:flex tw:min-w-0 tw:items-start tw:gap-3">
-              <span className="model-center-key-dialog-icon tw:inline-flex tw:size-9 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
-                <KeyRound size={APP_ICON_SIZE} aria-hidden />
+            <div className="settings-management-dialog-heading model-center-key-dialog-heading tw:flex tw:min-w-0 tw:flex-1 tw:items-start tw:gap-3">
+              <span className="model-center-key-dialog-icon tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
+                <KeyRound className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
               </span>
               <div>
-                <Dialog.Title id={titleId} className="tw:type-weight-label">
+                <Dialog.Title
+                  id={titleId}
+                  className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-medium"
+                >
                   {editing ? '编辑 API Key' : '新增 API Key'}
                 </Dialog.Title>
                 <Dialog.Description
                   id={descriptionId}
-                  className="tw:mt-1 tw:[line-height:var(--cpx-sys-line-height-tight)]"
+                  className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1"
                 >
                   {editing
                     ? '修改名称，或输入新 Key 完成安全更换。旧密钥不会回填。'
@@ -330,7 +366,7 @@ export function ApiKeyEditorDialog({
             </div>
             <Dialog.Close asChild>
               <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭">
-                <X size={APP_ICON_SIZE} aria-hidden />
+                <X className="tw:size-icon-md" size={APP_ICON_SIZE} aria-hidden />
               </Button>
             </Dialog.Close>
           </header>

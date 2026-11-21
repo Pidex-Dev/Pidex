@@ -3,6 +3,7 @@ import { Dropdown as DropdownMenu } from './floating/Dropdown.js'
 import { Check, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
 import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './IconTokens.js'
 import { Tooltip } from './Tooltip.js'
+import { OverflowTitle } from './OverflowTitle.js'
 import { SidebarRow } from './SidebarRow.js'
 import { cx } from '../../utils/Cx.js'
 
@@ -25,6 +26,7 @@ type BaseProps = {
 }
 
 type Props = BaseProps & {
+  className?: string
   selected?: boolean
   withCheck?: boolean
 }
@@ -38,8 +40,17 @@ type RadioItemProps = BaseProps & {
   value: string
 }
 
-function renderTrailing({
-  arrowDirection = 'right',
+function renderShortcut(shortcut: React.ReactNode): React.ReactNode {
+  if (!shortcut) return null
+  return (
+    <span className="popover-item-shortcut" data-menu-shortcut>
+      {shortcut}
+    </span>
+  )
+}
+
+function renderTrailingWithShortcut({
+  arrowDirection,
   indicator,
   shortcut,
   withArrow,
@@ -49,11 +60,29 @@ function renderTrailing({
   shortcut?: React.ReactNode
   withArrow?: boolean
 }): React.ReactNode {
-  if (!shortcut && !indicator && !withArrow) return undefined
+  const trailing = renderTrailing({ arrowDirection, indicator, withArrow })
+  if (!trailing && !shortcut) return undefined
+  return (
+    <>
+      {renderShortcut(shortcut)}
+      {trailing}
+    </>
+  )
+}
+
+function renderTrailing({
+  arrowDirection = 'right',
+  indicator,
+  withArrow,
+}: {
+  arrowDirection?: 'up' | 'down' | 'right'
+  indicator?: React.ReactNode
+  withArrow?: boolean
+}): React.ReactNode {
+  if (!indicator && !withArrow) return undefined
 
   return (
     <>
-      {shortcut ? <span className="popover-item-shortcut">{shortcut}</span> : null}
       {indicator}
       {withArrow ? (
         arrowDirection === 'down' ? (
@@ -80,16 +109,24 @@ function renderTrailing({
   )
 }
 
+const LABEL_CLASS = 'popover-item-label tw:grow tw:shrink tw:basis-auto'
+
 function renderBody(children: React.ReactNode, description?: React.ReactNode): React.ReactNode {
   if (description) {
     return (
-      <span className="popover-item-label popover-item-label--rich tw:w-full tw:min-w-0">
-        <span className="popover-item-title">{children}</span>
+      <span className="popover-item-label popover-item-label--rich tw:w-full">
+        <OverflowTitle className="popover-item-title" variant="menu">
+          {children}
+        </OverflowTitle>
         <span className="popover-item-description">{description}</span>
       </span>
     )
   }
-  return <span className="popover-item-label">{children}</span>
+  return (
+    <OverflowTitle className={LABEL_CLASS} variant="menu">
+      {children}
+    </OverflowTitle>
+  )
 }
 
 function withOptionalTooltip(item: React.ReactElement, meta: React.ReactNode): React.ReactNode {
@@ -109,6 +146,7 @@ function withOptionalTooltip(item: React.ReactElement, meta: React.ReactNode): R
 
 export function PopoverItem({
   children,
+  className,
   active,
   description,
   disabled,
@@ -138,10 +176,10 @@ export function PopoverItem({
     <SidebarRow
       asChild
       active={active || (selected && !withCheck)}
-      className={cx('popover-item', hasRichContent && 'rich')}
+      className={cx('popover-item', hasRichContent && 'rich', className)}
       leading={icon ? <span className="popover-item-icon">{icon}</span> : undefined}
       leadingMode={icon ? 'icon' : 'none'}
-      trailing={renderTrailing({ arrowDirection, indicator, shortcut, withArrow })}
+      trailing={renderTrailingWithShortcut({ arrowDirection, indicator, shortcut, withArrow })}
     >
       <DropdownMenu.Item
         disabled={disabled}
@@ -200,7 +238,7 @@ export function PopoverCheckboxItem({
       className={cx('popover-item', hasRichContent && 'rich')}
       leading={icon ? <span className="popover-item-icon">{icon}</span> : undefined}
       leadingMode={icon ? 'icon' : 'none'}
-      trailing={renderTrailing({ arrowDirection, indicator, shortcut, withArrow })}
+      trailing={renderTrailingWithShortcut({ arrowDirection, indicator, shortcut, withArrow })}
     >
       <DropdownMenu.CheckboxItem
         checked={checked}
@@ -263,7 +301,7 @@ export function PopoverRadioItem({
       className={cx('popover-item', hasRichContent && 'rich')}
       leading={icon ? <span className="popover-item-icon">{icon}</span> : undefined}
       leadingMode={icon ? 'icon' : 'none'}
-      trailing={renderTrailing({ arrowDirection, indicator, shortcut, withArrow })}
+      trailing={renderTrailingWithShortcut({ arrowDirection, indicator, shortcut, withArrow })}
     >
       <DropdownMenu.RadioItem
         disabled={disabled}
@@ -289,16 +327,12 @@ export function PopoverLabel({
   className = 'popover-section-title',
 }: React.ComponentPropsWithoutRef<typeof DropdownMenu.Label>): React.ReactNode {
   return (
-    <DropdownMenu.Label
-      className={cx(className, 'tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label')}
-    >
-      {children}
-    </DropdownMenu.Label>
+    <DropdownMenu.Label className={cx(className, 'popover-header')}>{children}</DropdownMenu.Label>
   )
 }
 
 export function PopoverSeparator({
   className = 'popover-divider',
 }: React.ComponentPropsWithoutRef<typeof DropdownMenu.Separator>): React.ReactNode {
-  return <DropdownMenu.Separator className={cx(className, 'tw:h-px tw:my-1 tw:bg-app-border')} />
+  return <DropdownMenu.Separator className={cx(className, 'popover-menu-separator')} />
 }

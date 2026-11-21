@@ -33,11 +33,11 @@ export async function pluginReferenceData(
       plugin.status !== 'ready' ||
       !plugins?.isEnabled(id)
     )
-      return `引用的插件 ${JSON.stringify(id)} 当前不可用；引用不能启用插件或授予权限。`
+      return `Referenced plugin ${JSON.stringify(id)} is unavailable; references cannot enable plugins or grant permissions.`
     const availableSkills = skills.filter((skill) =>
       skill.path.startsWith(`plugin://${id}/skills/`),
     )
-    return `用户引用了插件：${JSON.stringify({
+    return `The user referenced this plugin: ${JSON.stringify({
       id,
       name: plugin.name,
       description: plugin.description,
@@ -47,6 +47,6 @@ export async function pluginReferenceData(
         path: skill.path,
         location: skill.documentPath,
       })),
-    })}\n按需用 Read 加载上述技能的 SKILL.md。引用只表达使用意图，工具仍受实时启用状态与统一权限限制。`
+    })}\nUse Read to load the listed SKILL.md files as needed. A reference expresses intent only; tools remain subject to live enablement and host authorization.`
   })
 }

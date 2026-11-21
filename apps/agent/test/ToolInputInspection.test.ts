@@ -104,6 +104,34 @@ describe('工具输入检查与范围绑定', () => {
         }
       },
     })
+    registry.register({
+      sdkName: 'seed_snapshot',
+      description: '写入文件读取快照供检查测试',
+      schema: z.object({ path: z.string() }).strict(),
+      inputSchema: {
+        type: 'object',
+        properties: { path: { type: 'string' } },
+        required: ['path'],
+        additionalProperties: false,
+      },
+      capabilities: {
+        filesystem: 'read',
+        network: 'none',
+        process: false,
+        externalState: false,
+        userInteraction: false,
+      },
+      allowedModes: ['chat'],
+      allowedProfiles: ['main'],
+      approvalStrategy: 'never-review',
+      visibility: 'eager',
+      executionMode: 'parallel',
+      execute: async (seedInput, seedContext) => {
+        const current = await seedContext.workspace.readEditorFile(seedInput.path)
+        await seedContext.fileSnapshots?.set(seedInput.path, current.revision)
+        return { ok: true }
+      },
+    })
     const reviewed: unknown[] = []
     const hookEvidence: unknown[] = []
     const validated: Array<{ content: string; scope: 'user' | 'project' }> = []
@@ -131,11 +159,11 @@ describe('工具输入检查与范围绑定', () => {
       workspace,
       permissionConfig: {
         sandboxMode: 'workspace-write' as const,
-        approvalPolicy: 'on-request' as const,
-        approvalsReviewer: 'user' as const,
+        approvalPolicy: 'auto_review' as const,
+        approvalsReviewer: 'auto_review' as const,
       },
     }
-    await executor.execute('Read', { file_path: 'target.txt' }, context)
+    await executor.execute('seed_snapshot', { path: 'target.txt' }, context)
     const input = { patch: 'first patch', config: '{ "model": "new" }\n' }
     const preview = await executor.previewApproval('inspected_write', input, context, 'scope-call')
     expect(preview).toMatchObject({

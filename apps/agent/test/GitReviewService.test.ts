@@ -991,8 +991,8 @@ describe('GitReviewService', () => {
       model: { providerID: 'fixture' as never, id: 'fixture' as never },
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'chat',
@@ -1056,8 +1056,8 @@ describe('GitReviewService', () => {
       model: { providerID: 'fixture' as never, id: 'fixture' as never },
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'chat',

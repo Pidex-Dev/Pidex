@@ -4,7 +4,7 @@ import { SettingsDropdown } from '../src/features/settings/SettingsDropdown.js'
 import { ThemeFontPicker } from '../src/features/settings/ThemeFontPicker.js'
 
 describe('settings dropdown trigger contract', () => {
-  test('style-only font picker disables enumeration fallback without exposing a family editor', () => {
+  test('style-only font picker omits weight controls when external font is not downloaded without exposing a family editor', () => {
     const html = renderToStaticMarkup(
       <ThemeFontPicker
         ariaLabel="深色界面字体"
@@ -16,8 +16,7 @@ describe('settings dropdown trigger contract', () => {
         onCommit={() => undefined}
       />,
     )
-    expect(html).toContain('aria-label="深色界面字体字体样式"')
-    expect(html).toContain('disabled=""')
+    expect(html).toBe('')
     expect(html).not.toContain('<input')
   })
 

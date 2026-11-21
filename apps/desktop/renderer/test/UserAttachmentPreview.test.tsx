@@ -1,3 +1,5 @@
+import { renderToStaticMarkup } from 'react-dom/server'
+import { AttachmentMediaPlayer } from '../src/features/session/attachments/AttachmentMediaPlayer.js'
 import { describe, expect, test } from 'bun:test'
 import type { DesktopComposerAttachment } from '../shared/Types.js'
 import {
@@ -102,4 +104,33 @@ describe('用户附件预览', () => {
     expect(clampImageScale(0.001)).toBe(0.05)
     expect(clampImageScale(20)).toBe(8)
   })
+})
+
+test('previews complete managed audio and video without reading a local path', () => {
+  for (const [kind, mediaType] of [
+    ['audio', 'audio/wav'],
+    ['video', 'video/mp4'],
+  ] as const) {
+    const clip = attachment({ kind, mediaType, storage: 'managed', contentBase64: 'YQ==' })
+    expect(createDraftAttachmentPreviewTab(clip)).toMatchObject({
+      attachment: { kind, mediaType },
+      source: { storage: 'draft', data: 'YQ==', encoding: 'base64' },
+    })
+    expect(createDraftAttachmentPreviewTab({ ...clip, truncated: true })).toBeNull()
+  }
+})
+
+test('audio and video use the shared player controls instead of browser media controls', () => {
+  for (const kind of ['audio', 'video'] as const) {
+    const markup = renderToStaticMarkup(
+      <AttachmentMediaPlayer kind={kind} name="clip" source="blob:clip" onError={() => {}} />,
+    )
+    expect(markup).toContain('<' + kind)
+    expect(markup).not.toMatch(/<(audio|video)\b[^>]*\scontrols(?:[\s=>])/)
+    expect(markup).toContain('aria-label="媒体播放控件"')
+    expect(markup).toContain('aria-label="播放进度"')
+    expect(markup).toContain('aria-label="音量设置"')
+    expect(markup).not.toContain('aria-label="音量"')
+    expect(markup).toContain('aria-label="播放倍速"')
+  }
 })

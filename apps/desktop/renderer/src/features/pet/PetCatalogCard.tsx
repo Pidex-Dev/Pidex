@@ -41,7 +41,7 @@ export function PetCatalogCard({
       data-pet-id={pet.id}
       data-pet-installed={installed}
     >
-      <div className="pet-catalog-card__art tw:flex tw:size-12 tw:shrink-0 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-editor tw:p-1 tw:text-app-text">
+      <div className="pet-catalog-card__art tw:flex tw:size-8 tw:shrink-0 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-editor tw:p-1 tw:text-app-text">
         {installed && pet.spritesheetUrl ? (
           <PetSprite
             animation="idle"
@@ -54,20 +54,20 @@ export function PetCatalogCard({
             alt=""
             className="tw:flex tw:size-full tw:items-center tw:justify-center"
             decoding="async"
-            fallback={<Egg aria-hidden="true" size={APP_ICON_SIZE} />}
+            fallback={<Egg className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
             imageClassName="tw:block tw:m-auto tw:h-auto tw:max-h-full tw:w-auto tw:max-w-full tw:object-scale-down"
             loading="lazy"
             src={pet.previewUrl}
           />
         ) : (
-          <Egg aria-hidden="true" size={APP_ICON_SIZE} />
+          <Egg className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
         )}
       </div>
 
-      <div className="pet-catalog-card__body tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:justify-center tw:gap-0.5">
-        <div className="pet-catalog-card__heading tw:flex tw:items-center tw:gap-1.5">
+      <div className="pet-catalog-card__body tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:justify-center tw:gap-1">
+        <div className="pet-catalog-card__heading tw:flex tw:items-center tw:gap-1">
           <strong
-            className="tw:truncate tw:type-row-title tw:text-app-text"
+            className="tw:truncate tw:type-2 tw:weight-medium tw:text-app-text"
             title={pet.displayName}
           >
             {pet.displayName}
@@ -78,16 +78,21 @@ export function PetCatalogCard({
                 aria-label={`限制使用：${petLicenseLabel(pet.licenseKind)}`}
                 className="tw:inline-flex tw:shrink-0 tw:text-amber-500 dark:tw:text-amber-400"
               >
-                <AlertTriangle aria-hidden="true" size={14} strokeWidth={2.2} />
+                <AlertTriangle
+                  className="tw:size-icon-sm"
+                  aria-hidden="true"
+                  size={14}
+                  strokeWidth={2.2}
+                />
               </span>
             </Tooltip>
           ) : null}
-          <span className="tw:shrink-0 tw:type-caption tw:text-app-text-meta">
+          <span className="tw:shrink-0 tw:type-1 tw:text-app-text-meta">
             v{pet.spriteVersionNumber}
           </span>
         </div>
         <p
-          className="tw:m-0 tw:line-clamp-2 tw:type-body-sm tw:text-app-text-meta"
+          className="tw:m-0 tw:line-clamp-2 tw:type-1 tw:text-app-text-meta"
           title={pet.description}
         >
           {pet.description || '这个宠物还没有介绍。'}
@@ -112,6 +117,7 @@ export function PetCatalogCard({
                   title={`管理 ${pet.displayName}`}
                 >
                   <MoreHorizontal
+                    className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -121,7 +127,11 @@ export function PetCatalogCard({
             >
               <PopoverItem
                 disabled={isSelected}
-                icon={isSelected ? <Check size={APP_ICON_SIZE} /> : undefined}
+                icon={
+                  isSelected ? (
+                    <Check className="tw:size-icon-md" size={APP_ICON_SIZE} />
+                  ) : undefined
+                }
                 onClick={() => {
                   setMenuOpen(false)
                   onSelect(pet.id)
@@ -130,7 +140,9 @@ export function PetCatalogCard({
                 {isSelected ? '当前使用中' : '设为当前伙伴'}
               </PopoverItem>
               <PopoverItem
-                icon={<Trash2 className="tw:text-app-danger" size={APP_ICON_SIZE} />}
+                icon={
+                  <Trash2 className="tw:size-icon-md tw:text-app-danger" size={APP_ICON_SIZE} />
+                }
                 onClick={() => {
                   setMenuOpen(false)
                   onUninstall(pet)
@@ -153,7 +165,12 @@ export function PetCatalogCard({
                 size="toolbar"
                 title={`安装 ${pet.displayName}`}
               >
-                <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Plus
+                  className="tw:size-icon-md"
+                  aria-hidden="true"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               </Button>
             </span>
           </Tooltip>

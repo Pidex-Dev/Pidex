@@ -7,6 +7,9 @@ import type {
 import { McpConfigError, McpConfigService, isMcpSettingsConflict } from './McpConfigService'
 import { McpConnectionManager } from './McpConnectionManager'
 import { McpOAuthError, McpOAuthService } from './McpOAuthService'
+import type { DecisionService } from '../decision/DecisionService'
+import { describeTool } from '../decision/specs/ToolDescription'
+import { screenToolDescriptions } from '../decision/integrations/ToolDescriptionScreen'
 
 type McpReloadResult = typeof McpReloadResultSchema.Type
 
@@ -31,26 +34,70 @@ export class McpRuntimeService {
     string,
     { fingerprint: string; result: McpReloadResult }
   >()
+  private decisionService: DecisionService | null = null
 
   constructor(
     private readonly configs: McpConfigService,
     readonly connections: McpConnectionManager,
     readonly oauth?: McpOAuthService,
     /**
-     * Host-managed servers (for example node_repl). They are never part of the
-     * user MCP config and are therefore reported only as runtime status so
-     * clients can show ownership, plugin toggle and connection state.
+     * Plugin adapters report their runtime status alongside ordinary MCP connections.
      */
-    private readonly hostManaged?: () => McpRuntimeServerStatus[],
+    private readonly hostManaged?: (
+      workspace?: string,
+    ) => McpRuntimeServerStatus[] | Promise<McpRuntimeServerStatus[]>,
+    private readonly defaults?: () => McpServerDeclaration[],
   ) {}
 
   list(input: { workspace?: string }) {
-    return this.wrap(() => this.configs.list(input.workspace))
+    return this.wrap(async () => {
+      const result = await this.configs.list(input.workspace)
+      const names = new Set(result.servers.map((item) => item.server.name))
+      return {
+        ...result,
+        servers: [
+          ...result.servers,
+          ...(this.defaults?.() ?? [])
+            .filter((server) => !names.has(server.name))
+            .map((server) => ({ server, effective: true, providedDefault: true })),
+        ],
+      }
+    })
+  }
+
+  setDecisionService(service: DecisionService | null): void {
+    this.decisionService = service
+  }
+
+  // INVARIANT: Kicks off background description screening for every connected server; never blocks.
+  private screenConnectedDescriptions(workspace?: string): void {
+    const service = this.decisionService
+    if (!service) return
+    void (async () => {
+      const runtime = await this.connections.runtime(workspace)
+      for (const handle of runtime.current?.handles.values() ?? []) {
+        if (handle.state !== 'connected' || !handle.connected) continue
+        screenToolDescriptions(service, {
+          server: handle.server.name,
+          ...(workspace ? { cwd: workspace } : {}),
+          tools: handle.connected.tools.map((tool) => ({
+            name: tool.name,
+            description: describeTool({
+              description: tool.description ?? '',
+              parameters: tool.inputSchema,
+            }),
+          })),
+        })
+      }
+    })().catch(() => {
+      // SAFETY: screening is advisory; MCP status and reload must never fail because of it.
+    })
   }
 
   async status(input: { workspace?: string }) {
     const result = await this.wrap(() => this.connections.status(input.workspace))
-    const hostServers = this.hostManaged?.() ?? []
+    this.screenConnectedDescriptions(input.workspace)
+    const hostServers = (await this.hostManaged?.(input.workspace)) ?? []
     if (hostServers.length === 0) return result
     return {
       ...result,
@@ -67,6 +114,23 @@ export class McpRuntimeService {
     operationId: string
   }) {
     return this.wrap(async () => {
+      if (input.server.name === 'node_repl' && input.server.transport.type !== 'stdio')
+        throw new McpRuntimeError('MCP_CONFIG_INVALID', 'node_repl 仅支持 stdio MCP', 400)
+      if (
+        input.server.name === 'node_repl' &&
+        (input.server.required || input.server.diagnosticContext)
+      )
+        throw new McpRuntimeError(
+          'MCP_CONFIG_INVALID',
+          'node_repl 是可选电脑控制入口，不支持必需 Server 或会话诊断选项',
+          400,
+        )
+      if (input.originalName === 'node_repl' && input.server.name !== 'node_repl')
+        throw new McpRuntimeError(
+          'MCP_CONFIG_INVALID',
+          'Computer Use 的 MCP 名称必须保留 node_repl',
+          400,
+        )
       const existing = (await this.configs.list(input.workspace)).servers.find(
         (item) =>
           item.server.scope === input.server.scope &&
@@ -105,7 +169,17 @@ export class McpRuntimeService {
     enabled: boolean
     operationId: string
   }) {
-    return this.wrap(() => this.configs.setEnabled(input))
+    return this.wrap(async () => {
+      const existing = (await this.configs.list(input.workspace)).servers.some(
+        (item) => item.server.scope === input.scope && item.server.name === input.name,
+      )
+      const fallback = this.defaults?.().find(
+        (server) => server.name === input.name && server.scope === input.scope,
+      )
+      if (!existing && fallback)
+        return this.configs.save({ ...input, server: { ...fallback, enabled: input.enabled } })
+      return this.configs.setEnabled(input)
+    })
   }
 
   async reload(input: { workspace?: string; operationId: string }) {
@@ -122,6 +196,7 @@ export class McpRuntimeService {
     if (this.reloadOperations.size > 100) {
       this.reloadOperations.delete(this.reloadOperations.keys().next().value!)
     }
+    this.screenConnectedDescriptions(input.workspace)
     return result
   }
 

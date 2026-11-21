@@ -1,3 +1,4 @@
+import type { Model as PidexModel } from '@pidex/model-schema'
 import {
   type AssistantMessage,
   type Context,
@@ -147,7 +148,18 @@ export async function completeSimpleWithRetries(
 }
 
 function combineUsage(first: Usage, second: Usage): Usage {
+  const a = first as Usage & PidexModel.RequestPriceUsage
+  const b = second as typeof a
+
   return {
+    ...({
+      priceSnapshotIds: [
+        ...(a.priceSnapshotIds ?? (a.priceSnapshotId ? [a.priceSnapshotId] : [])),
+        ...(b.priceSnapshotIds ?? (b.priceSnapshotId ? [b.priceSnapshotId] : [])),
+      ],
+      costUnknown: a.costUnknown || b.costUnknown,
+      conservativeCost: a.conservativeCost || b.conservativeCost,
+    } as object),
     input: first.input + second.input,
     output: first.output + second.output,
     cacheRead: first.cacheRead + second.cacheRead,
@@ -201,19 +213,6 @@ function getAssistantUsage(msg: AgentMessage): Usage | undefined {
       calculateContextTokens(assistantMsg.usage) > 0
     ) {
       return assistantMsg.usage
-    }
-  }
-  return undefined
-}
-
-/** Return usage from the last valid assistant message in session entries. */
-export function getLastAssistantUsage(entries: SessionTreeEntry[]): Usage | undefined {
-  for (let i = entries.length - 1; i >= 0; i--) {
-    const entry = entries[i]
-    if (!entry) continue
-    if (entry.type === 'message') {
-      const usage = getAssistantUsage(entry.message as AgentMessage)
-      if (usage) return usage
     }
   }
   return undefined
@@ -273,16 +272,6 @@ export function estimateContextTokens(messages: AgentMessage[]): ContextUsageEst
     trailingTokens,
     lastUsageIndex: usageInfo.index,
   }
-}
-
-/** Return whether context usage exceeds the configured compaction threshold. */
-export function shouldCompact(
-  contextTokens: number,
-  contextWindow: number,
-  settings: CompactionSettings,
-): boolean {
-  if (!settings.enabled) return false
-  return contextTokens > contextWindow - settings.reserveTokens
 }
 
 const ESTIMATED_IMAGE_CHARS = 4800
@@ -563,34 +552,6 @@ Use this EXACT format:
 
 Keep each section concise. Preserve exact file paths, function names, and error messages.
 Note: Recovery and continuation rely on actual workspace files and the latest goal status, not outdated summaries.`
-
-/** Generate or update a conversation summary for compaction. */
-export async function generateSummary(
-  currentMessages: AgentMessage[],
-  models: Models,
-  model: Model<any>,
-  reserveTokens: number,
-  signal?: AbortSignal,
-  customInstructions?: string,
-  previousSummary?: string,
-  thinkingLevel?: ThinkingLevel,
-  retry?: RetryPolicy,
-  callbacks?: RetryCallbacks,
-): Promise<Result<string, CompactionError>> {
-  const result = await generateSummaryWithUsage(
-    currentMessages,
-    models,
-    model,
-    reserveTokens,
-    signal,
-    customInstructions,
-    previousSummary,
-    thinkingLevel,
-    retry,
-    callbacks,
-  )
-  return result.ok ? ok(result.value.text) : err(result.error)
-}
 
 /** Generate or update a conversation summary and return its provider usage. */
 export async function generateSummaryWithUsage(

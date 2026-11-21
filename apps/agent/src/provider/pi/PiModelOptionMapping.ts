@@ -6,6 +6,7 @@
  * 当前协议请求体字段。显式 map 是对应参数最终请求字段的唯一权威：
  * 应用前先删除该参数的旧字段残留，避免同一语义出现重复字段。
  */
+import { isRecord } from '@pidex/shared/guards'
 import type { Model } from '@pidex/model-schema'
 import {
   applyOrderedJsonMergePatches,
@@ -25,7 +26,13 @@ export interface ModelOptionSelection {
 }
 
 /**
- * 编译 optionSpecs 中显式提供的 map；未提供任何 map 时返回 undefined。
+ * 空合并补丁（`{}`）是 ZCode 规则里“不改写请求”的占位写法，等价于没有映射。
+ * 它不能成为该参数的权威，否则会清掉 Pi 自己生成的 reasoning/输出字段。
+ */
+const isNoopMap = (source: string): boolean => source.replace(/\s+/g, '') === '{}'
+
+/**
+ * 编译 optionSpecs 中显式提供的 map；未提供任何有效 map 时返回 undefined。
  * 编译在有效模型配置建立时调用一次（调用方按模型对象缓存）。
  * 表达式非法时抛出 RestrictedCelError / ModelOptionMapError（安全、不含凭据）。
  */
@@ -35,12 +42,14 @@ export const compileOptionSpecs = (
   if (!specs) return undefined
   const reasoningSource = specs.reasoningLevel?.map
   const maxSource = specs.maxOutputTokens?.map
-  const reasoningLevel = reasoningSource
-    ? compileModelOptionMap(reasoningSource, 'reasoningLevel')
-    : undefined
-  const maxOutputTokens = maxSource
-    ? compileModelOptionMap(maxSource, 'maxOutputTokens')
-    : undefined
+  const reasoningLevel =
+    reasoningSource && !isNoopMap(reasoningSource)
+      ? compileModelOptionMap(reasoningSource, 'reasoningLevel')
+      : undefined
+  const maxOutputTokens =
+    maxSource && !isNoopMap(maxSource)
+      ? compileModelOptionMap(maxSource, 'maxOutputTokens')
+      : undefined
   if (!reasoningLevel && !maxOutputTokens) return undefined
   return {
     ...(reasoningLevel ? { reasoningLevel } : {}),
@@ -64,9 +73,6 @@ const LEGACY_FIELDS: Record<'reasoningLevel' | 'maxOutputTokens', readonly strin
   ],
   maxOutputTokens: ['max_tokens', 'max_completion_tokens', 'max_output_tokens'],
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /**
  * 在已序列化的请求体上应用 optionSpecs 映射。

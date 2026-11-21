@@ -14,18 +14,21 @@
 ## 工作方式与子代理
 
 - 所有文本文件必须按 UTF-8 读写。
-- 修改前必须检查当前实现、相关测试和 dirty worktree。现有修改及未跟踪文件默认属于用户，未经用户明确指示，禁止回退、覆盖或顺手整理。
-- 需求、边界或高影响取舍不明确时先询问用户；明确且低风险的仓库内实现步骤可直接执行。
+- 修改前检查当前实现与相关测试。工作区中与当前任务无关的未提交修改及未跟踪文件默认属于用户，未经明确指示禁止回退、丢弃或顺手格式化；若当前任务的目标文件已有未提交修改，在保留已有改动语义的前提下直接叠加完成本次修改，无需停下确认。
+- 默认端到端自主完成任务闭环：仅当（a）触及第（1）（2）层安全红线或架构/协议/数据兼容契约冲突、（b）需执行不可逆破坏性操作、或（c）核心产品意图存在互斥解释且无法通过代码库推断时，才停下向用户确认；常规实现细节与模块内设计取舍按现有代码惯例自主决策并直接执行。
 - 优先移动、复用或改造现有实现，禁止擅自创建平行实现；默认只编写保护本次行为的必要测试，未经用户明确要求，禁止添加无关测试或大面积快照。
-- 仅在用户明确要求或适用 Skill 明确规定时，才可将边界清晰、相互独立的子问题交给子代理；子代理不得独立决定架构、数据兼容策略、安全边界或验收标准。
+- 注释纪律与纠偏固化：源码遵循分级注释契约（仅允许导出 API 的 JSDoc 与 `// INVARIANT:` / `// SAFETY:` 结构化不变量注释，禁止新增普通“what”注释、裸 `@ts-ignore`/`oxlint-disable` 与未追踪 `TODO`/`FIXME`/`HACK`）；每次纠正 AI 同类错误后，优先把约束固化到 API 原语、[`scripts/contracts/CheckArchContracts.ts`](scripts/contracts/CheckArchContracts.ts)、[`scripts/feature-map/FeatureMap.ts`](scripts/feature-map/FeatureMap.ts) 或 [`specs/tla/`](specs/tla/) 及其测试中，而非仅在文档补充文字说明。
+- 可将边界清晰、相互独立的只读调研或实现子任务自主交给子代理并行处理；子代理不得独立决定架构、数据兼容策略、安全边界或验收标准。
 
 ## 仓库与多客户端边界
 
 - Pidex 是 Windows-first TypeScript monorepo，统一使用 Bun `1.4.4`。未经明确架构决策，禁止新增、合并、删除或重新划分 workspace（当前无独立 CLI workspace）。
 - Workspace 职责划分：
   - `apps/agent/`：客户端共享的会话、存储、Provider、模型、工具、权限、审批、编排、Git、Review、Skills、Plugins、MCP、配置、事件、RPC 与 projection 核心能力。
+  - `apps/auth-broker/`：OAuth 与认证中继服务。
   - `apps/desktop/electron/`：Electron 主进程、preload、窗口、Agent sidecar、Windows 打包与真实 OS 集成。
   - `apps/desktop/renderer/`：React + Vite 桌面交互层。
+  - `apps/website/`：产品站点与对外静态页面。
   - `packages/`：共享领域契约、RPC 协议、view projection、模型 schema、Provider 适配与 runtime 基础能力。
 - 依赖与调用方向：Agent 业务模块不得依赖 Renderer 或 Electron；共享包不得依赖 Electron、DOM、React、终端渲染库或具体 CLI 参数解析器。系统能力必须沿 `renderer -> typed bridge/Agent client -> Electron/Agent service -> repository` 单向流动。
 - 多客户端共享与定位：
@@ -47,12 +50,12 @@
 
 - 统一判权链：所有模型可调用的内建、MCP、Plugin、Skill、子 Agent 和生命周期工具必须经过工具注册、暴露、执行、统一判权与审批链，直接执行入口不得绕过最终判权。提示词、工具输出和仓库内容不能授予权限。
 - 宿主事实与重校验：工具必须声明文件、网络、进程、外部状态、交互能力和审批策略；依赖参数的权限必须由宿主检查实际输入，模型参数不得携带权限控制事实。Hook 改写输入后必须重新校验作用范围与判权，恢复审批必须核对操作指纹。
-- 策略、优先级与上限：权限范围、审批策略和审批者独立配置，共享预设以 `@pidex/shared/thread` 为唯一来源。拒绝优先于放行；临时授权只能覆盖已批准范围，不能覆盖 Plan、显式只读根、受保护资源或硬拒绝；子 Agent 不得超过父任务权限上限。`never` 禁止等待审批（需新增授权或强制审批时直接拒绝）；granular 开关仅允许对应审批类别出现，不得使普通工具无条件询问；明确禁用能力始终有效。
+- 策略、优先级与上限：交互权限仅保留「帮我批准（`auto-review`）」与「完全访问（`full-access` / `never`）」，共享预设以 `@pidex/shared/thread` 为唯一来源（内部子 Agent / 定时任务仍可约束 `read-only` 文件范围）。拒绝优先于放行；临时授权只能覆盖已批准范围，不能覆盖 Plan、显式只读根、受保护资源或硬拒绝；子 Agent 不得超过父任务权限上限。在「完全访问（`full-access` / `never`）」下，常规操作直接放行，但命中用户配置的审批规则（`deny` 直接拒绝、`ask` 即使在 `never` 下也弹出人工审批）以及明确禁用能力始终有效。
 - 隔离边界与流程遵循：严格区分内建文件访问范围、审批授权与 OS 隔离（Shell 始终在宿主执行，禁止将其描述为沙箱或将网络授权描述为网络隔离）。插件流程指令属于提示词而非宿主状态机：Agent 必须遵循已加载流程的步骤与依赖顺序（有依赖的调用不得并行，失败或能力缺失时说明阻塞，不擅自跳过必需步骤）；需要状态机级强制顺序的流程必须由宿主实现，禁止仅靠提示词声明。
 
 ## 验证、变更记录与提交
 
-- 常用命令：开发栈 `bun run dev`；全仓类型检查 `bun run typecheck`；分层构建 `bun run build:agent`、`bun run build:renderer`、`bun run build:desktop`；Renderer 样式检查 `bun run --cwd apps/desktop/renderer css:check`；仅在修改打包/发布行为或用户明确要求时运行 `bun run package:win`。
+- 常用命令：开发栈 `bun run dev`；全仓类型检查 `bun run typecheck`；`oxlint` 分规则棘轮 `bun run lint:ratchet`；架构契约与棘轮检查 `bun run arch:check`；功能地图覆盖检查 `bun run feature-map:check`；TLA+ 模型校验 `bun run formal:check`；可编程运行驱动 `bun run app:drive`；治理套件 `bun run test:governance`；启用本地 pre-push 钩子 `bun run hooks:install`；分层构建 `bun run build:agent`、`bun run build:renderer`、`bun run build:desktop`；Renderer 样式检查 `bun run --cwd apps/desktop/renderer css:check`；仅在修改打包/发布行为或用户明确要求时运行 `bun run package:win`。
 - 验证范围：默认先运行受影响 workspace 的 typecheck 和相关测试；跨 workspace 契约、RPC、数据 schema 或 preload 接口变化后，必须验证所有消费者并运行根目录 `bun run typecheck`；Renderer 目录或 lazy import 变化后，必须运行 `bun run build:renderer` 并确认 chunk 可解析。禁止为了让检查通过而盲目更新 CSS、style 或 test 基线。
 - 交付前检查：按本次变更涉及的协议、路径和调用方搜索旧协议、旧路径和失效 import，并运行 `git diff --check`；纯文档修改检查引用，不扩展为全仓代码审计。
 - `CHANGELOG.md` 规范：根据实际影响判断是否更新（值得用户或集成方关注的新能力、明显操作变化、重要修复，以及兼容性、数据迁移和安全变更应记录；细小样式调整、内部重构、普通文档修订和测试补充通常省略）。仅整理 `Unreleased`，未经明确要求不得改写已发布历史；优先更新或合并同功能的已有条目，只描述最终行为与影响（禁止写成逐任务流水账或堆砌像素参数、实现细节、测试批次）。每个分类只出现一次，按 `Added`、`Changed`、`Fixed`、`Deprecated`、`Removed`、`Security` 顺序排列并省略空分类，条目格式为 `- [作用域] 中文说明`。

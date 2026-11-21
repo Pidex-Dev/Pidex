@@ -1,4 +1,3 @@
-import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { CircleAlert, RotateCcw } from 'lucide-react'
 
@@ -9,16 +8,27 @@ type ConversationTurnErrorBoundaryProps = {
 
 type ConversationTurnErrorBoundaryState = {
   failed: boolean
+  turnId: string
 }
 
 export class ConversationTurnErrorBoundary extends React.Component<
   ConversationTurnErrorBoundaryProps,
   ConversationTurnErrorBoundaryState
 > {
-  state: ConversationTurnErrorBoundaryState = { failed: false }
+  state: ConversationTurnErrorBoundaryState = { failed: false, turnId: this.props.turnId }
 
-  static getDerivedStateFromError(): ConversationTurnErrorBoundaryState {
+  static getDerivedStateFromError(): Partial<ConversationTurnErrorBoundaryState> {
     return { failed: true }
+  }
+
+  static getDerivedStateFromProps(
+    props: ConversationTurnErrorBoundaryProps,
+    state: ConversationTurnErrorBoundaryState,
+  ): Partial<ConversationTurnErrorBoundaryState> | null {
+    if (props.turnId !== state.turnId) {
+      return { failed: false, turnId: props.turnId }
+    }
+    return null
   }
 
   private retryAfterHotUpdate = (): void => {
@@ -31,12 +41,6 @@ export class ConversationTurnErrorBoundary extends React.Component<
 
   componentWillUnmount(): void {
     import.meta.hot?.off('vite:afterUpdate', this.retryAfterHotUpdate)
-  }
-
-  componentDidUpdate(previous: ConversationTurnErrorBoundaryProps): void {
-    if (previous.turnId !== this.props.turnId && this.state.failed) {
-      this.setState({ failed: false })
-    }
   }
 
   render(): React.ReactNode {
@@ -57,20 +61,32 @@ export class ConversationTurnErrorBoundary extends React.Component<
   }
 }
 
+type ConversationMarkdownErrorBoundaryState = {
+  failed: boolean
+  contentKey: string
+}
+
 export class ConversationMarkdownErrorBoundary extends React.Component<
   { children: React.ReactNode; contentKey: string },
-  ConversationTurnErrorBoundaryState
+  ConversationMarkdownErrorBoundaryState
 > {
-  state: ConversationTurnErrorBoundaryState = { failed: false }
+  state: ConversationMarkdownErrorBoundaryState = {
+    failed: false,
+    contentKey: this.props.contentKey,
+  }
 
-  static getDerivedStateFromError(): ConversationTurnErrorBoundaryState {
+  static getDerivedStateFromError(): Partial<ConversationMarkdownErrorBoundaryState> {
     return { failed: true }
   }
 
-  componentDidUpdate(previous: Readonly<{ children: React.ReactNode; contentKey: string }>): void {
-    if (previous.contentKey !== this.props.contentKey && this.state.failed) {
-      this.setState({ failed: false })
+  static getDerivedStateFromProps(
+    props: Readonly<{ children: React.ReactNode; contentKey: string }>,
+    state: ConversationMarkdownErrorBoundaryState,
+  ): Partial<ConversationMarkdownErrorBoundaryState> | null {
+    if (props.contentKey !== state.contentKey) {
+      return { failed: false, contentKey: props.contentKey }
     }
+    return null
   }
 
   render(): React.ReactNode {

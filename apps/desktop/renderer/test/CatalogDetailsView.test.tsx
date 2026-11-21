@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import type { PluginDetails, PluginSummary } from '@pidex/agent-protocol'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { MemoryRouter } from 'react-router-dom'
 import { PluginProductDetailsView } from '../src/features/plugins/PluginProductDetailsView.js'
 import { mergePluginCatalog } from '../src/features/plugins/PluginCatalog.js'
 
@@ -33,13 +34,15 @@ function renderTaskDetails(pluginDetails: PluginDetails | null): string {
     (candidate) => candidate.id === 'task-planning',
   )!
   return renderToStaticMarkup(
-    <PluginProductDetailsView
-      busy={false}
-      details={pluginDetails}
-      item={item}
-      onPrimaryAction={() => undefined}
-      onTryPrompt={() => undefined}
-    />,
+    <MemoryRouter>
+      <PluginProductDetailsView
+        busy={false}
+        details={pluginDetails}
+        item={item}
+        onPrimaryAction={() => undefined}
+        onTryPrompt={() => undefined}
+      />
+    </MemoryRouter>,
   )
 }
 
@@ -114,14 +117,16 @@ describe('Codex-style plugin product details', () => {
       { ...taskPlanning, source: 'installed', canUninstall: true },
     ])[0]!
     const html = renderToStaticMarkup(
-      <PluginProductDetailsView
-        busy={false}
-        details={details}
-        item={item}
-        onPrimaryAction={() => undefined}
-        onTryPrompt={() => undefined}
-        onUninstall={() => undefined}
-      />,
+      <MemoryRouter>
+        <PluginProductDetailsView
+          busy={false}
+          details={details}
+          item={item}
+          onPrimaryAction={() => undefined}
+          onTryPrompt={() => undefined}
+          onUninstall={() => undefined}
+        />
+      </MemoryRouter>,
     )
     expect(html).toContain('aria-label="更多插件操作"')
     expect(html).not.toContain('MiniMax')
@@ -140,18 +145,20 @@ test('uninstalled and disabled plugins can prepare a prompt and optional metadat
     },
   ])[0]!
   const html = renderToStaticMarkup(
-    <PluginProductDetailsView
-      busy={false}
-      item={item}
-      details={{
-        ...details,
-        longDescription: item.description,
-        websiteURL: 'https://example.com',
-        privacyPolicyURL: 'https://example.com/privacy',
-      }}
-      onPrimaryAction={() => undefined}
-      onTryPrompt={() => undefined}
-    />,
+    <MemoryRouter>
+      <PluginProductDetailsView
+        busy={false}
+        item={item}
+        details={{
+          ...details,
+          longDescription: item.description,
+          websiteURL: 'https://example.com',
+          privacyPolicyURL: 'https://example.com/privacy',
+        }}
+        onPrimaryAction={() => undefined}
+        onTryPrompt={() => undefined}
+      />
+    </MemoryRouter>,
   )
   const prompt = html.match(/<button[^>]*class="catalog-plugin-prompts__item[^>]*>/)?.[0]
   expect(prompt).toBeDefined()

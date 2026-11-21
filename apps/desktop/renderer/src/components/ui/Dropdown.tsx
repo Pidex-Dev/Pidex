@@ -1,7 +1,7 @@
 import type React from 'react'
 import { Dropdown as DropdownMenu } from './floating/Dropdown.js'
 import { useFloatingFocusModality } from '../../utils/FloatingFocus.js'
-import { buildPopoverSizingStyle, type PopoverSizingProps } from './PopoverSizing.js'
+import { type PopoverSizingProps } from './PopoverSizing.js'
 
 type Props = {
   children: React.ReactNode
@@ -45,18 +45,18 @@ export function Dropdown({
           className={[
             'popover-surface',
             'popover',
-            'tw:text-app-text',
             className,
             textMode === 'wrap' ? 'popover-text-wrap' : '',
-          ].join(' ')}
+          ]
+            .filter(Boolean)
+            .join(' ')}
           collisionPadding={collisionPadding}
           avoidCollisions={avoidCollisions}
           onCloseAutoFocus={focusModality.suppressFocusRingOnClose}
           side={side}
           sideOffset={sideOffset}
-          style={buildPopoverSizingStyle({ size })}
         >
-          <div className="popover-scroll-content tw:flex tw:min-w-0 tw:max-w-full tw:flex-col tw:gap-0.5">
+          <div className="popover-scroll-content popover-menu-list tw:min-w-0 tw:max-w-full">
             {children}
           </div>
         </DropdownMenu.Content>

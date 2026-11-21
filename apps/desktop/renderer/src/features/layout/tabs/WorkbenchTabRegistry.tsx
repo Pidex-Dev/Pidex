@@ -6,12 +6,15 @@ import {
   Bot,
   Folder,
   FileText,
-  FileCode2,
   GitPullRequest,
   Globe2,
+  Lightbulb,
   ListChecks,
   MessageCirclePlus,
   Paperclip,
+  RefreshCw,
+  Scale,
+  ScrollText,
   SquarePlus,
   SquareTerminal,
   Settings2,
@@ -36,19 +39,15 @@ import type { SideChatComposerRenderContext } from '../../session/conversation/S
 import type { ConversationItemContextValue } from '../../session/timeline/ConversationItemContext.js'
 import type { OpenPlanInDockRequest } from '../../session/workflow/WorkflowPlanCard.js'
 import type { FileDocumentLoadErrorPhase } from '../dock/RightDockPanels.js'
-import { FileTypeIcon } from '../FileTypeIcon.js'
 import { createWorkspaceFileTabId } from './WorkspaceFileTabId.js'
 import type {
   MarkdownFileViewMode,
   WorkbenchTabDescriptor,
   WorkbenchTabKind,
 } from '../dock/RightDockState.js'
-import {
-  WorkbenchPanelEmpty,
-  WorkbenchPanelLoading,
-  WorkbenchPanelUnavailable,
-} from '../panels/WorkbenchPanelStates.js'
+import { WorkbenchPanelLoading, WorkbenchPanelUnavailable } from '../panels/WorkbenchPanelStates.js'
 import { desktopBrowserClient } from '../../../services/desktop-client/DesktopBrowserClient.js'
+import { desktopClient } from '../../../services/desktop-client/index.js'
 import { WorkspaceReviewSidebar } from '../../review/workspace/WorkspaceReviewSidebar.js'
 import {
   RightDockFilePreviewPanel,
@@ -57,8 +56,12 @@ import {
   RightDockPlanPanel,
   RightDockSkillPreviewPanel,
 } from '../dock/RightDockPanels.js'
+import { RightDockPromptPreviewPanel } from '../dock/RightDockPromptPreviewPanel.js'
+import { RightDockJudgePanel } from '../dock/RightDockJudgePanel.js'
 import { SideChatThreadPanel } from '../../session/conversation/SideChatThreadPanel.js'
+import { SubagentAvatar } from '../../session/subagents/SubagentAvatar.js'
 import { SubagentDirectoryPanel } from '../../session/subagents/SubagentDirectoryPanel.js'
+import { SubagentThreadTabPanel } from '../../session/subagents/SubagentDockContent.js'
 import { UserAttachmentPreviewPanel } from '../../session/attachments/UserAttachmentPreviewPanel.js'
 
 const DesktopBrowserPanel = React.lazy(() =>
@@ -70,8 +73,8 @@ const TerminalPanel = React.lazy(() =>
   import('../../terminal/TerminalPanel.js').then((module) => ({ default: module.TerminalPanel })),
 )
 
-function deferred(element: ReactNode): ReactNode {
-  return <Suspense fallback={null}>{element}</Suspense>
+function deferred(element: ReactNode, loadingLabel: string): ReactNode {
+  return <Suspense fallback={<WorkbenchPanelLoading label={loadingLabel} />}>{element}</Suspense>
 }
 
 function BrowserTabContent({
@@ -118,6 +121,7 @@ function BrowserTabContent({
       state={state}
       onStateChange={onStateChange}
     />,
+    '正在加载内置浏览器…',
   )
 }
 
@@ -246,6 +250,7 @@ export type WorkbenchTabDefinition = {
   icon: ReactNode
   shortcut?: string
   launcher: boolean
+  routes?: readonly WorkbenchPanelRoute['page'][]
   launcherLabel?: string
   launcherIcon?: ReactNode
   launcherShortcut?: string | null
@@ -264,6 +269,7 @@ const WORKBENCH_LAUNCHER_ORDER: Partial<Record<WorkbenchTabKind, number>> = {
   browser: 2,
   'file-browser': 3,
   'side-chat': 4,
+  judge: 5,
 }
 
 export function getWorkbenchLauncherPresentation(definition: WorkbenchTabDefinition): {
@@ -286,9 +292,30 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     kind: 'provider-management',
     label: '供应商设置',
     icon: <Settings2 size={iconSize} />,
-    launcher: false,
+    launcher: true,
+    routes: ['providers'],
     lifecycle: 'unmount-when-hidden',
     getTitle: () => '供应商设置',
+    render: (_tab, context) => context.providerManagement ?? null,
+  },
+  {
+    kind: 'provider-model',
+    label: '编辑模型',
+    icon: <Settings2 size={iconSize} />,
+    launcher: false,
+    routes: ['providers'],
+    lifecycle: 'unmount-when-hidden',
+    getTitle: () => '编辑模型',
+    render: (_tab, context) => context.providerManagement ?? null,
+  },
+  {
+    kind: 'provider-sync',
+    label: '同步模型',
+    icon: <RefreshCw size={iconSize} />,
+    launcher: false,
+    routes: ['providers'],
+    lifecycle: 'unmount-when-hidden',
+    getTitle: () => '同步模型',
     render: (_tab, context) => context.providerManagement ?? null,
   },
   {
@@ -403,6 +430,30 @@ const definitions: readonly WorkbenchTabDefinition[] = [
       ) : null,
   },
   {
+    kind: 'judge',
+    label: 'Judge 决策',
+    icon: <Scale size={iconSize} />,
+    launcher: true,
+    lifecycle: 'unmount-when-hidden',
+    getAvailability: () =>
+      desktopClient.supportsDecisionEngine()
+        ? { status: 'available' }
+        : { status: 'unavailable', reason: '当前 Agent 运行时未声明 decision.engine.v1。' },
+    getTitle: () => 'Judge 决策',
+    render: (_tab, context) => <RightDockJudgePanel threadId={context.review.activeSessionId} />,
+  },
+  {
+    kind: 'prompt-preview',
+    label: '提示词',
+    icon: <ScrollText size={iconSize} />,
+    launcher: false,
+    lifecycle: 'unmount-when-hidden',
+    getTitle: () => '提示词预览',
+    render: (_tab, context) => (
+      <RightDockPromptPreviewPanel sessionId={context.review.activeSessionId} />
+    ),
+  },
+  {
     kind: 'plan',
     label: '计划',
     icon: <ListChecks size={iconSize} />,
@@ -424,7 +475,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
   {
     kind: 'skill-preview',
     label: '技能预览',
-    icon: <FileCode2 size={iconSize} />,
+    icon: <Lightbulb size={iconSize} />,
     launcher: false,
     lifecycle: 'unmount-when-hidden',
     getTitle: (tab) => (tab.kind === 'skill-preview' ? tab.skill.name : '技能预览'),
@@ -505,6 +556,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           cwd={context.terminal.cwd}
           onDisplayPathChange={context.terminal.onDisplayPathChange}
         />,
+        '正在加载集成终端…',
       )
     },
   },
@@ -526,6 +578,32 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           onSelectTask={(taskId) => context.subagentDirectory.onSelectTask(tab.threadId, taskId)}
           selectedTaskId={tab.selectedTaskId}
           threadId={tab.threadId}
+        />
+      ) : null,
+  },
+  {
+    kind: 'subagent-thread',
+    label: '子智能体',
+    icon: <Bot size={iconSize} />,
+    getIcon: (tab) => (
+      <SubagentAvatar
+        role={tab.kind === 'subagent-thread' ? (tab.role ?? 'general') : 'general'}
+        size="sm"
+        className="tw:size-full"
+      />
+    ),
+    launcher: false,
+    lifecycle: 'unmount-when-hidden',
+    getAvailability: (context) => context.subagentDirectory.availability,
+    getTitle: (tab) => (tab.kind === 'subagent-thread' ? tab.title : '子智能体'),
+    render: (tab, context) =>
+      tab.kind === 'subagent-thread' ? (
+        <SubagentThreadTabPanel
+          onError={context.subagentDirectory.onError}
+          onOpenPatchReview={context.subagentDirectory.onOpenPatchReview}
+          onOpenTask={context.subagentDirectory.onOpenTask}
+          onPatchApplied={context.subagentDirectory.onRefreshDiff}
+          taskId={tab.taskId}
         />
       ) : null,
   },
@@ -560,9 +638,13 @@ export function getWorkbenchTabDisplayTitle(
   return getWorkbenchTabDefinition(tab).getTitle(tab)
 }
 
-export function getWorkbenchLauncherDefinitions(): readonly WorkbenchTabDefinition[] {
+export function getWorkbenchLauncherDefinitions(
+  page: WorkbenchPanelRoute['page'] = 'conversation',
+): readonly WorkbenchTabDefinition[] {
   return definitions
-    .filter((definition) => definition.launcher)
+    .filter(
+      (definition) => definition.launcher && (definition.routes ?? ['conversation']).includes(page),
+    )
     .map((definition, index) => ({ definition, index }))
     .sort((left, right) => {
       const leftOrder = WORKBENCH_LAUNCHER_ORDER[left.definition.kind]
@@ -575,7 +657,35 @@ export function getWorkbenchLauncherDefinitions(): readonly WorkbenchTabDefiniti
     .map(({ definition }) => definition)
 }
 
-export function createLauncherTab(kind: WorkbenchTabKind): WorkbenchTabDescriptor | null {
+export type WorkbenchPanelRoute =
+  { page: 'conversation' } | { page: 'providers'; providerId: string }
+
+/** 空状态与添加标签菜单共用同一份路由可用面板定义。 */
+export function getWorkbenchRouteLaunchers(
+  route: WorkbenchPanelRoute = { page: 'conversation' },
+  sideChatAvailable = true,
+) {
+  return getWorkbenchLauncherDefinitions(route.page)
+    .filter(
+      (definition) =>
+        (definition.kind !== 'side-chat' || sideChatAvailable) &&
+        (definition.kind !== 'judge' || desktopClient.supportsDecisionEngine()),
+    )
+    .map((definition) => ({
+      ...definition,
+      id: definition.kind,
+      ...getWorkbenchLauncherPresentation(definition),
+      createTab: () => createLauncherTab(definition.kind, route),
+    }))
+}
+
+export function createLauncherTab(
+  kind: WorkbenchTabKind,
+  route?: WorkbenchPanelRoute,
+): WorkbenchTabDescriptor | null {
+  if (kind === 'provider-management' && route?.page === 'providers') {
+    return { id: 'provider-management', kind, providerId: route.providerId, section: 'credentials' }
+  }
   if (kind === 'review') return { id: 'review', kind: 'review' }
   if (kind === 'browser') {
     const tabId = crypto.randomUUID()
@@ -585,6 +695,8 @@ export function createLauncherTab(kind: WorkbenchTabKind): WorkbenchTabDescripto
     return { id: 'file-browser', kind: 'file-browser' }
   }
   if (kind === 'side-chat') return null
+  if (kind === 'judge') return { id: 'judge', kind: 'judge' }
+  if (kind === 'prompt-preview') return { id: 'prompt-preview', kind: 'prompt-preview' }
   if (kind === 'terminal') return { id: 'terminal', kind: 'terminal', title: '终端 1' }
   return null
 }

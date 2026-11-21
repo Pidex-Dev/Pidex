@@ -11,6 +11,9 @@ import { generatePiObject } from '../provider/pi/PiStructuredOutput'
 import { RequestContextUsage } from '../context/ContextBudget'
 import { secretScrubber } from '../security/SecretScrubber'
 import type { PermissionConfig, TaskMode } from '../Domain'
+import type { DecisionOrigin } from '../decision/DecisionEngine'
+import type { DecisionService } from '../decision/DecisionService'
+import { goalMetSpec, type GoalMetOutcome } from '../decision/specs/ContextSpecs'
 
 /** Output cap for one verification. It judges evidence; it does not write. */
 export const GOAL_VERIFIER_MAX_TOKENS = 1024
@@ -208,6 +211,58 @@ export async function runGoalVerifier(
 }
 
 class GoalVerifierBudgetError extends Error {}
+
+export type GoalAuxiliaryCheckInput = {
+  goal: ThreadGoal
+  // INVARIANT: The assistant's closing claim, host-recorded.
+  finalMessage: string
+  // INVARIANT: Acceptance items nobody has ticked; a host fact, not a model claim.
+  openItems: number
+  // INVARIANT: Files were edited and nothing ran afterwards; a host fact.
+  unverified: boolean
+}
+
+export type GoalAuxiliaryCheckResult = {
+  outcome: GoalMetOutcome
+  source: 'judge' | 'fallback'
+  // INVARIANT: True only when the config explicitly enables the fast pre-check.
+  enabled: boolean
+}
+
+// INVARIANT: 本函数不写 Goal 状态、不消费预算、不绕过未交付项检查；
+export async function runGoalAuxiliaryCheck(
+  decisions: DecisionService | null | undefined,
+  input: GoalAuxiliaryCheckInput,
+  options: {
+    structuredVerifierUnavailable?: boolean
+    signal?: AbortSignal
+    cwd?: string
+    origin?: DecisionOrigin
+  } = {},
+): Promise<GoalAuxiliaryCheckResult> {
+  const specInput = {
+    goal: input.goal.objective,
+    finalMessage: input.finalMessage,
+    openItems: input.openItems,
+    unverified: input.unverified,
+  }
+  const fallbackResult: GoalAuxiliaryCheckResult = {
+    outcome: goalMetSpec.fallback(specInput),
+    source: 'fallback',
+    enabled: false,
+  }
+  if (!decisions) return fallbackResult
+  const config = await decisions.getEffectiveConfig(options.cwd).catch(() => null)
+  const enabled = config?.features?.['goal.met']?.fastPrecheck === true
+  if (!enabled && options.structuredVerifierUnavailable !== true) return fallbackResult
+  const engine = await decisions.ensureEngine(options.cwd).catch(() => null)
+  if (!engine) return { ...fallbackResult, enabled }
+  const decision = await engine.decide(goalMetSpec, specInput, {
+    signal: options.signal,
+    ...(options.origin ? { origin: options.origin } : {}),
+  })
+  return { outcome: decision.outcome, source: decision.source, enabled }
+}
 
 function checkedVerdict(parsed: z.infer<typeof verdictSchema>): GoalVerifierOutcome {
   const reason = parsed.reason.trim()

@@ -43,43 +43,43 @@ export function PrimaryPageLayout({
     >
       <header
         className={cx(
-          'primary-page-layout__header tw:flex tw:w-[min(var(--page-content-max-width),100%)] tw:min-w-0 tw:flex-none tw:flex-col tw:mx-auto',
-          hasPermanentSearch && 'primary-page-layout__header--with-search',
+          'primary-page-layout__header tw:w-[min(var(--page-content-max-width),100%)] tw:min-w-0 tw:flex-none tw:mx-auto',
+          hasPermanentSearch ? 'primary-page-layout__header--with-search' : 'tw:flex tw:flex-col',
           headerClassName,
         )}
       >
-        <div className="primary-page-layout__header-top tw:flex tw:w-full tw:min-w-0 tw:items-start tw:justify-between tw:gap-4">
+        <div className="primary-page-layout__header-top tw:w-full tw:min-w-0 tw:items-start tw:justify-between tw:gap-4">
           <div className="primary-page-layout__header-main tw:flex tw:min-w-0 tw:flex-1 tw:flex-col">
             {expandableSearch && isValidElement<SearchInputProps>(search) ? (
               <SearchHeading
                 title={
-                  <h1 className="primary-page-layout__title tw:text-app-text tw:type-title-xl">
+                  <h1 className="primary-page-layout__title tw:text-app-text tw:type-7 tw:weight-bold">
                     {title}
                   </h1>
                 }
                 search={search}
               />
             ) : (
-              <div className="primary-page-layout__title-row tw:flex tw:min-h-9 tw:min-w-0 tw:items-center">
-                <h1 className="primary-page-layout__title tw:text-app-text tw:type-title-xl">
+              <div className="primary-page-layout__title-row tw:flex tw:min-h-6 tw:min-w-0 tw:items-center">
+                <h1 className="primary-page-layout__title tw:text-app-text tw:type-7 tw:weight-bold">
                   {title}
                 </h1>
               </div>
             )}
             {description ? (
-              <p className="primary-page-layout__description tw:mt-2 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body tw:[&_a]:ml-1 tw:[&_a]:text-app-text tw:[&_a]:underline tw:[&_a]:underline-offset-2">
+              <p className="primary-page-layout__description tw:mt-2 tw:max-w-[68ch] tw:text-app-text-soft tw:type-2 tw:[&_a]:ml-1 tw:[&_a]:text-app-text tw:[&_a]:underline tw:[&_a]:underline-offset-2">
                 {description}
               </p>
             ) : null}
           </div>
           {actions ? (
-            <div className="primary-page-layout__actions tw:flex tw:min-h-9 tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
+            <div className="primary-page-layout__actions tw:flex tw:min-h-6 tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
               {actions}
             </div>
           ) : null}
         </div>
         {hasPermanentSearch ? (
-          <div className="primary-page-layout__search tw:mt-4 tw:w-full tw:min-w-0 tw:[&_.search-input]:w-full">
+          <div className="primary-page-layout__search tw:min-w-0 tw:[&_.search-input]:w-full">
             {search}
           </div>
         ) : null}

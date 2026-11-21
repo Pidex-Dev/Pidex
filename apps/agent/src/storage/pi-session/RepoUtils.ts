@@ -1,7 +1,5 @@
 import { uuidv7 } from '@earendil-works/pi-ai'
 import {
-  type FileError,
-  type Result,
   SessionError,
   type SessionMetadata,
   type SessionStorage,
@@ -21,17 +19,6 @@ export function toSession<TMetadata extends SessionMetadata>(
   storage: SessionStorage<TMetadata>,
 ): Session<TMetadata> {
   return new Session(storage)
-}
-
-export function getFileSystemResultOrThrow<TValue>(
-  result: Result<TValue, FileError>,
-  message: string,
-): TValue {
-  if (!result.ok) {
-    const code = result.error.code === 'not_found' ? 'not_found' : 'storage'
-    throw new SessionError(code, `${message}: ${result.error.message}`, result.error)
-  }
-  return result.value
 }
 
 export async function getEntriesToFork(

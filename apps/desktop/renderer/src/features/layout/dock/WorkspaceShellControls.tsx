@@ -87,7 +87,7 @@ export function BottomPanelToggleIcon({ open }: { open: boolean }): React.ReactN
   return (
     <PanelBottom
       aria-hidden="true"
-      className="workspace-panel-icon workspace-panel-icon--bottom"
+      className="tw:size-icon-md workspace-panel-icon workspace-panel-icon--bottom"
       data-open={open}
       size={APP_ICON_SIZE}
       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -99,7 +99,7 @@ export function RightPanelToggleIcon({ open }: { open: boolean }): React.ReactNo
   return (
     <PanelRight
       aria-hidden="true"
-      className="workspace-panel-icon workspace-panel-icon--right"
+      className="tw:size-icon-md workspace-panel-icon workspace-panel-icon--right"
       data-open={open}
       size={APP_ICON_SIZE}
       strokeWidth={APP_ICON_STROKE_WIDTH}

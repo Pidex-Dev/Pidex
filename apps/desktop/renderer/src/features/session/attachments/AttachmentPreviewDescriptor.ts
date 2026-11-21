@@ -1,12 +1,20 @@
 import type { Attachment, LocalContextReference } from '@pidex/shared/thread'
 import type { DesktopComposerAttachment } from '../../../../shared/Types.js'
 import type { UserAttachmentPreviewTab } from '../../layout/dock/RightDockState.js'
-import { resolveDraftAttachmentPreviewContent } from './AttachmentPreviewSupport.js'
+import {
+  isMediaPreviewKind,
+  resolveDraftAttachmentPreviewContent,
+} from './AttachmentPreviewSupport.js'
 
 export function createThreadAttachmentPreviewTab(
   attachment: Attachment,
 ): UserAttachmentPreviewTab | null {
-  if (attachment.kind !== 'image' && attachment.kind !== 'text') return null
+  if (
+    attachment.kind !== 'image' &&
+    attachment.kind !== 'text' &&
+    !isMediaPreviewKind(attachment.kind)
+  )
+    return null
   return {
     id: 'user-attachment-preview',
     kind: 'attachment-preview',
@@ -108,7 +116,7 @@ export function canPreviewDraftAttachment(attachment: DesktopComposerAttachment)
 
 function createDraftTab(
   attachment: DesktopComposerAttachment,
-  kind: 'image' | 'text',
+  kind: 'image' | 'text' | 'video' | 'audio',
   data: string,
   encoding: 'base64' | 'utf8',
 ): UserAttachmentPreviewTab {

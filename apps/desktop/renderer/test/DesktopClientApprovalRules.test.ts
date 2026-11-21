@@ -38,7 +38,7 @@ test('审批规则客户端通过 permission.rules.v1 列出、写入并撤销�
     }
     if (body.method === 'initialized') return new Response(null, { status: 204 })
     if (body.method === 'approval/rules/list') {
-      expect(body.params).toEqual({ threadId: 'thread-1' })
+      expect(body.params).toEqual({ cwd: 'F:/workspace' })
       return Response.json({
         jsonrpc: '2.0',
         id: body.id,
@@ -47,12 +47,12 @@ test('审批规则客户端通过 permission.rules.v1 列出、写入并撤销�
     }
     if (body.method === 'approval/rules/upsert') {
       expect(body.params).toEqual({
-        threadId: 'thread-1',
+        cwd: 'F:/workspace',
         expectedVersion: '2',
         rule: {
           id: 'rule-1',
           effect: 'deny',
-          scope: 'chat',
+          scope: 'project',
           match: { kind: 'tool', tool: 'Write' },
         },
       })
@@ -64,7 +64,7 @@ test('审批规则客户端通过 permission.rules.v1 列出、写入并撤销�
     }
     if (body.method === 'approval/rules/revoke') {
       expect(body.params).toEqual({
-        threadId: 'thread-1',
+        cwd: 'F:/workspace',
         ruleId: 'rule-1',
         expectedVersion: '3',
       })
@@ -74,23 +74,29 @@ test('审批规则客户端通过 permission.rules.v1 列出、写入并撤销�
   }
   const client = createDesktopClient({ fetch: fetcher })
 
-  const listed = await client.listApprovalRules('thread-1')
+  const listed = await client.listApprovalRules({ cwd: 'F:/workspace' })
   expect(listed.rules[0]?.id).toBe('rule-1')
 
   const upserted = await client.upsertApprovalRule({
-    threadId: 'thread-1',
+    cwd: 'F:/workspace',
     expectedVersion: '2',
     rule: {
       id: 'rule-1',
       effect: 'deny',
-      scope: 'chat',
+      scope: 'project',
       match: { kind: 'tool', tool: 'Write' },
     },
   })
   expect(upserted.rule.effect).toBe('deny')
   expect(upserted.rule.version).toBe('3')
 
-  expect(await client.revokeApprovalRule('thread-1', 'rule-1', '3')).toEqual({ revoked: true })
+  expect(
+    await client.revokeApprovalRule({
+      cwd: 'F:/workspace',
+      ruleId: 'rule-1',
+      expectedVersion: '3',
+    }),
+  ).toEqual({ revoked: true })
   expect(methods.slice(0, 5)).toEqual([
     'initialize',
     'initialized',

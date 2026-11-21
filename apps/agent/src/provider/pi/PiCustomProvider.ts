@@ -19,6 +19,7 @@ export const toPiModel = (
   provider: PiCustomProviderConfig,
   model: PiCustomModelConfig,
 ): Model<Api> & {
+  pricing?: PidexModel.Pricing
   inputExplicit: boolean
   modelType?: NonNullable<PiCustomModelConfig['modelType']>
   tools?: boolean
@@ -34,6 +35,7 @@ export const toPiModel = (
   input: [...model.input] as Model<Api>['input'],
   ...(model.modelType ? { modelType: model.modelType } : {}),
   ...(model.tools !== undefined ? { tools: model.tools } : {}),
+  ...(model.pricing ? { pricing: model.pricing } : {}),
   cost: { ...model.cost },
   contextWindow: model.contextWindow,
   ...(model.maxInputTokens !== undefined ? { maxInputTokens: model.maxInputTokens } : {}),
@@ -92,10 +94,48 @@ export interface DiscoverOpenAIModelsOptions {
 export interface DiscoveredOpenAIModel {
   readonly id: string
   readonly name: string
+  readonly contextWindow?: number
+  readonly maxInputTokens?: number
+  readonly maxTokens?: number
+  /** 上游明确声明的思考档位（按声明顺序、去重）。缺失表示上游未声明，不猜测。 */
+  readonly reasoningLevels?: readonly string[]
 }
 
 const MAX_DISCOVERY_BYTES = 1024 * 1024
 const DISCOVERY_TIMEOUT_MS = 8_000
+
+const asRecord = (value: unknown): Record<string, unknown> | undefined =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined
+
+/** 只接受上游明确声明的额度字段；缺失保持缺失，不从名称或数量级推断。 */
+const explicitLimit = (value: unknown): number | undefined =>
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value > 0 &&
+  value <= Number.MAX_SAFE_INTEGER
+    ? value
+    : undefined
+
+/**
+ * 上游明确声明的思考档位：`reasoning_levels`（字符串数组，OpenAI 兼容网关的
+ * 扩展）或 `supported_reasoning_levels`（`{effort}` 对象数组）。只接受字符串
+ * 值，保序去重；两者都缺失时返回 undefined，由推荐目录继续决定。
+ */
+const explicitReasoningLevels = (
+  record: Record<string, unknown>,
+): readonly string[] | undefined => {
+  const text = (value: unknown): string | undefined =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined
+  const listed = Array.isArray(record.reasoning_levels)
+    ? record.reasoning_levels.map(text)
+    : Array.isArray(record.supported_reasoning_levels)
+      ? record.supported_reasoning_levels.map((item) => text(asRecord(item)?.effort))
+      : []
+  const levels = [...new Set(listed.filter((value): value is string => value !== undefined))]
+  return levels.length ? levels : undefined
+}
 
 export const discoverOpenAIModels = async (
   options: DiscoverOpenAIModelsOptions,
@@ -156,9 +196,24 @@ export const discoverOpenAIModels = async (
     const id = codex ? record.slug : record.id
     const name = codex ? record.display_name : record.name
     if (typeof id === 'string' && id.trim()) {
+      const topProvider = asRecord(record.top_provider)
+      const contextWindow = explicitLimit(
+        record.context_window ?? record.context_length ?? topProvider?.context_length,
+      )
+      const maxInputTokens = explicitLimit(record.max_input_tokens)
+      const maxTokens = explicitLimit(
+        record.max_output_tokens ??
+          record.max_completion_tokens ??
+          topProvider?.max_completion_tokens,
+      )
+      const reasoningLevels = explicitReasoningLevels(record)
       models.set(id, {
         id,
         name: typeof name === 'string' && name.trim() ? name : id,
+        ...(contextWindow ? { contextWindow } : {}),
+        ...(maxInputTokens ? { maxInputTokens } : {}),
+        ...(maxTokens ? { maxTokens } : {}),
+        ...(reasoningLevels ? { reasoningLevels } : {}),
       })
     }
   }

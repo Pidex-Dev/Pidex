@@ -7,7 +7,6 @@ import { RadioGroup, RadioItem } from '../../../components/ui/RadioGroup.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
 import type {
   McpElicitationBooleanSchema,
-  McpElicitationConstOption,
   McpElicitationMultiSelectEnumSchema,
   McpElicitationNumberSchema,
   McpElicitationPrimitiveSchema,
@@ -127,13 +126,13 @@ export function McpElicitationForm({
       error={error}
     >
       {message ? (
-        <p className="mcp-form-message tw:m-0 tw:px-3 tw:text-app-text-soft tw:type-body tw:break-words">
+        <p className="mcp-form-message tw:m-0 tw:text-app-text-soft tw:type-2 tw:break-words">
           {message}
         </p>
       ) : null}
       {details}
 
-      <div className="mcp-form-fields tw:flex tw:flex-col tw:gap-2 tw:px-3">
+      <div className="mcp-form-fields tw:flex tw:flex-col tw:gap-2">
         {fieldNames.map((name) => {
           const fieldSchema = schema.properties[name]
           if (!fieldSchema) return null
@@ -153,22 +152,22 @@ export function McpElicitationForm({
       </div>
 
       {hasErrors && submitted ? (
-        <p className="mcp-form-error-summary tw:m-0 tw:px-3 tw:text-app-danger tw:type-body-sm">
+        <p className="mcp-form-error-summary tw:m-0 tw:text-app-danger tw:type-1">
           请修正标红的字段后再提交
         </p>
       ) : null}
 
-      <div className="mcp-form-actions tw:flex tw:items-center tw:gap-1 tw:px-3 tw:pb-1">
-        <Button color="danger" onClick={onDecline}>
+      <div className="mcp-form-actions tw:flex tw:items-center tw:gap-1">
+        <Button shape="pill" size="sm" color="danger" onClick={onDecline}>
           拒绝
         </Button>
-        <Button color="secondary" onClick={onCancel}>
-          <X size={APP_ICON_SIZE} />
+        <Button shape="pill" size="sm" color="secondary" onClick={onCancel}>
+          <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
           取消
         </Button>
-        <Button color="primary" onClick={handleSubmit}>
+        <Button shape="pill" size="sm" color="primary" onClick={handleSubmit}>
           提交
-          <CornerDownLeft size={APP_ICON_SIZE} />
+          <CornerDownLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
         </Button>
       </div>
     </RequestCard>
@@ -202,12 +201,12 @@ export function McpElicitationUnsupported({
       error={error}
     >
       {message ? (
-        <p className="mcp-form-message tw:m-0 tw:px-3 tw:text-app-text-soft tw:type-body tw:break-words">
+        <p className="mcp-form-message tw:m-0 tw:text-app-text-soft tw:type-2 tw:break-words">
           {message}
         </p>
       ) : null}
 
-      <div className="mcp-form-unsupported tw:flex tw:items-start tw:gap-2 tw:px-3 tw:text-app-text-soft tw:type-body-sm">
+      <div className="mcp-form-unsupported tw:flex tw:items-start tw:gap-2 tw:text-app-text-soft tw:type-1">
         <span
           className="mcp-form-unsupported-icon tw:mt-1 tw:shrink-0 tw:text-[var(--cpx-sys-space-4)]"
           aria-hidden="true"
@@ -217,12 +216,12 @@ export function McpElicitationUnsupported({
         <p className="tw:m-0">当前版本不支持此输入方式。</p>
       </div>
 
-      <div className="mcp-form-actions tw:flex tw:items-center tw:gap-1 tw:px-3 tw:pb-1">
-        <Button color="danger" onClick={onDecline}>
+      <div className="mcp-form-actions tw:flex tw:items-center tw:gap-1">
+        <Button shape="pill" size="sm" color="danger" onClick={onDecline}>
           拒绝
         </Button>
-        <Button color="secondary" onClick={onCancel}>
-          <X size={APP_ICON_SIZE} />
+        <Button shape="pill" size="sm" color="secondary" onClick={onCancel}>
+          <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
           取消
         </Button>
       </div>
@@ -259,13 +258,13 @@ function McpFormField({
       }
     >
       <label
-        className="mcp-form-field-label tw:flex tw:items-center tw:gap-1 tw:text-app-text tw:type-row-title"
+        className="mcp-form-field-label tw:flex tw:items-center tw:gap-1 tw:text-app-text tw:type-2 tw:weight-medium"
         htmlFor={`mcp-field-${name}`}
       >
         {label}
         {isRequired ? (
           <span
-            className="mcp-form-required-mark tw:ms-1 tw:text-app-danger tw:type-weight-heading"
+            className="mcp-form-required-mark tw:ms-1 tw:text-app-danger tw:weight-bold"
             aria-hidden="true"
           >
             *
@@ -274,15 +273,13 @@ function McpFormField({
       </label>
 
       {description ? (
-        <p className="mcp-form-field-desc tw:m-0 tw:text-app-text-meta tw:type-body-sm">
-          {description}
-        </p>
+        <p className="mcp-form-field-desc tw:m-0 tw:text-app-text-meta tw:type-1">{description}</p>
       ) : null}
 
       <FieldInput name={name} schema={schema} value={value} onChange={onChange} />
 
       {error ? (
-        <p className="mcp-form-field-error tw:m-0 tw:text-app-danger tw:type-body-sm" role="alert">
+        <p className="mcp-form-field-error tw:m-0 tw:text-app-danger tw:type-1" role="alert">
           {error}
         </p>
       ) : null}
@@ -355,7 +352,7 @@ function isSingleSelectEnum(
 // ── Text field ───────────────────────────────────────────────
 
 const TEXT_INPUT_CLASS =
-  'mcp-form-field-input tw:w-full tw:box-border tw:rounded-control tw:border tw:border-app-border-subtle tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-text tw:type-body tw:outline-none tw:transition-[border-color,box-shadow] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:shadow-[var(--cpx-sys-focus-ring-soft)]'
+  'mcp-form-field-input tw:w-full tw:box-border tw:rounded-control tw:border tw:border-app-border-subtle tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:outline-none tw:transition-[border-color,box-shadow] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:shadow-[var(--cpx-sys-focus-ring-soft)]'
 
 function TextField({
   name,
@@ -431,7 +428,7 @@ function BooleanField({
   return (
     <div className="mcp-form-boolean tw:inline-flex tw:items-center tw:gap-2">
       <ToggleSwitch ariaLabel={schema.title ?? name} checked={value} onChange={onChange} />
-      <span className="mcp-form-boolean-label tw:type-body">{value ? '是' : '否'}</span>
+      <span className="mcp-form-boolean-label tw:type-2">{value ? '是' : '否'}</span>
     </div>
   )
 }

@@ -337,7 +337,6 @@ export function useThreadScrollController({
   const modeRef = React.useRef<ThreadScrollMode>('static')
   const activeRef = React.useRef(active)
   const atBottomRef = React.useRef(false)
-  const intersectionAtBottomRef = React.useRef(false)
   const previousActiveRef = React.useRef(active)
   const previousCountRef = React.useRef(itemCount)
   const itemCountRef = React.useRef(itemCount)
@@ -356,6 +355,7 @@ export function useThreadScrollController({
   const contentReflowActiveUntilRef = React.useRef(0)
   const programmaticScrollUntilRef = React.useRef(0)
   const explicitReturnInProgressRef = React.useRef(false)
+  const pendingExplicitReturnRef = React.useRef(false)
   const scrollFrameRef = React.useRef<number | null>(null)
   const sessionKeyRef = React.useRef(sessionKey)
   const layoutResizeActiveRef = React.useRef(layoutResizeActive)
@@ -399,27 +399,43 @@ export function useThreadScrollController({
       cancelAnimationFrame(scrollFrameRef.current)
       scrollFrameRef.current = null
     }
+    pendingExplicitReturnRef.current = false
+    programmaticScrollUntilRef.current = 0
     explicitReturnInProgressRef.current = false
     setMode('static')
   }, [setMode])
 
   const scrollToEnd = React.useCallback(
     (smooth: boolean, explicitReturn = false): void => {
+      if (!explicitReturn && pendingExplicitReturnRef.current && scrollFrameRef.current !== null) {
+        return
+      }
       if (scrollFrameRef.current !== null) {
         cancelAnimationFrame(scrollFrameRef.current)
       }
+      pendingExplicitReturnRef.current = explicitReturn
       scrollFrameRef.current = requestAnimationFrame(() => {
         scrollFrameRef.current = null
+        pendingExplicitReturnRef.current = false
         const handle = listRef.current
         if (!handle) {
           explicitReturnInProgressRef.current = false
           return
         }
-        const useSmoothScroll = beginProgrammaticScroll(smooth)
-        explicitReturnInProgressRef.current = explicitReturn
         const viewport = scrollRef.current
+        if (
+          viewport &&
+          !explicitReturn &&
+          ((modeRef.current === 'static' && !atBottomRef.current) ||
+            viewport.scrollTop < previousOffsetRef.current - 2)
+        ) {
+          explicitReturnInProgressRef.current = false
+          return
+        }
         const targetIndex = itemCountRef.current - 1
         if (!viewport && targetIndex >= 0) {
+          const useSmoothScroll = beginProgrammaticScroll(smooth)
+          explicitReturnInProgressRef.current = explicitReturn
           if (
             !scrollVirtualizerToThreadBottom(
               handle,
@@ -434,15 +450,26 @@ export function useThreadScrollController({
         if (viewport) {
           const maxScroll = Math.max(0, viewport.scrollHeight - viewport.clientHeight)
           if (Math.abs(viewport.scrollTop - maxScroll) > 1) {
+            const useSmoothScroll = smooth && !reducedMotion
+            if (useSmoothScroll) {
+              beginProgrammaticScroll(true)
+              explicitReturnInProgressRef.current = explicitReturn
+            } else {
+              programmaticScrollUntilRef.current = 0
+              explicitReturnInProgressRef.current = false
+              previousOffsetRef.current = maxScroll
+            }
             viewport.scrollTo({
               top: maxScroll,
               behavior: useSmoothScroll ? 'smooth' : 'instant',
             })
+          } else {
+            explicitReturnInProgressRef.current = false
           }
         }
       })
     },
-    [beginProgrammaticScroll, listRef, scrollRef],
+    [beginProgrammaticScroll, listRef, reducedMotion, scrollRef],
   )
 
   const applyDecision = React.useCallback(
@@ -527,8 +554,7 @@ export function useThreadScrollController({
         ...metrics,
         scrollOffset: scrollTop,
       })
-      const actualAtBottom =
-        distance <= THREAD_BOTTOM_THRESHOLD_PX || intersectionAtBottomRef.current
+      const actualAtBottom = distance <= THREAD_BOTTOM_THRESHOLD_PX
       const atBottom = resolveThreadAtBottomDuringExplicitReturn({
         actualAtBottom,
         explicitReturnInProgress: explicitReturnInProgressRef.current,
@@ -537,6 +563,9 @@ export function useThreadScrollController({
       })
       if (actualAtBottom || !atBottom) {
         explicitReturnInProgressRef.current = false
+        if (actualAtBottom) {
+          programmaticScrollUntilRef.current = 0
+        }
       }
       const previousOffset = previousOffsetRef.current
       const programmaticScrollActive = isProgrammaticScrollActive(
@@ -544,6 +573,12 @@ export function useThreadScrollController({
         programmaticScrollUntilRef.current,
       )
       const userScrolledUp = scrollTop < previousOffset - 2 && !programmaticScrollActive
+      if (userScrolledUp && !atBottom && scrollFrameRef.current !== null) {
+        cancelAnimationFrame(scrollFrameRef.current)
+        scrollFrameRef.current = null
+        pendingExplicitReturnRef.current = false
+        explicitReturnInProgressRef.current = false
+      }
 
       previousOffsetRef.current = scrollTop
       previousDistanceFromBottomRef.current = distance
@@ -653,9 +688,10 @@ export function useThreadScrollController({
         }
 
         const shouldFollow =
-          modeRef.current === 'prework_follow' ||
-          modeRef.current === 'user_follow' ||
-          (activeRef.current && atBottomRef.current)
+          activeRef.current &&
+          (modeRef.current === 'prework_follow' ||
+            modeRef.current === 'user_follow' ||
+            atBottomRef.current)
         if (shouldFollow) {
           previousDistanceFromBottomRef.current = 0
           setHasNewContent(false)
@@ -709,7 +745,6 @@ export function useThreadScrollController({
     setMode('static')
     setHasNewContent(false)
     explicitReturnInProgressRef.current = false
-    intersectionAtBottomRef.current = false
     previousActiveRef.current = preserveHistoricalPosition ? activeRef.current : false
     const metrics = readMetrics(listRef.current, scrollRef.current)
     previousCountRef.current = itemCountRef.current
@@ -742,22 +777,61 @@ export function useThreadScrollController({
     const viewport = scrollRef.current
     if (!viewport || typeof ResizeObserver === 'undefined') return
     viewportSizeRef.current = { width: viewport.clientWidth, height: viewport.clientHeight }
-    const observer = new ResizeObserver(() => {
+    let observedFooter = viewport.querySelector<HTMLElement>('.thread-scroll-layout__footer')
+    let footerHeight = observedFooter
+      ? Math.round(observedFooter.getBoundingClientRect().height)
+      : 0
+
+    const handleGeometryResize = (): void => {
       const previous = viewportSizeRef.current
       const next = { width: viewport.clientWidth, height: viewport.clientHeight }
-      if (previous.width === next.width && previous.height === next.height) return
+      const nextFooterHeight = observedFooter
+        ? Math.round(observedFooter.getBoundingClientRect().height)
+        : 0
+      const viewportChanged = previous.width !== next.width || previous.height !== next.height
+      const footerChanged = nextFooterHeight !== footerHeight
+      if (!viewportChanged && !footerChanged) return
       viewportSizeRef.current = next
+      footerHeight = nextFooterHeight
       if (
         atBottomRef.current ||
-        modeRef.current === 'prework_follow' ||
-        modeRef.current === 'user_follow'
+        (activeRef.current &&
+          (modeRef.current === 'prework_follow' || modeRef.current === 'user_follow'))
       ) {
         scrollToEnd(false)
+        return
       }
-    })
+      if (pendingRestoreRef.current !== null) return
+      const metrics = readMetrics(listRef.current, viewport)
+      if (!metrics) return
+      const distance = distanceFromThreadBottom(metrics)
+      previousDistanceFromBottomRef.current = distance
+      updateAtBottom(distance <= THREAD_BOTTOM_THRESHOLD_PX)
+    }
+
+    const observer = new ResizeObserver(handleGeometryResize)
     observer.observe(viewport)
-    return () => observer.disconnect()
-  }, [scrollRef, scrollToEnd, sessionKey])
+    if (observedFooter) observer.observe(observedFooter)
+
+    const inner = viewport.firstElementChild
+    const footerPresenceObserver =
+      inner && typeof MutationObserver !== 'undefined'
+        ? new MutationObserver(() => {
+            const nextFooter = viewport.querySelector<HTMLElement>('.thread-scroll-layout__footer')
+            if (nextFooter === observedFooter) return
+            if (observedFooter) observer.unobserve(observedFooter)
+            observedFooter = nextFooter
+            if (observedFooter) observer.observe(observedFooter)
+            handleGeometryResize()
+          })
+        : null
+    if (inner) footerPresenceObserver?.observe(inner, { childList: true })
+
+    return () => {
+      footerPresenceObserver?.disconnect()
+      observer.disconnect()
+    }
+  }, [listRef, scrollRef, scrollToEnd, sessionKey, updateAtBottom])
 
   React.useEffect(() => {
     const wasActive = previousActiveRef.current
@@ -841,18 +915,17 @@ export function useThreadScrollController({
 
   React.useEffect(() => {
     const viewport = scrollRef.current
-    intersectionAtBottomRef.current = false
     if (!viewport || !bottomSentinel || typeof IntersectionObserver === 'undefined') {
       return
     }
     const observer = new IntersectionObserver(
       ([entry]) => {
         const visible = Boolean(entry?.isIntersecting)
-        intersectionAtBottomRef.current = visible
         const metrics = readMetrics(listRef.current, viewport)
         const actualAtBottom =
-          visible ||
-          (metrics !== null && distanceFromThreadBottom(metrics) <= THREAD_BOTTOM_THRESHOLD_PX)
+          metrics !== null
+            ? distanceFromThreadBottom(metrics) <= THREAD_BOTTOM_THRESHOLD_PX
+            : visible
         const atBottom = resolveThreadAtBottomDuringExplicitReturn({
           actualAtBottom,
           explicitReturnInProgress: explicitReturnInProgressRef.current,
@@ -861,6 +934,9 @@ export function useThreadScrollController({
         })
         if (actualAtBottom || !atBottom) {
           explicitReturnInProgressRef.current = false
+          if (actualAtBottom) {
+            programmaticScrollUntilRef.current = 0
+          }
         }
         updateAtBottom(atBottom)
       },
@@ -869,7 +945,6 @@ export function useThreadScrollController({
     observer.observe(bottomSentinel)
     return () => {
       observer.disconnect()
-      intersectionAtBottomRef.current = false
     }
   }, [bottomSentinel, listRef, scrollRef, sessionKey, updateAtBottom])
 

@@ -5,7 +5,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:pat
 import extractZip from 'extract-zip'
 import { resolveAgentStorageLayout } from '../config/Config'
 
-export type ToolingID = 'nodejs' | 'python' | 'git-bash' | 'ripgrep'
+export type ToolingID = 'nodejs' | 'python'
 /** @deprecated Use ToolingID. Kept for compatibility with existing Agent internals. */
 export type ManagedToolID = ToolingID
 export type ToolingPreference = 'managed' | 'system'
@@ -40,7 +40,7 @@ type ToolCatalogEntry = {
   mirrors?: readonly string[]
   url: string
   archiveSha256: string
-  archive: 'portable-git' | 'python-installer' | 'zip'
+  archive: 'python-installer' | 'zip'
   executable: string
   maxBytes: number
   totalTimeoutMs: number
@@ -70,35 +70,6 @@ export const TOOLING_CATALOG: Readonly<Record<ManagedToolID, ToolCatalogEntry>> 
     executable: 'python.exe',
     maxBytes: 64 * 1024 * 1024,
     totalTimeoutMs: 5 * 60_000,
-    inactivityTimeoutMs: 30_000,
-  },
-  'git-bash': {
-    id: 'git-bash',
-    version: '2.55.0.3',
-    mirrors: [
-      'https://registry.npmmirror.com/-/binary/git-for-windows/v2.55.0.windows.3/PortableGit-2.55.0.3-64-bit.7z.exe',
-    ],
-    url: 'https://github.com/git-for-windows/git/releases/download/v2.55.0.windows.3/PortableGit-2.55.0.3-64-bit.7z.exe',
-    archiveSha256: 'ab00566336b5472120f9a52d34f2e79c5406535792acb0548001ffd0bd090e5d',
-    archive: 'portable-git',
-    executable: 'bin/bash.exe',
-    maxBytes: 150 * 1024 * 1024,
-    totalTimeoutMs: 5 * 60_000,
-    inactivityTimeoutMs: 30_000,
-  },
-  ripgrep: {
-    id: 'ripgrep',
-    version: '15.2.0',
-    mirrors: [
-      'https://gh-proxy.com/https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-pc-windows-msvc.zip',
-      'https://ghfast.top/https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-pc-windows-msvc.zip',
-    ],
-    url: 'https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-pc-windows-msvc.zip',
-    archiveSha256: '71b2fef860abe467217a538ff31de02f5258807c0129f771846f87bd029aafc5',
-    archive: 'zip',
-    executable: 'ripgrep-15.2.0-x86_64-pc-windows-msvc/rg.exe',
-    maxBytes: 20 * 1024 * 1024,
-    totalTimeoutMs: 2 * 60_000,
     inactivityTimeoutMs: 30_000,
   },
 }
@@ -133,23 +104,16 @@ export interface ToolingManagerOptions {
   persistPreferences?: boolean
 }
 
-const TOOL_IDS = ['nodejs', 'python', 'git-bash', 'ripgrep'] as const
+const TOOL_IDS = ['nodejs', 'python'] as const
 const DEFAULT_SETTINGS: ToolingSettings = {
   version: 2,
-  preferences: { nodejs: 'managed', python: 'managed', 'git-bash': 'managed', ripgrep: 'managed' },
+  preferences: { nodejs: 'managed', python: 'managed' },
 }
 const ALLOWED_DOWNLOAD_HOSTS = new Set([
   'cdn.npmmirror.com',
-  'gh-proxy.com',
-  'ghfast.top',
-  'github.com',
-  'release-assets.githubusercontent.com',
-  'objects.githubusercontent.com',
-  'github-releases.githubusercontent.com',
   'mirrors.aliyun.com',
   'nodejs.org',
   'npmmirror.com',
-  'registry.npmmirror.com',
   'www.python.org',
 ])
 
@@ -179,6 +143,8 @@ const sanitizeError = (cause: unknown) =>
         cause instanceof Error ? cause.message : '托管工具安装失败',
       )
 
+const AUTO_INSTALL_FAILURE_COOLDOWN_MS = 5 * 60_000
+
 export class ToolingManager {
   readonly root: string
   private readonly fetchImpl: typeof fetch
@@ -191,6 +157,15 @@ export class ToolingManager {
     Pick<ToolingStatus, 'phase' | 'progress' | 'error'>
   >()
   private readonly installs = new Map<ManagedToolID, Promise<ToolingResolution>>()
+  private readonly resolvedCache = new Map<
+    ManagedToolID,
+    {
+      preference: ToolingPreference
+      override: string | undefined
+      resolution: Extract<ToolingResolution, { available: true }>
+    }
+  >()
+  private readonly autoInstallBlockedUntil = new Map<ManagedToolID, number>()
   private readonly listeners = new Set<Listener>()
   private readonly pendingEmits = new Map<ManagedToolID, ReturnType<typeof setTimeout>>()
   private readonly statusCache = new Map<ManagedToolID, ToolingStatus>()
@@ -268,6 +243,8 @@ export class ToolingManager {
 
   async setPreference(id: ManagedToolID, preference: ToolingPreference): Promise<ToolingStatus> {
     await this.initialize()
+    this.resolvedCache.delete(id)
+    this.autoInstallBlockedUntil.delete(id)
     this.settings.preferences[id] = preference
     if (this.persistPreferences) await this.saveSettings()
     if (preference === 'system') await this.removeManaged(id)
@@ -283,25 +260,59 @@ export class ToolingManager {
     await this.initialize()
     if (options.signal?.aborted)
       return { available: false, code: 'TOOLING_ABORTED', reason: '工具解析已取消' }
-    if (this.settings.preferences[id] === 'system') {
+    const preference = this.settings.preferences[id]
+    const override = this.systemOverride(id)
+    const cached = this.resolvedCache.get(id)
+    if (
+      cached &&
+      cached.preference === preference &&
+      cached.override === override &&
+      (await fileExists(cached.resolution.path))
+    ) {
+      return cached.resolution
+    }
+    const cacheResolution = (resolution: ToolingResolution) => {
+      if (resolution.available) {
+        this.resolvedCache.set(id, { preference, override, resolution })
+      }
+      return resolution
+    }
+    if (preference === 'system') {
       const system = await this.findSystem(id)
-      return (
-        system ?? {
-          available: false,
-          code: 'TOOLING_UNAVAILABLE',
-          reason: `${id} 已选择本机版，但未检测到可用安装`,
-        }
-      )
+      return system
+        ? cacheResolution(system)
+        : {
+            available: false,
+            code: 'TOOLING_UNAVAILABLE',
+            reason: `${id} 已选择本机版，但未检测到可用安装`,
+          }
     }
     const managed = await this.findManaged(id)
-    if (managed) return managed
+    if (managed) return cacheResolution(managed)
+    // 本机已有可用运行时时直接复用，避免每次工具调用在未安装托管版时阻塞等待大体积下载/超时。
+    const system = await this.findSystem(id)
+    if (system) return cacheResolution(system)
+    const blockedUntil = this.autoInstallBlockedUntil.get(id) ?? 0
+    if (Date.now() < blockedUntil) {
+      const lastError = this.phases.get(id)?.error
+      return {
+        available: false,
+        code: lastError?.code ?? 'TOOLING_UNAVAILABLE',
+        reason: lastError?.message ?? `${id} 托管版暂不可用，请稍后重试`,
+      }
+    }
     const installed = await this.installResolution(
       id,
       options.signal ? { signal: options.signal } : {},
     )
-    if (installed.available) return installed
-    const system = await this.findSystem(id)
-    return system ?? installed
+    if (installed.available) {
+      this.autoInstallBlockedUntil.delete(id)
+      return cacheResolution(installed)
+    }
+    if (installed.code !== 'TOOLING_ABORTED') {
+      this.autoInstallBlockedUntil.set(id, Date.now() + AUTO_INSTALL_FAILURE_COOLDOWN_MS)
+    }
+    return installed
   }
 
   async resolveEnvironment(
@@ -329,6 +340,8 @@ export class ToolingManager {
     options: { force?: boolean; signal?: AbortSignal } = {},
   ): Promise<ToolingStatus> {
     await this.initialize()
+    this.resolvedCache.delete(id)
+    this.autoInstallBlockedUntil.delete(id)
     const resolution = await this.installResolution(id, options)
     if (!resolution.available) throw new ToolingError(resolution.code, resolution.reason)
     return this.getStatus(id)
@@ -531,8 +544,6 @@ export class ToolingManager {
             },
           })
         }
-      } catch (cause) {
-        throw cause
       } finally {
         await output.close()
       }
@@ -558,10 +569,6 @@ export class ToolingManager {
     destination: string,
     signal?: AbortSignal,
   ) {
-    if (entry.archive === 'portable-git') {
-      await this.runChecked(archivePath, ['-y', `-o${destination}`], 3 * 60_000, signal)
-      return
-    }
     if (entry.archive === 'python-installer') {
       await this.runChecked(
         archivePath,
@@ -692,7 +699,6 @@ export class ToolingManager {
     const candidates = override ? [resolve(override)] : await this.systemCandidates(id)
     for (const candidate of [...new Set(candidates)]) {
       const normalized = candidate.replaceAll('/', '\\').toLowerCase()
-      if (id === 'git-bash' && normalized.includes('\\windows\\system32\\bash.exe')) continue
       // Windows 的 Microsoft Store execution alias 只是跳转 stub，不能作为稳定运行环境。
       if (id === 'python' && normalized.includes('\\microsoft\\windowsapps\\')) continue
       const version = await this.validateExecutable(id, candidate)
@@ -703,16 +709,7 @@ export class ToolingManager {
 
   private async systemCandidates(id: ManagedToolID) {
     if (id === 'nodejs') return this.where('node.exe')
-    if (id === 'python') return this.where('python.exe')
-    if (id === 'ripgrep') return this.where('rg.exe')
-    const candidates: string[] = []
-    for (const git of await this.where('git.exe'))
-      candidates.push(join(dirname(dirname(git)), 'bin', 'bash.exe'))
-    if (process.env.ProgramFiles)
-      candidates.push(join(process.env.ProgramFiles, 'Git', 'bin', 'bash.exe'))
-    if (process.env.LOCALAPPDATA)
-      candidates.push(join(process.env.LOCALAPPDATA, 'Programs', 'Git', 'bin', 'bash.exe'))
-    return candidates
+    return this.where('python.exe')
   }
 
   private async where(name: string) {
@@ -748,15 +745,7 @@ export class ToolingManager {
         await this.runCapture(executable, ['-m', 'pip', '--version'], 12_000)
         return match[1] ?? null
       }
-      if (id === 'ripgrep') {
-        const match = /ripgrep\s+([^\s]+)/i.exec(output)
-        return match?.[1] ?? null
-      }
-      if (!/GNU bash/i.test(output)) return null
-      const git = join(dirname(dirname(executable)), 'cmd', 'git.exe')
-      const gitOutput = await this.runCapture(git, ['--version'], 8_000)
-      const match = /git version\s+([^\s]+)/i.exec(gitOutput)
-      return match?.[1] ?? null
+      return null
     } catch {
       return null
     }
@@ -826,10 +815,6 @@ export class ToolingManager {
         return process.env.PIDEX_NODEJS_PATH?.trim()
       case 'python':
         return process.env.PIDEX_PYTHON_PATH?.trim()
-      case 'git-bash':
-        return process.env.PIDEX_GIT_BASH_PATH?.trim()
-      case 'ripgrep':
-        return process.env.PIDEX_RIPGREP_PATH?.trim()
     }
   }
 
@@ -840,10 +825,6 @@ export class ToolingManager {
         return [directory]
       case 'python':
         return [directory, join(directory, 'Scripts')]
-      case 'git-bash':
-        return [directory, join(dirname(directory), 'cmd')]
-      case 'ripgrep':
-        return [directory]
     }
   }
 
@@ -908,8 +889,6 @@ export class ToolingManager {
       preferences: {
         nodejs: oldDependencyPreference ? 'managed' : 'system',
         python: oldDependencyPreference ? 'managed' : 'system',
-        'git-bash': legacy.preferences?.['git-bash'] === 'system' ? 'system' : 'managed',
-        ripgrep: legacy.preferences?.ripgrep === 'system' ? 'system' : 'managed',
       },
     }
   }

@@ -3,9 +3,9 @@ import type {
   TerminalOutputClearParams,
   TerminalOutputResetParams,
 } from '@pidex/agent-protocol/terminal'
+import { TerminalControlStripper } from '@pidex/shared'
 import { AgentError } from '../Domain'
 import { secretScrubber } from '../security/SecretScrubber'
-import { TerminalControlStripper } from '../security/TerminalControlStripper'
 
 type StoredChunk = {
   sequence: number

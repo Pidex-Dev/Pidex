@@ -78,12 +78,12 @@ export function gitBoardActionAvailability({
 }
 
 const ACTION_ICON: Record<GitBoardAction, ReactNode> = {
-  commit: <GitCommitHorizontal size={APP_ICON_SIZE} />,
-  push: <ArrowUpFromDot size={APP_ICON_SIZE} />,
-  createBranch: <GitBranch size={APP_ICON_SIZE} />,
-  checkoutBranch: <GitFork size={APP_ICON_SIZE} />,
-  fetch: <CloudDownload size={APP_ICON_SIZE} />,
-  pull: <Download size={APP_ICON_SIZE} />,
+  commit: <GitCommitHorizontal className="tw:size-icon-md" size={APP_ICON_SIZE} />,
+  push: <ArrowUpFromDot className="tw:size-icon-md" size={APP_ICON_SIZE} />,
+  createBranch: <GitBranch className="tw:size-icon-md" size={APP_ICON_SIZE} />,
+  checkoutBranch: <GitFork className="tw:size-icon-md" size={APP_ICON_SIZE} />,
+  fetch: <CloudDownload className="tw:size-icon-md" size={APP_ICON_SIZE} />,
+  pull: <Download className="tw:size-icon-md" size={APP_ICON_SIZE} />,
 }
 
 export function GitBoardRepositoryMenu({
@@ -149,7 +149,7 @@ export function GitBoardRepositoryMenu({
               aria-label={triggerLabel}
               aria-haspopup="menu"
             >
-              <Ellipsis size={APP_ICON_SIZE} />
+              <Ellipsis className="tw:size-icon-md" size={APP_ICON_SIZE} />
             </Button>
           </Tooltip.Trigger>
         }

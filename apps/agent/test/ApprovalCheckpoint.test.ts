@@ -29,6 +29,7 @@ import {
 } from '../src/permission/ApprovalRules'
 import { ConfigService } from '../src/config/ConfigService'
 import { McpElicitationService } from '../src/mcp/McpElicitationService'
+import { ThreadProjection } from '../src/transport/ThreadProjection'
 import { filterAdvertisedCapabilities } from '../src/transport/rpc/handlers/SystemCapabilities'
 import {
   createModels,
@@ -59,8 +60,8 @@ const setup = (db: AgentDatabase, projectID?: string, taskMode: 'chat' | 'plan' 
     model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'untrusted',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     },
     strategy: 'queue',
     taskMode,
@@ -92,7 +93,7 @@ async function scopedFixture(taskMode: 'chat' | 'plan' = 'chat') {
     threadID: thread.id,
     turnID: turn.turnID,
     agentID: turn.agentID,
-    name: 'PowerShell',
+    name: 'exec_command',
     input: { command: 'git status', cwd: workspace },
     permissionConfig: input.permissionConfig,
     model: input.model,
@@ -198,7 +199,7 @@ describe('harness ready 与审批恢复期间的 steer', () => {
         for (const guide of db.guideMailbox(turn.turnID))
           await runtime.steer(thread.id, guide.content, [], guide.id)
       }
-      const call = fauxToolCall('PowerShell', {
+      const call = fauxToolCall('exec_command', {
         command: 'curl.exe -I https://example.com',
         cwd: root,
       })
@@ -222,7 +223,7 @@ describe('harness ready 与审批恢复期间的 steer', () => {
           await approvals.rules.upsert(thread.id, {
             effect: 'allow',
             scope: 'chat',
-            match: { kind: 'tool', tool: 'PowerShell' },
+            match: { kind: 'tool', tool: 'exec_command' },
           })
         faux.setResponses([
           ...(mode === 'live-tool' ? [fauxAssistantMessage(call, { stopReason: 'toolUse' })] : []),
@@ -521,12 +522,12 @@ describe('审批范围与外部交互', () => {
       model: invocation.model,
       permissionConfig: {
         ...invocation.permissionConfig,
-        approvalPolicy: 'on-request' as const,
+        approvalPolicy: 'auto_review' as const,
         approvalsReviewer: 'auto_review' as const,
       },
     }
     const input = { command: 'curl.exe -I https://example.com', cwd: root }
-    const decision = await executor.previewApproval('PowerShell', input, context, 'real-timeout')
+    const decision = await executor.previewApproval('exec_command', input, context, 'real-timeout')
     expect(reviewCalls).toBe(1)
     expect(reviewAborted).toBe(true)
     expect(executions).toBe(0)
@@ -537,12 +538,16 @@ describe('审批范围与外部交互', () => {
     await service.attachRunState('real-timeout', '{"engine":"pi"}', { toolCallID: 'real-timeout' })
     const checkpoint = db.approvalCheckpointForToolCall('real-timeout')!
     expect(checkpoint.status).toBe('pending')
-    expect(db.repositories.interactions.approvalReviewState(thread.id).reviews[0]).toMatchObject({
+    expect(
+      db.sqlite
+        .query('SELECT decision, review_status FROM approval_reviews WHERE thread_id = ?')
+        .get(thread.id),
+    ).toEqual({
       decision: 'ask',
-      guardian: { status: 'timeout' },
+      review_status: 'timeout',
     })
     await service.respond(checkpoint.approvalID, 'allow')
-    const output = await executor.execute('PowerShell', input, {
+    const output = await executor.execute('exec_command', input, {
       ...context,
       toolCallID: 'real-timeout',
       approvedToolCallID: 'real-timeout',
@@ -574,7 +579,7 @@ describe('审批范围与外部交互', () => {
         input: { ...invocation.input, command: 'curl.exe -I https://example.com' },
         permissionConfig: {
           ...invocation.permissionConfig,
-          approvalPolicy: 'on-request' as const,
+          approvalPolicy: 'auto_review' as const,
           approvalsReviewer: 'auto_review' as const,
         },
         permissionFacts: { risk: 'medium' as const, networkAccess: true },
@@ -591,7 +596,7 @@ describe('审批范围与外部交互', () => {
     })
   }
 
-  for (const name of ['Write', 'PowerShell'] as const) {
+  for (const name of ['Write', 'exec_command'] as const) {
     for (const scope of ['once', 'session', 'project'] as const) {
       test(`${name} ${scope} 审批暂停后只执行一次，等待结果不能冒充完成结果`, async () => {
         const {
@@ -611,7 +616,7 @@ describe('审批范围与外部交互', () => {
         const call = fauxToolCall(
           name,
           name === 'Write'
-            ? { file_path: target, content: 'approved' }
+            ? { file_path: target, content: 'approved\n' }
             : { command: 'curl.exe -I https://example.com', cwd: root },
         )
         let executions = 0
@@ -654,7 +659,7 @@ describe('审批范围与外部交互', () => {
           fallbackModel: invocation.model,
           permissionConfig: {
             ...invocation.permissionConfig,
-            approvalPolicy: 'on-request' as const,
+            approvalPolicy: 'auto_review' as const,
           },
           signal: new AbortController().signal,
           workspace,
@@ -692,7 +697,7 @@ describe('审批范围与外部交互', () => {
             .options(checkpoint.payload.invocation)
             .find((value) => value.scope === scope)
           if (scope !== 'once') expect(option).toBeDefined()
-          if (name === 'PowerShell')
+          if (name === 'exec_command')
             expect(
               checkpoint.payload.invocation.permissionFacts?.ruleTargets?.networkDomains,
             ).toEqual(['example.com'])
@@ -734,7 +739,7 @@ describe('审批范围与外部交互', () => {
             db.sqlite.query('SELECT status, error FROM tool_calls WHERE id = ?').get(call.id),
           ).toMatchObject({ status: 'completed', error: null })
           expect(db.hasPersistedToolResult(turn.turnID, call.id)).toBe(true)
-          if (name === 'Write') expect(await readFile(target, 'utf8')).toBe('approved')
+          if (name === 'Write') expect(await readFile(target, 'utf8')).toBe('approved\n')
           else
             expect(db.completedToolCall(call.id)?.output).toMatchObject({
               stdout: 'HTTP/1.1 200 OK',
@@ -775,11 +780,24 @@ describe('审批范围与外部交互', () => {
       let resolver = new ResumeCheckpointResolver(db, service)
       const workspace = await WorkspaceService.open(root)
       const calls = [
-        fauxToolCall('Write', { file_path: join(root, '..', 'first.txt'), content: 'first' }),
-        fauxToolCall('Write', { file_path: join(root, '..', 'second.txt'), content: 'second' }),
-        fauxToolCall('Read', { file_path: join(root, 'safe.txt') }),
+        fauxToolCall('Write', {
+          file_path: join(root, '..', 'first.txt'),
+          content: 'first\n',
+        }),
+        fauxToolCall('Write', {
+          file_path: join(root, '..', 'second.txt'),
+          content: 'second\n',
+        }),
+        fauxToolCall('Read', { path: join(root, 'SAFE-SIBLING.png') }),
       ]
-      await writeFile(join(root, 'safe.txt'), 'SAFE-SIBLING', 'utf8')
+      await writeFile(
+        join(root, 'SAFE-SIBLING.png'),
+        Buffer.from([
+          137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8,
+          6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 96, 0, 0, 0, 2,
+          0, 1, 226, 33, 188, 51, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+        ]),
+      )
       const executions: string[] = []
       const controller = new AbortController()
       const createExecutor = () =>
@@ -824,7 +842,10 @@ describe('审批范围与外部交互', () => {
         content: 'batch approval',
         taskMode: 'chat' as const,
         fallbackModel: invocation.model,
-        permissionConfig: { ...invocation.permissionConfig, approvalPolicy: 'on-request' as const },
+        permissionConfig: {
+          ...invocation.permissionConfig,
+          approvalPolicy: 'auto_review' as const,
+        },
         signal: controller.signal,
         workspace,
         promptSections: [],
@@ -986,11 +1007,15 @@ describe('审批范围与外部交互', () => {
           [first, firstDecision],
           [second, secondDecision],
         ] as const) {
-          const file = Bun.file(checkpoint.payload.invocation.input.file_path as string)
+          const targetPath =
+            checkpoint.toolCallID === calls[0]!.id
+              ? join(root, '..', 'first.txt')
+              : join(root, '..', 'second.txt')
+          const file = Bun.file(targetPath)
           expect(await file.exists()).toBe(decision === 'allow')
           if (decision === 'allow')
             expect(await file.text()).toBe(
-              checkpoint.toolCallID === calls[0]!.id ? 'first' : 'second',
+              checkpoint.toolCallID === calls[0]!.id ? 'first\n' : 'second\n',
             )
         }
         faux.setResponses([fauxAssistantMessage('recovered')])
@@ -1017,7 +1042,7 @@ describe('审批范围与外部交互', () => {
       input: { value: 'data' },
       toolPolicy: {
         sdkName: 'mcp_tool',
-        capabilities: tools.get('PowerShell').capabilities,
+        capabilities: tools.get('exec_command').capabilities,
         allowedModes: ['chat'],
         approvalStrategy: 'always-review',
         origin: { kind: 'mcp', serverName: 'fixture', rawToolName: 'save', generation: 1 },
@@ -1070,20 +1095,24 @@ describe('审批范围与外部交互', () => {
 
   test('聊天命令授权可恢复且隔离 cwd、聊天、额外范围和硬拒绝', async () => {
     const { db, hub, tools, config, project, invocation, workspace } = await scopedFixture()
+    const risky = {
+      ...invocation,
+      permissionFacts: { risk: 'high' as const, ruleRequiresApproval: true },
+    }
     const service = new ApprovalService(db, hub, tools, null, config)
-    expect((await service.authorize(invocation, new AbortController().signal)).decision).toBe('ask')
-    await service.attachRunState(invocation.id, '{"version":1}', {
-      name: invocation.name,
-      callId: invocation.id,
+    expect((await service.authorize(risky, new AbortController().signal)).decision).toBe('ask')
+    await service.attachRunState(risky.id, '{"version":1}', {
+      name: risky.name,
+      callId: risky.id,
     })
-    const stored = db.approvalCheckpointForToolCall(invocation.id)!
-    const grant = service.rules.options(invocation)[0]!
+    const stored = db.approvalCheckpointForToolCall(risky.id)!
+    const grant = service.rules.options(risky)[0]!
     await service.respond(stored.approvalID, 'allow', undefined, undefined, undefined, grant.id)
     const recovered = new ApprovalService(db, hub, tools, null, config)
     expect(
       (
         await recovered.authorize(
-          { ...invocation, id: 'next', input: { command: 'git status', cwd: workspace } },
+          { ...risky, id: 'next', input: { command: 'git status', cwd: workspace } },
           new AbortController().signal,
         )
       ).decision,
@@ -1112,7 +1141,7 @@ describe('审批范围与外部交互', () => {
       name: 'mcp_tool',
       input: { value: 'data' },
       toolPolicy: {
-        ...tools.get('PowerShell'),
+        ...tools.get('exec_command'),
         origin: { kind: 'mcp' as const, serverName: 'fixture', rawToolName: 'save', generation: 1 },
       },
     }
@@ -1179,7 +1208,7 @@ describe('审批范围与外部交互', () => {
     expect(
       await rules.matches({
         ...network,
-        permissionConfig: { ...network.permissionConfig, approvalPolicy: 'on-request' },
+        permissionConfig: { ...network.permissionConfig, approvalPolicy: 'auto_review' },
       }),
     ).toBe(false)
     expect(
@@ -1195,60 +1224,6 @@ describe('审批范围与外部交互', () => {
     expect(
       await rules.matches({ ...network, threadID: db.createThread('其他项目', other.id).id }),
     ).toBe(false)
-  })
-
-  test('自动审查重试仅消费原参数一次，并继续调用 Guardian', async () => {
-    const { db, hub, tools, config, invocation } = await scopedFixture()
-    const reviewed: ToolInvocation[] = []
-    const service = new ApprovalService(
-      db,
-      hub,
-      tools,
-      async (value) => {
-        reviewed.push(value)
-        return { decision: 'deny', risk: 'high', reason: '人工请求重试也需审查' }
-      },
-      config,
-    )
-    const automatic = {
-      ...invocation,
-      permissionConfig: {
-        ...invocation.permissionConfig,
-        approvalsReviewer: 'auto_review' as const,
-      },
-    }
-    await service.authorize(automatic, new AbortController().signal)
-    const denial = db.repositories.interactions.approvalReviewState(invocation.threadID).denials[0]!
-    expect(service.requestRetry(invocation.threadID, denial.id, 'retry:1').input).toContain(
-      'git status',
-    )
-    expect(service.requestRetry(invocation.threadID, denial.id, 'retry:1').input).toContain(
-      'Guardian',
-    )
-    expect(
-      db.repositories.interactions.approvalReviewState(invocation.threadID).denials[0]
-        ?.retryOperationId,
-    ).toBe('retry:1')
-    expect(
-      new ApprovalService(db, hub, tools, null, config).requestRetry(
-        invocation.threadID,
-        denial.id,
-        'retry:1',
-      ).input,
-    ).toContain('git status')
-    await service.authorize(
-      { ...automatic, id: 'different', input: { command: 'git diff' } },
-      new AbortController().signal,
-    )
-    expect(reviewed[1]?.retryAuthorization).toBeUndefined()
-    expect(
-      (await service.authorize({ ...automatic, id: 'retry' }, new AbortController().signal))
-        .decision,
-    ).toBe('deny')
-    expect(reviewed[2]?.retryAuthorization?.reviewId).toBe(denial.id)
-    await service.authorize({ ...automatic, id: 'again' }, new AbortController().signal)
-    expect(reviewed[3]?.retryAuthorization).toBeUndefined()
-    expect(() => service.requestRetry(invocation.threadID, denial.id, 'retry:1')).toThrow('失效')
   })
 
   test('自动审查连续拒绝后熔断并中断本轮，不再调用 Guardian', async () => {
@@ -1271,7 +1246,7 @@ describe('审批范围与外部交互', () => {
       permissionFacts: { ruleRequiresApproval: true },
       permissionConfig: {
         ...invocation.permissionConfig,
-        approvalPolicy: 'on-request' as const,
+        approvalPolicy: 'auto_review' as const,
         approvalsReviewer: 'auto_review' as const,
       },
     }
@@ -1291,8 +1266,13 @@ describe('审批范围与外部交互', () => {
     expect(reopened.guardian?.status).toBe('circuit_open')
     expect(reviewed).toHaveLength(3)
     expect(interrupted).toHaveLength(1)
-    const state = db.repositories.interactions.approvalReviewState(invocation.threadID)
-    expect(state.reviews[0]?.guardian.status).toBe('circuit_open')
+    expect(
+      db.sqlite
+        .query(
+          'SELECT review_status FROM approval_reviews WHERE thread_id = ? ORDER BY created_at DESC LIMIT 1',
+        )
+        .get(invocation.threadID),
+    ).toEqual({ review_status: 'circuit_open' })
   })
 
   test('MCP 表单校验、过期回复、拒绝、断连取消和重启取消分别保留语义', async () => {
@@ -1379,21 +1359,42 @@ describe('审批范围与外部交互', () => {
     expect(
       db.sqlite.query('SELECT response FROM mcp_elicitations WHERE id = ?').get('orphan'),
     ).toEqual({ response: JSON.stringify({ kind: 'mcp-elicitation', action: 'cancel' }) })
+    const projection = new ThreadProjection(db)
+    const snapshotApprovals =
+      projection.snapshot(identity.threadID)?.approvals.map((entry) => ({
+        tool: entry.tool,
+        server: entry.toolIdentity?.server,
+        status: entry.status,
+      })) ?? []
+    const historyApprovals =
+      projection
+        .historyPage(identity.threadID)
+        ?.turns.flatMap((turn) => turn.approvals)
+        .map((entry) => ({
+          tool: entry.tool,
+          server: entry.toolIdentity?.server,
+          status: entry.status,
+        })) ?? []
+    expect(snapshotApprovals).toEqual([
+      { tool: 'McpElicitation', server: 'fixture', status: 'allowed' },
+      { tool: 'McpElicitation', server: 'fixture', status: 'denied' },
+      { tool: 'McpElicitation', server: 'fixture', status: 'cancelled' },
+      { tool: 'McpElicitation', server: 'fixture', status: 'cancelled' },
+    ])
+    expect(historyApprovals).toEqual(snapshotApprovals)
   })
 
   test('高版本库缺少可选表时隐藏能力并保持库版本', async () => {
-    const { db } = await scopedFixture()
+    const { db, invocation } = await scopedFixture()
     db.sqlite.exec('DROP TABLE mcp_elicitations')
     db.sqlite.exec('DROP TABLE approval_reviews')
     db.sqlite.exec('PRAGMA user_version = 999')
     expect(filterAdvertisedCapabilities(db)).not.toContain('mcp.elicitation.v1')
-    expect(filterAdvertisedCapabilities(db)).not.toContain('approval.retry.v1')
     expect(db.repositories.interactions.pendingMcpElicitations()).toEqual([])
-    expect(db.repositories.interactions.approvalReviewState(db.createThread().id)).toEqual({
-      manualAllows: 0,
-      denials: [],
-      reviews: [],
-    })
+    expect(db.repositories.interactions.listMcpElicitationsByThread(invocation.threadID)).toEqual(
+      [],
+    )
+    expect(db.repositories.interactions.listMcpElicitationsByTurns([invocation.turnID])).toEqual([])
     expect(db.sqlite.query('PRAGMA user_version').get()).toEqual({ user_version: 999 })
   })
 })
@@ -1420,8 +1421,9 @@ describe('可恢复审批 checkpoint', () => {
         threadID: thread.id,
         turnID: turn.turnID,
         agentID: turn.agentID,
-        name: 'PowerShell',
+        name: 'exec_command',
         input: { command: 'npm publish' },
+        permissionFacts: { risk: 'high', ruleRequiresApproval: true },
         permissionConfig: input.permissionConfig,
         model: input.model,
         taskMode: 'chat',
@@ -1525,14 +1527,17 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'npm test' },
       permissionConfig: input.permissionConfig,
       model: input.model,
       taskMode: 'chat',
       durableApproval: true,
     }
-    const resolution = new PermissionDecisionEngine().evaluate(invocation, tools.get('PowerShell'))
+    const resolution = new PermissionDecisionEngine().evaluate(
+      invocation,
+      tools.get('exec_command'),
+    )
     if (resolution.action !== 'review') throw new Error('测试需要 review 决策')
     const service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
     const prepared = service.prepare(
@@ -1564,13 +1569,13 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'api_key=super-secret; npm test' },
       permissionConfig: input.permissionConfig,
       model: input.model,
       taskMode: 'chat',
     }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('PowerShell'))
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('exec_command'))
     if (resolved.action !== 'review') throw new Error('测试需要 review 决策')
     let service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
     const prepared = service.prepare(
@@ -1589,7 +1594,7 @@ describe('可恢复审批 checkpoint', () => {
       code: 'APPROVAL_NOT_READY',
     })
     await service.attachRunState('tool-1', JSON.stringify({ version: 1, command: 'npm test' }), {
-      name: 'PowerShell',
+      name: 'exec_command',
       callId: 'tool-1',
     })
     expect(
@@ -1737,14 +1742,14 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'npm publish' },
       permissionConfig: input.permissionConfig,
       model: input.model,
       taskMode: 'chat',
       durableApproval: true,
     }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('PowerShell'))
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('exec_command'))
     if (resolved.action !== 'review') throw new Error('测试需要 review 决策')
     let service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
     const prepared = service.prepare(
@@ -1754,7 +1759,7 @@ describe('可恢复审批 checkpoint', () => {
     )
     service.persist(prepared)
     await service.attachRunState('tool-deny', JSON.stringify({ version: 1 }), {
-      name: 'PowerShell',
+      name: 'exec_command',
       callId: 'tool-deny',
     })
     db.close()
@@ -1791,13 +1796,13 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'npm test' },
       permissionConfig: input.permissionConfig,
       model: input.model,
       taskMode: 'chat',
     }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('PowerShell'))
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('exec_command'))
     if (resolved.action !== 'review') throw new Error('测试需要 review 决策')
     const prepared = service.prepare(
       invocation,
@@ -1920,9 +1925,9 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'Write-Output once', cwd: tmpdir() },
-      permissionConfig: { ...input.permissionConfig, approvalPolicy: 'on-failure' },
+      permissionConfig: { ...input.permissionConfig, approvalPolicy: 'auto_review' },
       model: input.model,
       taskMode: 'chat',
     }
@@ -1996,9 +2001,9 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'Write-Output safe', cwd: tmpdir() },
-      permissionConfig: { ...input.permissionConfig, approvalPolicy: 'on-failure' },
+      permissionConfig: { ...input.permissionConfig, approvalPolicy: 'auto_review' },
       model: input.model,
       taskMode: 'chat',
     }
@@ -2137,14 +2142,14 @@ describe('可恢复审批 checkpoint', () => {
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      name: 'PowerShell',
+      name: 'exec_command',
       input: { command: 'npm publish' },
       permissionConfig: input.permissionConfig,
       model: input.model,
       taskMode: 'chat',
       durableApproval: true,
     }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('PowerShell'))
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get('exec_command'))
     if (resolved.action !== 'review') throw new Error('测试需要 review 决策')
     const prepared = service.prepare(
       invocation,
@@ -2195,5 +2200,147 @@ describe('可恢复审批 checkpoint', () => {
     expect(db.sqlite.query('SELECT status FROM turns WHERE id = ?').get(turn.turnID)).toEqual({
       status: 'queued',
     })
+  })
+
+  test('提问恢复向模型提供 selectedChoices、不重复首轮输入且恢复后 exec_command 指纹一致', async () => {
+    const {
+      db,
+      hub,
+      tools,
+      config,
+      workspace: root,
+      thread,
+      turn,
+      invocation,
+    } = await scopedFixture()
+    const workspace = await WorkspaceService.open(root)
+    const approvals = new ApprovalService(db, hub, tools, null, config)
+    const questions = new QuestionService(db, hub)
+    const resolver = new ResumeCheckpointResolver(db, approvals)
+    const shellRuns: string[] = []
+    const executor = new ToolExecutor(tools, {
+      dataDir: join(root, '..', 'agent-data'),
+      authorizeShell: (input, signal) => approvals.authorize(input, signal),
+      resolvePermissionRules: (input) => approvals.rules.evaluate(input),
+      runHost: async (command) => {
+        shellRuns.push(command)
+        return {
+          stdout: 'OK-AFTER-RESUME',
+          stderr: '',
+          exitCode: 0,
+          signal: null,
+          timedOut: false,
+          truncated: false,
+        }
+      },
+    })
+    const faux = fauxProvider({
+      models: [{ id: 'question-shell-resume', input: ['text'], contextWindow: 64_000 }],
+    })
+    const models = createModels()
+    models.setProvider(faux.provider)
+    const runtime = new AgentRuntimeService({
+      db,
+      hub,
+      models,
+      toolExecutor: executor,
+      contextCompaction: new ContextCompactionService(db),
+    })
+    const questionCall = fauxToolCall('request_user_input', {
+      questions: [
+        {
+          id: 'form',
+          header: '产品形态',
+          question: '选择哪个方案？',
+          options: [
+            { label: '每次对话选人格', description: '方案 A' },
+            { label: '独立 Bot 实体', description: '方案 B' },
+          ],
+        },
+      ],
+    })
+    const shellCall = fauxToolCall('exec_command', {
+      command: 'git status --short',
+      cwd: root,
+    })
+    const request = {
+      threadID: thread.id,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      sessionID: db.getAgentExecution(turn.agentID)!.sessionID,
+      content: 'INITIAL_USER_PROMPT_MARKER',
+      taskMode: 'chat' as const,
+      defaultModeRequestUserInput: true,
+      fallbackModel: invocation.model,
+      permissionConfig: {
+        sandboxMode: 'danger-full-access' as const,
+        approvalPolicy: 'never' as const,
+        approvalsReviewer: 'auto_review' as const,
+      },
+      signal: new AbortController().signal,
+      workspace,
+      promptSections: [],
+      resolveModel: async () => ({ ref: invocation.model, model: faux.getModel() }),
+      pause: async (pending: import('../src/orchestration/AgentRuntimeTypes').PendingApproval) => {
+        await questions.checkpoint(thread.id, turn.turnID, turn.agentID, pending)
+      },
+    }
+    try {
+      faux.setResponses([fauxAssistantMessage([questionCall])])
+      expect(await runtime.run(request)).toMatchObject({ status: 'paused' })
+
+      const pending = db.pendingQuestions(thread.id)[0]!
+      await questions.reply(
+        pending.id,
+        [{ questionId: 'form', choiceIds: ['form:1'] }],
+        false,
+        'user',
+        false,
+      )
+      const acquired = resolver.acquire(turn.turnID, 'main', crypto.randomUUID())!
+      if (acquired.checkpoint.kind !== 'question') throw new Error('expected question checkpoint')
+      const resume = toPlanCheckpoint({
+        leaseID: acquired.leaseID,
+        checkpoint: acquired.checkpoint,
+      })
+
+      faux.setResponses([
+        (context) => {
+          const initialUserOccurrences = context.messages.filter(
+            (message) =>
+              message.role === 'user' &&
+              JSON.stringify(message.content).includes('INITIAL_USER_PROMPT_MARKER'),
+          )
+          expect(initialUserOccurrences).toHaveLength(1)
+          const resolutionUsers = context.messages.filter(
+            (message) =>
+              message.role === 'user' &&
+              JSON.stringify(message.content).includes('<interaction_resolution'),
+          )
+          expect(resolutionUsers).toHaveLength(1)
+          const results = context.messages.filter(
+            (message) => message.role === 'toolResult' && message.toolCallId === questionCall.id,
+          )
+          expect(results).toHaveLength(1)
+          expect(JSON.stringify(results[0])).toContain('独立 Bot 实体')
+          expect(JSON.stringify(results[0])).toContain('选择哪个方案？')
+          return fauxAssistantMessage([shellCall])
+        },
+        (context) => {
+          const shellResult = context.messages.find(
+            (message) => message.role === 'toolResult' && message.toolCallId === shellCall.id,
+          )
+          expect(JSON.stringify(shellResult)).toContain('OK-AFTER-RESUME')
+          return fauxAssistantMessage('done')
+        },
+      ])
+
+      const completed = await runtime.run({ ...request, resume })
+      expect(completed).toMatchObject({ status: 'completed', output: 'done' })
+      expect(shellRuns).toEqual(['git status --short'])
+    } finally {
+      questions.dispose()
+      await runtime.dispose()
+    }
   })
 })

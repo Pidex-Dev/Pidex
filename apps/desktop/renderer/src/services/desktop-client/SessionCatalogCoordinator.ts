@@ -8,6 +8,12 @@ import { safeTurnError } from '@pidex/shared/errors'
  */
 export const THREAD_BOOKMARKS_UPDATED_EVENT = 'pidex-thread-bookmarks-updated'
 
+/**
+ * PR 关联变更同样不属于会话目录投影：事件负载已携带 `{threadId, items}`
+ * 最新集合，通过窗口事件交给侧栏 PR store 直接应用，不触发目录刷新。
+ */
+export const THREAD_PULL_REQUESTS_UPDATED_EVENT = 'pidex-thread-pull-requests-updated'
+
 const THREAD_CATALOG_EVENT_TYPES: ReadonlySet<EventEnvelope['type']> = new Set([
   'thread/created',
   'thread/updated',
@@ -53,6 +59,8 @@ export type SessionLifecycleUpdate = {
   status: Turn['status']
   sequence: number
   error?: string | null
+  /** Envelope occurrence time (ms); the auto-read watermark for a terminal turn. */
+  occurredAt: number
 }
 
 /**
@@ -99,6 +107,14 @@ export class SessionCatalogCoordinator {
             )
           }
           break
+        case 'thread/pull-requests/updated':
+          // 负载即最新集合：直接交给侧栏 PR store，不做目录刷新或全量重读。
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent(THREAD_PULL_REQUESTS_UPDATED_EVENT, { detail: event.payload }),
+            )
+          }
+          break
       }
       if (THREAD_CATALOG_EVENT_TYPES.has(event.type)) {
         const threadId = catalogThreadId(event)
@@ -134,6 +150,7 @@ function sessionLifecycleUpdate(event: EventEnvelope): SessionLifecycleUpdate | 
             status: event.payload.turn.status,
             sequence: event.sequence,
             error: null,
+            occurredAt: event.occurredAt,
           }
         : null
     case 'turn/failed':
@@ -144,6 +161,7 @@ function sessionLifecycleUpdate(event: EventEnvelope): SessionLifecycleUpdate | 
             status: event.payload.turn.status,
             sequence: event.sequence,
             error: safeTurnError(event.payload.turn.error ?? event.payload.error.message),
+            occurredAt: event.occurredAt,
           }
         : null
     case 'turn/statusChanged':
@@ -154,6 +172,7 @@ function sessionLifecycleUpdate(event: EventEnvelope): SessionLifecycleUpdate | 
             status: event.payload.status,
             sequence: event.sequence,
             error: event.payload.status === 'failed' ? safeTurnError(event.payload.reason) : null,
+            occurredAt: event.occurredAt,
           }
         : null
     default:

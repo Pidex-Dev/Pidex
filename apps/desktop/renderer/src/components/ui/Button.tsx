@@ -25,6 +25,7 @@ export type ButtonVariant =
   | 'danger'
   | 'danger-outline'
   | 'subtle-accent'
+  | 'subtle-danger'
   | 'accent'
 
 export type ButtonColor =
@@ -32,6 +33,7 @@ export type ButtonColor =
   | 'accentSubtle'
   | 'danger'
   | 'dangerSolid'
+  | 'dangerSubtle'
   | 'ghost'
   | 'ghostSecondary'
   | 'outlineActive'
@@ -145,6 +147,7 @@ function resolveVariant(variant?: ButtonVariant, color?: ButtonColor): ButtonVar
   if (color === 'primary') return 'primary'
   if (color === 'accent') return 'accent'
   if (color === 'accentSubtle') return 'subtle-accent'
+  if (color === 'dangerSubtle') return 'subtle-danger'
   if (color === 'dangerSolid') return 'danger'
   if (color === 'danger') return 'danger-outline'
   if (color === 'outline' || color === 'outlineActive') return 'outline'
@@ -361,14 +364,17 @@ const BUTTON_STYLES = String.raw`
     align-items: center;
     justify-content: center;
     border: 1px solid transparent;
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-control);
     margin: 0;
     padding: var(--cpx-comp-button-padding-block) var(--button-padding-inline);
     background: transparent;
     color: var(--cpx-sys-color-fg-secondary);
     white-space: nowrap;
-    font: var(--cpx-sys-type-control);
-    letter-spacing: var(--cpx-sys-letter-spacing-control);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
     text-decoration: none;
     cursor: pointer;
     user-select: none;
@@ -423,7 +429,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-xs);
+    border-radius: var(--cpx-sys-radius-2);
   }
 
   :is(button, a)[data-size][data-variant][data-size='default'] {
@@ -432,7 +438,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='iconMd'],
@@ -442,16 +448,16 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-xs);
+    border-radius: var(--cpx-sys-radius-2);
   }
 
   :is(button, a)[data-size][data-variant][data-size='sm'] {
     --button-box-size: 1.75rem;
-    --button-padding-inline: 0.625rem;
+    --button-padding-inline: var(--cpx-sys-space-3);
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-sm);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='composer'] {
@@ -460,25 +466,25 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='composerSm'] {
     --button-box-size: var(--cpx-comp-button-size-toolbar);
-    --button-padding-inline: 0.375rem;
+    --button-padding-inline: var(--cpx-sys-space-2);
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='composerUtility'] {
     --button-box-size: var(--cpx-comp-button-size-toolbar);
-    --button-padding-inline: 0.375rem;
+    --button-padding-inline: var(--cpx-sys-space-2);
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='icon'] {
@@ -487,7 +493,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-1);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-sm);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='toolbar'] {
@@ -496,16 +502,16 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap-compact);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-sm);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='toolbarLabel'] {
     --button-box-size: var(--cpx-comp-button-size-toolbar);
-    --button-padding-inline: 0.625rem;
+    --button-padding-inline: var(--cpx-sys-space-3);
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap-compact);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-sm);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='medium'] {
@@ -514,25 +520,25 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='md'] {
     --button-box-size: var(--cpx-comp-button-size-medium);
-    --button-padding-inline: 0.75rem;
+    --button-padding-inline: var(--cpx-sys-space-3);
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   :is(button, a)[data-size][data-variant][data-size='lg'] {
     --button-box-size: var(--cpx-comp-button-size-large);
-    --button-padding-inline: 0.75rem;
+    --button-padding-inline: var(--cpx-sys-space-3);
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-4);
   }
 
   :is(button, a)[data-size][data-variant][data-size='iconLarge'] {
@@ -541,7 +547,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-2);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-4);
   }
 
   :is(button, a)[data-size][data-variant][data-size='large'] {
@@ -550,7 +556,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-sys-space-2);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: var(--cpx-sys-radius-4);
   }
 
   :is(button, a)[data-size][data-variant][data-size='tabStripAction'] {
@@ -559,7 +565,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap-compact);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
   }
 
   /*
@@ -770,6 +776,17 @@ const BUTTON_STYLES = String.raw`
     background: var(--cpx-sys-color-accent-subtle-hover-bg);
   }
 
+  :is(button, a)[data-size][data-variant][data-variant='subtle-danger'] {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--cpx-sys-color-danger) 16%, transparent);
+    color: var(--cpx-sys-color-danger-fg);
+  }
+
+  :is(button, a)[data-size][data-variant][data-variant='subtle-danger']:hover:not(:disabled, [aria-disabled='true']),
+  :is(button, a)[data-size][data-variant][data-variant='subtle-danger']:is([data-state='open'], [data-active]) {
+    background: color-mix(in srgb, var(--cpx-sys-color-danger) 24%, transparent);
+  }
+
   /* Ghost aliases keep the tertiary ink used by sidebar and summary actions. */
   :is(button, a)[data-size][data-variant][data-color='ghost'],
   :is(button, a)[data-size][data-variant][data-color='ghostTertiary'] {
@@ -791,9 +808,11 @@ const BUTTON_STYLES = String.raw`
       color: ButtonText;
     }
 
-    :is(button, a)[data-size][data-variant][data-variant='secondary'] {
+    :is(button, a)[data-size][data-variant][data-variant='secondary'],
+    :is(button, a)[data-size][data-variant][data-variant='subtle-danger'] {
       border-color: ButtonText;
       background: transparent;
+      color: ButtonText;
     }
 
     :is(button, a)[data-size][data-variant][data-variant='text'] {

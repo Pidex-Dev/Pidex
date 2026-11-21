@@ -4,6 +4,7 @@ import { APP_ICON_SIZES } from './IconTokens.js'
 import { cx } from '../../utils/Cx.js'
 import { useFloatingFocusModality } from '../../utils/FloatingFocus.js'
 import { Dropdown } from './floating/Dropdown.js'
+import { OverflowTitle } from './OverflowTitle.js'
 import type { PopoverSize } from './PopoverSizing.js'
 import { useLocale } from '../../features/i18n/LocaleProvider.js'
 export type SelectOption<T extends string = string> = {
@@ -11,6 +12,8 @@ export type SelectOption<T extends string = string> = {
   label: React.ReactNode
   detail?: React.ReactNode
   icon?: React.ReactNode
+  trailing?: React.ReactNode
+  title?: string
   disabled?: boolean
 }
 
@@ -35,7 +38,7 @@ export type SelectProps<T extends string = string> = {
 }
 
 const SELECT_TRIGGER_CLASSNAME =
-  'ui-select-trigger settings-dropdown settings-dropdown-trigger tw:min-h-7 tw:min-w-0 tw:appearance-none tw:inline-flex tw:items-center tw:justify-between tw:gap-control-gap tw:border tw:rounded-control tw:px-row-inline tw:py-0 tw:text-left tw:type-control tw:cursor-pointer tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-out tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1'
+  'ui-select-trigger settings-dropdown settings-dropdown-trigger tw:min-h-6 tw:min-w-0 tw:appearance-none tw:inline-flex tw:items-center tw:justify-between tw:gap-control-gap tw:border tw:rounded-control tw:px-row-inline tw:py-0 tw:text-left tw:type-2 tw:weight-medium tw:cursor-pointer tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-out'
 function OptionContent({
   option,
   selected,
@@ -46,17 +49,17 @@ function OptionContent({
   showSelectedIndicator: boolean
 }): React.ReactNode {
   return (
-    <div className="ui-select-item-inner settings-dropdown-item-inner tw:type-row-title tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2">
-      {option.icon}
-      <div className="ui-select-item-copy settings-dropdown-item-copy tw:grid tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:gap-1">
-        <span
-          className="ui-select-item-label settings-dropdown-item-label tw:truncate tw:type-row-title"
-          title={typeof option.label === 'string' ? option.label : undefined}
+    <div className="ui-select-item-inner settings-dropdown-item-inner tw:type-2 tw:weight-medium tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2">
+      {option.icon ? <span className="menu-column-leading">{option.icon}</span> : null}
+      <div className="ui-select-item-copy settings-dropdown-item-copy menu-column-label tw:grid tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:gap-1">
+        <OverflowTitle
+          className="ui-select-item-label settings-dropdown-item-label tw:min-w-0 tw:type-2 tw:weight-medium"
+          variant="menu"
         >
           {option.label}
-        </span>
+        </OverflowTitle>
         {option.detail ? (
-          <span className="ui-select-item-detail settings-dropdown-item-detail tw:truncate tw:text-app-text-meta tw:type-caption">
+          <span className="ui-select-item-detail settings-dropdown-item-detail menu-column-detail tw:whitespace-normal tw:wrap-anywhere tw:text-app-text-meta tw:type-1">
             {option.detail}
           </span>
         ) : null}
@@ -64,9 +67,16 @@ function OptionContent({
       {showSelectedIndicator && selected ? (
         <Check
           aria-hidden="true"
-          className="ui-select-item-indicator settings-dropdown-item-indicator tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center"
+          className="ui-select-item-indicator settings-dropdown-item-indicator menu-column-trailing tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center"
           size={APP_ICON_SIZES.sm}
         />
+      ) : option.trailing ? (
+        <span
+          aria-hidden="true"
+          className="ui-select-item-indicator settings-dropdown-item-indicator menu-column-trailing tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta"
+        >
+          {option.trailing}
+        </span>
       ) : null}
     </div>
   )
@@ -148,7 +158,9 @@ export function Select<T extends string>({
               >
                 <div
                   className="ui-select-item settings-dropdown-item"
-                  title={typeof option.label === 'string' ? option.label : undefined}
+                  title={
+                    option.title ?? (typeof option.label === 'string' ? option.label : undefined)
+                  }
                 >
                   <OptionContent
                     option={option}

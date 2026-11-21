@@ -15,6 +15,7 @@ import type {
   PermissionConfig,
   SubagentProfile,
   SubagentResult,
+  SubagentStats,
   TaskMode,
 } from '../../Domain'
 import type { PromptBundle, PromptSection } from '../../prompt/Types'
@@ -27,7 +28,7 @@ import type { ScheduleDraftSubmission } from '../plan/ScheduleDraft'
 import type { RequestUserInput } from '../../session/QuestionInput'
 
 export type HarnessRunResult =
-  | { status: 'completed'; output: string; result?: SubagentResult }
+  | { status: 'completed'; output: string; result?: SubagentResult; stats?: SubagentStats }
   | { status: 'paused'; output: string }
 
 export type RuntimeCompactionTrigger = 'manual' | 'automatic' | 'reactive'
@@ -39,6 +40,8 @@ export interface HarnessRuntimeRequest {
   sessionID: string
   profile?: SubagentProfile
   content: string
+  /** Resume continuation prompt emitted instead of re-sending the initial turn bundle. */
+  resumedContent?: string
   taskMode: TaskMode
   permissionConfig: PermissionConfig
   signal: AbortSignal
@@ -63,6 +66,8 @@ export interface HarnessRuntimeRequest {
     | { kind: 'image' | 'audio' | 'video'; name: string; mediaType: string; base64: string }
   >
   allowedTools?: readonly string[]
+  delegationEnabled?: boolean
+  collaborationEnabled?: boolean
   toolCatalog?: ToolCatalog
   /** Frozen deferred tool names from the persisted turn snapshot; the runtime may only bind these. */
   frozenDeferredToolNames?: readonly string[]
@@ -227,6 +232,7 @@ export interface PiRuntimeEventSink {
 export interface PiToolAdapterOptions {
   executor: ToolExecutor
   request: HarnessRuntimeRequest
+  callbacks?: PiLifecycleCallbacks
 }
 
 export interface PiLifecycleCallbacks {
@@ -285,6 +291,7 @@ export interface PiLifecycleCallbacks {
     toolCallID: string,
     signal?: AbortSignal,
   ): Promise<unknown>
+  agent?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   spawnAgents?(
     input: Record<string, unknown>,
     toolCallID: string,
@@ -345,6 +352,18 @@ export interface HarnessRuntimeOptions {
     recordFailure(threadID: string, trigger: RuntimeCompactionTrigger): void | Promise<void>
   }
   goalBudget?: GoalBudgetLifecycle
+  contextDecisions?: {
+    forget?(
+      threadID: string,
+      items: readonly unknown[],
+      signal?: AbortSignal,
+    ): Promise<readonly unknown[]>
+    compact?(
+      threadID: string,
+      items: readonly unknown[],
+      signal?: AbortSignal,
+    ): Promise<readonly unknown[]>
+  }
 }
 
 export type GoalBudgetStatus = {

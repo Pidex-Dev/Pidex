@@ -75,24 +75,23 @@ test.describe('真实 Electron 宿主', () => {
     await rm(userDataDirectory, { force: true, recursive: true })
   })
 
-  test('本地启动壳只交接一次，连接通知不导航或重挂工作台', async () => {
+  test('本地启动壳只交接一次，断连后跳转独立断连页并在恢复后回到原路由', async () => {
     application = await launchDesktop(userDataDirectory, logDirectory)
     const page = await application.firstWindow()
-    let navigations = 0
-    page.on('framenavigated', (frame) => {
-      if (frame === page.mainFrame()) navigations++
-    })
     await waitForApplication(page)
     await expect(
       page.locator('.composer-editor-content[contenteditable="true"]').first(),
     ).toBeVisible()
     await expect(page.locator('#startup-splash')).toHaveCount(0)
+    await page.evaluate(() => {
+      location.hash = '#/settings/general'
+      Object.assign(window, { __startupDocument: document })
+    })
+    await expect
+      .poll(() => page.evaluate(() => location.hash.slice(1).split('?', 1)[0]))
+      .toBe('/settings/general')
     const snapshot = await page.evaluate(() => window.DesktopBridge.getStartupSnapshot())
     expect(snapshot.state).toBe('connected')
-    await page.evaluate(() => {
-      Object.assign(window, { __startupEditor: document.querySelector('.composer-editor-content') })
-    })
-    const before = navigations
     await application.evaluate(
       ({ BrowserWindow }, state) => {
         BrowserWindow.getAllWindows()[0].webContents.send('startup:changed', state)
@@ -104,7 +103,11 @@ test.describe('真实 Electron 宿主', () => {
         label: '正在重新连接…',
       },
     )
-    await expect(page.locator('#startup-connection-notice')).toBeVisible()
+    await expect
+      .poll(() => page.evaluate(() => location.hash.slice(1).split('?', 1)[0]))
+      .toBe('/connection-lost')
+    await expect(page.locator('.connection-lost-page')).toBeVisible()
+    await expect(page.locator('.connection-lost-page .full-screen-whale-loader')).toBeVisible()
     await expect(page.locator('#startup-splash')).toHaveCount(0)
     await application.evaluate(
       ({ BrowserWindow }, state) => {
@@ -113,19 +116,38 @@ test.describe('真实 Electron 宿主', () => {
       {
         generation: snapshot.generation + 1,
         revision: snapshot.revision + 2,
+        state: 'failed',
+        label: 'Agent 连接失败，请重试或查看日志',
+      },
+    )
+    await expect(
+      page.getByRole('heading', { name: 'Agent 连接失败，请重试或查看日志' }),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: '重试连接' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '打开日志' })).toBeVisible()
+    await application.evaluate(
+      ({ BrowserWindow }, state) => {
+        BrowserWindow.getAllWindows()[0].webContents.send('startup:changed', state)
+      },
+      {
+        generation: snapshot.generation + 1,
+        revision: snapshot.revision + 3,
         state: 'connected',
         label: 'ready',
       },
     )
-    await expect(page.locator('#startup-connection-notice')).toBeHidden()
+    await expect
+      .poll(() => page.evaluate(() => location.hash.slice(1).split('?', 1)[0]))
+      .toBe('/settings/general')
+    await expect(page.locator('.connection-lost-page')).toHaveCount(0)
     expect(
       await page.evaluate(
-        () =>
-          (window as Window & { __startupEditor?: Element }).__startupEditor ===
-          document.querySelector('.composer-editor-content'),
+        () => (window as Window & { __startupDocument?: Document }).__startupDocument === document,
       ),
     ).toBe(true)
-    expect(navigations).toBe(before)
+    await page.evaluate(() => {
+      location.hash = '#/new'
+    })
     await page.reload()
     await expect(
       page.locator('.composer-editor-content[contenteditable="true"]').first(),

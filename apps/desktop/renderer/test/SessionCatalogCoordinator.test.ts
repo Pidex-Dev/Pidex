@@ -142,8 +142,8 @@ describe('SessionCatalogCoordinator', () => {
       model: { providerID: 'openai', id: 'gpt-5' },
       permissionConfig: {
         sandboxMode: 'workspace-write' as const,
-        approvalPolicy: 'on-request' as const,
-        approvalsReviewer: 'user' as const,
+        approvalPolicy: 'auto_review' as const,
+        approvalsReviewer: 'auto_review' as const,
       },
       rootAgentId: 'agent-1',
       mergedInputIDs: [],
@@ -189,8 +189,8 @@ function lifecycleEvent(
     model: { providerID: 'openai', id: 'gpt-5' },
     permissionConfig: {
       sandboxMode: 'workspace-write' as const,
-      approvalPolicy: 'on-request' as const,
-      approvalsReviewer: 'user' as const,
+      approvalPolicy: 'auto_review' as const,
+      approvalsReviewer: 'auto_review' as const,
     },
     rootAgentId: 'agent-1',
     mergedInputIDs: [],
@@ -238,8 +238,8 @@ function threadEvent(type: 'thread/created' | 'thread/updated', eventId: string)
       taskMode: 'chat' as const,
       permissionConfig: {
         sandboxMode: 'workspace-write' as const,
-        approvalPolicy: 'on-request' as const,
-        approvalsReviewer: 'user' as const,
+        approvalPolicy: 'auto_review' as const,
+        approvalsReviewer: 'auto_review' as const,
       },
     },
     createdAt: 1,

@@ -8,12 +8,12 @@ import type {
 } from './Types.js'
 import {
   DEFAULT_APPEARANCE_SETTINGS,
-  DEFAULT_CHROME_THEMES,
   DEFAULT_DARK_CHROME_THEME,
   DEFAULT_LIGHT_CHROME_THEME,
   desktopThemeFontFaceMatchesFamily,
   isNewerDesktopThemeSettingsVersion,
   normalizeDesktopAccentPreset,
+  normalizeDesktopUiDensity,
   resolveSharedFontsFromVariants,
 } from '@pidex/shared/desktop-theme'
 import {
@@ -26,9 +26,9 @@ import { isRecord } from '@pidex/shared/guards'
 export const DEFAULT_LIGHT_THEME_ID = 'light-codex'
 export const DEFAULT_DARK_THEME_ID = 'dark-codex'
 export const DEFAULT_UI_FONT =
-  'MiSans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
+  'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
 export const DEFAULT_CODE_FONT =
-  '"JetBrains Mono", "SF Mono", "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace'
+  '"SF Mono", "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace'
 
 export { DEFAULT_LIGHT_CHROME_THEME, DEFAULT_DARK_CHROME_THEME }
 
@@ -73,6 +73,7 @@ export function resetAdvancedDesktopThemeSettings(
     fonts,
     chromeThemes: { light: resetTheme('light'), dark: resetTheme('dark') },
     fontSizes: { ...defaults.fontSizes },
+    uiDensity: defaults.uiDensity ?? 'default',
     reduceMotion: defaults.reduceMotion,
     pointerCursorEnabled: defaults.pointerCursorEnabled,
     fontSmoothingEnabled: defaults.fontSmoothingEnabled,
@@ -146,6 +147,7 @@ export function normalizeDesktopThemeSettings(value: unknown): DesktopThemeSetti
         ? record.fontSmoothingEnabled
         : DEFAULT_DESKTOP_THEME_SETTINGS.fontSmoothingEnabled,
     fontSizes: normalizeFontSizes(record.fontSizes),
+    uiDensity: normalizeDesktopUiDensity(record.uiDensity),
   }
 }
 

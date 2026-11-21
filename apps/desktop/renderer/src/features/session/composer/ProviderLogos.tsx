@@ -17,12 +17,20 @@ export function ProviderLogo({
 }): React.ReactNode {
   const { source, override } = useProviderIconSource(logoURL, providerID)
   const [loadedSource, setLoadedSource] = useState<string>()
-  const fallback = <Server aria-hidden="true" size={14} data-icon-kind="artwork" strokeWidth={2} />
+  const fallback = (
+    <Server
+      className="tw:size-icon-sm"
+      aria-hidden="true"
+      size={14}
+      data-icon-kind="artwork"
+      strokeWidth={2}
+    />
+  )
 
   return (
     <span
       aria-hidden="true"
-      className="composer-provider-logo tw:relative tw:inline-flex tw:size-4.5 tw:shrink-0 tw:items-center tw:justify-center tw:text-inherit tw:[&>svg]:block tw:[&>svg]:size-full"
+      className="composer-provider-logo tw:relative tw:inline-flex tw:size-[1.125rem] tw:shrink-0 tw:items-center tw:justify-center tw:text-inherit tw:[&>svg]:block tw:[&>svg]:size-full"
     >
       {source ? (
         <RemoteImage

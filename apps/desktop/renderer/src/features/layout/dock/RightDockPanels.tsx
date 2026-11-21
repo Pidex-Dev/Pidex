@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FileEditorViewState } from '../../editor/FileEditor.js'
 import type React from 'react'
-import { Check, Copy, Download, Folder, FolderOpen, ListChecks, Undo2 } from 'lucide-react'
+import { Check, Copy, Download, FolderOpen, ListChecks, Undo2 } from 'lucide-react'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -274,12 +274,12 @@ export function RightDockGoalPanel({
       aria-label="编辑目标"
       className="right-dock-goal-panel tw:flex tw:h-full tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col tw:bg-app-dock"
     >
-      <div className="tw:flex tw:shrink-0 tw:flex-col tw:gap-1.5 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2">
+      <div className="tw:flex tw:shrink-0 tw:flex-col tw:gap-1 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2">
         <div className="tw:flex tw:items-center tw:justify-between tw:gap-2">
-          <span className="tw:text-app-text-meta tw:type-caption tw:select-none">
+          <span className="tw:text-app-text-meta tw:type-1 tw:select-none">
             {goal ? formatRelativeUpdatedLabel(goal.updatedAt) : '尚未设置目标'}
           </span>
-          <div className="tw:flex tw:items-center tw:gap-1.5">
+          <div className="tw:flex tw:items-center tw:gap-1">
             <Button
               color="ghostSecondary"
               size="sm"
@@ -295,8 +295,8 @@ export function RightDockGoalPanel({
           </div>
         </div>
         {goal ? (
-          <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-1.5">
-            <span className="tw:text-app-text-meta tw:type-caption tw:tabular-nums">
+          <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-1">
+            <span className="tw:text-app-text-meta tw:type-1 tw:tabular-nums">
               {savedBudget === null
                 ? '预算：不限额'
                 : `预算：${compactTokenCount(goal.tokensUsed)} / ${compactTokenCount(savedBudget)}`}
@@ -316,12 +316,13 @@ export function RightDockGoalPanel({
                     setBudgetError(null)
                   }}
                   onKeyDown={(event) => {
+                    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
                     if (event.key === 'Enter' && !event.shiftKey) {
                       event.preventDefault()
                       void handleAppend()
                     }
                   }}
-                  className="tw:h-7 tw:w-28 tw:rounded tw:border tw:border-app-border-subtle tw:bg-transparent tw:px-2 tw:py-0.5 tw:text-app-text tw:type-caption tw:tabular-nums tw:outline-none tw:placeholder:text-app-text-meta tw:focus:border-app-focus"
+                  className="tw:h-6 tw:w-[7rem] tw:rounded tw:border tw:border-app-border-subtle tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-1 tw:tabular-nums tw:outline-none tw:placeholder:text-app-text-meta tw:focus:border-app-focus"
                 />
                 <Button
                   color="ghostSecondary"
@@ -339,13 +340,13 @@ export function RightDockGoalPanel({
                 >
                   取消预算上限
                 </Button>
-                <span className="tw:text-app-text-soft tw:type-caption tw:tabular-nums">
+                <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
                   {appendHint}
                 </span>
               </>
             ) : null}
             {budgetError ? (
-              <span role="alert" className="tw:text-app-danger tw:type-caption">
+              <span role="alert" className="tw:text-app-danger tw:type-1">
                 {budgetError}
               </span>
             ) : null}
@@ -366,7 +367,7 @@ export function RightDockGoalPanel({
               void handleSave()
             }
           }}
-          className="tw:min-h-0 tw:w-full tw:flex-1 tw:resize-none tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:type-body tw:outline-none tw:placeholder:text-app-text-meta"
+          className="tw:min-h-0 tw:w-full tw:flex-1 tw:resize-none tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:type-2 tw:outline-none tw:placeholder:text-app-text-meta"
         />
       </div>
     </div>
@@ -410,10 +411,14 @@ export function RightDockPlanPanel({
         className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1"
         contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
       >
-        <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-6 tw:text-center tw:text-app-text-soft">
-          <ListChecks size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          <strong className="tw:text-app-text">暂无计划</strong>
-          <span className="tw:max-w-full tw:text-app-text-soft">
+        <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5 tw:text-center tw:text-app-text-soft">
+          <ListChecks
+            className="tw:size-icon-lg"
+            size={APP_ICON_SIZES.lg}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+          <strong className="tw:text-app-text tw:type-4 tw:weight-bold">暂无计划</strong>
+          <span className="tw:max-w-full tw:wrap-anywhere tw:text-app-text-soft tw:type-1">
             从主对话里的计划卡片打开计划书
           </span>
         </div>
@@ -429,7 +434,7 @@ export function RightDockPlanPanel({
     >
       <article className="right-dock-plan-document tw:mx-auto tw:w-full tw:max-w-[48rem] tw:text-app-text">
         <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:pb-3">
-          <span className="tw:text-app-text-meta tw:type-label">
+          <span className="tw:text-app-text-meta tw:type-1 tw:weight-medium">
             {hasNewer ? '历史计划' : pendingReview ? '计划 · 待审阅' : '计划'}
           </span>
           <div className="tw:flex tw:items-center tw:gap-2">
@@ -447,7 +452,7 @@ export function RightDockPlanPanel({
         </div>
         {actions.error ? <p role="alert">{actions.error}</p> : null}
         {title ? (
-          <h2 className="right-dock-plan-title tw:m-0 tw:pb-2 tw:text-app-text tw:type-body-lg">
+          <h2 className="right-dock-plan-title tw:m-0 tw:pb-2 tw:text-app-text tw:type-3">
             {title}
           </h2>
         ) : null}
@@ -506,16 +511,16 @@ export function RightDockFilesPanel({
           'tw:flex tw:h-full tw:w-full tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col',
         )}
       >
-        <header className="file-breadcrumb-toolbar file-breadcrumb-toolbar--empty">
+        <header className="file-breadcrumb-toolbar file-breadcrumb-toolbar--empty tw:flex tw:h-6 tw:min-h-6 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-app-dock tw:px-2 tw:text-app-text-soft tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
           <div
             aria-label={`文件路径：${rootDisplayName}`}
-            className="file-breadcrumb-toolbar__path"
+            className="file-breadcrumb-toolbar__path tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:justify-start tw:overflow-hidden tw:whitespace-nowrap tw:type-2 tw:weight-medium"
           >
             <strong className="file-breadcrumb-toolbar__root" title={workspacePath}>
               {rootDisplayName}
             </strong>
           </div>
-          <div className="file-breadcrumb-toolbar__actions">
+          <div className="file-breadcrumb-toolbar__actions tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:@max-[440px]:gap-0">
             {workspacePath ? (
               <Button
                 isIconOnly
@@ -528,12 +533,14 @@ export function RightDockFilesPanel({
               >
                 {copied ? (
                   <Check
+                    className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
                 ) : (
                   <Copy
+                    className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -553,6 +560,7 @@ export function RightDockFilesPanel({
               onClick={() => setTreeVisible((current) => !current)}
             >
               <FolderOpen
+                className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -570,10 +578,10 @@ export function RightDockFilesPanel({
           style={treeResize.layoutStyle}
         >
           <div className="right-dock-file-selection-target right-dock-open-file-placeholder tw:flex tw:h-full tw:min-h-0 tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:[&>*]:grow tw:[&>*]:shrink tw:[&>*]:basis-auto tw:[&>*]:min-h-0">
-            <div className="right-dock-empty-state">
+            <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:min-w-0 tw:min-h-0 tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-5 tw:text-center tw:text-app-text-meta">
               <svg
                 aria-hidden="true"
-                className="right-dock-open-file-illustration"
+                className="right-dock-open-file-illustration tw:size-icon-lg"
                 fill="none"
                 height={APP_ICON_SIZE}
                 stroke="currentColor"
@@ -587,8 +595,10 @@ export function RightDockFilesPanel({
                 <path d="M9 13h6" />
                 <path d="M12 10v6" />
               </svg>
-              <strong>打开文件</strong>
-              <span>从工作区目录树中选择文件</span>
+              <strong className="tw:text-app-text tw:type-4 tw:weight-bold">打开文件</strong>
+              <span className="tw:max-w-full tw:wrap-anywhere tw:text-app-text-soft tw:type-1">
+                从工作区目录树中选择文件
+              </span>
             </div>
           </div>
           <EditorFileTreePresence
@@ -775,13 +785,7 @@ export function RightDockFilePreviewPanel({
   }
 
   if (document.status !== 'ready') {
-    return (
-      <div className="right-dock-empty-state">
-        <Folder size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        <strong>正在读取文件</strong>
-        <span>{expectedPath}</span>
-      </div>
-    )
+    return <WorkbenchPanelLoading label={`正在读取文件 ${expectedPath}`} />
   }
 
   return (
@@ -975,19 +979,6 @@ export function buildFileSelectionPrompt({
 
 export function shouldShowSelectionSendAction(selectedText: string): boolean {
   return selectedText.trim().length > 0
-}
-
-/**
- * Appends `text` to the end of `prev`, trimming `text` first.
- * Adds a `\n\n` separator if `prev` already contains non-whitespace content.
- * Returns `prev` unchanged if trimmed `text` is empty.
- */
-export function buildAppendText(prev: string, text: string): string {
-  const trimmed = text.trim()
-  if (!trimmed) return prev
-  const existing = prev.trim()
-  if (!existing) return trimmed
-  return `${prev}\n\n${trimmed}`
 }
 
 export { getSendableFilePath }

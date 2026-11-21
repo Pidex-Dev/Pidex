@@ -36,8 +36,8 @@ const defaultThreadSettings = {
   taskMode: 'chat' as const,
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
-    approvalsReviewer: 'user' as const,
+    approvalPolicy: 'auto_review' as const,
+    approvalsReviewer: 'auto_review' as const,
   },
 }
 
@@ -116,8 +116,8 @@ function sessionSnapshot(overrides: Partial<ThreadSnapshot['thread']> = {}): Thr
         model: { providerID: 'openai', id: 'gpt-5' },
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
         state: 'completed',
         createdAt: now,
@@ -581,8 +581,8 @@ describe('desktop history client', () => {
           model: { providerID: 'anthropic', id: 'claude-opus-4-1' },
           permissionConfig: {
             sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
-            approvalsReviewer: 'user',
+            approvalPolicy: 'auto_review',
+            approvalsReviewer: 'auto_review',
           },
           taskMode: 'chat',
         })

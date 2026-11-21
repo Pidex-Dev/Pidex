@@ -1,12 +1,15 @@
-import type {
-  Attachment,
-  LocalContextReference,
-  SubagentProjection,
-  SubagentStatus,
-  ThreadGoal,
-  ToolItem,
+import {
+  resolveSubagentDisplayParts,
+  type Attachment,
+  type LocalContextReference,
+  type SubagentProjection,
+  type SubagentRole,
+  type SubagentStatus,
+  type ThreadGoal,
+  type ToolItem,
 } from '@pidex/shared/thread'
 import type { DesktopBrowserState } from '../../../../shared/Types.js'
+import { resolveSubagentRole } from '../subagents/SubagentRole.js'
 
 export type ThreadSummaryChanges = {
   fileCount: number
@@ -36,10 +39,14 @@ export type ThreadSummaryGoal = {
 
 export type ThreadSummaryAgent = {
   id: string
+  agentName: string
+  taskTitle: string
   name: string
+  role: SubagentRole
   status: SubagentStatus
   state: 'running' | 'waiting' | 'finished'
   stoppable: boolean
+  startedAt: number | null
   /** 结果摘要，缺失时回退到任务描述。 */
   summary: string
   /** 排序与相对时间基准：结束时间 → 开始时间 → 创建时间。 */
@@ -172,7 +179,14 @@ export function deriveThreadSummaryViewModel(
             deletions: input.deletions,
           }
         : null
-  const agents = input.subagents.map((projection) => threadSummaryAgentFromProjection(projection))
+  const agents = input.subagents
+    .map((projection) => threadSummaryAgentFromProjection(projection))
+    .sort((left, right) => {
+      const leftActive = left.state !== 'finished' ? 0 : 1
+      const rightActive = right.state !== 'finished' ? 0 : 1
+      if (leftActive !== rightActive) return leftActive - rightActive
+      return (right.recencyAt || 0) - (left.recencyAt || 0)
+    })
   const browserTabs = collectThreadSummaryBrowserTabs(input.browserTabs, input.sessionId)
   const sources = collectThreadSummarySources(input)
   const artifacts = collectThreadSummaryArtifacts(input.tools)
@@ -217,12 +231,27 @@ export function threadSummaryAgentFromProjection(
     : AGENT_WAITING_STATUSES.has(status)
       ? 'waiting'
       : 'finished'
+  const { agentName, taskTitle } = resolveSubagentDisplayParts({
+    displayName: task.displayName,
+    title: task.title,
+    profile: task.profile,
+    role: task.role,
+    task: task.task,
+  })
   return {
     id: task.id,
-    name: task.displayName,
+    agentName,
+    taskTitle,
+    name: taskTitle || agentName,
+    role: resolveSubagentRole({
+      role: task.role,
+      displayName: task.displayName,
+      task: task.task,
+    }),
     status,
     state,
     stoppable: state !== 'finished',
+    startedAt: currentRun?.startedAt ?? null,
     summary: currentRun?.result?.summary ?? currentRun?.error ?? task.task,
     recencyAt: currentRun?.finishedAt ?? currentRun?.startedAt ?? task.createdAt,
   }
@@ -410,15 +439,17 @@ export function collectThreadSummaryArtifacts(tools: readonly ToolItem[]): Threa
   return [...byArtifactId.values()]
 }
 
-export const THREAD_SUMMARY_AGENT_PREVIEW_LIMIT = 6
+export const THREAD_SUMMARY_AGENT_PREVIEW_LIMIT = 3
 
 export function previewThreadSummaryAgents(
   agents: readonly ThreadSummaryAgent[],
   limit: number = THREAD_SUMMARY_AGENT_PREVIEW_LIMIT,
-): { items: ThreadSummaryAgent[]; totalCount: number } {
+): { items: ThreadSummaryAgent[]; remainingCount: number; totalCount: number } {
   const safeLimit = Math.max(0, Math.floor(limit))
+  const items = agents.slice(0, safeLimit)
   return {
-    items: agents.slice(0, safeLimit),
+    items,
+    remainingCount: Math.max(0, agents.length - items.length),
     totalCount: agents.length,
   }
 }

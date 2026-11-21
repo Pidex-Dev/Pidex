@@ -19,6 +19,12 @@ import {
 import type { DesktopExternalOpenTarget } from '../../../shared/Types.js'
 import { AppContextMenu, type AppContextMenuAction } from '../../components/ui/AppContextMenu.js'
 import { Button } from '../../components/ui/Button.js'
+import {
+  TooltipContent,
+  TooltipPortal,
+  TooltipRoot,
+  TooltipTrigger,
+} from '../../components/ui/Tooltip.js'
 import { useDialogFocusRestore } from '../../components/ui/UseDialogFocusRestore.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { OpenTargetIcon } from '../../components/ui/OpenTargetIcon.js'
@@ -41,10 +47,13 @@ import { buildMarkdownBlocks } from './Parser.js'
 import { renderSafeHtml } from './SafeHtml.js'
 import {
   classifyMarkdownTarget,
+  formatFileReferenceTooltip,
   isLikelyFileReference,
+  isInlinePluginLink,
   isSafeHttpsMediaSource,
   mediaKindForUrl,
   parseMarkdownFileReference,
+  resolveFileLinkDisplayLabel,
 } from './SafeTargets.js'
 import type {
   MarkdownDirectiveRegistry,
@@ -74,6 +83,7 @@ export function handleMarkdownThreadLinkClick(
 }
 
 export type MarkdownMessageProps = {
+  inlineLinkTokens?: boolean
   presentation?: 'default' | 'conversation'
   allowBasicHtml?: boolean
   allowWideBlocks?: boolean
@@ -90,6 +100,7 @@ export type MarkdownMessageProps = {
 }
 
 type RenderContext = {
+  inlineLinkTokens: boolean
   presentation: 'default' | 'conversation'
   allowBasicHtml: boolean
   allowWideBlocks: boolean
@@ -107,9 +118,11 @@ type RenderContext = {
     ((reference: MarkdownFileReference) => void | Promise<void>) | undefined
   streaming: boolean
   streamingFragment: string
+  insideFileLink?: boolean
 }
 
 export function MarkdownMessage({
+  inlineLinkTokens = false,
   presentation = 'default',
   allowBasicHtml = false,
   allowWideBlocks = true,
@@ -141,6 +154,7 @@ export function MarkdownMessage({
   }, [sourceText, streaming])
   const context = useMemo<RenderContext>(
     () => ({
+      inlineLinkTokens,
       presentation,
       allowBasicHtml,
       allowWideBlocks,
@@ -158,6 +172,7 @@ export function MarkdownMessage({
       streamingFragment: '',
     }),
     [
+      inlineLinkTokens,
       presentation,
       allowWideBlocks,
       allowBasicHtml,
@@ -337,7 +352,7 @@ function renderToken(token: MarkdownToken, context: RenderContext, key: string):
   }
   if (token.type === 'streaming_code') {
     const code = token as MarkdownStreamingCodeToken
-    return renderCode(code.text, code.lang, true, context, key)
+    return renderCode(code.text, code.lang, true, context, key, true)
   }
   if (token.type === 'streaming_text') {
     const pending = token as MarkdownStreamingTextToken
@@ -517,6 +532,7 @@ function renderCode(
   streaming: boolean,
   context: RenderContext,
   key: string,
+  fenceOpen = false,
 ): React.ReactNode {
   const normalizedLanguage = language?.trim().split(/\s+/u)[0].toLowerCase()
   if (normalizedLanguage === 'mermaid') {
@@ -540,6 +556,7 @@ function renderCode(
         code={code}
         language={normalizedLanguage}
         streaming={streaming}
+        fenceOpen={fenceOpen}
         showWrapControl={context.presentation === 'conversation'}
       />
     </LazyRender>
@@ -741,7 +758,12 @@ function MarkdownTable({
             type="button"
             onClick={() => void downloadTable()}
           >
-            <Download aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Download
+              className="tw:size-icon-md"
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </Button>
         ) : null}
         <Button
@@ -754,9 +776,19 @@ function MarkdownTable({
           onClick={() => void copyTable()}
         >
           {copied ? (
-            <Check aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Check
+              className="tw:size-icon-md"
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           ) : (
-            <Copy aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Copy
+              className="tw:size-icon-md"
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           )}
         </Button>
         {context.allowWideBlocks || overflowing ? (
@@ -770,7 +802,7 @@ function MarkdownTable({
             aria-expanded={expanded}
             onClick={() => setExpanded(true)}
           >
-            <Maximize2 aria-hidden="true" size={APP_ICON_SIZE} />
+            <Maximize2 className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
           </Button>
         ) : null}
       </div>
@@ -781,12 +813,12 @@ function MarkdownTable({
         <Dialog.Portal>
           <Dialog.Overlay className="ui-dialog-backdrop tw:fixed tw:inset-0 tw:z-modal" />
           <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered tw:z-modal tw:flex tw:w-[calc(100vw-4rem)] tw:max-h-[calc(100vh-4rem)] tw:min-h-0 tw:flex-col tw:gap-3 tw:p-4 tw:text-app-text tw:outline-none"
+            className="ui-dialog-surface ui-dialog-surface--centered tw:flex tw:w-[calc(100vw-4rem)] tw:max-h-[calc(100vh-4rem)] tw:min-h-0 tw:flex-col tw:gap-3 tw:p-4 tw:text-app-text"
             aria-describedby={undefined}
             onCloseAutoFocus={onCloseAutoFocus}
           >
             <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-              <Dialog.Title className="tw:m-0 tw:type-row-title">表格预览</Dialog.Title>
+              <Dialog.Title className="tw:m-0 tw:type-2 tw:weight-medium">表格预览</Dialog.Title>
               <Dialog.Close asChild>
                 <Button
                   isIconOnly
@@ -795,7 +827,7 @@ function MarkdownTable({
                   aria-label="关闭表格预览"
                   title="关闭表格预览"
                 >
-                  <X aria-hidden="true" size={APP_ICON_SIZE} />
+                  <X className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
                 </Button>
               </Dialog.Close>
             </header>
@@ -838,19 +870,63 @@ function renderTableCell(
 }
 
 function renderLink(link: Tokens.Link, context: RenderContext, key: string): React.ReactNode {
-  const children = renderTokens(link.tokens, context, `${key}-label`)
   const target = classifyMarkdownTarget(link.href)
+  if (target.kind === 'file') {
+    const rawLinkLabel =
+      link.tokens.length === 1 && link.tokens[0]?.type === 'codespan'
+        ? (link.text ?? '')
+        : tokenText(link)
+    const display = resolveFileLinkDisplayLabel(rawLinkLabel, link.href, target)
+    const content =
+      display.resolvedText !== null ? (
+        display.resolvedText
+      ) : (
+        <>
+          {renderTokens(link.tokens, { ...context, insideFileLink: true }, `${key}-label`)}
+          {display.suffix}
+        </>
+      )
+    return (
+      <FileReferenceButton
+        className="md-file-reference"
+        context={context}
+        key={key}
+        reference={target}
+      >
+        {content}
+      </FileReferenceButton>
+    )
+  }
+  const children = renderTokens(link.tokens, context, `${key}-label`)
+  const tokenClass = context.inlineLinkTokens ? 'composer-inline-skill-token' : undefined
+  const label = (kind: 'thread' | 'browser' | 'plugin') =>
+    tokenClass ? (
+      <>
+        <span aria-hidden="true" className="composer-inline-link-icon" data-link-kind={kind} />
+        <span className="composer-inline-skill-token-label">{children}</span>
+      </>
+    ) : (
+      children
+    )
+  if (tokenClass && isInlinePluginLink(link.href)) {
+    return (
+      <span className={tokenClass} key={key}>
+        {label('plugin')}
+      </span>
+    )
+  }
   if (target.kind === 'thread') {
     return (
       <a
         href={link.href}
+        className={tokenClass}
         key={key}
         onClick={(event) => {
           handleMarkdownThreadLinkClick(event, target.threadId)
         }}
         title={link.title ?? undefined}
       >
-        {children}
+        {label('thread')}
       </a>
     )
   }
@@ -864,6 +940,7 @@ function renderLink(link: Tokens.Link, context: RenderContext, key: string): Rea
     return (
       <a
         href={target.url}
+        className={tokenClass}
         key={key}
         onClick={(event) => {
           event.preventDefault()
@@ -872,21 +949,8 @@ function renderLink(link: Tokens.Link, context: RenderContext, key: string): Rea
         rel="noopener noreferrer"
         title={link.title ?? undefined}
       >
-        {children}
+        {label('browser')}
       </a>
-    )
-  }
-  if (target.kind === 'file') {
-    return (
-      <FileReferenceButton
-        className="md-file-reference"
-        context={context}
-        key={key}
-        reference={target}
-        title={link.title ?? target.path}
-      >
-        {children}
-      </FileReferenceButton>
     )
   }
   if (target.kind === 'anchor') {
@@ -915,7 +979,11 @@ function renderImage(image: Tokens.Image, context: RenderContext, key: string): 
 }
 
 function renderCodeSpan(text: string, context: RenderContext, key: string): React.ReactNode {
-  if (isWindowsWorkspaceRouteCodeSpan(text, context.cwd) || !isLikelyFileReference(text))
+  if (
+    context.insideFileLink ||
+    isWindowsWorkspaceRouteCodeSpan(text, context.cwd) ||
+    !isLikelyFileReference(text)
+  )
     return <code key={key}>{text}</code>
   const target = classifyMarkdownTarget(text)
   if (target.kind !== 'file') return <code key={key}>{text}</code>
@@ -925,7 +993,6 @@ function renderCodeSpan(text: string, context: RenderContext, key: string): Reac
       context={context}
       key={key}
       reference={target}
-      title={target.path}
     >
       {text}
     </FileReferenceButton>
@@ -1073,7 +1140,6 @@ function renderTextWithFileReferences(
         context={context}
         key={`${key}-file-${matchIndex}`}
         reference={reference}
-        title={reference.path}
       >
         {label}
       </FileReferenceButton>,
@@ -1226,12 +1292,14 @@ function FileReferenceButton({
   className: string
   context: RenderContext
   reference: MarkdownFileReference
-  title: string
+  title?: string
 }): React.ReactNode {
   const absolutePath = resolveWorkspacePath(context.cwd, reference.path)
   const openTargets = useExternalOpenTargets(absolutePath)
   const [loadingTargets, setLoadingTargets] = React.useState(false)
+  const [menuOpen, setMenuOpen] = React.useState(false)
   const canCopyContents = context.canCopyFileReferenceContents?.(reference) ?? false
+  const tooltipText = title ?? formatFileReferenceTooltip(reference, absolutePath ?? reference.path)
 
   const prefetch = (): void => {
     if (!absolutePath) return
@@ -1282,6 +1350,7 @@ function FileReferenceButton({
               layout: 'grid',
               icon: (
                 <Code2
+                  className="tw:size-icon-md"
                   aria-hidden="true"
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -1309,7 +1378,14 @@ function FileReferenceButton({
     {
       kind: 'item',
       label: '复制路径',
-      icon: <Copy aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+      icon: (
+        <Copy
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      ),
       onSelect: () => {
         void desktopClipboard.writeText(absolutePath ?? reference.path).catch(() => undefined)
       },
@@ -1319,7 +1395,12 @@ function FileReferenceButton({
       label: '复制文件内容',
       disabled: !canCopyContents || !context.onCopyFileReferenceContents,
       icon: (
-        <FileText aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <FileText
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       ),
       onSelect: () => {
         try {
@@ -1337,7 +1418,12 @@ function FileReferenceButton({
       label: '在文件资源管理器中显示',
       disabled: !absolutePath,
       icon: (
-        <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <FolderOpen
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
       ),
       onSelect: () => {
         if (!absolutePath) return
@@ -1346,49 +1432,64 @@ function FileReferenceButton({
     },
   ]
   return (
-    <AppContextMenu
-      actions={actions}
-      layout="grid"
-      onOpenChange={(open) => {
-        if (open) loadTargets()
-      }}
-      trigger={
-        <button
-          aria-label={`打开文件 ${reference.path}`}
-          className={className}
-          data-file-reference=""
-          onClick={(event) => {
-            if (event.detail > 1) return
-            if (event.ctrlKey || event.altKey) {
-              openFile(context, reference.path)
-              return
-            }
-            open(true)
-          }}
-          onDoubleClick={(event) => {
-            if (event.ctrlKey || event.altKey || !canCopyContents) return
-            open(false)
-          }}
-          onFocus={prefetch}
-          onMouseEnter={prefetch}
-          onPointerDown={prefetch}
-          type="button"
-          title={title}
+    <TooltipRoot open={menuOpen ? false : undefined}>
+      <AppContextMenu
+        actions={actions}
+        layout="grid"
+        onOpenChange={(nextOpen) => {
+          setMenuOpen(nextOpen)
+          if (nextOpen) loadTargets()
+        }}
+        trigger={
+          <TooltipTrigger asChild>
+            <button
+              aria-label={`打开文件 ${reference.path}`}
+              className={className}
+              data-file-reference=""
+              onClick={(event) => {
+                if (event.detail > 1) return
+                if (event.ctrlKey || event.altKey) {
+                  openFile(context, reference.path)
+                  return
+                }
+                open(true)
+              }}
+              onDoubleClick={(event) => {
+                if (event.ctrlKey || event.altKey || !canCopyContents) return
+                open(false)
+              }}
+              onFocus={prefetch}
+              onMouseEnter={prefetch}
+              onPointerDown={prefetch}
+              type="button"
+            >
+              <span className="md-file-reference__content">
+                <span aria-hidden="true" className="md-file-reference__icon">
+                  <FileTypeIcon
+                    path={reference.path}
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                </span>
+                <span className="md-file-reference__label">
+                  {renderFileReferenceLabel(children)}
+                </span>
+              </span>
+            </button>
+          </TooltipTrigger>
+        }
+        size="md"
+      />
+      <TooltipPortal>
+        <TooltipContent
+          className="md-file-reference__tooltip tw:max-w-[min(360px,calc(100vw-16px))] tw:whitespace-pre-wrap tw:break-words tw:[overflow-wrap:anywhere]"
+          side="top"
+          variant="default"
         >
-          <span className="md-file-reference__content">
-            <span aria-hidden="true" className="md-file-reference__icon">
-              <FileTypeIcon
-                path={reference.path}
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            </span>
-            <span className="md-file-reference__label">{renderFileReferenceLabel(children)}</span>
-          </span>
-        </button>
-      }
-      size="md"
-    />
+          {tooltipText}
+        </TooltipContent>
+      </TooltipPortal>
+    </TooltipRoot>
   )
 }
 

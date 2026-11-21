@@ -30,8 +30,8 @@ afterEach(async () => {
 const model = Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') })
 const permissionConfig = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 
 async function fixture(options: { project?: boolean; trusted?: boolean } = {}) {
@@ -68,7 +68,7 @@ async function fixture(options: { project?: boolean; trusted?: boolean } = {}) {
     threadID: thread.id,
     turnID: turn.turnID,
     agentID: turn.agentID,
-    name: 'PowerShell',
+    name: 'exec_command',
     input: { command: 'git status', cwd: workspace },
     permissionConfig,
     model,
@@ -93,7 +93,7 @@ async function fixture(options: { project?: boolean; trusted?: boolean } = {}) {
 
 describe('权限规则匹配', () => {
   test('Deny 高于 Ask 高于 Allow，项目规则仅在受信任时生效', async () => {
-    const { db, config, tools, invocation, thread, workspace } = await fixture({ project: true })
+    const { db, config, tools, invocation, thread } = await fixture({ project: true })
     const rules = new ApprovalRules(db, tools, config)
     await rules.upsert(thread.id, {
       effect: 'allow',
@@ -146,7 +146,7 @@ describe('权限规则匹配', () => {
     ).toBe('allow')
   })
 
-  test('Ask 规则始终要求人工，never 与 granular 禁止时直接拒绝', () => {
+  test('Ask 规则始终要求人工，包括 never 与完全访问模式', () => {
     const engine = new PermissionDecisionEngine()
     const tools = new ToolRegistry()
     const tool = tools.get('Write')
@@ -172,7 +172,7 @@ describe('权限规则匹配', () => {
     )
     expect(autoReview).toMatchObject({
       action: 'review',
-      reviewer: 'user',
+      reviewer: 'auto_review',
       forceHumanApproval: true,
     })
     expect(
@@ -180,27 +180,11 @@ describe('权限规则匹配', () => {
         { ...invocation, permissionConfig: { ...permissionConfig, approvalPolicy: 'never' } },
         tool,
       ),
-    ).toMatchObject({ action: 'deny' })
-    expect(
-      engine.evaluate(
-        {
-          ...invocation,
-          permissionConfig: {
-            ...permissionConfig,
-            approvalPolicy: {
-              type: 'granular',
-              sandboxApproval: true,
-              rules: false,
-              skillApproval: true,
-              requestPermissions: true,
-              mcpTools: true,
-              mcpElicitations: true,
-            },
-          },
-        },
-        tool,
-      ),
-    ).toMatchObject({ action: 'deny' })
+    ).toMatchObject({
+      action: 'review',
+      reviewer: 'auto_review',
+      forceHumanApproval: true,
+    })
   })
 
   test('Allow 可免除默认风险审批，Deny 规则优先于已有授权', () => {
@@ -235,8 +219,7 @@ describe('权限规则匹配', () => {
   })
 
   test('精确域名、MCP server/tool、命令完整值与安全 argv 前缀按各自语义匹配', async () => {
-    const { db, config, tools, invocation } = await fixture({ project: true })
-    const rules = new ApprovalRules(db, tools, config)
+    const { invocation, tools } = await fixture({ project: true })
     expect(
       permissionRuleMatches({ kind: 'network', domain: 'example.test' }, invocation, {
         networkDomains: ['example.test'],
@@ -247,13 +230,23 @@ describe('权限规则匹配', () => {
         networkDomains: ['sub.example.test'],
       }),
     ).toBe(false)
+    expect(permissionRuleMatches({ kind: 'tool', tool: 'PowerShell' }, invocation, undefined)).toBe(
+      process.platform === 'win32',
+    )
+    expect(
+      permissionRuleMatches(
+        { kind: 'tool', tool: 'Bash' },
+        { ...invocation, input: { ...invocation.input, shell: 'bash' } },
+        undefined,
+      ),
+    ).toBe(true)
     const mcpInvocation: ToolInvocation = {
       ...invocation,
       name: 'mcp_tool',
       input: { value: 1 },
       toolPolicy: {
         sdkName: 'mcp_tool',
-        capabilities: tools.get('PowerShell').capabilities,
+        capabilities: tools.get('exec_command').capabilities,
         allowedModes: ['chat'],
         approvalStrategy: 'always-review',
         origin: { kind: 'mcp', serverName: 'fixture', rawToolName: 'save', generation: 1 },
@@ -300,7 +293,7 @@ describe('权限规则匹配', () => {
       threadID: 'thread-1',
       turnID: 'turn-1',
       agentID: 'agent-1',
-      name: 'apply_patch',
+      name: 'Edit',
       input: {},
       permissionConfig,
       model,
@@ -360,8 +353,8 @@ describe('ToolExecutor 规则最终门禁', () => {
     paths.push(parent)
     const root = join(parent, 'workspace')
     await mkdir(root)
-    const target = join(root, 'a.txt')
-    await writeFile(target, 'content', 'utf8')
+    const target = join(root, 'a.png')
+    await writeFile(target, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
     let approvals = 0
     const executor = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(parent, 'data'),
@@ -379,7 +372,7 @@ describe('ToolExecutor 规则最终门禁', () => {
       signal: new AbortController().signal,
       workspace: await WorkspaceService.open(root),
     }
-    await expect(executor.execute('Read', { file_path: target }, context)).rejects.toThrow(
+    await expect(executor.execute('Read', { path: target }, context)).rejects.toThrow(
       '权限规则拒绝',
     )
     expect(approvals).toBe(0)
@@ -390,7 +383,7 @@ describe('ToolExecutor 规则最终门禁', () => {
     const service = new ApprovalService(db, hub, tools, null, config)
     const shell: ToolInvocation = {
       ...invocation,
-      permissionConfig: { ...permissionConfig, approvalPolicy: 'untrusted' },
+      permissionConfig: { ...permissionConfig, approvalPolicy: 'auto_review' },
     }
     await service.rules.upsert(thread.id, {
       effect: 'allow',
@@ -427,7 +420,7 @@ describe('ToolExecutor 规则最终门禁', () => {
       ...invocation,
       permissionConfig: {
         ...permissionConfig,
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
     }
@@ -486,7 +479,7 @@ describe('权限规则存储', () => {
     const projectRule = await rules.upsert(thread.id, {
       effect: 'ask',
       scope: 'project',
-      match: { kind: 'tool', tool: 'Bash' },
+      match: { kind: 'tool', tool: 'exec_command' },
     })
     expect(projectRule.source).toBe('project')
     const projectJson = JSON.parse(await readFile(projectFile, 'utf8'))
@@ -547,7 +540,8 @@ describe('权限规则存储', () => {
     const service = new ApprovalService(db, hub, tools, null, config)
     const approved: ToolInvocation = {
       ...invocation,
-      permissionConfig: { ...permissionConfig, approvalPolicy: 'untrusted' },
+      permissionConfig: { ...permissionConfig, approvalPolicy: 'auto_review' },
+      permissionFacts: { risk: 'high', ruleRequiresApproval: true },
     }
     await service.authorize(approved, new AbortController().signal)
     await service.attachRunState(approved.id, '{"version":1}', {
@@ -682,8 +676,8 @@ test('多文件批准逐个覆盖目标，任一目标的 Deny 不被其他允�
   const second = join(f.root, 'second.txt')
   const operation: ToolInvocation = {
     ...f.invocation,
-    name: 'apply_patch',
-    input: { patch: 'fixture' },
+    name: 'Edit',
+    input: {},
     permissionFacts: { ruleTargets: { writePaths: [first, second] } },
   }
   await rules.persistGrant(
@@ -702,4 +696,75 @@ test('多文件批准逐个覆盖目标，任一目标的 Deny 不被其他允�
     match: { kind: 'file', access: 'write', path: second },
   })
   expect((await rules.evaluate(operation)).effect).toBe('deny')
+})
+
+test('审批规则无需会话标识即可按 cwd 管理用户与项目规则，且完全访问下仍受询问/拒绝规则约束', async () => {
+  const f = await fixture({ project: true })
+  const rules = new ApprovalRules(f.db, f.tools, f.config)
+  const askRule = await rules.upsert(
+    undefined,
+    {
+      effect: 'ask',
+      scope: 'user',
+      match: { kind: 'command', command: 'git status', argv: ['git', 'status'] },
+    },
+    undefined,
+    f.workspace,
+  )
+  const denyRule = await rules.upsert(
+    undefined,
+    {
+      effect: 'deny',
+      scope: 'project',
+      match: { kind: 'network', domain: 'blocked.test' },
+    },
+    undefined,
+    f.workspace,
+  )
+  const listed = await rules.list(undefined, f.workspace)
+  expect(listed.rules.map((r) => r.id)).toContain(askRule.id)
+  expect(listed.rules.map((r) => r.id)).toContain(denyRule.id)
+
+  const service = new ApprovalService(f.db, f.hub, f.tools, null, f.config)
+  const fullAccess = {
+    sandboxMode: 'danger-full-access' as const,
+    approvalPolicy: 'never' as const,
+    approvalsReviewer: 'auto_review' as const,
+  }
+  const askDecision = await service.authorize(
+    { ...f.invocation, id: 'full-ask', permissionConfig: fullAccess },
+    new AbortController().signal,
+  )
+  expect(askDecision.decision).toBe('ask')
+
+  const denyDecision = await service.authorize(
+    {
+      ...f.invocation,
+      id: 'full-deny',
+      name: 'exec_command',
+      input: { command: 'curl https://blocked.test' },
+      permissionConfig: fullAccess,
+      permissionFacts: { ruleTargets: { networkDomains: ['blocked.test'] } },
+    },
+    new AbortController().signal,
+  )
+  expect(denyDecision.decision).toBe('deny')
+
+  const normalDecision = await service.authorize(
+    {
+      ...f.invocation,
+      id: 'full-allow',
+      input: { command: 'git diff' },
+      permissionConfig: fullAccess,
+    },
+    new AbortController().signal,
+  )
+  expect(normalDecision.decision).toBe('allow')
+
+  expect(await rules.revoke(undefined, askRule.id, askRule.version, f.workspace)).toEqual({
+    revoked: true,
+  })
+  expect(await rules.revoke(undefined, denyRule.id, denyRule.version, f.workspace)).toEqual({
+    revoked: true,
+  })
 })

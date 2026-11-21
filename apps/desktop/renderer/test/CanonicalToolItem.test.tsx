@@ -13,6 +13,7 @@ import { decodeResultCardEnvelope } from '@pidex/shared/thread-result-card'
 
 import {
   buildLifecycleToolDisplay,
+  CanonicalItemRenderer,
   buildStructuredToolDetail,
   buildToolItemDisplay,
   buildToolSemanticSummary,
@@ -293,6 +294,15 @@ describe('canonical tool item display', () => {
     expect(cleanCommandOutput(emptyEnvelope)).toBeNull()
 
     expect(cleanCommandOutput('plain terminal output')).toBe('plain terminal output')
+
+    const ansiEnvelope = JSON.stringify({
+      exitCode: 0,
+      stdout: '\u001b[31;1m$ tsc -b\u001b[0m\n',
+      stderr: '',
+    })
+    expect(cleanCommandOutput(ansiEnvelope)).toBe('$ tsc -b\n')
+    expect(cleanCommandOutput('\u001b[31;1m$ tsc -b\u001b[0m')).toBe('$ tsc -b')
+    expect(cleanCommandOutput('\u001b[31;1m\u001b[0m')).toBeNull()
   })
 
   test('isProcessEnvelope detects various process execution payloads', () => {
@@ -349,7 +359,7 @@ describe('canonical tool item display', () => {
     ).toBe('正在运行 bun test（已用时 2 秒）')
   })
 
-  test('only allows an active command to expand after output arrives', () => {
+  test('allows an active command to expand immediately before output arrives', () => {
     expect(
       buildToolItemDisplay(
         toolItem({
@@ -358,8 +368,12 @@ describe('canonical tool item display', () => {
           finishedAt: null,
           output: '   ',
         }),
-      ).canExpand,
-    ).toBe(false)
+      ),
+    ).toMatchObject({
+      canExpand: true,
+      hasExplicitInput: true,
+      resultText: null,
+    })
     expect(
       buildToolItemDisplay(
         toolItem({
@@ -629,6 +643,24 @@ describe('canonical tool item display', () => {
       buildStructuredToolDetail(
         toolItem({
           command: null,
+          input: { pattern: '**/*.ts' },
+          output: JSON.stringify({
+            path: 'apps',
+            filenames: ['src/a.ts', 'C:\\private\\src\\b.ts'],
+            numFiles: 2,
+            truncated: false,
+          }),
+          tool: 'Glob',
+        }),
+      ),
+    ).toEqual({
+      executionContent: '**/*.ts',
+      resultText: JSON.stringify(['src/a.ts', 'b.ts'], null, 2),
+    })
+    expect(
+      buildStructuredToolDetail(
+        toolItem({
+          command: null,
           input: { query: 'select:apply_patch' },
           output: JSON.stringify({ tools: [{ name: 'apply_patch' }] }),
           tool: 'tool.search',
@@ -651,6 +683,58 @@ describe('canonical tool item display', () => {
       executionContent: 'reverse-engineer-ui-feature',
       resultText: '# Skill\n完整内容',
     })
+  })
+
+  test('keeps completed Glob search collapsed and only expands failed exploration details', () => {
+    const completedItem = toolItem({
+      activity: { type: 'search', query: '**/*.ts' },
+      command: null,
+      input: { pattern: '**/*.ts' },
+      output: JSON.stringify({
+        path: 'apps',
+        filenames: ['src/feature/viewer.ts', 'src/feature/other.ts'],
+        numFiles: 2,
+        truncated: false,
+      }),
+      tool: 'Glob',
+    })
+    const completedMarkup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolItemView
+          disclosure={{
+            id: 'tool:turn-1:tool-1',
+            expanded: true,
+            onExpandedChange: () => undefined,
+          }}
+          item={completedItem}
+        />
+      </TooltipProvider>,
+    )
+
+    expect(completedMarkup).toContain('data-expandable="false"')
+    expect(completedMarkup).toContain('data-expanded="false"')
+    expect(completedMarkup).not.toContain('lucide-chevron-right')
+
+    const failedItem = { ...completedItem, state: 'error' as const, error: '搜索超时' }
+    const failedMarkup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolItemView
+          disclosure={{
+            id: 'tool:turn-1:tool-1',
+            expanded: true,
+            onExpandedChange: () => undefined,
+          }}
+          item={failedItem}
+        />
+      </TooltipProvider>,
+    )
+
+    expect(failedMarkup).toContain('data-expandable="true"')
+    expect(failedMarkup).toContain('data-expanded="true"')
+    expect(failedMarkup).toContain('src/feature/viewer.ts')
+    expect(failedMarkup).toContain('src/feature/other.ts')
+    expect(failedMarkup).toContain('搜索超时')
+    expect(failedMarkup).not.toContain('numFiles')
   })
 
   test('does not fall back to whole JSON for missing structured fields', () => {
@@ -704,6 +788,7 @@ describe('canonical tool item display', () => {
         '提问',
         'lucide-message-circle-question',
       ],
+      ['Agent', '正在运行子代理', '子代理已完成', '运行子代理', 'lucide-user-round-plus'],
       ['spawn_agents', '正在创建子代理', '已创建子代理', '创建子代理', 'lucide-user-round-plus'],
       ['wait_agents', '正在等待子代理', '子代理已返回', '等待子代理', 'lucide-hourglass'],
       ['send_agent', '正在通知子代理', '已通知子代理', '通知子代理', 'lucide-send'],
@@ -751,7 +836,7 @@ describe('canonical tool item display', () => {
 
       const runningMarkup = renderToStaticMarkup(<LifecycleToolItemView item={running} />)
       const completedMarkup = renderToStaticMarkup(
-        <LifecycleToolItemView item={completed} isSubagent />,
+        <LifecycleToolItemView item={{ ...completed, output: null }} />,
       )
       const failedMarkup = renderToStaticMarkup(
         <LifecycleToolItemView
@@ -979,7 +1064,7 @@ describe('canonical tool item display', () => {
 
     expect(embedded).toContain('canonical-command-shell--embedded')
     expect(embedded).not.toContain('md-code-header')
-    expect(embedded).not.toContain('>bash</span>')
+    expect(embedded).toContain('canonical-command-card__header-tag">bash</span>')
     expect(embedded).toContain('aria-label="复制执行内容"')
     expect(embedded).toContain('aria-label="复制返回结果"')
     expect(embedded).toContain('bun test')
@@ -987,7 +1072,7 @@ describe('canonical tool item display', () => {
     expect(embedded).toContain('成功')
     expect(standalone).not.toContain('canonical-command-shell--embedded')
     expect(standalone).not.toContain('md-code-header')
-    expect(standalone).not.toContain('>bash</span>')
+    expect(standalone).toContain('canonical-command-card__header-tag">bash</span>')
     expect(groupedItem).toContain('data-presentation="grouped"')
     expect(groupedItem).toContain('canonical-command-shell--embedded')
   })
@@ -1162,6 +1247,60 @@ describe('canonical tool item display', () => {
     expect(legacyMarkup).not.toContain('lucide-chevron')
     expect(runningMarkup).not.toContain('<details')
     expect(runningMarkup).not.toContain('lucide-chevron')
+  })
+
+  test('renders apply_patch ToolUse via FileMutationItemView and expandable row', () => {
+    const item = toolItem({
+      command: null,
+      input: {
+        files: [
+          {
+            operation: 'update',
+            path: 'src\\renamed.ts',
+            additions: 3,
+            deletions: 1,
+          },
+        ],
+      },
+      mutationDiffPaths: ['src/renamed.ts'],
+      output: null,
+      tool: 'apply_patch',
+    })
+    const rendererMarkup = renderToStaticMarkup(
+      <CanonicalItemRenderer
+        disclosureStore={disclosureStore('file-mutation:tool-1:0')}
+        item={item}
+        readThreadPatchDiff={async () => {
+          throw new Error('not called during server render')
+        }}
+        threadId="thread-1"
+      />,
+    )
+    const rowMarkup = renderToStaticMarkup(
+      <ExpandableFileMutationRow
+        diffMarkerStyle="color"
+        diffPath="src/renamed.ts"
+        disclosure={{
+          id: 'file-mutation:tool-1:0',
+          store: disclosureStore('file-mutation:tool-1:0'),
+        }}
+        file={{ additions: 3, deletions: 1, path: 'src/renamed.ts', sourcePath: 'src\\renamed.ts' }}
+        item={item}
+        readThreadPatchDiff={async () => {
+          throw new Error('not called during server render')
+        }}
+        threadId="thread-1"
+      />,
+    )
+
+    expect(rendererMarkup).toContain('cpx-agent-activity__file-changes')
+    expect(rendererMarkup).toContain('已编辑 renamed.ts')
+    expect(rendererMarkup).toContain('+3')
+    expect(rendererMarkup).toContain('-1')
+    expect(rendererMarkup).not.toContain('运行 apply_patch')
+    expect(rowMarkup).toContain('data-expandable="true"')
+    expect(rowMarkup).toContain('lucide-chevron-right')
+    expect(rowMarkup).toContain('正在加载差异')
   })
 
   test('loads a thread patch with exact params and reuses a successful result', async () => {
@@ -1353,7 +1492,7 @@ describe('canonical tool item display', () => {
     expect(markup).toContain('notes.txt')
   })
 
-  test('renders structured tool calls with json language and deduplicates duplicate error text blocks', () => {
+  test('renders structured tool calls in the unified lightweight card and deduplicates duplicate error text blocks', () => {
     const errorText = '窗口引用已失效，请重新发现应用'
     const item = toolItem({
       command: null,
@@ -1371,12 +1510,13 @@ describe('canonical tool item display', () => {
       </TooltipProvider>,
     )
 
-    // Language detection recognizes JSON input and does not label it as Shell
-    expect(markup).toContain('>json</span>')
+    expect(markup).toContain('canonical-command-card')
+    expect(markup).not.toContain('md-code-header')
     expect(markup).not.toContain('>Shell</span>')
+    expect(markup).toContain('canonical-command-card__section-label">输入</div>')
+    expect(markup).toContain('canonical-command-card__section-label">输出</div>')
     expect(markup).toContain('5d67efc3-1a2b-4824-9883-e3bdc66b6733')
     expect(markup).toContain(errorText)
-    // Error text is rendered in CodeBlock and deduplicated from resultBlocks (not repeated twice)
     const errorMatches = markup.match(new RegExp(errorText, 'g'))
     expect(errorMatches).toHaveLength(1)
     expect(markup).not.toContain('canonical-tool-result-block--text')
@@ -1534,9 +1674,8 @@ describe('canonical tool item display', () => {
     expect(markup).toContain('空参数不再通过')
     expect(markup).toContain('https://example.com/report')
     expect(markup).not.toContain('canonical-tool-result-block--json')
-    const childMarkup = renderToStaticMarkup(<LifecycleToolItemView item={item} isSubagent />)
-    expect(childMarkup).toContain('已提交子代理结果')
-    expect(childMarkup).not.toContain('回归通过并修复了参数校验')
+    const childMarkup = renderToStaticMarkup(<LifecycleToolItemView item={item} />)
+    expect(childMarkup).toContain('回归通过并修复了参数校验')
     expect(childMarkup).not.toContain('canonical-result-card')
     for (const state of ['running', 'error', 'interrupted'] as const) {
       const statusMarkup = renderToStaticMarkup(<LifecycleToolItemView item={{ ...item, state }} />)
@@ -1573,6 +1712,19 @@ describe('canonical tool item display', () => {
     ]) {
       expect(text).toContain(value)
     }
+    expect(text).not.toContain('[实现](<src/tool.ts>)：src/tool.ts')
+    expect(
+      subagentResultMarkdown({
+        ...result,
+        references: [
+          {
+            kind: 'file',
+            value: 'F:\\CodeProject\\guardian-lab\\src\\a.ts',
+            label: 'a.ts (主调查目标，4 行)',
+          },
+        ],
+      }),
+    ).toContain('[a.ts (主调查目标，4 行)](<F:\\CodeProject\\guardian-lab\\src\\a.ts>)')
     expect(JSON.stringify(item)).toBe(before)
     const mirrored = historicalDeliveryText(
       {
@@ -1613,7 +1765,7 @@ describe('canonical tool item display', () => {
     )
   })
 
-  test('only opens workspace-relative file references', () => {
+  test('opens relative and absolute file references while keeping parent traversal and missing-workspace relative paths display-only', () => {
     const withContext = (card: ReturnType<typeof resultCardEnvelope>) =>
       renderToStaticMarkup(
         <TooltipProvider>
@@ -1639,21 +1791,29 @@ describe('canonical tool item display', () => {
     )
     expect(relative).toContain('canonical-result-card__file-link')
     expect(relative).toContain('aria-label="打开文件 工具实现"')
+    expect(relative).not.toContain('title="src/tool/tool.ts"')
+    expect(relative).not.toMatch(/class="canonical-result-card__file-link"[^>]*\btitle=/u)
+
+    const absolute = withContext(
+      resultCardEnvelope({
+        card: { references: [{ kind: 'file', value: 'F:\\CodeProject\\guardian-lab\\src\\a.ts' }] },
+      }),
+    )
+    expect(absolute).toContain('canonical-result-card__file-link')
+    expect(absolute).toContain('aria-label="打开文件 a.ts"')
+    expect(absolute).toContain('>a.ts<')
 
     const escaping = withContext(
       resultCardEnvelope({
         card: {
-          references: [
-            { kind: 'file', value: 'C:\\private\\secret.ts' },
-            { kind: 'file', value: '../../outside.ts' },
-          ],
+          references: [{ kind: 'file', value: '../../outside.ts' }],
         },
       }),
     )
     expect(escaping).not.toContain('canonical-result-card__file-link')
-    expect(escaping).toContain('secret.ts')
+    expect(escaping).toContain('../../outside.ts')
 
-    // 没有工作区上下文时文件引用只展示，不提供打开入口。
+    // 没有工作区上下文时相对文件引用只展示，不提供打开入口。
     const withoutContext = renderToStaticMarkup(
       <TooltipProvider>
         <ResultCardView

@@ -4,10 +4,14 @@ export type { MarkdownMessageProps } from './MarkdownMessage.js'
 export { clearMarkdownTokenCache, lexMarkdown, parseMarkdown } from './Parser.js'
 export {
   classifyMarkdownTarget,
+  formatFileReferenceLocation,
+  formatFileReferenceShortLabel,
+  formatFileReferenceTooltip,
   isLikelyFileReference,
   isSafeHttpsMediaSource,
   mediaKindForUrl,
   parseMarkdownFileReference,
+  resolveFileLinkDisplayLabel,
 } from './SafeTargets.js'
 export { segmentStreamingMarkdown } from './Streaming.js'
 export type {

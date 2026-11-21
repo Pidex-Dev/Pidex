@@ -3,7 +3,7 @@ import React from 'react'
 export const TopographyBackground: React.FC = () => {
   return (
     <div
-      className="hero-landscape pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[58%] overflow-hidden"
+      className="hero-landscape pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[49%] md:h-[58%] overflow-hidden"
       aria-hidden="true"
     >
       <div className="landscape-layer landscape-far" data-asset-slot="background-far" />

@@ -7,14 +7,13 @@ import {
   WorkbenchPanelUnavailable,
 } from '../../layout/panels/WorkbenchPanelStates.js'
 import { SubagentThreadPanel, type SubagentThreadCallbacks } from './SubagentThreadPanel.js'
+import { useSubagentRead } from './UseSubagentRead.js'
 
 type Props = {
   availability: 'loading' | 'available' | 'unavailable'
   error: string | null
   read: DesktopSubagentRead | null
   taskId: string | null
-  onBack: () => void
-  onOpenParentSubagent?: (taskId: string) => void
   onError: (message: string) => void
   onOpenPatchReview: (path?: string) => void
   onOpenSubagent: NonNullable<SubagentThreadCallbacks['onOpenSubagent']>
@@ -27,8 +26,6 @@ export function SubagentDockContent({
   error,
   read,
   taskId,
-  onBack,
-  onOpenParentSubagent,
   onError,
   onOpenPatchReview,
   onOpenSubagent,
@@ -84,11 +81,6 @@ export function SubagentDockContent({
         desktopClient.stopSubagent ? () => desktopClient.stopSubagent!(task.id) : undefined,
         '当前 Agent 不支持停止子智能体。',
       ),
-    onRetry: (task) =>
-      void runAction(
-        desktopClient.retrySubagent ? () => desktopClient.retrySubagent!(task.id) : undefined,
-        '当前 Agent 不支持重试子智能体。',
-      ),
     onApplyWorktree: (task) =>
       void runAction(
         desktopClient.applySubagentWorktree
@@ -140,11 +132,35 @@ export function SubagentDockContent({
       snapshot={read.snapshot}
       capabilities={read.capabilities}
       callbacks={callbacks}
-      onBackToParent={
-        read.task.parentTaskId && onOpenParentSubagent
-          ? () => onOpenParentSubagent(read.task.parentTaskId!)
-          : onBack
-      }
+    />
+  )
+}
+
+export function SubagentThreadTabPanel({
+  taskId,
+  onError,
+  onOpenPatchReview,
+  onOpenTask,
+  onPatchApplied,
+}: {
+  taskId: string
+  onError: (message: string) => void
+  onOpenPatchReview: (path?: string) => void
+  onOpenTask: (taskId: string) => void
+  onPatchApplied: () => void
+}): React.ReactNode {
+  const detail = useSubagentRead(taskId)
+  return (
+    <SubagentDockContent
+      availability={detail.availability}
+      error={detail.error}
+      read={detail.read}
+      taskId={taskId}
+      onError={onError}
+      onOpenPatchReview={onOpenPatchReview}
+      onOpenSubagent={(item) => onOpenTask(item.subagentTaskId)}
+      onPatchApplied={onPatchApplied}
+      onRefresh={detail.refresh}
     />
   )
 }

@@ -1,7 +1,6 @@
 import { forwardRef } from 'react'
 import type React from 'react'
 import { cx } from '../../utils/Cx.js'
-import './Input.css'
 
 export type InputSize = 'sm' | 'md' | 'compact'
 
@@ -11,9 +10,9 @@ type Props = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> & {
 }
 
 const SIZE_CLASSES: Record<InputSize, string> = {
-  sm: 'tw:type-secondary',
-  md: 'tw:type-control',
-  compact: 'tw:type-control',
+  sm: 'tw:type-1',
+  md: 'tw:type-2 tw:weight-medium',
+  compact: 'tw:type-2 tw:weight-medium',
 }
 
 export const Input = forwardRef<HTMLInputElement, Props>(function Input(
@@ -26,10 +25,11 @@ export const Input = forwardRef<HTMLInputElement, Props>(function Input(
       ref={ref}
       aria-invalid={invalid || undefined}
       className={cx(
-        'ui-input tw:min-w-0 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-control tw:text-app-text tw:shadow-none',
+        'ui-input tw:min-w-0 tw:border tw:border-app-border-subtle tw:rounded-3 tw:bg-app-control tw:text-app-text tw:shadow-none',
         'tw:py-control-block tw:px-control-inline',
         'tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard',
         'tw:enabled:hover:border-app-border-strong',
+        'tw:aria-invalid:border-app-danger tw:aria-invalid:enabled:hover:border-app-danger',
         'tw:focus-visible:border-app-focus tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus',
         'tw:disabled:cursor-default tw:disabled:bg-app-panel tw:disabled:text-app-text-disabled tw:disabled:opacity-55',
         SIZE_CLASSES[size],

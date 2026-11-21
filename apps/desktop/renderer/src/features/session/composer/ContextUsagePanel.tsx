@@ -151,18 +151,18 @@ export function ContextUsagePanel({
   }
 
   return (
-    <div className="context-usage-panel tw:grid tw:w-[300px] tw:max-w-full tw:max-h-[min(392px,calc(100vh-124px))] tw:gap-3 tw:overflow-x-hidden tw:overflow-y-auto">
+    <div className="context-usage-panel tw:grid tw:w-[310px] tw:max-w-full tw:max-h-[min(392px,calc(100vh-124px))] tw:gap-3 tw:py-1 tw:px-2 tw:overflow-x-hidden tw:overflow-y-auto">
       <div className="tw:flex tw:items-center tw:justify-between tw:gap-3">
         <div className="tw:flex tw:min-w-0 tw:items-baseline tw:gap-2">
           <div
-            className="tw:text-app-text tw:type-display tw:tabular-nums"
+            className="tw:text-app-text tw:type-7 tw:weight-bold tw:tabular-nums"
             aria-live="polite"
             aria-atomic="true"
           >
             {figure}
           </div>
           <div
-            className="tw:text-app-text-meta tw:type-caption"
+            className="tw:text-app-text-meta tw:type-1"
             title={
               hasLimit
                 ? `模型容量 ${formatCompactNumber(physicalWindow)} tokens；当前上下文上限 ${formatCompactNumber(contextWindow)} tokens`
@@ -190,7 +190,7 @@ export function ContextUsagePanel({
               label: (
                 <span className="tw:inline-flex tw:items-center tw:justify-center">
                   <Gauge
-                    className="tw:size-3.5"
+                    className="tw:size-icon-sm"
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                     aria-hidden="true"
                   />
@@ -205,7 +205,7 @@ export function ContextUsagePanel({
               label: (
                 <span className="tw:inline-flex tw:items-center tw:justify-center">
                   <Zap
-                    className="tw:size-3.5"
+                    className="tw:size-icon-sm"
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                     aria-hidden="true"
                   />
@@ -226,7 +226,7 @@ export function ContextUsagePanel({
         <div>
           <div className="tw:relative">
             {ratio === null ? (
-              <p className="tw:py-4 tw:text-app-text-meta tw:type-secondary">暂无缓存命中数据</p>
+              <p className="tw:py-4 tw:text-app-text-meta tw:type-1">暂无缓存命中数据</p>
             ) : view === 'field' ? (
               <div
                 className="context-meter-field"
@@ -252,7 +252,7 @@ export function ContextUsagePanel({
               </div>
             ) : (
               <div
-                className="context-meter-bar tw:flex-row"
+                className="context-meter-bar"
                 role="group"
                 aria-label={cache ? '缓存命中率分布' : '已用上下文分类构成'}
               >
@@ -304,7 +304,7 @@ export function ContextUsagePanel({
           </div>
         </div>
         {ratio !== null && (
-          <div className="tw:mt-3 tw:flex tw:flex-wrap tw:gap-1.5">
+          <div className="tw:mt-3 tw:flex tw:flex-wrap tw:gap-1">
             {parts.map((part) => {
               const segment = metrics.segments.find((entry) => entry.source === part.id)
               const share = cache ? part.ratio : (segment?.percent ?? 0)
@@ -320,7 +320,7 @@ export function ContextUsagePanel({
                 <button
                   type="button"
                   key={part.id}
-                  className="tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-full tw:border-0 tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text tw:type-caption tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+                  className="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:border-0 tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text tw:type-1 tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
                   aria-label={`${part.label} ${value}`}
                   title={
                     segment
@@ -334,7 +334,7 @@ export function ContextUsagePanel({
                   style={{ opacity: active && active.id !== part.id ? 0.4 : 1 }}
                 >
                   <i
-                    className="tw:size-2 tw:rounded-2xs"
+                    className="tw:size-2 tw:rounded-1"
                     style={{ background: part.color }}
                     aria-hidden="true"
                   />
@@ -355,13 +355,11 @@ export function ContextUsagePanel({
         <div className="context-usage-panel-detail tw:mt-2 tw:grid tw:grid-cols-3 tw:gap-2">
           {detailItems.map((item) => (
             <div
-              className="context-usage-panel-detail-item tw:flex tw:min-w-0 tw:items-center tw:justify-center tw:gap-1.5"
+              className="context-usage-panel-detail-item tw:flex tw:min-w-0 tw:items-center tw:justify-center tw:gap-1"
               key={item.label}
             >
-              <span className="tw:shrink-0 tw:text-app-text-meta tw:type-caption">
-                {item.label}
-              </span>
-              <span className="context-usage-panel-detail-chip tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-0.5 tw:text-app-text tw:type-caption tw:tabular-nums">
+              <span className="tw:shrink-0 tw:text-app-text-meta tw:type-1">{item.label}</span>
+              <span className="context-usage-panel-detail-chip tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text tw:type-1 tw:tabular-nums">
                 {item.value}
               </span>
             </div>
@@ -386,13 +384,13 @@ export function ContextUsageStatusPanel({ contextUsage }: Props): React.ReactNod
         className="context-usage-panel-metric tw:flex tw:min-w-0 tw:items-center tw:gap-3"
         data-usage-layout="title-bar-value"
       >
-        <span className="context-usage-panel-title tw:w-[7.5rem] tw:shrink-0 tw:text-app-text-meta tw:type-label">
+        <span className="context-usage-panel-title tw:w-[7.5rem] tw:shrink-0 tw:text-app-text-meta tw:type-1 tw:weight-medium">
           上下文容量
         </span>
         <div className="tw:min-w-0 tw:flex-1">
           <UsageSegmentBar ariaLabel="上下文容量分类分布" segments={metrics.contextBarSegments} />
         </div>
-        <span className="context-usage-panel-total tw:w-[9rem] tw:shrink-0 tw:text-right tw:text-app-text-meta">
+        <span className="context-usage-panel-total tw:w-[9rem] tw:shrink-0 tw:text-right tw:text-app-text-meta tw:type-1 tw:font-mono tw:tabular-nums">
           {metrics.totalLabel}
         </span>
       </div>
@@ -402,13 +400,13 @@ export function ContextUsageStatusPanel({ contextUsage }: Props): React.ReactNod
           className="context-usage-panel-metric tw:flex tw:min-w-0 tw:items-center tw:gap-3"
           data-usage-layout="title-bar-value"
         >
-          <span className="context-usage-panel-title tw:w-[7.5rem] tw:shrink-0 tw:text-app-text-meta tw:type-label">
+          <span className="context-usage-panel-title tw:w-[7.5rem] tw:shrink-0 tw:text-app-text-meta tw:type-1 tw:weight-medium">
             平均缓存命中率
           </span>
           <div className="tw:min-w-0 tw:flex-1">
             <UsageSegmentBar ariaLabel="缓存命中率分布" segments={metrics.cacheBarSegments} />
           </div>
-          <span className="context-usage-panel-total tw:w-[9rem] tw:shrink-0 tw:text-right tw:text-app-text-meta">
+          <span className="context-usage-panel-total tw:w-[9rem] tw:shrink-0 tw:text-right tw:text-app-text-meta tw:type-1 tw:font-mono tw:tabular-nums">
             {formatPercentValue(metrics.cacheHitRatio)}
           </span>
         </section>
@@ -437,8 +435,8 @@ function buildUsagePanelMetrics(contextUsage: DesktopContextUsage) {
             widthPercent: segment.windowPercent * 100,
             color: contextUsageSegmentColor(index),
             tooltip: (
-              <span className="tw:grid tw:gap-0.5">
-                <span className="tw:text-app-text tw:type-label">{label}</span>
+              <span className="tw:grid tw:gap-1">
+                <span className="tw:text-app-text tw:type-1 tw:weight-medium">{label}</span>
                 <span>
                   占窗口 {windowPercent} · 占已用 {usedPercentLabel}
                 </span>
@@ -455,8 +453,8 @@ function buildUsagePanelMetrics(contextUsage: DesktopContextUsage) {
               widthPercent: usedPercent,
               color: contextUsageSegmentColor(0),
               tooltip: (
-                <span className="tw:grid tw:gap-0.5">
-                  <span className="tw:text-app-text tw:type-label">已用上下文</span>
+                <span className="tw:grid tw:gap-1">
+                  <span className="tw:text-app-text tw:type-1 tw:weight-medium">已用上下文</span>
                   <span>{totalLabel}</span>
                 </span>
               ),
@@ -479,8 +477,8 @@ function buildUsagePanelMetrics(contextUsage: DesktopContextUsage) {
             widthPercent: cacheHitRatio * 100,
             color: contextUsageSegmentColor(0),
             tooltip: (
-              <span className="tw:grid tw:gap-0.5">
-                <span className="tw:text-app-text tw:type-label">缓存命中</span>
+              <span className="tw:grid tw:gap-1">
+                <span className="tw:text-app-text tw:type-1 tw:weight-medium">缓存命中</span>
                 <span>平均缓存命中率 {formatPercentValue(cacheHitRatio)}</span>
               </span>
             ),
@@ -526,7 +524,7 @@ function UsageSegmentBar({
   return (
     <div
       aria-label={ariaLabel}
-      className="context-usage-panel-track tw:flex tw:h-6 tw:min-w-0 tw:gap-px tw:overflow-hidden tw:rounded-none tw:bg-app-border"
+      className="context-usage-panel-track tw:flex tw:h-5 tw:min-w-0 tw:gap-px tw:overflow-hidden tw:rounded-none tw:bg-app-border"
       role="group"
     >
       {segments.map((segment) => (

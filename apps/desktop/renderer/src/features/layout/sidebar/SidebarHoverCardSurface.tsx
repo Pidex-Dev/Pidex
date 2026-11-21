@@ -133,7 +133,7 @@ export function SidebarHoverCardSurface({
         >
           <div
             className={cx(
-              'sidebar-hover-card-surface tw:z-tooltip tw:p-1 tw:text-left tw:text-app-text tw:pointer-events-auto tw:forced-colors:border tw:forced-colors:border-[CanvasText]',
+              'sidebar-hover-card-surface tw:z-tooltip tw:text-left tw:text-app-text tw:pointer-events-auto tw:forced-colors:border tw:forced-colors:border-[CanvasText]',
               className,
             )}
           >
