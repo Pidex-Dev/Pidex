@@ -103,17 +103,7 @@ export async function readModelDocument(
         '只支持可公开读取的 HTML、Markdown 或纯文本文档，不支持登录、验证码或浏览器渲染页面。',
         400,
       )
-    const text = response.type.includes('html')
-      ? response.text
-          .replace(/<(script|style|noscript|svg)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/&nbsp;|&#160;/g, ' ')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&amp;/g, '&')
-          .replace(/\s+/g, ' ')
-          .trim()
-      : response.text
+    const text = response.type.includes('html') ? htmlToPlainText(response.text) : response.text
     if (text.length < 80)
       throw new AgentError('INVALID_REQUEST', '页面正文不足，可能需要登录或浏览器渲染。', 400)
     if (text.length > 120000)
@@ -235,4 +225,69 @@ export class ModelDocumentService {
       this.jobs.delete(input.operationId)
     }
   }
+}
+
+const SKIPPED_HTML_CONTAINERS = new Set(['script', 'style', 'noscript', 'svg'])
+
+function readHtmlTag(
+  source: string,
+  from: number,
+): { end: number; closing: boolean; name: string } | null {
+  if (source[from] !== '<') return null
+  const end = source.indexOf('>', from + 1)
+  if (end === -1) return null
+  const raw = source.slice(from + 1, end).trim()
+  if (!raw) return null
+  const closing = raw.startsWith('/')
+  const name = (closing ? raw.slice(1) : raw)
+    .trim()
+    .split(/[\s/>]/, 1)[0]
+    ?.toLowerCase()
+  if (!name) return null
+  return { end: end + 1, closing, name }
+}
+
+function findHtmlClosingTag(source: string, from: number, name: string): number {
+  for (
+    let index = source.indexOf('<', from);
+    index !== -1;
+    index = source.indexOf('<', index + 1)
+  ) {
+    const tag = readHtmlTag(source, index)
+    if (tag && tag.closing && tag.name === name) return tag.end
+  }
+  return source.length
+}
+
+// SAFETY: Scan HTML tag boundaries sequentially instead of single-pass regex replacement so nested container tags cannot recombine.
+function htmlToPlainText(html: string): string {
+  const parts: string[] = []
+  let index = 0
+  while (index < html.length) {
+    const open = html.indexOf('<', index)
+    if (open === -1) {
+      parts.push(html.slice(index))
+      break
+    }
+    if (open > index) parts.push(html.slice(index, open))
+    const tag = readHtmlTag(html, open)
+    if (!tag) {
+      index = open + 1
+      continue
+    }
+    if (!tag.closing && SKIPPED_HTML_CONTAINERS.has(tag.name)) {
+      index = findHtmlClosingTag(html, tag.end, tag.name)
+      parts.push(' ')
+      continue
+    }
+    parts.push(' ')
+    index = tag.end
+  }
+  return parts
+    .join('')
+    .replace(/&(?:nbsp|#160|lt|gt|amp);/g, (entity) =>
+      entity === '&lt;' ? '<' : entity === '&gt;' ? '>' : entity === '&amp;' ? '&' : ' ',
+    )
+    .replace(/\s+/g, ' ')
+    .trim()
 }

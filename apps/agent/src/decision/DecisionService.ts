@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, scryptSync } from 'node:crypto'
 import {
   DecisionConfigSchema,
   type DecisionConfig,
@@ -135,6 +135,7 @@ export class DecisionService {
     string,
     { fingerprint: string; result: DecisionSetJudgeApiKeyResult }
   >()
+  private readonly credentialFingerprintSalt = randomBytes(16)
   private unsubscribe: (() => void) | null = null
   private origin: (() => DecisionOrigin | undefined) | null = null
   private readonly originScope = new AsyncLocalStorage<DecisionOrigin>()
@@ -293,11 +294,15 @@ export class DecisionService {
     if (input.apiKey !== null && !trimmedKey) {
       throw new AgentError('INVALID_REQUEST', 'API Key 不能为空', 400)
     }
-    // SAFETY: only a SHA-256 fingerprint is kept in memory for idempotency; plaintext keys never enter SQLite or logs.
+    // SAFETY: only a salted scrypt key derivation fingerprint is kept in memory for idempotency; plaintext keys never enter SQLite or logs.
+    const keyDigest =
+      trimmedKey === null
+        ? null
+        : scryptSync(trimmedKey, this.credentialFingerprintSalt, 32).toString('hex')
     const fingerprint = sha256Hex(
       JSON.stringify({
         judgeName,
-        keyHash: trimmedKey === null ? null : sha256Hex(trimmedKey),
+        keyDigest,
       }),
     )
     const existingOp = this.credentialOperations.get(input.operationId)

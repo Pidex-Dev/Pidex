@@ -251,9 +251,19 @@ async function createTransport(args: CliArgs): Promise<RpcTransport> {
     const origin = args.url.replace(/\/+$/, '')
     return {
       request(pathOrUrl: string, init?: RequestInit) {
-        const target = pathOrUrl.startsWith('http://agent.local')
-          ? `${origin}${pathOrUrl.slice('http://agent.local'.length)}`
-          : pathOrUrl
+        let target = pathOrUrl
+        try {
+          const parsed = new URL(pathOrUrl)
+          if (
+            parsed.protocol === 'http:' &&
+            parsed.hostname === 'agent.local' &&
+            parsed.port === ''
+          ) {
+            target = `${origin}${parsed.pathname}${parsed.search}${parsed.hash}`
+          }
+        } catch {
+          target = pathOrUrl
+        }
         const headers = new Headers(init?.headers)
         if (args.token) {
           headers.set('authorization', `Bearer ${args.token}`)
