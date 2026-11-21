@@ -176,6 +176,7 @@ export const RENDERER_CAPABILITIES = [
   'workflow.v1',
   'computer.use.v1' as ProtocolCapability,
   'computer.policy.v1' as ProtocolCapability,
+  'decision.engine.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',
@@ -1912,6 +1913,21 @@ export function createAgentSessionDesktopClient(
     return agentHooksApiPromise
   }
 
+  type AgentDecisionApi = ReturnType<
+    (typeof import('./AgentDecisionApi.js'))['createAgentDecisionApi']
+  >
+  let agentDecisionApiPromise: Promise<AgentDecisionApi> | null = null
+  const loadAgentDecisionApi = (): Promise<AgentDecisionApi> => {
+    agentDecisionApiPromise ??= import('./AgentDecisionApi.js').then((module) =>
+      module.createAgentDecisionApi({
+        hasAgentCapability: (capability) => agentCapabilities.has(capability),
+        requireAgentCapability,
+        rpc: { call: rpc.call },
+      }),
+    )
+    return agentDecisionApiPromise
+  }
+
   type AgentComputerApi = ReturnType<
     (typeof import('./AgentComputerApi.js'))['createAgentComputerApi']
   >
@@ -2507,6 +2523,18 @@ export function createAgentSessionDesktopClient(
     requireHookManagement: () => requireAgentCapability('hooks.management.v1'),
     listHookGroups: (cwd) => loadAgentHooksApi().then((api) => api.listHookGroups(cwd)),
     setHookEnabled: (input) => loadAgentHooksApi().then((api) => api.setHookEnabled(input)),
+    supportsDecisionEngine: () => agentCapabilities.has('decision.engine.v1'),
+    getDecisionConfig: (cwd) => loadAgentDecisionApi().then((api) => api.getDecisionConfig(cwd)),
+    updateDecisionConfig: (input) =>
+      loadAgentDecisionApi().then((api) => api.updateDecisionConfig(input)),
+    setDecisionJudgeApiKey: (input) =>
+      loadAgentDecisionApi().then((api) => api.setDecisionJudgeApiKey(input)),
+    probeDecisionJudge: (input) =>
+      loadAgentDecisionApi().then((api) => api.probeDecisionJudge(input)),
+    listDecisionLedger: (input) =>
+      loadAgentDecisionApi().then((api) => api.listDecisionLedger(input)),
+    markDecisionOutcome: (input) =>
+      loadAgentDecisionApi().then((api) => api.markDecisionOutcome(input)),
     getComputerState: () => loadAgentComputerApi().then((api) => api.getComputerState()),
     discoverComputerApps: () => loadAgentComputerApi().then((api) => api.discoverComputerApps()),
     configureComputer: (input) =>

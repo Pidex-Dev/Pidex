@@ -16,6 +16,7 @@ export type DesktopLayoutOutletContextValue = {
   workspacePath: string | null
   useSkill: (skill: DesktopInstalledSkill) => void
   openSkillPreview: (skill: DesktopInstalledSkill) => void
+  openJudgePanel?: () => void
   providerManagement?: ProviderManagementPanelController
 }
 

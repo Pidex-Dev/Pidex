@@ -70,6 +70,7 @@ export type WorkbenchTabKind =
   | 'skill-preview'
   | 'plan'
   | 'goal'
+  | 'judge'
   | 'prompt-preview'
   | 'side-chat'
   | 'subagent-directory'
@@ -80,6 +81,7 @@ export type WorkbenchTabDescriptor =
   | ProviderManagementTab
   | { id: 'review'; kind: 'review' }
   | { id: 'goal'; kind: 'goal'; threadId?: string }
+  | { id: 'judge'; kind: 'judge'; threadId?: string }
   | { id: 'prompt-preview'; kind: 'prompt-preview' }
   | {
       id: `browser:${string}`

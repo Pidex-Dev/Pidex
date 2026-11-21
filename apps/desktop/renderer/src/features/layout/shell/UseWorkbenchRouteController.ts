@@ -22,6 +22,7 @@ export type WorkbenchRouteController = {
   settingsActiveTab: string
   handleSettingsTabChange: (tab: string) => void
   handleSettingsBack: () => void
+  getSettingsReturnPath: () => string
 }
 
 export type WorkbenchNavigationHistory = {
@@ -106,6 +107,11 @@ export function useWorkbenchRouteController(): WorkbenchRouteController {
     navigate(settingsReturnPathRef.current || QUICK_CHAT_PATH)
   }, [navigate])
 
+  const getSettingsReturnPath = useCallback(
+    (): string => settingsReturnPathRef.current || QUICK_CHAT_PATH,
+    [],
+  )
+
   const navigateBack = useCallback((): void => {
     if (navigationHistoryRef.current.index > 0) {
       navigate(-1)
@@ -132,11 +138,36 @@ export function useWorkbenchRouteController(): WorkbenchRouteController {
     settingsActiveTab,
     handleSettingsTabChange,
     handleSettingsBack,
+    getSettingsReturnPath,
   }
 }
 
 export function sessionPath(sessionId: string): string {
   return `/threads/${encodeURIComponent(sessionId)}`
+}
+
+/** Resolves the workspace route that opening the Judge panel from Settings should land on. */
+export function resolveJudgePanelTargetPath(
+  returnPath: string,
+  activeSessionId: string | null,
+): string {
+  const pathname = returnPath.split(/[?#]/, 1)[0] ?? ''
+  if (getRoutedSessionId(pathname) !== null) return returnPath
+  if (activeSessionId) return sessionPath(activeSessionId)
+  return QUICK_CHAT_PATH
+}
+
+/** Appends a `panel=<id>` query parameter while preserving existing search params and hash. */
+export function appendPanelQuery(targetPath: string, panel: string): string {
+  const hashIndex = targetPath.indexOf('#')
+  const withoutHash = hashIndex >= 0 ? targetPath.slice(0, hashIndex) : targetPath
+  const hash = hashIndex >= 0 ? targetPath.slice(hashIndex) : ''
+  const queryIndex = withoutHash.indexOf('?')
+  const pathname = queryIndex >= 0 ? withoutHash.slice(0, queryIndex) : withoutHash
+  const params = new URLSearchParams(queryIndex >= 0 ? withoutHash.slice(queryIndex + 1) : '')
+  params.set('panel', panel)
+  const query = params.toString()
+  return `${pathname}${query ? `?${query}` : ''}${hash}`
 }
 
 function getRoutedSessionId(pathname: string): string | null {

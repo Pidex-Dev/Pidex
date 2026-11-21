@@ -128,6 +128,17 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     isSingleton: true,
     canFloat: true,
   },
+  judge: {
+    id: 'workbench.view.judge',
+    kind: 'judge',
+    title: 'Judge 决策',
+    defaultLocation: 'right',
+    allowedLocations: ['sidebar', 'right', 'floating'],
+    canMove: true,
+    canClose: true,
+    isSingleton: true,
+    canFloat: true,
+  },
   plan: {
     id: 'workbench.view.plan',
     kind: 'plan',

@@ -7,6 +7,7 @@ type Props = {
   activeTab: string
   workspacePath: string | null
   onUseSkill: (skill: DesktopInstalledSkill) => void
+  onOpenJudgePanel?: () => void
   onError: (message: string) => void
   onNotice?: (message: string) => void
 }
@@ -14,6 +15,7 @@ type Props = {
 type SettingsPanelProps = {
   workspacePath: string | null
   onUseSkill: (skill: DesktopInstalledSkill) => void
+  onOpenJudgePanel?: () => void
   onError: (message: string) => void
   onNotice: (message: string) => void
 }
@@ -53,6 +55,9 @@ const SETTINGS_PANELS: Record<SettingsTabId, SettingsPanel> = {
     import('./ComputerSettings.js').then((m) => ({ default: m.ComputerSettings })),
   ),
   hooks: lazy(() => import('./hooks/HookSettings.js').then((m) => ({ default: m.HookSettings }))),
+  decision: lazy(() =>
+    import('./DecisionSettings.js').then((m) => ({ default: m.DecisionSettings })),
+  ),
   environments: lazy(() =>
     import('./local-environment/EnvironmentPage.js').then((m) => ({
       default: m.EnvironmentPage,
@@ -81,6 +86,7 @@ export function SettingsPage({
   activeTab,
   workspacePath,
   onUseSkill,
+  onOpenJudgePanel,
   onError,
   onNotice,
 }: Props): React.ReactNode {
@@ -95,6 +101,7 @@ export function SettingsPage({
         key={resolvedTab === 'memory' ? (workspacePath ?? 'no-workspace') : undefined}
         workspacePath={workspacePath}
         onUseSkill={onUseSkill}
+        onOpenJudgePanel={onOpenJudgePanel}
         onError={onError}
         onNotice={onNotice ?? (() => {})}
       />

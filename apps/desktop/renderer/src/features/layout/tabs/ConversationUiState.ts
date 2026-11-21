@@ -569,6 +569,15 @@ function validateTabDescriptor(
   if (tab.id === 'review' && tab.kind === 'review') {
     return { id: 'review', kind: 'review' }
   }
+  if (tab.id === 'judge' && tab.kind === 'judge') {
+    return {
+      id: 'judge',
+      kind: 'judge',
+      ...(typeof tab.threadId === 'string' && tab.threadId.length > 0
+        ? { threadId: tab.threadId }
+        : {}),
+    }
+  }
   // Browser tabs are restored from Agent state, never per-conversation localStorage.
   if (tab.kind === 'browser') return null
   if (tab.id === 'file-browser' && tab.kind === 'file-browser') {

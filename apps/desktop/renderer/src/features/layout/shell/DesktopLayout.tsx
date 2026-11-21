@@ -128,6 +128,8 @@ import {
 } from 'react'
 import {
   QUICK_CHAT_PATH,
+  appendPanelQuery,
+  resolveJudgePanelTargetPath,
   sessionPath,
   useWorkbenchRouteController,
 } from './UseWorkbenchRouteController.js'
@@ -455,6 +457,7 @@ export function DesktopLayout(): React.ReactNode {
     settingsActiveTab,
     handleSettingsTabChange,
     handleSettingsBack,
+    getSettingsReturnPath,
   } = useWorkbenchRouteController()
   const isHomeOrConversationRoute = currentPage?.workspace ?? false
   const {
@@ -1270,15 +1273,40 @@ export function DesktopLayout(): React.ReactNode {
   const handleOpenGoalDock = useCallback((): void => {
     openRightDockTab({ id: 'goal', kind: 'goal', ...(sessionId ? { threadId: sessionId } : {}) })
   }, [openRightDockTab, sessionId])
-  useEffect(() => {
-    const currentGoal = activeSessionItem?.threadGoal ?? null
-    if (
-      (!currentGoal || currentGoal.status === 'complete') &&
-      rightDockState.tabIds.includes('goal')
-    ) {
-      closePanelTab('right', 'goal')
+  const handledJudgeDeepLinkRef = useRef<string | null>(null)
+  const handleOpenJudgePanel = useCallback((): void => {
+    sidebarShell.closePreview()
+    const targetPath = resolveJudgePanelTargetPath(getSettingsReturnPath(), sessionId)
+    navigate(appendPanelQuery(targetPath, 'judge'))
+  }, [getSettingsReturnPath, navigate, sessionId, sidebarShell.closePreview])
+  const judgePanelRequested =
+    new URLSearchParams(location.search).get('panel') === 'judge'
+  const judgeDeepLink = useCallback(() => {
+    if (!judgePanelRequested) {
+      handledJudgeDeepLinkRef.current = null
+      return
     }
-  }, [activeSessionItem?.threadGoal, closePanelTab, rightDockState.tabIds])
+    const requestKey = `${location.key}:${location.pathname}${location.search}`
+    // INVARIANT: Consume each ?panel=judge navigation once so an urgent rightDockState commit before router replace never re-triggers the effect.
+    if (handledJudgeDeepLinkRef.current === requestKey) return
+    handledJudgeDeepLinkRef.current = requestKey
+    if (desktopClient.supportsDecisionEngine()) {
+      openRightDockTab({ id: 'judge', kind: 'judge', ...(sessionId ? { threadId: sessionId } : {}) })
+    }
+    const params = new URLSearchParams(location.search)
+    params.delete('panel')
+    const query = params.toString()
+    navigate(`${location.pathname}${query ? `?${query}` : ''}${location.hash}`, { replace: true })
+  }, [
+    judgePanelRequested,
+    location.hash,
+    location.key,
+    location.pathname,
+    location.search,
+    navigate,
+    openRightDockTab,
+    sessionId,
+  ])
   const handleGoalClear = useCallback(async (): Promise<void> => {
     if (!sessionId) return
     try {
@@ -1685,6 +1713,7 @@ export function DesktopLayout(): React.ReactNode {
       workspacePath: currentWorkspace?.path ?? null,
       useSkill: handleUseSkill,
       openSkillPreview: handleOpenSkillPreview,
+      openJudgePanel: handleOpenJudgePanel,
       providerManagement: {
         tab: visibleProviderTab,
         host: providerManagementHost,
@@ -1696,6 +1725,7 @@ export function DesktopLayout(): React.ReactNode {
     }),
     [
       currentWorkspace?.path,
+      handleOpenJudgePanel,
       handleOpenSkillPreview,
       handleUseSkill,
       visibleProviderTab?.providerId,
@@ -1893,6 +1923,18 @@ export function DesktopLayout(): React.ReactNode {
       return next
     })
   }, [sessionId, sideChatTabsForSource])
+
+  // INVARIANT: Runs after the per-session workbench restore effect so ?panel=judge is never overwritten on thread switch.
+  useEffect(() => {
+    judgeDeepLink()
+    const currentGoal = activeSessionItem?.threadGoal ?? null
+    if (
+      (!currentGoal || currentGoal.status === 'complete') &&
+      rightDockState.tabIds.includes('goal')
+    ) {
+      closePanelTab('right', 'goal')
+    }
+  }, [activeSessionItem?.threadGoal, closePanelTab, judgeDeepLink, rightDockState.tabIds])
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {

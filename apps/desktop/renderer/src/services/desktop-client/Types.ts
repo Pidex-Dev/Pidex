@@ -463,6 +463,25 @@ export type DesktopHooksApi = {
   requireHookManagement(): void
 }
 
+/** Decision engine surface; gated on the `decision.engine.v1` runtime capability. */
+export type DesktopDecisionApi = {
+  supportsDecisionEngine(): boolean
+  getDecisionConfig(cwd?: string | null): Promise<RpcResult<'decision/getConfig'>>
+  updateDecisionConfig(
+    input: Omit<RpcParams<'decision/updateConfig'>, 'operationId'>,
+  ): Promise<RpcResult<'decision/updateConfig'>>
+  setDecisionJudgeApiKey(
+    input: Omit<RpcParams<'decision/setJudgeApiKey'>, 'operationId'>,
+  ): Promise<RpcResult<'decision/setJudgeApiKey'>>
+  probeDecisionJudge(input: RpcParams<'decision/probe'>): Promise<RpcResult<'decision/probe'>>
+  listDecisionLedger(
+    input: RpcParams<'decision/listLedger'>,
+  ): Promise<RpcResult<'decision/listLedger'>>
+  markDecisionOutcome(
+    input: Omit<RpcParams<'decision/markOutcome'>, 'operationId'>,
+  ): Promise<RpcResult<'decision/markOutcome'>>
+}
+
 export type DesktopTaskScheduleApi = {
   taskSchedule<M extends keyof typeof import('@pidex/agent-protocol').TaskScheduleRpcMethods>(
     method: M,
@@ -641,6 +660,7 @@ export type DesktopClient = DesktopApi &
   DesktopTaskScheduleApi &
   DesktopPluginApi &
   DesktopHooksApi &
+  DesktopDecisionApi &
   DesktopComputerApi &
   DesktopSessionGroupApi &
   DesktopAttachmentApi &

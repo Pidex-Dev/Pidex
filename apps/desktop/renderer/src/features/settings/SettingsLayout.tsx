@@ -45,7 +45,7 @@ export function SettingsLayout(): React.ReactNode {
   )
   const { t } = useLocale()
   const theme = useDesktopTheme()
-  const { workspacePath, useSkill } = useDesktopLayoutOutletContext()
+  const { workspacePath, useSkill, openJudgePanel } = useDesktopLayoutOutletContext()
   const navigate = useNavigate()
   const location = useLocation()
   const capabilityState = useSettingsCapabilityState()
@@ -116,6 +116,7 @@ export function SettingsLayout(): React.ReactNode {
         activeTab={activeTab}
         workspacePath={workspacePath}
         onUseSkill={useSkill}
+        onOpenJudgePanel={openJudgePanel}
         onError={setErrorMessage}
         onNotice={setNoticeMessage}
       />

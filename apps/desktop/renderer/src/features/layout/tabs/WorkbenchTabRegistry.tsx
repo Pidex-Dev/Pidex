@@ -13,6 +13,7 @@ import {
   MessageCirclePlus,
   Paperclip,
   RefreshCw,
+  Scale,
   ScrollText,
   SquarePlus,
   SquareTerminal,
@@ -46,6 +47,7 @@ import type {
 } from '../dock/RightDockState.js'
 import { WorkbenchPanelLoading, WorkbenchPanelUnavailable } from '../panels/WorkbenchPanelStates.js'
 import { desktopBrowserClient } from '../../../services/desktop-client/DesktopBrowserClient.js'
+import { desktopClient } from '../../../services/desktop-client/index.js'
 import { WorkspaceReviewSidebar } from '../../review/workspace/WorkspaceReviewSidebar.js'
 import {
   RightDockFilePreviewPanel,
@@ -55,6 +57,7 @@ import {
   RightDockSkillPreviewPanel,
 } from '../dock/RightDockPanels.js'
 import { RightDockPromptPreviewPanel } from '../dock/RightDockPromptPreviewPanel.js'
+import { RightDockJudgePanel } from '../dock/RightDockJudgePanel.js'
 import { SideChatThreadPanel } from '../../session/conversation/SideChatThreadPanel.js'
 import { SubagentAvatar } from '../../session/subagents/SubagentAvatar.js'
 import { SubagentDirectoryPanel } from '../../session/subagents/SubagentDirectoryPanel.js'
@@ -266,6 +269,7 @@ const WORKBENCH_LAUNCHER_ORDER: Partial<Record<WorkbenchTabKind, number>> = {
   browser: 2,
   'file-browser': 3,
   'side-chat': 4,
+  judge: 5,
 }
 
 export function getWorkbenchLauncherPresentation(definition: WorkbenchTabDefinition): {
@@ -424,6 +428,21 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           onRemoveBudgetLimit={context.goal?.onRemoveBudgetLimit}
         />
       ) : null,
+  },
+  {
+    kind: 'judge',
+    label: 'Judge 决策',
+    icon: <Scale size={iconSize} />,
+    launcher: true,
+    lifecycle: 'unmount-when-hidden',
+    getAvailability: () =>
+      desktopClient.supportsDecisionEngine()
+        ? { status: 'available' }
+        : { status: 'unavailable', reason: '当前 Agent 运行时未声明 decision.engine.v1。' },
+    getTitle: () => 'Judge 决策',
+    render: (_tab, context) => (
+      <RightDockJudgePanel threadId={context.review.activeSessionId} />
+    ),
   },
   {
     kind: 'prompt-preview',
@@ -649,7 +668,11 @@ export function getWorkbenchRouteLaunchers(
   sideChatAvailable = true,
 ) {
   return getWorkbenchLauncherDefinitions(route.page)
-    .filter((definition) => definition.kind !== 'side-chat' || sideChatAvailable)
+    .filter(
+      (definition) =>
+        (definition.kind !== 'side-chat' || sideChatAvailable) &&
+        (definition.kind !== 'judge' || desktopClient.supportsDecisionEngine()),
+    )
     .map((definition) => ({
       ...definition,
       id: definition.kind,
@@ -674,6 +697,7 @@ export function createLauncherTab(
     return { id: 'file-browser', kind: 'file-browser' }
   }
   if (kind === 'side-chat') return null
+  if (kind === 'judge') return { id: 'judge', kind: 'judge' }
   if (kind === 'prompt-preview') return { id: 'prompt-preview', kind: 'prompt-preview' }
   if (kind === 'terminal') return { id: 'terminal', kind: 'terminal', title: '终端 1' }
   return null

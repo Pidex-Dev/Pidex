@@ -14,6 +14,7 @@ import {
   Package,
   Plug,
   Palette,
+  Scale,
   Settings,
   ShieldCheck,
   Sliders,
@@ -312,6 +313,19 @@ export const SETTINGS_GROUPS = [
         rows: [
           row('来自配置', '自动发现用户与项目配置目录中的生命周期钩子'),
           row('来自插件', '管理已启用插件提供的生命周期钩子与启停状态'),
+        ],
+      },
+      {
+        id: 'decision',
+        routeId: 'decision',
+        label: '决策',
+        description: 'Judge 级联、决策点模式与决策账本',
+        icon: Scale,
+        requires: { capabilities: ['decision.engine.v1'] },
+        rows: [
+          row('Judge 与级联', '配置模型与独立端点、管理级联顺序并探测连通性'),
+          row('决策点', '按分组切换关闭、影子或生效模式，展开分组可微调单点模式与路由'),
+          row('账本记录', '控制是否保存脱敏后的决策状态原文'),
         ],
       },
       {

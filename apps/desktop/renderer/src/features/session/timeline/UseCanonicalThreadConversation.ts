@@ -202,6 +202,17 @@ export function useCanonicalThreadConversation(
         requestedThreadId,
         generation,
       )
+    const hydrateDecisionLedger = (): void => {
+      // SAFETY: Decision ledger hydration is best-effort and never blocks the timeline.
+      if (!desktopClient.supportsDecisionEngine()) return
+      void desktopClient
+        .listDecisionLedger({ threadId: requestedThreadId, limit: 200 })
+        .then((ledger) => {
+          if (!isCurrent()) return
+          coordinator.mergeDecisionLedger(ledger)
+        })
+        .catch(() => undefined)
+    }
     const rehydrate = async (cause?: unknown): Promise<number | undefined> => {
       if (!isCurrent()) return undefined
       if (cause !== undefined) {
@@ -211,6 +222,7 @@ export function useCanonicalThreadConversation(
         const replacement = await readLatest()
         if (!replacement || !isCurrent()) return undefined
         coordinator.rehydrate(replacement)
+        hydrateDecisionLedger()
         setErrorState(null)
         return replacement.streamPosition.sequence
       } catch (error) {
@@ -227,6 +239,7 @@ export function useCanonicalThreadConversation(
       const page = await readLatest()
       if (!page || !isCurrent()) return
       coordinator.rehydrate(page)
+      hydrateDecisionLedger()
       const unsubscribe = desktopClient.subscribeAgentEventEnvelopes(
         {
           threadId: requestedThreadId,
