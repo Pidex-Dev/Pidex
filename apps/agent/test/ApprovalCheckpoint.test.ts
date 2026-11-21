@@ -29,6 +29,7 @@ import {
 } from '../src/permission/ApprovalRules'
 import { ConfigService } from '../src/config/ConfigService'
 import { McpElicitationService } from '../src/mcp/McpElicitationService'
+import { ThreadProjection } from '../src/transport/ThreadProjection'
 import { filterAdvertisedCapabilities } from '../src/transport/rpc/handlers/SystemCapabilities'
 import {
   createModels,
@@ -1355,15 +1356,42 @@ describe('审批范围与外部交互', () => {
     expect(
       db.sqlite.query('SELECT response FROM mcp_elicitations WHERE id = ?').get('orphan'),
     ).toEqual({ response: JSON.stringify({ kind: 'mcp-elicitation', action: 'cancel' }) })
+    const projection = new ThreadProjection(db)
+    const snapshotApprovals =
+      projection.snapshot(identity.threadID)?.approvals.map((entry) => ({
+        tool: entry.tool,
+        server: entry.toolIdentity?.server,
+        status: entry.status,
+      })) ?? []
+    const historyApprovals =
+      projection
+        .historyPage(identity.threadID)
+        ?.turns.flatMap((turn) => turn.approvals)
+        .map((entry) => ({
+          tool: entry.tool,
+          server: entry.toolIdentity?.server,
+          status: entry.status,
+        })) ?? []
+    expect(snapshotApprovals).toEqual([
+      { tool: 'McpElicitation', server: 'fixture', status: 'allowed' },
+      { tool: 'McpElicitation', server: 'fixture', status: 'denied' },
+      { tool: 'McpElicitation', server: 'fixture', status: 'cancelled' },
+      { tool: 'McpElicitation', server: 'fixture', status: 'cancelled' },
+    ])
+    expect(historyApprovals).toEqual(snapshotApprovals)
   })
 
   test('高版本库缺少可选表时隐藏能力并保持库版本', async () => {
-    const { db } = await scopedFixture()
+    const { db, invocation } = await scopedFixture()
     db.sqlite.exec('DROP TABLE mcp_elicitations')
     db.sqlite.exec('DROP TABLE approval_reviews')
     db.sqlite.exec('PRAGMA user_version = 999')
     expect(filterAdvertisedCapabilities(db)).not.toContain('mcp.elicitation.v1')
     expect(db.repositories.interactions.pendingMcpElicitations()).toEqual([])
+    expect(db.repositories.interactions.listMcpElicitationsByThread(invocation.threadID)).toEqual(
+      [],
+    )
+    expect(db.repositories.interactions.listMcpElicitationsByTurns([invocation.turnID])).toEqual([])
     expect(db.sqlite.query('PRAGMA user_version').get()).toEqual({ user_version: 999 })
   })
 })
