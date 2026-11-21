@@ -38,8 +38,7 @@
   },
   "customPropertyReferenceAllowlist": [
     "--radix-menubar-content-transform-origin",
-    "--radix-menubar-content-available-height",
-    "--radix-collapsible-content-height"
+    "--radix-menubar-content-available-height"
   ],
   "forbiddenCustomPropertyPatterns": [
     "^--color-bg(?:-|$)",
