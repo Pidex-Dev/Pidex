@@ -359,7 +359,7 @@ describe('canonical tool item display', () => {
     ).toBe('正在运行 bun test（已用时 2 秒）')
   })
 
-  test('only allows an active command to expand after output arrives', () => {
+  test('allows an active command to expand immediately before output arrives', () => {
     expect(
       buildToolItemDisplay(
         toolItem({
@@ -368,8 +368,12 @@ describe('canonical tool item display', () => {
           finishedAt: null,
           output: '   ',
         }),
-      ).canExpand,
-    ).toBe(false)
+      ),
+    ).toMatchObject({
+      canExpand: true,
+      hasExplicitInput: true,
+      resultText: null,
+    })
     expect(
       buildToolItemDisplay(
         toolItem({
@@ -681,8 +685,8 @@ describe('canonical tool item display', () => {
     })
   })
 
-  test('renders Glob filenames output inside the expanded result detail', () => {
-    const item = toolItem({
+  test('keeps completed Glob search collapsed and only expands failed exploration details', () => {
+    const completedItem = toolItem({
       activity: { type: 'search', query: '**/*.ts' },
       command: null,
       input: { pattern: '**/*.ts' },
@@ -694,7 +698,7 @@ describe('canonical tool item display', () => {
       }),
       tool: 'Glob',
     })
-    const markup = renderToStaticMarkup(
+    const completedMarkup = renderToStaticMarkup(
       <TooltipProvider>
         <ToolItemView
           disclosure={{
@@ -702,15 +706,35 @@ describe('canonical tool item display', () => {
             expanded: true,
             onExpandedChange: () => undefined,
           }}
-          item={item}
+          item={completedItem}
         />
       </TooltipProvider>,
     )
 
-    expect(markup).toContain('data-expanded="true"')
-    expect(markup).toContain('src/feature/viewer.ts')
-    expect(markup).toContain('src/feature/other.ts')
-    expect(markup).not.toContain('numFiles')
+    expect(completedMarkup).toContain('data-expandable="false"')
+    expect(completedMarkup).toContain('data-expanded="false"')
+    expect(completedMarkup).not.toContain('lucide-chevron-right')
+
+    const failedItem = { ...completedItem, state: 'error' as const, error: '搜索超时' }
+    const failedMarkup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolItemView
+          disclosure={{
+            id: 'tool:turn-1:tool-1',
+            expanded: true,
+            onExpandedChange: () => undefined,
+          }}
+          item={failedItem}
+        />
+      </TooltipProvider>,
+    )
+
+    expect(failedMarkup).toContain('data-expandable="true"')
+    expect(failedMarkup).toContain('data-expanded="true"')
+    expect(failedMarkup).toContain('src/feature/viewer.ts')
+    expect(failedMarkup).toContain('src/feature/other.ts')
+    expect(failedMarkup).toContain('搜索超时')
+    expect(failedMarkup).not.toContain('numFiles')
   })
 
   test('does not fall back to whole JSON for missing structured fields', () => {
@@ -1040,7 +1064,7 @@ describe('canonical tool item display', () => {
 
     expect(embedded).toContain('canonical-command-shell--embedded')
     expect(embedded).not.toContain('md-code-header')
-    expect(embedded).not.toContain('>bash</span>')
+    expect(embedded).toContain('canonical-command-card__header-tag">bash</span>')
     expect(embedded).toContain('aria-label="复制执行内容"')
     expect(embedded).toContain('aria-label="复制返回结果"')
     expect(embedded).toContain('bun test')
@@ -1048,7 +1072,7 @@ describe('canonical tool item display', () => {
     expect(embedded).toContain('成功')
     expect(standalone).not.toContain('canonical-command-shell--embedded')
     expect(standalone).not.toContain('md-code-header')
-    expect(standalone).not.toContain('>bash</span>')
+    expect(standalone).toContain('canonical-command-card__header-tag">bash</span>')
     expect(groupedItem).toContain('data-presentation="grouped"')
     expect(groupedItem).toContain('canonical-command-shell--embedded')
   })
@@ -1468,7 +1492,7 @@ describe('canonical tool item display', () => {
     expect(markup).toContain('notes.txt')
   })
 
-  test('renders structured tool calls with json language and deduplicates duplicate error text blocks', () => {
+  test('renders structured tool calls in the unified lightweight card and deduplicates duplicate error text blocks', () => {
     const errorText = '窗口引用已失效，请重新发现应用'
     const item = toolItem({
       command: null,
@@ -1486,12 +1510,13 @@ describe('canonical tool item display', () => {
       </TooltipProvider>,
     )
 
-    // Language detection recognizes JSON input and does not label it as Shell
-    expect(markup).toContain('>json</span>')
+    expect(markup).toContain('canonical-command-card')
+    expect(markup).not.toContain('md-code-header')
     expect(markup).not.toContain('>Shell</span>')
+    expect(markup).toContain('canonical-command-card__section-label">输入</div>')
+    expect(markup).toContain('canonical-command-card__section-label">输出</div>')
     expect(markup).toContain('5d67efc3-1a2b-4824-9883-e3bdc66b6733')
     expect(markup).toContain(errorText)
-    // Error text is rendered in CodeBlock and deduplicated from resultBlocks (not repeated twice)
     const errorMatches = markup.match(new RegExp(errorText, 'g'))
     expect(errorMatches).toHaveLength(1)
     expect(markup).not.toContain('canonical-tool-result-block--text')
