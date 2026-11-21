@@ -23,7 +23,7 @@
  * - descendant overrides that must reach elements owned by other migration
  *   groups (`.workflow-page__*`, `.workflow-main-scroll-frame`,
  *   `.thread-summary-*`, `.chat-session-*`, `.md-body`, `.composer-editor*`,
- *   `.md-code-pre`, `.button`, `.attachment-image-tile`);
+ *   `.button`, `.attachment-image-tile`);
  * - `.canonical-spin` + its keyframes, shared with the workflow, fork and side
  *   chat surfaces that are migrated by other groups.
  *
@@ -637,6 +637,8 @@
   /* ── Agent activity rows ── */
 
   .cpx-agent-activity {
+    --cpx-activity-indent: calc(var(--cpx-sys-icon-size-sm) + var(--cpx-sys-space-2));
+
     position: relative;
     display: grid;
     min-width: 0;
@@ -689,6 +691,7 @@
   .cpx-agent-activity__content {
     min-width: 0;
     margin-block: var(--conversation-grouped-item-gap, var(--cpx-sys-space-1)) 0;
+    padding-left: var(--cpx-activity-indent, calc(var(--cpx-sys-icon-size-sm) + var(--cpx-sys-space-2)));
   }
 
   .execution-plan-card__edge-fade {
@@ -743,6 +746,8 @@
 
   /* 工具列表独立滚动，展开详情不应把整个会话不断撑高。 */
   .cpx-agent-activity__list {
+    --scroll-area-fade-size: var(--cpx-sys-space-6);
+
     max-height: 224px;
   }
 
@@ -794,12 +799,10 @@
    * variants cannot express from the child element.
    */
   .cpx-agent-activity__item {
+    --cpx-activity-indent: calc(var(--cpx-sys-icon-size-sm) + var(--cpx-sys-space-2));
+
     display: grid;
     font: inherit;
-  }
-
-  .cpx-agent-activity__item[data-expanded='true'] > .cpx-agent-activity__item-header {
-    color: var(--cpx-sys-color-fg-primary);
   }
 
   .cpx-agent-activity__item[data-expanded='true']
@@ -1002,13 +1005,20 @@
       transform var(--cpx-sys-motion-disclosure) var(--cpx-sys-ease-disclosure);
   }
 
-  .cpx-agent-activity__details:not(.cpx-agent-activity__details--diff) {
+  .cpx-agent-activity__details {
     min-width: 0;
-    margin-left: 0;
+    margin-left: var(--cpx-activity-indent, calc(var(--cpx-sys-icon-size-sm) + var(--cpx-sys-space-2)));
+  }
+
+  .cpx-agent-activity__details:not(.cpx-agent-activity__details--diff) {
     padding-left: 0;
     border-left: 0;
     color: var(--cpx-sys-color-fg-secondary);
     font: inherit;
+  }
+
+  .cpx-agent-activity__repeated-list {
+    margin-top: var(--conversation-grouped-item-gap, var(--cpx-sys-space-1));
   }
 
   .cpx-agent-activity__details--diff > .review-codex-diff {
@@ -1057,6 +1067,38 @@
   }
   .request-card .canonical-command-card {
     margin-block: 0;
+  }
+  .canonical-command-card__header {
+    display: flex;
+    align-items: center;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2) 0;
+    color: var(--cpx-sys-color-fg-tertiary);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
+    user-select: none;
+  }
+  .canonical-command-card__header-tag {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .canonical-command-card__section {
+    min-width: 0;
+  }
+  .canonical-command-card__section--divided {
+    border-top: 1px solid var(--cpx-sys-color-border-subtle);
+  }
+  .canonical-command-card__section-label {
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2) 0;
+    color: var(--cpx-sys-color-fg-tertiary);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
+    user-select: none;
   }
   .canonical-command-card__command {
     position: relative;
@@ -1202,11 +1244,6 @@
       black calc(100% - var(--cpx-sys-space-8)),
       transparent
     );
-  }
-
-  /* Scrollbar plus the tool-result scroll override inside the shell. */
-  .canonical-command-shell__scroll-content .md-code-pre {
-    overflow: visible;
   }
 
   .canonical-command-shell__scroller {

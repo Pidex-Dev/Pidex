@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import type { Item, ToolActivityTarget } from '@pidex/shared/thread'
 
+import { preserveTimelineAnchorPosition } from './PreserveTimelineAnchorPosition.js'
 import { absoluteFilePath, fileDisplayName } from './FileMutationPresentation.js'
 import { useWorkspacePath, useConversationItemContext } from './ConversationItemContext.js'
 
@@ -450,7 +451,10 @@ export function ToolActivityHeader({
         aria-label={label}
         className="cpx-agent-activity__item-toggle"
         disabled={!canExpand}
-        onClick={onToggle}
+        onClick={(event) => {
+          preserveTimelineAnchorPosition(event.currentTarget)
+          onToggle()
+        }}
         type="button"
       />
       {children}

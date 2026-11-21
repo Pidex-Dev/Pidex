@@ -208,6 +208,15 @@
     &[data-state='closed'] {
       animation-name: ui-collapsible-close;
     }
+
+    &[data-variant='slide'][data-state='open'] {
+      animation-name: ui-collapsible-slide-open;
+    }
+
+    &[data-variant='slide'][data-state='closed'] {
+      animation-duration: var(--cpx-sys-motion-state);
+      animation-name: ui-collapsible-slide-close;
+    }
   }
 
   @keyframes ui-collapsible-open {
@@ -231,6 +240,34 @@
     to {
       height: 0;
       opacity: 0;
+    }
+  }
+
+  @keyframes ui-collapsible-slide-open {
+    from {
+      height: 0;
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+
+    to {
+      height: var(--radix-collapsible-content-height);
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes ui-collapsible-slide-close {
+    from {
+      height: var(--radix-collapsible-content-height);
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    to {
+      height: 0;
+      opacity: 0;
+      transform: translateY(-8px);
     }
   }
 }

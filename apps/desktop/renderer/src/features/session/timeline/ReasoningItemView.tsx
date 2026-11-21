@@ -11,6 +11,7 @@ import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
 import { useScrollEdgeState } from '../../../hooks/UseScrollEdgeState.js'
 import { useLiveItemTail } from '../state/UseLiveItemTail.js'
+import { preserveTimelineAnchorPosition } from './PreserveTimelineAnchorPosition.js'
 import type { ResolvedCanonicalItemDisclosure } from './CanonicalItemRenderer.js'
 import {
   commandOutputFollowing,
@@ -168,6 +169,7 @@ export function ReasoningItemView({
     >
       <CollapsibleTrigger
         className="cpx-agent-activity__item-header reasoning-node__header"
+        onClick={(event) => preserveTimelineAnchorPosition(event.currentTarget)}
         type="button"
       >
         <Brain

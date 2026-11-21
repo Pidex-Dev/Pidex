@@ -178,25 +178,21 @@ export function CanonicalCommandBlock({
   )
 }
 
-export function ToolCommandCard({
-  item,
-  command,
-  output,
-  statusLabel,
+export function ToolCardOutputViewport({
+  active,
+  ariaLabel = '返回结果',
+  copyLabel = '复制返回结果',
+  emptyPlaceholder,
   expanded = true,
-  grouped = false,
-  children,
+  output,
 }: {
-  item: ToolItem
-  command: string
-  output: string | null
-  statusLabel: string
+  active: boolean
+  ariaLabel?: string
+  copyLabel?: string
+  emptyPlaceholder?: string
   expanded?: boolean
-  grouped?: boolean
-  children?: React.ReactNode
+  output: string | null
 }): React.ReactNode {
-  const active =
-    item.state === 'pending' || item.state === 'waiting-permission' || item.state === 'running'
   const [wrapped, setWrapped] = useCodeWrapPreference()
   const sanitizedOutput = React.useMemo(
     () => (output === null ? null : stripTerminalControlSequences(output)),
@@ -209,22 +205,13 @@ export function ToolCommandCard({
   const wasExpandedRef = React.useRef(false)
   const prevWrappedRef = React.useRef(wrapped)
   const edge = useScrollEdgeState(scrollerRef, { contentRef, version: sanitizedOutput })
-  const exitCode = readCommandExitCode(item.output)
+  const placeholder = emptyPlaceholder ?? (active ? '等待输出' : '无输出')
   const outputChunks = React.useMemo(
-    () => commandOutputChunks(sanitizedOutput ?? (active ? '等待输出' : '无输出')),
-    [sanitizedOutput, active],
+    () => commandOutputChunks(sanitizedOutput ?? placeholder),
+    [placeholder, sanitizedOutput],
   )
-  const StatusIcon =
-    item.state === 'interrupted'
-      ? CircleStop
-      : item.state === 'error'
-        ? CircleAlert
-        : active
-          ? LoaderCircle
-          : Check
 
   React.useLayoutEffect(() => {
-    // 手动上滚只停止吸底，不冻结数据；重新展开运行中的工具恢复跟随。
     followingRef.current = commandOutputFollowing(
       active,
       expanded,
@@ -250,81 +237,138 @@ export function ToolCommandCard({
   }, [active, expanded, sanitizedOutput, wrapped])
 
   return (
+    <div className="canonical-command-card__output">
+      <div
+        className="canonical-command-shell__edge-fade"
+        data-at-start={edge.atStart}
+        data-at-end={edge.atEnd}
+        data-scrollable={edge.scrollable}
+      >
+        <div
+          className="canonical-command-shell__scroller"
+          ref={scrollerRef}
+          tabIndex={0}
+          aria-label={ariaLabel}
+          onScroll={(event) => {
+            const atBottom = isCommandOutputAtBottom(event.currentTarget)
+            followingRef.current = atBottom
+            if (pinRef.current) {
+              pinRef.current.dataset.following = String(active && atBottom)
+            }
+          }}
+        >
+          <pre
+            ref={contentRef}
+            className="canonical-command-card__output-text"
+            data-wrapped={wrapped}
+          >
+            {outputChunks.map((chunk, index) => (
+              <span
+                key={index}
+                className="canonical-command-card__output-chunk"
+                style={{ containIntrinsicBlockSize: `auto ${chunk.lineCount}lh` }}
+              >
+                {chunk.text}
+              </span>
+            ))}
+          </pre>
+          <div
+            ref={pinRef}
+            className="canonical-command-card__output-pin"
+            data-following={active && followingRef.current}
+          />
+        </div>
+      </div>
+      <div className="canonical-command-card__actions">
+        <button
+          className="md-code-wrap tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+          type="button"
+          aria-label="输出自动换行"
+          title="输出自动换行"
+          aria-pressed={wrapped}
+          onClick={() => setWrapped(!wrapped)}
+        >
+          <WrapText className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
+        </button>
+        {sanitizedOutput !== null ? (
+          <CopyButton ariaLabel={copyLabel} text={sanitizedOutput} />
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+export function ToolCardFooter({
+  exitCode = null,
+  state,
+  statusLabel,
+}: {
+  exitCode?: number | null
+  state: ToolItem['state']
+  statusLabel: string
+}): React.ReactNode {
+  const active = state === 'pending' || state === 'waiting-permission' || state === 'running'
+  const StatusIcon =
+    state === 'interrupted'
+      ? CircleStop
+      : state === 'error'
+        ? CircleAlert
+        : active
+          ? LoaderCircle
+          : Check
+
+  return (
+    <footer className="canonical-command-shell__footer tw:flex tw:justify-end tw:p-2 tw:pt-0">
+      <span className="canonical-command-shell__status">
+        <StatusIcon
+          size={APP_ICON_SIZES.sm}
+          aria-hidden="true"
+          className={active ? 'canonical-spin' : undefined}
+        />
+        {statusLabel}
+        {!active && exitCode !== null ? ` · 退出码 ${exitCode}` : ''}
+      </span>
+    </footer>
+  )
+}
+
+export function ToolCommandCard({
+  item,
+  command,
+  output,
+  shellTag,
+  statusLabel,
+  expanded = true,
+  grouped = false,
+  children,
+}: {
+  item: ToolItem
+  command: string
+  output: string | null
+  shellTag?: string | null
+  statusLabel: string
+  expanded?: boolean
+  grouped?: boolean
+  children?: React.ReactNode
+}): React.ReactNode {
+  const active =
+    item.state === 'pending' || item.state === 'waiting-permission' || item.state === 'running'
+  const exitCode = readCommandExitCode(item.output)
+
+  return (
     <article
       className={`canonical-command-shell canonical-command-card${grouped ? ' canonical-command-shell--embedded' : ''}`}
       data-state={item.state}
     >
+      {shellTag ? (
+        <div className="canonical-command-card__header">
+          <span className="canonical-command-card__header-tag">{shellTag}</span>
+        </div>
+      ) : null}
       <CanonicalCommandBlock command={command} />
-      <div className="canonical-command-card__output">
-        <div
-          className="canonical-command-shell__edge-fade"
-          data-at-start={edge.atStart}
-          data-at-end={edge.atEnd}
-          data-scrollable={edge.scrollable}
-        >
-          <div
-            className="canonical-command-shell__scroller"
-            ref={scrollerRef}
-            tabIndex={0}
-            aria-label="返回结果"
-            onScroll={(event) => {
-              const atBottom = isCommandOutputAtBottom(event.currentTarget)
-              followingRef.current = atBottom
-              if (pinRef.current) {
-                pinRef.current.dataset.following = String(active && atBottom)
-              }
-            }}
-          >
-            <pre
-              ref={contentRef}
-              className="canonical-command-card__output-text"
-              data-wrapped={wrapped}
-            >
-              {outputChunks.map((chunk, index) => (
-                <span
-                  key={index}
-                  className="canonical-command-card__output-chunk"
-                  style={{ containIntrinsicBlockSize: `auto ${chunk.lineCount}lh` }}
-                >
-                  {chunk.text}
-                </span>
-              ))}
-            </pre>
-            <div
-              ref={pinRef}
-              className="canonical-command-card__output-pin"
-              data-following={active && followingRef.current}
-            />
-          </div>
-        </div>
-        <div className="canonical-command-card__actions">
-          <button
-            className="md-code-wrap tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
-            type="button"
-            aria-label="输出自动换行"
-            title="输出自动换行"
-            aria-pressed={wrapped}
-            onClick={() => setWrapped(!wrapped)}
-          >
-            <WrapText className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
-          </button>
-          {sanitizedOutput !== null ? (
-            <CopyButton ariaLabel="复制返回结果" text={sanitizedOutput} />
-          ) : null}
-        </div>
-      </div>
+      <ToolCardOutputViewport active={active} expanded={expanded} output={output} />
       {children}
-      <footer className="canonical-command-shell__footer tw:flex tw:p-2 tw:pt-0">
-        <span className="canonical-command-shell__status">
-          <StatusIcon
-            size={APP_ICON_SIZES.sm}
-            aria-hidden="true"
-            className={active ? 'canonical-spin' : undefined}
-          />
-          {statusLabel}
-          {!active && exitCode !== null ? ` · 退出码 ${exitCode}` : ''}
-        </span>
-      </footer>
+      <ToolCardFooter exitCode={exitCode} state={item.state} statusLabel={statusLabel} />
     </article>
   )
 }

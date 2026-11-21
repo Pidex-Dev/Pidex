@@ -150,7 +150,6 @@
       "src/styles/primitives/right-dock.css"
     ],
     "md-code-header": ["src/styles/markdown.css", "src/styles/primitives/right-dock.css"],
-    "md-code-pre": ["src/styles/markdown.css", "src/styles/primitives/conversation.css"],
     "md-lead-description__detail": [
       "src/styles/markdown.css",
       "src/styles/primitives/session.css"

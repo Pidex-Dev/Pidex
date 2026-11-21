@@ -54,10 +54,8 @@ import {
   type KeyedDisclosureStore,
   useDisclosureExpanded,
 } from '../../../components/ui/KeyedDisclosureStore.js'
-import { CodeBlock } from '../../syntax/CodeBlock.js'
 import { MarkdownMessage } from '../../markdown/index.js'
 import { ConversationMarkdownErrorBoundary } from '../conversation/ConversationTurnErrorBoundary.js'
-import { useScrollEdgeState } from '../../../hooks/UseScrollEdgeState.js'
 import {
   ConversationItemContext,
   useConversationItemContext,
@@ -94,7 +92,13 @@ import { QuestionItemView } from './QuestionItemView.js'
 import { CopyButton } from './CopyButton.js'
 import { ReasoningItemView } from './ReasoningItemView.js'
 import { CanonicalUserMessageContent } from './CanonicalUserMessageContent.js'
-import { ToolCommandCard, toolDetailKind } from './ToolCommandCard.js'
+import {
+  CanonicalCommandBlock,
+  ToolCardFooter,
+  ToolCardOutputViewport,
+  ToolCommandCard,
+  toolDetailKind,
+} from './ToolCommandCard.js'
 export { isShellTool } from './ToolCommandCard.js'
 import { cx } from '../../../utils/Cx.js'
 import { ResultCardView } from './ResultCardView.js'
@@ -171,6 +175,7 @@ export type ToolItemDisplay = {
   executionContent: string
   expandedLabel: string
   failed: boolean
+  hasExplicitInput: boolean
   iconKind: ToolActivityIconKind
   resultText: string | null
   semanticSummary: ToolSemanticSummary | null
@@ -1064,11 +1069,13 @@ export function ToolItemView({
               {expanded ? view.expandedLabel : view.collapsedLabel}
             </span>
           )}
-          <ChevronRight
-            size={APP_ICON_SIZES.sm}
-            className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__chevron"
-            aria-hidden="true"
-          />
+          {view.canExpand ? (
+            <ChevronRight
+              size={APP_ICON_SIZES.sm}
+              className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__chevron"
+              aria-hidden="true"
+            />
+          ) : null}
         </ToolActivityHeader>
         <CollapsibleContent
           contentClassName="cpx-agent-activity__details"
@@ -1188,8 +1195,6 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
   view: ToolItemDisplay
 }): React.ReactNode {
   const embedded = presentation === 'grouped'
-  const executionLang = resolveToolContentLanguage(item, view.executionContent)
-  const resultLang = view.resultText ? resolveToolResultLanguage(view.resultText) : null
   const detailKind = toolDetailKind(item)
   if (detailKind === 'command') {
     return (
@@ -1198,6 +1203,7 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
         item={item}
         command={item.command?.trim() ? item.command : view.executionContent}
         output={view.resultText}
+        shellTag={resolveShellTag(item)}
         statusLabel={view.statusLabel}
         expanded={expanded}
         grouped={embedded}
@@ -1213,41 +1219,43 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
     )
   }
 
+  const showInputSection = detailKind !== 'result' && view.hasExplicitInput
+  const showOutputSection =
+    view.resultText !== null || (!showInputSection && !item.resultBlocks?.length)
+
   return (
     <article
       className={cx(
-        'canonical-command-shell md-code-surface tw:mx-0 tw:min-w-0',
-        embedded ? 'canonical-command-shell--embedded tw:my-1' : 'tw:my-2',
+        'canonical-command-shell canonical-command-card',
+        embedded && 'canonical-command-shell--embedded',
       )}
       data-state={item.state}
     >
       <div className="canonical-command-shell__body tw:flex tw:min-w-0 tw:flex-col">
-        {detailKind !== 'result' ? (
-          <CodeBlock
-            surface="embedded"
-            showWrapControl
-            ariaLabel="执行内容"
-            headerLabel={executionLang.headerLabel}
-            copyLabel="复制执行内容"
-            code={view.executionContent}
-            language={executionLang.language}
-            streaming={view.active}
-          />
+        {showInputSection ? (
+          <div className="canonical-command-card__section">
+            <div className="canonical-command-card__section-label">输入</div>
+            <CanonicalCommandBlock
+              ariaLabel="执行内容"
+              command={view.executionContent}
+              showPrompt={false}
+            />
+          </div>
         ) : null}
-        {view.resultText && resultLang ? (
-          <div className="canonical-command-shell__result tw:border-t tw:border-app-border-subtle">
-            <CodeBlock
-              surface="embedded"
-              showWrapControl
-              ariaLabel="返回结果"
-              headerLabel={resultLang.headerLabel}
-              copyLabel="复制返回结果"
-              code={view.resultText}
-              language={resultLang.language}
-              streaming={view.active}
-              wrapContent={(content) => (
-                <CommandShellEmbeddedScroll>{content}</CommandShellEmbeddedScroll>
-              )}
+        {showOutputSection ? (
+          <div
+            className={cx(
+              'canonical-command-card__section',
+              showInputSection && 'canonical-command-card__section--divided',
+            )}
+          >
+            {detailKind !== 'result' ? (
+              <div className="canonical-command-card__section-label">输出</div>
+            ) : null}
+            <ToolCardOutputViewport
+              active={view.active}
+              expanded={expanded}
+              output={view.resultText}
             />
           </div>
         ) : null}
@@ -1259,22 +1267,7 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
           />
         ) : null}
       </div>
-      <footer className="canonical-command-shell__footer tw:flex tw:min-h-5 tw:items-center tw:justify-end tw:border-t-0 tw:bg-transparent tw:px-3 tw:pt-0 tw:pb-2">
-        <span className="canonical-command-shell__status">
-          {item.state === 'completed' ? (
-            <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
-          ) : item.state === 'error' || item.state === 'interrupted' ? (
-            <CircleAlert className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
-          ) : (
-            <LoaderCircle
-              size={APP_ICON_SIZES.sm}
-              className="tw:size-icon-sm canonical-spin"
-              aria-hidden="true"
-            />
-          )}
-          {view.statusLabel}
-        </span>
-      </footer>
+      <ToolCardFooter state={item.state} statusLabel={view.statusLabel} />
     </article>
   )
 })
@@ -1436,26 +1429,6 @@ function formatArtifactByteSize(sizeBytes: number): string {
   if (sizeBytes < 1024) return `${sizeBytes} B`
   if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function CommandShellEmbeddedScroll({ children }: { children: React.ReactNode }): React.ReactNode {
-  const scrollerRef = React.useRef<HTMLDivElement | null>(null)
-  const contentRef = React.useRef<HTMLDivElement | null>(null)
-  const edge = useScrollEdgeState(scrollerRef, { contentRef })
-  return (
-    <div
-      className="canonical-command-shell__edge-fade tw:relative tw:min-w-0"
-      data-at-end={edge.atEnd}
-      data-at-start={edge.atStart}
-      data-scrollable={edge.scrollable}
-    >
-      <div className="canonical-command-shell__scroller" ref={scrollerRef}>
-        <div className="canonical-command-shell__scroll-content" ref={contentRef}>
-          {children}
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function PatchItemView({
@@ -1777,6 +1750,7 @@ export function buildToolItemDisplay(item: ToolItem, nowMs?: number): ToolItemDi
       executionContent: lifecycle.label,
       expandedLabel: lifecycle.label,
       failed: lifecycle.failed,
+      hasExplicitInput: false,
       iconKind: 'tool',
       resultText: null,
       semanticSummary: null,
@@ -1787,29 +1761,34 @@ export function buildToolItemDisplay(item: ToolItem, nowMs?: number): ToolItemDi
   }
   const structuredDetail = buildStructuredToolDetail(item)
   const formattedInput = formatToolInputForDisplay(item.tool, item.input)
-  const safeInput =
-    formattedInput.trim() && formattedInput.trim() !== 'null' ? formattedInput : null
+  const trimmedInput = formattedInput.trim()
+  const safeInput = trimmedInput && trimmedInput !== 'null' ? formattedInput : null
+  const nonEmptyInput = safeInput && trimmedInput !== '{}' ? safeInput : null
   const fallbackExecution = item.title.trim() || item.tool
-  const executionContent =
-    structuredDetail?.executionContent ?? command ?? safeInput ?? fallbackExecution
+  const explicitExecution = structuredDetail?.executionContent ?? command ?? nonEmptyInput
+  const executionContent = explicitExecution ?? safeInput ?? fallbackExecution
   const rawResultText = structuredDetail
     ? structuredDetail.resultText
     : appendToolError(cleanCommandOutput(nonBlank(item.output)), nonBlank(item.error))
   const resultText = cleanCommandOutput(rawResultText)
   const active = isActiveToolState(item.state)
   const terminal = !active
+  const failed = item.state === 'error' || item.state === 'interrupted'
   const semanticSummary = buildToolSemanticSummary(item, { nowMs })
+  const hasExplicitInput = Boolean(explicitExecution)
+  const hasOutput = resultText !== null || Boolean(item.resultBlocks?.length)
+  const detailKind = toolDetailKind(item)
+  const canExpand =
+    detailKind === 'result' ? failed && hasOutput : hasExplicitInput || hasOutput || terminal
 
   return {
     active,
-    canExpand:
-      toolDetailKind(item) === 'result'
-        ? resultText !== null || Boolean(item.resultBlocks?.length)
-        : terminal || resultText !== null,
+    canExpand,
     collapsedLabel: semanticSummary.collapsedLabel,
     executionContent,
     expandedLabel: semanticSummary.expandedLabel,
-    failed: item.state === 'error' || item.state === 'interrupted',
+    failed,
+    hasExplicitInput,
     iconKind: semanticSummary.iconKind,
     resultText,
     semanticSummary,

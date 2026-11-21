@@ -3,6 +3,7 @@ import { Check, ChevronDown, ListChecks, MessageCircleQuestion } from 'lucide-re
 import type { Item, QuestionItem } from '@pidex/shared/thread'
 import { APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
+import { preserveTimelineAnchorPosition } from './PreserveTimelineAnchorPosition.js'
 import type { ResolvedCanonicalItemDisclosure } from './CanonicalItemRenderer.js'
 import { PROCESS_CARD_SUMMARY_CLASS } from './ToolActivityPresentation.js'
 import { cx } from '../../../utils/Cx.js'
@@ -72,12 +73,12 @@ export function QuestionItemView({
       <button
         aria-controls={contentId}
         aria-expanded={expanded}
-        className={cx(PROCESS_CARD_SUMMARY_CLASS, expanded && 'tw:text-app-text')}
-        onClick={() =>
-          disclosure
-            ? disclosure.onExpandedChange(disclosure.id, !expanded)
-            : setLocalExpanded(!expanded)
-        }
+        className={PROCESS_CARD_SUMMARY_CLASS}
+        onClick={(event) => {
+          preserveTimelineAnchorPosition(event.currentTarget)
+          if (disclosure) disclosure.onExpandedChange(disclosure.id, !expanded)
+          else setLocalExpanded(!expanded)
+        }}
         type="button"
       >
         <Check

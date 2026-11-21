@@ -7,6 +7,7 @@ import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import { useDisclosureExpanded } from '../../../components/ui/KeyedDisclosureStore.js'
 import { cx } from '../../../utils/Cx.js'
 
+import { preserveTimelineAnchorPosition } from './PreserveTimelineAnchorPosition.js'
 import type { CanonicalItemDisclosure, ReadThreadPatchDiff } from './CanonicalItemRenderer.js'
 import {
   fileMutationLabel,
@@ -114,7 +115,10 @@ export function ExpandableFileMutationRow({
         aria-controls={contentId}
         aria-expanded={expanded}
         className="cpx-agent-activity__item-header"
-        onClick={() => disclosure.store.setExpanded(disclosure.id, !expanded)}
+        onClick={(event) => {
+          preserveTimelineAnchorPosition(event.currentTarget)
+          disclosure.store.setExpanded(disclosure.id, !expanded)
+        }}
         type="button"
       >
         <Pencil
@@ -142,7 +146,7 @@ export function ExpandableFileMutationRow({
       <DisclosureContent
         contentClassName={cx(
           'cpx-agent-activity__details cpx-agent-activity__details--diff',
-          'tw:mx-0 tw:my-1 tw:max-h-[420px] tw:overflow-auto tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:mb-2',
+          'tw:my-1 tw:mr-0 tw:mb-2 tw:max-h-[420px] tw:overflow-auto tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel',
         )}
         expanded={expanded}
         id={contentId}

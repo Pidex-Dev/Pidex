@@ -77,6 +77,11 @@ import type { RegisterConversationTurnRow } from '../conversation/UseConversatio
 import { questionTimelineItems } from './QuestionItemView.js'
 import { ApprovalTimelineItemView } from './ApprovalTimelineItemView.js'
 import { DecisionNoticeItem } from './DecisionNoticeItem.js'
+import { preserveTimelineAnchorPosition } from './PreserveTimelineAnchorPosition.js'
+import {
+  groupRepeatedProcessItems,
+  type RepeatedProcessGroupRun,
+} from './GroupRepeatedProcessItems.js'
 
 export type ProcessActivityProjection =
   { kind: 'groupable'; item: Item } | { kind: 'standalone'; item: Item } | { kind: 'hidden' }
@@ -283,6 +288,7 @@ export function CanonicalProcessGroup({
               aria-expanded={expanded}
               aria-label={visibleLabel || '处理过程'}
               className="cpx-agent-activity__header"
+              onClick={(event) => preserveTimelineAnchorPosition(event.currentTarget)}
               type="button"
             >
               {summaryContent}
@@ -308,6 +314,80 @@ export function CanonicalProcessGroup({
           >
             {children}
           </ScrollArea>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  )
+}
+
+function RepeatedProcessGroup({
+  children,
+  disclosure,
+  run,
+}: {
+  children: React.ReactNode
+  disclosure: { store: KeyedDisclosureStore; id: string }
+  run: RepeatedProcessGroupRun
+}): React.ReactNode {
+  const expanded = useDisclosureExpanded(disclosure.store, disclosure.id)
+  const contentId = React.useId()
+  const SummaryIcon = toolSemanticIcon(run.iconKind)
+  const datastate = run.active ? 'running' : run.failed ? 'failed' : 'completed'
+
+  return (
+    <Collapsible
+      open={expanded}
+      onOpenChange={(next) => disclosure.store.setExpanded(disclosure.id, next)}
+      asChild
+    >
+      <div
+        className="cpx-agent-activity__item cpx-agent-activity__repeated-group tw:min-w-0 tw:text-app-text-soft"
+        data-expandable="true"
+        data-expanded={expanded ? 'true' : 'false'}
+        data-state={datastate}
+      >
+        <CollapsibleTrigger asChild>
+          <button
+            aria-controls={contentId}
+            aria-expanded={expanded}
+            aria-label={run.label}
+            className="cpx-agent-activity__item-header"
+            onClick={(event) => preserveTimelineAnchorPosition(event.currentTarget)}
+            type="button"
+          >
+            {run.active ? (
+              <LoaderCircle
+                size={APP_ICON_SIZES.sm}
+                className="tw:size-icon-sm tw:shrink-0 canonical-spin cpx-agent-activity__icon"
+                aria-hidden="true"
+              />
+            ) : run.failed ? (
+              <CircleAlert
+                size={APP_ICON_SIZES.sm}
+                className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
+                aria-hidden="true"
+              />
+            ) : (
+              React.createElement(SummaryIcon, {
+                size: APP_ICON_SIZES.sm,
+                className: 'tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon',
+                'aria-hidden': 'true',
+              })
+            )}
+            <span className="cpx-agent-activity__label">{run.label}</span>
+            <ChevronRight
+              size={APP_ICON_SIZES.sm}
+              className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__chevron"
+              aria-hidden="true"
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent
+          contentClassName="cpx-agent-activity__details cpx-agent-activity__repeated-list tw:grid tw:gap-[var(--conversation-grouped-item-gap,var(--cpx-sys-space-1))]"
+          expanded={expanded}
+          id={contentId}
+        >
+          {children}
         </CollapsibleContent>
       </div>
     </Collapsible>
@@ -622,6 +702,7 @@ export function CanonicalTurnActivity({
                 'canonical-turn-activity__summary tw:inline-flex tw:min-h-6 tw:w-fit tw:max-w-full tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit',
                 'tw:cursor-pointer tw:transition-colors tw:duration-state tw:ease-out tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus',
               )}
+              onClick={(event) => preserveTimelineAnchorPosition(event.currentTarget)}
               type="button"
             >
               {summaryContent}
@@ -640,6 +721,7 @@ export function CanonicalTurnActivity({
           expanded={contentVisible}
           contentClassName="canonical-turn-activity__content"
           id={contentId}
+          variant="slide"
         >
           {children}
         </CollapsibleContent>
@@ -1246,15 +1328,40 @@ function CanonicalConversationTurnComponent({
             disclosure={disclosure(processGroupDisclosureId(entry.turn.id, unit.key))}
             key={unit.key}
           >
-            {unit.items.map((item) => (
-              <div
-                className="cpx-agent-activity__path-step"
-                data-state={processItemPathState(item)}
-                key={item.id}
-              >
-                {renderProcessItem(item, 'grouped')}
-              </div>
-            ))}
+            {groupRepeatedProcessItems(unit.items).map((run) =>
+              run.kind === 'single' ? (
+                <div
+                  className="cpx-agent-activity__path-step"
+                  data-state={processItemPathState(run.item)}
+                  key={run.item.id}
+                >
+                  {renderProcessItem(run.item, 'grouped')}
+                </div>
+              ) : (
+                <div
+                  className="cpx-agent-activity__path-step"
+                  data-state={run.active ? 'running' : run.failed ? 'failed' : 'completed'}
+                  key={run.key}
+                >
+                  <RepeatedProcessGroup
+                    disclosure={disclosure(
+                      processGroupDisclosureId(entry.turn.id, `${unit.key}:${run.key}`),
+                    )}
+                    run={run}
+                  >
+                    {run.items.map((item) => (
+                      <div
+                        className="cpx-agent-activity__path-step"
+                        data-state={processItemPathState(item)}
+                        key={item.id}
+                      >
+                        {renderProcessItem(item, 'grouped')}
+                      </div>
+                    ))}
+                  </RepeatedProcessGroup>
+                </div>
+              ),
+            )}
           </CanonicalProcessGroup>
         )
       })}
