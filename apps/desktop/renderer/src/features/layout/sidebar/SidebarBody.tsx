@@ -805,7 +805,7 @@ function SidebarBodyContent({
         >
           <SidebarDragPreview
             getModel={getDragOverlayModel}
-            maxWidth={scrollViewportRef.current?.clientWidth}
+            viewportRef={scrollViewportRef}
           />
           <SidebarDragFeedback select={selectDragItems} commit={applyDropOperation} />
           {timeline ? (

@@ -202,11 +202,12 @@ const PERMISSION_ITEM_INDICATOR_CLASS =
  * (Working / Coding new-session pages) replace its margins, padding, background
  * and order, so each variant gets one complete, static class list.
  */
+// INVARIANT: composer shells carry no unnamed container contexts; streaming rewrites context-usage state inside them each chunk and Chromium re-matches every container-dependent descendant (~14ms style recalc measured per chunk).
 const COMPOSER_STACK_CLASS =
-  'composer-stack tw:relative tw:isolate tw:z-composer tw:flex tw:w-full tw:flex-col tw:[container-type:inline-size]'
+  'composer-stack tw:relative tw:isolate tw:z-composer tw:flex tw:w-full tw:flex-col'
 const COMPOSER_TOP_BASE_CLASS = cx(
   'composer composer-input-surface composer-top',
-  'tw:relative tw:z-2 tw:flex tw:min-h-0 tw:flex-col tw:justify-between tw:[container-type:inline-size]',
+  'tw:relative tw:z-2 tw:flex tw:min-h-0 tw:flex-col tw:justify-between',
   'tw:px-3 tw:pt-3 tw:pb-1',
   'tw:border-0 tw:bg-app-raised tw:[backdrop-filter:none]',
   'tw:shadow-prominent tw:transition-[min-height] tw:duration-panel tw:ease-standard',

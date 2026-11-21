@@ -62,9 +62,12 @@ export function observeActiveSidebarSession({
     }
     observeRowAndAncestors(row)
     programmaticScrollRef.current = true
-    row.scrollIntoView({ block: 'nearest', behavior: 'auto' })
+    // INVARIANT: scrollIntoView flushes a dirty tree synchronously in Chromium, so it lands on the second post-layout rAF.
     window.requestAnimationFrame(() => {
-      programmaticScrollRef.current = false
+      window.requestAnimationFrame(() => {
+        row.scrollIntoView({ block: 'nearest', behavior: 'auto' })
+        programmaticScrollRef.current = false
+      })
     })
   }
 
@@ -97,7 +100,11 @@ export function observeActiveSidebarSession({
   viewport.addEventListener('keydown', handleKeyDown, true)
 
   if (typeof MutationObserver !== 'undefined') {
-    mutationObserver = new MutationObserver(scheduleReveal)
+    // INVARIANT: Ignore subtree childList mutations while the active row is already connected and tracked by ResizeObserver so streaming status updates do not repeatedly call scrollIntoView.
+    mutationObserver = new MutationObserver(() => {
+      if (observedRow && observedRow.isConnected) return
+      scheduleReveal()
+    })
     mutationObserver.observe(viewport, { childList: true, subtree: true })
   }
   scheduleReveal()

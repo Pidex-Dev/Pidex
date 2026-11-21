@@ -13,13 +13,15 @@ type ComposerFrameProps = {
  * The child owns every visual surface property; this wrapper only owns width,
  * pointer-event restoration and the transition ref used by the shell.
  *
- * The frame is also the composer's inline-size container, and it normalises the
- * nested surface widths so the composer always fills the frame even when a host
- * page constrains `.composer` itself.
+ * Nested surface widths are normalised with explicit descendant selectors (no
+ * container context): the frame hosts no `@container` rules, and an inline-size
+ * container here made Chromium re-match the whole composer subtree on every
+ * streaming chunk's style recalc (~14ms measured). Named breakpoints on the
+ * toolbar/utility bar (`composer-footer`/`composer-tray`) remain hosted there.
  */
 const FRAME_CLASS = cx(
   'composer-frame tw:flex tw:min-w-0 tw:flex-col tw:gap-2 tw:bg-transparent tw:p-0 tw:pointer-events-auto tw:shadow-none',
-  'tw:[container-type:inline-size] tw:transition-[height] tw:duration-panel tw:ease-standard',
+  'tw:transition-[height] tw:duration-panel tw:ease-standard',
   'tw:[&>.composer-stack]:w-full tw:[&>.composer-stack]:max-w-none',
   'tw:[&>.composer-stack>.composer]:w-full tw:[&>.composer-stack>.composer]:max-w-none',
 )

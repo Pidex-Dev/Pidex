@@ -128,20 +128,29 @@ export function useComposerFooterFit(
     if (typeof ResizeObserver === 'undefined') return
     const current = nodesRef.current
     if (!current.footer.current) return
-    const measure = (): void => {
+    const widths = new Map<Element, number>()
+    let cachedToolbarGap: number | null = null
+    let cachedRightGap: number | null = null
+    const measure = (entries: ResizeObserverEntry[]): void => {
+      for (const entry of entries) {
+        widths.set(
+          entry.target,
+          entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width,
+        )
+      }
       const footer = current.footer.current
       const left = current.left.current
       const right = current.right.current
       if (!footer || !left || !right) return
       const widthOf = (element: HTMLElement | null): number =>
-        element ? element.getBoundingClientRect().width : 0
-      const gapOf = (element: HTMLElement): number =>
-        parseFloat(getComputedStyle(element).columnGap) || 0
+        element ? (widths.get(element) ?? 0) : 0
+      cachedToolbarGap ??= (parseFloat(getComputedStyle(footer).columnGap) || 0)
+      cachedRightGap ??= (parseFloat(getComputedStyle(right).columnGap) || 0)
       const next: ComposerFooterMetrics = {
         footerWidth: widthOf(footer),
         leftWidth: widthOf(left),
-        toolbarGap: gapOf(footer),
-        rightGap: gapOf(right),
+        toolbarGap: cachedToolbarGap,
+        rightGap: cachedRightGap,
         sendWidth: widthOf(current.send.current),
         modelTextWidth: widthOf(current.modelText.current),
         modelIconWidth: widthOf(current.modelIcon.current),
@@ -149,10 +158,9 @@ export function useComposerFooterFit(
       metricsRef.current = next
       commitFit(next)
     }
-    // INVARIANT: ResizeObserver fires post-layout; measuring directly avoids deferring layout reads into the next rAF after animation style writes.
+    // INVARIANT: ResizeObserver fires post-layout on initial observation and consumes entry snapshots without synchronous getBoundingClientRect calls.
     const observer = new ResizeObserver(measure)
     for (const ref of Object.values(current)) if (ref.current) observer.observe(ref.current)
-    measure()
     return () => {
       observer.disconnect()
     }

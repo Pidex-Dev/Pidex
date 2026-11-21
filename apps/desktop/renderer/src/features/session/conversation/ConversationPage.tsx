@@ -1336,7 +1336,7 @@ export function ConversationPage(): React.ReactNode {
               />
             </ThreadComposerDock>
           </div>
-          <div className="workflow-page__composer-inner tw:pointer-events-none tw:z-composer tw:[container-type:inline-size] tw:[&_.inline-approval-card]:w-full tw:[&_.inline-approval-card]:max-w-none">
+          <div className="workflow-page__composer-inner tw:pointer-events-none tw:z-composer tw:[&_.inline-approval-card]:w-full tw:[&_.inline-approval-card]:max-w-none">
             <AnimatePresence initial={false}>
               {activePermissionRequest ? (
                 <ComposerFooterPresence
