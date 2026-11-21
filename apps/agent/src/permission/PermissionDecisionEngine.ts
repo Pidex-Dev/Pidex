@@ -183,6 +183,10 @@ export class PermissionDecisionEngine {
       if (policy === 'never') return deny('never 策略禁止等待 Hook 审批')
       return review(invocation.permissionFacts.approvalReason ?? 'Hook 要求人工批准', true)
     }
+    if (invocation.permissionFacts?.forcedApproval) {
+      if (policy === 'never') return deny('never 策略禁止等待强制审批')
+      return review(invocation.permissionFacts.approvalReason ?? '宿主策略要求人工批准', true)
+    }
     if (ruleEffect === 'allow') return allow('已匹配当前工作区授权')
     if (computerApp) return allow('电脑应用访问资格已满足')
 

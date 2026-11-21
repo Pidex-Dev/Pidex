@@ -60,6 +60,13 @@ import type { ProjectSourceService } from '../project/ProjectSourceService'
 import { secretScrubber } from '../security/SecretScrubber'
 import { getRootThreadId } from '../session/GoalDirectiveService'
 import { createHash } from 'node:crypto'
+import type { DecisionService } from '../decision/DecisionService'
+import { routeSubagentSpawn } from '../decision/integrations/TeamworkDecisionAdapter'
+import {
+  screenLoadedSkill,
+  screenProjectInstructions,
+  screenSkillCatalog,
+} from '../decision/integrations/InstructionScreenAdapter'
 
 const terminal = new Set(['completed', 'failed', 'stopped', 'interrupted'])
 export const pausedSubagentStatus = (kind: PendingApproval['kind'] | null) =>
@@ -142,6 +149,7 @@ export class SubagentService {
   private backgroundStallNotifyMs = 15 * 60_000
   private scheduling = false
   private readonly resumeCheckpoints: ResumeCheckpointResolver
+  private decisions: DecisionService | null = null
 
   constructor(
     private readonly db: AgentDatabase,
@@ -177,6 +185,11 @@ export class SubagentService {
 
   recoverStartup() {
     return this.recoverLegacyWorktrees()
+  }
+
+  // INVARIANT: Optional judge plane; without it spawn keeps today's behavior.
+  attachDecisions(decisions: DecisionService | null) {
+    this.decisions = decisions
   }
 
   private async recoverLegacyWorktrees() {
@@ -504,7 +517,37 @@ export class SubagentService {
           400,
         )
     }
-    await Promise.all(agents.map((requested) => this.resolveModel(requested.model ?? root.model)))
+    const resolvedModels = await Promise.all(
+      agents.map((requested) => this.resolveModel(requested.model ?? root.model)),
+    )
+    // SAFETY: 路由只补充缺失的展示角色与既有模型的推理档位；权限上限、profile、
+    // SAFETY: 工具与工作区仍完全由宿主决定，路由失败或不启用时保持原输入。
+    const routed = this.decisions
+      ? await Promise.all(
+          agents.map(async (requested, index) => {
+            const base = requested.model ?? root.model
+            const route = await routeSubagentSpawn(
+              this.decisions,
+              {
+                task: requested.task,
+                modelRef: base,
+                roleMissing: requested.role === undefined,
+                reasoningLevels: resolvedModels[index]!.variants.map((entry) => String(entry.id)),
+              },
+              { origin: { threadId: root.threadID, turnId: root.turnID } },
+            ).catch(() => null)
+            if (!route) return null
+            if (route.model.variant !== base.variant) {
+              const validated = await this.resolveModel(route.model).then(
+                () => true,
+                () => false,
+              )
+              if (!validated) return { ...route, model: base }
+            }
+            return route
+          }),
+        )
+      : null
     const parentTools = parent.subagentRunID
       ? this.collaboration.allowedTools(this.repository.run(parent.subagentRunID)!.taskId)
       : undefined
@@ -512,14 +555,16 @@ export class SubagentService {
       root.allowedTools && parentTools
         ? root.allowedTools.filter((name) => parentTools.includes(name))
         : (root.allowedTools ?? parentTools)
-    const inputs = agents.map((requested): SpawnSubagentInput => {
+    const inputs = agents.map((requested, index): SpawnSubagentInput => {
       const profile = requested.profile as Exclude<SubagentProfile, 'main'>
-      const model = requested.model ?? root.model
+      const routing = routed?.[index] ?? null
+      const model = routing ? routing.model : (requested.model ?? root.model)
+      const role = requested.role ?? routing?.role
       const displayName =
         requested.name?.trim() ||
         resolveDefaultSubagentName({
           profile,
-          role: requested.role,
+          role,
           isFork: Boolean(requested.fork),
         })
       const title = requested.title?.trim() || null
@@ -530,7 +575,7 @@ export class SubagentService {
         displayName,
         title,
         profile,
-        ...(requested.role ? { role: requested.role } : {}),
+        ...(role ? { role } : {}),
         ...(requested.memoryKey ? { memoryKey: normalizeMemoryKey(requested.memoryKey)! } : {}),
         task: requested.task.trim(),
         model,
@@ -1062,11 +1107,16 @@ export class SubagentService {
           .run(task.childThreadId, inheritedLimit, Date.now())
       }
       const skipDiscovery = isForkChild || task.profile === 'explorer'
-      const instructionSources = skipDiscovery
+      const rawInstructionSources = skipDiscovery
         ? { sources: [] }
         : await new InstructionDiscoveryService().discover(workspace.rootPath)
+      const instructionSources = await screenProjectInstructions(
+        this.decisions,
+        rawInstructionSources,
+        { threadId: task.childThreadId, turnId: agent.turnID, cwd: workspace.rootPath },
+      )
       const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
-      const skillCatalog =
+      const rawSkillCatalog =
         this.promptStorage && !skipDiscovery
           ? await skillService.scan({
               workspaceRoot: workspace.rootPath,
@@ -1074,7 +1124,23 @@ export class SubagentService {
               userHome: this.promptStorage.userHome,
             })
           : { skills: [], shadowed: [] }
-      const invokedSkillData = isForkChild ? [] : await skillService.invocationData(input.content)
+      const skillCatalog = {
+        ...rawSkillCatalog,
+        skills: screenSkillCatalog(this.decisions, rawSkillCatalog.skills, {
+          threadId: task.childThreadId,
+          cwd: workspace.rootPath,
+        }),
+      }
+      const invokedSkillData = isForkChild
+        ? []
+        : await skillService.invocationData(input.content, [], {
+            screenLoaded: (loaded) =>
+              screenLoadedSkill(this.decisions, loaded, {
+                threadId: task.childThreadId,
+                turnId: agent.turnID,
+                cwd: workspace.rootPath,
+              }),
+          })
       workspace = workspace.withReadOnlyPaths(
         skillCatalog.skills.map((skill) => ({ path: skill.root, kind: 'directory' as const })),
       )

@@ -356,6 +356,18 @@ export interface HarnessRuntimeOptions {
     recordFailure(threadID: string, trigger: RuntimeCompactionTrigger): void | Promise<void>
   }
   goalBudget?: GoalBudgetLifecycle
+  contextDecisions?: {
+    forget?(
+      threadID: string,
+      items: readonly unknown[],
+      signal?: AbortSignal,
+    ): Promise<readonly unknown[]>
+    compact?(
+      threadID: string,
+      items: readonly unknown[],
+      signal?: AbortSignal,
+    ): Promise<readonly unknown[]>
+  }
 }
 
 export type GoalBudgetStatus = {

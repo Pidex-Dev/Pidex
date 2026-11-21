@@ -171,7 +171,9 @@ export function adaptToolDefinition(
           ? { onSkillDocumentRead: request.onSkillDocumentRead }
           : {}),
       })
-      return formatToolExecutionResult(definition, output, toolContext)
+      // INVARIANT: the model-facing copy may be decision-screened (injection
+      const screened = options.executor.takeScreenedOutput?.(toolCallID)
+      return formatToolExecutionResult(definition, screened !== undefined ? screened : output, toolContext)
     },
   }
 }

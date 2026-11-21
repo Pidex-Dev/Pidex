@@ -34,6 +34,8 @@ import {
 } from './Guardian'
 import type { AgentLogger, LogContext } from '../observability/AgentLogger'
 import type { GuardianEvidenceService } from './GuardianEvidenceService'
+import type { DecisionService } from '../decision/DecisionService'
+import { precheckShellRisk } from '../decision/integrations/PermissionDecisionAdapter'
 
 export interface ShellReview {
   decision: 'allow' | 'ask' | 'deny'
@@ -157,6 +159,8 @@ type GuardianHistoryEntry = {
 type PiChatModel = Awaited<ReturnType<PiModelService['getPiModel']>>
 
 export class ReviewerService {
+  private decisionService: DecisionService | null = null
+
   constructor(
     private readonly db: AgentDatabase,
     private readonly providers: PiModelService,
@@ -164,6 +168,10 @@ export class ReviewerService {
     private readonly evidence?: GuardianEvidenceService,
     private readonly logger?: Pick<AgentLogger, 'info' | 'warn'>,
   ) {}
+
+  setDecisionService(service: DecisionService | null): void {
+    this.decisionService = service
+  }
 
   private resolveReviewerModel(fallback: Model.Ref | undefined, projectId?: string) {
     return resolveSpecializedPiModel({
@@ -435,6 +443,37 @@ ${entries.join('\n')}
     }
   }
 
+  private async riskPrecheck(
+    invocation: ToolInvocation,
+    input: ShellReviewInput,
+    signal: AbortSignal,
+  ): Promise<'allow' | 'confirm' | null> {
+    if (!this.decisionService) return null
+    const facts = invocation.permissionFacts
+    const flagged =
+      facts?.ruleRequiresApproval === true ||
+      facts?.destructive === true ||
+      (facts?.riskCategories?.length ?? 0) > 0
+    if (!flagged) return null
+    try {
+      const decision = await precheckShellRisk(
+        this.decisionService,
+        this.db,
+        {
+          threadID: invocation.threadID,
+          turnID: invocation.turnID,
+          command: input.command,
+          flag: facts?.approvalReason ?? (facts?.riskCategories ?? []).join(', '),
+        },
+        { signal },
+      )
+      if (!decision || decision.mode !== 'active' || decision.source !== 'judge') return null
+      return decision.outcome
+    } catch {
+      return null
+    }
+  }
+
   async reviewShell(
     input: ShellReviewInput,
     signal: AbortSignal,
@@ -541,6 +580,7 @@ ${entries.join('\n')}
     const evidenceText = this.evidence?.format(evidence ?? null) ?? ''
     const shellInput = asShellReviewInput(reviewerInput)
     if (shellInput) {
+      const precheck = await this.riskPrecheck(reviewerInput, shellInput, signal)
       const reviewed = await this.reviewShell(
         shellInput,
         signal,
@@ -557,20 +597,29 @@ ${entries.join('\n')}
           reviewed.reason,
           reviewed.reviewTimedOut ? 504 : 503,
         )
+      // SAFETY: tool.risk 只增确认：allow 的复核在缺乏用户明确请求证据时降级为 ask，绝不放行或降低静态风险。
+      const gated =
+        precheck === 'confirm' && reviewed.decision === 'allow'
+          ? {
+              ...reviewed,
+              decision: 'ask' as const,
+              reason: `${reviewed.reason}；风险命令未见用户明确请求（tool.risk），需人工确认`,
+            }
+          : reviewed
       const decision: PermissionDecision = {
-        decision: reviewed.decision,
-        risk: reviewed.risk,
-        reason: reviewed.reason,
-        review: reviewed,
+        decision: gated.decision,
+        risk: gated.risk,
+        reason: gated.reason,
+        review: gated,
         guardian: guardianReview({
           status: 'completed',
           source: 'model',
-          risk: reviewed.risk,
-          userAuthorization: reviewed.userAuthorization,
-          confidence: reviewed.confidence,
-          categories: reviewed.categories,
-          rationale: reviewed.reason,
-          ...(reviewed.model ? { model: reviewed.model } : {}),
+          risk: gated.risk,
+          userAuthorization: gated.userAuthorization,
+          confidence: gated.confidence,
+          categories: gated.categories,
+          rationale: gated.reason,
+          ...(gated.model ? { model: gated.model } : {}),
         }),
       }
       const bound = this.bindAuthorizationVersion(reviewerInput, authorizationVersion, decision)

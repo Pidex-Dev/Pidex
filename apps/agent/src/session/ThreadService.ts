@@ -1,4 +1,19 @@
 import { formatPermissionInstructions } from '../prompt/PermissionInstructions'
+import {
+  decideInputPreflight,
+  decideInterjectionDelivery,
+} from '../decision/integrations/InputDecisionAdapter'
+import {
+  evaluateTurnCompletion,
+  evaluateTurnContinuation,
+  settleTurnContinuationOutcome,
+  type TurnEndToolCall,
+} from '../decision/integrations/TurnDecisionAdapter'
+import {
+  screenLoadedSkill,
+  screenProjectInstructions,
+  screenSkillCatalog,
+} from '../decision/integrations/InstructionScreenAdapter'
 import { GoalTurnClassifier } from './GoalTurnClassifier'
 import { activeTurnSql, ThreadEditRepository } from '../storage/repositories/ThreadEditRepository'
 import { ThreadEditService } from './ThreadEditService'
@@ -56,7 +71,7 @@ import { resolveEffectivePermissionConfig } from '../permission/EffectivePermiss
 import { TurnCoordinator, type TurnTerminalStatus } from './TurnCoordinator'
 import { TurnRunner } from './TurnRunner'
 import { GoalContinuationCoordinator } from '../orchestration/GoalContinuationCoordinator'
-import { runGoalVerifier } from './GoalVerifier'
+import { runGoalAuxiliaryCheck, runGoalVerifier } from './GoalVerifier'
 import type { ThreadTitleService } from './ThreadTitleService'
 import type { SessionGroupService } from '../session-group/SessionGroupService'
 import {
@@ -149,6 +164,9 @@ export class ThreadService {
   private readonly coordinator = new TurnCoordinator()
   private readonly runner: TurnRunner
   private readonly goalContinuation: GoalContinuationCoordinator
+  private readonly decisionContinuations = new Map<string, number>()
+  private readonly decisionNudges = new Map<string, number>()
+  private readonly pendingDecisionNudges = new Map<string, string>()
   private readonly resumeCheckpoints: ResumeCheckpointResolver
 
   constructor(
@@ -178,6 +196,7 @@ export class ThreadService {
     private readonly computerControl?: { enabled(): boolean; available(): boolean },
     private readonly plugins?: PluginManagementService,
     private readonly threadPullRequests?: ThreadPullRequestService,
+    private readonly decisions?: import('../decision/DecisionService').DecisionService,
   ) {
     this.resumeCheckpoints =
       resumeCheckpoints ??
@@ -202,7 +221,15 @@ export class ThreadService {
         const last = db.getTurnInput(sourceTurnId)
         if (!last) return { kind: 'error', code: 'provider_failed' }
         const model = await this.providers.getPiModel(last.model).catch(() => null)
-        if (!model) return { kind: 'error', code: 'provider_failed' }
+        if (!model) {
+          // SAFETY: the auxiliary reading never settles a goal; it only informs
+          await runGoalAuxiliaryCheck(
+            this.decisions,
+            { goal, finalMessage: evidence, openItems: 0, unverified: false },
+            { structuredVerifierUnavailable: true, signal },
+          ).catch(() => undefined)
+          return { kind: 'error', code: 'provider_failed' }
+        }
         const exposure = this.orchestrator.toolExposure({
           taskMode: last.taskMode,
           sandboxMode: last.permissionConfig.sandboxMode,
@@ -653,13 +680,18 @@ export class ThreadService {
     const settings = snapshot.settings
     const stringSetting = (key: string) =>
       typeof settings[key] === 'string' && settings[key].trim() ? (settings[key] as string) : null
-    const projectInstructions =
+    const rawProjectInstructions =
       runtime.kind === 'project'
         ? await new InstructionDiscoveryService().discover(
             runtime.workspaceRoot,
             instructionCwd(runtime.workspaceRoot, runtime.cwd),
           )
         : { sources: [] }
+    const projectInstructions = await screenProjectInstructions(
+      this.decisions,
+      rawProjectInstructions,
+      { threadId: threadID, cwd: runtime.cwd },
+    )
     const project =
       projectID !== null
         ? (this.db.getProject(projectID!) as unknown as {
@@ -669,12 +701,19 @@ export class ThreadService {
     const projectSourceCatalog =
       projectID !== null ? ((await this.projectSources?.catalog(projectID!)) ?? null) : null
     const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
-    const skills = await skillService.scan({
+    const rawSkills = await skillService.scan({
       workspaceRoot: runtime.workspaceRoot,
       dataRoot: this.promptStorage.dataRoot,
       userHome: this.promptStorage.userHome,
       includeWorkspace: runtime.kind === 'project',
     })
+    const skills = {
+      ...rawSkills,
+      skills: screenSkillCatalog(this.decisions, rawSkills.skills, {
+        threadId: threadID,
+        cwd: runtime.cwd,
+      }),
+    }
     const latest = this.db.sqlite
       .query(
         'SELECT content, model_ref FROM inputs WHERE thread_id = ? ORDER BY created_at DESC LIMIT 1',
@@ -1283,6 +1322,23 @@ export class ThreadService {
     attachmentIDs: readonly string[] = [],
     contextReferenceIDs: readonly string[] = [],
   ) {
+    if (this.decisions && input.content.trim()) {
+      const routed = await decideInterjectionDelivery(this.decisions, {
+        messageText: input.content,
+        thread: { threadId: threadID, turnId: turnID, running: true },
+        requestedDelivery: 'steer',
+      }).catch(() => ({ delivery: 'steer' as const }))
+      if (routed.delivery === 'followUp') {
+        const queued = await this.enqueueFollowUp(
+          threadID,
+          { ...input, strategy: 'queue' },
+          inputID,
+          attachmentIDs,
+          contextReferenceIDs,
+        )
+        return { disposition: 'steered' as const, turnID: queued.turnID, inputID: queued.inputID }
+      }
+    }
     return this.coordinator.exclusive(threadID, async () => {
       const duplicate = this.duplicateAdmission(threadID, inputID, input.content, input.skills)
       if (duplicate) {
@@ -1334,6 +1390,17 @@ export class ThreadService {
     return input.strategy === 'guide' && activeTurnID
       ? this.steerTurn(threadID, activeTurnID, input, requestedInputID)
       : this.enqueueFollowUp(threadID, input, requestedInputID)
+  }
+
+  // INVARIANT: Advisory preflight at the message entry; never blocks or changes admission.
+  noteIncomingMessage(threadID: string, content: string): void {
+    if (!this.decisions || !content.trim()) return
+    const activeTurnId = this.coordinator.active(threadID)?.turnID ?? this.db.activeTurn(threadID)?.id
+    const running = Boolean(activeTurnId)
+    void decideInputPreflight(this.decisions, {
+      messageText: content,
+      thread: { threadId: threadID, ...(activeTurnId ? { turnId: activeTurnId } : {}), running },
+    }).catch(() => undefined)
   }
 
   private async deliverPendingSteers(threadID: string, turnID: string) {
@@ -1514,6 +1581,15 @@ export class ThreadService {
   }
 
   private async executeTurn(threadID: string, turnID: string) {
+    if (this.decisions) {
+      return this.decisions.runWithOrigin({ threadId: threadID, turnId: turnID }, () =>
+        this.executeTurnBody(threadID, turnID),
+      )
+    }
+    return this.executeTurnBody(threadID, turnID)
+  }
+
+  private async executeTurnBody(threadID: string, turnID: string) {
     const input = this.db.getTurnInput(turnID)
     if (!input) return
     const automaticGoal = this.db.repositories.threadGoalContinuations.goalForContinuation(turnID)
@@ -1671,13 +1747,18 @@ export class ThreadService {
               settings?: { instructions?: string }
             } | null)
           : null
-      const projectInstructions =
+      const rawProjectInstructions =
         runtime.kind === 'project'
           ? await new InstructionDiscoveryService().discover(
               runtime.workspaceRoot,
               instructionCwd(runtime.workspaceRoot, runtime.cwd),
             )
           : { sources: [] }
+      const projectInstructions = await screenProjectInstructions(
+        this.decisions,
+        rawProjectInstructions,
+        { threadId: threadID, cwd: runtime.cwd },
+      )
       if (runtime.kind === 'project') {
         const instructionSources = projectInstructions.sources.map((source) => source.path)
         runtime.instructionSources.splice(
@@ -1694,14 +1775,24 @@ export class ThreadService {
       const projectSourceCatalog =
         projectID !== null ? ((await this.projectSources?.catalog(projectID!)) ?? null) : null
       const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
-      const skillCatalog = await skillService.scan({
+      const rawSkillCatalog = await skillService.scan({
         workspaceRoot: runtime.workspaceRoot,
         dataRoot: this.promptStorage.dataRoot,
         userHome: this.promptStorage.userHome,
         includeWorkspace: runtime.kind === 'project',
       })
+      const skillCatalog = {
+        ...rawSkillCatalog,
+        skills: screenSkillCatalog(this.decisions, rawSkillCatalog.skills, {
+          threadId: threadID,
+          cwd: runtime.cwd,
+        }),
+      }
       mcpLease = cachedResult ? undefined : await this.mcp?.acquire(runtime.workspaceRoot)
-      const invokedSkillData = await skillService.invocationData(content, input.skills)
+      const invokedSkillData = await skillService.invocationData(content, input.skills, {
+        screenLoaded: (loaded) =>
+          screenLoadedSkill(this.decisions, loaded, { threadId: threadID, cwd: runtime.cwd }),
+      })
       const referencedPluginData = await pluginReferenceData(
         content,
         this.plugins,
@@ -2224,6 +2315,8 @@ export class ThreadService {
       if (pendingCompaction?.status === 'queued')
         this.orchestrator.requestCompaction(threadID, pendingCompaction.operationId)
       await this.subagents.reconcileCompletions()
+      if (terminalStatus === 'completed' && !continuedForSteer)
+        await this.runTurnEndDecisions(threadID, turnID)
       if (!this.db.activeTurn(threadID)) {
         const next = this.db.nextQueuedTurn(threadID)
         if (next && (!this.db.queueStateMeta(threadID)?.pauseReason || continuedForSteer)) {
@@ -2231,6 +2324,123 @@ export class ThreadService {
           void this.executeTurn(threadID, next.id)
         }
       }
+    }
+  }
+
+  private async runTurnEndDecisions(threadID: string, turnID: string): Promise<void> {
+    const decisions = this.decisions
+    if (!decisions) return
+    try {
+      const input = this.db.getTurnInput(turnID)
+      if (!input || input.strategy === 'guide') return
+      const toolCalls = (
+        this.db.sqlite
+          .query(
+            "SELECT data FROM items WHERE turn_id = ? AND type = 'tool' ORDER BY ordinal",
+          )
+          .all(turnID) as Array<{ data: string }>
+      ).flatMap((row): TurnEndToolCall[] => {
+        try {
+          const data = JSON.parse(row.data) as { tool?: unknown; input?: unknown }
+          if (typeof data.tool !== 'string') return []
+          return [
+            {
+              name: data.tool,
+              input:
+                data.input !== null && typeof data.input === 'object'
+                  ? (data.input as Record<string, unknown>)
+                  : {},
+            },
+          ]
+        } catch {
+          return []
+        }
+      })
+      const pendingLedger = this.pendingDecisionNudges.get(threadID)
+      if (pendingLedger) {
+        this.pendingDecisionNudges.delete(threadID)
+        await settleTurnContinuationOutcome(
+          decisions ? this.db : null,
+          {
+            threadId: threadID,
+            ledgerId: pendingLedger,
+            toolCalls,
+          },
+          decisions,
+        )
+      }
+      const finalMessage = (
+        this.db.sqlite
+          .query(
+            `SELECT json_extract(data, '$.text') AS text FROM items
+            WHERE turn_id = ? AND type = 'text' AND status = 'completed'
+              AND json_extract(data, '$.placement') = 'result'
+            ORDER BY ordinal`,
+          )
+          .all(turnID) as Array<{ text: string | null }>
+      )
+        .map((row) => (row.text ?? '').trim())
+        .filter(Boolean)
+        .join('\n')
+      const patches = (
+        this.db.sqlite
+          .query('SELECT files FROM turn_patch_batches WHERE turn_id = ? ORDER BY ordinal')
+          .all(turnID) as Array<{ files: string }>
+      ).flatMap((row) => {
+        try {
+          const files = JSON.parse(row.files) as Array<{ path?: unknown; operation?: unknown }>
+          return files.flatMap((file) =>
+            typeof file.path === 'string' && typeof file.operation === 'string'
+              ? [{ path: file.path, operation: file.operation }]
+              : [],
+          )
+        } catch {
+          return []
+        }
+      })
+      const goal = this.db.repositories.threadGoals.get(threadID)
+      const goalState = {
+        active: goal?.status === 'active',
+        settling:
+          goal?.status === 'active' &&
+          this.db.repositories.threadGoalContinuations.canContinue(threadID, 'chat'),
+      }
+      const base = {
+        threadId: threadID,
+        turnId: turnID,
+        userMessageId: input.id,
+        userMessage: input.content,
+        finalMessage,
+        toolCalls,
+        patches,
+        goal: goalState,
+        continuationsUsed: this.decisionContinuations.get(input.id) ?? 0,
+        completionNudgesUsed: this.decisionNudges.get(turnID) ?? 0,
+      }
+      const continuation = await evaluateTurnContinuation(decisions, base, { db: this.db })
+      const decision =
+        continuation.action === 'none'
+          ? await evaluateTurnCompletion(decisions, base, { db: this.db })
+          : continuation
+      if (decision.action === 'none' || !decision.prompt) return
+      if (this.db.activeTurn(threadID) || this.coordinator.active(threadID)) return
+      if (decision.action === 'continue')
+        this.decisionContinuations.set(input.id, base.continuationsUsed + 1)
+      else this.decisionNudges.set(turnID, base.completionNudgesUsed + 1)
+      if (decision.ledgerId) this.pendingDecisionNudges.set(threadID, decision.ledgerId)
+      await this.enqueueFollowUp(
+        threadID,
+        {
+          content: decision.prompt,
+          model: input.model,
+          permissionConfig: input.permissionConfig,
+          strategy: 'queue',
+          taskMode: input.taskMode as 'chat' | 'plan' | 'grill',
+        },
+        crypto.randomUUID(),
+      )
+    } catch {
+      // SAFETY: decision bookkeeping must never change turn settlement.
     }
   }
 

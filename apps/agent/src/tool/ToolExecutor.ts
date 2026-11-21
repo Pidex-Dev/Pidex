@@ -79,6 +79,25 @@ import type { ManagedToolID, ToolingResolution } from './ToolingManager'
 import { applyEditsText, type EditOperation } from './Edit/ApplyEditText'
 import type { AgentLogger } from '../observability/AgentLogger'
 import type { TurnPatchMutationBatch } from '../patch/TurnPatchTypes'
+import type { DecisionService } from '../decision/DecisionService'
+import {
+  evaluateBrowserActionRisk,
+  evaluateConstraintCheck,
+  autoReviewAssistEligible,
+  type BrowserActionTargetContext,
+} from '../decision/integrations/PermissionDecisionAdapter'
+import { taskFrameOf } from '../decision/specs/InputSpecs'
+import {
+  admitToolOutput,
+  constraintDenialOf,
+  externalContentSource,
+  screenExternalContent,
+  type OutputArchiver,
+} from '../decision/integrations/ToolOutputDecisionAdapter'
+import {
+  filterPoisonedTools,
+  toolCallPoisoned,
+} from '../decision/integrations/ToolDescriptionScreen'
 
 type FileToolFailurePhase = 'normalize' | 'authorization' | 'execute' | 'post-hook'
 
@@ -205,6 +224,7 @@ export interface ToolExecutorOptions {
           decision: 'continue' | 'ask' | 'deny'
           reason?: string
           narrowedInput?: Record<string, unknown>
+          // Existing execution validation remains authoritative when no text preview is available.
         }
       }>
     >
@@ -227,6 +247,15 @@ export interface ToolExecutorOptions {
   /** Invalidates in-flight Guardian scores when host evaluation denies an action. */
   onPermissionDenied?: (invocation: ToolInvocation) => void
   logger?: AgentLogger
+  decisionService?: DecisionService
+  archiveToolOutput?: OutputArchiver
+  // INVARIANT: Minimum output length before admission screening runs; defaults to 24000 characters.
+  admissionMinChars?: number
+  describeBrowserActionTarget?: (
+    tabId: string,
+    operation: Record<string, unknown>,
+  ) => BrowserActionTargetContext | null
+  resolveRealUserMessages?: (threadID: string) => string
 }
 
 /** The sole host-capability entrypoint. Approval and Hook gates run before host execution. */
@@ -234,11 +263,189 @@ export class ToolExecutor {
   private readonly decisions = new PermissionDecisionEngine()
   readonly permissionGrants: PermissionGrantStore
   private readonly readSnapshots = new Map<string, { mtimeMs: number; sha256: string }>()
+  private readonly screenedOutputs = new Map<string, unknown>()
+  private decisionServiceOverride: DecisionService | null | undefined
+  private archiveToolOutputOverride: OutputArchiver | null | undefined
   constructor(
     private readonly registry: ToolRegistry,
     private readonly options?: ToolExecutorOptions,
   ) {
     this.permissionGrants = options?.permissionGrants ?? new PermissionGrantStore()
+  }
+
+  // INVARIANT: Optional Decision API attachment; null restores the exact pre-Decision behavior.
+  setDecisionService(service: DecisionService | null): void {
+    this.decisionServiceOverride = service
+  }
+
+  // INVARIANT: Late-bound archiver (ArtifactService opens after the executor); null keeps truncation.
+  setArchiveToolOutput(archiver: OutputArchiver | null): void {
+    this.archiveToolOutputOverride = archiver
+  }
+
+  private decisionService(): DecisionService | null {
+    return this.decisionServiceOverride !== undefined
+      ? this.decisionServiceOverride
+      : (this.options?.decisionService ?? null)
+  }
+
+  takeScreenedOutput(toolCallID: string | undefined): unknown | undefined {
+    if (!toolCallID) return undefined
+    const screened = this.screenedOutputs.get(toolCallID)
+    this.screenedOutputs.delete(toolCallID)
+    return screened
+  }
+
+  private async screenOutputForContext(
+    name: string,
+    input: Record<string, unknown>,
+    output: unknown,
+    context: ToolExecutionContext,
+    definition: { origin?: { kind: string } },
+  ): Promise<unknown> {
+    const service = this.decisionService()
+    if (!service || context.authorizationOnly || context.signal.aborted) return output
+    try {
+      const isShellResult =
+        output !== null &&
+        typeof output === 'object' &&
+        typeof (output as { stdout?: unknown }).stdout === 'string'
+      const isTextResult =
+        !isShellResult &&
+        output !== null &&
+        typeof output === 'object' &&
+        typeof (output as { text?: unknown }).text === 'string'
+      let text =
+        typeof output === 'string'
+          ? output
+          : isShellResult
+            ? (output as { stdout: string }).stdout
+            : isTextResult
+              ? (output as { text: string }).text
+              : output !== null && typeof output === 'object'
+                ? JSON.stringify(output)
+                : null
+      if (text === null || text.length === 0) return output
+      const original = text
+      const source = externalContentSource(name, input, definition.origin?.kind === 'mcp')
+      if (source) {
+        const screened = await screenExternalContent(
+          service,
+          { threadId: context.threadID, turnId: context.turnID, source, text },
+          { signal: context.signal },
+        )
+        if (screened.withheld > 0) text = screened.text
+      }
+      const minLength = this.options?.admissionMinChars ?? 24_000
+      if (text.length >= minLength) {
+        const command = input.command
+        const admitted = await admitToolOutput(
+          service,
+          {
+            threadId: context.threadID,
+            turnId: context.turnID,
+            toolCallId: context.toolCallID,
+            name,
+            call: typeof command === 'string' ? `${name}: ${command}` : name,
+            goal: context.taskSummary ?? '',
+            intent: typeof input.justification === 'string' ? input.justification : '',
+            text,
+            minLength,
+          },
+          this.archiveToolOutputOverride ?? this.options?.archiveToolOutput ?? null,
+          { signal: context.signal },
+        )
+        if (admitted.archived) text = admitted.text
+      }
+      if (text === original) return output
+      if (typeof output === 'string') return text
+      if (isShellResult) return { ...(output as object), stdout: text, decisionScreened: true }
+      if (isTextResult) return { ...(output as object), text, decisionScreened: true }
+      return { decisionScreened: true, content: text }
+    } catch {
+      // SAFETY: a broken screen must never change or block tool execution.
+      return output
+    }
+  }
+
+  private async applyBrowserActionRiskGate(
+    invocation: ToolInvocation,
+    context: ToolExecutionContext,
+    definition: ReturnType<ToolCatalog['get']>,
+    resolved: ReturnType<PermissionDecisionEngine['evaluate']>,
+    resumedApproval: boolean,
+  ): Promise<ReturnType<PermissionDecisionEngine['evaluate']>> {
+    const service = this.decisionService()
+    if (
+      !service ||
+      resumedApproval ||
+      invocation.name !== 'BrowserAction' ||
+      resolved.action === 'deny' ||
+      (resolved.action === 'review' && resolved.forceHumanApproval)
+    ) {
+      return resolved
+    }
+    try {
+      const tabId = typeof invocation.input.tabId === 'string' ? invocation.input.tabId : ''
+      const operation =
+        invocation.input.operation && typeof invocation.input.operation === 'object'
+          ? (invocation.input.operation as Record<string, unknown>)
+          : null
+      const targetContext =
+        tabId && operation
+          ? (this.options?.describeBrowserActionTarget?.(tabId, operation) ?? null)
+          : null
+      const userMessage = this.options?.resolveRealUserMessages?.(context.threadID) ?? ''
+      const decision = await evaluateBrowserActionRisk(
+        service,
+        invocation,
+        { targetContext, userMessage },
+        { signal: context.signal, cwd: context.workspace.rootPath },
+      )
+      if (
+        !decision ||
+        decision.mode !== 'active' ||
+        decision.source !== 'judge' ||
+        decision.outcome !== 'confirm'
+      ) {
+        return resolved
+      }
+      // SAFETY: only escalates to human confirmation; never relaxes existing denials or policies.
+      invocation.permissionFacts = {
+        ...invocation.permissionFacts,
+        risk: 'high',
+        forcedApproval: true,
+        approvalReason: '检测到浏览器操作可能产生不可逆外部副作用，需要人工确认',
+      }
+      return this.decisions.evaluate(invocation, definition)
+    } catch {
+      // SAFETY: judge failures fail open to the existing permission chain.
+      return resolved
+    }
+  }
+
+  private async enforceUserConstraints(
+    invocation: ToolInvocation,
+    context: ToolExecutionContext,
+  ): Promise<void> {
+    const service = this.decisionService()
+    if (!service || context.authorizationOnly) return
+    if (!autoReviewAssistEligible(invocation)) return
+    const constraints = taskFrameOf(context.threadID)?.constraints ?? []
+    if (constraints.length === 0) return
+    try {
+      const decision = await evaluateConstraintCheck(service, invocation, {
+        constraints,
+        signal: context.signal,
+      })
+      const denial = constraintDenialOf(decision, constraints)
+      if (!denial) return
+      this.options?.onPermissionDenied?.(invocation)
+      throw new AgentError('TOOL_PERMISSION_DENIED', denial.reason, 403)
+    } catch (cause) {
+      if (cause instanceof AgentError) throw cause
+      // SAFETY: judge failures fail open to the existing permission chain.
+    }
   }
 
   /** Process-wide catalog used only to bind names already frozen in a turn snapshot. */
@@ -258,7 +465,9 @@ export class ToolExecutor {
     input: ToolExposureInput & { frozenDeferredToolNames?: readonly string[] },
     catalog: ToolCatalog = this.registry,
   ) {
-    const definitions = this.exposurePlan(input, catalog).deferred.map((name) => catalog.get(name))
+    const definitions = filterPoisonedTools(
+      this.exposurePlan(input, catalog).deferred.map((name) => catalog.get(name)),
+    )
     const unavailable = new Set(
       catalog
         .all()
@@ -333,6 +542,16 @@ export class ToolExecutor {
     }
     const catalog = context.toolCatalog ?? this.registry
     const definition = catalog.get(name)
+    if (
+      definition.origin?.kind === 'mcp' &&
+      typeof definition.description === 'string' &&
+      toolCallPoisoned(definition.sdkName, definition.description)
+    )
+      throw new AgentError(
+        'TOOL_DESCRIPTION_POISONED',
+        `工具 ${definition.sdkName} 的描述夹带越权指令，已被安全策略移除`,
+        403,
+      )
     if (context.allowedTools && !toolNameMatches(definition, context.allowedTools))
       throw new AgentError(
         'SKILL_TOOL_NOT_ALLOWED',
@@ -715,6 +934,13 @@ export class ToolExecutor {
     resolved = this.decisions.evaluate(invocation, definition)
     if (resolved.action === 'deny')
       throw new AgentError('TOOL_PERMISSION_DENIED', resolved.reason, 403, resolved)
+    resolved = await this.applyBrowserActionRiskGate(
+      invocation,
+      context,
+      definition,
+      resolved,
+      resumedApproval,
+    )
     const grant =
       !resumedApproval && !hookAsked && resolved.action === 'review' && !resolved.forceHumanApproval
         ? (fileGrant ?? this.permissionGrantFor(invocation, definition, !context.authorizationOnly))
@@ -758,7 +984,6 @@ export class ToolExecutor {
             }),
           ]
         } catch {
-          // Existing execution validation remains authoritative when no text preview is available.
         }
       }
       if (context.approvedToolCallID !== invocation.id && !context.authorizationOnly)
@@ -773,6 +998,7 @@ export class ToolExecutor {
     }
     if (authorization.decision !== 'allow')
       throw new AgentError('TOOL_PERMISSION_DENIED', authorization.reason, 403, authorization)
+    await this.enforceUserConstraints(invocation, context)
     setFilePhase?.('execute')
     const startedAt = Date.now()
     const auditInvocation = secretScrubber.scrub(invocation)
@@ -928,6 +1154,14 @@ export class ToolExecutor {
         if (savedSnapshotKey) this.readSnapshots.set(savedSnapshotKey, revision)
       }
       output = await this.recordSkillRead(name, input, output, context)
+      const screened = await this.screenOutputForContext(name, input, output, context, definition)
+      if (screened !== output && context.toolCallID) {
+        this.screenedOutputs.set(context.toolCallID, screened)
+        if (this.screenedOutputs.size > 256) {
+          const oldest = this.screenedOutputs.keys().next().value
+          if (oldest !== undefined) this.screenedOutputs.delete(oldest)
+        }
+      }
       const safeOutput = secretScrubber.scrub(definition.auditResult?.(output) ?? output)
       this.options?.recordToolCall?.(auditInvocation, 'completed', safeOutput, null, startedAt)
       if (!skipProjectHooks) {
@@ -1360,6 +1594,7 @@ export class ToolExecutor {
         return { ...decision, authorizationFingerprint: invocation.authorizationScope.fingerprint }
       if (decision.decision !== 'allow')
         throw new AgentError('SHELL_PERMISSION_DENIED', decision.reason, 403, decision)
+      await this.enforceUserConstraints(invocation, context)
       phase = 'runtime'
       const runtime = await this.commandForShell(targetShell, parsedShell.command, context.signal)
       const auditInvocation = secretScrubber.scrub(invocation)
@@ -1403,6 +1638,20 @@ export class ToolExecutor {
             env: runtime.env,
             signal: context.signal,
           })
+      const screenedResult = await this.screenOutputForContext(
+        shellTool,
+        invocation.input,
+        result,
+        context,
+        catalog.get(shellTool),
+      )
+      if (screenedResult !== result && context.toolCallID) {
+        this.screenedOutputs.set(context.toolCallID, screenedResult)
+        if (this.screenedOutputs.size > 256) {
+          const oldest = this.screenedOutputs.keys().next().value
+          if (oldest !== undefined) this.screenedOutputs.delete(oldest)
+        }
+      }
       const safeResult = secretScrubber.scrub(result)
       this.options.recordToolCall?.(auditInvocation, 'completed', safeResult, null, toolStartedAt)
       options.logger?.info('shell.execution.completed', {

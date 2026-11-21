@@ -27,6 +27,13 @@ import {
   type GuardianReview,
 } from './Guardian'
 import type { GuardianScoreService } from './GuardianScoreService'
+import type { DecisionService } from '../decision/DecisionService'
+import {
+  approvalAssistDecision,
+  evaluateApprovalAssist,
+  type ApprovalAssist,
+  type ApprovalAssistAllow,
+} from '../decision/integrations/PermissionDecisionAdapter'
 
 export type Reviewer = (
   invocation: ToolInvocation,
@@ -115,6 +122,8 @@ export class ApprovalService {
   private readonly interruptedTurns = new Set<string>()
   private turnInterruptHandler?: (threadID: string, turnID: string) => void
   private agentStatusHandler?: (agentID: string, status: 'waiting_permission' | 'running') => void
+  private decisionService: DecisionService | null = null
+  private readonly approvalLedgers = new Map<string, string>()
 
   constructor(
     private readonly db: AgentDatabase,
@@ -168,6 +177,41 @@ export class ApprovalService {
     handler: (agentID: string, status: 'waiting_permission' | 'running') => void,
   ) {
     this.agentStatusHandler = handler
+  }
+
+  setDecisionService(service: DecisionService | null): void {
+    this.decisionService = service
+  }
+
+  private recordDecisionOutcome(
+    threadID: string,
+    ledgerId: string | undefined,
+    verdict: string,
+    payload?: import('../decision/DecisionSpec').JsonValue,
+  ): void {
+    if (!ledgerId) return
+    const outcome = {
+      id: crypto.randomUUID(),
+      ledgerId,
+      threadId: threadID,
+      kind: 'permission' as const,
+      verdict,
+      ...(payload ? { payload } : {}),
+      createdAt: Date.now(),
+    }
+    try {
+      if (this.decisionService) {
+        void this.decisionService.recordOutcome(outcome).catch(() => {})
+      } else {
+        this.db.repositories.decisionLedger.appendOutcome(outcome)
+      }
+    } catch {
+      // SAFETY: outcome bookkeeping must never change the approval result.
+    }
+    if (this.approvalLedgers.size > 1_024) {
+      const oldest = this.approvalLedgers.keys().next().value
+      if (oldest !== undefined) this.approvalLedgers.delete(oldest)
+    }
   }
 
   /**
@@ -232,11 +276,24 @@ export class ApprovalService {
     const forceHumanApproval = resolved.forceHumanApproval
     if (resolved.reviewer === 'auto_review' && !forceHumanApproval && this.reviewer) {
       const fingerprint = this.retryFingerprint(invocation)
-      const reviewed = await this.reviewWithGuardian(
-        reviewerInvocation(safeInvocation),
-        resolved,
+      const assist = await evaluateApprovalAssist(this.decisionService, this.db, invocation, {
         signal,
-      )
+      }).catch(() => null)
+      const adopted = assist ? approvalAssistDecision(this.db, invocation, assist) : null
+      let reviewed: PermissionDecision
+      if (adopted && assist) {
+        reviewed = {
+          ...adopted,
+          decisionLedgerId: assist.decision.ledgerId,
+        } as ApprovalAssistAllow
+      } else {
+        reviewed = await this.reviewWithGuardian(
+          reviewerInvocation(safeInvocation),
+          resolved,
+          signal,
+          assist,
+        )
+      }
       if (signal.aborted) return { decision: 'deny', risk: resolved.risk, reason: '操作已取消' }
       const reviewedAfterVersion = this.rebindReviewToAuthorization(
         reviewed,
@@ -244,6 +301,22 @@ export class ApprovalService {
         invocation,
         authorizationVersionAtStart,
       )
+      const assistLedgerId = assist?.decision.ledgerId
+      if (assistLedgerId) {
+        this.recordDecisionOutcome(
+          invocation.threadID,
+          assistLedgerId,
+          reviewedAfterVersion.decision,
+          {
+            adopted: adopted !== null && reviewedAfterVersion.decision === 'allow',
+            judged: assist!.decision.outcome,
+            actionHash: assist!.actionHash,
+            authorizationVersion: assist!.authorizationVersion,
+          },
+        )
+        if (reviewedAfterVersion.decision === 'ask')
+          this.approvalLedgers.set(invocation.id, assistLedgerId)
+      }
       const event = this.db.repositories.interactions.recordApprovalReview(
         safeInvocation,
         fingerprint,
@@ -343,6 +416,7 @@ export class ApprovalService {
     invocation: ToolInvocation,
     resolved: Extract<ResolvedPermissionDecision, { action: 'review' }>,
     signal: AbortSignal,
+    assist?: ApprovalAssist | null,
   ): Promise<PermissionDecision> {
     const circuit = this.guardianCircuit.check(invocation.threadID, invocation.turnID)
     if (circuit.open) {
@@ -400,18 +474,29 @@ export class ApprovalService {
     try {
       if (!this.guardianScores)
         return await this.finishGuardianReview(invocation, await reviewPromise)
-      const winner = await Promise.race([
+      const assistPromise = assist
+        ? Promise.resolve(approvalAssistDecision(this.db, invocation, assist)).then(
+            (decision) => ({ kind: 'approval' as const, decision }),
+          )
+        : null
+      const racers: Promise<
+        | { kind: 'review'; decision: PermissionDecision }
+        | { kind: 'score'; decision: PermissionDecision | null }
+        | { kind: 'approval'; decision: PermissionDecision | null }
+      >[] = [
         reviewPromise.then((decision) => ({ kind: 'review' as const, decision })),
         this.guardianScores
           .waitForLowRisk(invocation, signal, 2_500)
           .then((decision) => ({ kind: 'score' as const, decision })),
-      ])
-      if (winner.kind === 'score' && winner.decision) {
+        ...(assistPromise ? [assistPromise] : []),
+      ]
+      const winner = await Promise.race(racers)
+      if (winner.kind !== 'review' && winner.decision) {
         controller.abort(new Error('Guardian fast path won'))
         void reviewPromise.catch(() => {})
         return this.finishGuardianReview(invocation, winner.decision)
       }
-      return this.finishGuardianReview(invocation, winner.decision ?? (await reviewPromise))
+      return this.finishGuardianReview(invocation, await reviewPromise)
     } finally {
       signal.removeEventListener('abort', abort)
     }
@@ -747,6 +832,13 @@ export class ApprovalService {
     if (result.state !== 'resolved')
       throw new AgentError('APPROVAL_CHECKPOINT_INVALID', '审批 checkpoint 状态无效', 409)
     const checkpoint = result.checkpoint
+    const pendingLedgerId = this.approvalLedgers.get(checkpoint.toolCallID)
+    if (pendingLedgerId) {
+      this.approvalLedgers.delete(checkpoint.toolCallID)
+      this.recordDecisionOutcome(checkpoint.threadID, pendingLedgerId, decision, {
+        resolvedBy: 'human',
+      })
+    }
     try {
       if (grantRule) await this.rules.persistGrant(checkpoint.threadID, grantRule)
     } catch {

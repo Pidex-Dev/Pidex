@@ -391,6 +391,18 @@ export async function executeHarnessRun(
       ],
     }
   })
+  if (options.contextDecisions?.forget) {
+    const forget = options.contextDecisions.forget
+    harness.on('context', async (event) => {
+      try {
+        const items = await forget(request.threadID, event.messages)
+        return items === event.messages ? undefined : { messages: items as typeof event.messages }
+      } catch {
+        // SAFETY: a broken context screen must never block the provider request.
+        return undefined
+      }
+    })
+  }
   harness.on('before_provider_payload', (event) => {
     const policy = inferPromptCacheRuntimePolicy(event.model, bundle.cacheKey)
     const applied = applyPromptCacheRuntimePolicy(event.payload, policy, bundle.stableContextText)

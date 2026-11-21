@@ -335,7 +335,8 @@ export class McpConnectionManager {
     )
   }
 
-  private async runtime(workspace?: string) {
+  /** The workspace runtime generation state; read-only consumers must not mutate handles. */
+  async runtime(workspace?: string) {
     const identity = await this.configs.workspace(workspace)
     const key = identity?.hash ?? 'global'
     const existing = this.runtimes.get(key)

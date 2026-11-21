@@ -10,6 +10,7 @@ import { AgentHarness } from './harness/AgentHarness'
 import { SessionError, type Session, type AgentHarnessEvent } from './harness/Types'
 import type { AgentRuntime, AgentRuntimeRequest, PendingApproval } from './AgentRuntimeTypes'
 import { executeHarnessRun } from './pi/ExecuteHarnessRun'
+import { ContextManager } from '../context/ContextManager'
 import type {
   ActiveHarness,
   GoalBudgetStatus,
@@ -80,6 +81,10 @@ import {
 } from '../runtime-composition/Composer'
 import type { RuntimeWorkspaceScope, BoundRuntimeComposition } from '../runtime-composition/Types'
 import { SkillService } from '../prompt/SkillService'
+import {
+  screenLoadedSkill,
+  screenSkillCatalog,
+} from '../decision/integrations/InstructionScreenAdapter'
 import type { WorkspaceService } from '../workspace/WorkspaceService'
 import { classifyToolActivity, storedToolActivity } from '../tool/ToolActivityClassifier'
 import type { MemoryManager } from '../resource/MemoryManager'
@@ -403,6 +408,7 @@ export interface AgentRuntimeServiceOptions {
   contextCompaction: ContextCompactionService
   artifacts?: ArtifactService
   memoryManager?: MemoryManager | undefined
+  decisions?: import('../decision/DecisionService').DecisionService | undefined
   observeHarnessEvent?: (context: PiRuntimeEventContext, event: AgentHarnessEvent) => void
   /**
    * 任务规划草案服务是后置构造的（依赖调度器就绪），所以用惰性取值器：
@@ -422,6 +428,7 @@ export class AgentRuntimeService implements AgentRuntime {
   private readonly active = new Map<string, ActiveHarness>()
   private readonly pending = new Map<string, PendingTurn>()
   private readonly completedCompactions = new Map<string, ContextCompaction>()
+  private readonly contextForgetApplied = new Set<string>()
 
   constructor(private readonly options: AgentRuntimeServiceOptions) {
     this.repo = new SqlitePiSessionRepo(options.db)
@@ -2155,19 +2162,81 @@ export class AgentRuntimeService implements AgentRuntime {
             this.options.contextCompaction.recordFailure(threadID, trigger),
         },
         goalBudget: this.goalBudgetLifecycle(),
+        contextDecisions: {
+          forget: async (threadID, items, signal) => {
+            const decisions = this.options.decisions
+            if (!decisions) return items
+            const key = `${threadID}:${items.length}`
+            if (this.contextForgetApplied.has(key)) return items
+            const manager = new ContextManager(this.options.db)
+            manager.attachDecisions(decisions)
+            const plan = await manager.planForget({
+              threadID,
+              items: items as never,
+              ...(signal ? { signal } : {}),
+            })
+            if (plan.shrunkToolCallIds.length > 0) {
+              this.contextForgetApplied.add(key)
+              if (this.contextForgetApplied.size > 512) {
+                const oldest = this.contextForgetApplied.values().next().value
+                if (oldest !== undefined) this.contextForgetApplied.delete(oldest)
+              }
+            }
+            return plan.items as never
+          },
+          compact: async (threadID, items, signal) => {
+            const decisions = this.options.decisions
+            if (!decisions) return items
+            const plan = await this.options.contextCompaction.planCompaction({
+              threadID,
+              items: items as never,
+              ...(signal ? { signal } : {}),
+            })
+            return plan.items as never
+          },
+        },
         lifecycle: {
-          skillList: async () =>
-            composition.bindings.skills
-              .list()
-              .map(({ name, description, origin, format, hash }) => ({
-                name,
-                description,
-                origin,
-                format,
-                hash,
-              })) ?? [],
+          skillList: async () => {
+            const listed = composition.bindings.skills.list() as ReadonlyArray<{
+              readonly name: string
+              readonly description: string
+              readonly origin: string
+              readonly format: string
+              readonly hash: string
+              readonly path?: string
+            }>
+            return screenSkillCatalog(this.options.decisions, listed, {
+              threadId: request.threadID,
+              cwd: request.workspace.rootPath,
+            }).map(({ name, description, origin, format, hash }) => ({
+              name,
+              description,
+              origin,
+              format,
+              hash,
+            }))
+          },
           skillRead: async (input) => {
-            return composition.bindings.skills.read(String(input.name))
+            const loaded = await composition.bindings.skills.read(String(input.name))
+            if (
+              loaded &&
+              typeof loaded === 'object' &&
+              typeof (loaded as { origin?: unknown }).origin === 'string' &&
+              typeof (loaded as { path?: unknown }).path === 'string' &&
+              typeof (loaded as { body?: unknown }).body === 'string' &&
+              typeof (loaded as { content?: unknown }).content === 'string'
+            ) {
+              return screenLoadedSkill(
+                this.options.decisions,
+                loaded as { origin: string; path: string; body: string; content: string },
+                {
+                  threadId: request.threadID,
+                  turnId: request.turnID,
+                  cwd: request.workspace.rootPath,
+                },
+              )
+            }
+            return loaded
           },
           projectSourceList: async () => {
             if (!request.projectSources) throw new Error('当前 turn 未启用项目来源')

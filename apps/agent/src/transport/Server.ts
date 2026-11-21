@@ -75,6 +75,7 @@ export interface TransportDependencies {
   mcpElicitations?: import('../mcp/McpElicitationService').McpElicitationService
   config: AgentConfig
   configService: ConfigService
+  decisions?: import('../decision/DecisionService').DecisionService
   db: AgentDatabase
   hub: EventHub
   threads: ThreadService
@@ -533,6 +534,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     ...(dependencies.mcpElicitations ? { mcpElicitations: dependencies.mcpElicitations } : {}),
     planApprovals: dependencies.planApprovals,
     config: dependencies.configService,
+    ...(dependencies.decisions ? { decisions: dependencies.decisions } : {}),
     db,
     hub,
     threads,

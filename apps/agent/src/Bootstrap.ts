@@ -1,4 +1,10 @@
 import { ModelPricingService } from './provider/ModelPricingService'
+import { DecisionService } from './decision/DecisionService'
+import { realUserMessages } from './decision/integrations/PermissionDecisionAdapter'
+import {
+  INPUT_CONTEXT_MEMORY_TEAMWORK_MANIFEST,
+  SAFETY_TURN_MANIFEST,
+} from './decision/specs'
 import { ModelPricingRepository } from './storage/repositories/ModelPricingRepository'
 import { ModelRecommendationStore } from './provider/pi/ModelRecommendationStore'
 import { ProviderDirectoryStore } from './provider/pi/ProviderDirectoryStore'
@@ -578,6 +584,19 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const modelSync = new ModelSyncService(piModels, configService)
     const protocolDetection = new ProtocolDetectionService(piModels)
     const apiKeys = new ApiKeyService(piModels, providerCredentialStore, modelHealth)
+    const decisions = new DecisionService(
+      db,
+      configService,
+      hub,
+      {
+        models: piModels,
+        apiKeys,
+        credentials,
+        config: configService,
+        db,
+      },
+      logger,
+    )
     const providerCredentials = new ProviderCredentialService(piModels, providerCredentialStore)
     const anthropicUsageModels = builtinModels({
       credentials: new EncryptedCredentialStore(credentials, {
@@ -826,11 +845,18 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         const events = db.repositories.turnPatches.markIncomplete(threadID, turnID)
         for (const event of events) await Effect.runPromise(hub.publish(event))
       },
+      describeBrowserActionTarget: (tabId, operation) =>
+        browser.describeActionTarget(tabId, operation as Parameters<BrowserService['describeActionTarget']>[1]),
+      resolveRealUserMessages: (threadID) => realUserMessages(db, threadID),
     })
     const questions = new QuestionService(db, hub, false)
     const artifacts = yield* Effect.promise(() => ArtifactService.open(config.dataDir, db))
     tools.register(intelligentUiDefinition(artifacts))
     const contextCompaction = new ContextCompactionService(db)
+    toolExecutor.setArchiveToolOutput(async ({ name, text }) => {
+      const stored = await artifacts.archiveText(text)
+      return { pointer: `[pidex-admission-archive] 完整输出已归档（${name}，sha256:${stored.sha256}），可按该哈希经 Artifact 通道读取。` }
+    })
     const orchestrator = new AgentRuntimeService({
       db,
       hub,
@@ -988,6 +1014,15 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       localContextPaths,
       hooks,
     )
+    decisions.registerManifest([...SAFETY_TURN_MANIFEST, ...INPUT_CONTEXT_MEMORY_TEAMWORK_MANIFEST])
+    reviewer.setDecisionService(decisions)
+    approvals.setDecisionService(decisions)
+    toolExecutor.setDecisionService(decisions)
+    mcp.setDecisionService(decisions)
+    contextCompaction.attachDecisions(decisions)
+    memory.attachDecisions(decisions)
+    review.attachDecisions(decisions)
+    subagents.attachDecisions(decisions)
     resumeCheckpoints.setResolvedSubagentWait((turnID) => subagents.resolvedWaitCheckpoint(turnID))
     // Memory tools resolve their namespace from host state (thread, project and
     // the persisted subagent task), never from model-supplied arguments.
@@ -1032,6 +1067,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       computer,
       plugins,
       threadPullRequests,
+      decisions,
     )
     approvals.setTurnInterruptHandler((threadID, turnID) => {
       // Never await the stop from inside approval evaluation: the turn is still
@@ -1175,6 +1211,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       threads,
       executor: automationExecutor,
       projectRoot: (id) => db.getProject(id)?.rootPath ?? null,
+      decisions,
       preferences: () => {
         const desktop = configService.snapshot().desktop as Record<string, unknown> | undefined
         return {
@@ -1482,6 +1519,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       scheduledTasks,
       schedulePlans,
       memoryManager,
+      decisions,
     })
     piModels.recommendations.startAutoRefresh(async () => {
       if (disposed) return
@@ -1518,6 +1556,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       unsubscribeExecutionLogs()
       unsubscribeTooling()
       unsubscribeConfig()
+      decisions.dispose()
       await sideChats.discardAll(true)
       await orchestrator.dispose()
       memoryManager.dispose()

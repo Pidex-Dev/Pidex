@@ -1,5 +1,7 @@
 import type { ContextBudget } from '@pidex/shared/thread'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
+import type { DecisionService } from '../decision/DecisionService'
+import { planContextForget, type ContextForgetPlan } from '../decision/integrations/ContextDecisionAdapter'
 
 export type AgentInputItem = Record<string, any>
 
@@ -112,7 +114,36 @@ const validateContextWindow = (value: number) => {
 }
 
 export class ContextManager {
+  private decisions: DecisionService | null = null
+
   constructor(private readonly db: AgentDatabase) {}
+
+  /** Optional judge plane; without it every context decision keeps today's behavior. */
+  attachDecisions(decisions: DecisionService | null) {
+    this.decisions = decisions
+  }
+
+  /**
+   * Active forgetting at a cache boundary: stale, large tool results a
+   * confident judge deems unneeded become one-line placeholders. Without a
+   * DecisionService, an engine or an active mode the items are returned as-is.
+   */
+  async planForget(input: {
+    threadID: string
+    items: AgentInputItem[]
+    goal?: string
+    signal?: AbortSignal
+  }): Promise<ContextForgetPlan> {
+    return planContextForget(
+      this.decisions,
+      {
+        threadId: input.threadID,
+        items: input.items,
+        ...(input.goal === undefined ? {} : { goal: input.goal }),
+      },
+      { signal: input.signal },
+    )
+  }
 
   state(threadID: string) {
     return this.db.repositories.context.state(threadID)

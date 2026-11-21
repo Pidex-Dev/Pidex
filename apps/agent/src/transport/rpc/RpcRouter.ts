@@ -63,6 +63,7 @@ import type { TaskSuggestionService } from '../../suggestion/TaskSuggestionServi
 import type { ComposerPredictionService } from '../../suggestion/ComposerPredictionService'
 import type { UsageService } from '../../usage/UsageService'
 import type { ConfigService } from '../../config/ConfigService'
+import { DecisionService } from '../../decision/DecisionService'
 import type { TurnPatchService } from '../../patch/TurnPatchService'
 import type { TerminalContextService } from '../../terminal/TerminalContextService'
 import type { TerminalOutputMirror } from '../../terminal/TerminalOutputMirror'
@@ -140,6 +141,7 @@ export type RpcRouterDependencies = {
   computer?: ComputerUseService
   browser?: BrowserService
   config: ConfigService
+  decisions?: DecisionService
   db: AgentDatabase
   hub: EventHub
   threads: ThreadService
@@ -274,6 +276,7 @@ export const submitMessage = (raw: unknown): SubmitMessage => {
 
 export class RpcRouter {
   readonly projection: ThreadProjection
+  readonly decisions: DecisionService
   readonly subscriptions: EventSubscriptionRegistry
   private readonly interactions: InteractionService
   readonly planApprovals: PlanApprovalService
@@ -315,6 +318,9 @@ export class RpcRouter {
     this.connectionLeaseMs = options.connectionLeaseMs ?? 60_000
     this.now = options.now ?? Date.now
     this.projection = new ThreadProjection(dependencies.db)
+    this.decisions =
+      dependencies.decisions ??
+      new DecisionService(dependencies.db, dependencies.config, dependencies.hub)
     this.planApprovals =
       dependencies.planApprovals ??
       new PlanApprovalService(dependencies.db, dependencies.hub, dependencies.threads)

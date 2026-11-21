@@ -105,7 +105,9 @@ export function filterAdvertisedCapabilities(
       // 规则管理写入依赖独立表；高版本未知库缺少表时只隐藏能力，不擅自修库。
       (capability !== 'permission.rules.v1' ||
         (permissionRules.chatRules && permissionRules.legacyGrantRevocations)) &&
-      (capability !== 'model.preferences.v1' || tables.has('model_runtime_preferences')),
+      (capability !== 'model.preferences.v1' || tables.has('model_runtime_preferences')) &&
+      // SAFETY: 决策账本依赖独立表；旧库缺表时只隐藏能力，不擅自修库。
+      (capability !== 'decision.engine.v1' || db.repositories.decisionLedger.available()),
   )
 }
 

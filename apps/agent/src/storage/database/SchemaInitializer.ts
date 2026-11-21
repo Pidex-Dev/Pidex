@@ -13,6 +13,7 @@ import {
   migrateThreadGoals45To46,
 } from '../repositories/ThreadGoalRepository'
 import { THREAD_GOAL_LEDGER_SCHEMA } from '../repositories/ThreadGoalLedgerRepository'
+import { DECISION_LEDGER_SCHEMA } from '../repositories/DecisionLedgerRepository'
 import { QUEUED_GOAL_SCHEMA } from '../repositories/QueuedGoalRepository'
 import { THREAD_GOAL_CONTINUATION_SCHEMA } from '../repositories/ThreadGoalContinuationRepository'
 import { THREAD_GOAL_CONTROL_SCHEMA } from '../repositories/ThreadGoalControlRepository'
@@ -185,6 +186,7 @@ export const FINAL_SCHEMA = [
   ...PLAN_APPROVAL_SCHEMA,
   ...THREAD_GOAL_SCHEMA,
   ...THREAD_GOAL_LEDGER_SCHEMA,
+  ...DECISION_LEDGER_SCHEMA,
   ...THREAD_GOAL_CONTINUATION_SCHEMA,
   ...THREAD_GOAL_CONTROL_SCHEMA,
   ...QUEUED_GOAL_SCHEMA,
@@ -1495,6 +1497,14 @@ export class SchemaInitializer {
     const migrations: Record<number, () => void> =
       this.kind === 'history'
         ? {
+            77: () =>
+              this.sqlite.exec(
+                DECISION_LEDGER_SCHEMA.map((statement) =>
+                  statement
+                    .replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ')
+                    .replace('CREATE INDEX ', 'CREATE INDEX IF NOT EXISTS '),
+                ).join(';'),
+              ),
             76: () => {
               const columns = new Set(
                 (

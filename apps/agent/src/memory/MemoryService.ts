@@ -1,6 +1,15 @@
 import type { AgentLogger } from '../observability/AgentLogger'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import { MemoryRepository, type MemoryTask } from '../storage/repositories/MemoryRepository'
+import type { DecisionService } from '../decision/DecisionService'
+import {
+  decideMemoryApplied,
+  decideMemoryCapture,
+  decideMemoryRecall,
+  memoryLessonsFromFiles,
+  memoryLessonsFromInjection,
+} from '../decision/integrations/MemoryDecisionAdapter'
+import type { MemoryLesson } from '../decision/specs/MemorySpecs'
 import {
   deleteMemoryFile,
   listMemoryDirectory,
@@ -151,6 +160,8 @@ export class MemoryService {
   private idleTimer: ReturnType<typeof setTimeout> | null = null
   private activeController: AbortController | null = null
   private disposed = false
+  private decisions: DecisionService | null = null
+  private readonly injectedLessons = new Map<string, readonly MemoryLesson[]>()
 
   constructor(
     private readonly db: AgentDatabase,
@@ -200,6 +211,11 @@ export class MemoryService {
 
   attachIdleProbe(isIdle: () => boolean) {
     this.options.isIdle = isIdle
+  }
+
+  /** Optional judge plane; without it memory behaves exactly as before. */
+  attachDecisions(decisions: DecisionService | null) {
+    this.decisions = decisions
   }
 
   private get root() {
@@ -356,11 +372,13 @@ export class MemoryService {
     const perNamespace = Math.floor(MEMORY_INJECT_BUDGET_CHARS / namespaces.length)
     const sections: MemoryIndexSection[] = []
     const seen = new Set<string>()
+    const lessonsByNamespace = new Map<string, readonly MemoryLesson[]>()
     for (const namespace of namespaces) {
       const key = memoryNamespaceKey(namespace)
       if (seen.has(key)) continue
       seen.add(key)
       const listing = await listMemoryDirectory(this.root, namespace)
+      lessonsByNamespace.set(key, memoryLessonsFromFiles(listing.files, namespace))
       const text = listing.index.exists ? listing.index.content : this.placeholderIndex(listing)
       if (!text.trim()) continue
       const truncated = text.length > perNamespace
@@ -384,7 +402,56 @@ export class MemoryService {
         bytes: Buffer.byteLength(content, 'utf8'),
       })
     }
+    if (this.decisions && sections.length > 0) {
+      const lessons = [...lessonsByNamespace.values()].flat()
+      // SAFETY: 召回判定仅写账本供观察，不改变注入内容；忽略记忆与命名空间隔离语义不受影响。
+      void decideMemoryRecall(this.decisions, {
+        userMessage: input.userMessage,
+        lessons,
+        threadId: input.threadId,
+        ...(input.turnId ? { turnId: input.turnId } : {}),
+      }).catch(() => {})
+      this.injectedLessons.set(
+        input.threadId,
+        memoryLessonsFromInjection({ sections, ignored: false }, lessonsByNamespace),
+      )
+      while (this.injectedLessons.size > 128) {
+        const oldest = this.injectedLessons.keys().next().value
+        if (oldest === undefined) break
+        this.injectedLessons.delete(oldest)
+      }
+    }
     return { sections, ignored: false }
+  }
+
+  /**
+   * End-of-turn observation: whether the lessons injected into this thread's
+   * latest turn were followed. Reads only host-recorded turn text and the
+   * lessons this service itself injected; writes nothing.
+   */
+  async observeTurnApplied(input: { threadId: string; turnId: string }): Promise<void> {
+    if (!this.decisions || !this.enabled()) return
+    const lessons = this.injectedLessons.get(input.threadId)
+    if (!lessons || lessons.length === 0) return
+    const rows = this.db.sqlite
+      .query(
+        `SELECT role, kind, content FROM thread_semantic_history_v1
+         WHERE thread_id = ? AND turn_id = ?
+         ORDER BY created_at ASC, sort_order ASC
+         LIMIT 200`,
+      )
+      .all(input.threadId, input.turnId) as Array<{ role: string; kind: string; content: string }>
+    const digest = rows
+      .map((row) => `[${row.role}/${row.kind}] ${this.scrub(row.content ?? '').slice(0, 1_000)}`)
+      .join('\n')
+      .slice(0, 12_000)
+    if (!digest.trim()) return
+    await decideMemoryApplied(this.decisions, {
+      lessons,
+      turnDigest: digest,
+      threadId: input.threadId,
+      turnId: input.turnId,
+    }).catch(() => {})
   }
 
   private placeholderIndex(listing: MemoryDirectoryListing) {
@@ -745,11 +812,18 @@ export class MemoryService {
     const lines: string[] = []
     let used = 0
     let lastCreatedAt = cursor.createdAt ?? 0
+    let lastUserMessage = ''
+    let previousAssistantMessage = ''
     for (const row of rows) {
       const text = this.scrub(row.content ?? '')
         .replace(/\s+\n/gu, '\n')
         .slice(0, 4_000)
       if (!text.trim()) continue
+      if (row.role === 'user') {
+        lastUserMessage = text
+      } else if (row.role === 'assistant') {
+        previousAssistantMessage = text
+      }
       const block = `<turn role="${row.role}" kind="${row.kind}">\n${text}\n</turn>`
       if (used + block.length > 40_000) break
       used += block.length
@@ -757,6 +831,15 @@ export class MemoryService {
       lastCreatedAt = row.created_at
     }
     if (lines.length === 0) return null
+    if (this.decisions && lastUserMessage) {
+      // SAFETY: 捕获判别仅写账本供观察；提取与写入仍由 runner 按来源与凭据过滤执行。
+      void decideMemoryCapture(this.decisions, {
+        userMessage: lastUserMessage,
+        previousAssistantMessage,
+        threadId: task.threadId,
+        ...(task.turnId ? { turnId: task.turnId } : {}),
+      }).catch(() => {})
+    }
     return {
       prompt: [
         `命名空间：${memoryNamespaceLabel(namespace)}（${task.namespace}）`,

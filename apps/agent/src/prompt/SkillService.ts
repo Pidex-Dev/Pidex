@@ -661,6 +661,9 @@ export class SkillService {
   async invocationData(
     value: string,
     selections: readonly SkillSelection[] = [],
+    options?: {
+      screenLoaded?: (skill: LoadedSkill) => Promise<LoadedSkill>
+    },
   ): Promise<string[]> {
     const unavailable = selections.filter(
       (selection) =>
@@ -670,7 +673,8 @@ export class SkillService {
     const loaded = await Promise.all(
       this.resolveInvocations(value, selections).map(async (skill) => {
         try {
-          const loaded = await this.read(skill.name)
+          const raw = await this.read(skill.name)
+          const loaded = options?.screenLoaded ? await options.screenLoaded(raw) : raw
           return `<skill name=${JSON.stringify(skill.name)} location=${JSON.stringify(skill.documentPath)}>\nReferences are relative to ${skill.root}.\n${skill.allowedTools ? `Allowed tools guidance (does not change permissions): ${skill.allowedTools.join(', ')}.\n` : ''}${loaded.body}\n</skill>`
         } catch (cause) {
           if (

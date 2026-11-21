@@ -80,7 +80,8 @@ type CredentialEffect<T> = Effect.Effect<T, AgentError>
 export const isProviderCredentialIntegration = (integrationID: string) =>
   integrationID !== 'github' &&
   !integrationID.startsWith('mcp-oauth:') &&
-  !integrationID.startsWith('usage.')
+  !integrationID.startsWith('usage.') &&
+  !integrationID.startsWith('decision.')
 
 export interface ProviderCredentialRepository {
   list(): CredentialSummary[]

@@ -7,6 +7,9 @@ import type {
 import { McpConfigError, McpConfigService, isMcpSettingsConflict } from './McpConfigService'
 import { McpConnectionManager } from './McpConnectionManager'
 import { McpOAuthError, McpOAuthService } from './McpOAuthService'
+import type { DecisionService } from '../decision/DecisionService'
+import { describeTool } from '../decision/specs/ToolDescription'
+import { screenToolDescriptions } from '../decision/integrations/ToolDescriptionScreen'
 
 type McpReloadResult = typeof McpReloadResultSchema.Type
 
@@ -31,6 +34,7 @@ export class McpRuntimeService {
     string,
     { fingerprint: string; result: McpReloadResult }
   >()
+  private decisionService: DecisionService | null = null
 
   constructor(
     private readonly configs: McpConfigService,
@@ -61,8 +65,38 @@ export class McpRuntimeService {
     })
   }
 
+  setDecisionService(service: DecisionService | null): void {
+    this.decisionService = service
+  }
+
+  // INVARIANT: Kicks off background description screening for every connected server; never blocks.
+  private screenConnectedDescriptions(workspace?: string): void {
+    const service = this.decisionService
+    if (!service) return
+    void (async () => {
+      const runtime = await this.connections.runtime(workspace)
+      for (const handle of runtime.current?.handles.values() ?? []) {
+        if (handle.state !== 'connected' || !handle.connected) continue
+        screenToolDescriptions(service, {
+          server: handle.server.name,
+          ...(workspace ? { cwd: workspace } : {}),
+          tools: handle.connected.tools.map((tool) => ({
+            name: tool.name,
+            description: describeTool({
+              description: tool.description ?? '',
+              parameters: tool.inputSchema,
+            }),
+          })),
+        })
+      }
+    })().catch(() => {
+      // SAFETY: screening is advisory; MCP status and reload must never fail because of it.
+    })
+  }
+
   async status(input: { workspace?: string }) {
     const result = await this.wrap(() => this.connections.status(input.workspace))
+    this.screenConnectedDescriptions(input.workspace)
     const hostServers = (await this.hostManaged?.(input.workspace)) ?? []
     if (hostServers.length === 0) return result
     return {
@@ -162,6 +196,7 @@ export class McpRuntimeService {
     if (this.reloadOperations.size > 100) {
       this.reloadOperations.delete(this.reloadOperations.keys().next().value!)
     }
+    this.screenConnectedDescriptions(input.workspace)
     return result
   }
 

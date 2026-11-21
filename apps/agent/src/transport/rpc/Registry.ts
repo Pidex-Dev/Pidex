@@ -6,6 +6,7 @@ import { type RpcHandlers, type RpcMethod } from '@pidex/agent-protocol'
 import { AllRpcMethods as RpcMethods } from '@pidex/agent-protocol/host'
 import { browserHandlers } from './handlers/Browser'
 import { configHandlers } from './handlers/Config'
+import { decisionHandlers } from './handlers/Decision'
 import { githubHandlers } from './handlers/Github'
 import { gitHandlers } from './handlers/Git'
 import { interactionHandlers } from './handlers/Interaction'
@@ -59,6 +60,7 @@ const groups: readonly RpcHandlerGroup[] = [
   computerHandlers,
   browserHandlers,
   configHandlers,
+  decisionHandlers,
   systemHandlers,
   interactionHandlers,
   permissionHandlers,

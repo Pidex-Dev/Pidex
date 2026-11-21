@@ -2,6 +2,7 @@ import type { SubagentProfile, TaskMode } from '../Domain'
 import { MAX_SUBAGENT_DEPTH, isReadOnlyTaskMode, type SandboxMode } from '@pidex/shared/thread'
 import { type PermissionConfig } from '@pidex/shared/thread'
 import type { ToolCatalog } from './ToolRegistry'
+import { filterPoisonedTools } from '../decision/integrations/ToolDescriptionScreen'
 
 export const PI_LIFECYCLE_TOOLS = [
   // These Skill names remain bindable only for already persisted turn snapshots.
@@ -74,7 +75,8 @@ export function createToolExposurePlan(
   // Collaboration modes gate tools, not the user's file-access scope. Passing
   // the stored sandbox mode through keeps exposure, preview and execution on
   // the same policy; mutating tools are filtered by the mode rule instead.
-  const definitions = catalog.list(input.taskMode, input.sandboxMode, profile)
+  // SAFETY: 描述投毒命中的工具从暴露集剔除；无缓存结论时该过滤为空操作，行为与现状一致。
+  const definitions = filterPoisonedTools(catalog.list(input.taskMode, input.sandboxMode, profile))
   const eager = definitions
     .filter((tool) => tool.visibility === 'eager')
     .map((tool) => tool.sdkName)

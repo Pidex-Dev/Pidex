@@ -34,6 +34,12 @@ import {
 } from './diff/Limits'
 import { fileState } from './state/FileState'
 import { reviewSourceKey } from './source/SourceKey'
+import type { DecisionService } from '../decision/DecisionService'
+import {
+  decideReviewTriage,
+  type ReviewTriageResult,
+} from '../decision/integrations/TeamworkDecisionAdapter'
+import type { ReviewFinding } from '../decision/specs/TeamworkSpecs'
 
 const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024
 const GIT_TIMEOUT_MS = 20_000
@@ -84,6 +90,7 @@ export class GitReviewService {
   private readonly maxSnapshots: number
   private disposed = false
   private readonly gitRunner: GitCommandRunner
+  private decisions: DecisionService | null = null
 
   constructor(
     private readonly db: AgentDatabase,
@@ -111,6 +118,28 @@ export class GitReviewService {
   private touchSnapshot(key: string, entry: CachedReviewSnapshot): void {
     this.snapshots.delete(key)
     this.snapshots.set(key, entry)
+  }
+
+  /** Optional judge plane; without it review behaves exactly as before. */
+  attachDecisions(decisions: DecisionService | null): void {
+    this.decisions = decisions
+  }
+
+  /**
+   * Grades review findings P0–P3 with attribution to the change under review.
+   * Advisory metadata for review consumers; without a judge the reviewer's own
+   * severity stands, one step down since nobody confirmed it.
+   */
+  async triageFindings(input: {
+    change: string
+    findings: readonly ReviewFinding[]
+    signal?: AbortSignal
+  }): Promise<ReviewTriageResult> {
+    return decideReviewTriage(
+      this.decisions,
+      { change: input.change, findings: input.findings },
+      { signal: input.signal },
+    )
   }
 
   private setSnapshot(key: string, entry: CachedReviewSnapshot): void {

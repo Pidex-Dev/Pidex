@@ -155,6 +155,7 @@ const KNOWN_CONFIG_ROOTS = new Set([
   'agent',
   'model_catalog',
   'auto_review',
+  'decision',
   'telemetry',
   'logging',
   'migration',
