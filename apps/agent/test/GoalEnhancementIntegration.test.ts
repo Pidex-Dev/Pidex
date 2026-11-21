@@ -236,7 +236,7 @@ const threadService = async (
       defaultScopes: () => [{ kind: 'user' }],
       enqueueExtract: () => null,
     } as never,
-    { load: () => {}, run: async () => [] } as never,
+    { load: () => {}, loadWithPlugins: () => {}, run: async () => [] } as never,
     {
       resolve: async () => ({
         kind: 'projectless',

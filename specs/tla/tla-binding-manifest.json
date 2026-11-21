@@ -13,8 +13,8 @@
       "files": {
         "apps/agent/src/interaction/InteractionService.ts": "aee066c0a58255e0bb3a90728f28ad5373e7dee1dcf05c39bf4dd26755b0e91c",
         "apps/agent/src/interaction/ResumeCheckpointResolver.ts": "85bb422377ed254733aebfe869be11c8e0b3380869167d3ea5208bddfdfaffd3",
-        "apps/agent/src/permission/ApprovalService.ts": "232d1e0066d591bfadb4bbbeb1c05dbd3280faf052877c7523a7bf09a56f4a83",
-        "apps/agent/src/permission/PermissionDecisionEngine.ts": "b35354987dda358620ecd1008f54124d8b898fffc3caade47a47a23cfa0b1fd1"
+        "apps/agent/src/permission/ApprovalService.ts": "ddd7af90c3f8be2ace0486e3bdc5f600c47305958f1971b4526f9c031f2318f7",
+        "apps/agent/src/permission/PermissionDecisionEngine.ts": "74b6a819a5fc4278ac5e70784d90e9515ded76ed99541dce01bc98ab42af9e21"
       }
     }
   }

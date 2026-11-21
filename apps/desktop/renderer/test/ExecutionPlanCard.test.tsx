@@ -416,7 +416,7 @@ describe('ExecutionPlanCard', () => {
     // 3. 浮层采用 Pidex raised surface、阴影与圆角外壳，长内容内部滚动
     expect(componentSource).toContain('tw:bg-app-raised')
     expect(componentSource).toContain('tw:shadow-lg')
-    expect(componentSource).toContain('tw:rounded-xl')
+    expect(componentSource).toContain('tw:rounded-5')
     expect(componentSource).toContain('composer-change-summary__plan-popover')
     expect(componentSource).toContain('composer-change-summary__files-popover')
     expect(componentSource).toContain('composer-change-summary__files-list')

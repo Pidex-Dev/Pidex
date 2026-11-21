@@ -2267,15 +2267,11 @@ describe('RPC v4 Router', () => {
       hooksManagement: {
         listSources: async () => {
           calls.push('list')
-          return { sources: [] }
+          return { groups: [], generation: 1, updatedAt: 1 }
         },
-        saveSource: async () => {
-          calls.push('save')
-          throw new AgentError('CONFIG_VERSION_CONFLICT', '版本冲突', 409)
-        },
-        deleteSource: async () => {
-          calls.push('delete')
-          return { source: 'user-file', version: 'a'.repeat(64) }
+        setEnabled: async () => {
+          calls.push('setEnabled')
+          throw new AgentError('CONFLICT', '版本冲突', 409)
         },
         listRuns: async () => {
           calls.push('runs')
@@ -2284,34 +2280,29 @@ describe('RPC v4 Router', () => {
       } as unknown as RpcRouterDependencies['hooksManagement'],
     } as unknown as Partial<RpcRouterDependencies>)
     await configured.initialize()
-    expect((await configured.call('hook/list', {})).result).toEqual({ sources: [] })
-    expect(
-      (
-        await configured.call('hook/save', {
-          source: 'user-file',
-          expectedVersion: 'a'.repeat(64),
-          hook: { id: 'x', event: 'stop', command: 'bun test' },
-        })
-      ).error,
-    ).toMatchObject({ data: { code: 'CONFIG_VERSION_CONFLICT' }, message: '版本冲突' })
-    // The wire schema rejects incomplete params before the handler runs.
-    expect((await configured.call('hook/save', { source: 'user-file' })).error).toMatchObject({
-      code: -32602,
+    expect((await configured.call('hook/list', {})).result).toEqual({
+      groups: [],
+      generation: 1,
+      updatedAt: 1,
     })
     expect(
       (
-        await configured.call('hook/delete', {
-          source: 'user-file',
-          rowId: 'x',
-          expectedVersion: 'a'.repeat(64),
+        await configured.call('hook/setEnabled', {
+          identity: 'a'.repeat(64),
+          enabled: false,
+          operationId: 'op-1',
         })
-      ).result,
-    ).toEqual({ source: 'user-file', version: 'a'.repeat(64) })
+      ).error,
+    ).toMatchObject({ data: { code: 'CONFLICT' }, message: '版本冲突' })
+    // The wire schema rejects incomplete params before the handler runs.
+    expect((await configured.call('hook/setEnabled', { enabled: false })).error).toMatchObject({
+      code: -32602,
+    })
     expect((await configured.call('hook/runs/list', { limit: 5 })).result).toEqual({
       runs: [],
       generation: 1,
     })
-    expect(calls).toEqual(['list', 'save', 'delete', 'runs'])
+    expect(calls).toEqual(['list', 'setEnabled', 'runs'])
     configured.db.close()
   })
 

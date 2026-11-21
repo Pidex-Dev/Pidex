@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createContext } from 'react'
+import { createStore } from 'zustand/vanilla'
 import { defaultDesktopSettings } from '../src/features/settings/SettingsStorage.js'
 import {
   DesktopSettingsProvider,
@@ -23,12 +24,12 @@ describe('desktop settings provider', () => {
       initialization.replaceAll('import.meta.hot', 'hot') +
         '\nreturn [DesktopSettingsFieldStoreContext]',
     )
-    const initialize = new Function('hot', 'createContext', script)
+    const initialize = new Function('hot', 'createContext', 'createStore', script)
     const hot = { data: {} }
-    const initial = initialize(hot, createContext)
-    const reloaded = initialize(hot, createContext)
+    const initial = initialize(hot, createContext, createStore)
+    const reloaded = initialize(hot, createContext, createStore)
     expect(reloaded[0]).toBe(initial[0])
-    const cold = initialize(undefined, createContext)
+    const cold = initialize(undefined, createContext, createStore)
     expect(cold[0]).not.toBe(initial[0])
   })
 

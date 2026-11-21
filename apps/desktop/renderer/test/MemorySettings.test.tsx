@@ -13,24 +13,22 @@ function renderMemorySettings(workspacePath: string | null): string {
 }
 
 describe('memory settings workspace scope', () => {
-  test('shows the current workspace in a disabled input', () => {
+  test('renders markdown memory scopes and global toggle for a workspace', () => {
     const html = renderMemorySettings('  D:\\CodeProject\\Current  ')
 
-    expect(html).toContain('aria-label="当前工作区"')
-    expect(html).toContain('disabled=""')
-    expect(html).toContain('value="D:\\CodeProject\\Current"')
-    expect(html).toContain('项目记忆按当前工作区隔离')
+    expect(html).toContain('启用记忆')
+    expect(html).toContain('Markdown 文件是唯一正文来源')
+    expect(html).toContain('用户记忆')
+    expect(html).toContain('当前项目')
     expect(html).not.toContain('Agent data directory / project memory')
   })
 
-  test('keeps the global toggle and disables project actions without a workspace', () => {
+  test('keeps the global toggle and hides project scope option without a workspace', () => {
     const html = renderMemorySettings(null)
 
     expect(html).toContain('启用记忆')
-    expect(html).toContain('placeholder="未打开工作区"')
-    expect(html).toContain('请先打开工作区后管理项目记忆')
-    expect(html).toContain('请先打开工作区后查看召回记录')
-    expect(html.match(/disabled=""/g)?.length).toBeGreaterThanOrEqual(4)
+    expect(html).toContain('用户记忆')
+    expect(html).not.toContain('>当前项目<')
   })
 
   test('describes the workspace as the current read-only scope', () => {

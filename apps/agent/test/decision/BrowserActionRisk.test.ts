@@ -43,7 +43,10 @@ const model = Model.Ref.make({
 
 const bool = (probability: number): DecisionAnswer => ({ type: 'boolean', probability })
 
-const engineWith = (provider: MockJudgeProvider, modes: Record<string, 'off' | 'shadow' | 'active'>) =>
+const engineWith = (
+  provider: MockJudgeProvider,
+  modes: Record<string, 'off' | 'shadow' | 'active'>,
+) =>
   new DecisionEngine({
     judge: new Judge({ provider }),
     defaultMode: 'off',
@@ -161,11 +164,18 @@ describe('浏览器外部内容防注入（复用 tool.injection）', () => {
       return bool(passage.includes('steal') ? 0.96 : 0.04)
     })
     const registry = new ToolRegistry()
-    const browserReadTool: ToolDefinition<{ tabId: string }, { text: string; image: { data: string; mimeType: string } }> = {
+    const browserReadTool: ToolDefinition<
+      { tabId: string },
+      { text: string; image: { data: string; mimeType: string } }
+    > = {
       sdkName: 'BrowserRead',
       description: 'Read page snapshot',
       schema: z.object({ tabId: z.string() }),
-      inputSchema: { type: 'object', properties: { tabId: { type: 'string' } }, required: ['tabId'] },
+      inputSchema: {
+        type: 'object',
+        properties: { tabId: { type: 'string' } },
+        required: ['tabId'],
+      },
       capabilities: {
         filesystem: 'none',
         network: 'declared',
@@ -285,7 +295,6 @@ describe('BrowserService 快照 ref 索引与 ToolExecutor 权限集成', () => 
       url: 'https://github.com/org/repo/settings',
       title: 'Repo Settings',
     })
-    const currentTab = browser.list('win-1').find((item) => item.tabId === tab.tabId)!
     const execPromise = browser.execute(
       f.thread.id,
       tab.tabId,
@@ -330,7 +339,10 @@ describe('BrowserService 快照 ref 索引与 ToolExecutor 权限集成', () => 
       { 'tool.injection': 'off', 'browser.action.risk': 'active' },
     )
     const registry = new ToolRegistry()
-    const browserActionTool: ToolDefinition<{ tabId: string; operation: Record<string, unknown> }, { text: string }> = {
+    const browserActionTool: ToolDefinition<
+      { tabId: string; operation: Record<string, unknown> },
+      { text: string }
+    > = {
       sdkName: 'BrowserAction',
       description: 'Browser action',
       schema: z.object({ tabId: z.string(), operation: z.record(z.string(), z.unknown()) }),
@@ -355,7 +367,10 @@ describe('BrowserService 快照 ref 索引与 ToolExecutor 权限集成', () => 
     }
     registry.register(browserActionTool)
 
-    const authorizedInvocations: Array<{ forced: boolean | undefined; reason: string | undefined }> = []
+    const authorizedInvocations: Array<{
+      forced: boolean | undefined
+      reason: string | undefined
+    }> = []
     const executor = new ToolExecutor(registry, {
       dataDir: f.workspace.rootPath,
       decisionService: f.service,
@@ -439,7 +454,10 @@ describe('BrowserService 快照 ref 索引与 ToolExecutor 权限集成', () => 
     const registry = new ToolRegistry()
     const engine = new PermissionDecisionEngine()
     let executed = 0
-    const browserActionTool: ToolDefinition<{ tabId: string; operation: Record<string, unknown> }, { text: string }> = {
+    const browserActionTool: ToolDefinition<
+      { tabId: string; operation: Record<string, unknown> },
+      { text: string }
+    > = {
       sdkName: 'BrowserAction',
       description: 'Browser action',
       schema: z.object({ tabId: z.string(), operation: z.record(z.string(), z.unknown()) }),
@@ -522,7 +540,12 @@ describe('BrowserService 快照 ref 索引与 ToolExecutor 权限集成', () => 
       operation: { action: 'click', target: { ref: 'e42' } },
     }
 
-    const preview = await executor.previewApproval('BrowserAction', callInput, baseContext, 'call-preview-1')
+    const preview = await executor.previewApproval(
+      'BrowserAction',
+      callInput,
+      baseContext,
+      'call-preview-1',
+    )
     expect(preview.decision).toBe('ask')
     expect(preview.reason).toContain('不可逆外部副作用')
     expect(executed).toBe(0)
@@ -535,8 +558,8 @@ describe('BrowserService 快照 ref 索引与 ToolExecutor 权限集成', () => 
       },
     ])
 
-    const ledgerRows = f.db.sqlite!
-      .query(
+    const ledgerRows = f.db
+      .sqlite!.query(
         `SELECT spec_id, mode, outcome_json, source FROM decision_ledger WHERE spec_id = 'browser.action.risk'`,
       )
       .all() as Array<{ spec_id: string; mode: string; outcome_json: string; source: string }>

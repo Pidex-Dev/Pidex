@@ -369,7 +369,7 @@ describe('canonical thread switch', () => {
     expect(completed).not.toContain('lucide-chevron-down')
     expect(active).not.toContain('active-tool-card')
     expect(active).toContain('data-state="active"')
-    expect(active).toContain('lucide-loader-circle')
+    expect(active).toContain('reasoning-node__shimmer')
     expect(active).toContain('lucide-chevron-right')
     expect(failed).not.toContain('failed-tool-card')
     expect(failed).toContain('lucide-circle-alert')

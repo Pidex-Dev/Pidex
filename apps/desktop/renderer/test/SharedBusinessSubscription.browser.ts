@@ -143,12 +143,12 @@ try {
   await page.evaluate(() => (window as any).fixture.mount())
   // 先确认设备枚举已渲染出目标文案，再走固定 settle；共享 runner 上冷启动
   // Chrome + 打包后的 React 树首次渲染远慢于本地，纯固定等待会偶发抢跑。
-  await page.getByLabel('听写输入设备').waitFor({ state: 'visible', timeout: 30_000 })
+  await page.getByLabel('麦克风').waitFor({ state: 'visible', timeout: 30_000 })
   const settle = () => page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 100)))
   await page.waitForFunction(() => (window as any).fixture.settingsLoaded)
   await settle()
   const counts = () => page.evaluate(() => ({ ...(window as any).fixture.counts }))
-  assert.ok((await page.getByLabel('听写输入设备').textContent())?.includes('Verify Mic'))
+  assert.ok((await page.getByLabel('麦克风').textContent())?.includes('Verify Mic'))
   let before = await counts()
   await page.evaluate(() => (window as any).fixture.actions.setValue('gitBranchPrefix', 'verify/'))
   await settle()

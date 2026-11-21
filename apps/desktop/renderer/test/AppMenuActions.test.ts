@@ -96,7 +96,7 @@ describe('application menu actions', () => {
     expect(calls).toEqual([
       '/settings/general',
       '/automations',
-      '/settings/worktrees?tab=environments',
+      '/settings/environments',
       '/settings/worktrees',
       '/settings/plugins?tab=skills',
       '/settings/plugins?tab=mcps',
