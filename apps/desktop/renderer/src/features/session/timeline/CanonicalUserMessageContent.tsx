@@ -1,4 +1,5 @@
 import React from 'react'
+import { Lightbulb } from 'lucide-react'
 
 import type { Attachment, LocalContextReference } from '@pidex/shared/thread'
 import { desktopUserMessageInputToPreviewText } from '../../../../shared/DesktopUserMessage.js'
@@ -73,6 +74,7 @@ export function CanonicalUserMessageContent({
                 {skills.map((skill) => (
                   <React.Fragment key={skill.path}>
                     <span className="composer-inline-skill-token">
+                      <Lightbulb aria-hidden="true" className="composer-inline-skill-token-icon" />
                       <span className="composer-inline-skill-token-label">${skill.name}</span>
                     </span>{' '}
                   </React.Fragment>
@@ -88,7 +90,10 @@ export function CanonicalUserMessageContent({
         />
       </div>
       {withActions ? (
-        <div className="canonical-message-actions" aria-label="用户消息操作">
+        <div
+          className="canonical-message-actions tw:flex tw:items-center tw:gap-1 tw:min-h-[26px]"
+          aria-label="用户消息操作"
+        >
           <MessageSentTime sentAt={createdAt} />
           <CopyButton text={displayText} />
         </div>

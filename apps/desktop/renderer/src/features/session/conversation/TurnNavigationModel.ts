@@ -27,7 +27,7 @@ export function deriveConversationTurnNavItems(
       .join('\n')
       .trim()
 
-    const inputs = turn.userItems.filter((input) => input.origin !== 'goal-continuation')
+    const inputs = turn.userInputs.filter((input) => input.origin !== 'goal-continuation')
     const outputs = collectFileOutputs(turn)
     return inputs.map((input, index) => ({
       id: input.id,

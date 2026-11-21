@@ -20,8 +20,8 @@ afterEach(async () => {
 const model = Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt-5') })
 const permission = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 
 describe('子 Agent 持久化与调度', () => {
@@ -99,7 +99,7 @@ describe('子 Agent 持久化与调度', () => {
       model,
       permissionCeiling: permission,
       workspaceMode: 'shared',
-      workspaceRoot: 'C:\workspace',
+      workspaceRoot: 'C:\\workspace',
     })
 
     expect(created.task.role).toBe('backend')
@@ -138,7 +138,7 @@ describe('子 Agent 持久化与调度', () => {
       model,
       permissionCeiling: permission,
       workspaceMode: 'shared',
-      workspaceRoot: 'C:\workspace',
+      workspaceRoot: 'C:\\workspace',
     })
 
     expect(created.task.role).toBeUndefined()

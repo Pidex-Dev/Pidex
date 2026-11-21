@@ -8,6 +8,11 @@ import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { StoredContextCompaction } from '../storage/repositories/ContextRepository'
 import type { AgentInputItem } from './ContextManager'
 import { ContextManager } from './ContextManager'
+import type { DecisionService } from '../decision/DecisionService'
+import {
+  planContextCompaction,
+  type ContextCompactPlan,
+} from '../decision/integrations/ContextDecisionAdapter'
 
 export type ContextCompactionTrigger = 'manual' | 'automatic' | 'reactive'
 
@@ -49,6 +54,7 @@ export class ContextCompactionService {
   private publisher: (event: EventEnvelope) => Promise<void> = async () => {}
   private idleRunner?: (threadID: string, signal: AbortSignal) => Promise<unknown>
   private readonly controllers = new Map<string, AbortController>()
+  private decisions: DecisionService | null = null
 
   configure(
     publish: (event: EventEnvelope) => Promise<void>,
@@ -56,6 +62,34 @@ export class ContextCompactionService {
   ) {
     this.publisher = publish
     this.idleRunner = runIdle
+  }
+
+  /** Optional judge plane; without it compaction keeps today's behavior. */
+  attachDecisions(decisions: DecisionService | null) {
+    this.decisions = decisions
+    this.context.attachDecisions(decisions)
+  }
+
+  /**
+   * Summary-free compaction scoring for the items a compaction is about to
+   * summarize: which old tool results must stay verbatim and which calls no
+   * longer matter. Advisory in shadow mode; without an engine nothing changes.
+   */
+  async planCompaction(input: {
+    threadID: string
+    items: AgentInputItem[]
+    goal?: string
+    signal?: AbortSignal
+  }): Promise<ContextCompactPlan> {
+    return planContextCompaction(
+      this.decisions,
+      {
+        threadId: input.threadID,
+        items: input.items,
+        ...(input.goal === undefined ? {} : { goal: input.goal }),
+      },
+      { signal: input.signal },
+    )
   }
 
   private notify(event: EventEnvelope) {

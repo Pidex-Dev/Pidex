@@ -63,20 +63,21 @@ export const parseStructuredPlan = (input: unknown): StructuredPlan => {
 /**
  * submit_plan 的模型可见参数：只描述内容章节，不开放组件名、样式或任意
  * Renderer props。
+ * 不在模型可见 JSON Schema 中声明 `pattern: '\\S'`（部分推理后端会把
+ * `pattern` 锚定为整串匹配 `^\S$`，导致模型把文本拆成单字符数组）；非空与
+ * 非全空白校验由 `parseStructuredPlan` 在运行时统一执行。
  */
 export const structuredPlanParameters = Type.Object(
   {
     title: Type.String({
       minLength: 1,
       maxLength: STRUCTURED_PLAN_MAX_TITLE_LENGTH,
-      pattern: '\\S',
-      description: '方案标题，一句话说明这个计划要达成什么',
+      description: 'Plan title describing its intended outcome in one sentence',
     }),
     summary: Type.String({
       minLength: 1,
       maxLength: STRUCTURED_PLAN_MAX_TEXT_LENGTH,
-      pattern: '\\S',
-      description: '方案摘要，说明目标、范围与关键取舍',
+      description: 'Plan summary describing objective, scope and key trade-offs',
     }),
     changes: Type.Array(
       Type.Object(
@@ -84,20 +85,18 @@ export const structuredPlanParameters = Type.Object(
           area: Type.String({
             minLength: 1,
             maxLength: STRUCTURED_PLAN_MAX_TITLE_LENGTH,
-            pattern: '\\S',
-            description: '实现变更涉及的模块或领域区域',
+            description: 'Module or domain affected by the implementation',
           }),
           items: Type.Array(
             Type.String({
               minLength: 1,
               maxLength: STRUCTURED_PLAN_MAX_TEXT_LENGTH,
-              pattern: '\\S',
-              description: '该区域内一项具体变更',
+              description: 'One concrete change in this area',
             }),
             {
               minItems: 1,
               maxItems: STRUCTURED_PLAN_MAX_GROUP_ITEMS,
-              description: '该区域的变更项，至少一项',
+              description: 'Changes in this area, at least one',
             },
           ),
         },
@@ -106,43 +105,46 @@ export const structuredPlanParameters = Type.Object(
       {
         minItems: 1,
         maxItems: STRUCTURED_PLAN_MAX_GROUPS,
-        description: '按区域分组的实现变更，至少一组',
+        description: 'Implementation changes grouped by area, at least one group',
       },
     ),
     interfaceChanges: Type.Array(
       Type.String({
         minLength: 1,
         maxLength: STRUCTURED_PLAN_MAX_TEXT_LENGTH,
-        pattern: '\\S',
-        description: '接口、协议、数据或行为契约的变化',
+        description: 'Changes to interfaces, protocols, data or behavior contracts',
       }),
-      { maxItems: STRUCTURED_PLAN_MAX_LIST_ITEMS, description: '接口变化；没有就提交空数组' },
+      {
+        maxItems: STRUCTURED_PLAN_MAX_LIST_ITEMS,
+        description: 'Interface changes; use an empty array when absent',
+      },
     ),
     tests: Type.Array(
       Type.String({
         minLength: 1,
         maxLength: STRUCTURED_PLAN_MAX_TEXT_LENGTH,
-        pattern: '\\S',
-        description: '计划执行的验证或测试',
+        description: 'Planned verification or test',
       }),
       {
         maxItems: STRUCTURED_PLAN_MAX_LIST_ITEMS,
-        description: '测试与验证；没有就提交空数组',
+        description: 'Tests and verification; use an empty array when absent',
       },
     ),
     assumptions: Type.Array(
       Type.String({
         minLength: 1,
         maxLength: STRUCTURED_PLAN_MAX_TEXT_LENGTH,
-        pattern: '\\S',
-        description: '需要用户知晓的明确假设或边界',
+        description: 'Explicit assumption or boundary the user needs to know',
       }),
-      { maxItems: STRUCTURED_PLAN_MAX_LIST_ITEMS, description: '明确假设；没有就提交空数组' },
+      {
+        maxItems: STRUCTURED_PLAN_MAX_LIST_ITEMS,
+        description: 'Explicit assumptions; use an empty array when absent',
+      },
     ),
   },
   {
     description:
-      'Plan 模式的最终方案。所有字段都必须提供，没有内容的列表提交空数组；提交成功即结束本轮。',
+      'Final Plan-mode proposal. Provide every field, using empty arrays for absent lists. Successful submission ends this turn.',
     additionalProperties: false,
   },
 )

@@ -6,20 +6,21 @@ import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.
 import type { ComposerDraftKey } from './ComposerTypes.js'
 import { audioBlobToPcm16Wav } from './SpeechAudio.js'
 import { errorMessageOf as errorMessage } from '@pidex/shared/errors'
+import {
+  appendVoiceRecordingToSettings,
+  matchesVoiceShortcut,
+} from '../../speech/VoiceRecordingCache.js'
 
 const DEFAULT_MAX_DURATION_MS = 120_000
 
 export function isDictationShortcut(
-  event: Pick<KeyboardEvent, 'altKey' | 'ctrlKey' | 'isComposing' | 'key' | 'keyCode' | 'shiftKey'>,
+  event: Pick<
+    KeyboardEvent,
+    'altKey' | 'ctrlKey' | 'isComposing' | 'key' | 'keyCode' | 'metaKey' | 'shiftKey'
+  >,
+  shortcut = 'Ctrl+Shift+D',
 ): boolean {
-  return (
-    !event.isComposing &&
-    event.keyCode !== 229 &&
-    event.ctrlKey &&
-    event.shiftKey &&
-    !event.altKey &&
-    event.key.toLowerCase() === 'd'
-  )
+  return matchesVoiceShortcut(event, shortcut)
 }
 
 export type ComposerDictationPhase = 'idle' | 'starting' | 'recording' | 'processing' | 'error'
@@ -232,6 +233,8 @@ export function useComposerDictation({
   )
 
   const cancel = useCallback(() => {
+    const wasActive =
+      state.phase === 'starting' || state.phase === 'recording' || state.phase === 'processing'
     generationRef.current.invalidate()
     const recorder = recorderRef.current
     if (recorder) {
@@ -248,9 +251,20 @@ export function useComposerDictation({
     if (operationId) {
       void desktopClient.cancelSpeech(operationId).catch(() => {})
     }
+    const cancelledBlob = cachedAudioBlobRef.current
     cachedAudioBlobRef.current = null
     setState({ phase: 'idle', elapsedMs: 0, error: null, canRetry: false })
-  }, [releaseCapture])
+    if (wasActive) {
+      void appendVoiceRecordingToSettings(
+        {
+          id: crypto.randomUUID(),
+          status: 'cancelled',
+          createdAt: Date.now(),
+        },
+        cancelledBlob,
+      )
+    }
+  }, [releaseCapture, state.phase])
 
   const stop = useCallback(() => {
     clearTimers()
@@ -392,6 +406,16 @@ export function useComposerDictation({
         cachedAudioBlobRef.current = null
         const text = result?.text?.trim() ?? ''
         if (text) transcriptRef.current(text)
+        void appendVoiceRecordingToSettings(
+          {
+            id: operationId,
+            status: 'saved',
+            createdAt: Date.now(),
+            durationMs: result?.durationMs,
+            ...(text ? { transcript: text } : {}),
+          },
+          blob,
+        )
         setState({ phase: 'idle', elapsedMs: 0, error: null, canRetry: false })
       } catch (cause) {
         if (!generationRef.current.isCurrent(generation)) return
@@ -401,10 +425,20 @@ export function useComposerDictation({
           setState({ phase: 'idle', elapsedMs: 0, error: null, canRetry: false })
           return
         }
+        const message = errorMessage(cause)
+        void appendVoiceRecordingToSettings(
+          {
+            id: crypto.randomUUID(),
+            status: 'error',
+            createdAt: Date.now(),
+            error: message,
+          },
+          blob,
+        )
         setState({
           phase: 'error',
           elapsedMs: 0,
-          error: errorMessage(cause),
+          error: message,
           canRetry: false,
         })
       }

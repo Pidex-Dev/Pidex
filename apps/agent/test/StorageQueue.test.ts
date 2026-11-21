@@ -27,8 +27,8 @@ describe('持久化队列', () => {
       model: modelRef('openai', 'gpt'),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'chat',
@@ -76,8 +76,8 @@ describe('持久化队列', () => {
       model: modelRef('openai', 'gpt'),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'chat',
@@ -117,7 +117,7 @@ describe('持久化队列', () => {
       model: modelRef('openai', 'gpt'),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
@@ -155,7 +155,7 @@ describe('持久化队列', () => {
       model: modelRef('openai', 'gpt'),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
@@ -176,7 +176,7 @@ describe('持久化队列', () => {
       model: modelRef('openai', 'gpt'),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
@@ -204,7 +204,7 @@ describe('持久化队列', () => {
       model: modelRef('openai', 'gpt'),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
@@ -242,7 +242,7 @@ describe('持久化队列', () => {
       model: modelRef('openai', 'gpt'),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
@@ -266,7 +266,7 @@ describe('持久化队列', () => {
       model: modelRef('openai', 'gpt'),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       strategy: 'start',
@@ -287,6 +287,11 @@ describe('持久化队列', () => {
       { ...input, content: 'second steer', strategy: 'guide' },
       'input:steer:second',
     )
+    expect(
+      new ThreadProjection(db)
+        .snapshot(thread.id)!
+        .inputs.find((row) => row.id === firstSteer.inputID),
+    ).toMatchObject({ delivery: 'steer', state: 'active' })
     const existing = db.createTurn(thread.id, {
       ...input,
       content: 'existing follow-up',
@@ -331,7 +336,7 @@ describe('持久化队列', () => {
       model: modelRef('openai', 'gpt'),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
@@ -373,7 +378,7 @@ describe('持久化队列', () => {
       model: modelRef('openai', 'gpt'),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',

@@ -10,7 +10,7 @@ import type {
   SubagentStatus,
   SubagentTask,
 } from '@pidex/shared/thread'
-import { encodeApprovalPolicy } from '@pidex/shared/thread'
+import { decodePermissionConfig, encodeApprovalPolicy } from '@pidex/shared/thread'
 import { AgentError, type AgentExecution, type EventEnvelope, type TaskMode } from '../Domain'
 import { subagentCollaborationAvailable } from './SubagentCollaborationRepository'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
@@ -48,8 +48,11 @@ export type SpawnSubagentInput = {
   parentTurnID: string
   parentAgentID: string
   displayName: string
+  title?: string | null
   profile: Exclude<SubagentProfile, 'main'>
   role?: SubagentRole
+  /** Stable per-project identity for the optional named-memory namespace. */
+  memoryKey?: string
   task: string
   model: Model.Ref
   permissionCeiling: PermissionConfig
@@ -57,6 +60,7 @@ export type SpawnSubagentInput = {
   workspaceMode: 'shared' | 'worktree'
   workspaceRoot: string
   taskMode?: TaskMode
+  isFork?: boolean
 }
 
 export type SubagentClaim = {
@@ -98,7 +102,7 @@ export class SubagentRepository {
         )
         .run(
           childThreadID,
-          input.displayName,
+          input.title?.trim() || input.displayName,
           input.parentThreadID,
           input.taskMode ?? 'chat',
           permission.sandboxMode,
@@ -109,7 +113,7 @@ export class SubagentRepository {
         )
       this.db.sqlite
         .query(
-          `INSERT INTO subagent_tasks (id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, profile, role, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)`,
+          `INSERT INTO subagent_tasks (id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, title, profile, role, memory_key, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)`,
         )
         .run(
           taskID,
@@ -118,8 +122,10 @@ export class SubagentRepository {
           input.parentAgentID,
           childThreadID,
           input.displayName,
+          input.title?.trim() || null,
           input.profile,
           input.role ?? null,
+          input.memoryKey ?? null,
           input.task,
           stringify(input.permissionCeiling),
           input.workspaceMode,
@@ -151,15 +157,25 @@ export class SubagentRepository {
         parentAgentID: input.parentAgentID,
         profile: input.profile,
         task: input.task,
-        content: [
-          `子 Agent 任务：\n${input.task}`,
-          `工作区：${input.workspaceRoot}`,
-          `工作区模式：${input.workspaceMode}`,
-          `权限上限：${stringify(input.permissionCeiling)}`,
-          '只返回与任务直接相关的结构化结论，不要假设主对话中未显式提供的上下文。',
-          '任务收尾时必须单独调用 finalize_result 提交结构化结果：summary 非空并说明做了什么与结果如何，没有内容的列表提交空数组。outcome 如实陈述（succeeded/partial/blocked），受阻或部分完成也是合法交付，不得编造验证成功。',
-          '结构化结果包含结论、变更或证据引用、必要验证与未解决事项；长日志留在本任务记录中，不要复制进摘要。',
-        ].join('\n\n'),
+        content: input.isFork
+          ? [
+              '<fork_boilerplate>',
+              'This is an implicit fork of the parent conversation. You share the parent context prefix up to this point.',
+              'Execute only the directive below. Do not re-delegate or launch another fork.',
+              'Your tool surface is frozen from the parent conversation: Agent may be visible, but the host rejects every Agent call from a fork child.',
+              'Finish with your final report as ordinary text.',
+              '</fork_boilerplate>',
+              '',
+              `Directive:\n${input.task}`,
+            ].join('\n')
+          : [
+              `Subagent task:\n${input.task}`,
+              `Workspace: ${input.workspaceRoot}`,
+              `Workspace mode: ${input.workspaceMode}`,
+              `Permission ceiling: ${stringify(input.permissionCeiling)}`,
+              'Return findings relevant to this task only. Do not assume main-conversation context not explicitly supplied.',
+              'Do not write report/summary/findings .md files unless requested. Return your final report directly as your final assistant message with conclusions, changes or evidence references, verification and unresolved issues.',
+            ].join('\n\n'),
         model: input.model,
         permission,
         taskMode: input.taskMode ?? 'chat',
@@ -185,6 +201,7 @@ export class SubagentRepository {
             runId: runID,
             childThreadId: childThreadID,
             displayName: input.displayName,
+            ...(input.title?.trim() ? { title: input.title.trim() } : {}),
             profile: input.profile,
             ...(input.role ? { role: input.role } : {}),
             task: input.task,
@@ -318,10 +335,18 @@ export class SubagentRepository {
     return row.task_id
   }
 
+  /** Resolve the task behind a child thread; used for host-owned memory binding. */
+  taskForChildThread(childThreadID: string): SubagentTask | null {
+    const row = this.db.sqlite
+      .query('SELECT id FROM subagent_tasks WHERE child_thread_id = ?')
+      .get(childThreadID) as { id: string } | null
+    return row ? this.task(row.id) : null
+  }
+
   task(taskID: string): SubagentTask | null {
     const row = this.db.sqlite
       .query(
-        'SELECT id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, profile, role, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, created_at, updated_at FROM subagent_tasks WHERE id = ?',
+        'SELECT id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, title, profile, role, memory_key, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, created_at, updated_at FROM subagent_tasks WHERE id = ?',
       )
       .get(taskID) as Record<string, string | number | null> | null
     if (!row) return null
@@ -368,10 +393,12 @@ export class SubagentRepository {
           .get(String(row.id), String(row.current_run_id)) as { count: number }
       ).count,
       displayName: String(row.display_name),
+      ...(typeof row.title === 'string' && row.title.trim() ? { title: row.title.trim() } : {}),
       profile: String(row.profile) as SubagentTask['profile'],
       ...(isSubagentRole(row.role) ? { role: row.role } : {}),
+      ...(row.memory_key ? { memoryKey: String(row.memory_key) } : {}),
       task: String(row.task),
-      permissionCeiling: parse(String(row.permission_ceiling)),
+      permissionCeiling: decodePermissionConfig(parse<unknown>(String(row.permission_ceiling))),
       workspace,
       currentRun: row.current_run_id ? this.run(String(row.current_run_id)) : null,
       createdAt: Number(row.created_at),
@@ -396,7 +423,7 @@ export class SubagentRepository {
           ? null
           : (String(row.queue_reason).replaceAll('_', '-') as SubagentRun['queueReason']),
       model: parse(String(row.model_ref)),
-      permissionConfig: parse(String(row.permission_config)),
+      permissionConfig: decodePermissionConfig(parse<unknown>(String(row.permission_config))),
       result: row.result == null ? null : parse(String(row.result)),
       error: row.error == null ? null : String(row.error),
       createdAt: Number(row.created_at),

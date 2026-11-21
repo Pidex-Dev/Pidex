@@ -37,10 +37,10 @@ const sizes: [ButtonSize, number, number][] = [
   ['composerUtility', 28, 16],
   ['default', 24, 16],
   ['icon', 28, 16],
-  ['iconLarge', 36, 20],
+  ['iconLarge', 36, 18],
   ['iconMd', 24, 12],
   ['iconSm', 24, 12],
-  ['large', 36, 20],
+  ['large', 36, 18],
   ['medium', 32, 16],
   ['tabStripAction', 36, 16],
   ['toolbar', 28, 16],
@@ -48,7 +48,7 @@ const sizes: [ButtonSize, number, number][] = [
   ['xs', 24, 12],
   ['sm', 28, 12],
   ['md', 32, 16],
-  ['lg', 36, 20],
+  ['lg', 36, 18],
 ]
 const expected = (size: number | 'em', content: string) =>
   `<div data-expected-icon-size="${size}">${content}</div>`
@@ -80,7 +80,7 @@ const states =
     ),
   ) +
   (['small', 'medium', 'large'] as const)
-    .map((size, index) => expected([12, 16, 20][index], renderToString(h(Spinner, { size }))))
+    .map((size, index) => expected([12, 16, 18][index], renderToString(h(Spinner, { size }))))
     .join('')
 const overrides = Object.entries(APP_ICON_SIZES)
   .map(([iconSize, pixels]) =>
@@ -217,12 +217,12 @@ try {
   const page = await browser.newPage({ viewport: { width: 1200, height: 900 } })
   await page.setContent(`<html lang="zh-CN" data-reduce-motion="on"><head><style>${css}</style></head><body>
     <section id="buttons">${buttons}${states}${overrides}${send}${compound}${forward}</section>
-    <div style="position:relative;height:32px;width:280px"><aside class="desktop-sidebar" style="--sidebar-current-width:280px">${expected(16, `<span class="sidebar-indicator">${sidebarStatus}</span>`)}${expected(16, nav)}${sidebarActions}${expected(20, renderToString(h(Button, { isIconOnly: true, iconSize: 'lg', size: 'toolbar', color: 'ghost', title: '显式尺寸', children: h(Plus) })))}</aside></div>
+    <div style="position:relative;height:32px;width:280px"><aside class="desktop-sidebar" style="--sidebar-current-width:280px">${expected(16, `<span class="sidebar-indicator">${sidebarStatus}</span>`)}${expected(16, nav)}${sidebarActions}${expected(18, renderToString(h(Button, { isIconOnly: true, iconSize: 'lg', size: 'toolbar', color: 'ghost', title: '显式尺寸', children: h(Plus) })))}</aside></div>
     <div class="popover-menu popover-menu--grid">
       ${['', 'rich'].map((kind) => `<div class="popover-item ${kind}"><span class="popover-item-leading"><span class="popover-item-icon" data-expected-icon-size="16">${icon}</span></span><span class="popover-item-label">菜单</span><span class="popover-item-trailing" data-expected-icon-size="12">${arrow}</span></div>`).join('')}
     </div>
     <div id="fallback" data-expected-icon-size="16">${fallback}</div><div id="resolved" data-expected-icon-size="16">${resolvedFiles}</div>
-    ${expected(20, empty)}
+    ${expected(18, empty)}
     <div id="lazy"></div>
     <svg id="content-graphic" width="120" height="70" stroke-width="3"><rect width="120" height="70"/></svg>
     <aside class="desktop-sidebar" style="position:relative;width:64px;height:64px"><svg id="brand-graphic" width="64" height="64"><rect width="64" height="64"/></svg></aside>
@@ -386,7 +386,7 @@ try {
     )
   }
   console.log(
-    '12/16/20px icons and 1.6 Lucide stroke verified: button variants/overrides/loading, send states, 1em sidebar navigation, menu leading/trailing, file fallback/lazy wrapper and empty state; artwork stroke, brand/content geometry and click target heights retained.',
+    '12/16/18px icons and 1.6 Lucide stroke verified: button variants/overrides/loading, send states, 1em sidebar navigation, menu leading/trailing, file fallback/lazy wrapper and empty state; artwork stroke, brand/content geometry and click target heights retained.',
   )
 } finally {
   await browser.close()

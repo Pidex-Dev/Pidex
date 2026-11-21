@@ -46,6 +46,7 @@ const PROCESS_TREE_TIMEOUT_MS = 2_000
 const WATCHDOG_INTERVAL_MS = 2_000
 const WATCHDOG_PROBE_TIMEOUT_MS = 2_000
 const WATCHDOG_FAILURE_LIMIT = 3
+export const DEFAULT_MAX_CONNECT_ATTEMPTS = 5
 
 export type AgentConnectionState = 'connected' | 'disconnected' | 'unknown'
 
@@ -135,6 +136,7 @@ export interface SidecarSupervisorDependencies {
   processTreeTimeoutMs?: number
   watchdogIntervalMs?: number
   watchdogFailureLimit?: number
+  maxConnectAttempts?: number
 }
 
 export class SidecarSupervisor {
@@ -158,6 +160,7 @@ export class SidecarSupervisor {
   readonly #processTreeTimeoutMs: number
   readonly #watchdogIntervalMs: number
   readonly #watchdogFailureLimit: number
+  readonly #maxConnectAttempts: number
   #owned: OwnedSidecarProcess | undefined
   #connection: SidecarConnection | undefined
   #preferredPort: number | undefined
@@ -205,6 +208,10 @@ export class SidecarSupervisor {
     this.#processTreeTimeoutMs = dependencies.processTreeTimeoutMs ?? PROCESS_TREE_TIMEOUT_MS
     this.#watchdogIntervalMs = dependencies.watchdogIntervalMs ?? WATCHDOG_INTERVAL_MS
     this.#watchdogFailureLimit = dependencies.watchdogFailureLimit ?? WATCHDOG_FAILURE_LIMIT
+    this.#maxConnectAttempts = Math.max(
+      1,
+      Math.trunc(dependencies.maxConnectAttempts ?? DEFAULT_MAX_CONNECT_ATTEMPTS),
+    )
   }
 
   onStateChange(listener: (status: ConnectionStatus) => void): void {
@@ -267,6 +274,7 @@ export class SidecarSupervisor {
           message,
         })
         if (this.#stopping) break
+        if (attempt >= this.#maxConnectAttempts) throw error
         delay = delay === 0 ? 500 : Math.min(10_000, delay * 2)
         await this.#sleep(delay + Math.round(Math.random() * Math.min(500, delay * 0.2)))
       }

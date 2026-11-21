@@ -583,50 +583,51 @@ export class SessionGroupService {
     const context = this.repository().context(view.group.id)!
     const memberLines = view.members.map(
       (member) =>
-        `- [${member.projectName}] ${member.title}（会话 ID：${member.threadId}）${member.isCurrent ? ' ← 当前会话' : ''}`,
+        `- [${member.projectName}] ${member.title} (thread ID: ${member.threadId})${member.isCurrent ? ' <- current conversation' : ''}`,
     )
     const entryLines = view.sharedEntries.map(
       (entry) => `- [${entry.section}] ${entry.title}：${entry.content}`,
     )
     const progressLines = view.recentProgress.map(
       (step) =>
-        `- [${step.projectName}/${step.threadTitle}/${step.status}] ${step.summary}${step.changedFiles.length ? `\n  修改：${step.changedFiles.join('、')}` : ''}${step.failure ? `\n  失败：${step.failure}` : ''}`,
+        `- [${step.projectName}/${step.threadTitle}/${step.status}] ${step.summary}${step.changedFiles.length ? `\n  Changed: ${step.changedFiles.join('、')}` : ''}${step.failure ? `\n  Failure: ${step.failure}` : ''}`,
     )
     const header = [
       `<session_group_context group_id="${view.group.id}" context_revision="${context.state.contextRevision}" latest_sequence="${view.recentProgress.at(-1)?.sequence ?? 0}">`,
-      `工作组：${view.group.name}`,
-      ...(view.group.description ? [`说明：${view.group.description}`] : []),
-      `当前项目：${view.currentProject}`,
+      `Workgroup: ${view.group.name}`,
+      ...(view.group.description ? [`Description: ${view.group.description}`] : []),
+      `Current project: ${view.currentProject}`,
       '',
     ].join('\n')
     const footer = [
       '',
-      '成员会话的完整历史（含加入工作组之前或之后的用户要求、助手成果与完整计划）用 read_thread 按上面的会话 ID 分页读取；记录较长时用返回的 olderCursor 继续向前翻页。',
-      '摘要与工具标题只能用于定位，不能代替完整文件：跨项目复用前先用 Read/Grep 读取来源项目里的实际代码与素材再动手。',
-      '当前项目与来源项目可能不是同一个仓库；改动前先确认目标项目，来源项目默认只读。',
-      '工作组只提供共享上下文，不会扩大当前会话的文件权限，也不授权修改来源项目。',
-      'workgroup_read 可随时重新读取成员、共享条目与近期进展。',
+      'Use read_thread with the member IDs above to page through complete histories, including requirements, results and plans before and after joining. Continue with olderCursor for older records.',
+      'Summaries and tool titles locate evidence, not replace files. Before reusing work across projects, Read/Grep actual source code and assets.',
+      'Current and source projects may be different repositories. Confirm the target before editing; source projects are read-only by default.',
+      'Workgroups provide shared context only, not broader file access or authorization to modify source projects.',
+      'Use workgroup_read to refresh members, shared entries and recent progress.',
       '</session_group_context>',
     ].join('\n')
     let remaining = Math.max(0, 12_000 - header.length - footer.length)
     const sections: string[] = []
     const take = (title: string, lines: readonly string[], cap: number) => {
       if (!lines.length) return
-      const budget = Math.min(cap, remaining - title.length - 1)
+      const budget = Math.min(cap, remaining - title.length - 3)
       if (budget <= 0) return
       const text = lines.join('\n')
+      const omission = '\n…(remaining content omitted)'
       const body =
         text.length <= budget
           ? text
-          : `${text.slice(0, Math.max(0, budget - 16))}\n…（后续内容已省略）`
+          : `${text.slice(0, Math.max(0, budget - omission.length))}${omission}`.slice(0, budget)
       sections.push(`${title}\n${body}`)
-      remaining -= title.length + 1 + body.length + 1
+      remaining -= title.length + body.length + 3
     }
-    take('成员会话：', memberLines, 4_000)
-    take('有效共享条目：', entryLines, 4_000)
-    take('近期进展：', progressLines, 6_000)
+    take('Member conversations:', memberLines, 4_000)
+    take('Effective shared entries:', entryLines, 4_000)
+    take('Recent progress:', progressLines, 6_000)
     // 摘要优先级最低：预算不足时先于成员索引、共享条目与近期进展被省略。
-    if (context.state.digest) take('进展摘要：', context.state.digest.split('\n'), 4_000)
+    if (context.state.digest) take('Progress digest:', context.state.digest.split('\n'), 4_000)
     return `${header}${sections.map((section) => `${section}\n`).join('\n')}${footer}`
   }
 

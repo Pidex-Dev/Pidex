@@ -41,12 +41,12 @@ export function agentQuestionIdFromRequestId(requestId: string): string | null {
     : null
 }
 
-/** Generates the stored config from the shared preset catalog; custom keeps `current`. */
+/** Generates the stored config from the shared preset catalog. */
 export function desktopPermissionModeToPermissionConfig(
   mode: DesktopPermissionMode | undefined,
   current?: PermissionConfig,
 ): PermissionConfig {
-  return permissionConfigForPreset(mode ?? 'default', current)
+  return permissionConfigForPreset(mode ?? 'auto-review', current)
 }
 
 export function agentTurnStatusToDesktopStatus(
@@ -109,6 +109,7 @@ export function agentThreadListItemToDesktop(
     pendingPlanApproval: thread.pendingPlanApproval === true,
     ...(thread.goal === undefined ? {} : { threadGoal: thread.goal }),
     lastMessageAt: isoOrNull(thread.updatedAt),
+    lastUserMessageAt: isoOrNull(thread.lastUserMessageAt),
     createdAt: iso(thread.createdAt),
   }
 }
@@ -209,6 +210,10 @@ export function agentThreadSnapshotToDesktop(
     pendingPlanApproval: snapshot.pendingPlanApproval?.status === 'pending',
     threadGoal: snapshot.goal,
     lastMessageAt: iso(snapshot.thread.updatedAt),
+    lastUserMessageAt: isoOrNull(
+      [...(snapshot.messages ?? [])].reverse().find((message) => message.role === 'user')
+        ?.createdAt,
+    ),
     createdAt: iso(snapshot.thread.createdAt),
   }
   return {
@@ -774,11 +779,8 @@ export function contextStateUsage(
       : fallback
   } else {
     const budget = state.budget
-    const physicalInput = budget.physicalInputBudgetTokens ?? budget.inputBudgetTokens
-    const effectiveWindow =
-      activeTurn || maxContextTokens === undefined
-        ? budget.inputBudgetTokens
-        : Math.min(maxContextTokens ?? physicalInput, physicalInput)
+    // 预算结果已经包含用户有效窗口、模型最大输入与输出预留，直接使用实际输入预算。
+    const effectiveWindow = budget.inputBudgetTokens
     const usedPercent = Math.max(0, (budget.usedTokens / effectiveWindow) * 100)
     base = {
       ...fallback,
@@ -1000,6 +1002,7 @@ export function approvalToRequest(approval: ApprovalRequest): DesktopPermissionR
       ...(approval.input ?? {}),
       threadId: approval.threadId,
       command: approval.command,
+      ...(approval.cwd && !approval.input?.cwd ? { cwd: approval.cwd } : {}),
       paths: approval.paths,
       risk: approval.risk,
       ...(approval.affectedPaths ? { affectedPaths: approval.affectedPaths } : {}),
@@ -1251,8 +1254,7 @@ function eventTime(params: Record<string, unknown>): number {
 export function permissionModeFromPermissionConfig(
   config: PermissionConfig | undefined,
 ): DesktopPermissionMode {
-  // Unknown configs stay custom; preset identity always comes from the shared catalog.
-  return config ? matchPermissionPreset(config) : 'custom'
+  return config ? matchPermissionPreset(config) : 'auto-review'
 }
 
 export function projectToDesktopWorkspace(

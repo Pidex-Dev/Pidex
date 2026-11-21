@@ -224,7 +224,8 @@ export class McpToolAdapter {
     return {
       sdkName: 'mcp_list_resources',
       name: 'mcp_list_resources',
-      description: '列出当前 turn 已连接 MCP server 公布的资源；可按 server 筛选。',
+      description:
+        'List resources published by MCP servers connected to this turn; optionally filter by server.',
       schema,
       inputSchema: {
         type: 'object',
@@ -302,7 +303,7 @@ export class McpToolAdapter {
     return {
       sdkName: 'mcp_read_resource',
       name: 'mcp_read_resource',
-      description: '从指定 MCP server 读取其已公布的资源 URI。',
+      description: 'Read a published resource URI from the specified MCP server.',
       schema: z
         .object({
           server: z.string().min(1),

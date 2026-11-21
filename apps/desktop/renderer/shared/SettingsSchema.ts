@@ -1,4 +1,9 @@
-import { DEFAULT_PERMISSION_CONFIG } from '@pidex/shared/thread'
+import {
+  AUTO_REVIEW_PERMISSION_CONFIG,
+  DEFAULT_PERMISSION_CONFIG,
+  FULL_ACCESS_PERMISSION_CONFIG,
+  isFullAccessPermissionConfig,
+} from '@pidex/shared/thread'
 import {
   DESKTOP_AGENT_PERMISSION_MODES,
   isDesktopAgentPermissionMode,
@@ -21,11 +26,15 @@ import type {
   DesktopSidebarSort,
   DesktopStoredSettings,
   DesktopThinkingMode,
+  DesktopVoiceHandsFreeMode,
+  DesktopVoiceLanguage,
+  DesktopVoiceRecordingEntry,
+  DesktopVoiceRecordingStatus,
   DesktopWorkspace,
-  LocalRouterMode,
   ModelProviderID,
   SidebarProductMode,
   SidebarSectionId,
+  DesktopSidebarPinnedSort,
   SidebarCustomization,
   SidebarCustomSection,
 } from './Types.js'
@@ -66,7 +75,12 @@ export const DESKTOP_SIDEBAR_ORGANIZATIONS = new Set<DesktopSidebarOrganization>
   'flat',
 ])
 
-export const DESKTOP_SIDEBAR_SORTS = new Set<DesktopSidebarSort>(['priority', 'updated', 'manual'])
+export const DESKTOP_SIDEBAR_SORTS = new Set<DesktopSidebarSort>([
+  'priority',
+  'updated',
+  'lastPrompt',
+  'manual',
+])
 
 export const DESKTOP_SHELL_SECURITY_LEVELS = new Set<DesktopShellSecurityLevel>([
   'strict',
@@ -170,8 +184,6 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     language: 'system',
     enableParetoCodeRouter: false,
     enableFusionRouter: false,
-    enableAutoReviewPermissionMode: false,
-    enableFullAccessPermissionMode: false,
     permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
     shellSecurityLevel: 'balanced',
     terminalProfileId: null,
@@ -200,6 +212,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     gitDraftPullRequest: true,
     gitAutoDeleteWorktree: true,
     gitAutoDeleteWorktreeLimit: 15,
+    gitConfirmDeleteWorktree: false,
     worktreeRoot: '',
     worktreeFetchUpstream: false,
     prWatchAutoMerge: false,
@@ -210,6 +223,13 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     installPidexDependencies: true,
     workspaceDependenciesMigrated: false,
     'desktop.voice.preferredInputDeviceId': '',
+    'desktop.voice.language': 'auto',
+    'desktop.voice.showLiveTranscript': false,
+    'desktop.voice.dictationShortcut': 'Ctrl+Shift+D',
+    'desktop.voice.handsFreeMode': 'hold-or-double-tap',
+    'desktop.voice.recentRecordings': [],
+    'desktop.voice.dictionary': [],
+    'desktop.composer_predictions': false,
     personality: 'pragmatic',
     customInstructions: '',
     enableMemory: false,
@@ -240,6 +260,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     sidebarActivityCoachmarkDismissed: false,
     sidebarManualOrder: {},
     sidebarSessionPins: {},
+    titlebarSessionTabIds: [],
     collapsedSidebarProjectPaths: [],
     sidebarSectionOrder: [...VALID_SIDEBAR_SECTION_IDS],
     browserAllowedSites: [],
@@ -266,7 +287,6 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
 export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSettings {
   const parsed = value && typeof value === 'object' ? (value as Partial<DesktopStoredSettings>) : {}
   const defaults = defaultDesktopStoredSettings()
-  const permissionMode = normalizeDesktopPermissionMode(parsed.permissionMode)
   const legacyPermissionProfile = normalizeDesktopPermissionProfile(
     parsed.permissionProfile,
     ':workspace',
@@ -289,25 +309,37 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
     parsed.permissionConfig && typeof parsed.permissionConfig === 'object'
       ? parsed.permissionConfig
       : null
-  const permissionConfig = rawPermissionConfig
+  const candidateConfig = rawPermissionConfig
     ? {
         sandboxMode: isDesktopSandboxMode(rawPermissionConfig.sandboxMode)
           ? rawPermissionConfig.sandboxMode
           : sandboxMode,
         approvalPolicy: normalizeDesktopApprovalPolicy(
           rawPermissionConfig.approvalPolicy,
-          normalizeDesktopApprovalPolicy(parsed.approvalPolicy, 'on-request'),
+          normalizeDesktopApprovalPolicy(parsed.approvalPolicy, 'auto_review'),
         ),
         approvalsReviewer: normalizeDesktopApprovalsReviewer(
           rawPermissionConfig.approvalsReviewer,
-          normalizeDesktopApprovalsReviewer(parsed.approvalsReviewer, 'user'),
+          normalizeDesktopApprovalsReviewer(parsed.approvalsReviewer, 'auto_review'),
         ),
       }
     : {
-        sandboxMode,
-        approvalPolicy: normalizeDesktopApprovalPolicy(parsed.approvalPolicy, 'on-request'),
-        approvalsReviewer: normalizeDesktopApprovalsReviewer(parsed.approvalsReviewer, 'user'),
+        sandboxMode:
+          parsed.permissionMode === 'full-access' && !parsed.sandboxMode
+            ? 'danger-full-access'
+            : sandboxMode,
+        approvalPolicy: normalizeDesktopApprovalPolicy(
+          parsed.approvalPolicy,
+          parsed.permissionMode === 'full-access' ? 'never' : 'auto_review',
+        ),
+        approvalsReviewer: normalizeDesktopApprovalsReviewer(
+          parsed.approvalsReviewer,
+          'auto_review',
+        ),
       }
+  const permissionConfig = isFullAccessPermissionConfig(candidateConfig)
+    ? { ...FULL_ACCESS_PERMISSION_CONFIG }
+    : { ...AUTO_REVIEW_PERMISSION_CONFIG }
   return {
     language:
       parsed.language === 'zh-CN' || parsed.language === 'en-US' ? parsed.language : 'system',
@@ -319,18 +351,6 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
       typeof parsed.enableFusionRouter === 'boolean'
         ? parsed.enableFusionRouter
         : defaults.enableFusionRouter,
-    enableAutoReviewPermissionMode:
-      typeof parsed.enableAutoReviewPermissionMode === 'boolean'
-        ? parsed.enableAutoReviewPermissionMode
-        : permissionMode === 'auto-review'
-          ? true
-          : defaults.enableAutoReviewPermissionMode,
-    enableFullAccessPermissionMode:
-      typeof parsed.enableFullAccessPermissionMode === 'boolean'
-        ? parsed.enableFullAccessPermissionMode
-        : permissionMode === 'full-access'
-          ? true
-          : defaults.enableFullAccessPermissionMode,
     permissionConfig,
     shellSecurityLevel: DESKTOP_SHELL_SECURITY_LEVELS.has(
       parsed.shellSecurityLevel as DesktopShellSecurityLevel,
@@ -424,6 +444,7 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
       parsed.gitAutoDeleteWorktreeLimit,
       defaults.gitAutoDeleteWorktreeLimit,
     ),
+    gitConfirmDeleteWorktree: parsed.gitConfirmDeleteWorktree === true,
     allowForcePush:
       typeof parsed.allowForcePush === 'boolean' ? parsed.allowForcePush : defaults.allowForcePush,
     commitMessagePrompt: stringOrDefault(parsed.commitMessagePrompt, defaults.commitMessagePrompt),
@@ -443,6 +464,30 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
       parsed['desktop.voice.preferredInputDeviceId'],
       defaults['desktop.voice.preferredInputDeviceId'],
     ),
+    'desktop.voice.language': normalizeVoiceLanguage(
+      parsed['desktop.voice.language'],
+      defaults['desktop.voice.language'],
+    ),
+    'desktop.voice.showLiveTranscript':
+      typeof parsed['desktop.voice.showLiveTranscript'] === 'boolean'
+        ? parsed['desktop.voice.showLiveTranscript']
+        : defaults['desktop.voice.showLiveTranscript'],
+    'desktop.voice.dictationShortcut':
+      typeof parsed['desktop.voice.dictationShortcut'] === 'string'
+        ? parsed['desktop.voice.dictationShortcut'].trim()
+        : defaults['desktop.voice.dictationShortcut'],
+    'desktop.voice.handsFreeMode': normalizeVoiceHandsFreeMode(
+      parsed['desktop.voice.handsFreeMode'],
+      defaults['desktop.voice.handsFreeMode'],
+    ),
+    'desktop.voice.recentRecordings': normalizeVoiceRecordings(
+      parsed['desktop.voice.recentRecordings'],
+    ),
+    'desktop.voice.dictionary': normalizeVoiceDictionary(parsed['desktop.voice.dictionary']),
+    'desktop.composer_predictions':
+      typeof parsed['desktop.composer_predictions'] === 'boolean'
+        ? parsed['desktop.composer_predictions']
+        : defaults['desktop.composer_predictions'],
     personality: isDesktopPersonality(parsed.personality)
       ? parsed.personality
       : defaults.personality,
@@ -547,6 +592,10 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
       parsed.sidebarSessionPins,
       defaults.sidebarSessionPins,
     ),
+    titlebarSessionTabIds: normalizeUniqueStringList(
+      parsed.titlebarSessionTabIds,
+      defaults.titlebarSessionTabIds,
+    ),
     collapsedSidebarProjectPaths: normalizeUniqueStringList(
       parsed.collapsedSidebarProjectPaths,
       defaults.collapsedSidebarProjectPaths,
@@ -602,6 +651,7 @@ export function createSidebarStateResetPatch(
     sidebarActivityCoachmarkDismissed: settings.sidebarActivityCoachmarkDismissed ?? false,
     sidebarManualOrder: {},
     sidebarSessionPins: {},
+    titlebarSessionTabIds: [],
     collapsedSidebarProjectPaths: [],
     sidebarSectionOrder: [...VALID_SIDEBAR_SECTION_IDS],
     collapsedSidebarSections: ['projects', 'recent'],
@@ -730,40 +780,30 @@ export function normalizeDesktopPermissionProfile(value: unknown, fallback = ':w
 
 export function normalizeDesktopApprovalPolicy(
   value: unknown,
-  fallback: DesktopStoredSettings['approvalPolicy'] = 'on-request',
+  fallback: DesktopStoredSettings['approvalPolicy'] = 'auto_review',
 ): DesktopStoredSettings['approvalPolicy'] {
-  if (value === 'on-failure') return 'on-request'
+  if (value === 'never') return 'never'
+  if (
+    value === 'auto_review' ||
+    value === 'auto-review' ||
+    value === 'on-request' ||
+    value === 'untrusted' ||
+    value === 'on-failure'
+  ) {
+    return 'auto_review'
+  }
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     const policy = value as Record<string, unknown>
-    const keys = [
-      'sandboxApproval',
-      'rules',
-      'skillApproval',
-      'requestPermissions',
-      'mcpTools',
-      'mcpElicitations',
-    ] as const
-    if (policy.type === 'granular' && keys.every((key) => typeof policy[key] === 'boolean')) {
-      return {
-        type: 'granular',
-        sandboxApproval: policy.sandboxApproval as boolean,
-        rules: policy.rules as boolean,
-        skillApproval: policy.skillApproval as boolean,
-        requestPermissions: policy.requestPermissions as boolean,
-        mcpTools: policy.mcpTools as boolean,
-        mcpElicitations: policy.mcpElicitations as boolean,
-      }
-    }
+    if (policy.type === 'granular') return 'auto_review'
   }
-  return value === 'untrusted' || value === 'on-request' || value === 'never' ? value : fallback
+  return fallback
 }
 
 export function normalizeDesktopApprovalsReviewer(
-  value: unknown,
-  fallback: DesktopStoredSettings['approvalsReviewer'] = 'user',
+  _value: unknown,
+  _fallback: DesktopStoredSettings['approvalsReviewer'] = 'auto_review',
 ): DesktopStoredSettings['approvalsReviewer'] {
-  if (value === 'auto') return 'auto_review'
-  return value === 'user' || value === 'auto_review' ? value : fallback
+  return 'auto_review'
 }
 
 export function normalizeDesktopWorkspaces(value: unknown): DesktopWorkspace[] {
@@ -893,7 +933,8 @@ export function normalizeSidebarCustomization(
     }
   }
 
-  const pinnedSort: 'manual' | 'updated' = raw.pinnedSort === 'updated' ? 'updated' : 'manual'
+  const pinnedSort: DesktopSidebarPinnedSort =
+    raw.pinnedSort === 'updated' || raw.pinnedSort === 'lastPrompt' ? raw.pinnedSort : 'manual'
 
   const rawDestOrder = Array.isArray(raw.destinationOrder)
     ? raw.destinationOrder.filter((id): id is string => typeof id === 'string')
@@ -1141,13 +1182,6 @@ export function normalizeProjectAppearances(value: unknown): Record<string, Proj
   return normalized
 }
 
-function normalizeSidebarSectionOrder(value: unknown): SidebarSectionId[] {
-  const normalized = normalizeUniqueStringList(value, []).filter((id): id is SidebarSectionId =>
-    (VALID_SIDEBAR_SECTION_IDS as readonly string[]).includes(id),
-  )
-  return [...normalized, ...VALID_SIDEBAR_SECTION_IDS.filter((id) => !normalized.includes(id))]
-}
-
 function normalizeSidebarManualOrder(
   value: unknown,
   fallback: Record<string, string[]>,
@@ -1186,4 +1220,70 @@ function migrateModelAlias(model: string): string {
     default:
       return model
   }
+}
+
+const VOICE_LANGUAGES = new Set<DesktopVoiceLanguage>(['auto', 'zh', 'yue', 'en', 'ja', 'ko'])
+const VOICE_RECORDING_STATUSES = new Set<DesktopVoiceRecordingStatus>([
+  'saved',
+  'cancelled',
+  'error',
+])
+export const MAX_VOICE_RECENT_RECORDINGS = 20
+
+function normalizeVoiceLanguage(
+  value: unknown,
+  fallback: DesktopVoiceLanguage,
+): DesktopVoiceLanguage {
+  return typeof value === 'string' && VOICE_LANGUAGES.has(value as DesktopVoiceLanguage)
+    ? (value as DesktopVoiceLanguage)
+    : fallback
+}
+
+function normalizeVoiceHandsFreeMode(
+  value: unknown,
+  fallback: DesktopVoiceHandsFreeMode,
+): DesktopVoiceHandsFreeMode {
+  return value === 'hold-or-double-tap' || value === 'toggle' ? value : fallback
+}
+
+function normalizeVoiceRecordings(value: unknown): DesktopVoiceRecordingEntry[] {
+  if (!Array.isArray(value)) return []
+  const result: DesktopVoiceRecordingEntry[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+    const record = item as Record<string, unknown>
+    const id = typeof record.id === 'string' ? record.id.trim() : ''
+    if (!id || seen.has(id)) continue
+    const status = record.status
+    if (
+      typeof status !== 'string' ||
+      !VOICE_RECORDING_STATUSES.has(status as DesktopVoiceRecordingStatus)
+    ) {
+      continue
+    }
+    const createdAt =
+      typeof record.createdAt === 'number' && Number.isFinite(record.createdAt)
+        ? record.createdAt
+        : Date.now()
+    seen.add(id)
+    result.push({
+      id,
+      status: status as DesktopVoiceRecordingStatus,
+      createdAt,
+      ...(typeof record.durationMs === 'number' && Number.isFinite(record.durationMs)
+        ? { durationMs: Math.max(0, Math.round(record.durationMs)) }
+        : {}),
+      ...(typeof record.transcript === 'string' && record.transcript.trim()
+        ? { transcript: record.transcript }
+        : {}),
+      ...(typeof record.error === 'string' && record.error.trim() ? { error: record.error } : {}),
+    })
+    if (result.length >= MAX_VOICE_RECENT_RECORDINGS) break
+  }
+  return result
+}
+
+function normalizeVoiceDictionary(value: unknown): string[] {
+  return normalizeUniqueStringList(value, [])
 }

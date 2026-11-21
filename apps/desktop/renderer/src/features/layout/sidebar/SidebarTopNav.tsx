@@ -1,28 +1,17 @@
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { createElement, useEffect, useState } from 'react'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { ProtocolCapability } from '@pidex/agent-protocol'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import {
-  Bell,
-  BrainCircuit,
-  Clock3,
-  Egg,
-  FolderKanban,
-  GitBranch,
-  MessagesSquare,
-  Plug,
-  Search,
-  SquarePen,
-  X,
-} from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
+import { Bell, Search, X } from 'lucide-react'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { Select } from '../../../components/ui/Select.js'
 import type { SidebarProductMode } from '../../../../shared/Types.js'
 import type { AppView } from '../../../UiTypes.js'
 import { newSessionPath } from '../../session/NewSessionSurface.js'
 import type { NewSessionSurface } from '../../session/NewSessionSurface.js'
+import { APP_PAGES, type AppPageNav } from '../../routing/PageDefinitions.js'
 
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
@@ -51,7 +40,7 @@ export type SidebarNavItem = {
   availability: SidebarNavAvailability
 }
 
-export const UNKNOWN_SIDEBAR_CAPABILITY_STATE: SidebarCapabilityState = {
+const UNKNOWN_SIDEBAR_CAPABILITY_STATE: SidebarCapabilityState = {
   status: 'unknown',
   capabilities: null,
 }
@@ -75,74 +64,26 @@ export function useSidebarCapabilities(): SidebarCapabilityState {
   return state
 }
 
-export const TOP_NAV_ITEMS: SidebarNavItem[] = [
-  {
-    view: 'new',
-    label: '新建任务',
-    icon: <SquarePen size={APP_ICON_SIZE} />,
-    path: '/new',
-    availability: { kind: 'always' },
-  },
-  {
-    view: 'sessionGroups',
-    label: '工作组',
-    icon: <MessagesSquare size={APP_ICON_SIZE} />,
-    path: '/workflows',
-    availability: {
-      kind: 'any-capability',
-      capabilities: ['workflow.v1' as ProtocolCapability, 'session-group.v1' as ProtocolCapability],
-    },
-  },
-  {
-    view: 'automations',
-    label: '已安排',
-    icon: <Clock3 size={APP_ICON_SIZE} />,
-    path: '/automations',
-    availability: { kind: 'always' },
-  },
-  {
-    view: 'git',
-    label: 'Git 看板',
-    icon: <GitBranch size={APP_ICON_SIZE} />,
-    path: '/git',
-    availability: { kind: 'any-capability', capabilities: ['git.review.v1'] },
-  },
-  {
-    view: 'plugins',
-    label: '插件',
-    icon: <Plug size={APP_ICON_SIZE} />,
-    path: '/plugins',
-    availability: {
-      kind: 'any-capability',
-      capabilities: ['skills.manage.v1', 'mcp.manage.v1'],
-    },
-  },
-  {
-    view: 'providers',
-    label: '供应商',
-    icon: <BrainCircuit size={APP_ICON_SIZE} />,
-    path: '/providers',
-    availability: { kind: 'always' },
-  },
-  {
-    view: 'pets',
-    label: '宠物市场',
-    icon: <Egg size={APP_ICON_SIZE} />,
-    path: '/pets',
-    availability: {
-      kind: 'any-capability',
-      capabilities: ['pets.management.v1'],
-    },
-  },
-]
-
-export const PROJECTS_NAV_ITEM: SidebarNavItem = {
-  view: 'projects',
-  label: '项目',
-  icon: <FolderKanban size={APP_ICON_SIZE} />,
-  path: '/projects',
-  availability: { kind: 'always' },
+function navItemFromPage(nav: AppPageNav): SidebarNavItem {
+  return {
+    view: nav.view,
+    label: nav.label,
+    icon: createElement(nav.icon, { size: APP_ICON_SIZES.sm }),
+    path: nav.path,
+    availability: nav.capabilities
+      ? { kind: 'any-capability', capabilities: nav.capabilities }
+      : { kind: 'always' },
+  }
 }
+
+const TOP_NAV_PAGES = APP_PAGES.flatMap((page) => (page.nav ? [page.nav] : []))
+
+/** 固定入口在前，其余按页面定义顺序排列；不含可选的“项目”入口。 */
+export const TOP_NAV_ITEMS: SidebarNavItem[] = TOP_NAV_PAGES.filter(
+  (nav) => nav.view !== 'projects',
+).map(navItemFromPage)
+
+const PROJECTS_NAV_ITEM = TOP_NAV_PAGES.find((nav) => nav.view === 'projects')
 
 export function getSidebarTopNavItems({
   showProjects,
@@ -156,9 +97,10 @@ export function getSidebarTopNavItems({
   const newItem = surface
     ? { ...TOP_NAV_ITEMS[0]!, path: newSessionPath(surface) }
     : TOP_NAV_ITEMS[0]!
-  const items = showProjects
-    ? [newItem, TOP_NAV_ITEMS[1]!, PROJECTS_NAV_ITEM, ...TOP_NAV_ITEMS.slice(2)]
-    : [newItem, ...TOP_NAV_ITEMS.slice(1)]
+  const items = [newItem, ...TOP_NAV_ITEMS.slice(1)]
+  if (showProjects && PROJECTS_NAV_ITEM) {
+    items.splice(2, 0, navItemFromPage(PROJECTS_NAV_ITEM))
+  }
 
   // capability 未就绪或不可用时，仅暴露 always 入口，避免点入未接线的能力。
   if (capabilityState.status !== 'ready') {
@@ -191,11 +133,13 @@ function SidebarNavItems({
   items,
   isActiveView,
   plainActive = false,
+  onNewChat,
 }: {
   items: readonly SidebarNavItem[]
   isActiveView: (view: AppView) => boolean
   /** 固定“新建任务”入口不显示选中底色，只保留 aria-current。 */
   plainActive?: boolean
+  onNewChat?: () => void
 }): React.ReactNode {
   const { t } = useLocale()
   return (
@@ -207,21 +151,33 @@ function SidebarNavItems({
             active={active && !plainActive}
             asChild
             className={cx(
-              'sidebar-nav-link tw:type-row-title',
+              'sidebar-nav-link tw:weight-medium',
               'tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus',
               active && !plainActive ? 'active' : undefined,
               plainActive ? 'sidebar-row--ghost' : undefined,
             )}
             key={item.view}
-            labelClassName={cx(
-              'sidebar-item-label',
-              'tw:min-w-0',
-              'tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap',
-            )}
+            labelClassName="sidebar-item-label tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap"
             layout="flex"
             leading={item.icon}
           >
-            <Link aria-current={active ? 'page' : undefined} to={item.path}>
+            <Link
+              aria-current={active ? 'page' : undefined}
+              to={item.path}
+              onClick={(event) => {
+                if (
+                  item.view === 'new' &&
+                  !event.defaultPrevented &&
+                  event.button === 0 &&
+                  !event.ctrlKey &&
+                  !event.metaKey &&
+                  !event.shiftKey &&
+                  !event.altKey
+                ) {
+                  onNewChat?.()
+                }
+              }}
+            >
               {t(item.label)}
             </Link>
           </SidebarRow>
@@ -229,12 +185,6 @@ function SidebarNavItems({
       })}
     </>
   )
-}
-
-type Props = {
-  capabilityState?: SidebarCapabilityState
-  isActiveView: (view: AppView) => boolean
-  showProjects: boolean
 }
 
 export const SIDEBAR_PRODUCT_MODE_ORDER: readonly SidebarProductMode[] = [
@@ -265,14 +215,14 @@ export function SidebarHeader({
   showActions = true,
   hasUnread = false,
   unreadActivityCount = 0,
-  scrollOverlapping = false,
   onOpenCommandMenu,
+  onNewChat,
 }: {
   showActions?: boolean
   hasUnread?: boolean
   unreadActivityCount?: number
-  scrollOverlapping?: boolean
   onOpenCommandMenu: () => void
+  onNewChat?: () => void
 }): React.ReactNode {
   const { t } = useLocale()
   const navigate = useNavigate()
@@ -298,10 +248,7 @@ export function SidebarHeader({
 
   return (
     <>
-      <header
-        className="sidebar-header tw:mx-2 tw:my-0 tw:flex tw:h-9 tw:min-h-9 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-b-transparent tw:data-[scroll-overlap=true]:border-b-app-border-subtle"
-        data-scroll-overlap={scrollOverlapping ? 'true' : 'false'}
-      >
+      <header className="sidebar-header tw:mx-1 tw:my-0 tw:flex tw:h-7 tw:min-h-7 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
         <div className="sidebar-header-left tw:flex tw:min-w-0 tw:flex-1 tw:items-center">
           <Select<SidebarProductMode>
             ariaLabel={t('产品模式')}
@@ -311,7 +258,7 @@ export function SidebarHeader({
               label: SIDEBAR_PRODUCT_MODE_META[value].label,
               detail: t(SIDEBAR_PRODUCT_MODE_META[value].description),
             }))}
-            triggerClassName="sidebar-product-mode-select tw:h-7 tw:max-w-full tw:border-transparent tw:bg-transparent tw:shadow-none tw:hover:bg-app-hover tw:data-[state=open]:bg-app-selected"
+            triggerClassName="sidebar-product-mode-select tw:h-6 tw:max-w-full tw:border-transparent tw:bg-transparent tw:shadow-none tw:hover:bg-app-hover tw:data-[state=open]:bg-app-selected"
             onValueChange={(value) => {
               setSidebarProductMode(value)
               navigate(newSessionPath(value))
@@ -319,7 +266,7 @@ export function SidebarHeader({
           />
         </div>
         {showActions ? (
-          <div className="sidebar-header-actions tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:gap-1">
+          <div className="sidebar-header-actions tw:flex tw:min-w-0 tw:shrink-0 tw:items-center">
             <Popover.Root
               open={
                 !sidebarActivityCoachmarkDismissed &&
@@ -341,8 +288,8 @@ export function SidebarHeader({
                       active={sidebarTimelineEnabled}
                       className="sidebar-timeline-toggle-button"
                       color="ghost"
-                      iconSize="md"
-                      size="sm"
+                      iconSize="sm"
+                      size="compact"
                       onClick={() => {
                         if (!sidebarActivityCoachmarkDismissed) {
                           setSidebarActivityCoachmarkDismissed(true)
@@ -351,7 +298,7 @@ export function SidebarHeader({
                       }}
                       title={timelineToggleTitle}
                     >
-                      <Bell aria-hidden="true" size={APP_ICON_SIZE}>
+                      <Bell className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm}>
                         {hasUnread && (
                           <circle
                             cx="18"
@@ -376,19 +323,22 @@ export function SidebarHeader({
                 >
                   <div className="tw:flex tw:flex-col tw:gap-2">
                     <div className="tw:flex tw:items-start tw:justify-between tw:gap-3">
-                      <span className="tw:type-row-title tw:text-app-text">{t('查看活动')}</span>
+                      <span className="tw:type-2 tw:weight-medium tw:text-app-text">
+                        {t('查看活动')}
+                      </span>
                       <Button
                         isIconOnly
+                        iconSize="sm"
                         aria-label={t('关闭')}
                         title={t('关闭')}
                         color="ghost"
                         size="compact"
                         onClick={() => setSidebarActivityCoachmarkDismissed(true)}
                       >
-                        <X size={APP_ICON_SIZES.sm} />
+                        <X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                       </Button>
                     </div>
-                    <p className="tw:m-0 tw:type-body-sm tw:text-app-text">
+                    <p className="tw:m-0 tw:type-1 tw:text-app-text">
                       {t('查看未读、进行中或待回复的聊天')}
                     </p>
                   </div>
@@ -401,63 +351,37 @@ export function SidebarHeader({
               aria-haspopup="dialog"
               className="sidebar-search-button"
               color="ghost"
-              iconSize="md"
-              size="sm"
+              iconSize="sm"
+              size="compact"
               onClick={onOpenCommandMenu}
               title={t('搜索任务')}
             >
-              <Search size={APP_ICON_SIZE} />
+              <Search className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
             </Button>
           </div>
         ) : null}
       </header>
       <SidebarNewTaskNav
         label="新聊天"
+        onNewChat={onNewChat}
         isActiveView={(view) => view === 'new' && location.pathname === '/new'}
-        scrollOverlapping={scrollOverlapping}
       />
     </>
-  )
-}
-
-export function SidebarTopNav({
-  capabilityState = UNKNOWN_SIDEBAR_CAPABILITY_STATE,
-  isActiveView,
-  showProjects,
-}: Props): React.ReactNode {
-  const { t } = useLocale()
-  const sidebarProductMode = useDesktopSettingsField((settings) => settings.sidebarProductMode)
-  const { scrollableItems } = splitSidebarTopNavItems(
-    getSidebarTopNavItems({
-      showProjects,
-      surface: sidebarProductMode,
-      capabilityState,
-    }),
-  )
-  return (
-    <nav
-      aria-label={t('主要导航')}
-      className="sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-2"
-    >
-      <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} />
-    </nav>
   )
 }
 
 /**
  * 固定在侧栏顶部的“新建对话”入口；与可滚动导航共用相同的
  * active、键盘焦点、图标、路由和无障碍属性。
- * `scrollOverlapping` 由滚动视口的实际 scrollTop 驱动：
- * 内容滚过固定入口时显示边界分隔线，滚回顶部立即隐藏。
  */
 export function SidebarNewTaskNav({
   label,
+  onNewChat,
   isActiveView,
-  scrollOverlapping,
 }: {
   label?: string
+  onNewChat?: () => void
   isActiveView: (view: AppView) => boolean
-  scrollOverlapping: boolean
 }): React.ReactNode {
   const { t } = useLocale()
   const sidebarProductMode = useDesktopSettingsField((settings) => settings.sidebarProductMode)
@@ -471,13 +395,13 @@ export function SidebarNewTaskNav({
   return (
     <nav
       aria-label={t('新建对话')}
-      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col tw:flex-none tw:gap-0.5 tw:border-b tw:border-b-transparent tw:p-2 tw:data-[scroll-overlap=true]:border-b-app-border-subtle"
-      data-scroll-overlap={scrollOverlapping ? 'true' : 'false'}
+      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col tw:flex-none tw:gap-1 tw:px-1 tw:py-2"
     >
       <SidebarNavItems
         items={label ? fixedItems.map((item) => ({ ...item, label })) : fixedItems}
         isActiveView={isActiveView}
         plainActive
+        onNewChat={onNewChat}
       />
     </nav>
   )

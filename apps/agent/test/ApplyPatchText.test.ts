@@ -33,6 +33,7 @@ describe('apply_patch parser', () => {
             changeContext: 'first',
             oldLines: ['old'],
             newLines: ['new'],
+            edits: [{ oldIndex: 0, oldCount: 1, newLines: ['new'] }],
             additions: 1,
             deletions: 1,
             patchLine: 6,
@@ -40,6 +41,7 @@ describe('apply_patch parser', () => {
           {
             oldLines: ['tail'],
             newLines: ['tail', 'after'],
+            edits: [{ oldIndex: 1, oldCount: 0, newLines: ['after'] }],
             additions: 1,
             deletions: 0,
             endOfFile: true,
@@ -50,24 +52,54 @@ describe('apply_patch parser', () => {
     ])
   })
 
-  test('rejects unsupported delete and move operations', () => {
-    expect(() =>
-      parseApplyPatch(['*** Begin Patch', '*** Delete File: old.txt', '*** End Patch'].join('\n')),
-    ).toThrow(expect.objectContaining({ code: 'PATCH_UNSUPPORTED_OPERATION' }))
-
-    expect(() =>
+  test('parses Delete File and Move to operations', () => {
+    expect(
       parseApplyPatch(
         [
           '*** Begin Patch',
-          '*** Update File: old.txt',
-          '*** Move to: next.txt',
+          '*** Delete File: old.txt',
+          '*** Update File: from.txt',
+          '*** Move to: to.txt',
+          '*** Update File: edited.txt',
+          '*** Move to: moved.txt',
           '@@',
           '-old',
           '+next',
           '*** End Patch',
         ].join('\n'),
       ),
-    ).toThrow(expect.objectContaining({ code: 'PATCH_UNSUPPORTED_OPERATION' }))
+    ).toEqual([
+      { type: 'delete', path: 'old.txt' },
+      { type: 'update', path: 'from.txt', chunks: [], moveTo: 'to.txt' },
+      {
+        type: 'update',
+        path: 'edited.txt',
+        moveTo: 'moved.txt',
+        chunks: [
+          {
+            oldLines: ['old'],
+            newLines: ['next'],
+            edits: [{ oldIndex: 0, oldCount: 1, newLines: ['next'] }],
+            additions: 1,
+            deletions: 1,
+            patchLine: 7,
+          },
+        ],
+      },
+    ])
+  })
+
+  test('rejects a move whose source and target are the same file', () => {
+    expect(() =>
+      parseApplyPatch(
+        [
+          '*** Begin Patch',
+          '*** Update File: same.txt',
+          '*** Move to: ./same.txt',
+          '*** End Patch',
+        ].join('\n'),
+      ),
+    ).toThrow(expect.objectContaining({ code: 'PATCH_MOVE_INVALID' }))
   })
 
   test('rejects duplicate normalized paths and trailing garbage', () => {
@@ -126,6 +158,7 @@ describe('apply_patch parser', () => {
           oldStartLine: 29,
           oldLines: ['before', 'old', 'after'],
           newLines: ['before', 'after'],
+          edits: [{ oldIndex: 1, oldCount: 1, newLines: [] }],
           additions: 0,
           deletions: 1,
           patchLine: 3,

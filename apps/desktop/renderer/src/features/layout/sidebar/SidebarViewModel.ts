@@ -1,6 +1,7 @@
 import type {
   DesktopRemovedWorkspace,
   DesktopSidebarOrganization,
+  DesktopSidebarPinnedSort,
   DesktopWorkspace,
   SidebarCustomSection,
 } from '../../../../shared/Types.js'
@@ -573,6 +574,34 @@ export function buildSidebarPinnedItems({
   return orderPinnedItemGroup([...sessionItems, ...projectItems], storedOrder)
 }
 
+/** 按置顶区选定的排序方式排列条目；手动排序保留 `buildSidebarPinnedItems` 结果。 */
+export function sortSidebarPinnedItems(
+  items: readonly SidebarPinnedItem[],
+  sort: DesktopSidebarPinnedSort,
+): SidebarPinnedItem[] {
+  if (sort === 'updated') {
+    return [...items].sort(
+      (left, right) => timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt),
+    )
+  }
+  if (sort === 'lastPrompt') {
+    return [...items].sort(
+      (left, right) =>
+        pinnedItemLastPromptMs(right) - pinnedItemLastPromptMs(left) ||
+        timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt) ||
+        left.key.localeCompare(right.key),
+    )
+  }
+  return [...items]
+}
+
+function pinnedItemLastPromptMs(item: SidebarPinnedItem): number {
+  if (item.kind === 'session') {
+    return timestampMs(item.session.lastUserMessageAt ?? item.session.createdAt)
+  }
+  return timestampMs(item.project.lastOpenedAt ?? item.project.pinnedAt)
+}
+
 function orderPinnedItemGroup(
   items: readonly SidebarPinnedItem[],
   storedKeys: readonly string[],
@@ -766,14 +795,16 @@ export function deriveSidebarSessionVisualState(
   pendingPermissionSessionIds: ReadonlySet<string>,
 ): SidebarSessionVisualState {
   if (
-    session.status === 'waiting' ||
     pendingPermissionSessionIds.has(session.id) ||
     session.latestTurnStatus === 'waiting-question' ||
-    session.latestTurnStatus === 'waiting-permission'
+    session.latestTurnStatus === 'waiting-permission' ||
+    (session.status === 'waiting' && session.latestTurnStatus !== 'waiting-subagents')
   ) {
     return 'needs-input'
   }
-  if (session.status === 'running') return 'running'
+  if (session.status === 'running' || session.latestTurnStatus === 'waiting-subagents') {
+    return 'running'
+  }
   if (session.latestTurnStatus === 'failed') return 'error'
   if (session.unreadAt) return 'unread'
   return 'idle'

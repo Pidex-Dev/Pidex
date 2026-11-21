@@ -95,4 +95,23 @@ export class ArtifactService {
     const data = await this.blobs.read(artifact.storagePath)
     return { artifact, data }
   }
+
+  /**
+   * Archives standalone text (decision admission full output) content-addressed,
+   * without a catalog row: the sha256 is the durable read pointer.
+   */
+  async archiveText(text: string): Promise<{ sha256: string; sizeBytes: number }> {
+    const data = new TextEncoder().encode(text)
+    if (data.byteLength > 50 * 1024 * 1024) {
+      throw new AgentError('ARTIFACT_TOO_LARGE', 'Artifact 超过 50MB 上限', 413)
+    }
+    const stored = await this.blobs.put(data)
+    return { sha256: stored.sha256, sizeBytes: data.byteLength }
+  }
+
+  /** Reads an archived text blob by its sha256 pointer; null when it is gone. */
+  async readArchivedText(sha256: string): Promise<string | null> {
+    const data = await this.readCachedBlob(sha256)
+    return data ? new TextDecoder().decode(data) : null
+  }
 }

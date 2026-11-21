@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import type { Item, ToolActivityTarget } from '@pidex/shared/thread'
 
+import { preserveTimelineAnchorPosition } from './PreserveTimelineAnchorPosition.js'
 import { absoluteFilePath, fileDisplayName } from './FileMutationPresentation.js'
 import { useWorkspacePath, useConversationItemContext } from './ConversationItemContext.js'
 
@@ -427,14 +428,6 @@ export function toolSemanticIcon(kind: ToolActivityIconKind | ToolSemanticKind):
   }
 }
 
-export function isExplorationToolActivity(item: ToolItem): boolean {
-  return (
-    (item.activity?.type === 'read' && item.activity.subject === 'file') ||
-    item.activity?.type === 'search' ||
-    item.activity?.type === 'list_files'
-  )
-}
-
 export function ToolActivityHeader({
   canExpand,
   children,
@@ -451,14 +444,17 @@ export function ToolActivityHeader({
   onToggle: () => void
 }): React.ReactNode {
   return (
-    <div className="cpx-agent-activity__item-header cpx-agent-activity__item-header--tool tw:relative tw:isolate">
+    <div className="cpx-agent-activity__item-header cpx-agent-activity__item-header--tool tw:isolate">
       <button
         aria-controls={canExpand ? contentId : undefined}
         aria-expanded={canExpand ? expanded : undefined}
         aria-label={label}
         className="cpx-agent-activity__item-toggle"
         disabled={!canExpand}
-        onClick={onToggle}
+        onClick={(event) => {
+          preserveTimelineAnchorPosition(event.currentTarget)
+          onToggle()
+        }}
         type="button"
       />
       {children}

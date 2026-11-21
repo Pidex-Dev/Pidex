@@ -1,3 +1,6 @@
+import { useMediaViewer } from './MediaViewerContext.js'
+import { createThreadAttachmentPreviewTab } from './AttachmentPreviewDescriptor.js'
+import { isMediaPreviewKind } from './AttachmentPreviewSupport.js'
 import { useRef } from 'react'
 import type { Attachment } from '@pidex/shared/thread'
 import {
@@ -22,6 +25,7 @@ export function ThreadAttachmentRows({
   onOpen,
   onRemove,
 }: ThreadAttachmentRowsProps): React.ReactNode {
+  const viewer = useMediaViewer()
   const manifest = useBrowserAnnotationManifest(attachments)
   const screenshot = (a: BrowserAnnotation) =>
     attachments.find(
@@ -43,10 +47,27 @@ export function ThreadAttachmentRows({
     (attachment) => attachment.kind !== 'image' && attachment.id !== manifest?.id,
   )
 
+  const open =
+    onOpen &&
+    ((attachment: Attachment) => {
+      if (viewer && attachment.kind !== 'video' && isMediaPreviewKind(attachment.kind)) {
+        const items = attachments
+          .filter((item) => isMediaPreviewKind(item.kind) && !used.has(item.id))
+          .map(createThreadAttachmentPreviewTab)
+          .filter((item) => item !== null)
+        const index = items.findIndex((item) => item.attachment.id === attachment.id)
+        if (index !== -1) {
+          viewer.open(items, index)
+          return
+        }
+      }
+      onOpen(attachment)
+    })
+
   if (attachments.length === 0) return null
 
   return (
-    <div className="thread-attachment-rows tw:grid tw:min-w-0 tw:gap-2">
+    <div className="thread-attachment-rows tw:grid tw:w-full tw:min-w-0 tw:justify-items-end tw:gap-2">
       {manifest ? (
         <div className="browser-annotation-cards">
           {manifest.annotations.map((a) => {
@@ -65,7 +86,7 @@ export function ThreadAttachmentRows({
             <ThreadAttachmentImageTile
               attachment={attachment}
               key={attachment.id}
-              onOpen={onOpen}
+              onOpen={open}
               onRemove={onRemove}
             />
           ))}
@@ -77,7 +98,12 @@ export function ThreadAttachmentRows({
             <AttachmentFilePill
               key={attachment.id}
               name={attachment.name}
-              onOpen={onOpen ? () => onOpen(attachment) : undefined}
+              detail={
+                isMediaPreviewKind(attachment.kind)
+                  ? `${attachment.mediaType} · ${(attachment.sizeBytes / 1048576).toFixed(1)} MB`
+                  : undefined
+              }
+              onOpen={open ? () => open(attachment) : undefined}
               onRemove={onRemove ? () => onRemove(attachment.id) : undefined}
             />
           ))}

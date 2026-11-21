@@ -3,6 +3,11 @@ import { ComputerStateSchema } from '../methods/Computer'
 import { Model, Provider } from '@pidex/model-schema'
 import { AutomationRunStatusSchema, AutomationStatusSchema } from '@pidex/shared/automation'
 import { SchedulePlanProposalStatusSchema } from '@pidex/shared/schedule-plan'
+import {
+  DecisionLedgerRecordSchema,
+  DecisionOutcomeRecordSchema,
+  DecisionPresentationNoticeSchema,
+} from '@pidex/shared/decision'
 import { ScheduledTaskStatusSchema } from '@pidex/shared/scheduled-task'
 import {
   AgentExecutionSchema,
@@ -809,6 +814,29 @@ export const EventManifest = {
     stream: 'global',
     capability: 'events.live.v1',
     reconcilesWith: 'usage/source/list',
+  }),
+  'decision/recorded': defineEvent({
+    payload: Schema.Struct({ threadId: OpaqueIDSchema, record: DecisionLedgerRecordSchema }),
+    version: 1,
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'decision.engine.v1',
+    reconcilesWith: 'decision/listLedger',
+  }),
+  'decision/outcomeRecorded': defineEvent({
+    payload: Schema.Struct({ threadId: OpaqueIDSchema, outcome: DecisionOutcomeRecordSchema }),
+    version: 1,
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'decision.engine.v1',
+    reconcilesWith: 'decision/listLedger',
+  }),
+  'decision/notice': defineEvent({
+    payload: Schema.Struct({ threadId: OpaqueIDSchema, notice: DecisionPresentationNoticeSchema }),
+    version: 1,
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'decision.engine.v1',
   }),
   'model/health/updated': defineEvent({
     payload: Schema.Struct({

@@ -1,5 +1,7 @@
 export { EncryptedCredentialStore } from './EncryptedCredentialStore'
 export type { EncryptedCredentialStoreOptions } from './EncryptedCredentialStore'
+export { ModelRecommendationStore } from './ModelRecommendationStore'
+export { ModelSpecRepairService } from './ModelSpecRepairService'
 export { PiModelService, PiModelServiceError } from './PiModelService'
 export type { PiModelServiceOptions, PiProviderModelSyncSummary } from './PiModelService'
 export {

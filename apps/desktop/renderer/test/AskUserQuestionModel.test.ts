@@ -3,6 +3,7 @@ import {
   buildAskUserQuestionAnswers,
   buildAskUserQuestionUpdatedInput,
   canSubmitFromCurrentQuestion,
+  findNextPendingQuestionIndex,
   firstUnansweredQuestionIndex,
   initialQuestionState,
   hasQuestionAnswer,
@@ -296,5 +297,20 @@ describe('AskUserQuestion pure model', () => {
       answer: 'VS Code',
       answers: { editor: 'VS Code' },
     })
+  })
+
+  test('findNextPendingQuestionIndex wraps around and returns -1 when all complete', () => {
+    const questions = [
+      { id: 'q1', question: 'Q1' },
+      { id: 'q2', question: 'Q2' },
+      { id: 'q3', question: 'Q3' },
+    ]
+    const answered: QuestionState = { selected: ['a'], custom: '', answered: true }
+    const skipped: QuestionState = { selected: [], custom: '', answered: false, skipped: true }
+    expect(findNextPendingQuestionIndex(questions, { q1: answered }, 0)).toBe(1)
+    expect(findNextPendingQuestionIndex(questions, { q1: answered, q3: skipped }, 2)).toBe(1)
+    expect(
+      findNextPendingQuestionIndex(questions, { q1: answered, q2: skipped, q3: answered }, 2),
+    ).toBe(-1)
   })
 })

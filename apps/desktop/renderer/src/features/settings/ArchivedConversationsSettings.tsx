@@ -122,9 +122,9 @@ export function ArchivedConversationsSettings(): ReactNode {
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-        <header className="tw:mb-8 tw:flex tw:items-center tw:justify-between tw:gap-4">
-          <h2 className="tw:m-0 tw:type-page-title tw:text-app-text">已归档对话</h2>
+      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+        <header className="tw:mb-6 tw:flex tw:items-center tw:justify-between tw:gap-4">
+          <h2 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">已归档对话</h2>
           <Button
             color="danger"
             disabled={busy || !sessions.length}
@@ -133,7 +133,7 @@ export function ArchivedConversationsSettings(): ReactNode {
             全部删除
           </Button>
         </header>
-        <div className="tw:mb-8 tw:flex tw:items-center tw:gap-2">
+        <div className="tw:mb-6 tw:flex tw:items-center tw:gap-2">
           <Input
             ref={searchRef}
             aria-label="搜索已归档聊天"
@@ -169,14 +169,14 @@ export function ArchivedConversationsSettings(): ReactNode {
           />
         </div>
         {error ? (
-          <p role="alert" className="tw:type-body-sm tw:text-app-danger">
+          <p role="alert" className="tw:type-1 tw:text-app-danger">
             {error}
           </p>
         ) : null}
         {loading ? (
           <p role="status">正在加载归档聊天…</p>
         ) : !groups.length ? (
-          <p className="tw:type-body-sm tw:text-app-text-soft">
+          <p className="tw:type-1 tw:text-app-text-soft">
             {sessions.length ? '没有匹配的聊天。' : '暂无已归档对话。'}
           </p>
         ) : (
@@ -197,10 +197,10 @@ export function ArchivedConversationsSettings(): ReactNode {
                   className="tw:flex tw:items-center tw:gap-4 tw:py-3 tw:[&+&]:border-t tw:[&+&]:border-app-border-subtle"
                 >
                   <div className="tw:min-w-0 tw:flex-1">
-                    <h4 className="tw:m-0 tw:truncate tw:type-row-title tw:text-app-text">
+                    <h4 className="tw:m-0 tw:truncate tw:type-2 tw:weight-medium tw:text-app-text">
                       {sessionDisplayTitle(session)}
                     </h4>
-                    <p className="tw:m-0 tw:type-caption tw:text-app-text-meta">
+                    <p className="tw:m-0 tw:type-1 tw:text-app-text-meta">
                       {new Date(session.lastMessageAt ?? session.createdAt).toLocaleString()}
                     </p>
                   </div>

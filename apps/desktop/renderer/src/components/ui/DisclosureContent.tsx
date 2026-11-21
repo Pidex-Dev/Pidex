@@ -65,7 +65,7 @@ export function DisclosureContent({
         aria-hidden={!expanded}
         aria-labelledby={ariaLabelledBy}
         className={joinClassNames(
-          'ui-disclosure-content tw:grid tw:min-w-0 tw:grid-rows-[1fr] tw:transition-[grid-template-rows] tw:duration-disclosure tw:ease-disclosure tw:data-[expanded=false]:grid-rows-[0fr] tw:data-[expanded=false]:pointer-events-none',
+          'ui-disclosure-content tw:grid tw:grid-cols-1 tw:min-w-0 tw:grid-rows-[1fr] tw:transition-[grid-template-rows] tw:duration-disclosure tw:ease-disclosure tw:data-[expanded=false]:grid-rows-[0fr] tw:data-[expanded=false]:pointer-events-none',
           className,
         )}
         data-expanded={expanded ? 'true' : 'false'}

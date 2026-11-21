@@ -1,3 +1,6 @@
+import { useMediaViewer } from '../attachments/MediaViewerContext.js'
+import { createDraftAttachmentPreviewTab } from '../attachments/AttachmentPreviewDescriptor.js'
+import { isMediaPreviewKind } from '../attachments/AttachmentPreviewSupport.js'
 import {
   APP_ICON_SIZES,
   APP_ICON_STROKE_WIDTH,
@@ -29,7 +32,7 @@ const TRAY_CLASS = cx(
   'tw:[overscroll-behavior-inline:contain]',
 )
 const CHIP_CLASS =
-  'composer-attachment-chip tw:relative tw:size-18 tw:flex-none tw:overflow-hidden tw:rounded-3xl tw:transition-[border-color,background-color,transform] tw:duration-state tw:ease-standard'
+  'composer-attachment-chip tw:relative tw:size-[4.5rem] tw:flex-none tw:overflow-hidden tw:rounded-6 tw:transition-[border-color,background-color,transform] tw:duration-state tw:ease-standard'
 const CHIP_INTERACTIVE_CLASS = 'tw:cursor-pointer'
 const IMAGE_CHIP_CLASS = cx(
   CHIP_CLASS,
@@ -49,14 +52,14 @@ const ATTACHMENT_ERROR_BADGE_CLASS =
   'composer-attachment-error-badge tw:absolute tw:bottom-2 tw:left-2 tw:flex tw:size-5 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-panel tw:text-app-text'
 const REMOVE_BUTTON_CLASS = cx(
   'composer-attachment-remove-btn',
-  'tw:flex tw:size-4.5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full',
+  'tw:flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full',
   'tw:bg-app-control tw:text-app-text-soft tw:shadow-sm',
   'tw:transition-[background-color,color] tw:duration-state tw:ease-standard',
   'tw:hover:bg-app-active tw:hover:text-app-text',
 )
 const REMOVE_BUTTON_OVERLAY_CLASS = cx(
   'composer-attachment-remove-btn composer-attachment-remove-btn--overlay',
-  'tw:absolute tw:top-2 tw:right-2 tw:flex tw:size-4.5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full',
+  'tw:absolute tw:top-2 tw:right-2 tw:flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full',
   'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_45%,transparent)] tw:text-app-canvas',
   'tw:transition-[background-color,color] tw:duration-state tw:ease-standard',
   'tw:hover:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_75%,transparent)] tw:hover:text-app-canvas',
@@ -64,11 +67,11 @@ const REMOVE_BUTTON_OVERLAY_CLASS = cx(
 const TILE_TOP_CLASS =
   'composer-attachment-tile-top tw:flex tw:w-full tw:items-start tw:justify-between'
 const BADGE_CLASS =
-  'composer-attachment-badge tw:flex tw:size-6 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-sm tw:shadow-sm'
+  'composer-attachment-badge tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-3 tw:shadow-sm'
 const TILE_ICON_CLASS = 'composer-attachment-tile-icon tw:block'
 const ATTACHMENT_NAME_CLASS = cx(
   'composer-attachment-name',
-  'tw:w-full tw:type-label tw:text-left tw:text-app-text-soft tw:select-none',
+  'tw:w-full tw:type-1 tw:weight-medium tw:text-left tw:text-app-text-soft tw:select-none',
   'tw:truncate',
 )
 
@@ -83,13 +86,15 @@ function resolveFileCategory(name: string, kind: string): { bg: string; icon: Re
   if (['xlsx', 'xls', 'csv', 'tsv'].includes(ext)) {
     return {
       bg: '#1a73e8',
-      icon: <FileSpreadsheet className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+      icon: (
+        <FileSpreadsheet className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />
+      ),
     }
   }
   if (['pptx', 'ppt', 'key'].includes(ext)) {
     return {
       bg: '#9061f9',
-      icon: <Presentation className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+      icon: <Presentation className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
     }
   }
   if (
@@ -112,28 +117,49 @@ function resolveFileCategory(name: string, kind: string): { bg: string; icon: Re
   ) {
     return {
       bg: '#00bba7',
-      icon: <Box className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+      icon: <Box className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
     }
   }
   if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext) || kind === 'audio') {
     return {
       bg: '#f59e0b',
-      icon: <Music className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+      icon: <Music className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
     }
   }
   if (['mp4', 'mov', 'webm', 'mkv', 'avi'].includes(ext) || kind === 'video') {
     return {
       bg: '#ef4444',
-      icon: <Video className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+      icon: <Video className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
     }
   }
   return {
     bg: '#6b7280',
-    icon: <FileText className={TILE_ICON_CLASS} size={APP_ICON_SIZE} />,
+    icon: <FileText className={`tw:size-icon-md ${TILE_ICON_CLASS}`} size={APP_ICON_SIZE} />,
   }
 }
 
-export function ComposerAttachmentTray({ attachments, onOpen, onRemove }: Props): React.ReactNode {
+export function ComposerAttachmentTray({
+  attachments,
+  onOpen: openInDock,
+  onRemove,
+}: Props): React.ReactNode {
+  const viewer = useMediaViewer()
+  const onOpen =
+    openInDock &&
+    ((attachment: DesktopComposerAttachment) => {
+      if (viewer && attachment.kind !== 'video' && isMediaPreviewKind(attachment.kind)) {
+        const items = attachments
+          .filter((item) => isMediaPreviewKind(item.kind))
+          .map(createDraftAttachmentPreviewTab)
+          .filter((item) => item !== null)
+        const index = items.findIndex((item) => item.attachment.id === attachment.id)
+        if (index !== -1) {
+          viewer.open(items, index)
+          return
+        }
+      }
+      openInDock(attachment)
+    })
   if (attachments.length === 0) return null
 
   return (
@@ -178,7 +204,7 @@ export function ComposerAttachmentTray({ attachments, onOpen, onRemove }: Props)
                   className={ATTACHMENT_ERROR_BADGE_CLASS}
                   title={attachment.error ?? '加载失败'}
                 >
-                  <AlertCircle size={APP_ICON_SIZE} />
+                  <AlertCircle className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 </div>
               )}
               {onRemove && (
@@ -192,7 +218,11 @@ export function ComposerAttachmentTray({ attachments, onOpen, onRemove }: Props)
                   title="移除附件"
                   type="button"
                 >
-                  <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <X
+                    className="tw:size-icon-sm"
+                    size={APP_ICON_SIZES.sm}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 </button>
               )}
             </div>
@@ -235,7 +265,11 @@ export function ComposerAttachmentTray({ attachments, onOpen, onRemove }: Props)
                   title="移除附件"
                   type="button"
                 >
-                  <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <X
+                    className="tw:size-icon-sm"
+                    size={APP_ICON_SIZES.sm}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 </button>
               )}
             </div>

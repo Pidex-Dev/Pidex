@@ -6,12 +6,15 @@ import { createHashRouter, Navigate, useLocation } from 'react-router-dom'
 import { DesktopSettingsProvider } from './features/settings/UseDesktopSettings.js'
 import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
+import {
+  ConnectionLostPage,
+  RequireAgentConnection,
+} from './features/routing/ConnectionLostPage.js'
 import { NotFoundPage } from './features/routing/NotFoundPage.js'
 import { RouteErrorPage } from './features/routing/RouteErrorPage.js'
 import { RequireConfiguredModel } from './features/models/setup/RequireConfiguredModel.js'
 import { AutomationView } from './features/automation/AutomationView.js'
 import { ConversationPage } from './features/session/conversation/ConversationPage.js'
-import { PendingSubmissionPage } from './features/session/conversation/PendingSubmissionPage.js'
 import { PluginsView } from './features/plugins/PluginsView.js'
 import { ProjectsView } from './features/projects/ProjectsView.js'
 import { PullRequestsPlaceholder } from './features/pull-requests/PullRequestsPlaceholder.js'
@@ -71,73 +74,82 @@ const router = createHashRouter([
     ),
   },
   {
-    path: '/setup',
+    path: '/connection-lost',
     errorElement: routeErrorElement,
-    element: (
-      <DesktopSettingsProvider access="read-write">
-        <ModelSetupPage />
-      </DesktopSettingsProvider>
-    ),
+    element: <ConnectionLostPage />,
   },
   {
-    path: '/',
-    errorElement: routeErrorElement,
-    element: (
-      <DesktopSettingsProvider access="read-write">
-        <RequireConfiguredModel />
-      </DesktopSettingsProvider>
-    ),
+    element: <RequireAgentConnection />,
     children: [
       {
+        path: '/setup',
+        errorElement: routeErrorElement,
         element: (
-          <PetCatalogProvider>
-            <GitBoardProvider>
-              <DesktopLayout />
-            </GitBoardProvider>
-          </PetCatalogProvider>
+          <DesktopSettingsProvider access="read-write">
+            <ModelSetupPage />
+          </DesktopSettingsProvider>
+        ),
+      },
+      {
+        path: '/',
+        errorElement: routeErrorElement,
+        element: (
+          <DesktopSettingsProvider access="read-write">
+            <RequireConfiguredModel />
+          </DesktopSettingsProvider>
         ),
         children: [
-          { index: true, element: <Navigate to="/new" replace /> },
-          { path: 'new', element: <QuickChatView /> },
-          { path: 'threads/:threadId', element: <ConversationPage /> },
-          { path: 'pending/:submissionId', element: <PendingSubmissionPage /> },
-          { path: 'projects', element: <ProjectsView /> },
-          { path: 'projects/:projectId', element: <ProjectsView /> },
-          { path: 'workflows', element: <SessionGroupsView /> },
-          { path: 'workflows/:groupId', element: <SessionGroupsView /> },
-          { path: 'session-groups', element: <LegacyWorkflowRedirect /> },
-          { path: 'session-groups/:groupId', element: <LegacyWorkflowRedirect /> },
-          { path: 'models', element: <LegacyModelsRedirect /> },
           {
-            path: 'providers',
             element: (
-              <Suspense fallback={<ProvidersPageFallback />}>
-                <ProvidersView />
-              </Suspense>
+              <PetCatalogProvider>
+                <GitBoardProvider>
+                  <DesktopLayout />
+                </GitBoardProvider>
+              </PetCatalogProvider>
             ),
+            children: [
+              { index: true, element: <Navigate to="/new" replace /> },
+              { path: 'new', element: <QuickChatView /> },
+              { path: 'threads/:threadId', element: <ConversationPage /> },
+              { path: 'projects', element: <ProjectsView /> },
+              { path: 'projects/:projectId', element: <ProjectsView /> },
+              { path: 'workflows', element: <SessionGroupsView /> },
+              { path: 'workflows/:groupId', element: <SessionGroupsView /> },
+              { path: 'session-groups', element: <LegacyWorkflowRedirect /> },
+              { path: 'session-groups/:groupId', element: <LegacyWorkflowRedirect /> },
+              { path: 'models', element: <LegacyModelsRedirect /> },
+              {
+                path: 'providers',
+                element: (
+                  <Suspense fallback={<ProvidersPageFallback />}>
+                    <ProvidersView />
+                  </Suspense>
+                ),
+              },
+              {
+                path: 'git',
+                element: (
+                  <Suspense fallback={<GitBoardPageFallback />}>
+                    <GitBoardView />
+                  </Suspense>
+                ),
+              },
+              { path: 'plugins', element: <PluginsView /> },
+              { path: 'pull-requests', element: <PullRequestsPlaceholder /> },
+              { path: 'automations', element: <AutomationView /> },
+              { path: 'pets', element: <PetCatalogPage /> },
+              {
+                path: 'settings/providers',
+                element: <LegacySettingsProvidersRedirect />,
+              },
+              {
+                path: 'settings/environment/:projectId',
+                element: <SettingsLayout />,
+              },
+              { path: 'settings/:tab', element: <SettingsLayout /> },
+              { path: '*', element: <NotFoundPage /> },
+            ],
           },
-          {
-            path: 'git',
-            element: (
-              <Suspense fallback={<GitBoardPageFallback />}>
-                <GitBoardView />
-              </Suspense>
-            ),
-          },
-          { path: 'plugins', element: <PluginsView /> },
-          { path: 'pull-requests', element: <PullRequestsPlaceholder /> },
-          { path: 'automations', element: <AutomationView /> },
-          { path: 'pets', element: <PetCatalogPage /> },
-          {
-            path: 'settings/providers',
-            element: <LegacySettingsProvidersRedirect />,
-          },
-          {
-            path: 'settings/environment/:projectId',
-            element: <SettingsLayout />,
-          },
-          { path: 'settings/:tab', element: <SettingsLayout /> },
-          { path: '*', element: <NotFoundPage /> },
         ],
       },
     ],

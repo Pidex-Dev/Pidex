@@ -20,7 +20,6 @@ import {
   OpaqueIDSchema,
   OperationParamsSchema,
   SequenceSchema,
-  StreamPositionSchema,
   TimestampSchema,
 } from '../wire/Primitives'
 
@@ -85,6 +84,7 @@ export const PiProviderApiSchema = Schema.Literals([
 const NonNegativeNumberSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0))
 
 const ProviderModelCostSchema = Schema.Struct({
+  tiers: Schema.optional(Schema.Array(Model.PriceTier)),
   input: Schema.optional(NonNegativeNumberSchema),
   output: Schema.optional(NonNegativeNumberSchema),
   cacheRead: Schema.optional(NonNegativeNumberSchema),
@@ -102,6 +102,7 @@ const ThinkingLevelMapSchema = Schema.Struct({
 })
 
 export const ProviderModelDefinitionSchema = Schema.Struct({
+  catalog: Schema.optional(Model.CatalogDetails),
   id: Model.ID,
   group: Schema.optional(Schema.String.check(Schema.isMaxLength(128))),
   name: Schema.optional(NonEmptyStringSchema),
@@ -110,13 +111,13 @@ export const ProviderModelDefinitionSchema = Schema.Struct({
   modelType: Schema.optional(Schema.Literals(['chat', 'embedding', 'rerank'])),
   tools: Schema.optional(Schema.Boolean),
   contextWindow: Schema.optional(
-    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 10_000_000 })),
+    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER })),
   ),
   maxInputTokens: Schema.optional(
-    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 10_000_000 })),
+    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER })),
   ),
   maxTokens: Schema.optional(
-    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 10_000_000 })),
+    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER })),
   ),
   reasoning: Schema.optional(Schema.Boolean),
   input: Schema.optional(
@@ -133,15 +134,24 @@ export const ProviderModelDefinitionSchema = Schema.Struct({
   compat: Schema.optional(Schema.Record(Schema.String, JsonValueSchema)),
   /** 已脱离推荐值的字段清单；其余字段继续跟随 models.dev 推荐。 */
   smartConfig: Schema.optional(Model.SmartConfig),
+  pricing: Schema.optional(Model.Pricing),
 })
 
+/**
+ * 候选模型与推荐目录的匹配结果。规格缺失时不猜测，UI 据此决定是否
+ * 默认选中；状态本身就是规格来源，`identity` 是命中的官方模型身份。
+ */
+export const ProviderModelMatchSchema = Schema.Struct({
+  id: Model.ID,
+  status: Schema.Literals(['official', 'provider', 'unmatched', 'ambiguous', 'no-cache']),
+  identity: Schema.optional(Model.ID),
+  candidates: Schema.optional(Schema.Array(Model.ID)),
+  updatedAt: Schema.optional(TimestampSchema),
+})
+export type ProviderModelMatch = typeof ProviderModelMatchSchema.Type
+
 /** Wire protocols that can list models and run a minimal generation probe. */
-export const ProviderChatApiSchema = Schema.Literals([
-  'openai-completions',
-  'openai-responses',
-  'anthropic-messages',
-  'google-generative-ai',
-])
+export const ProviderChatApiSchema = PiProviderApiSchema
 export type ProviderChatApi = typeof ProviderChatApiSchema.Type
 
 const ProviderEndpointsSchema = Schema.Struct({
@@ -190,6 +200,8 @@ export const ProviderModelSyncResultSchema = Schema.Struct({
   api: ProviderChatApiSchema,
   fetchedAt: TimestampSchema,
   candidates: Schema.Array(ProviderModelDefinitionSchema).check(Schema.isMaxLength(1000)),
+  /** 候选的规格来源；旧 Agent 不返回时 UI 视为未知。 */
+  matches: Schema.optional(Schema.Array(ProviderModelMatchSchema).check(Schema.isMaxLength(1000))),
   removedModelIds: Schema.Array(Model.ID).check(Schema.isMaxLength(1000)),
   baselineCreated: Schema.Boolean,
   totalFetched: NonNegativeIntSchema,
@@ -744,6 +756,13 @@ export const ExtendedRpcMethods = {
     result: CatalogResultSchema,
     errors: [
       'INVALID_REQUEST',
+      'PROVIDER_AUTH_FAILED',
+      'PROVIDER_ACCESS_DENIED',
+      'PROVIDER_CONNECTION_FAILED',
+      'PROVIDER_TIMEOUT',
+      'PROVIDER_CATALOG_REFRESH_FAILED',
+      'CREDENTIAL_NOT_FOUND',
+      'MODEL_UNAVAILABLE',
       'PROVIDER_UNAVAILABLE',
       'CONFLICT',
       'RATE_LIMITED',
@@ -897,9 +916,17 @@ export const ExtendedRpcMethods = {
     }),
     result: Schema.Struct({
       models: Schema.Array(ProviderModelDefinitionSchema),
+      matches: Schema.optional(Schema.Array(ProviderModelMatchSchema)),
     }),
     errors: [
       'PROVIDER_NOT_FOUND',
+      'PROVIDER_AUTH_FAILED',
+      'PROVIDER_ACCESS_DENIED',
+      'PROVIDER_CONNECTION_FAILED',
+      'PROVIDER_TIMEOUT',
+      'PROVIDER_CATALOG_REFRESH_FAILED',
+      'CREDENTIAL_NOT_FOUND',
+      'MODEL_UNAVAILABLE',
       'PROVIDER_UNAVAILABLE',
       'RATE_LIMITED',
       'INVALID_REQUEST',
@@ -918,6 +945,13 @@ export const ExtendedRpcMethods = {
     result: ProviderModelSyncResultSchema,
     errors: [
       'PROVIDER_NOT_FOUND',
+      'PROVIDER_AUTH_FAILED',
+      'PROVIDER_ACCESS_DENIED',
+      'PROVIDER_CONNECTION_FAILED',
+      'PROVIDER_TIMEOUT',
+      'PROVIDER_CATALOG_REFRESH_FAILED',
+      'CREDENTIAL_NOT_FOUND',
+      'MODEL_UNAVAILABLE',
       'PROVIDER_UNAVAILABLE',
       'INVALID_REQUEST',
       'CONFLICT',

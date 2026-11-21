@@ -231,8 +231,12 @@ const threadService = async (
     } as never,
     { listByBinding: async () => [] } as never,
     { dataRoot: f.root, userHome: f.root },
-    { recall: () => [], enqueue: () => null } as never,
-    { load: () => {}, run: async () => [] } as never,
+    {
+      inject: async () => ({ sections: [], ignored: false }),
+      defaultScopes: () => [{ kind: 'user' }],
+      enqueueExtract: () => null,
+    } as never,
+    { load: () => {}, loadWithPlugins: () => {}, run: async () => [] } as never,
     {
       resolve: async () => ({
         kind: 'projectless',

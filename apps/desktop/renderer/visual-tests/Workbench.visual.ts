@@ -4794,13 +4794,17 @@ for (const mode of MODES) {
 async function closeTransientErrorToast(page: Page, waitForMilliseconds = 0): Promise<void> {
   const closeButton = page.getByRole('button', { name: '关闭错误提示' })
   const deadline = Date.now() + waitForMilliseconds
-  do {
+  let done = false
+  while (!done) {
     if (await closeButton.isVisible().catch(() => false)) {
       await closeButton.click().catch(() => undefined)
     }
-    if (Date.now() >= deadline) return
-    await page.waitForTimeout(100)
-  } while (true)
+    if (Date.now() >= deadline) {
+      done = true
+    } else {
+      await page.waitForTimeout(100)
+    }
+  }
 }
 
 async function gotoWorkbenchFixture(page: Page, route: string): Promise<void> {

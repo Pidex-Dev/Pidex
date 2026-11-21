@@ -18,9 +18,12 @@ for (const persistent of [true, false]) {
     const html = renderToStaticMarkup(<InlineApprovalCard request={request} onDecide={() => {}} />)
     expect(html).toContain('允许使用 记事本？')
     expect(html).toContain('允许此对话')
-    expect(html).toContain('拒绝')
+    expect(html).toContain('否，请告知 Pidex 如何调整')
+    expect(html).toContain('忽略')
+    expect(html).toContain('提交')
     expect(html).toContain('截图会进入聊天')
     expect(html.includes('始终允许')).toBe(persistent)
+    expect(html).not.toContain('>拒绝<')
     expect(html).not.toContain('允许一次')
   })
 }

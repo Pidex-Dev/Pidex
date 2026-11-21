@@ -4,11 +4,11 @@
 
 _Open-source, Windows-first desktop workspace for AI-assisted coding._
 
-[![GitHub Release](https://img.shields.io/github/v/release/codepilotx-dev/Pidex?include_prereleases&label=release)](https://github.com/codepilotx-dev/Pidex/releases)
-[![License](https://img.shields.io/github/license/codepilotx-dev/Pidex)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/Pidex-Dev/Pidex?include_prereleases&label=release)](https://github.com/Pidex-Dev/Pidex/releases)
+[![License](https://img.shields.io/github/license/Pidex-Dev/Pidex)](LICENSE)
 
 > [!IMPORTANT]
-> Pidex 当前处于 Beta 阶段，仅发布源码；运行环境为 Windows x64，使用者需自行构建。
+> Pidex 当前处于 Windows x64 公测阶段，在 [GitHub Releases](https://github.com/Pidex-Dev/Pidex/releases) 提供预构建安装程序与 SHA-256 校验和；未签名版本首次运行时可能触发 Windows SmartScreen 提示，运行前建议核对校验和。
 
 ## 界面预览
 
@@ -39,7 +39,9 @@ _Open-source, Windows-first desktop workspace for AI-assisted coding._
 
 ## 下载与安装
 
-前往 [GitHub Releases](https://github.com/codepilotx-dev/Pidex/releases)，下载最新版本的 `Source code (zip)` 或 `Source code (tar.gz)`。仓库不提供预构建安装程序；Windows x64 使用者需在源码目录自行打包：
+前往 [GitHub Releases](https://github.com/Pidex-Dev/Pidex/releases) 下载对应版本的 `Pidex-Desktop-<版本>-x64.exe` 安装程序（同时提供 `SHA256SUMS.txt` 校验和与应用内自动更新元数据）。运行安装程序完成安装后，打开或导入本地 Git 项目并配置 Provider 即可开始使用。
+
+如需从源码自行构建 Windows x64 安装程序：
 
 ```powershell
 bun install --frozen-lockfile
@@ -47,7 +49,7 @@ bun run package:win
 pwsh -NoProfile -File scripts/smoke-installed-win-x64.ps1
 ```
 
-打包成功后，从 `release/` 运行本机构建的 Windows x64 安装程序，再打开或导入本地 Git 项目并配置 Provider。
+打包成功后，可从 `release/` 运行本机构建的 Windows x64 安装程序。
 
 请勿在公开 Issue、日志或截图中暴露 API Key、访问令牌或真实用户数据。安全问题请按[安全策略](SECURITY.md)私密报告。
 
@@ -67,7 +69,7 @@ bun run dev:desktop
 
 `bun run dev` 仅显示上述分步启动提示。关闭 Desktop 不会停止开发 Agent；结束终端 A 才会停止它。
 多个 Git worktree 可以分别运行 `bun run dev:desktop`：每个 worktree 自动使用独立的 Renderer 端口、Electron 实例与开发状态目录，但继续共享终端 A 中的 Agent 和用户数据。同一 worktree 重复启动时只聚焦已有实例；Agent 代码以运行 `dev:agent` 的 worktree 为准。
-每个 worktree 首次运行 `bun run dev:desktop` 会自动构建缺失的 CPX-CUA 原生运行时（Rust release，耗时较长）；产物已就绪或想跳过构建时使用 `bun run dev:desktop --no-build`，此时若缺少 `apps/desktop/native/cpx-cua/dist/cpx-cua.exe` 会直接提示先运行 `bun run build:cua`。启动参数只接受 `--no-build`，其他参数会立即报错。
+电脑控制组件不随源码或安装包分发。启用 Computer Use 插件时，Desktop 从 `Pidex-Dev/cua` 的固定版本 Release 下载并校验，之后复用用户运行时缓存；开发环境无需安装 Rust。启动参数仍只接受 `--no-build`，该参数不影响电脑控制组件的按需下载。
 
 常用验证命令：
 

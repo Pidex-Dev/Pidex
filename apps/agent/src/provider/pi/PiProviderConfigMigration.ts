@@ -1,3 +1,4 @@
+import { isRecord as isObject } from '@pidex/shared/guards'
 import { createHash } from 'node:crypto'
 import { builtinProviders } from '@earendil-works/pi-ai/providers/all'
 import type { ConfigEdit, ConfigObject, ConfigValue } from '../../config/ConfigService'
@@ -7,9 +8,6 @@ import {
   PI_PROVIDER_CONFIG_SCHEMA_VERSION,
   validateCustomProviderBaseUrl,
 } from './PiProviderConfig'
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const atPath = (value: ConfigObject, path: readonly string[]) => {
   let cursor: unknown = value

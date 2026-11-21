@@ -140,3 +140,60 @@ function parseSnapshot(value: unknown): TimelineDisclosureSnapshotV1 | null {
 function storageKey(threadId: string): string {
   return STORAGE_PREFIX + threadId
 }
+
+export function processGroupUnitKey(firstItemId: string): string {
+  return `process-group:${firstItemId}`
+}
+
+export function processGroupDisclosureId(turnId: string, unitKey: string): string {
+  return `process-group:${turnId}:${unitKey}`
+}
+
+const singleActivityDisclosureStores = new WeakMap<
+  KeyedDisclosureStore,
+  Map<string, KeyedDisclosureStore>
+>()
+
+/** 单条平铺工具展开或收起时同步对应折叠组键，使第 2 条工具接入升级为组时保持当前阅读状态。 */
+export function getSingleActivityDisclosureStore(
+  baseStore: KeyedDisclosureStore,
+  turnId: string,
+  itemId: string,
+): KeyedDisclosureStore {
+  let perStore = singleActivityDisclosureStores.get(baseStore)
+  if (!perStore) {
+    perStore = new Map()
+    singleActivityDisclosureStores.set(baseStore, perStore)
+  }
+  const groupDisclosureId = processGroupDisclosureId(turnId, processGroupUnitKey(itemId))
+  const cacheKey = `${groupDisclosureId}\u0000${itemId}`
+  const cached = perStore.get(cacheKey)
+  if (cached) return cached
+
+  const proxy: KeyedDisclosureStore = {
+    getSnapshot: (key) => baseStore.getSnapshot(key),
+    getExpandedKeys: () => baseStore.getExpandedKeys(),
+    getVersion: () => baseStore.getVersion(),
+    subscribe: (key, listener) => baseStore.subscribe(key, listener),
+    subscribeAll: (listener) => baseStore.subscribeAll(listener),
+    replace: (expandedKeys) => baseStore.replace(expandedKeys),
+    flush: () => baseStore.flush(),
+    destroy: () => baseStore.destroy(),
+    setExpanded: (key, expanded) => {
+      baseStore.setExpanded(key, expanded)
+      if (expanded) {
+        baseStore.setExpanded(groupDisclosureId, true)
+        return
+      }
+      const fileMutationPrefix = `file-mutation:${itemId}:`
+      const stillExpanded =
+        baseStore.getSnapshot(`process-item:${itemId}`) ||
+        baseStore
+          .getExpandedKeys()
+          .some((expandedKey) => expandedKey.startsWith(fileMutationPrefix))
+      baseStore.setExpanded(groupDisclosureId, stillExpanded)
+    },
+  }
+  perStore.set(cacheKey, proxy)
+  return proxy
+}

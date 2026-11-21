@@ -197,7 +197,7 @@ describe('ConfigService', () => {
         {
           profile: 'deep-review',
           model: 'user-model',
-          approval_policy: 'on-request',
+          approval_policy: 'auto_review',
         },
         null,
         2,

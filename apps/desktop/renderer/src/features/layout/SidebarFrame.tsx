@@ -123,6 +123,9 @@ export function SidebarFrame({
     allocatedWidthAnimationRef.current?.stop()
     allocatedWidthAnimationRef.current = null
     allocatedWidth.set(nextWidth)
+    document
+      .querySelector<HTMLElement>('.app-shell')
+      ?.style.setProperty('--sidebar-w', `${nextWidth}px`)
   })
 
   useEffect(() => {
@@ -181,14 +184,15 @@ export function SidebarFrame({
         aria-label={labels.sidebar}
         aria-hidden={hidden || undefined}
         className={cx(
-          'desktop-sidebar tw:flex tw:flex-none tw:flex-col tw:overflow-hidden tw:select-none tw:type-body tw:text-app-text tw:antialiased tw:[text-rendering:optimizeLegibility]',
+          'desktop-sidebar tw:flex-none tw:flex-col tw:overflow-hidden tw:select-none tw:type-2 tw:text-app-text tw:antialiased tw:[text-rendering:optimizeLegibility]',
+          !hidden && 'tw:flex',
           floating
-            ? 'is-floating tw:absolute tw:top-2 tw:bottom-2 tw:left-2 tw:z-[calc(var(--cpx-sys-z-composer)+1)] tw:rounded-container tw:border-0 tw:bg-app-raised tw:shadow-floating tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width)-16px)]'
-            : 'tw:relative tw:h-full tw:border-r tw:border-app-border-subtle tw:bg-app-main tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width))]',
+            ? 'is-floating tw:absolute tw:top-2 tw:bottom-2 tw:left-2 tw:z-[calc(var(--cpx-sys-z-composer)+1)] tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width)-16px)]'
+            : cx(
+                'tw:relative tw:h-full tw:z-dock tw:border-r tw:border-app-border-subtle tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width))]',
+                docked ? 'is-docked tw:bg-app-main' : 'tw:bg-app-sidebar',
+              ),
           `is-${shell.mode}`,
-          floating ? 'is-floating tw:z-[calc(var(--cpx-sys-z-composer)+1)]' : 'tw:z-dock',
-          !floating && docked ? 'is-docked tw:bg-app-main' : undefined,
-          !floating && !docked ? 'tw:bg-app-sidebar' : undefined,
           hidden ? 'is-collapsed tw:pointer-events-none tw:hidden' : undefined,
           resizing ? 'is-resizing' : undefined,
         )}
@@ -227,7 +231,7 @@ export function SidebarFrame({
             aria-valuemax={maxWidth}
             aria-valuemin={minWidth}
             aria-valuenow={width}
-            className="sidebar-resizer tw:absolute tw:inset-y-0 tw:right-0 tw:z-local tw:w-1.5 tw:cursor-col-resize tw:touch-none tw:focus-visible:outline-none"
+            className="sidebar-resizer tw:absolute tw:inset-y-0 tw:right-0 tw:z-local tw:w-1 tw:touch-none tw:focus-visible:outline-none"
             onDoubleClick={handleResetWidth}
             onKeyDown={handleResizeKey}
             onLostPointerCapture={handleLostPointerCapture}
@@ -240,10 +244,10 @@ export function SidebarFrame({
           />
         ) : null}
         <div className="sidebar-brand-floating tw:hidden tw:shrink-0 tw:text-app-text-meta">
-          <Bot size={APP_ICON_SIZE} />
+          <Bot className="tw:size-icon-md" size={APP_ICON_SIZE} />
         </div>
         <History
-          className="sidebar-history-watermark tw:hidden tw:shrink-0 tw:text-app-text-meta"
+          className="tw:size-icon-md sidebar-history-watermark tw:hidden tw:shrink-0 tw:text-app-text-meta"
           size={APP_ICON_SIZE}
         />
       </motion.aside>

@@ -1,3 +1,7 @@
+import type {
+  DesktopExternalFontDownloadResult,
+  DesktopExternalFontState,
+} from './DesktopExternalFonts.js'
 import type { DesktopThemeSettingsV8, DesktopThemeVariant } from './DesktopTheme.js'
 
 export const DESKTOP_APPEARANCE_IPC_CHANNELS = {
@@ -9,6 +13,9 @@ export const DESKTOP_APPEARANCE_IPC_CHANNELS = {
   canRestorePreviousAppearance: 'appearance:previous-appearance:can-restore',
   restorePreviousAppearance: 'appearance:previous-appearance:restore',
   applyNewDesignTheme: 'appearance:new-design-theme:apply',
+  listExternalFonts: 'appearance:external-fonts:list',
+  downloadExternalFont: 'appearance:external-fonts:download',
+  getExternalFontCss: 'appearance:external-fonts:css',
 } as const
 
 export interface DesktopStartupThemeSeed {
@@ -26,4 +33,7 @@ export interface DesktopAppearanceIpcBridge<CodeThemeId extends string = string>
   canRestorePreviousAppearance(): Promise<boolean>
   restorePreviousAppearance(): Promise<DesktopThemeSettingsV8<CodeThemeId>>
   applyNewDesignTheme(): Promise<DesktopThemeSettingsV8<CodeThemeId>>
+  listExternalFonts(): Promise<DesktopExternalFontState[]>
+  downloadExternalFont(fontId: string): Promise<DesktopExternalFontDownloadResult>
+  getExternalFontCss(fontId: string): Promise<string | null>
 }

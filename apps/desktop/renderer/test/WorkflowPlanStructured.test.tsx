@@ -56,27 +56,28 @@ const renderCard = (structured?: StructuredPlan) =>
   )
 
 describe('WorkflowPlanCard structured plans', () => {
-  test('审阅卡片只呈现阅读入口与真实动作，不再复用选择题答案映射', () => {
+  test('审阅卡片以实施确认选项、自定义反馈与忽略动作呈现，不再展示旧按钮文案', () => {
     const unsupported = renderToStaticMarkup(
       <PlanApprovalCard approval={approval()} onRespond={async () => {}} />,
     )
-    expect(unsupported).toContain('计划已准备好')
-    expect(unsupported).toContain('Plan 流程与交互重设计')
-    expect(unsupported).toContain('修改计划')
-    expect(unsupported).toContain('开始实施')
-    expect(unsupported).toContain('退出 Plan')
-    // 未协商新聊天能力时不出现更多实施方式入口，也不再有“继续规划”。
-    expect(unsupported).not.toContain('更多实施方式')
+    expect(unsupported).toContain('实施此计划？')
+    expect(unsupported).toContain('是，实施此计划')
+    expect(unsupported).toContain('忽略')
+    expect(unsupported).toContain('提交')
+    expect(unsupported).not.toContain('是，在新聊天中实施')
+    expect(unsupported).not.toContain('计划已准备好')
+    expect(unsupported).not.toContain('修改计划')
+    expect(unsupported).not.toContain('开始实施')
+    expect(unsupported).not.toContain('退出 Plan')
     expect(unsupported).not.toContain('继续规划')
-    expect(unsupported).not.toContain('radiogroup')
 
     const supported = renderToStaticMarkup(
       <PlanApprovalCard approval={approval()} onRespond={async () => {}} freshAvailable />,
     )
-    expect(supported).toContain('更多实施方式')
+    expect(supported).not.toContain('在新聊天中实施')
   })
 
-  test('计划卡片携带聊天与计划项身份，供右栏绑定 canonical projection', () => {
+  test('计划审阅卡片不渲染重复计划标题与查看全文按钮', () => {
     const withView = renderToStaticMarkup(
       <PlanApprovalCard
         approval={approval()}
@@ -84,12 +85,8 @@ describe('WorkflowPlanCard structured plans', () => {
         onOpenPlan={() => undefined}
       />,
     )
-    expect(withView).toContain('查看全文')
-
-    const withoutView = renderToStaticMarkup(
-      <PlanApprovalCard approval={approval()} onRespond={async () => {}} />,
-    )
-    expect(withoutView).not.toContain('查看全文')
+    expect(withView).not.toContain('查看全文')
+    expect(withView).not.toContain('Plan 流程与交互重设计')
   })
 
   test('计划卡片区分生成中、待审阅与历史计划', () => {

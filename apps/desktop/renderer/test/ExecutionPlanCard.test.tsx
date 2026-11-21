@@ -416,7 +416,7 @@ describe('ExecutionPlanCard', () => {
     // 3. 浮层采用 Pidex raised surface、阴影与圆角外壳，长内容内部滚动
     expect(componentSource).toContain('tw:bg-app-raised')
     expect(componentSource).toContain('tw:shadow-lg')
-    expect(componentSource).toContain('tw:rounded-xl')
+    expect(componentSource).toContain('tw:rounded-5')
     expect(componentSource).toContain('composer-change-summary__plan-popover')
     expect(componentSource).toContain('composer-change-summary__files-popover')
     expect(componentSource).toContain('composer-change-summary__files-list')
@@ -426,6 +426,23 @@ describe('ExecutionPlanCard', () => {
     expect(componentSource).not.toContain('ComposerChangedFilesPreviewPresence')
     expect(componentSource).not.toContain('PLAN_PREVIEW_CLOSE_DELAY_MS')
     expect(componentSource).not.toContain('schedulePreviewClose')
+  })
+
+  test('keeps summary capsule and return button on outer-only floating shadow', async () => {
+    const [componentSource, stylesheet] = await Promise.all([
+      Bun.file(
+        new URL('../src/features/session/composer/ComposerChangeSummary.tsx', import.meta.url),
+      ).text(),
+      Bun.file(new URL('../src/styles/primitives/session.css', import.meta.url)).text(),
+    ])
+
+    const summaryBarClass =
+      componentSource.match(/className="composer-change-summary__bar ([^"]*)"/)?.[1] ?? ''
+    expect(summaryBarClass).toContain('tw:shadow-floating-outer')
+    expect(summaryBarClass).not.toContain('tw:shadow-lg')
+    expect(stylesheet).toMatch(
+      /\.composer-change-summary__return\s*\{[\s\S]*?box-shadow: var\(--cpx-sys-shadow-floating-outer\);/,
+    )
   })
 })
 

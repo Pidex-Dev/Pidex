@@ -60,9 +60,21 @@ describe('packaged agent runtime verifier', () => {
   )
 
   it(
+    '干净冷启动未添加模型时通过内置 Pi 模型发现验证目录可用',
+    async () => {
+      const result = await verify('clean-catalog')
+      expect(result.providerCount).toBeGreaterThan(0)
+      expect(result.modelCount).toBeGreaterThan(0)
+      expect(result.processTreeCleaned).toBe(true)
+    },
+    TEST_TIMEOUT_MS,
+  )
+
+  it(
     'Provider/model 目录无效时失败',
     async () => {
       await expect(verify('bad-catalog')).rejects.toThrow('Provider 目录')
+      await expect(verify('bad-discovered-catalog')).rejects.toThrow('模型目录')
     },
     TEST_TIMEOUT_MS,
   )

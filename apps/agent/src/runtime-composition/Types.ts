@@ -174,18 +174,4 @@ export interface BoundRuntimeComposition {
 
 export type RuntimeCompositionProfile = SubagentProfile | 'main'
 
-export interface RuntimeCompositionUnavailableError extends Error {
-  readonly code: 'RUNTIME_COMPOSITION_UNAVAILABLE'
-  readonly reason: string
-}
-
 export const RUNTIME_COMPOSITION_UNAVAILABLE_CODE = 'RUNTIME_COMPOSITION_UNAVAILABLE' as const
-
-export function createRuntimeCompositionUnavailable(
-  reason: string,
-): RuntimeCompositionUnavailableError {
-  const error = new Error(reason) as RuntimeCompositionUnavailableError
-  error.name = 'RuntimeCompositionUnavailableError'
-  ;(error as { code: string }).code = RUNTIME_COMPOSITION_UNAVAILABLE_CODE
-  return error
-}

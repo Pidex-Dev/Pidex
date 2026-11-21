@@ -48,13 +48,20 @@ export type ApprovalRuleScopeOption = {
 }
 
 /** New rules always start scoped to the current chat; persistent scopes are explicit. */
-export function approvalRuleScopeOptions(isProjectChat: boolean): ApprovalRuleScopeOption[] {
+export function approvalRuleScopeOptions(
+  isProjectChat: boolean,
+  includeChat = true,
+): ApprovalRuleScopeOption[] {
   return [
-    {
-      value: 'chat',
-      label: '当前聊天',
-      detail: '仅对当前聊天与当前项目的交集生效，恢复聊天后仍有效。',
-    },
+    ...(includeChat
+      ? [
+          {
+            value: 'chat' as const,
+            label: '当前聊天',
+            detail: '仅对当前聊天与当前项目的交集生效，恢复聊天后仍有效。',
+          },
+        ]
+      : []),
     {
       value: 'user',
       label: '用户（持久）',

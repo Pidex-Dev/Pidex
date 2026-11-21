@@ -176,13 +176,6 @@ export function removeItemsFromSections(
   return changed ? { ...current, sections } : current
 }
 
-export function setSidebarDestinationOrder(
-  current: SidebarCustomization,
-  order: readonly string[],
-): SidebarCustomization {
-  return { ...current, destinationOrder: [...new Set(order)] }
-}
-
 export function setSidebarDestinationHidden(
   current: SidebarCustomization,
   id: string,

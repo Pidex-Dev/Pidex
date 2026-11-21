@@ -1,4 +1,4 @@
-import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
+import { APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { LoaderCircle } from 'lucide-react'
 import type { RpcResult } from '@pidex/agent-protocol'

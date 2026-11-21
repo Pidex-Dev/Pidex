@@ -41,7 +41,6 @@ import type {
   WorkingPlugin,
 } from './ComposerTypes.js'
 import { useDesktopComposerController } from './UseDesktopComposerController.js'
-import { resolveAvailableCodingModel } from './CodingModelSelection.js'
 import { hasTaskPlanningInvocation } from './ComposerSkillToken.js'
 
 export { loadCachedRuntimeSkills } from './UseDesktopComposerController.js'
@@ -85,12 +84,13 @@ export type DesktopComposerProps = {
   creationPending?: boolean
   placeholder?: string
   routedSessionId: string | null
+  /** 输入预测开关与最近完成轮次；两者齐备才会请求预测。 */
+  composerPredictionsEnabled?: boolean
+  predictionTurnId?: string | null
   sessionStatus: DesktopSessionStatus
   permissionMode: DesktopPermissionMode
   planModeActive: boolean
   grillModeActive?: boolean
-  enableAutoReviewPermissionMode: boolean
-  enableFullAccessPermissionMode: boolean
   codingModel?: string
   modelVariant?: string
   modelVariantOptions?: { value: string; label: string }[]
@@ -129,6 +129,8 @@ export type DesktopComposerProps = {
     draftKey: ComposerDraftKey,
     snapshot: ComposerDraftContentSnapshot,
   ) => boolean | void
+  onDraftCleared?: (draftKey: ComposerDraftKey, snapshot: ComposerDraftContentSnapshot) => void
+  onDraftRestore?: (draftKey: ComposerDraftKey, snapshot: ComposerDraftContentSnapshot) => boolean
   onChooseWorkspace: () => Promise<DesktopWorkspace | null>
   onInputChange: (value: string) => void
   onInterrupt: () => Promise<void>
@@ -146,8 +148,6 @@ export type DesktopComposerProps = {
   onForkConversation?: () => void
   canForkConversation?: boolean
   onArchiveConversation?: () => void
-  onBranchSelect: (branch: string) => Promise<void>
-  onCreateBranch: () => void
   onStartReview?: (
     target: { type: 'uncommittedChanges' } | { type: 'baseBranch'; branch: string },
   ) => void
@@ -160,7 +160,7 @@ export type DesktopComposerProps = {
     initialSessionName?: string,
     projectlessPrompt?: string,
     creationSurface?: ThreadCreationSurface,
-    options?: { execution?: DesktopSessionExecution; operationId?: string },
+    options?: { execution?: DesktopSessionExecution; operationId?: string; threadId?: string },
   ) => Promise<string | null>
   submitToSession: (
     targetSessionId: string,
@@ -209,12 +209,12 @@ export function DesktopComposer({
   placeholder: placeholderOverride,
   creationPending = false,
   routedSessionId,
+  composerPredictionsEnabled = false,
+  predictionTurnId = null,
   sessionStatus,
   permissionMode,
   planModeActive,
   grillModeActive = false,
-  enableAutoReviewPermissionMode,
-  enableFullAccessPermissionMode,
   codingModel,
   thinkingMode,
   modelVariant,
@@ -247,6 +247,8 @@ export function DesktopComposer({
   onRemoveAttachmentForDraft,
   onOpenAttachment,
   onDraftAccepted,
+  onDraftCleared,
+  onDraftRestore,
   onChooseWorkspace,
   onInputChange,
   onInterrupt,
@@ -263,8 +265,6 @@ export function DesktopComposer({
   onForkConversation,
   canForkConversation,
   onArchiveConversation,
-  onBranchSelect,
-  onCreateBranch,
   onStartReview,
   onPermissionChange,
   onPlanModeChange,
@@ -316,7 +316,6 @@ export function DesktopComposer({
     handleCompact,
     handleComposerDocumentChange,
     handleRemoveAttachment,
-    handleSkillDeselect,
     handleSkillSelect,
     handleSubmit,
     handleCompositionEnd,
@@ -358,8 +357,6 @@ export function DesktopComposer({
     draftKey,
     routedSessionId,
     permissionMode,
-    enableAutoReviewPermissionMode,
-    enableFullAccessPermissionMode,
     planModeActive,
     grillModeActive,
     sessionBusy: sessionStatus === 'running' || sessionStatus === 'waiting',
@@ -375,6 +372,8 @@ export function DesktopComposer({
     onAppendAttachmentsForDraft,
     onRemoveAttachmentForDraft,
     onDraftAccepted,
+    onDraftCleared,
+    onDraftRestore,
     createSessionForWorkspace,
     submitToSession,
     onError,
@@ -556,8 +555,6 @@ export function DesktopComposer({
         onForkConversation={onForkConversation}
         canForkConversation={canForkConversation}
         onArchiveConversation={onArchiveConversation}
-        onBranchSelect={(branch) => void onBranchSelect(branch)}
-        onCreateBranch={onCreateBranch}
         onStartReview={onStartReview}
         onPermissionChange={onPermissionChange}
         onPlanModeChange={handlePlanModeChange}
@@ -568,6 +565,8 @@ export function DesktopComposer({
         onThinkingChange={onThinkingChange}
         onSkillSelect={handleSkillSelectWithWorkingPluginClear}
         routedSessionId={routedSessionId}
+        composerPredictionsEnabled={composerPredictionsEnabled}
+        predictionTurnId={predictionTurnId}
         contextDropdownSide="top"
         queuedFollowUps={queuedFollowUps}
         queuePauseReason={queuePauseReason}

@@ -38,6 +38,7 @@ export const SidebarRow = forwardRef<HTMLElement, SidebarRowProps>(function Side
   },
   ref,
 ): ReactNode {
+  const hasTrailing = trailing !== undefined && trailing !== null
   const rowClassName = cx(
     'sidebar-row',
     `sidebar-row--${layout}`,
@@ -45,19 +46,15 @@ export const SidebarRow = forwardRef<HTMLElement, SidebarRowProps>(function Side
     active ? 'selected' : undefined,
     indent === 'session' ? 'sidebar-row--session' : undefined,
     leadingMode === 'none' ? 'sidebar-row--no-leading' : undefined,
-    // Row shell: 30px row, 8px gutter, 10px radius, 4px column gap between the
-    // leading slot, the label and the trailing slot.
-    'tw:relative tw:grid tw:w-full tw:box-border tw:h-[var(--sidebar-row-height,30px)] tw:min-h-[var(--sidebar-row-height,30px)] tw:items-center tw:gap-x-1 tw:rounded-md tw:px-2 tw:text-left tw:type-body tw:no-underline tw:select-none tw:cursor-pointer tw:outline-none tw:transition-colors tw:duration-feedback tw:ease-out',
-    leadingMode === 'none'
-      ? trailing != null
-        ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
-        : 'tw:grid-cols-1'
-      : 'tw:grid-cols-[var(--sidebar-row-columns,var(--sidebar-leading-width,var(--cpx-sys-space-6,24px))_minmax(0,1fr)_auto)]',
     className,
   )
-  // Selection is also published as a data attribute so descendants can react with
-  // Tailwind `group-data-[selected=true]:*` instead of targeting the `selected` class.
-  const rowAttributes = active ? { ...rowProps, 'data-selected': 'true' } : rowProps
+  const rowAttributes = {
+    ...rowProps,
+    'data-layout': layout,
+    'data-leading-mode': leadingMode,
+    ...(hasTrailing ? { 'data-has-trailing': 'true' } : {}),
+    ...(active ? { 'data-selected': 'true' } : {}),
+  }
 
   if (asChild) {
     const child = Children.only(children) as ReactElement<{
@@ -128,28 +125,15 @@ function renderRowContent({
         <span
           aria-hidden={leadingMode === 'spacer' ? true : undefined}
           className={cx(
-            'sidebar-row-leading tw:flex tw:min-w-0 tw:items-center',
-            leadingMode === 'icon'
-              ? 'sidebar-item-icon tw:w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:justify-center'
-              : 'sidebar-row-leading-spacer tw:size-6 tw:w-6 tw:min-w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:justify-center',
+            'sidebar-row-leading',
+            leadingMode === 'icon' ? 'sidebar-item-icon' : 'sidebar-row-leading-spacer',
           )}
         >
           {leadingMode === 'icon' ? leading : null}
         </span>
       ) : null}
-      <span
-        className={cx(
-          'sidebar-row-main tw:flex tw:w-full tw:min-w-0 tw:items-center',
-          labelClassName,
-        )}
-      >
-        {children}
-      </span>
-      {hasTrailing ? (
-        <span className="sidebar-row-trailing tw:flex tw:w-full tw:min-w-0 tw:items-center tw:justify-end tw:gap-x-1">
-          {trailing}
-        </span>
-      ) : null}
+      <span className={cx('sidebar-row-main', labelClassName)}>{children}</span>
+      {hasTrailing ? <span className="sidebar-row-trailing">{trailing}</span> : null}
     </>
   )
 }
@@ -162,25 +146,12 @@ export function SidebarEmptyRow({
   return (
     <div
       {...props}
-      className={cx(
-        'sidebar-row',
-        'sidebar-row--flex',
-        'sidebar-empty-row',
-        'tw:type-body-sm tw:text-app-text-soft',
-        'tw:grid tw:w-full tw:box-border tw:h-[var(--sidebar-row-height,30px)] tw:min-h-[var(--sidebar-row-height,30px)] tw:items-center tw:rounded-md tw:px-2 tw:py-1',
-        // The empty row keeps the shared row grid (3-column template), matching
-        // the former `.sidebar-row--flex` shell.
-        'tw:grid-cols-[var(--sidebar-row-columns,var(--sidebar-leading-width,var(--cpx-sys-space-6,24px))_minmax(0,1fr)_auto)] tw:gap-x-1',
-        className,
-      )}
+      className={cx('sidebar-row', 'sidebar-row--flex', 'sidebar-empty-row', className)}
+      data-layout="flex"
+      data-variant="empty"
     >
-      <span
-        aria-hidden="true"
-        className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:size-6 tw:w-6 tw:min-w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:items-center tw:justify-center"
-      />
-      <p className="sidebar-empty tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-soft">
-        {children}
-      </p>
+      <span aria-hidden="true" className="sidebar-row-leading sidebar-row-leading-spacer" />
+      <p className="sidebar-empty">{children}</p>
     </div>
   )
 }

@@ -55,7 +55,7 @@ export function createAgentProviderModelSyncApi({
             ...(input.draft ? { draft: input.draft } : {}),
           }
           const result = await rpc.call('provider/model/discover', params)
-          return [...result.models]
+          return { models: [...result.models], matches: result.matches ?? [] }
         },
         () => mockClient.discoverProviderModels(input),
       ),

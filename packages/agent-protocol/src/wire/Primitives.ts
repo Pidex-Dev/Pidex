@@ -61,6 +61,8 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   'TURN_NOT_FOUND',
   'TURN_ACTIVE',
   'TURN_ID_MISMATCH',
+  'TURN_NOT_COMPLETED',
+  'PREDICTION_UNAVAILABLE',
   'MODEL_UNAVAILABLE',
   'SANDBOX_UNAVAILABLE',
   'SANDBOX_BUSY',
@@ -89,6 +91,9 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   'MEMORY_NOT_FOUND',
   'MEMORY_REJECTED',
   'SKILL_NOT_FOUND',
+  'HOOK_SOURCE_INVALID',
+  'HOOK_INVALID',
+  'HOOK_DUPLICATE_ID',
   'PLUGIN_NOT_FOUND',
   'PLUGIN_NOT_INSTALLED',
   'PLUGIN_INVALID',
@@ -113,6 +118,11 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   'WORKSPACE_CONFLICT',
   'PROVIDER_NOT_FOUND',
   'PROVIDER_UNAVAILABLE',
+  'PROVIDER_AUTH_FAILED',
+  'PROVIDER_ACCESS_DENIED',
+  'PROVIDER_CONNECTION_FAILED',
+  'PROVIDER_TIMEOUT',
+  'PROVIDER_CATALOG_REFRESH_FAILED',
   'CREDENTIAL_NOT_FOUND',
   'CREDENTIAL_STORE_UNAVAILABLE',
   'CREDENTIAL_STORE_MIGRATION_FAILED',
@@ -244,3 +254,19 @@ export const AdmissionSchema = Schema.Struct({
   disposition: AdmissionDispositionSchema,
   streamPosition: StreamPositionSchema,
 })
+
+export const ProviderFailureSchema = Schema.Struct({
+  providerId: Schema.optional(Schema.String.check(Schema.isMaxLength(160))),
+  code: ApplicationErrorCodeSchema,
+  retryable: Schema.Boolean,
+  httpStatus: Schema.optional(NonNegativeIntSchema),
+})
+export type ProviderFailure = typeof ProviderFailureSchema.Type
+export const ProviderErrorDetailsSchema = Schema.Struct({
+  providerId: Schema.optional(Schema.String.check(Schema.isMaxLength(160))),
+  httpStatus: Schema.optional(NonNegativeIntSchema),
+  failures: Schema.optional(Schema.Array(ProviderFailureSchema).check(Schema.isMaxLength(5))),
+  totalFailures: Schema.optional(NonNegativeIntSchema),
+})
+
+export const decodeProviderErrorDetails = Schema.decodeUnknownSync(ProviderErrorDetailsSchema)

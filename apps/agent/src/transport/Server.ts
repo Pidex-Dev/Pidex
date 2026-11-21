@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { EventManifest, type EventType, type ProtocolCapability } from '@pidex/agent-protocol'
 import { AllRpcMethods } from '@pidex/agent-protocol/host'
+import { decodeApprovalPolicy, decodeApprovalsReviewer } from '@pidex/shared/thread'
 import { relative, resolve, sep } from 'node:path'
 import type { AgentModelCatalog } from '../provider/AgentModelCatalog'
 import type { AgentConfig } from '../config/Config'
@@ -42,8 +43,10 @@ import type { PetService } from '../pet/PetService'
 import type { ReleaseNotesService } from '../release-notes/ReleaseNotesService'
 import type { SkillManagementService } from '../prompt/SkillManagementService'
 import type { PluginManagementService } from '../plugin/PluginManagementService'
+import type { AppManagementService } from '../plugin/AppManagementService'
 import type { McpRuntimeService } from '../mcp/McpRuntimeService'
 import type { TaskSuggestionService } from '../suggestion/TaskSuggestionService'
+import type { ComposerPredictionService } from '../suggestion/ComposerPredictionService'
 import type { ConfigService } from '../config/ConfigService'
 import type { UsageService } from '../usage/UsageService'
 import type { TurnPatchService } from '../patch/TurnPatchService'
@@ -72,6 +75,7 @@ export interface TransportDependencies {
   mcpElicitations?: import('../mcp/McpElicitationService').McpElicitationService
   config: AgentConfig
   configService: ConfigService
+  decisions?: import('../decision/DecisionService').DecisionService
   db: AgentDatabase
   hub: EventHub
   threads: ThreadService
@@ -95,6 +99,8 @@ export interface TransportDependencies {
   authSessions: PiAuthSessionService
   memory: MemoryService
   hooks: HookService
+  /** Optional: Hook 表单管理未装配时 `hook/*` 返回 INTERNAL_ERROR。 */
+  hooksManagement?: import('../hooks/HooksManagement').HooksManagementService
   review: GitReviewService
   github: GithubService
   prWatches?: PullRequestWatchService
@@ -104,8 +110,11 @@ export interface TransportDependencies {
   releaseNotes: ReleaseNotesService
   skills: SkillManagementService
   plugins: PluginManagementService
+  apps?: AppManagementService
   mcp: McpRuntimeService
   suggestions: TaskSuggestionService
+  /** 输入预测是增强能力；未装配时 RPC 返回 PREDICTION_UNAVAILABLE。 */
+  composerPredictions?: ComposerPredictionService
   logger: AgentLogger
   usage: UsageService
   turnPatches: TurnPatchService
@@ -305,6 +314,25 @@ const desktopProjection = (config: Record<string, unknown>) => {
   if (typeof config.approvals_reviewer === 'string')
     permissionConfig.approvalsReviewer = config.approvals_reviewer
   if (typeof config.sandbox_mode === 'string') permissionConfig.sandboxMode = config.sandbox_mode
+  if (
+    typeof permissionConfig.approvalPolicy === 'string' ||
+    isPlainObject(permissionConfig.approvalPolicy)
+  ) {
+    try {
+      permissionConfig.approvalPolicy = decodeApprovalPolicy(permissionConfig.approvalPolicy)
+    } catch {
+      permissionConfig.approvalPolicy = 'auto_review'
+    }
+  }
+  if (permissionConfig.approvalsReviewer !== undefined) {
+    try {
+      permissionConfig.approvalsReviewer = decodeApprovalsReviewer(
+        permissionConfig.approvalsReviewer,
+      )
+    } catch {
+      permissionConfig.approvalsReviewer = 'auto_review'
+    }
+  }
   return {
     ...desktop,
     ...(Object.keys(permissionConfig).length ? { permissionConfig } : {}),
@@ -498,6 +526,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     skills,
     plugins,
     suggestions,
+    composerPredictions,
     logger,
   } = dependencies
   const app = new Hono()
@@ -505,6 +534,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     ...(dependencies.mcpElicitations ? { mcpElicitations: dependencies.mcpElicitations } : {}),
     planApprovals: dependencies.planApprovals,
     config: dependencies.configService,
+    ...(dependencies.decisions ? { decisions: dependencies.decisions } : {}),
     db,
     hub,
     threads,
@@ -527,6 +557,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     authSessions,
     memory,
     hooks,
+    ...(dependencies.hooksManagement ? { hooksManagement: dependencies.hooksManagement } : {}),
     review,
     github,
     git,
@@ -535,7 +566,9 @@ export const createApp = (dependencies: TransportDependencies) => {
     releaseNotes,
     skills,
     plugins,
+    ...(dependencies.apps ? { apps: dependencies.apps } : {}),
     suggestions,
+    ...(composerPredictions ? { composerPredictions } : {}),
     usage: dependencies.usage,
     mcp: dependencies.mcp,
     turnPatches: dependencies.turnPatches,

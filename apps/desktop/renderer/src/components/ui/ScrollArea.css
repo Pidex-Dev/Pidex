@@ -35,11 +35,11 @@
   }
 
   .scroll-area[data-scroll-fade='true'][data-scroll-at-start='false'] {
-    --scroll-area-fade-start: var(--cpx-sys-space-4);
+    --scroll-area-fade-start: var(--scroll-area-fade-size, var(--cpx-sys-space-4));
   }
 
   .scroll-area[data-scroll-fade='true'][data-scroll-at-end='false'] {
-    --scroll-area-fade-end: var(--cpx-sys-space-4);
+    --scroll-area-fade-end: var(--scroll-area-fade-size, var(--cpx-sys-space-4));
   }
 
   :root[data-reduce-motion='on'] .scroll-area[data-scroll-fade='true'] {

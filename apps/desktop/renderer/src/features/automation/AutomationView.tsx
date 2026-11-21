@@ -17,7 +17,6 @@ import {
   Play,
   Plus,
   Settings,
-  Sparkles,
   Trash2,
 } from 'lucide-react'
 import type { Automation, AutomationRun } from '@pidex/shared/automation'
@@ -54,7 +53,6 @@ import {
   isCompletedAutomation,
   runStatusLabel,
   runTriggerLabel,
-  type AutomationFilter,
   type AutomationTemplate,
   type AutomationTemplateId,
 } from './AutomationModel.js'
@@ -73,12 +71,6 @@ export const TAB_OPTIONS = [
 ] as const
 
 type ConfirmState = { kind: 'delete'; automation: Automation } | null
-const FILTER_OPTIONS: Array<{ value: AutomationFilter; label: string }> = [
-  { value: 'all', label: '全部' },
-  { value: 'active', label: '已开启' },
-  { value: 'paused', label: '已暂停' },
-  { value: 'completed', label: '已完成' },
-]
 
 export function AutomationView(): React.ReactNode {
   const controller = useContext(AutomationControllerContext)
@@ -179,7 +171,8 @@ function AutomationViewContent(): React.ReactNode {
     [resolvedModel],
   )
   const hasDraftModel = Boolean(draftModel.providerID && draftModel.id)
-  const selectedDate = params.get('date') ?? localDateValue(new Date())
+  const [todayDateValue] = useState(() => localDateValue(new Date()))
+  const selectedDate = params.get('date') ?? todayDateValue
   const scheduledTaskDraft = useMemo<ScheduledTaskDefinition>(() => {
     return taskDefinition({
       ...defaultAutomationDraft({
@@ -481,19 +474,27 @@ function AutomationViewContent(): React.ReactNode {
       onOpenChange={setCreateMenuOpen}
       trigger={
         <Button ref={createButtonRef} color="primary" shape="pill" size="md">
-          <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus
+            className="tw:size-icon-md"
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
           <span>创建</span>
-          <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+          <ChevronDown className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
         </Button>
       }
     >
       <PopoverItem
-        icon={<MessageCircle size={APP_ICON_SIZE} />}
+        icon={<MessageCircle className="tw:size-icon-md" size={APP_ICON_SIZE} />}
         onClick={() => void planThroughChat()}
       >
         使用 CPX 创建
       </PopoverItem>
-      <PopoverItem icon={<Settings size={APP_ICON_SIZE} />} onClick={() => openManualCreate()}>
+      <PopoverItem
+        icon={<Settings className="tw:size-icon-md" size={APP_ICON_SIZE} />}
+        onClick={() => openManualCreate()}
+      >
         手动设置
       </PopoverItem>
     </PopoverMenu>
@@ -510,7 +511,7 @@ function AutomationViewContent(): React.ReactNode {
             ? '查看计划任务与自动化的历史执行状态与运行结果。'
             : '规划任务、安排执行，并在同一日历查看运行结果。'
         }
-        bodyClassName="automation-view tw:min-h-120 tw:max-[48rem]:min-h-128 tw:text-app-text"
+        bodyClassName="automation-view tw:min-h-[30rem] tw:max-[48rem]:min-h-[32rem] tw:text-app-text"
         search={
           <SearchInput
             variant="outlined"
@@ -658,7 +659,7 @@ function AutomationViewContent(): React.ReactNode {
                   !controller.filteredAutomations.length &&
                   !visibleSuggestions.length ? (
                     <div
-                      className="automation-filter-empty tw:grid tw:min-h-[calc(var(--cpx-sys-space-8)*7)] tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-8 tw:text-center tw:type-body-sm tw:text-app-text-meta"
+                      className="automation-filter-empty tw:grid tw:min-h-[calc(var(--cpx-sys-space-8)*7)] tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-6 tw:text-center tw:type-1 tw:text-app-text-meta"
                       role="status"
                     >
                       <span>未找到已安排任务</span>
@@ -686,7 +687,8 @@ function AutomationViewContent(): React.ReactNode {
         <Popover.Portal>
           <div>
             <div
-              className="ui-dialog-backdrop permission-modal-backdrop automation-calendar__focus-backdrop tw:pointer-events-auto tw:p-0 tw:animate-none tw:transition-none tw:backdrop-blur-none tw:forced-colors:bg-transparent"
+              className="ui-dialog-backdrop permission-modal-backdrop automation-calendar__focus-backdrop tw:pointer-events-auto"
+              data-backdrop="flat"
               data-state="open"
               aria-hidden="true"
               onClick={() => closeDetail(true)}
@@ -694,7 +696,8 @@ function AutomationViewContent(): React.ReactNode {
             <Popover.Content
               size="lg"
               ref={surfaceRef}
-              className="popover-surface ui-dialog-surface automation-focus-shell tw:z-modal tw:grid tw:max-h-[min(35rem,calc(100vh-60px),var(--popover-available-height))] tw:overflow-hidden tw:rounded-floating tw:animate-none tw:transition-none tw:backdrop-blur-none tw:text-app-text tw:forced-colors:border tw:forced-colors:border-[CanvasText]"
+              className="popover-surface ui-dialog-surface automation-focus-shell tw:grid tw:[--popover-max-height:min(35rem,calc(100vh-60px),var(--popover-available-height))] tw:[--popover-overflow-y:hidden]"
+              data-surface="floating"
               side="bottom"
               align="start"
               sideOffset={0}
@@ -893,15 +896,19 @@ function AutomationRunsList({
             className="automation-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*6)] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft"
             role="status"
           >
-            <CalendarClock size={APP_ICON_SIZES.lg} aria-hidden="true" />
-            <h2 className="tw:m-0 tw:type-title-sm tw:text-app-text">暂无执行记录</h2>
-            <p className="tw:m-0 tw:type-body">
+            <CalendarClock
+              className="tw:size-icon-lg"
+              size={APP_ICON_SIZES.lg}
+              aria-hidden="true"
+            />
+            <h2 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text">暂无执行记录</h2>
+            <p className="tw:m-0 tw:type-2">
               任务在计划时间或手动触发运行后，执行记录会显示在这里。
             </p>
           </div>
         ) : !filteredRuns.length ? (
           <div
-            className="automation-filter-empty tw:grid tw:min-h-[calc(var(--cpx-sys-space-8)*7)] tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-8 tw:text-center tw:type-body-sm tw:text-app-text-meta"
+            className="automation-filter-empty tw:grid tw:min-h-[calc(var(--cpx-sys-space-8)*7)] tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-6 tw:text-center tw:type-1 tw:text-app-text-meta"
             role="status"
           >
             <span>未找到匹配的执行记录</span>
@@ -910,7 +917,7 @@ function AutomationRunsList({
             </Button>
           </div>
         ) : (
-          <div className="automation-runs-page-container tw:flex tw:w-full tw:max-w-[56rem] tw:box-border tw:flex-col tw:px-6 tw:py-4">
+          <div className="automation-runs-page-container tw:flex tw:w-full tw:max-w-[56rem] tw:box-border tw:flex-col tw:px-5 tw:py-4">
             <ol
               className="automation-runs-page-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-2 tw:p-0"
               aria-label="执行记录列表"
@@ -936,7 +943,7 @@ function AutomationRunsList({
                       <div className="automation-runs-page-info tw:flex tw:min-w-0 tw:flex-1 tw:items-center">
                         <div className="automation-runs-page-topline tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-3">
                           <span
-                            className="automation-run-status tw:inline-flex tw:items-center tw:gap-2 tw:type-label"
+                            className="automation-run-status tw:inline-flex tw:items-center tw:gap-2 tw:type-1 tw:weight-medium"
                             data-status={run.status}
                           >
                             <span
@@ -945,16 +952,16 @@ function AutomationRunsList({
                             />
                             <span>{runStatusLabel(run.status)}</span>
                           </span>
-                          <strong className="automation-runs-page-name tw:max-w-80 tw:truncate tw:type-label tw:text-app-text">
+                          <strong className="automation-runs-page-name tw:max-w-[20rem] tw:truncate tw:type-1 tw:weight-medium tw:text-app-text">
                             {taskName}
                           </strong>
-                          <span className="automation-runs-page-trigger tw:whitespace-nowrap tw:rounded-container tw:bg-app-underlay tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta">
+                          <span className="automation-runs-page-trigger tw:whitespace-nowrap tw:rounded-container tw:bg-app-underlay tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta">
                             {runTriggerLabel(run.trigger)}
                           </span>
                         </div>
                       </div>
                       <div className="automation-runs-page-meta tw:flex tw:shrink-0 tw:items-center tw:gap-3">
-                        <time className="automation-runs-page-time tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta">
+                        <time className="automation-runs-page-time tw:whitespace-nowrap tw:type-1 tw:text-app-text-meta">
                           {time}
                         </time>
                         {hasThread ? (
@@ -962,7 +969,11 @@ function AutomationRunsList({
                             className="automation-runs-page-link tw:flex tw:items-center tw:text-app-text-meta tw:group-hover:text-app-accent-fg"
                             aria-label="查看对话"
                           >
-                            <ArrowUpRight size={APP_ICON_SIZES.sm} aria-hidden="true" />
+                            <ArrowUpRight
+                              className="tw:size-icon-sm"
+                              size={APP_ICON_SIZES.sm}
+                              aria-hidden="true"
+                            />
                           </span>
                         ) : null}
                       </div>
@@ -1030,17 +1041,17 @@ function AutomationRow({
           aria-hidden="true"
         >
           {activeRun ? (
-            <LoaderCircle className="tw:animate-spin" size={APP_ICON_SIZE} />
+            <LoaderCircle className="tw:size-icon-md tw:animate-spin" size={APP_ICON_SIZE} />
           ) : automation.status === 'paused' ? (
-            <Pause size={APP_ICON_SIZE} />
+            <Pause className="tw:size-icon-md" size={APP_ICON_SIZE} />
           ) : completed ? (
-            <CheckCircle2 size={APP_ICON_SIZE} />
+            <CheckCircle2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
           ) : (
-            <Play size={APP_ICON_SIZE} />
+            <Play className="tw:size-icon-md" size={APP_ICON_SIZE} />
           )}
         </span>
         <span className="automation-row-content tw:grid tw:min-w-0 tw:gap-1">
-          <span className="automation-row-title tw:flex tw:items-center tw:gap-2 tw:type-row-title">
+          <span className="automation-row-title tw:flex tw:items-center tw:gap-2 tw:type-2 tw:weight-medium">
             <strong className="tw:truncate">{automation.name}</strong>
             {unread ? (
               <span
@@ -1049,13 +1060,13 @@ function AutomationRow({
               />
             ) : null}
           </span>
-          <span className="automation-row-summary tw:truncate tw:type-body-sm tw:text-app-text-soft">
+          <span className="automation-row-summary tw:truncate tw:type-1 tw:text-app-text-soft">
             {automationScheduleSummary(automation.schedule)}
             <span aria-hidden="true"> · </span>
             {targetLabel}
           </span>
         </span>
-        <span className="automation-row-status tw:shrink-0 tw:truncate tw:text-right tw:type-caption tw:text-app-text-meta tw:group-hover:opacity-0 tw:group-has-[:focus-visible]:opacity-0 tw:group-data-[state=open]:opacity-0 tw:max-[48rem]:hidden">
+        <span className="automation-row-status tw:shrink-0 tw:truncate tw:text-right tw:type-1 tw:text-app-text-meta tw:group-hover:opacity-0 tw:group-has-[:focus-visible]:opacity-0 tw:group-data-[state=open]:opacity-0 tw:max-[48rem]:hidden">
           {activeRun
             ? '正在运行'
             : automation.status === 'paused'
@@ -1078,26 +1089,32 @@ function AutomationRow({
             size="toolbar"
             title={`${automation.name} 操作`}
           >
-            <MoreHorizontal aria-hidden="true" size={APP_ICON_SIZE} />
+            <MoreHorizontal className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
           </Button>
         }
       >
-        <PopoverItem icon={<Play size={APP_ICON_SIZE} />} onClick={onRun}>
+        <PopoverItem
+          icon={<Play className="tw:size-icon-md" size={APP_ICON_SIZE} />}
+          onClick={onRun}
+        >
           立即运行
         </PopoverItem>
         <PopoverItem
           icon={
             automation.status === 'paused' ? (
-              <Play size={APP_ICON_SIZE} />
+              <Play className="tw:size-icon-md" size={APP_ICON_SIZE} />
             ) : (
-              <Pause size={APP_ICON_SIZE} />
+              <Pause className="tw:size-icon-md" size={APP_ICON_SIZE} />
             )
           }
           onClick={onPause}
         >
           {automation.status === 'paused' ? '恢复' : '暂停'}
         </PopoverItem>
-        <PopoverItem icon={<Trash2 size={APP_ICON_SIZE} />} onClick={onDelete}>
+        <PopoverItem
+          icon={<Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />}
+          onClick={onDelete}
+        >
           删除
         </PopoverItem>
       </PopoverMenu>
@@ -1111,9 +1128,9 @@ function AutomationEmptyState(): React.ReactNode {
       className="automation-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*6)] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft"
       role="status"
     >
-      <CalendarClock size={APP_ICON_SIZES.lg} aria-hidden="true" />
-      <h2 className="tw:m-0 tw:type-title-sm tw:text-app-text">暂无已安排任务</h2>
-      <p className="tw:m-0 tw:type-body">创建任务后，它们会按状态显示在这里。</p>
+      <CalendarClock className="tw:size-icon-lg" size={APP_ICON_SIZES.lg} aria-hidden="true" />
+      <h2 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text">暂无已安排任务</h2>
+      <p className="tw:m-0 tw:type-2">创建任务后，它们会按状态显示在这里。</p>
     </div>
   )
 }
@@ -1132,14 +1149,14 @@ function AutomationSuggestions({
       className="automation-suggestions tw:border-t tw:border-app-border-subtle tw:pt-3 tw:data-[divided=true]:mt-3"
       data-divided={divided || undefined}
     >
-      <h2 className="tw:m-0 tw:type-title-sm tw:text-app-text">建议</h2>
+      <h2 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text">建议</h2>
       <ul
-        className="tw:m-0 tw:grid tw:list-none tw:gap-1.25 tw:px-0 tw:pt-2 tw:pb-0"
+        className="tw:m-0 tw:grid tw:list-none tw:gap-1 tw:px-0 tw:pt-2 tw:pb-0"
         aria-label="自动化建议"
       >
         {suggestions.map((item) => (
           <li
-            className="tw:group tw:rounded-container tw:p-1.25 tw:hover:bg-app-hover tw:has-[:focus-visible]:bg-app-hover"
+            className="tw:group tw:rounded-container tw:p-1 tw:hover:bg-app-hover tw:has-[:focus-visible]:bg-app-hover"
             key={item.id}
             data-tone={item.tone}
           >
@@ -1153,21 +1170,21 @@ function AutomationSuggestions({
                 aria-hidden="true"
               >
                 {item.id === 'daily-brief' ? (
-                  <AlarmClock size={APP_ICON_SIZE} />
+                  <AlarmClock className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 ) : item.id === 'weekly-review' ? (
-                  <CalendarClock size={APP_ICON_SIZE} />
+                  <CalendarClock className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 ) : (
-                  <FileSearch size={APP_ICON_SIZE} />
+                  <FileSearch className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 )}
               </span>
               <span className="automation-suggestion-content tw:grid tw:min-w-0 tw:gap-1">
                 <span className="automation-suggestion-title tw:flex tw:min-w-0 tw:items-baseline tw:gap-2">
-                  <strong className="tw:type-label">{item.name}</strong>
-                  <span className="tw:type-body-sm tw:text-app-text-soft">
+                  <strong className="tw:type-1 tw:weight-medium">{item.name}</strong>
+                  <span className="tw:type-1 tw:text-app-text-soft">
                     {automationScheduleSummary(item.schedule)}
                   </span>
                 </span>
-                <small className="tw:truncate tw:type-body-sm tw:text-app-text-soft">
+                <small className="tw:truncate tw:type-1 tw:text-app-text-soft">
                   {item.description}
                 </small>
               </span>
@@ -1190,11 +1207,11 @@ function StatePanel({
 }): React.ReactNode {
   return (
     <div
-      className="automation-state tw:grid tw:min-h-0 tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-8 tw:text-center"
+      className="automation-state tw:grid tw:min-h-0 tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-6 tw:text-center"
       role="status"
     >
-      <h2 className="tw:m-0 tw:type-title-sm tw:text-app-text">{title}</h2>
-      <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">{description}</p>
+      <h2 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text">{title}</h2>
+      <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">{description}</p>
       {action}
     </div>
   )

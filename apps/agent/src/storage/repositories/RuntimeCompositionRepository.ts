@@ -45,6 +45,18 @@ const isV2 = (snapshot: RuntimeCompositionSnapshot): snapshot is RuntimeComposit
 export class RuntimeCompositionRepository {
   constructor(private readonly db: AgentDatabase) {}
 
+  latestForThread(threadID: string): StoredRuntimeCompositionPlan | null {
+    if (!this.hasTable()) return null
+    const row = this.db.sqlite
+      .query(
+        `SELECT p.turn_id FROM runtime_composition_plans p
+      JOIN turns t ON t.id = p.turn_id AND t.root_agent_id = p.agent_id
+      WHERE t.thread_id = ? ORDER BY t.created_at DESC, t.id DESC LIMIT 1`,
+      )
+      .get(threadID) as { turn_id: string } | null
+    return row ? this.get(row.turn_id) : null
+  }
+
   hasTable(): boolean {
     return Boolean(
       this.db.sqlite

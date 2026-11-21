@@ -28,8 +28,8 @@ describe('单主 Agent 编排', () => {
       model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt-5') }),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'chat',

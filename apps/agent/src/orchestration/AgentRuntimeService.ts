@@ -1,3 +1,8 @@
+import {
+  capabilityCatalogSection,
+  composeRuntimePromptBundle,
+  resolveRuntimePromptSections,
+} from './prompt/RuntimePromptComposer'
 import { randomUUID } from 'node:crypto'
 import { Effect } from 'effect'
 import { contentText, type Api, type Model as PiModel, type Models } from '@earendil-works/pi-ai'
@@ -5,6 +10,7 @@ import { AgentHarness } from './harness/AgentHarness'
 import { SessionError, type Session, type AgentHarnessEvent } from './harness/Types'
 import type { AgentRuntime, AgentRuntimeRequest, PendingApproval } from './AgentRuntimeTypes'
 import { executeHarnessRun } from './pi/ExecuteHarnessRun'
+import { ContextManager } from '../context/ContextManager'
 import type {
   ActiveHarness,
   GoalBudgetStatus,
@@ -21,7 +27,9 @@ import {
 import { GOAL_WRAPUP_OUTPUT_TOKENS, goalBudgetAdmission } from '../session/GoalWrapupPolicy'
 import { estimateTokens } from '../context/harness/Compaction'
 import type { GoalUsageEntry } from '../storage/repositories/ThreadGoalLedgerRepository'
-import { piToolResultText } from './pi/PiEventAdapter'
+import { piToolResultBlocks, piToolResultText } from './pi/PiEventAdapter'
+import { formatToolExecutionResult } from './pi/PiToolAdapter'
+import { formatSubagentHandback } from '../subagent/HandbackFormat'
 import {
   SqlitePiSessionRepo,
   type SqlitePiSessionStorage,
@@ -31,13 +39,11 @@ import type { EventHub } from '../storage/events/EventHub'
 import type { ToolExecutor } from '../tool/ToolExecutor'
 import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from '../tool/ToolExposurePlan'
 import {
-  toolCatalogSummary,
   type ToolCatalog,
   type ToolCatalogEntry,
   type ToolPauseRequest,
 } from '../tool/ToolRegistry'
 import { computerOperationRecoveryFrom } from '../nodeRepl/Protocol'
-import { buildCapabilityCatalogSection } from '../prompt/CapabilityCatalog'
 import type { PromptSection } from '../prompt/Types'
 import { resolveEffectivePermissionConfig } from '../permission/EffectivePermissionConfig'
 import { AgentError, type Item, type SubagentResult } from '../Domain'
@@ -67,7 +73,6 @@ import {
 } from '../storage/ArtifactService'
 import type { NewArtifactRecord } from '../storage/repositories/ArtifactRepository'
 import type { ToolResultBlock } from '@pidex/shared/thread'
-import { PromptComposer } from '../prompt/PromptComposer'
 import { RuntimeCompositionService } from '../runtime-composition/Service'
 import {
   composeRuntimeComposition,
@@ -76,6 +81,10 @@ import {
 } from '../runtime-composition/Composer'
 import type { RuntimeWorkspaceScope, BoundRuntimeComposition } from '../runtime-composition/Types'
 import { SkillService } from '../prompt/SkillService'
+import {
+  screenLoadedSkill,
+  screenSkillCatalog,
+} from '../decision/integrations/InstructionScreenAdapter'
 import type { WorkspaceService } from '../workspace/WorkspaceService'
 import { classifyToolActivity, storedToolActivity } from '../tool/ToolActivityClassifier'
 import type { MemoryManager } from '../resource/MemoryManager'
@@ -95,23 +104,6 @@ type PendingTurn = {
 }
 
 const outputDelta = (value: unknown) => (typeof value === 'string' ? value : '')
-
-/**
- * Only tools the given turn may already discover appear in the summary; the
- * frozen deferred envelope is therefore never widened by a live registry.
- */
-const capabilityCatalogSection = (
-  catalog: ToolCatalog,
-  deferredNames: readonly string[],
-): PromptSection => {
-  const byName = new Map(catalog.all().map((tool) => [tool.sdkName, tool]))
-  return buildCapabilityCatalogSection(
-    deferredNames.flatMap((name) => {
-      const definition = byName.get(name)
-      return definition ? [toolCatalogSummary(definition)] : []
-    }),
-  )
-}
 
 const safeTimelinePatchPath = (path: string) => {
   const normalized = path.replaceAll('\\', '/').replace(/^\.\/+/, '')
@@ -219,7 +211,7 @@ export const piToolTimelineInput = (tool: string, input: unknown): Record<string
   const patch = typeof record.patch === 'string' ? record.patch : ''
   let affectedPaths: Array<{
     path: string
-    operation: 'create' | 'update'
+    operation: 'create' | 'update' | 'delete'
     additions: number
     deletions: number
   }> = []
@@ -228,28 +220,49 @@ export const piToolTimelineInput = (tool: string, input: unknown): Record<string
   let deletions = 0
   try {
     const operations = parseApplyPatch(patch)
-    affectedPaths = operations.map((operation) => {
-      const fileAdditions =
-        operation.type === 'add'
-          ? operation.content.endsWith('\n')
-            ? operation.content.slice(0, -1).split('\n').length
-            : operation.content.split('\n').length
-          : operation.chunks.reduce((sum, chunk) => sum + chunk.additions, 0)
-      const fileDeletions =
-        operation.type === 'add'
-          ? 0
-          : operation.chunks.reduce((sum, chunk) => sum + chunk.deletions, 0)
-      return {
-        path: safeTimelinePatchPath(operation.path),
-        operation: operation.type === 'add' ? 'create' : 'update',
-        additions: fileAdditions,
-        deletions: fileDeletions,
+    const files: typeof affectedPaths = []
+    for (const operation of operations) {
+      const path = safeTimelinePatchPath(operation.path)
+      if (operation.type === 'delete') {
+        files.push({ path, operation: 'delete', additions: 0, deletions: 0 })
+        continue
       }
-    })
+      if (operation.type === 'add') {
+        files.push({
+          path,
+          operation: 'create',
+          additions: operation.content.endsWith('\n')
+            ? operation.content.slice(0, -1).split('\n').length
+            : operation.content.split('\n').length,
+          deletions: 0,
+        })
+        continue
+      }
+      const fileAdditions = operation.chunks.reduce((sum, chunk) => sum + chunk.additions, 0)
+      const fileDeletions = operation.chunks.reduce((sum, chunk) => sum + chunk.deletions, 0)
+      if (operation.moveTo) {
+        // A move is one create target plus one delete source in the same batch.
+        files.push({
+          path: safeTimelinePatchPath(operation.moveTo),
+          operation: 'create',
+          additions: fileAdditions,
+          deletions: 0,
+        })
+        files.push({ path, operation: 'delete', additions: 0, deletions: 0 })
+      } else {
+        files.push({
+          path,
+          operation: 'update',
+          additions: fileAdditions,
+          deletions: fileDeletions,
+        })
+      }
+    }
+    affectedPaths = files
     additions = affectedPaths.reduce((sum, file) => sum + file.additions, 0)
     deletions = affectedPaths.reduce((sum, file) => sum + file.deletions, 0)
     hunkCount = operations.reduce(
-      (sum, operation) => sum + (operation.type === 'add' ? 0 : operation.chunks.length),
+      (sum, operation) => sum + (operation.type === 'update' ? operation.chunks.length : 0),
       0,
     )
   } catch {
@@ -395,6 +408,7 @@ export interface AgentRuntimeServiceOptions {
   contextCompaction: ContextCompactionService
   artifacts?: ArtifactService
   memoryManager?: MemoryManager | undefined
+  decisions?: import('../decision/DecisionService').DecisionService | undefined
   observeHarnessEvent?: (context: PiRuntimeEventContext, event: AgentHarnessEvent) => void
   /**
    * 任务规划草案服务是后置构造的（依赖调度器就绪），所以用惰性取值器：
@@ -414,6 +428,7 @@ export class AgentRuntimeService implements AgentRuntime {
   private readonly active = new Map<string, ActiveHarness>()
   private readonly pending = new Map<string, PendingTurn>()
   private readonly completedCompactions = new Map<string, ContextCompaction>()
+  private readonly contextForgetApplied = new Set<string>()
 
   constructor(private readonly options: AgentRuntimeServiceOptions) {
     this.repo = new SqlitePiSessionRepo(options.db)
@@ -1472,14 +1487,6 @@ export class AgentRuntimeService implements AgentRuntime {
       request.taskMode,
       request.permissionConfig,
     )
-    const effectivePromptSections = (request.promptSections ?? []).map((section) =>
-      section.id === 'permission.resolved'
-        ? {
-            ...section,
-            content: `Resolved permission config: ${JSON.stringify(effectivePermissionConfig)}.`,
-          }
-        : section,
-    )
     const model = resolved.model as unknown as PiModel<Api>
     let session
     try {
@@ -1497,28 +1504,40 @@ export class AgentRuntimeService implements AgentRuntime {
     // product turn always rebinds the persisted snapshot (pause/resume); a new
     // product turn recomposes. Missing storage falls back to fresh ephemeral and
     // fails resume closed.
-    const exposurePlan = this.toolExposure({
-      ...request,
-      permissionConfig: effectivePermissionConfig,
-    })
+    const exposurePlan = request.forkContext
+      ? {
+          ...request.forkContext.exposurePlan,
+          allows: (name: string) => request.forkContext!.exposurePlan.exposed.includes(name),
+        }
+      : this.toolExposure({
+          ...request,
+          permissionConfig: effectivePermissionConfig,
+        })
     const toolCatalog = request.toolCatalog ?? this.options.toolExecutor.catalog()
     const activityToolCatalog = toolCatalog.all()
-    // The capability summary is part of the prompt that gets frozen below, so a
-    // resumed turn keeps the catalogue it started with. It is generated once for
-    // the main Agent and subagents instead of being declared per tool.
-    effectivePromptSections.splice(
-      effectivePromptSections.length - 1,
-      0,
-      capabilityCatalogSection(toolCatalog, exposurePlan.deferred),
-    )
+    const effectivePromptSections = request.forkContext
+      ? []
+      : resolveRuntimePromptSections({
+          ...(request.promptSections ? { sections: request.promptSections } : {}),
+          effectivePermissionConfig,
+          taskMode: request.taskMode,
+          profile: request.profile ?? 'main',
+          toolCatalog,
+          deferredToolNames: exposurePlan.deferred,
+        })
     const composeBundle = () =>
-      new PromptComposer().compose({
-        threadID: request.threadID,
-        mode: request.taskMode,
-        profile: request.profile ?? 'main',
-        exposedTools: exposurePlan.exposed,
-        sections: effectivePromptSections,
-      })
+      request.forkContext
+        ? {
+            ...request.forkContext.bundle,
+            contextItems: [],
+          }
+        : composeRuntimePromptBundle({
+            threadID: request.threadID,
+            mode: request.taskMode,
+            profile: request.profile ?? 'main',
+            exposedTools: exposurePlan.exposed,
+            sections: effectivePromptSections,
+          })
     const skillService = request.skillService ?? new SkillService()
     const mcpBinding = this.mcpGenerationFor(request)
     const workspaceScope: RuntimeWorkspaceScope = {
@@ -1615,6 +1634,18 @@ export class AgentRuntimeService implements AgentRuntime {
     let exposedTools = composition.plan.snapshot.tools.exposed
     try {
       if (request.resume?.toolCallID) {
+        const interruptionRecord =
+          request.resume.interruption &&
+          typeof request.resume.interruption === 'object' &&
+          !Array.isArray(request.resume.interruption)
+            ? (request.resume.interruption as { toolCallRuns?: Record<string, string> })
+            : null
+        const toolCallRuns =
+          interruptionRecord?.toolCallRuns &&
+          typeof interruptionRecord.toolCallRuns === 'object' &&
+          Object.keys(interruptionRecord.toolCallRuns).length > 0
+            ? interruptionRecord.toolCallRuns
+            : null
         const entries = await session.getEntries()
         const assistantEntry = [...entries]
           .reverse()
@@ -1640,115 +1671,249 @@ export class AgentRuntimeService implements AgentRuntime {
           toolCall.type !== 'toolCall'
         )
           throw new Error('Pi checkpoint 中找不到待恢复的 tool call')
-        // A node_repl approval resumes only the recorded internal operation. The
-        // pause never persisted a script, so the call is re-executed with the
-        // recovery record instead of the stale pause result.
-        const nodeReplRecovery = computerOperationRecoveryFrom(request.resume.interruption)
-        const alreadySettled =
-          !nodeReplRecovery &&
-          this.options.db.hasPersistedToolResult(request.turnID, request.resume.toolCallID)
-        if (!alreadySettled) {
-          const callIDs = new Set(
-            assistantEntry.message.content.flatMap((part) =>
-              part.type === 'toolCall' ? [part.id] : [],
-            ),
+        if (toolCallRuns) {
+          const callEntries = Object.entries(toolCallRuns)
+          const pendingCalls = callEntries.filter(
+            ([callID]) => !this.options.db.hasPersistedToolResult(request.turnID, callID),
           )
-          // Rewinding replaces pause placeholders, but must retain settled siblings,
-          // including results committed by an earlier approval before a restart.
-          const settledSiblings = new Map(
-            entries.flatMap((entry) => {
-              if (entry.type !== 'message' || entry.message.role !== 'toolResult') return []
-              const message = entry.message
-              if (
-                !callIDs.has(message.toolCallId) ||
-                message.toolCallId === request.resume!.toolCallID ||
-                (message.details as { __piPause?: boolean } | undefined)?.__piPause === true ||
-                (message.isError &&
-                  piToolResultText(message, { tool: message.toolName }) === '等待用户审批')
+          if (pendingCalls.length > 0) {
+            const callIDs = new Set(
+              assistantEntry.message.content.flatMap((part) =>
+                part.type === 'toolCall' ? [part.id] : [],
+              ),
+            )
+            const settledSiblings = new Map(
+              entries.flatMap((entry) => {
+                if (entry.type !== 'message' || entry.message.role !== 'toolResult') return []
+                const message = entry.message
+                if (
+                  !callIDs.has(message.toolCallId) ||
+                  message.toolCallId in toolCallRuns ||
+                  (message.details as { __piPause?: boolean } | undefined)?.__piPause === true ||
+                  (message.isError &&
+                    piToolResultText(message, { tool: message.toolName }) === '等待用户审批')
+                )
+                  return []
+                return [[message.toolCallId, message] as const]
+              }),
+            )
+            await session.moveTo(assistantEntry.id)
+            for (const message of settledSiblings.values()) await session.appendMessage(message)
+            const persistedBatch: Array<{
+              callID: string
+              toolName: string
+              output: string
+              details: unknown
+              isError: boolean
+            }> = []
+            for (const [callID, runID] of pendingCalls) {
+              const callPart = assistantEntry.message.content.find(
+                (part) => part.type === 'toolCall' && part.id === callID,
               )
-                return []
-              return [[message.toolCallId, message] as const]
-            }),
-          )
-          await session.moveTo(assistantEntry.id)
-          for (const message of settledSiblings.values()) await session.appendMessage(message)
-        }
-        let resolutionText =
-          request.resume.decision === 'deny'
-            ? request.resume.answer
-              ? `用户拒绝了此工具调用，并要求：${request.resume.answer}`
-              : '用户拒绝了此工具调用，请改用其他方案。'
-            : (request.resume.answer ?? request.resume.decision ?? 'continue')
-        let resolutionDetails: unknown
-        let isError = request.resume.decision === 'deny'
-        const lifecycleNames = new Set([
-          'request_user_input',
-          'request_permissions',
-          'spawn_agents',
-          'wait_agents',
-          'send_agent',
-          'followup_agent',
-          'report_agent',
-          'list_agents',
-          'stop_agent',
-          'update_plan',
-          'update_goal',
-          'finalize_result',
-        ])
-        if (
-          !alreadySettled &&
-          request.resume.decision === 'allow' &&
-          toolCall.name === 'request_permissions' &&
-          request.resume.permissionGrant
-        ) {
-          try {
-            const grant = await this.options.toolExecutor.applyPermissionGrant(
-              {
-                scope: request.resume.permissionGrant.scope,
-                requestedPermissions: toolCall.arguments as Record<string, unknown>,
-                grantedPermissions: request.resume.permissionGrant.grantedPermissions,
-              },
-              {
-                threadID: request.threadID,
-                turnID: request.turnID,
-                agentID: request.agentID,
-                profile: request.profile ?? 'main',
-                taskMode: request.taskMode,
-                signal: request.signal,
-                workspace: request.workspace,
-                ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
-                permissionConfig: effectivePermissionConfig,
-                model: request.fallbackModel,
-                taskSummary: request.content,
-                toolCallID: request.resume.toolCallID,
-              },
-            )
-            resolutionDetails = secretScrubber.scrub(grant)
-            resolutionText = resumedToolResultText(grant, toolCall.name)
-          } catch (cause) {
-            isError = true
-            resolutionText = secretScrubber.scrubText(
-              cause instanceof Error ? cause.message : String(cause),
-            )
+              const toolName = callPart?.type === 'toolCall' ? callPart.name : 'Agent'
+              let details: unknown
+              let outputText = ''
+              let callIsError = false
+              try {
+                const waitRes = (await request.delegation?.wait({
+                  runIDs: [runID],
+                  mode: 'all',
+                })) as {
+                  runs?: Array<{
+                    id: string
+                    taskId: string
+                    status: string
+                    result?: unknown
+                    error?: string | null
+                  }>
+                } | null
+                const run = waitRes?.runs?.[0] ?? null
+                const normalizedStatus = run
+                  ? run.status === 'completed'
+                    ? 'completed'
+                    : run.status
+                  : 'unknown'
+                details = secretScrubber.scrub(
+                  run
+                    ? {
+                        status: normalizedStatus,
+                        taskId: run.taskId,
+                        runId: run.id,
+                        ...(run.result !== undefined ? { result: run.result } : {}),
+                        ...(run.error ? { error: run.error } : {}),
+                      }
+                    : { status: 'unknown', runId: runID },
+                )
+                outputText = run
+                  ? secretScrubber.scrubText(
+                      formatSubagentHandback({
+                        taskId: run.taskId,
+                        runId: run.id,
+                        status: normalizedStatus,
+                        result: (details as { result?: unknown }).result,
+                        error: (details as { error?: string | null }).error ?? null,
+                      }),
+                    )
+                  : JSON.stringify(details, null, 2)
+                callIsError = Boolean(!run || run.status === 'failed')
+              } catch (cause) {
+                callIsError = true
+                outputText = secretScrubber.scrubText(
+                  cause instanceof Error ? cause.message : String(cause),
+                )
+                details = { error: outputText }
+              }
+              await session.appendMessage({
+                role: 'toolResult',
+                toolCallId: callID,
+                toolName,
+                content: [{ type: 'text', text: outputText }],
+                isError: callIsError,
+                timestamp: Date.now(),
+              })
+              persistedBatch.push({
+                callID,
+                toolName,
+                output: outputText,
+                details,
+                isError: callIsError,
+              })
+            }
+            const completedEvents = this.options.db.transaction(() => {
+              storage.flush()
+              return persistedBatch.flatMap((item) =>
+                this.persistFinishedTool(
+                  {
+                    threadID: request.threadID,
+                    turnID: request.turnID,
+                    agentID: request.agentID,
+                  },
+                  {
+                    toolCallID: item.callID,
+                    tool: item.toolName,
+                    output: item.output,
+                    details: item.details,
+                    isError: item.isError,
+                  },
+                  request.workspace,
+                  integrationSourceFor(activityToolCatalog, item.toolName),
+                ),
+              )
+            })
+            for (const event of completedEvents) await this.publish(event)
           }
-        }
-        if (
-          !alreadySettled &&
-          request.resume.decision === 'allow' &&
-          !lifecycleNames.has(toolCall.name)
-        ) {
-          const completed = nodeReplRecovery
-            ? null
-            : this.options.db.completedToolCall(request.resume.toolCallID)
-          if (completed && toolCall.name !== 'Read' && toolCall.name !== 'workspace.read') {
-            resolutionDetails = secretScrubber.scrub(completed.output)
-            resolutionText = resumedToolResultText(completed.output, completed.name)
-          } else
+        } else {
+          // A node_repl approval resumes only the recorded internal operation. The
+          // pause never persisted a script, so the call is re-executed with the
+          // recovery record instead of the stale pause result.
+          const nodeReplRecovery = computerOperationRecoveryFrom(request.resume.interruption)
+          const alreadySettled =
+            !nodeReplRecovery &&
+            this.options.db.hasPersistedToolResult(request.turnID, request.resume.toolCallID)
+          if (!alreadySettled) {
+            const callIDs = new Set(
+              assistantEntry.message.content.flatMap((part) =>
+                part.type === 'toolCall' ? [part.id] : [],
+              ),
+            )
+            // Rewinding replaces pause placeholders, but must retain settled siblings,
+            // including results committed by an earlier approval before a restart.
+            const settledSiblings = new Map(
+              entries.flatMap((entry) => {
+                if (entry.type !== 'message' || entry.message.role !== 'toolResult') return []
+                const message = entry.message
+                if (
+                  !callIDs.has(message.toolCallId) ||
+                  message.toolCallId === request.resume!.toolCallID ||
+                  (message.details as { __piPause?: boolean } | undefined)?.__piPause === true ||
+                  (message.isError &&
+                    piToolResultText(message, { tool: message.toolName }) === '等待用户审批')
+                )
+                  return []
+                return [[message.toolCallId, message] as const]
+              }),
+            )
+            await session.moveTo(assistantEntry.id)
+            for (const message of settledSiblings.values()) await session.appendMessage(message)
+          }
+          let resolutionText =
+            request.resume.decision === 'deny'
+              ? request.resume.answer
+                ? `The user denied this tool call and requested: ${request.resume.answer}`
+                : 'The user denied this tool call. Choose another authorized approach.'
+              : (request.resume.answer ?? request.resume.decision ?? 'continue')
+          let resolutionDetails: unknown
+          let resolutionContent:
+            import('@earendil-works/pi-ai').ToolResultMessage['content'] | null = null
+          let resumedResultBlocks: import('@pidex/shared/thread').ToolResultBlock[] = []
+          let resumedArtifacts: import('../storage/ArtifactService').ArtifactBlobInput[] = []
+          let isError = request.resume.decision === 'deny'
+          const lifecycleNames = new Set([
+            'request_user_input',
+            'request_permissions',
+            'Agent',
+            'spawn_agents',
+            'wait_agents',
+            'send_agent',
+            'followup_agent',
+            'report_agent',
+            'list_agents',
+            'stop_agent',
+            'update_plan',
+            'update_goal',
+            'finalize_result',
+          ])
+          if (
+            !alreadySettled &&
+            request.resume.decision === 'allow' &&
+            toolCall.name === 'request_permissions' &&
+            request.resume.permissionGrant
+          ) {
             try {
-              const resolution = await this.options.toolExecutor.execute(
-                toolCall.name,
-                toolCall.arguments as Record<string, unknown>,
+              const grant = await this.options.toolExecutor.applyPermissionGrant(
                 {
+                  scope: request.resume.permissionGrant.scope,
+                  requestedPermissions: toolCall.arguments as Record<string, unknown>,
+                  grantedPermissions: request.resume.permissionGrant.grantedPermissions,
+                },
+                {
+                  threadID: request.threadID,
+                  turnID: request.turnID,
+                  agentID: request.agentID,
+                  profile: request.profile ?? 'main',
+                  taskMode: request.taskMode,
+                  signal: request.signal,
+                  workspace: request.workspace,
+                  ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+                  permissionConfig: effectivePermissionConfig,
+                  model: request.fallbackModel,
+                  taskSummary: request.content,
+                  toolCallID: request.resume.toolCallID,
+                },
+              )
+              resolutionDetails = secretScrubber.scrub(grant)
+              resolutionText = resumedToolResultText(grant, toolCall.name)
+            } catch (cause) {
+              isError = true
+              resolutionText = secretScrubber.scrubText(
+                cause instanceof Error ? cause.message : String(cause),
+              )
+            }
+          }
+          if (
+            !alreadySettled &&
+            request.resume.decision === 'allow' &&
+            !lifecycleNames.has(toolCall.name)
+          ) {
+            const completed = nodeReplRecovery
+              ? null
+              : this.options.db.completedToolCall(request.resume.toolCallID)
+            if (completed && toolCall.name !== 'Read' && toolCall.name !== 'workspace.read') {
+              resolutionDetails = secretScrubber.scrub(completed.output)
+              resolutionText = resumedToolResultText(completed.output, completed.name)
+            } else
+              try {
+                const resumeToolContext = {
                   threadID: request.threadID,
                   turnID: request.turnID,
                   agentID: request.agentID,
@@ -1765,61 +1930,88 @@ export class AgentRuntimeService implements AgentRuntime {
                   ...(request.resume.computerGrant
                     ? { approvedComputerGrant: request.resume.computerGrant }
                     : {}),
-                  onSkillDocumentRead: (path, hash) =>
+                  onSkillDocumentRead: (path: string, hash: string) =>
                     composition.bindings.skills.documentRead(path, hash),
                   ...(request.resume.authorizationFingerprint
                     ? { approvedAuthorizationFingerprint: request.resume.authorizationFingerprint }
                     : {}),
+                  toolCatalog: composition.bindings.toolCatalog,
                   ...(nodeReplRecovery ? { computerRecovery: nodeReplRecovery } : {}),
+                }
+                const resolution = await this.options.toolExecutor.execute(
+                  toolCall.name,
+                  toolCall.arguments as Record<string, unknown>,
+                  resumeToolContext,
+                )
+                const resumedDefinition = activityToolCatalog.find(
+                  (entry) => entry.sdkName === toolCall.name || entry.name === toolCall.name,
+                )
+                const formattedResult = formatToolExecutionResult(
+                  resumedDefinition,
+                  resolution,
+                  resumeToolContext,
+                )
+                resolutionDetails = secretScrubber.scrub(
+                  resumedDefinition?.auditResult?.(resolution) ?? formattedResult.details,
+                )
+                resolutionText =
+                  piToolResultText(formattedResult, { tool: toolCall.name }) ||
+                  '工具执行完成（无输出）'
+                resolutionContent = formattedResult.content ?? null
+                const projected = piToolResultBlocks(formattedResult)
+                if (projected.artifacts.length > 0) {
+                  resumedResultBlocks = projected.blocks
+                  resumedArtifacts = projected.artifacts
+                }
+              } catch (cause) {
+                isError = true
+                resolutionText = secretScrubber.scrubText(
+                  cause instanceof Error ? cause.message : String(cause),
+                )
+              }
+          }
+          if (!alreadySettled) {
+            await session.appendMessage({
+              role: 'toolResult',
+              toolCallId: request.resume.toolCallID,
+              toolName: toolCall.name,
+              content: resolutionContent ?? [
+                {
+                  type: 'text',
+                  text: resolutionText,
                 },
+              ],
+              isError,
+              timestamp: Date.now(),
+            })
+            const artifactRecords = await this.persistFinishedToolArtifacts(resumedArtifacts)
+            let completedEvents: Array<ReturnType<AgentDatabase['insertEvent']>> = []
+            this.options.db.transaction(() => {
+              storage.flush()
+              if (!request.resume?.resumeLeaseID && request.resume?.checkpointID) {
+                this.options.db.completeQuestionResume(request.resume.checkpointID)
+              }
+              completedEvents = this.persistFinishedTool(
+                {
+                  threadID: request.threadID,
+                  turnID: request.turnID,
+                  agentID: request.agentID,
+                },
+                {
+                  toolCallID: request.resume!.toolCallID!,
+                  tool: toolCall.name,
+                  output: resolutionText,
+                  details: resolutionDetails,
+                  isError,
+                  ...(resumedResultBlocks.length ? { resultBlocks: resumedResultBlocks } : {}),
+                  ...(artifactRecords.length ? { artifactRecords } : {}),
+                },
+                request.workspace,
+                integrationSourceFor(activityToolCatalog, toolCall.name),
               )
-              resolutionDetails = secretScrubber.scrub(resolution)
-              resolutionText = resumedToolResultText(resolution, toolCall.name)
-            } catch (cause) {
-              isError = true
-              resolutionText = secretScrubber.scrubText(
-                cause instanceof Error ? cause.message : String(cause),
-              )
-            }
-        }
-        if (!alreadySettled) {
-          await session.appendMessage({
-            role: 'toolResult',
-            toolCallId: request.resume.toolCallID,
-            toolName: toolCall.name,
-            content: [
-              {
-                type: 'text',
-                text: resolutionText,
-              },
-            ],
-            isError,
-            timestamp: Date.now(),
-          })
-          let completedEvents: Array<ReturnType<AgentDatabase['insertEvent']>> = []
-          this.options.db.transaction(() => {
-            storage.flush()
-            if (!request.resume?.resumeLeaseID && request.resume?.checkpointID) {
-              this.options.db.completeQuestionResume(request.resume.checkpointID)
-            }
-            completedEvents = this.persistFinishedTool(
-              {
-                threadID: request.threadID,
-                turnID: request.turnID,
-                agentID: request.agentID,
-              },
-              {
-                toolCallID: request.resume!.toolCallID!,
-                tool: toolCall.name,
-                output: resolutionText,
-                details: resolutionDetails,
-                isError,
-              },
-              request.workspace,
-              integrationSourceFor(activityToolCatalog, toolCall.name),
-            )
-          })
-          for (const event of completedEvents) await this.publish(event)
+            })
+            for (const event of completedEvents) await this.publish(event)
+          }
         }
         if (request.resume.decision) {
           if (request.signal.aborted) throw new AgentError('RUN_ABORTED', '任务已停止', 499)
@@ -1861,8 +2053,8 @@ export class AgentRuntimeService implements AgentRuntime {
       let paused = false
       const preapprovedToolCalls = new Map<string, string | undefined>()
       const pause = async (approval: PendingApproval) => {
-        paused = true
         await request.pause(approval)
+        paused = true
       }
       const executionContext = {
         threadID: request.threadID,
@@ -1883,6 +2075,7 @@ export class AgentRuntimeService implements AgentRuntime {
       // 按来源实测的上下文字符量只对本次 run 有意义，用闭包保存，
       // 由 executeHarnessRun 在每次 provider 请求前刷新、由 eventSink 读取。
       let contextUsageBreakdown: ContextUsageBreakdownEntry[] | undefined
+      const pendingSyncAgentWaits = new Map<string, { taskId: string; runId: string }>()
       const executeSubagentTool = (
         name: string,
         input: Record<string, unknown>,
@@ -1926,7 +2119,7 @@ export class AgentRuntimeService implements AgentRuntime {
           const decision = await this.options.toolExecutor.previewApproval(
             input.tool,
             input.input,
-            executionContext,
+            { ...executionContext, toolCatalog: composition.bindings.toolCatalog },
             input.toolCallID,
           )
           if (decision.decision === 'allow') {
@@ -1969,19 +2162,81 @@ export class AgentRuntimeService implements AgentRuntime {
             this.options.contextCompaction.recordFailure(threadID, trigger),
         },
         goalBudget: this.goalBudgetLifecycle(),
+        contextDecisions: {
+          forget: async (threadID, items, signal) => {
+            const decisions = this.options.decisions
+            if (!decisions) return items
+            const key = `${threadID}:${items.length}`
+            if (this.contextForgetApplied.has(key)) return items
+            const manager = new ContextManager(this.options.db)
+            manager.attachDecisions(decisions)
+            const plan = await manager.planForget({
+              threadID,
+              items: items as never,
+              ...(signal ? { signal } : {}),
+            })
+            if (plan.shrunkToolCallIds.length > 0) {
+              this.contextForgetApplied.add(key)
+              if (this.contextForgetApplied.size > 512) {
+                const oldest = this.contextForgetApplied.values().next().value
+                if (oldest !== undefined) this.contextForgetApplied.delete(oldest)
+              }
+            }
+            return plan.items as never
+          },
+          compact: async (threadID, items, signal) => {
+            const decisions = this.options.decisions
+            if (!decisions) return items
+            const plan = await this.options.contextCompaction.planCompaction({
+              threadID,
+              items: items as never,
+              ...(signal ? { signal } : {}),
+            })
+            return plan.items as never
+          },
+        },
         lifecycle: {
-          skillList: async () =>
-            composition.bindings.skills
-              .list()
-              .map(({ name, description, origin, format, hash }) => ({
-                name,
-                description,
-                origin,
-                format,
-                hash,
-              })) ?? [],
+          skillList: async () => {
+            const listed = composition.bindings.skills.list() as ReadonlyArray<{
+              readonly name: string
+              readonly description: string
+              readonly origin: string
+              readonly format: string
+              readonly hash: string
+              readonly path?: string
+            }>
+            return screenSkillCatalog(this.options.decisions, listed, {
+              threadId: request.threadID,
+              cwd: request.workspace.rootPath,
+            }).map(({ name, description, origin, format, hash }) => ({
+              name,
+              description,
+              origin,
+              format,
+              hash,
+            }))
+          },
           skillRead: async (input) => {
-            return composition.bindings.skills.read(String(input.name))
+            const loaded = await composition.bindings.skills.read(String(input.name))
+            if (
+              loaded &&
+              typeof loaded === 'object' &&
+              typeof (loaded as { origin?: unknown }).origin === 'string' &&
+              typeof (loaded as { path?: unknown }).path === 'string' &&
+              typeof (loaded as { body?: unknown }).body === 'string' &&
+              typeof (loaded as { content?: unknown }).content === 'string'
+            ) {
+              return screenLoadedSkill(
+                this.options.decisions,
+                loaded as { origin: string; path: string; body: string; content: string },
+                {
+                  threadId: request.threadID,
+                  turnId: request.turnID,
+                  cwd: request.workspace.rootPath,
+                },
+              )
+            }
+            return loaded
           },
           projectSourceList: async () => {
             if (!request.projectSources) throw new Error('当前 turn 未启用项目来源')
@@ -2114,6 +2369,230 @@ export class AgentRuntimeService implements AgentRuntime {
             })
             return { status: 'submitted', proposal, reviewUrl: '/automations' }
           },
+          agent: async (input, toolCallID) =>
+            executeSubagentTool('Agent', input, toolCallID, async (actual) => {
+              if (request.isForkChild) {
+                throw new Error('Fork 子代理禁止继续创建子代理，请直接完成当前任务。')
+              }
+              const rawType =
+                typeof actual.subagent_type === 'string' && actual.subagent_type.trim()
+                  ? actual.subagent_type.trim()
+                  : undefined
+              if (actual.run_in_background === true && (request.profile ?? 'main') !== 'main') {
+                throw new Error(
+                  '子代理不支持后台派发（run_in_background），请改为同步委派：去掉 run_in_background 后重试。',
+                )
+              }
+              const readOnlyMode = isReadOnlyTaskMode(request.taskMode)
+              // INVARIANT: implicit fork is main-parent-only; notification delivery requires a root parent, so other parents delegate synchronously.
+              const isFork = !rawType && !readOnlyMode && (request.profile ?? 'main') === 'main'
+              const profile = (rawType ?? (readOnlyMode ? 'explorer' : 'default')) as
+                'default' | 'explorer' | 'worker'
+              if (readOnlyMode && profile !== 'explorer') {
+                throw new Error('Plan 与 Grill 模式只能创建 Explorer 子 Agent')
+              }
+              const promptText = String(actual.prompt ?? '').trim()
+              const descriptionText = String(actual.description ?? '').trim()
+              const explicitName =
+                typeof actual.name === 'string' && actual.name.trim()
+                  ? actual.name.trim()
+                  : undefined
+              const title = descriptionText || undefined
+              const role =
+                typeof actual.role === 'string' && actual.role.trim()
+                  ? (actual.role.trim() as import('@pidex/shared/thread').SubagentRole)
+                  : undefined
+              const memoryKey =
+                typeof actual.memoryKey === 'string' && actual.memoryKey.trim()
+                  ? actual.memoryKey.trim()
+                  : undefined
+              if (isFork) {
+                storage.flush()
+                const pathEntries = await storage.getPathToRootOrCompaction(
+                  await session.getLeafId(),
+                )
+                const hasForkMarker = pathEntries.some(
+                  (entry) =>
+                    entry.type === 'message' &&
+                    entry.message.role === 'user' &&
+                    Array.isArray(entry.message.content) &&
+                    entry.message.content.some(
+                      (part) => part.type === 'text' && part.text.includes('<fork_boilerplate>'),
+                    ),
+                )
+                if (request.isForkChild || hasForkMarker) {
+                  throw new Error(
+                    'Fork 子代理禁止递归 Fork；请直接完成当前任务或显式指定 subagent_type。',
+                  )
+                }
+                let assistantIndex = -1
+                for (let index = pathEntries.length - 1; index >= 0; index -= 1) {
+                  const candidate = pathEntries[index]
+                  if (
+                    candidate?.type === 'message' &&
+                    candidate.message.role === 'assistant' &&
+                    candidate.message.content.some(
+                      (part) => part.type === 'toolCall' && part.id === toolCallID,
+                    )
+                  ) {
+                    assistantIndex = index
+                    break
+                  }
+                }
+                const prefixEntries =
+                  assistantIndex >= 0 ? pathEntries.slice(0, assistantIndex + 1) : pathEntries
+                const assistantEntry = assistantIndex >= 0 ? pathEntries[assistantIndex] : undefined
+                const toolCalls =
+                  assistantEntry?.type === 'message' && assistantEntry.message.role === 'assistant'
+                    ? assistantEntry.message.content.filter((part) => part.type === 'toolCall')
+                    : []
+                const nowMs = Date.now()
+                const placeholderMessages = toolCalls.map((call) => ({
+                  role: 'toolResult' as const,
+                  toolCallId: call.id,
+                  toolName: call.name,
+                  content: [
+                    { type: 'text' as const, text: 'Fork started — processing in background' },
+                  ],
+                  isError: false,
+                  timestamp: nowMs,
+                }))
+                const spawned = (await request.delegation!.spawn(
+                  {
+                    agents: [
+                      {
+                        ...(explicitName ? { name: explicitName } : {}),
+                        ...(title ? { title } : {}),
+                        profile: 'default',
+                        task: promptText,
+                        ...(role ? { role } : {}),
+                        fork: {
+                          bundle: composedBundle,
+                          exposurePlan: composition.plan.snapshot.tools,
+                          entries: prefixEntries,
+                          placeholderMessages,
+                        },
+                        background: true,
+                      },
+                    ],
+                  },
+                  {
+                    permissionConfig: effectivePermissionConfig,
+                    ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+                  },
+                )) as {
+                  agents: Array<{
+                    taskId: string
+                    runId: string
+                    childThreadId: string
+                    displayName: string
+                    title?: string
+                    profile: string
+                  }>
+                }
+                const first = spawned.agents[0]!
+                return {
+                  status: 'async_launched',
+                  taskId: first.taskId,
+                  runId: first.runId,
+                  displayName: first.displayName,
+                  ...(first.title ? { title: first.title } : {}),
+                  profile: 'fork',
+                  message:
+                    'Fork started in background. Do not duplicate its work or fabricate its findings; briefly inform the user and end your turn to receive the completion notification.',
+                }
+              }
+
+              const spawned = (await request.delegation!.spawn(
+                {
+                  agents: [
+                    {
+                      ...(explicitName ? { name: explicitName } : {}),
+                      ...(title ? { title } : {}),
+                      profile,
+                      task: promptText,
+                      ...(role ? { role } : {}),
+                      ...(memoryKey ? { memoryKey } : {}),
+                      ...(actual.run_in_background === true ? { background: true } : {}),
+                    },
+                  ],
+                },
+                {
+                  permissionConfig: effectivePermissionConfig,
+                  ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+                },
+              )) as {
+                agents: Array<{
+                  taskId: string
+                  runId: string
+                  childThreadId: string
+                  displayName: string
+                  title?: string
+                  profile: string
+                }>
+              }
+              const first = spawned.agents[0]!
+              if (actual.run_in_background === true) {
+                return {
+                  status: 'async_launched',
+                  taskId: first.taskId,
+                  runId: first.runId,
+                  displayName: first.displayName,
+                  profile: first.profile,
+                  message:
+                    'Background subagent launched. Do not duplicate its work; you will be notified when it completes.',
+                }
+              }
+              if (
+                await request.delegation?.isWaitSatisfied({ runIDs: [first.runId], mode: 'all' })
+              ) {
+                const waitRes = (await request.delegation?.wait({
+                  runIDs: [first.runId],
+                  mode: 'all',
+                })) as {
+                  runs?: Array<{
+                    id: string
+                    taskId: string
+                    status: string
+                    result?: unknown
+                    error?: string | null
+                  }>
+                } | null
+                const run = waitRes?.runs?.[0] ?? null
+                const finalStatus =
+                  run?.status === 'completed' ? 'completed' : (run?.status ?? 'unknown')
+                const scrubbedResult =
+                  run?.result !== undefined ? secretScrubber.scrub(run.result) : undefined
+                const scrubbedError = run?.error ? secretScrubber.scrubText(run.error) : undefined
+                return {
+                  status: finalStatus,
+                  taskId: first.taskId,
+                  runId: first.runId,
+                  displayName: first.displayName,
+                  ...(first.title ? { title: first.title } : {}),
+                  profile: first.profile,
+                  ...(scrubbedResult !== undefined ? { result: scrubbedResult } : {}),
+                  ...(scrubbedError ? { error: scrubbedError } : {}),
+                  __handbackText: formatSubagentHandback({
+                    taskId: first.taskId,
+                    runId: first.runId,
+                    displayName: first.displayName,
+                    ...(first.title ? { title: first.title } : {}),
+                    profile: first.profile,
+                    status: finalStatus,
+                    ...(scrubbedResult !== undefined ? { result: scrubbedResult } : {}),
+                    ...(scrubbedError ? { error: scrubbedError } : {}),
+                  }),
+                }
+              }
+              pendingSyncAgentWaits.set(toolCallID, { taskId: first.taskId, runId: first.runId })
+              return {
+                __piPause: true,
+                status: 'waiting_for_subagents',
+                taskId: first.taskId,
+                runId: first.runId,
+              }
+            }),
           spawnAgents: async (input, toolCallID) =>
             executeSubagentTool('spawn_agents', input, toolCallID, async (input) => {
               const agents = Array.isArray(input.agents) ? input.agents : []
@@ -2155,43 +2634,46 @@ export class AgentRuntimeService implements AgentRuntime {
               }
               return request.delegation?.wait({ runIDs, mode })
             }),
-          followupAgent: async (input, operationID) =>
-            executeSubagentTool('followup_agent', input, operationID, async (actual) =>
-              request.delegation?.followup?.({
-                taskID: String(actual.taskID),
-                message: String(actual.message),
-                operationID,
-              }),
-            ),
+          followupAgent: async (input, operationID) => {
+            if (!request.delegation)
+              throw new AgentError('TOOL_NOT_AVAILABLE', '当前执行没有子 Agent 协作入口', 409)
+            return request.delegation.followup?.({
+              taskID: String(input.taskID ?? input.taskId ?? ''),
+              message: String(input.message ?? ''),
+              operationID,
+            })
+          },
           reportAgent: async (input, operationID) =>
             executeSubagentTool('report_agent', input, operationID, async (actual) =>
               request.delegation?.report?.({ message: String(actual.message), operationID }),
             ),
-          listAgents: async (input, toolCallID) =>
-            executeSubagentTool('list_agents', input, toolCallID, async () =>
-              request.delegation?.list?.(),
-            ),
-          sendAgent: async (input, operationID) =>
-            executeSubagentTool('send_agent', input, operationID, async (input) =>
-              request.delegation?.send({
-                taskID: String(input.taskID ?? input.taskId ?? ''),
-                message: String(input.message ?? ''),
-                operationID,
-              }),
-            ),
-          stopAgent: async (input, operationID) =>
-            executeSubagentTool('stop_agent', input, operationID, async (input) =>
-              request.delegation?.stop({
-                operationID,
-                taskID: String(input.taskID ?? input.taskId ?? ''),
-              }),
-            ),
-          finalizeResult: async (input: SubagentResult) => input,
+          listAgents: async () => {
+            if (!request.delegation)
+              throw new AgentError('TOOL_NOT_AVAILABLE', '当前执行没有子 Agent 协作入口', 409)
+            return request.delegation.list?.()
+          },
+          sendAgent: async (input, operationID) => {
+            if (!request.delegation)
+              throw new AgentError('TOOL_NOT_AVAILABLE', '当前执行没有子 Agent 协作入口', 409)
+            return request.delegation.send({
+              taskID: String(input.taskID ?? input.taskId ?? ''),
+              message: String(input.message ?? ''),
+              operationID,
+            })
+          },
+          stopAgent: async (input, operationID) => {
+            if (!request.delegation)
+              throw new AgentError('TOOL_NOT_AVAILABLE', '当前执行没有子 Agent 协作入口', 409)
+            return request.delegation.stop({
+              operationID,
+              taskID: String(input.taskID ?? input.taskId ?? ''),
+            })
+          },
         },
       }
       const resumedContent = request.resume
-        ? `<interaction_resolution toolCallId=${JSON.stringify(request.resume.toolCallID ?? 'unknown')}>${JSON.stringify({ answer: request.resume.answer, decision: request.resume.decision ?? null })}</interaction_resolution>\n继续处理已恢复的 Pi session；复用上述 toolCallId 的处理结果，不得重复执行该 ID，也不得自行换工具或等价命令绕过用户拒绝。此限制不禁止用户后续明确要求再次执行相同命令：那是新的工具调用，必须使用新的 toolCallId 并重新判权，不能复用一次批准。若用户给出调整要求，必须据此处理。`
-        : request.content
+        ? `<interaction_resolution toolCallId=${JSON.stringify(request.resume.toolCallID ?? 'unknown')}>${JSON.stringify({ answer: request.resume.answer, decision: request.resume.decision ?? null })}</interaction_resolution>\nContinue the restored Pi session using the result for that toolCallId. Do not repeat that ID or bypass denial with another tool or equivalent command. A later explicit user request to rerun the command is a new call requiring a new toolCallId and fresh authorization; it cannot reuse a one-time approval. Apply user-requested adjustments.`
+        : undefined
       const threadLimit = this.options.db.repositories.threads.getThreadSettings(
         request.threadID,
       )?.maxContextTokens
@@ -2207,7 +2689,8 @@ export class AgentRuntimeService implements AgentRuntime {
           agentID: request.agentID,
           sessionID: request.sessionID,
           ...(request.profile ? { profile: request.profile } : {}),
-          content: resumedContent,
+          content: request.content,
+          ...(resumedContent ? { resumedContent } : {}),
           taskMode: request.taskMode,
           permissionConfig: effectivePermissionConfig,
           signal: request.signal,
@@ -2232,6 +2715,12 @@ export class AgentRuntimeService implements AgentRuntime {
           ...(request.attachments ? { attachments: request.attachments } : {}),
           preapprovedToolCalls,
           ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+          ...(request.delegationEnabled !== undefined
+            ? { delegationEnabled: request.delegationEnabled }
+            : {}),
+          ...(request.collaborationEnabled !== undefined
+            ? { collaborationEnabled: request.collaborationEnabled }
+            : {}),
           ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
           frozenDeferredToolNames: composition.plan.snapshot.tools.deferred,
           onSkillDocumentRead: (path, hash) => composition.bindings.skills.documentRead(path, hash),
@@ -2275,6 +2764,31 @@ export class AgentRuntimeService implements AgentRuntime {
           }
         }
         throw cause
+      }
+      if (!paused && pendingSyncAgentWaits.size > 0) {
+        const entries = [...pendingSyncAgentWaits.entries()]
+        const firstCallID = entries[0]![0]
+        const toolCallRuns = Object.fromEntries(
+          entries.map(([callID, entry]) => [callID, entry.runId]),
+        )
+        const runIDs = [...new Set(entries.map(([, entry]) => entry.runId))]
+        await pause({
+          kind: 'subagents',
+          runIDs,
+          waitMode: 'all',
+          toolCallID: firstCallID,
+          checkpoint: {
+            state: JSON.stringify({
+              engine: 'pi',
+              sessionID: request.sessionID,
+            }),
+            interruption: {
+              toolCallID: firstCallID,
+              toolCallRuns,
+            },
+            toolCallID: firstCallID,
+          },
+        })
       }
       return paused ? { status: 'paused' as const, output: result.output } : result
     } finally {
@@ -2350,11 +2864,17 @@ export class AgentRuntimeService implements AgentRuntime {
     const definitions = (request.toolCatalog?.all() ?? [])
       .filter((definition) => definition.origin?.kind === 'mcp')
       .map((definition) => {
-        const origin = definition.origin as { kind: 'mcp'; serverName: string; rawToolName: string }
+        const origin = definition.origin as {
+          kind: 'mcp'
+          serverName: string
+          rawToolName: string
+          configurationHash?: string
+        }
         return {
           sdkName: definition.sdkName,
           serverName: origin.serverName,
           rawToolName: origin.rawToolName,
+          ...(origin.configurationHash ? { configurationHash: origin.configurationHash } : {}),
         }
       })
     const serverInstructions = (request.promptSections ?? [])

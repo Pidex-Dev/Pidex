@@ -56,10 +56,10 @@ export function GitBoardProjectRow({ project }: { project: DesktopWorkspace }) {
       <button
         type="button"
         aria-current={active ? 'page' : undefined}
-        className="sidebar-project-button tw:flex tw:min-w-0 tw:w-full tw:flex-1 tw:cursor-pointer tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:focus-visible:outline-none"
+        className="sidebar-project-button tw:flex tw:min-w-0 tw:w-full tw:flex-1 tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:focus-visible:outline-none"
         onClick={() => (selectProject ?? openGroup)?.(projectId)}
       >
-        <span className="sidebar-project-title-text tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-inherit tw:type-row-title">
+        <span className="sidebar-project-title-text tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-inherit tw:type-2 tw:weight-medium">
           {project.name}
         </span>
       </button>

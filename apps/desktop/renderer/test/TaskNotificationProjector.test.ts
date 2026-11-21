@@ -17,7 +17,7 @@ function snapshot(
       id,
       workspaceName: 'workspace',
       workspacePath: 'C:\\workspace',
-      permissionMode: 'default',
+      permissionMode: 'auto-review',
       model: null,
       thinkingMode: 'default',
       hasSystemPrompt: false,
@@ -31,8 +31,8 @@ function snapshot(
     settings: {
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       thinkingMode: 'default',
       additionalDirectories: [],

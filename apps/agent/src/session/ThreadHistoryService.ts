@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 import {
-  decodeApprovalPolicy,
+  decodePermissionConfig,
   type ThreadListItem,
   type ThreadSettingsPatch,
 } from '@pidex/shared/thread'
@@ -34,10 +34,11 @@ type ThreadRow = {
   is_scheduled_session: number
   is_fork: number
   task_mode: string
-  sandbox_mode: ThreadListItem['settings']['permissionConfig']['sandboxMode']
+  sandbox_mode: string
   approval_policy: string
-  approvals_reviewer: ThreadListItem['settings']['permissionConfig']['approvalsReviewer']
+  approvals_reviewer: string
   max_context_tokens?: number | null
+  last_user_message_at: number | null
   created_at: number
   updated_at: number
 }
@@ -63,6 +64,8 @@ export class ThreadHistoryService {
     private readonly db: AgentDatabase,
     private readonly hub: EventHub,
     private readonly prepareThreadCleanup?: (threadID: string) => () => Promise<void>,
+    /** 归档同样释放该聊天持有的进程内运行时资源。 */
+    private readonly onArchived?: (threadID: string) => Promise<void>,
   ) {}
 
   getListItem(threadID: string): ThreadListItem | null {
@@ -84,6 +87,7 @@ export class ThreadHistoryService {
           WHERE u.thread_id = t.id
           ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting-permission', 'waiting_question', 'waiting-question', 'waiting_subagents', 'waiting-subagents') THEN 0 WHEN u.status != 'queued' THEN 1 ELSE 2 END,
             u.created_at DESC, u.id DESC LIMIT 1) AS latest_turn_error,
+        (SELECT MAX(m.created_at) FROM messages AS m WHERE m.thread_id = t.id AND m.role = 'user') AS last_user_message_at,
         ${hasLimits ? 'l.max_context_tokens' : 'NULL AS max_context_tokens'}
       FROM threads AS t
       LEFT JOIN thread_read_state AS read_state ON read_state.thread_id = t.id
@@ -116,17 +120,18 @@ export class ThreadHistoryService {
       unreadAt: row.unread_at,
       settings: {
         taskMode: decodeStoredTaskMode(row.task_mode),
-        permissionConfig: {
+        permissionConfig: decodePermissionConfig({
           sandboxMode: row.sandbox_mode,
-          approvalPolicy: decodeApprovalPolicy(row.approval_policy),
+          approvalPolicy: row.approval_policy,
           approvalsReviewer: row.approvals_reviewer,
-        },
+        }),
         ...(row.max_context_tokens != null
           ? { maxContextTokens: Number(row.max_context_tokens) }
           : {}),
       },
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      lastUserMessageAt: row.last_user_message_at ?? null,
     }
   }
 
@@ -196,6 +201,7 @@ export class ThreadHistoryService {
       updatedAt: next.updatedAt,
     })
     await Effect.runPromise(this.hub.publish(event))
+    if (patch.archived === true) await this.onArchived?.(threadID).catch(() => undefined)
     return next
   }
 

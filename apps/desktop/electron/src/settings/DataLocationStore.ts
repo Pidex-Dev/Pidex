@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, readdir, rm, stat } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { readFile, readdir, stat } from 'node:fs/promises'
+import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { writeJsonAtomically } from '../windows/DebouncedAtomicJsonWriter.js'
 import type {
   DesktopDataLocationChange,

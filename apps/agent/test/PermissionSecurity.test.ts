@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { decodeApprovalPolicy, encodeApprovalPolicy } from '@pidex/shared/thread'
+import {
+  decodeApprovalPolicy,
+  decodeApprovalsReviewer,
+  decodePermissionConfig,
+  encodeApprovalPolicy,
+} from '@pidex/shared/thread'
 import type { ToolInvocation } from '../src/Domain'
 import { executionPolicyFromV4 } from '../src/permission/ExecutionPolicy'
 import { PermissionDecisionEngine } from '../src/permission/PermissionDecisionEngine'
@@ -11,13 +16,13 @@ const invocation = (overrides: Partial<ToolInvocation> = {}): ToolInvocation => 
   threadID: 'thread',
   turnID: 'turn',
   agentID: 'agent',
-  name: 'PowerShell',
+  name: 'exec_command',
   input: { command: 'Get-ChildItem' },
   permissionFacts: { risk: 'low' },
   permissionConfig: {
     sandboxMode: 'workspace-write',
-    approvalPolicy: 'on-request',
-    approvalsReviewer: 'user',
+    approvalPolicy: 'auto_review',
+    approvalsReviewer: 'auto_review',
   },
   taskMode: 'chat',
   model: {} as ToolInvocation['model'],
@@ -40,6 +45,42 @@ describe('统一权限真值', () => {
       ).action,
     ).toBe('review')
   })
+
+  test('旧版 approvalPolicy 与 approvalsReviewer 兼容解码为 auto_review 与 never', () => {
+    expect(encodeApprovalPolicy('auto_review')).toBe('on-request')
+    expect(encodeApprovalPolicy('never')).toBe('never')
+    for (const legacy of ['on-request', 'untrusted', 'on-failure', 'auto_review']) {
+      expect(decodeApprovalPolicy(legacy)).toBe('auto_review')
+    }
+    expect(decodeApprovalPolicy('never')).toBe('never')
+    expect(
+      decodeApprovalPolicy(
+        JSON.stringify({
+          type: 'granular',
+          sandboxApproval: true,
+          rules: false,
+          skillApproval: false,
+          requestPermissions: true,
+          mcpTools: false,
+          mcpElicitations: false,
+        }),
+      ),
+    ).toBe('auto_review')
+    expect(decodeApprovalsReviewer('user')).toBe('auto_review')
+    expect(decodeApprovalsReviewer('auto_review')).toBe('auto_review')
+    expect(
+      decodePermissionConfig({
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+      }),
+    ).toEqual({
+      sandboxMode: 'workspace-write',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
+    })
+  })
+
   test('旧 sandboxMode 只映射文件访问范围且 Shell 环境固定为宿主机', () => {
     const catalog = new ToolRegistry()
     const cases = [
@@ -52,107 +93,83 @@ describe('统一权限真值', () => {
       expect(
         executionPolicyFromV4({
           sandboxMode,
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         }),
       ).toMatchObject({
         fileAccess,
         shellEnvironment: 'host',
       })
-      expect(catalog.list('chat', sandboxMode).map((tool) => tool.sdkName)).toContain('PowerShell')
+      expect(catalog.list('chat', sandboxMode).map((tool) => tool.sdkName)).toContain(
+        'exec_command',
+      )
     }
   })
 
-  test('approval policy 与 reviewer 决策矩阵', () => {
+  test('approval policy 决策矩阵', () => {
     const engine = new PermissionDecisionEngine()
-    const shell = new ToolRegistry().get('PowerShell')
-    for (const reviewer of ['user', 'auto_review'] as const) {
-      expect(
-        engine.evaluate(
-          invocation({
-            permissionConfig: {
-              sandboxMode: 'workspace-write',
-              approvalPolicy: 'untrusted',
-              approvalsReviewer: reviewer,
-            },
-          }),
-          shell,
-        ),
-      ).toMatchObject({ action: 'review', reviewer })
-      expect(
-        engine.evaluate(
-          invocation({
-            permissionConfig: {
-              sandboxMode: 'workspace-write',
-              approvalPolicy: 'on-request',
-              approvalsReviewer: reviewer,
-            },
-          }),
-          shell,
-        ),
-      ).toMatchObject({ action: 'allow' })
-      expect(
-        engine.evaluate(
-          invocation({
-            input: {
-              command: 'npm view',
-              additionalPermissions: { networkDomains: ['npmjs.org'] },
-            },
-            permissionConfig: {
-              sandboxMode: 'workspace-write',
-              approvalPolicy: 'on-request',
-              approvalsReviewer: reviewer,
-            },
-          }),
-          shell,
-        ),
-      ).toMatchObject({ action: 'review', reviewer })
-      expect(
-        engine.evaluate(
-          invocation({
-            permissionConfig: {
-              sandboxMode: 'workspace-write',
-              approvalPolicy: 'on-failure',
-              approvalsReviewer: reviewer,
-            },
-          }),
-          shell,
-        ),
-      ).toMatchObject({ action: 'allow' })
-      expect(
-        engine.evaluate(
-          invocation({
-            permissionConfig: {
-              sandboxMode: 'workspace-write',
-              approvalPolicy: 'never',
-              approvalsReviewer: reviewer,
-            },
-          }),
-          shell,
-        ),
-      ).toMatchObject({ action: 'allow' })
-      expect(
-        engine.evaluate(
-          invocation({
-            input: {
-              command: 'npm view',
-              additionalPermissions: { networkDomains: ['npmjs.org'] },
-            },
-            permissionConfig: {
-              sandboxMode: 'workspace-write',
-              approvalPolicy: 'never',
-              approvalsReviewer: reviewer,
-            },
-          }),
-          shell,
-        ),
-      ).toMatchObject({ action: 'deny' })
-    }
+    const shell = new ToolRegistry().get('exec_command')
+    expect(
+      engine.evaluate(
+        invocation({
+          permissionConfig: {
+            sandboxMode: 'workspace-write',
+            approvalPolicy: 'auto_review',
+            approvalsReviewer: 'auto_review',
+          },
+        }),
+        shell,
+      ),
+    ).toMatchObject({ action: 'allow' })
+    expect(
+      engine.evaluate(
+        invocation({
+          input: {
+            command: 'npm view',
+            additionalPermissions: { networkDomains: ['npmjs.org'] },
+          },
+          permissionConfig: {
+            sandboxMode: 'workspace-write',
+            approvalPolicy: 'auto_review',
+            approvalsReviewer: 'auto_review',
+          },
+        }),
+        shell,
+      ),
+    ).toMatchObject({ action: 'review', reviewer: 'auto_review' })
+    expect(
+      engine.evaluate(
+        invocation({
+          permissionConfig: {
+            sandboxMode: 'workspace-write',
+            approvalPolicy: 'never',
+            approvalsReviewer: 'auto_review',
+          },
+        }),
+        shell,
+      ),
+    ).toMatchObject({ action: 'allow' })
+    expect(
+      engine.evaluate(
+        invocation({
+          input: {
+            command: 'npm view',
+            additionalPermissions: { networkDomains: ['npmjs.org'] },
+          },
+          permissionConfig: {
+            sandboxMode: 'workspace-write',
+            approvalPolicy: 'never',
+            approvalsReviewer: 'auto_review',
+          },
+        }),
+        shell,
+      ),
+    ).toMatchObject({ action: 'deny' })
   })
 
-  test('Shell 静态规则审批服从 on-request、never 与 granular rules', () => {
+  test('Shell 静态规则审批服从 auto_review 与 never', () => {
     const engine = new PermissionDecisionEngine()
-    const shell = new ToolRegistry().get('PowerShell')
+    const shell = new ToolRegistry().get('exec_command')
     const riskyInput = {
       command: 'winget uninstall fixture',
       __ruleRequiresApproval: true,
@@ -164,7 +181,7 @@ describe('统一权限真值', () => {
       ),
     ).toMatchObject({
       action: 'review',
-      reviewer: 'user',
+      reviewer: 'auto_review',
     })
     expect(
       engine.evaluate(
@@ -174,158 +191,37 @@ describe('统一权限真值', () => {
           permissionConfig: {
             sandboxMode: 'workspace-write',
             approvalPolicy: 'never',
-            approvalsReviewer: 'user',
-          },
-        }),
-        shell,
-      ),
-    ).toMatchObject({ action: 'deny' })
-
-    const granular = {
-      type: 'granular' as const,
-      sandboxApproval: true,
-      rules: false,
-      skillApproval: true,
-      requestPermissions: true,
-      mcpTools: true,
-      mcpElicitations: true,
-    }
-    expect(
-      engine.evaluate(
-        invocation({
-          input: riskyInput,
-          permissionFacts: { ruleRequiresApproval: true },
-          permissionConfig: {
-            sandboxMode: 'workspace-write',
-            approvalPolicy: granular,
-            approvalsReviewer: 'user',
-          },
-        }),
-        shell,
-      ),
-    ).toMatchObject({ action: 'deny' })
-    expect(
-      engine.evaluate(
-        invocation({
-          input: riskyInput,
-          permissionFacts: { ruleRequiresApproval: true },
-          permissionConfig: {
-            sandboxMode: 'workspace-write',
-            approvalPolicy: { ...granular, rules: true },
             approvalsReviewer: 'auto_review',
           },
         }),
         shell,
       ),
-    ).toMatchObject({
-      action: 'review',
-      reviewer: 'auto_review',
-    })
+    ).toMatchObject({ action: 'deny' })
   })
 
-  test('granular 策略使用稳定 JSON 形状和编解码', () => {
-    const policy = {
-      type: 'granular',
-      sandboxApproval: true,
-      rules: false,
-      skillApproval: false,
-      requestPermissions: true,
-      mcpTools: false,
-      mcpElicitations: false,
-    } as const
-    expect(decodeApprovalPolicy(encodeApprovalPolicy(policy))).toEqual(policy)
+  test('MCP 工具权限与模型控制标记隔离校验', () => {
     const engine = new PermissionDecisionEngine()
     const catalog = new ToolRegistry()
-    expect(
-      engine.evaluate(
-        invocation({
-          permissionConfig: {
-            sandboxMode: 'workspace-write',
-            approvalPolicy: policy,
-            approvalsReviewer: 'auto_review',
-          },
-        }),
-        catalog.get('PowerShell'),
-      ),
-    ).toMatchObject({
-      action: 'allow',
-    })
-    expect(
-      engine.evaluate(
-        invocation({
-          name: 'request_permissions',
-          input: { scope: 'tool-call', justification: 'need' },
-          permissionConfig: {
-            sandboxMode: 'workspace-write',
-            approvalPolicy: { ...policy, requestPermissions: false },
-            approvalsReviewer: 'user',
-          },
-        }),
-        catalog.get('request_permissions'),
-      ),
-    ).toMatchObject({
-      action: 'deny',
-      reason: expect.stringContaining('requestPermissions'),
-    })
-    expect(
-      engine.evaluate(
-        invocation({
-          input: { command: 'run-skill' },
-          permissionFacts: { skillScript: true },
-          permissionConfig: {
-            sandboxMode: 'workspace-write',
-            approvalPolicy: { ...policy, skillApproval: true },
-            approvalsReviewer: 'user',
-          },
-        }),
-        catalog.get('PowerShell'),
-      ),
-    ).toMatchObject({
-      action: 'review',
-    })
-    expect(
-      engine.evaluate(
-        invocation({
-          input: { command: 'run-skill' },
-          permissionFacts: { skillScript: true },
-          permissionConfig: {
-            sandboxMode: 'workspace-write',
-            approvalPolicy: { ...policy, skillApproval: false },
-            approvalsReviewer: 'user',
-          },
-        }),
-        catalog.get('PowerShell'),
-      ),
-    ).toMatchObject({
-      action: 'deny',
-      reason: expect.stringContaining('skillApproval'),
-    })
-    const glob = catalog.get('Glob')
+    const readTool = catalog.get('Read')
     const permissionConfig = {
       sandboxMode: 'workspace-write',
-      approvalPolicy: { ...policy, mcpElicitations: true },
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     } as const
     const baseline = engine.evaluate(
-      invocation({ input: { pattern: '*.ts' }, permissionConfig }),
-      glob,
+      invocation({ input: { path: 'sample.png' }, permissionConfig }),
+      readTool,
     )
     const forged = engine.evaluate(
       invocation({
-        input: { pattern: '*.ts', __mcpElicitation: true },
+        input: { path: 'sample.png', __mcpElicitation: true },
         permissionConfig,
       }),
-      glob,
+      readTool,
     )
     expect(forged).toEqual(baseline)
-    expect(forged.reason).not.toContain('mcpElicitations')
-  })
-
-  test('MCP 工具权限使用结构化来源而不是名称前缀', () => {
-    const engine = new PermissionDecisionEngine()
-    const builtin = new ToolRegistry().get('Glob')
     const mcpTool = {
-      ...builtin,
+      ...readTool,
       sdkName: 'remote_lookup',
       name: 'remote_lookup',
       origin: {
@@ -335,70 +231,11 @@ describe('统一权限真值', () => {
         generation: 1,
       },
     }
-    const policy = {
-      type: 'granular' as const,
-      sandboxApproval: false,
-      rules: false,
-      skillApproval: false,
-      requestPermissions: false,
-      mcpTools: false,
-      mcpElicitations: true,
-    }
     expect(
       engine.evaluate(
         invocation({
           name: 'remote_lookup',
-          permissionConfig: {
-            sandboxMode: 'workspace-write',
-            approvalPolicy: policy,
-            approvalsReviewer: 'user',
-          },
-        }),
-        mcpTool,
-      ),
-    ).toMatchObject({
-      action: 'deny',
-      reason: expect.stringContaining('mcpTools'),
-    })
-    expect(
-      engine.evaluate(
-        invocation({
-          name: 'remote_lookup',
-          permissionConfig: {
-            sandboxMode: 'workspace-write',
-            approvalPolicy: { ...policy, mcpTools: true },
-            approvalsReviewer: 'user',
-          },
-        }),
-        mcpTool,
-      ),
-    ).toMatchObject({
-      action: 'allow',
-    })
-    expect(
-      engine.evaluate(
-        invocation({
-          name: 'mcp_fake_prefix',
-          permissionConfig: {
-            sandboxMode: 'workspace-write',
-            approvalPolicy: policy,
-            approvalsReviewer: 'user',
-          },
-        }),
-        builtin,
-      ),
-    ).not.toMatchObject({
-      reason: expect.stringContaining('mcpTools'),
-    })
-    expect(
-      engine.evaluate(
-        invocation({
-          name: 'remote_lookup',
-          permissionConfig: {
-            sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
-            approvalsReviewer: 'user',
-          },
+          permissionConfig,
         }),
         {
           ...mcpTool,
@@ -414,13 +251,9 @@ describe('统一权限真值', () => {
     const fullAccessNever = {
       sandboxMode: 'danger-full-access' as const,
       approvalPolicy: 'never' as const,
-      approvalsReviewer: 'user' as const,
+      approvalsReviewer: 'auto_review' as const,
     }
-    for (const [name, input] of [
-      ['Read', { file_path: 'x' }],
-      ['Glob', { pattern: '*' }],
-      ['Grep', { pattern: 'x' }],
-    ] as const) {
+    for (const [name, input] of [['Read', { path: 'sample.png' }]] as const) {
       expect(
         engine.evaluate(
           invocation({ name, input, taskMode, permissionConfig: fullAccessNever }),
@@ -428,19 +261,17 @@ describe('统一权限真值', () => {
         ),
       ).toMatchObject({ action: 'allow' })
     }
-    // 安全调查命令按实际风险进入统一判权链，不因进程能力额外要求审批
     expect(
       engine.evaluate(
         invocation({
           taskMode,
           input: { command: 'Get-ChildItem' },
-          permissionFacts: { risk: 'low' },
+          permissionFacts: { risk: 'low', readOnlyShell: true },
           permissionConfig: fullAccessNever,
         }),
-        catalog.get('PowerShell'),
+        catalog.get('exec_command'),
       ),
     ).toMatchObject({ action: 'allow' })
-    // 风险、显式拒绝和 Hook 要求仍不能借完全访问通过
     expect(
       engine.evaluate(
         invocation({
@@ -449,7 +280,7 @@ describe('统一权限真值', () => {
           permissionFacts: { risk: 'high', ruleRequiresApproval: true },
           permissionConfig: fullAccessNever,
         }),
-        catalog.get('PowerShell'),
+        catalog.get('exec_command'),
       ),
     ).toMatchObject({ action: 'deny' })
     expect(
@@ -459,7 +290,7 @@ describe('统一权限真值', () => {
           permissionFacts: { risk: 'low', ruleEffect: 'deny' },
           permissionConfig: fullAccessNever,
         }),
-        catalog.get('PowerShell'),
+        catalog.get('exec_command'),
       ),
     ).toMatchObject({ action: 'deny' })
     expect(
@@ -469,14 +300,12 @@ describe('统一权限真值', () => {
           permissionFacts: { risk: 'low', hookRequiresApproval: true },
           permissionConfig: fullAccessNever,
         }),
-        catalog.get('PowerShell'),
+        catalog.get('exec_command'),
       ),
     ).toMatchObject({ action: 'deny' })
-    // 实施类工具仍被模式拒绝
     for (const [name, input] of [
       ['Write', { file_path: 'x', content: 'x' }],
       ['Edit', { path: 'x', edits: [{ oldText: 'a', newText: 'b' }] }],
-      ['apply_patch', { patch: '*** Begin Patch\n*** End Patch' }],
     ] as const) {
       expect(
         engine.evaluate(
@@ -499,37 +328,6 @@ describe('统一权限真值', () => {
       reason: expect.stringContaining('禁止请求'),
     })
   })
-
-  test.each(['plan', 'grill'] as const)(
-    '%s 的 Read、Glob、Grep 在 untrusted 与 never 下判定一致',
-    (taskMode) => {
-      const catalog = new ToolRegistry()
-      const engine = new PermissionDecisionEngine()
-      for (const approvalPolicy of ['untrusted', 'never'] as const) {
-        for (const [name, input] of [
-          ['Read', { file_path: 'x' }],
-          ['Glob', { pattern: '*' }],
-          ['Grep', { pattern: 'x' }],
-        ] as const) {
-          expect(
-            engine.evaluate(
-              invocation({
-                name,
-                input,
-                taskMode,
-                permissionConfig: {
-                  sandboxMode: 'workspace-write',
-                  approvalPolicy,
-                  approvalsReviewer: 'user',
-                },
-              }),
-              catalog.get(name),
-            ),
-          ).toMatchObject({ action: 'allow' })
-        }
-      }
-    },
-  )
 })
 
 describe('脱敏', () => {
@@ -560,75 +358,73 @@ test('预设允许普通操作；模型控制标记无效且 never-review 不能
   const engine = new PermissionDecisionEngine()
   const catalog = new ToolRegistry()
   for (const sandboxMode of ['workspace-write', 'danger-full-access'] as const) {
-    for (const approvalsReviewer of ['user', 'auto_review'] as const) {
-      for (const approvalPolicy of ['on-request', 'never'] as const) {
-        const permissionConfig = { sandboxMode, approvalsReviewer, approvalPolicy }
-        for (const name of ['Read', 'Write', 'PowerShell'])
-          expect(
-            engine.evaluate(invocation({ name, permissionConfig }), catalog.get(name)).action,
-          ).toBe('allow')
-        expect(
-          engine.evaluate(invocation({ name: 'Read', permissionConfig }), catalog.get('Read')).risk,
-        ).toBe('low')
-        const tool = { ...catalog.get('Read'), approvalStrategy: 'never-review' as const }
-        const input = {
-          __hookRequiresApproval: true,
-          __ruleRequiresApproval: true,
-          __skillScript: true,
-        }
-        expect(engine.evaluate(invocation({ input, permissionConfig }), tool).action).toBe('allow')
-        expect(
-          engine.evaluate(
-            invocation({ permissionConfig, permissionFacts: { hookRequiresApproval: true } }),
-            tool,
-          ).action,
-        ).toBe(
-          sandboxMode === 'danger-full-access' &&
-            approvalPolicy === 'never' &&
-            approvalsReviewer === 'user'
-            ? 'allow'
-            : approvalPolicy === 'never'
-              ? 'deny'
-              : 'review',
-        )
-        expect(
-          engine.evaluate(
-            invocation({ permissionConfig, permissionFacts: { denyReason: 'hard deny' } }),
-            tool,
-          ).action,
-        ).toBe(
-          sandboxMode === 'danger-full-access' &&
-            approvalPolicy === 'never' &&
-            approvalsReviewer === 'user'
-            ? 'allow'
-            : 'deny',
-        )
+    for (const approvalPolicy of ['auto_review', 'never'] as const) {
+      const permissionConfig = {
+        sandboxMode,
+        approvalsReviewer: 'auto_review' as const,
+        approvalPolicy,
       }
+      for (const name of ['Read', 'Write', 'exec_command'])
+        expect(
+          engine.evaluate(invocation({ name, permissionConfig }), catalog.get(name)).action,
+        ).toBe('allow')
+      expect(
+        engine.evaluate(invocation({ name: 'Read', permissionConfig }), catalog.get('Read')).risk,
+      ).toBe('low')
+      const tool = { ...catalog.get('Read'), approvalStrategy: 'never-review' as const }
+      const input = {
+        __hookRequiresApproval: true,
+        __ruleRequiresApproval: true,
+        __skillScript: true,
+      }
+      expect(engine.evaluate(invocation({ input, permissionConfig }), tool).action).toBe('allow')
+      expect(
+        engine.evaluate(
+          invocation({ permissionConfig, permissionFacts: { hookRequiresApproval: true } }),
+          tool,
+        ).action,
+      ).toBe(
+        sandboxMode === 'danger-full-access' && approvalPolicy === 'never'
+          ? 'allow'
+          : approvalPolicy === 'never'
+            ? 'deny'
+            : 'review',
+      )
+      expect(
+        engine.evaluate(
+          invocation({ permissionConfig, permissionFacts: { denyReason: 'hard deny' } }),
+          tool,
+        ).action,
+      ).toBe(sandboxMode === 'danger-full-access' && approvalPolicy === 'never' ? 'allow' : 'deny')
     }
   }
 })
 
-test('三预设按实际风险处理外部操作、联网与未知工具', () => {
+test('两预设按实际风险处理外部操作、联网与未知工具', () => {
   const engine = new PermissionDecisionEngine()
-  const tool = new ToolRegistry().get('PowerShell')
+  const tool = new ToolRegistry().get('exec_command')
   const presets = [
-    { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
     {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       approvalsReviewer: 'auto_review',
     },
-    { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'user' },
+    {
+      sandboxMode: 'danger-full-access',
+      approvalPolicy: 'never',
+      approvalsReviewer: 'auto_review',
+    },
   ] as const
   const cases = [
-    [{ risk: 'low' }, ['allow', 'allow', 'allow']],
-    [{ risk: 'low', externalCommand: true }, ['review', 'allow', 'allow']],
-    [{ risk: 'low', externalWrite: true }, ['review', 'allow', 'allow']],
-    [{ risk: 'low', networkAccess: true }, ['review', 'review', 'allow']],
-    [{ risk: 'medium' }, ['review', 'review', 'allow']],
-    [{ risk: 'high' }, ['review', 'review', 'allow']],
-    [{}, ['review', 'review', 'allow']],
-    [{ risk: 'critical', destructive: true, ruleEffect: 'deny' }, ['deny', 'deny', 'allow']],
+    [{ risk: 'low' }, ['allow', 'allow']],
+    [{ risk: 'low', externalCommand: true }, ['review', 'allow']],
+    [{ risk: 'low', externalWrite: true }, ['review', 'allow']],
+    [{ risk: 'low', networkAccess: true }, ['review', 'allow']],
+    [{ risk: 'medium' }, ['review', 'allow']],
+    [{ risk: 'high' }, ['review', 'allow']],
+    [{}, ['review', 'allow']],
+    [{ risk: 'critical', destructive: true, ruleEffect: 'deny' }, ['deny', 'deny']],
+    [{ risk: 'low', ruleEffect: 'ask' }, ['review', 'review']],
   ] as const
   for (const [facts, actions] of cases)
     for (let index = 0; index < presets.length; index++) {
@@ -637,8 +433,7 @@ test('三预设按实际风险处理外部操作、联网与未知工具', () =>
         tool,
       )
       expect(result.action).toBe(actions[index]!)
-      if (result.action === 'review')
-        expect(result.reviewer).toBe(presets[index]!.approvalsReviewer)
+      if (result.action === 'review') expect(result.reviewer).toBe('auto_review')
     }
   expect(
     engine.evaluate(

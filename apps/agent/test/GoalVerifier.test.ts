@@ -16,15 +16,19 @@ import { GoalContinuationCoordinator } from '../src/orchestration/GoalContinuati
 import { removeFixturePaths } from './FixtureCleanup'
 
 const paths: string[] = []
-afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
+const databases: AgentDatabase[] = []
+afterEach(async () => {
+  for (const db of databases.splice(0)) db.close()
+  await removeFixturePaths(paths.splice(0))
+}, 30_000)
 
 const submit = (content: string) => ({
   content,
   model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
-    approvalPolicy: 'on-request' as const,
-    approvalsReviewer: 'user' as const,
+    approvalPolicy: 'auto_review' as const,
+    approvalsReviewer: 'auto_review' as const,
   },
   strategy: 'queue' as const,
   taskMode: 'chat' as const,
@@ -34,6 +38,7 @@ const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-goal-verifier-'))
   paths.push(root)
   const db = new AgentDatabase(join(root, 'agent.sqlite'))
+  databases.push(db)
   const service = new ThreadGoalService(db, await Effect.runPromise(EventHub.make))
   const thread = db.createThread('verifier')
   const goal = (

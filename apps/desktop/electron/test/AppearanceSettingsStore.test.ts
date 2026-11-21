@@ -298,7 +298,7 @@ describe('Electron 外观设置存储', () => {
     const root = temporaryRoot()
     const store = new AppearanceSettingsStore(root)
     // A genuine V7 document: fonts still live on the variants and no shared
-    // onts key exists yet.
+    // fonts key exists yet.
     const { fonts: _v7AbsentSharedFonts, ...v7Defaults } = DEFAULT_APPEARANCE_SETTINGS
     const current = normalizeAppearanceSettings({
       ...v7Defaults,

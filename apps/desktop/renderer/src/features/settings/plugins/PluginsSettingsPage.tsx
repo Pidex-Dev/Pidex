@@ -1,7 +1,10 @@
+import { ComputerRuntimeStatus } from '../../plugins/ComputerRuntimeStatus.js'
+import { useComputerSettings } from '../UseComputerSettings.js'
 import type React from 'react'
-import { FileCode2, Package, Plus, RefreshCw, Server } from 'lucide-react'
+import { ChevronDown, Globe, Lightbulb, Package, Plus, RefreshCw, Server } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import type { AppSummary } from '@pidex/agent-protocol'
 import type {
   DesktopInstalledSkill,
   DesktopMcpRuntimeServerStatus,
@@ -11,6 +14,8 @@ import type {
 } from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { PopoverItem } from '../../../components/ui/PopoverItem.js'
+import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
@@ -39,9 +44,11 @@ import {
   clearPluginDetailsDeepLink,
   resolvePluginDetailsDeepLink,
 } from './PluginDetailsDeepLink.js'
+import { AppDetailsDialog, resolveAppIconName } from './AppDetailsDialog.js'
 import { SkillDetailsDialog } from './SkillDetailsDialog.js'
 import { listRuntimeSkills, setRuntimeSkillEnabled } from './SkillClientAdapter.js'
 import { errorMessageOr as errorMessageOf } from '@pidex/shared/errors'
+import { PluginSettingsDetailsView, resolvePluginDetailSkill } from './PluginSettingsDetailsView.js'
 
 export type PluginsSettingsPageProps = {
   workspacePath: string | null
@@ -50,13 +57,38 @@ export type PluginsSettingsPageProps = {
   onNotice?: (message: string) => void
 }
 
-type Tab = 'plugins' | 'mcps' | 'skills'
+type Tab = 'plugins' | 'apps' | 'mcps' | 'skills' | 'marketplaces'
 type McpOAuthAttempt = {
   attemptId: string
   expiresAt: number
 }
 
-const VALID_TABS = new Set<Tab>(['plugins', 'mcps', 'skills'])
+type MarketplaceSource = {
+  id: string
+  name: string
+  description: string
+  url: string
+  official: boolean
+}
+
+const DEFAULT_MARKETPLACES: MarketplaceSource[] = [
+  {
+    id: 'official-plugins',
+    name: '官方插件市场',
+    description: 'Pidex 官方维护的扩展生态，涵盖 AI 辅助、研发流程与效率工具',
+    url: 'https://marketplace.antigravity.dev',
+    official: true,
+  },
+  {
+    id: 'skills-sh',
+    name: 'Skills.sh 技能市场',
+    description: '开放的智能体技能社区源，支持快速安装与自动化指令分发',
+    url: 'https://skills.sh',
+    official: false,
+  },
+]
+
+const VALID_TABS = new Set<Tab>(['plugins', 'apps', 'mcps', 'skills', 'marketplaces'])
 
 export function PluginsSettingsPage({
   workspacePath,
@@ -67,6 +99,7 @@ export function PluginsSettingsPage({
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const requestedTab = parseTab(searchParams.get('tab'))
+  const { state: computerState } = useComputerSettings()
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement | null>(null)
 
@@ -82,9 +115,9 @@ export function PluginsSettingsPage({
   )
   const [busyPluginIds, setBusyPluginIds] = useState<Set<string>>(() => new Set())
   const [pluginErrors, setPluginErrors] = useState<Record<string, string>>({})
-  const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null)
+  const [selectedPluginId] = useState<string | null>(null)
   const [pluginDialogOpen, setPluginDialogOpen] = useState(false)
-  const [pluginDialogTrigger, setPluginDialogTrigger] = useState<HTMLElement | null>(null)
+  const [pluginDialogTrigger] = useState<HTMLElement | null>(null)
 
   const [skills, setSkills] = useState<DesktopInstalledSkill[] | undefined>()
   const [skillsError, setSkillsError] = useState<string | null>(null)
@@ -93,9 +126,15 @@ export function PluginsSettingsPage({
   const [skillDialogOpen, setSkillDialogOpen] = useState(false)
   const [skillDialogTrigger, setSkillDialogTrigger] = useState<HTMLElement | null>(null)
 
+  const [apps, setApps] = useState<AppSummary[] | undefined>()
+  const [appsError, setAppsError] = useState<string | null>(null)
+  const [busyAppIds, setBusyAppIds] = useState<Set<string>>(() => new Set())
+  const [selectedApp, setSelectedApp] = useState<AppSummary | null>(null)
+  const [appDialogOpen, setAppDialogOpen] = useState(false)
+  const [appDialogTrigger, setAppDialogTrigger] = useState<HTMLElement | null>(null)
+
   const [servers, setServers] = useState<DesktopMcpServerListItem[] | undefined>()
-  // Host-managed servers (node_repl) are never user config, so they are shown
-  // read-only from runtime status instead of the editable declaration list.
+  // Runtime-only host services are separate from editable MCP declarations.
   const [hostServers, setHostServers] = useState<DesktopMcpRuntimeServerStatus[]>([])
   const [mcpError, setMcpError] = useState<string | null>(null)
   const [mcpStatus, setMcpStatus] = useState<string | null>(null)
@@ -122,6 +161,9 @@ export function PluginsSettingsPage({
     null,
   )
 
+  const [marketplaces] = useState<MarketplaceSource[]>(DEFAULT_MARKETPLACES)
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+
   const pluginItems = useMemo(
     () =>
       mergePluginCatalog(
@@ -135,26 +177,36 @@ export function PluginsSettingsPage({
     [plugins, optimisticPluginEnabled],
   )
 
+  const standardPlugins = pluginItems
+  const appItems = apps ?? []
+
   const tabOptions = useMemo(() => {
-    const options: Array<{ value: Tab; label: React.ReactNode }> = []
-    if (pluginItems.length > 0) {
-      options.push({
+    const options: Array<{ value: Tab; label: React.ReactNode }> = [
+      {
         value: 'plugins',
         label: (
           <>
-            插件 <span aria-hidden="true">{pluginItems.length}</span>
+            插件 <span aria-hidden="true">{standardPlugins.length}</span>
           </>
         ),
-      })
-    }
-    options.push({
-      value: 'mcps',
-      label: (
-        <>
-          MCP <span aria-hidden="true">{servers?.length ?? 0}</span>
-        </>
-      ),
-    })
+      },
+      {
+        value: 'apps',
+        label: (
+          <>
+            应用 <span aria-hidden="true">{apps?.length ?? '…'}</span>
+          </>
+        ),
+      },
+      {
+        value: 'mcps',
+        label: (
+          <>
+            MCP <span aria-hidden="true">{servers?.length ?? 0}</span>
+          </>
+        ),
+      },
+    ]
     if (skills === undefined || skills.length > 0 || skillsError) {
       options.push({
         value: 'skills',
@@ -165,20 +217,40 @@ export function PluginsSettingsPage({
         ),
       })
     }
+    options.push({
+      value: 'marketplaces',
+      label: (
+        <>
+          市场 <span aria-hidden="true">{marketplaces.length}</span>
+        </>
+      ),
+    })
     return options
-  }, [pluginItems.length, servers?.length, skills, skillsError])
+  }, [
+    standardPlugins.length,
+    apps?.length,
+    servers?.length,
+    skills,
+    skillsError,
+    marketplaces.length,
+  ])
 
   const availableTabs = useMemo(
     () => new Set(tabOptions.map((option) => option.value)),
     [tabOptions],
   )
-  const tab = availableTabs.has(requestedTab) ? requestedTab : (tabOptions[0]?.value ?? 'mcps')
+  const tab = availableTabs.has(requestedTab) ? requestedTab : (tabOptions[0]?.value ?? 'plugins')
   const requestedPluginId = searchParams.get('plugin')
   const requestedSkillPath = searchParams.get('skill')
   const detailDeepLink = useMemo(
     () => resolvePluginDetailsDeepLink(searchParams, pluginItems, skills ?? []),
     [pluginItems, searchParams, skills],
   )
+
+  const requestedPlugin = useMemo(() => {
+    if (!requestedPluginId) return null
+    return pluginItems.find((candidate) => candidate.id === requestedPluginId) ?? null
+  }, [pluginItems, requestedPluginId])
 
   function clearDetailsDeepLink(): void {
     setSearchParams((current) => clearPluginDetailsDeepLink(current), { replace: true })
@@ -223,36 +295,46 @@ export function PluginsSettingsPage({
       return
     }
 
-    const targetTab: Tab = requestedPluginId ? 'plugins' : 'skills'
-    if (tab !== targetTab) {
+    if (requestedPluginId) {
+      // Plugins are rendered inline via PluginSettingsDetailsView
+      return
+    }
+
+    if (tab !== 'skills') {
       clearDetailsDeepLink()
       return
     }
-    const catalogReady = requestedPluginId ? !pluginsLoading : skills !== undefined
+    const catalogReady = skills !== undefined
     if (!catalogReady) return
     if (!detailDeepLink) {
       clearDetailsDeepLink()
       return
     }
 
-    if (detailDeepLink.kind === 'plugin') {
-      setSelectedPluginId(detailDeepLink.item.id)
-      setPluginDialogTrigger(null)
-      setPluginDialogOpen(true)
-      return
+    if (detailDeepLink.kind === 'skill') {
+      setSelectedSkill(detailDeepLink.skill)
+      setSkillDialogTrigger(null)
+      setSkillDialogOpen(true)
     }
-    setSelectedSkill(detailDeepLink.skill)
-    setSkillDialogTrigger(null)
-    setSkillDialogOpen(true)
-  }, [detailDeepLink, pluginsLoading, requestedPluginId, requestedSkillPath, skills, tab])
+  }, [detailDeepLink, requestedPluginId, requestedSkillPath, skills, tab])
 
   useEffect(() => {
     setMcpOAuthAttempts({})
     void loadSkills(false)
     void loadServers()
+    void loadApps()
     // Initial data should be loaded once for the current workspace.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspacePath])
+
+  useEffect(
+    () =>
+      desktopClient.onPluginsUpdated(() => {
+        void loadApps()
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workspacePath],
+  )
 
   useEffect(() => {
     return desktopClient.subscribeAgentEventEnvelopes(
@@ -375,10 +457,62 @@ export function PluginsSettingsPage({
     }
   }
 
+  async function loadApps(): Promise<void> {
+    setAppsError(null)
+    try {
+      const result = await desktopClient.listApps(workspacePath)
+      setApps([...result.apps])
+    } catch (error) {
+      const message = errorMessageOf(error, '应用列表读取失败。')
+      setApps([])
+      setAppsError(message)
+      onError(message)
+    }
+  }
+
+  async function toggleApp(app: AppSummary, enabled: boolean): Promise<void> {
+    if (busyAppIds.has(app.id)) return
+    const previous = apps
+    setBusyAppIds((current) => new Set(current).add(app.id))
+    setApps((current) => current?.map((item) => (item.id === app.id ? { ...item, enabled } : item)))
+    setSelectedApp((current) => (current?.id === app.id ? { ...current, enabled } : current))
+    try {
+      const updated = await desktopClient.setAppEnabled(app.id, enabled)
+      setApps((current) => current?.map((item) => (item.id === updated.id ? updated : item)))
+      setSelectedApp((current) => (current?.id === updated.id ? updated : current))
+      onNotice?.(`${app.name} 已${enabled ? '启用' : '禁用'}，将在下一轮任务生效。`)
+    } catch (error) {
+      setApps(previous)
+      setSelectedApp((current) =>
+        current?.id === app.id
+          ? (previous?.find((item) => item.id === app.id) ?? current)
+          : current,
+      )
+      const message = errorMessageOf(error, `${app.name} 状态更新失败。`)
+      onError(message)
+    } finally {
+      setBusyAppIds((current) => without(current, app.id))
+    }
+  }
+
   async function refreshCurrentTab(): Promise<void> {
-    if (tab === 'plugins') refreshPlugins()
-    if (tab === 'skills') await loadSkills(true)
-    if (tab === 'mcps') await loadServers()
+    if (tab === 'plugins') {
+      refreshPlugins()
+      return
+    }
+    if (tab === 'apps') {
+      await loadApps()
+      return
+    }
+    if (tab === 'skills') {
+      await loadSkills(true)
+      return
+    }
+    if (tab === 'mcps') {
+      await loadServers()
+      return
+    }
+    onNotice?.('插件市场源已刷新。')
   }
 
   function selectTab(nextTab: Tab): void {
@@ -572,8 +706,14 @@ export function PluginsSettingsPage({
   }
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const visiblePlugins = pluginItems.filter((item) =>
+  const visiblePlugins = standardPlugins.filter((item) =>
     matchesQuery(normalizedQuery, item.name, item.description),
+  )
+  const visibleApps = appItems.filter((app) =>
+    matchesQuery(normalizedQuery, app.name, app.description),
+  )
+  const visibleMarketplaces = marketplaces.filter((market) =>
+    matchesQuery(normalizedQuery, market.name, market.description, market.url),
   )
   const visibleSkills = (skills ?? []).filter((skill) =>
     matchesQuery(
@@ -598,25 +738,237 @@ export function PluginsSettingsPage({
   const selectedPlugin = selectedPluginId
     ? (pluginItems.find((item) => item.id === selectedPluginId) ?? null)
     : null
-  const tabError = tab === 'plugins' ? pluginLoadError : tab === 'skills' ? skillsError : mcpError
+  const tabError =
+    tab === 'plugins'
+      ? pluginLoadError
+      : tab === 'apps'
+        ? appsError
+        : tab === 'skills'
+          ? skillsError
+          : tab === 'mcps'
+            ? mcpError
+            : null
   const loading =
     tab === 'plugins'
       ? pluginsLoading
-      : tab === 'skills'
-        ? skills === undefined
-        : servers === undefined
+      : tab === 'apps'
+        ? apps === undefined
+        : tab === 'skills'
+          ? skills === undefined
+          : tab === 'mcps'
+            ? servers === undefined
+            : false
+
+  const skillDetailsDialog = (
+    <SkillDetailsDialog
+      workspacePath={workspacePath}
+      skill={selectedSkill}
+      open={skillDialogOpen}
+      restoreFocusElement={skillDialogTrigger}
+      onOpenChange={handleSkillDialogOpenChange}
+      onOpenSkill={(skill) => {
+        if (isBuiltinSkill(skill)) return
+        void desktopClient.openPathWithDefaultTarget(skill.path).catch((error) => {
+          onError(errorMessageOf(error, '无法打开技能文件。'))
+        })
+      }}
+      onUseSkill={(skill) => {
+        setSkillDialogOpen(false)
+        onUseSkill(skill)
+      }}
+      onToggleEnabled={(skill, enabled) => toggleSkill(skill, enabled)}
+      onUninstall={async (skill) => {
+        if (skill.path.startsWith('plugin://')) {
+          const match = skill.path.match(/^plugin:\/\/([^/]+)/)
+          if (match?.[1]) {
+            await desktopClient.uninstallPlugin(match[1])
+            await refreshPlugins()
+          }
+        }
+        await loadSkills(true)
+      }}
+      onError={onError}
+      onNotice={onNotice}
+    />
+  )
+
+  const appDetailsDialog = (
+    <AppDetailsDialog
+      app={selectedApp}
+      open={appDialogOpen}
+      busy={selectedApp ? busyAppIds.has(selectedApp.id) : false}
+      restoreFocusElement={appDialogTrigger}
+      onOpenChange={setAppDialogOpen}
+      onToggleEnabled={(app, enabled) => toggleApp(app, enabled)}
+      onTryApp={(app) => {
+        navigate('/chat')
+        onNotice?.(`已准备好在对话中使用 ${app.name}。`)
+      }}
+      onViewPlugin={(pluginId) => {
+        setSearchParams(
+          (current) => {
+            const next = new URLSearchParams(current)
+            next.set('tab', 'plugins')
+            next.set('plugin', pluginId)
+            return next
+          },
+          { replace: false },
+        )
+      }}
+      onError={onError}
+      onNotice={onNotice}
+    />
+  )
+
+  if (requestedPlugin) {
+    const matchingServer = servers?.find(
+      (s) =>
+        s.name.toLowerCase() === requestedPlugin.id.toLowerCase() ||
+        s.name.toLowerCase() === requestedPlugin.name.toLowerCase(),
+    )
+    const fallbackSkill = (skill: {
+      id: string
+      name: string
+      description?: string
+    }): DesktopInstalledSkill =>
+      resolvePluginDetailSkill(requestedPlugin, skill, skills) ?? {
+        name: skill.name,
+        description: skill.description || '',
+        path: `plugin://${requestedPlugin.id}/skills/${skill.id}/SKILL.md`,
+        scope: 'system',
+        source: 'system',
+        format: 'pidex',
+        enabled: requestedPlugin.enabled,
+      }
+
+    return (
+      <SettingsContentArea className="plugins-settings-page">
+        <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+          <PluginSettingsDetailsView
+            item={requestedPlugin}
+            workspacePath={workspacePath}
+            installedSkills={skills}
+            busySkillPaths={busySkillPaths}
+            matchingMcpServer={matchingServer}
+            mcpAttemptBusy={matchingServer ? busyMcpAuthKeys.has(mcpKey(matchingServer)) : false}
+            onBack={clearDetailsDeepLink}
+            onViewMarketDetails={(item) =>
+              navigate(`/plugins?plugin=${encodeURIComponent(item.id)}`)
+            }
+            onSelectApp={(usedApp, trigger) => {
+              const matched = appItems.find((candidate) => candidate.id === usedApp.id)
+              setSelectedApp(
+                matched ?? {
+                  id: usedApp.id,
+                  name: usedApp.name,
+                  description: usedApp.description,
+                  developerName: usedApp.developerName ?? requestedPlugin.developerName ?? 'Pidex',
+                  source: usedApp.installed ? 'builtin' : 'plugin',
+                  enabled: usedApp.enabled,
+                  canUninstall: false,
+                  pluginId: requestedPlugin.id,
+                  ...(usedApp.iconName ? { iconName: usedApp.iconName } : {}),
+                  tools: usedApp.tools ? [...usedApp.tools] : [],
+                },
+              )
+              setAppDialogTrigger(trigger ?? null)
+              setAppDialogOpen(true)
+            }}
+            onSelectSkill={(skill, trigger) => {
+              setSelectedSkill(fallbackSkill(skill))
+              setSkillDialogTrigger(trigger ?? null)
+              setSkillDialogOpen(true)
+            }}
+            onToggleSkill={(skill, enabled) => {
+              void toggleSkill(fallbackSkill(skill), enabled)
+            }}
+            onManageHooks={() => navigate('/settings/hooks')}
+            onUninstall={async (item) => {
+              await desktopClient.uninstallPlugin(item.id)
+              await refreshPlugins()
+            }}
+            onStartOAuth={(server) => void startMcpOAuth(server)}
+            onLogoutOAuth={(server) => void logoutMcpOAuth(server)}
+            onError={onError}
+            onNotice={onNotice}
+          />
+        </div>
+        {skillDetailsDialog}
+        {appDetailsDialog}
+      </SettingsContentArea>
+    )
+  }
+
+  if (requestedPluginId && pluginsLoading) {
+    return (
+      <SettingsContentArea className="plugins-settings-page">
+        <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+          <LoadingRows />
+        </div>
+      </SettingsContentArea>
+    )
+  }
 
   return (
     <SettingsContentArea className="plugins-settings-page">
-      <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-        <header className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">插件</h2>
-          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
-            管理插件、技能和 MCP
-          </p>
+      <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+        <header className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-4">
+          <div className="tw:grid tw:gap-2">
+            <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+              插件
+            </h2>
+            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
+              管理插件、技能和 MCP
+            </p>
+          </div>
+          <div className="tw:flex tw:items-center tw:gap-3 tw:shrink-0">
+            <Button color="secondary" onClick={() => navigate('/plugins')}>
+              浏览目录
+            </Button>
+            <PopoverMenu
+              align="end"
+              open={addMenuOpen}
+              onOpenChange={setAddMenuOpen}
+              size="md"
+              trigger={
+                <Button color="primary">
+                  添加
+                  <ChevronDown
+                    className="tw:size-icon-md"
+                    aria-hidden="true"
+                    size={APP_ICON_SIZE}
+                  />
+                </Button>
+              }
+            >
+              <PopoverItem
+                icon={<Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
+                onClick={() => {
+                  setAddMenuOpen(false)
+                  void desktopClient.openExternalURL(
+                    'https://github.com/codepilotx-dev/Pidex-Plugins#创建插件',
+                  )
+                }}
+              >
+                创建插件
+              </PopoverItem>
+              <PopoverItem
+                icon={
+                  <Server className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
+                }
+                onClick={() => {
+                  setAddMenuOpen(false)
+                  setSelectedServer(null)
+                  setMcpDialogOpen(true)
+                }}
+              >
+                添加 MCP 服务器
+              </PopoverItem>
+            </PopoverMenu>
+          </div>
         </header>
 
-        <div className="settings-management-toolbar plugins-settings-toolbar">
+        <div className="settings-management-toolbar plugins-settings-toolbar tw:mb-3 tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-4 tw:@max-[42rem]:flex-col tw:@max-[42rem]:items-stretch">
           <SegmentedControl
             ariaLabel="管理扩展"
             value={tab}
@@ -626,11 +978,11 @@ export function PluginsSettingsPage({
             getTabId={(value) => `plugins-settings-tab-${value}`}
             getPanelId={(value) => `plugins-settings-panel-${value}`}
           />
-          <div className="settings-management-toolbar-actions plugins-settings-toolbar-actions">
+          <div className="settings-management-toolbar-actions plugins-settings-toolbar-actions tw:flex tw:min-w-0 tw:items-center tw:justify-end tw:gap-2 tw:@max-[42rem]:w-full tw:@max-[42rem]:justify-start">
             <SearchInput
               ref={searchRef}
               aria-label={searchPlaceholder(tab)}
-              className="tw:w-72 tw:max-w-full tw:max-[1023px]:w-full"
+              className="tw:w-[18rem] tw:max-w-full tw:max-[1023px]:w-full"
               placeholder={searchPlaceholder(tab)}
               value={query}
               onChange={setQuery}
@@ -643,6 +995,7 @@ export function PluginsSettingsPage({
               onClick={() => void refreshCurrentTab()}
             >
               <RefreshCw
+                className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -657,7 +1010,12 @@ export function PluginsSettingsPage({
                   setMcpDialogOpen(true)
                 }}
               >
-                <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Plus
+                  className="tw:size-icon-md"
+                  aria-hidden="true"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
                 新增
               </Button>
             ) : null}
@@ -666,7 +1024,7 @@ export function PluginsSettingsPage({
 
         {tabError ? (
           <div
-            className="tw:type-body-sm tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-danger"
+            className="tw:type-1 tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-danger"
             role="alert"
           >
             <span>{tabError}</span>
@@ -676,14 +1034,14 @@ export function PluginsSettingsPage({
           </div>
         ) : null}
         {tab === 'mcps' && mcpStatus ? (
-          <p className="tw:type-body-sm tw:mt-0 tw:mb-4 tw:text-app-text-soft" role="status">
+          <p className="tw:type-1 tw:mt-0 tw:mb-4 tw:text-app-text-soft" role="status">
             {mcpStatus}
           </p>
         ) : null}
 
         <section
           aria-labelledby={`plugins-settings-tab-${tab}`}
-          className="settings-management-list plugins-settings-list"
+          className="settings-management-list plugins-settings-list tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel"
           id={`plugins-settings-panel-${tab}`}
           role="tabpanel"
         >
@@ -695,7 +1053,12 @@ export function PluginsSettingsPage({
                 <ExtensionManagementRow
                   key={item.id}
                   title={item.name}
-                  description={pluginErrors[item.id] || item.description}
+                  description={
+                    <>
+                      {pluginErrors[item.id] || item.description}
+                      {item.id === 'computer-use' ? <ComputerRuntimeStatus /> : null}
+                    </>
+                  }
                   icon={
                     <PluginIcon
                       plugin={{ ...item, workspacePath }}
@@ -704,12 +1067,24 @@ export function PluginsSettingsPage({
                       name={item.iconName}
                     />
                   }
-                  metadata={pluginStatusLabel(item)}
+                  metadata={
+                    item.id === 'computer-use' && item.enabled && !computerState.runtimeInstalled
+                      ? computerState.runtime?.status === 'error'
+                        ? '安装失败'
+                        : '安装中'
+                      : pluginStatusLabel(item)
+                  }
                   dimmed={item.status === 'disabled'}
-                  onActivate={(trigger) => {
-                    setSelectedPluginId(item.id)
-                    setPluginDialogTrigger(trigger)
-                    setPluginDialogOpen(true)
+                  showChevron
+                  onActivate={() => {
+                    setSearchParams(
+                      (current) => {
+                        const next = new URLSearchParams(current)
+                        next.set('plugin', item.id)
+                        return next
+                      },
+                      { replace: false },
+                    )
                   }}
                   actions={
                     item.status === 'enabled' || item.status === 'disabled' ? (
@@ -730,6 +1105,67 @@ export function PluginsSettingsPage({
             ) : (
               <EmptyState label="没有匹配的插件。" />
             )
+          ) : tab === 'apps' ? (
+            visibleApps.length ? (
+              visibleApps.map((app) => {
+                const writeCount = app.tools.filter((tool) => tool.mode === 'write').length
+                const readCount = app.tools.filter((tool) => tool.mode === 'read').length
+                return (
+                  <ExtensionManagementRow
+                    key={app.id}
+                    title={app.name}
+                    description={app.description}
+                    icon={<PluginIcon name={resolveAppIconName(app)} />}
+                    metadata={`${app.tools.length} 工具 (${writeCount} write, ${readCount} read) · ${app.enabled ? '已启用' : '已禁用'}`}
+                    dimmed={!app.enabled}
+                    showChevron
+                    onActivate={(trigger) => {
+                      setSelectedApp(app)
+                      setAppDialogTrigger(trigger)
+                      setAppDialogOpen(true)
+                    }}
+                    actions={
+                      <ToggleSwitch
+                        ariaLabel={app.name}
+                        checked={app.enabled}
+                        disabled={busyAppIds.has(app.id)}
+                        onChange={(enabled) => void toggleApp(app, enabled)}
+                      />
+                    }
+                  />
+                )
+              })
+            ) : (
+              <EmptyState label="没有匹配的应用。" />
+            )
+          ) : tab === 'marketplaces' ? (
+            visibleMarketplaces.length ? (
+              visibleMarketplaces.map((market) => (
+                <ExtensionManagementRow
+                  key={market.id}
+                  title={market.name}
+                  description={market.description}
+                  icon={
+                    <Globe
+                      className="tw:size-icon-md"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  }
+                  metadata={market.official ? '官方源' : '社区源'}
+                  actions={
+                    <Button
+                      color="secondary"
+                      onClick={() => void desktopClient.openExternalURL(market.url)}
+                    >
+                      访问
+                    </Button>
+                  }
+                />
+              ))
+            ) : (
+              <EmptyState label="没有匹配的插件市场。" />
+            )
           ) : tab === 'skills' ? (
             visibleSkills.length ? (
               visibleSkills.map((skill) => (
@@ -741,7 +1177,11 @@ export function PluginsSettingsPage({
                     getBuiltinSkillPresentation(skill) ? (
                       <BuiltinSkillIcon size={14} skill={skill} />
                     ) : (
-                      <FileCode2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <Lightbulb
+                        className="tw:size-icon-md"
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
                     )
                   }
                   metadata={skillScopeLabel(skill.scope)}
@@ -770,8 +1210,14 @@ export function PluginsSettingsPage({
                 <ExtensionManagementRow
                   key={`host:${status.name}`}
                   title={status.name}
-                  description="由 Computer Use 插件启用，宿主提供，不可编辑。"
-                  icon={<Server size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+                  description="由插件提供的运行时入口。"
+                  icon={
+                    <Server
+                      className="tw:size-icon-md"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  }
                   metadata={
                     <HostManagedMcpBadge state={status.state} toolCount={status.toolCount} />
                   }
@@ -785,7 +1231,13 @@ export function PluginsSettingsPage({
                   description={
                     server.runtime?.error?.message || server.summary || '未提供命令或 URL。'
                   }
-                  icon={<Server size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
+                  icon={
+                    <Server
+                      className="tw:size-icon-md"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  }
                   metadata={mcpMetadata(server)}
                   dimmed={!server.enabled || !server.effective}
                   onActivate={(trigger) => {
@@ -840,24 +1292,8 @@ export function PluginsSettingsPage({
           }
         }}
       />
-      <SkillDetailsDialog
-        workspacePath={workspacePath}
-        skill={selectedSkill}
-        open={skillDialogOpen}
-        restoreFocusElement={skillDialogTrigger}
-        onOpenChange={handleSkillDialogOpenChange}
-        onOpenSkill={(skill) => {
-          if (isBuiltinSkill(skill)) return
-          void desktopClient.openPathWithDefaultTarget(skill.path).catch((error) => {
-            onError(errorMessageOf(error, '无法打开技能文件。'))
-          })
-        }}
-        onUseSkill={(skill) => {
-          setSkillDialogOpen(false)
-          onUseSkill(skill)
-        }}
-        onError={onError}
-      />
+      {skillDetailsDialog}
+      {appDetailsDialog}
       <McpEditorDialog
         open={mcpDialogOpen}
         server={selectedServer}
@@ -904,11 +1340,15 @@ export function PluginsSettingsPage({
 
 function LoadingRows(): React.ReactNode {
   return (
-    <div aria-label="正在加载" className="settings-management-loading" role="status">
+    <div
+      aria-label="正在加载"
+      className="settings-management-loading tw:grid tw:divide-y tw:divide-app-border-subtle"
+      role="status"
+    >
       {[0, 1, 2, 3].map((index) => (
         <div
           aria-hidden="true"
-          className="settings-management-loading-row tw:animate-pulse tw:motion-reduce:animate-none"
+          className="settings-management-loading-row tw:h-[calc(var(--cpx-sys-space-6)*2+var(--cpx-sys-space-1))] tw:animate-pulse tw:bg-app-editor tw:motion-reduce:animate-none"
           key={index}
         />
       ))}
@@ -918,9 +1358,14 @@ function LoadingRows(): React.ReactNode {
 
 function EmptyState({ label }: { label: string }): React.ReactNode {
   return (
-    <div className="settings-management-empty">
+    <div className="settings-management-empty tw:grid tw:min-h-[12rem] tw:place-items-center tw:p-6 tw:text-center tw:text-app-text-soft tw:type-1">
       <span className="tw:grid tw:justify-items-center tw:gap-3">
-        <Package aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <Package
+          className="tw:size-icon-md"
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
         {label}
       </span>
     </div>
@@ -932,13 +1377,15 @@ function parseTab(value: string | null): Tab {
 }
 
 function tabLabel(tab: Tab): string {
+  if (tab === 'apps') return '应用'
   if (tab === 'mcps') return 'MCP'
   if (tab === 'skills') return '技能'
+  if (tab === 'marketplaces') return '市场'
   return '插件'
 }
 
 function searchPlaceholder(tab: Tab): string {
-  return `搜索${tabLabel(tab)}`
+  return `搜索${tabLabel(tab)}...`
 }
 
 function matchesQuery(query: string, ...values: Array<string | undefined>): boolean {
@@ -977,7 +1424,7 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
   const source = server.scope === 'local' ? '工作区' : '用户'
   if (!server.effective) {
     return (
-      <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
+      <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1 tw:max-[640px]:justify-start">
         <span>
           {source} · {server.type}
         </span>
@@ -989,7 +1436,7 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
   const runtime = server.runtime
   if (!runtime) {
     return (
-      <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
+      <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1 tw:max-[640px]:justify-start">
         <span>
           {source} · {server.type}
         </span>
@@ -998,8 +1445,8 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
     )
   }
   const status: Record<typeof runtime.state, string> = {
-    connected: '已连接',
-    starting: '正在连接',
+    connected: runtime.onDemand ? '按需启动' : '已连接',
+    starting: runtime.onDemand ? '等待组件就绪' : '正在连接',
     needs_auth: '需要认证',
     failed: '连接失败',
     disabled: '已禁用',
@@ -1010,7 +1457,7 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
       ? `${runtime.toolCount} 工具 · ${runtime.resourceCount} 资源 · ${runtime.promptCount} Prompt`
       : null
   return (
-    <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
+    <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1 tw:max-[640px]:justify-start">
       <span>
         {source} · {server.type}
       </span>
@@ -1024,7 +1471,7 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
 
 function AuthSourceBadge({ source }: { source: 'environment' | 'oauth' }): React.ReactNode {
   return (
-    <span className="tw:type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
+    <span className="tw:type-1 tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-text-soft">
       {source === 'oauth' ? 'OAuth' : '环境凭据'}
     </span>
   )
@@ -1066,7 +1513,7 @@ function withoutRecordKey<T>(values: Record<string, T>, key: string): Record<str
   return next
 }
 
-/** Read-only status for a host-managed server such as node_repl. */
+/** Status for non-configurable host services. */
 function HostManagedMcpBadge({
   state,
   toolCount,
@@ -1083,8 +1530,8 @@ function HostManagedMcpBadge({
     shadowed: '被覆盖',
   }
   return (
-    <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
-      <span className="tw:type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
+    <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1 tw:max-[640px]:justify-start">
+      <span className="tw:type-1 tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-text-soft">
         宿主提供
       </span>
       <StatusBadge state={state} label={label[state]} />
@@ -1095,7 +1542,7 @@ function HostManagedMcpBadge({
 
 function DiagnosticContextBadge(): React.ReactNode {
   return (
-    <span className="tw:type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
+    <span className="tw:type-1 tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-text-soft">
       会话诊断
     </span>
   )
@@ -1114,7 +1561,7 @@ function StatusBadge({
       : state === 'failed' || state === 'needs_auth'
         ? 'tw:bg-app-danger/15 tw:text-app-danger'
         : 'tw:bg-app-panel tw:text-app-text-soft'
-  return <span className={`tw:type-caption tw:inline-flex tw:px-2 tw:py-0.5 ${tone}`}>{label}</span>
+  return <span className={`tw:type-1 tw:inline-flex tw:px-2 tw:py-1 ${tone}`}>{label}</span>
 }
 
 function looksLikeMissingResource(error: unknown): boolean {

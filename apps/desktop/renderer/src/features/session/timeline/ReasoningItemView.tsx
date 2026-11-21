@@ -11,6 +11,7 @@ import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
 import { useScrollEdgeState } from '../../../hooks/UseScrollEdgeState.js'
 import { useLiveItemTail } from '../state/UseLiveItemTail.js'
+import { preserveTimelineAnchorPosition } from './PreserveTimelineAnchorPosition.js'
 import type { ResolvedCanonicalItemDisclosure } from './CanonicalItemRenderer.js'
 import {
   commandOutputFollowing,
@@ -158,7 +159,7 @@ export function ReasoningItemView({
   const line = active && !expanded ? reasoningLatestLine(fullText) : null
   return (
     <Collapsible
-      className="reasoning-node tw:type-body-sm"
+      className="reasoning-node tw:type-1"
       open={expanded}
       onOpenChange={(next) => {
         if (disclosure) disclosure.onExpandedChange(disclosure.id, next)
@@ -168,9 +169,14 @@ export function ReasoningItemView({
     >
       <CollapsibleTrigger
         className="cpx-agent-activity__item-header reasoning-node__header"
+        onClick={(event) => preserveTimelineAnchorPosition(event.currentTarget)}
         type="button"
       >
-        <Brain size={APP_ICON_SIZES.sm} className="tw:shrink-0" aria-hidden="true" />
+        <Brain
+          size={APP_ICON_SIZES.sm}
+          className="tw:size-icon-sm tw:shrink-0"
+          aria-hidden="true"
+        />
         <span className="reasoning-node__label" data-active={active}>
           {active ? '正在思考' : item.status === 'interrupted' ? '思考已中断' : '思考'}
           {active && !reducedMotion ? (
@@ -214,7 +220,7 @@ export function ReasoningItemView({
         ) : null}
         <ChevronRight
           size={APP_ICON_SIZES.sm}
-          className="reasoning-node__chevron"
+          className="tw:size-icon-sm reasoning-node__chevron"
           aria-hidden="true"
         />
       </CollapsibleTrigger>

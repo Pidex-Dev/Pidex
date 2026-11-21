@@ -35,8 +35,8 @@ const fixture = async () => {
     }),
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'untrusted',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     },
     strategy: 'queue',
     taskMode: 'chat',

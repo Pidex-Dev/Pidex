@@ -1,16 +1,5 @@
 import type React from 'react'
-import {
-  Fragment,
-  lazy,
-  Suspense,
-  useEffect,
-  useId,
-  useMemo,
-  useCallback,
-  useRef,
-  useState,
-} from 'react'
-import { Dropdown as DropdownMenu } from '../../../components/ui/floating/Dropdown.js'
+import { lazy, Suspense, useEffect, useId, useMemo, useCallback, useRef, useState } from 'react'
 import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
 import { Dropdown as Select } from '../../../components/ui/floating/Dropdown.js'
 import {
@@ -22,12 +11,10 @@ import {
   Check,
   ChevronLeft,
   File,
-  FileText,
   Folder,
   Split,
   GitBranch,
   Globe2,
-  Hand,
   ListChecks,
   MessageSquare,
   MonitorSmartphone,
@@ -40,7 +27,6 @@ import {
   ShieldCheck,
   Square,
   Target,
-  Wrench,
   X,
   Zap,
 } from 'lucide-react'
@@ -70,10 +56,8 @@ import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { MetaChip } from '../../../components/ui/MetaChip.js'
 import { Spinner } from '../../../components/ui/Spinner.js'
 import { SessionFollowUpDock } from '../SessionFollowUpDock.js'
-import { buildPopoverSizingStyle } from '../../../components/ui/PopoverSizing.js'
 import { ProjectSwitcherPopover } from './ProjectSwitcherPopover.js'
 import { ChatInputDropdown } from './ChatInputDropdown.js'
-import { BranchSelectPopover } from './BranchSelectPopover.js'
 import { ComposerLaunchSettingsPopover } from './ComposerLaunchSettingsPopover.js'
 import { ModelPickerPopover } from './ModelPickerPopover.js'
 import {
@@ -83,7 +67,7 @@ import {
 import { ModelReasoningControl, ModelSelectTrigger } from './ModelSelectTrigger.js'
 import { resolveThinkingLabel, resolveThinkingOptions } from './ThinkingLevelPopover.js'
 import { MotionConfig } from 'motion/react'
-import { resolveComposerFooterFit, useComposerFooterFit } from './ComposerFooterLayout.js'
+import { useComposerFooterFit } from './ComposerFooterLayout.js'
 import { ComposerStatusOverlay } from './ComposerStatusOverlay.js'
 import { ComposerGoalRow } from './ComposerGoalRow.js'
 import { ContextUsagePanel } from './ContextUsagePanel.js'
@@ -109,6 +93,7 @@ import {
 } from './ComposerTypes.js'
 import {
   createComposerDocumentWithSkill,
+  composerTokenFromPastedLink,
   skillInvocationFromComposerToken,
 } from './ComposerSkillToken.js'
 import {
@@ -121,19 +106,13 @@ import {
 } from './ComposerSlashCommands.js'
 import { useComposerSlashCommands } from './UseComposerSlashCommands.js'
 import { isDictationShortcut } from './UseComposerDictation.js'
+import { useOptionalDesktopSettingsDraftValue } from '../../settings/UseDesktopSettings.js'
 import { isComposerInputEmpty, parseGoalTokenBudget } from './ComposerTypes.js'
-import {
-  ApprovalRulesDialog,
-  ApprovalRetryDialog,
-  AutoReviewNudge,
-  useApprovalReviewState,
-} from '../approvals/ApprovalManagement.js'
 import { BuiltinSkillIcon, skillScopeLabel } from '../../plugins/BuiltinSkillPresentation.js'
 import { SHARED_SLASH_COMMANDS } from '@pidex/shared/slash-commands'
 import { buildThreadDeepLink } from '@pidex/shared/thread-reference'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
-import { useApprovalCapability } from '../approvals/UseQuestionSkipCapability.js'
+import { FullAccessConfirmationDialog } from '../approvals/FullAccessConfirmationDialog.js'
 import {
   ComposerCommandMenu,
   composerMenuItemId,
@@ -143,6 +122,10 @@ import { useComposerWorkspaceContext } from './UseComposerWorkspaceContext.js'
 import { useComposerSuggestions } from './UseComposerSuggestions.js'
 import { useComposerSuggestionMenu } from './UseComposerSuggestionMenu.js'
 import { nextEnabledMenuIndex } from './ComposerSuggestionMenu.js'
+import {
+  ComposerPredictionController,
+  resolveComposerPredictionKeyAction,
+} from './ComposerPrediction.js'
 export { getActiveComposerMention } from './ComposerSuggestionState.js'
 import { SessionGroupEditorDialog } from '../../session-groups/SessionGroupEditorDialog.js'
 import { SessionGroupSwitcherPopover } from '../../session-groups/SessionGroupSwitcherPopover.js'
@@ -151,7 +134,6 @@ import {
   writePreferredSessionGroupId,
 } from '../../session-groups/SessionGroupPreference.js'
 import type { DesktopSessionGroup } from '../../../services/desktop-client/Types.js'
-import { formatCompactNumber } from '../../../utils/UsageFormatters.js'
 import { cx } from '../../../utils/Cx.js'
 import { containsRelatedTarget } from '../../../utils/DomTargets.js'
 
@@ -169,14 +151,7 @@ type ProviderModelOption = {
 }
 
 type ComposerDropdown =
-  | 'context'
-  | 'permission'
-  | 'model'
-  | 'project'
-  | 'session-group'
-  | 'branch'
-  | 'plugin'
-  | 'runtimeParams'
+  'context' | 'permission' | 'model' | 'project' | 'session-group' | 'plugin' | 'runtimeParams'
 
 /*
  * Permission chips are plain `chip-button` triggers whose colors come from
@@ -185,10 +160,8 @@ type ComposerDropdown =
  * query hooks for the permission-menu Select and its tests.
  */
 const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
-  default: 'permission-chip permission-chip-default tw:text-app-text',
   'auto-review': 'permission-chip permission-chip-auto tw:text-app-text',
   'full-access': 'permission-chip permission-chip-bypassPermissions tw:text-app-warning',
-  custom: 'permission-chip permission-chip-customConfig tw:text-app-text',
 }
 
 /*
@@ -197,10 +170,12 @@ const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
  * hook for the permission menu and its tests.
  */
 const COMPOSER_CHIP_TRIGGER_CLASS = cx(
-  'tw:min-w-0 tw:border tw:border-transparent tw:bg-transparent',
-  'tw:transition-[background,border-color,color] tw:duration-feedback tw:ease-standard',
-  'tw:hover:bg-app-hover tw:hover:border-transparent',
-  'tw:data-[state=open]:bg-app-selected tw:data-[state=open]:border-transparent',
+  'tw:inline-flex tw:h-5 tw:w-auto tw:min-w-0 tw:appearance-none tw:cursor-pointer tw:select-none tw:items-center tw:gap-1.5',
+  'tw:rounded-pill tw:border-0 tw:bg-transparent tw:px-2 tw:py-0 tw:type-1 tw:weight-medium',
+  'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
+  'tw:hover:bg-app-hover',
+  'tw:data-[state=open]:bg-app-selected',
+  'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-2',
   'tw:[&>svg:first-child]:block tw:[&>svg:first-child]:size-[var(--inline-icon-size,1em)] tw:[&>svg:first-child]:shrink-0',
 )
 const PERMISSION_TRIGGER_CLASS = cx('permission-select-trigger', COMPOSER_CHIP_TRIGGER_CLASS)
@@ -208,13 +183,13 @@ const PERMISSION_TRIGGER_OPEN_CLASS = 'tw:bg-app-selected'
 const PERMISSION_TRIGGER_LABEL_CLASS =
   'permission-select-trigger-label composer-footer-label tw:min-w-0 tw:truncate'
 const PERMISSION_ITEM_ICON_CLASS =
-  'permission-select-item-icon tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text tw:[&>svg]:block tw:[&>svg]:size-icon tw:[&>svg]:[stroke-width:var(--cpx-sys-icon-stroke-width)]'
+  'permission-select-item-icon menu-column-leading tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:[&>svg]:block tw:[&>svg]:size-icon tw:[&>svg]:[stroke-width:var(--cpx-sys-icon-stroke-width)]'
 const PERMISSION_ITEM_BODY_CLASS =
-  'permission-select-item-body tw:min-w-0 tw:flex-1 tw:grid tw:gap-0'
+  'permission-select-item-body menu-column-label tw:min-w-0 tw:flex-1 tw:grid tw:gap-0'
 const PERMISSION_ITEM_DETAIL_CLASS =
-  'permission-select-item-detail tw:whitespace-normal tw:text-app-text-soft tw:type-secondary'
+  'permission-select-item-detail menu-column-detail tw:whitespace-normal tw:text-app-text-soft tw:type-1'
 const PERMISSION_ITEM_INDICATOR_CLASS =
-  'permission-select-item-indicator tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text'
+  'permission-select-item-indicator menu-column-trailing tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text'
 
 /*
  * Composer shell chrome. The silhouette (radius, corner shape) stays in
@@ -244,7 +219,7 @@ const UTILITY_BAR_BASE_CLASS = cx(
   'tw:z-1 tw:flex tw:min-w-0 tw:max-w-none tw:items-center tw:gap-2 tw:overflow-x-auto tw:overflow-y-hidden',
   'tw:border-0 tw:whitespace-nowrap',
   'tw:forced-colors:outline-1 tw:forced-colors:outline-solid tw:forced-colors:shadow-none',
-  'tw:[&_.meta-chip]:h-7 tw:[&_.meta-chip]:flex-none tw:[&_.meta-chip]:rounded-full tw:[&_.meta-chip]:px-2 tw:[&_.meta-chip]:transition-all',
+  'tw:[&_.meta-chip]:h-5 tw:[&_.meta-chip]:flex-none tw:[&_.meta-chip]:rounded-full tw:[&_.meta-chip]:px-2 tw:[&_.meta-chip]:transition-all',
   // 首页托盘是独立命名容器；折叠规则放在其内容包装层（容器不能查询自身）。
   'tw:@container/composer-tray',
 )
@@ -273,11 +248,19 @@ const UTILITY_BAR_DYNAMIC_CONTENT_CLASS =
 const TOOLBAR_CLASS =
   'composer-toolbar tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:pt-2 tw:@container/composer-footer'
 const TOOLBAR_LEFT_CLASS =
-  'toolbar-left tw:flex tw:shrink-0 tw:items-center tw:gap-1.5 tw:@max-[420px]/composer-footer:gap-1'
+  'toolbar-left tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:@max-[420px]/composer-footer:gap-1'
 const TOOLBAR_RIGHT_CLASS =
-  'toolbar-right tw:ml-auto tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-1.5 tw:@max-[420px]/composer-footer:gap-1'
+  'toolbar-right tw:ml-auto tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-1 tw:@max-[420px]/composer-footer:gap-1'
 const TOOLBAR_DIVIDER_CLASS =
-  'toolbar-divider tw:inline-block tw:h-3.5 tw:w-px tw:shrink-0 tw:bg-app-border-subtle tw:@max-[300px]/composer-footer:hidden'
+  'toolbar-divider tw:inline-block tw:h-3 tw:w-px tw:shrink-0 tw:bg-app-border-subtle tw:@max-[300px]/composer-footer:hidden'
+const COMPOSER_MODE_CHIP_CLASS = cx(
+  'composer-plan-mode-chip tw:group tw:relative tw:inline-flex tw:h-5 tw:w-auto tw:min-w-0 tw:appearance-none',
+  'tw:cursor-pointer tw:select-none tw:items-center tw:gap-1 tw:rounded-full tw:border-0 tw:bg-transparent tw:px-1 tw:py-0',
+  'tw:type-1 tw:weight-medium tw:text-app-text-meta',
+  'tw:hover:bg-app-hover tw:hover:text-app-accent-fg tw:focus-visible:text-app-accent-fg tw:data-[active=true]:text-app-accent-fg',
+  'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1',
+  'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
+)
 const COMPOSER_MODE_CHIP_LABEL_CLASS = 'composer-footer-label'
 
 /** 上下文用量圆环按 12px 槽位绘制；进度由描边虚线长度表达，避免低分辨率下的圆孔失真。 */
@@ -360,8 +343,6 @@ type Props = {
   onForkConversation?: () => void
   canForkConversation?: boolean
   onArchiveConversation?: () => void
-  onBranchSelect: (branch: string) => void
-  onCreateBranch: () => void
   onStartReview?: (
     target: { type: 'uncommittedChanges' } | { type: 'baseBranch'; branch: string },
   ) => void
@@ -376,6 +357,10 @@ type Props = {
   onSkillSelect?: (skill: ComposerSkillCommand) => void
   hasConversationMessages?: boolean
   routedSessionId?: string | null
+  /** 输入预测开关（设置里默认关闭）。 */
+  composerPredictionsEnabled?: boolean
+  /** 最近一轮已完成时携带其轮次 ID；否则为 null，不发起预测请求。 */
+  predictionTurnId?: string | null
   contextDropdownSide?: 'top' | 'bottom'
   queuedFollowUps?: DesktopQueuedFollowUp[]
   queuePauseReason?: DesktopQueuePauseReason | null
@@ -499,8 +484,6 @@ export function ComposerCard({
   onForkConversation,
   canForkConversation = false,
   onArchiveConversation,
-  onBranchSelect,
-  onCreateBranch,
   onStartReview,
   onPermissionChange,
   onPlanModeChange,
@@ -513,6 +496,8 @@ export function ComposerCard({
   onSkillSelect,
   hasConversationMessages = false,
   routedSessionId,
+  composerPredictionsEnabled = false,
+  predictionTurnId = null,
   contextDropdownSide: contextDropdownSideOverride,
   queuedFollowUps,
   queuePauseReason,
@@ -540,8 +525,11 @@ export function ComposerCard({
   onWorkingPluginChange,
 }: Props): React.ReactNode {
   const editorRef = useRef<ComposerEditorHandle | null>(null)
+  const dictationShortcut = useOptionalDesktopSettingsDraftValue(
+    'desktop.voice.dictationShortcut',
+    'Ctrl+Shift+D',
+  )
   const menuId = useId()
-  const menuItemId = (key: string): string => `${menuId}-item-${encodeURIComponent(key)}`
   const capabilities = useMemo(
     () => ({ ...DEFAULT_COMPOSER_CAPABILITIES, ...capabilityOverrides }),
     [capabilityOverrides],
@@ -579,8 +567,6 @@ export function ComposerCard({
   const [fullAccessConfirmationOpen, setFullAccessConfirmationOpen] = useState(false)
   const [fullAccessSaving, setFullAccessSaving] = useState(false)
   const [fullAccessError, setFullAccessError] = useState('')
-  const [approvalRulesOpen, setApprovalRulesOpen] = useState(false)
-  const [approvalRetryOpen, setApprovalRetryOpen] = useState(false)
   const [selectedSessionGroup, setSelectedSessionGroup] = useState<DesktopSessionGroup | null>(null)
   const [sessionGroupEditorOpen, setSessionGroupEditorOpen] = useState(false)
   const [sessionGroupDraftName, setSessionGroupDraftName] = useState('')
@@ -640,7 +626,6 @@ export function ComposerCard({
     stoppingRef.current = false
     setIsStopping(false)
   }, [draftKey, routedSessionId])
-  const [branchSearch, setBranchSearch] = useState('')
   const [isComposing, setIsComposing] = useState(false)
   const [fileDragActive, setFileDragActive] = useState(false)
   const fileDragDepthRef = useRef(0)
@@ -693,7 +678,6 @@ export function ComposerCard({
   const activeSlashQuery = suggestionRequest?.kind === 'slash' ? suggestionRequest : null
   const reviewMenuRequested = suggestionRequest?.kind === 'review'
 
-  const [archiveConfirmationOpen, setArchiveConfirmationOpen] = useState(false)
   const {
     contextDirectory,
     setContextDirectory,
@@ -753,12 +737,71 @@ export function ComposerCard({
   )
 
   const sessionBusy = sessionStatus === 'running' || sessionStatus === 'waiting'
-  const approvalReview = useApprovalReviewState(routedSessionId, sessionBusy)
-  const approvalRulesSupported = useApprovalCapability(
-    routedSessionId ?? '',
-    Boolean(routedSessionId),
-    'permission.rules.v1',
+  /*
+   * 输入预测：只在开关打开、输入为空、无待处理交互且最近一轮已完成时请求一次。
+   * 请求序号由控制器维护，迟到的响应不会覆盖已经开始编辑的草稿。
+   */
+  const inputEmptyForPrediction = isComposerInputEmpty(
+    input,
+    composerDocument?.tokens ?? [],
+    attachments,
   )
+  const predictionControllerRef = useRef<ComposerPredictionController | null>(null)
+  const [composerPrediction, setComposerPrediction] = useState<string | null>(null)
+  const predictionGateEnabled =
+    composerPredictionsEnabled &&
+    !creationPending &&
+    !sessionBusy &&
+    Boolean(routedSessionId) &&
+    Boolean(predictionTurnId)
+  useEffect(() => {
+    predictionControllerRef.current ??= new ComposerPredictionController()
+    const controller = predictionControllerRef.current
+    const request = controller.sync({
+      enabled: predictionGateEnabled,
+      threadId: routedSessionId ?? null,
+      turnId: predictionTurnId,
+      inputEmpty: inputEmptyForPrediction,
+    })
+    setComposerPrediction(controller.prediction)
+    if (!request) return
+    let cancelled = false
+    void desktopClient
+      .generateComposerPrediction({ threadId: request.threadId, turnId: request.turnId })
+      .then((result) => {
+        if (cancelled) return
+        if (controller.accept(request.sequence, result.prediction, inputEmptyForPrediction)) {
+          setComposerPrediction(controller.prediction)
+        }
+      })
+      .catch(() => {
+        if (cancelled) return
+        controller.accept(request.sequence, null, false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    composerPredictionsEnabled,
+    creationPending,
+    inputEmptyForPrediction,
+    predictionGateEnabled,
+    predictionTurnId,
+    routedSessionId,
+    sessionBusy,
+  ])
+  const acceptComposerPrediction = (): void => {
+    const prediction = predictionControllerRef.current?.prediction
+    if (!prediction) return
+    predictionControllerRef.current?.consume()
+    setComposerPrediction(null)
+    // 必须走事务：更新 document prop 会重建 EditorState 并丢失撤销历史。
+    editorRef.current?.insertText(prediction)
+  }
+  const dismissComposerPrediction = (): void => {
+    predictionControllerRef.current?.dismiss()
+    setComposerPrediction(null)
+  }
   const {
     commands: builtinSlashCommands,
     executeCommand,
@@ -782,7 +825,6 @@ export function ComposerCard({
       setStatusPanelOpen(true)
     },
     onOpenMcp: onOpenMcpSettings,
-    onApprove: approvalReview.supported ? () => setApprovalRetryOpen(true) : undefined,
     onPlanModeChange,
     onGrillModeChange,
     onGoalModeChange,
@@ -790,7 +832,7 @@ export function ComposerCard({
     onCompact,
     onOpenSide: onOpenSideChat,
     onFork: onForkConversation,
-    onArchive: () => setArchiveConfirmationOpen(true),
+    onArchive: () => onArchiveConversation?.(),
     onChooseProject: onChooseWorkspace,
     onClearProject: onClearWorkspace,
     showThreadActions: placement === 'thread' && !subagentMode && Boolean(routedSessionId),
@@ -853,7 +895,7 @@ export function ComposerCard({
           key: 'skills:retry',
           section: '技能',
           label: '重新加载技能',
-          icon: <Activity size={APP_ICON_SIZE} />,
+          icon: <Activity className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: '重新加载 技能 retry skills',
           completion: 'directory',
           onSelect: onReloadSkillCatalog,
@@ -879,7 +921,7 @@ export function ComposerCard({
         key: 'code-review-uncommitted',
         label: '审阅未提交的更改',
         description: '审查当前工作树和暂存区中的变更',
-        icon: <ShieldCheck size={APP_ICON_SIZE} />,
+        icon: <ShieldCheck className="tw:size-icon-md" size={APP_ICON_SIZE} />,
         matchText: '代码审查 review uncommitted',
         onSelect: () => onStartReview?.({ type: 'uncommittedChanges' }),
       },
@@ -890,7 +932,7 @@ export function ComposerCard({
           key: `code-review-branch:${branch}`,
           label: `与 ${branch} 比较`,
           description: '从 merge-base 开始审阅当前分支的变更',
-          icon: <GitBranch size={APP_ICON_SIZE} />,
+          icon: <GitBranch className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: `代码审查 branch review ${branch}`,
           onSelect: () => onStartReview?.({ type: 'baseBranch', branch }),
         })),
@@ -945,7 +987,7 @@ export function ComposerCard({
               label: '文件和文件夹',
               description: workspace ? '选择项目文件和文件夹，或添加本机附件' : '从本机选择附件',
               category: workspace && onAddFilePaths ? '文件和文件夹' : undefined,
-              icon: <Paperclip size={APP_ICON_SIZE} />,
+              icon: <Paperclip className="tw:size-icon-md" size={APP_ICON_SIZE} />,
               matchText: '添加 文件 附件 add file attachment',
               onSelect: () => filePickerRef.current?.click(),
             },
@@ -978,24 +1020,27 @@ export function ComposerCard({
             description: plugin.description,
             icon:
               plugin.id === 'computer-use' ? (
-                <MonitorSmartphone size={APP_ICON_SIZE} />
+                <MonitorSmartphone className="tw:size-icon-md" size={APP_ICON_SIZE} />
               ) : (
-                <Plug size={APP_ICON_SIZE} />
+                <Plug className="tw:size-icon-md" size={APP_ICON_SIZE} />
               ),
             matchText: `${plugin.name} ${plugin.id} ${plugin.description}`,
             onSelect: () => insertReference('plugin', plugin.name, `plugin://${plugin.id}`),
           })),
       )
-    const threadItems: ComposerMenuItem[] = contextTasks.slice(0, 5).map((task) => ({
-      key: `thread:${task.id}`,
-      section: '引用会话',
-      label: task.title,
-      description: task.workspaceName,
-      icon: <MessageSquare size={APP_ICON_SIZE} />,
-      matchText: `${task.title} ${task.workspaceName ?? ''} task thread`,
-      onSelect: () =>
-        insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
-    }))
+    const threadItems: ComposerMenuItem[] = contextTasks
+      .filter((task) => task.id !== routedSessionId)
+      .slice(0, 5)
+      .map((task) => ({
+        key: `thread:${task.id}`,
+        section: '引用会话',
+        label: task.title,
+        description: task.workspaceName,
+        icon: <MessageSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />,
+        matchText: `${task.title} ${task.workspaceName ?? ''} task thread`,
+        onSelect: () =>
+          insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
+      }))
     items.push(...threadItems)
     if (browserContext && !buttonContextOpen) {
       items.push({
@@ -1003,7 +1048,7 @@ export function ComposerCard({
         section: '浏览器',
         label: browserContext.title || browserContext.url,
         description: browserContext.url,
-        icon: <Globe2 size={APP_ICON_SIZE} />,
+        icon: <Globe2 className="tw:size-icon-md" size={APP_ICON_SIZE} />,
         matchText: `${browserContext.title} ${browserContext.url} browser 网页`,
         onSelect: () =>
           insertReference(
@@ -1020,7 +1065,7 @@ export function ComposerCard({
           key: 'attachment:local',
           section: '文件和文件夹',
           label: '从本机选择附件',
-          icon: <Paperclip size={APP_ICON_SIZE} />,
+          icon: <Paperclip className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: '添加 文件 附件',
           onSelect: () => filePickerRef.current?.click(),
         })
@@ -1030,7 +1075,7 @@ export function ComposerCard({
           section: '文件和文件夹',
           label: '返回上一级',
           description: parentWorkspacePath(contextDirectory),
-          icon: <ChevronLeft size={APP_ICON_SIZE} />,
+          icon: <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: '返回 上一级 parent',
           completion: 'directory',
           onSelect: () => {
@@ -1046,7 +1091,7 @@ export function ComposerCard({
         section: '文件和文件夹',
         label: '引用当前目录',
         description: contextDirectory === '.' ? workspace.name : contextDirectory,
-        icon: <Folder size={APP_ICON_SIZE} />,
+        icon: <Folder className="tw:size-icon-md" size={APP_ICON_SIZE} />,
         matchText: `引用 当前 目录 ${contextDirectory}`,
         onSelect: () => void addWorkspaceContextPath(contextDirectory, activeContextRequest),
       })
@@ -1061,9 +1106,9 @@ export function ComposerCard({
           meta: entry.type === 'directory' ? '进入' : undefined,
           icon:
             entry.type === 'directory' ? (
-              <Folder size={APP_ICON_SIZE} />
+              <Folder className="tw:size-icon-md" size={APP_ICON_SIZE} />
             ) : (
-              <File size={APP_ICON_SIZE} />
+              <File className="tw:size-icon-md" size={APP_ICON_SIZE} />
             ),
           matchText: `${entry.name} ${entry.path}`,
           onSelect:
@@ -1083,7 +1128,7 @@ export function ComposerCard({
           status: 'loading',
           section: '文件和文件夹',
           label: '正在加载…',
-          icon: <Activity size={APP_ICON_SIZE} />,
+          icon: <Activity className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: 'loading 加载',
           disabled: true,
           onSelect: () => {},
@@ -1103,7 +1148,7 @@ export function ComposerCard({
           section: '文件和文件夹',
           label: '重新加载',
           description: contextEntriesError,
-          icon: <Activity size={APP_ICON_SIZE} />,
+          icon: <Activity className="tw:size-icon-md" size={APP_ICON_SIZE} />,
           matchText: 'retry 重试 重新加载',
           completion: 'directory',
           onSelect: reloadContext,
@@ -1139,6 +1184,7 @@ export function ComposerCard({
     contextEntriesError,
     contextEntriesLoading,
     contextTasks,
+    routedSessionId,
     reloadContext,
     onAddFilePaths,
     workspace,
@@ -1286,13 +1332,21 @@ export function ComposerCard({
   }
 
   function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
-    if (value === 'default')
-      return <Hand size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
     if (value === 'full-access')
-      return <ShieldAlert size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-    if (value === 'custom')
-      return <Wrench size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-    return <ShieldCheck size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+      return (
+        <ShieldAlert
+          className="tw:size-icon-md"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      )
+    return (
+      <ShieldCheck
+        className="tw:size-icon-md"
+        size={APP_ICON_SIZE}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
+    )
   }
 
   function getPermissionClassName(value: DesktopPermissionMode): string {
@@ -1333,9 +1387,8 @@ export function ComposerCard({
   const modelIconProbeRef = useRef<HTMLDivElement | null>(null)
   const [modelHeld, setModelHeld] = useState(false)
   const [ringHeld, setRingHeld] = useState(false)
-  const heldModelModeRef = useRef<'text' | 'icon'>('text')
   const showRing = showContextUsage && contextUsage != null
-  const footerMetrics = useComposerFooterFit(
+  const footerFit = useComposerFooterFit(
     {
       footer: footerRef,
       left: toolbarLeftRef,
@@ -1345,14 +1398,12 @@ export function ComposerCard({
       modelIcon: modelIconProbeRef,
     },
     `${selectedModelLabel}|${selectedThinkingLabel}|${showThinkingOptions}|${showRing}|${planModeActive}|${grillModeActive}|${goalModeEnabled}|${capabilities.dictation}`,
+    {
+      hasRing: showRing,
+      holdModel: modelHeld || openDropdown === 'model',
+      holdRing: ringHeld || contextPreviewOpen,
+    },
   )
-  const footerFit = resolveComposerFooterFit(footerMetrics, {
-    hasRing: showRing,
-    holdModel: modelHeld || openDropdown === 'model',
-    holdRing: ringHeld || contextPreviewOpen,
-    heldModelMode: heldModelModeRef.current,
-  })
-  if (footerFit.modelMode !== 'hidden') heldModelModeRef.current = footerFit.modelMode
   const handleThinkingSelect = useCallback(
     (value: string): void => {
       if (onModelVariantChange) onModelVariantChange(value)
@@ -1399,23 +1450,11 @@ export function ComposerCard({
     >
       {fileDragActive ? (
         <div
-          className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised tw:type-control"
+          className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised tw:type-2 tw:weight-medium"
           role="status"
         >
           松开以添加文件
         </div>
-      ) : null}
-      {routedSessionId ? (
-        <AutoReviewNudge
-          key={routedSessionId}
-          threadId={routedSessionId}
-          enabled={
-            approvalReview.state.manualAllows >= 3 &&
-            permissionMode !== 'auto-review' &&
-            permissionMode !== 'full-access'
-          }
-          onEnable={() => onPermissionChange('auto-review')}
-        />
       ) : null}
       {showUtilityBar ? (
         <div
@@ -1461,7 +1500,7 @@ export function ComposerCard({
             <div className={UTILITY_BAR_DEFAULT_CONTENT_CLASS}>
               {surface === 'chat' ? null : subagentMode ? (
                 <MetaChip
-                  icon={<Folder size={APP_ICON_SIZE} />}
+                  icon={<Folder className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                   label={workspace?.name ?? '项目'}
                   title="子 Agent 工作区固定"
                 />
@@ -1489,7 +1528,7 @@ export function ComposerCard({
                   trigger={
                     <MetaChip
                       active={openDropdown === 'project'}
-                      icon={<Folder size={APP_ICON_SIZE} />}
+                      icon={<Folder className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                       label={
                         workspace?.name ?? (surface === 'working' ? '选择文件夹' : '进入项目工作')
                       }
@@ -1512,7 +1551,7 @@ export function ComposerCard({
                 trigger={
                   <MetaChip
                     active={openDropdown === 'session-group'}
-                    icon={<MessagesSquare size={APP_ICON_SIZE} />}
+                    icon={<MessagesSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />}
                     label={selectedSessionGroup?.name ?? '工作组'}
                     title={
                       selectedSessionGroup
@@ -1522,31 +1561,6 @@ export function ComposerCard({
                   />
                 }
               />
-
-              {workspace && surface !== 'working' ? (
-                <BranchSelectPopover
-                  align="end"
-                  branchSearch={branchSearch}
-                  branches={branches}
-                  className="popover-branch"
-                  currentBranchName={branchName}
-                  open={openDropdown === 'branch'}
-                  side="top"
-                  size="md"
-                  onBranchSearchChange={setBranchSearch}
-                  onBranchSelect={onBranchSelect}
-                  onCreateBranch={onCreateBranch}
-                  onOpenChange={(open) => setOpenDropdown(open ? 'branch' : null)}
-                  trigger={
-                    <MetaChip
-                      active={openDropdown === 'branch'}
-                      icon={<GitBranch size={APP_ICON_SIZE} />}
-                      label={branchName}
-                      title="选择分支"
-                    />
-                  }
-                />
-              ) : null}
 
               {placement === 'new-session' && !subagentMode ? (
                 <div className="tw:ml-auto tw:flex tw:shrink-0 tw:items-center tw:ps-1">
@@ -1571,7 +1585,7 @@ export function ComposerCard({
       >
         {inlineSubmitFailure ? (
           <div
-            className="composer-submit-error tw:mx-1 tw:mt-0 tw:mb-2 tw:text-app-warning tw:type-caption"
+            className="composer-submit-error tw:mx-1 tw:mt-0 tw:mb-2 tw:text-app-warning tw:type-1"
             id={submitErrorId}
             role="alert"
           >
@@ -1616,6 +1630,7 @@ export function ComposerCard({
               ariaDescribedBy={inlineSubmitFailure ? submitErrorId : undefined}
               ariaExpanded={unifiedMenuOpen}
               readOnly={creationPending}
+              prediction={composerPrediction}
               ref={editorRef}
               focusKey={subagentMode ? undefined : (draftKey ?? placement)}
               document={composerDocument}
@@ -1638,7 +1653,7 @@ export function ComposerCard({
               }}
               onKeyDown={(event) => {
                 if (event.isComposing || event.keyCode === 229) return false
-                if (capabilities.dictation && isDictationShortcut(event)) {
+                if (capabilities.dictation && isDictationShortcut(event, dictationShortcut)) {
                   event.preventDefault()
                   if (dictationControlRef.current) {
                     dictationControlRef.current.toggle()
@@ -1698,6 +1713,25 @@ export function ComposerCard({
                   }
                 }
 
+                /*
+                 * 输入预测必须排在菜单与 IME 之后：命令菜单的 Tab/Enter 和输入法
+                 * 组合键优先。接受只把灰字写入草稿（可撤销），绝不触发发送。
+                 */
+                const predictionAction = resolveComposerPredictionKeyAction({
+                  key: event.key,
+                  shiftKey: event.shiftKey,
+                  composing: event.isComposing,
+                  menuOpen: unifiedMenuOpen,
+                  prediction: composerPrediction,
+                  inputEmpty: inputEmptyForPrediction,
+                })
+                if (predictionAction) {
+                  event.preventDefault()
+                  if (predictionAction.type === 'accept') acceptComposerPrediction()
+                  else dismissComposerPrediction()
+                  return true
+                }
+
                 if (
                   event.key === 'Backspace' &&
                   isComposerInputEmpty(input, composerDocument?.tokens ?? [], attachments)
@@ -1732,6 +1766,13 @@ export function ComposerCard({
                 if (canSubmit) onSubmit(delivery)
                 return true
               }}
+              resolvePastedToken={(text) =>
+                composerTokenFromPastedLink(
+                  text,
+                  capabilities.skills && !subagentMode ? skillCommands : [],
+                  contextTasks,
+                )
+              }
               onPasteFiles={(files) => {
                 if (!onAddFiles) return false
                 if (files.length === 0) return false
@@ -1788,7 +1829,7 @@ export function ComposerCard({
                   editorRef.current?.focus()
                 }}
               >
-                <Plus size={APP_ICON_SIZE} />
+                <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </Tooltip>
             <Select.Root
@@ -1796,9 +1837,7 @@ export function ComposerCard({
               value={permissionMode as string}
               onOpenChange={(open) => setOpenDropdown(open ? 'permission' : null)}
               onValueChange={(value) => {
-                if (value === 'approval-rules') setApprovalRulesOpen(true)
-                else if (value === 'recent-denials') setApprovalRetryOpen(true)
-                else if (value === 'full-access' && permissionMode !== 'full-access') {
+                if (value === 'full-access' && permissionMode !== 'full-access') {
                   setFullAccessError('')
                   setFullAccessConfirmationOpen(true)
                 } else
@@ -1817,9 +1856,7 @@ export function ComposerCard({
                 <Select.Trigger
                   aria-label="更改权限"
                   aria-description={permissionUnavailableReason}
-                  data-theme-component="dropdown-trigger"
                   className={cx(
-                    'chip-button',
                     getPermissionClassName(permissionMode),
                     PERMISSION_TRIGGER_CLASS,
                     openDropdown === 'permission' && PERMISSION_TRIGGER_OPEN_CLASS,
@@ -1827,7 +1864,7 @@ export function ComposerCard({
                 >
                   {getPermissionIcon(permissionMode)}
                   <span className={PERMISSION_TRIGGER_LABEL_CLASS}>
-                    {selectedPermission?.label ?? '请求批准'}
+                    {selectedPermission?.label ?? '帮我批准'}
                   </span>
                 </Select.Trigger>
               </Tooltip>
@@ -1835,33 +1872,21 @@ export function ComposerCard({
                 <Select.Content
                   size="auto"
                   align="start"
-                  className="popover-surface permission-select-content tw:max-h-[min(440px,calc(100vh_-_96px))] tw:overflow-hidden"
+                  className="popover-surface permission-select-content tw:[--popover-max-height:min(440px,calc(100vh_-_96px))] tw:[--popover-overflow-y:hidden]"
                   data-theme-component="dropdown-surface"
                   collisionPadding={6}
-
                   side="top"
                   sideOffset={4}
-                  style={buildPopoverSizingStyle({ size: 'auto' })}
                 >
-                  <div className="permission-select-scroll-area tw:grid tw:max-h-[max(80px,calc(min(440px,calc(100vh-96px))-12px))] tw:overflow-x-hidden tw:overflow-y-auto">
+                  <div className="permission-select-scroll-area tw:grid tw:overflow-x-hidden tw:overflow-y-auto">
                     <div className="permission-select-scroll-content tw:grid tw:min-w-0">
                       {permissionUnavailableReason ? (
                         <p
-                          className="permission-select-note tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-caption tw:whitespace-normal"
+                          className="permission-select-note tw:m-0 tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-1 tw:whitespace-normal"
                           role="status"
                         >
                           {permissionUnavailableReason}
                         </p>
-                      ) : null}
-                      {routedSessionId && approvalRulesSupported ? (
-                        <Select.Item className="permission-select-item" value="approval-rules">
-                          <span>审批规则</span>
-                        </Select.Item>
-                      ) : null}
-                      {routedSessionId && approvalReview.supported ? (
-                        <Select.Item className="permission-select-item" value="recent-denials">
-                          <span>最近拒绝</span>
-                        </Select.Item>
                       ) : null}
                       {permissionOptions.map((option) => (
                         <Select.Item
@@ -1879,22 +1904,14 @@ export function ComposerCard({
                               <span>{option.label}</span>
                               {option.detail ? (
                                 <span className={PERMISSION_ITEM_DETAIL_CLASS}>
-                                  {option.value === 'auto-review' ? (
-                                    <>
-                                      <span>{option.detail.replace(/了解更多.*$/, '')}</span>
-                                      <span className="permission-select-item-detail-more tw:block tw:underline">
-                                        了解更多
-                                      </span>
-                                    </>
-                                  ) : (
-                                    option.detail
-                                  )}
+                                  {option.detail}
                                 </span>
                               ) : null}
                             </span>
                             {permissionMode === option.value && (
                               <span className={PERMISSION_ITEM_INDICATOR_CLASS}>
                                 <Check
+                                  className="tw:size-icon-sm"
                                   size={APP_ICON_SIZES.sm}
                                   strokeWidth={APP_ICON_STROKE_WIDTH}
                                 />
@@ -1914,9 +1931,7 @@ export function ComposerCard({
                 <button
                   aria-pressed="true"
                   aria-label="退出目标输入"
-                  className={cx(
-                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-secondary',
-                  )}
+                  className={COMPOSER_MODE_CHIP_CLASS}
                   onClick={() => {
                     onGoalModeChange?.(false)
                   }}
@@ -1958,7 +1973,7 @@ export function ComposerCard({
                     const budget = parseGoalTokenBudget(val)
                     if (budget !== undefined) onGoalTokenBudgetChange?.(budget)
                   }}
-                  className="tw:h-6 tw:w-20 tw:rounded tw:border tw:border-app-border-subtle tw:bg-transparent tw:px-1.5 tw:py-0 tw:text-app-text tw:type-caption tw:tabular-nums tw:outline-none tw:focus:border-app-focus"
+                  className="tw:h-5 tw:w-[5rem] tw:rounded tw:border tw:border-app-border-subtle tw:bg-transparent tw:px-1 tw:py-0 tw:text-app-text tw:type-1 tw:tabular-nums tw:outline-none tw:focus:border-app-focus"
                 />
               </>
             ) : null}
@@ -1968,9 +1983,7 @@ export function ComposerCard({
                 <button
                   aria-pressed="true"
                   aria-label="退出深度访谈"
-                  className={cx(
-                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-secondary',
-                  )}
+                  className={COMPOSER_MODE_CHIP_CLASS}
                   onClick={() => {
                     void Promise.resolve(onGrillModeChange(false)).catch((error: unknown) =>
                       onCommandError?.(
@@ -2013,9 +2026,7 @@ export function ComposerCard({
                 <button
                   aria-pressed="true"
                   aria-label="退出计划模式"
-                  className={cx(
-                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-secondary',
-                  )}
+                  className={COMPOSER_MODE_CHIP_CLASS}
                   onClick={() => {
                     void Promise.resolve(onPlanModeChange(false)).catch((error: unknown) =>
                       onCommandError?.(error instanceof Error ? error.message : '计划模式未更新'),
@@ -2239,6 +2250,8 @@ export function ComposerCard({
                   selectedModelMetadata?.contextWindow ?? contextUsage?.contextWindow ?? 128_000
                 }
                 physicalInputLimit={contextUsage?.budget?.physicalInputBudgetTokens}
+                inputBudgetTokens={contextUsage?.budget?.inputBudgetTokens}
+                outputReserveTokens={contextUsage?.budget?.outputReserveTokens}
                 minimumContextTokens={
                   contextUsage &&
                   selectedModel &&
@@ -2279,7 +2292,7 @@ export function ComposerCard({
               >
                 <div
                   ref={modelTextProbeRef}
-                  className="tw:inline-flex tw:items-center tw:gap-1.5 tw:w-max"
+                  className="tw:inline-flex tw:items-center tw:gap-1 tw:w-max"
                 >
                   <ModelSelectTrigger
                     id="model-select-trigger-probe-text"
@@ -2294,7 +2307,7 @@ export function ComposerCard({
                 </div>
                 <div
                   ref={modelIconProbeRef}
-                  className="tw:inline-flex tw:items-center tw:gap-1.5 tw:w-max"
+                  className="tw:inline-flex tw:items-center tw:gap-1 tw:w-max"
                 >
                   <ModelSelectTrigger
                     id="model-select-trigger-probe-icon"
@@ -2354,9 +2367,13 @@ export function ComposerCard({
               {stopping || submitting ? (
                 <Spinner className="send-button-session-spinner" size="medium" />
               ) : showStopAction ? (
-                <Square size={APP_ICON_SIZES.md} fill="currentColor" />
+                <Square className="tw:size-icon-md" size={APP_ICON_SIZES.md} fill="currentColor" />
               ) : (
-                <ArrowUp size={APP_ICON_SIZES.md} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <ArrowUp
+                  className="tw:size-icon-md"
+                  size={APP_ICON_SIZES.md}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               )}
             </Button>
           </div>
@@ -2378,31 +2395,12 @@ export function ComposerCard({
         onNameChange={setSessionGroupDraftName}
         onSubmit={() => void createSessionGroup()}
       />
-      <ConfirmationDialog
-        actionLabel="确认归档"
-        description="归档后可在设置中恢复此任务。"
-        open={archiveConfirmationOpen}
-        title="归档当前任务？"
-        onAction={() => {
-          setArchiveConfirmationOpen(false)
-          onArchiveConversation?.()
-        }}
-        onCancel={() => setArchiveConfirmationOpen(false)}
-      />
-      <ConfirmationDialog
+      <FullAccessConfirmationDialog
         open={fullAccessConfirmationOpen}
         title="启用 Full Access？"
-        description={
-          <>
-            <p>
-              允许 Agent 访问本机文件、互联网、执行命令及调用工具和 MCP，无需权限审批。Plan
-              独立生效，不提供 OS 沙箱或网络隔离。
-            </p>
-            {fullAccessError ? <p role="alert">{fullAccessError}</p> : null}
-          </>
-        }
-        actionLabel="启用 Full Access"
+        actionLabel="确认"
         actionDisabled={fullAccessSaving}
+        error={fullAccessError}
         onCancel={() => {
           if (!fullAccessSaving) setFullAccessConfirmationOpen(false)
         }}
@@ -2417,22 +2415,6 @@ export function ComposerCard({
             .finally(() => setFullAccessSaving(false))
         }}
       />
-      {routedSessionId ? (
-        <>
-          <ApprovalRulesDialog
-            key={`rules:${routedSessionId}`}
-            threadId={routedSessionId}
-            open={approvalRulesOpen}
-            onClose={() => setApprovalRulesOpen(false)}
-          />
-          <ApprovalRetryDialog
-            key={`retry:${routedSessionId}`}
-            threadId={routedSessionId}
-            open={approvalRetryOpen}
-            onClose={() => setApprovalRetryOpen(false)}
-          />
-        </>
-      ) : null}
     </div>
   )
 }
@@ -2493,33 +2475,33 @@ function composerCommandMenuItem(
 function composerSlashCommandIcon(id: ComposerSlashCommandId): React.ReactNode {
   switch (id) {
     case 'model':
-      return <Box size={APP_ICON_SIZE} />
+      return <Box className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'reasoning':
-      return <Brain size={APP_ICON_SIZE} />
+      return <Brain className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case SHARED_SLASH_COMMANDS.plan.id:
-      return <ListChecks size={APP_ICON_SIZE} />
+      return <ListChecks className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case SHARED_SLASH_COMMANDS.grill.id:
-      return <MessagesSquare size={APP_ICON_SIZE} />
+      return <MessagesSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'goal':
-      return <Target size={APP_ICON_SIZE} />
+      return <Target className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'review':
-      return <ShieldCheck size={APP_ICON_SIZE} />
+      return <ShieldCheck className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'compact':
-      return <Zap size={APP_ICON_SIZE} />
+      return <Zap className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'mcp':
-      return <Paperclip size={APP_ICON_SIZE} />
+      return <Paperclip className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case SHARED_SLASH_COMMANDS.status.id:
-      return <Activity size={APP_ICON_SIZE} />
+      return <Activity className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'side':
-      return <MessageSquarePlus size={APP_ICON_SIZE} />
+      return <MessageSquarePlus className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'fork':
-      return <Split size={APP_ICON_SIZE} />
+      return <Split className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'archive':
-      return <Archive size={APP_ICON_SIZE} />
+      return <Archive className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'project':
-      return <Folder size={APP_ICON_SIZE} />
+      return <Folder className="tw:size-icon-md" size={APP_ICON_SIZE} />
     case 'task':
-      return <MessageSquare size={APP_ICON_SIZE} />
+      return <MessageSquare className="tw:size-icon-md" size={APP_ICON_SIZE} />
   }
 }
 

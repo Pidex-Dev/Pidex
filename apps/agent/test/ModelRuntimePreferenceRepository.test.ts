@@ -81,7 +81,7 @@ describe('ModelRuntimePreferenceRepository & Context Limit Storage', () => {
         permissionConfig: {
           sandboxMode: 'workspace-write',
           approvalPolicy: 'never',
-          approvalsReviewer: 'user',
+          approvalsReviewer: 'auto_review',
         },
         maxContextTokens: 500_000,
       },

@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useState } from 'react'
 import { CalendarClock, Database, Folder, GitBranch, User } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import { APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 import {
   SidebarHoverCard,
@@ -62,17 +62,17 @@ function GitBoardCommitHoverCardOverlay({
 }): React.ReactNode {
   const { t } = useLocale()
   const metaRowClassName =
-    'sidebar-commit-hover-card-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:text-app-text-meta tw:type-caption'
+    'sidebar-commit-hover-card-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:text-app-text-meta tw:type-1'
   return (
     <SidebarHoverCardSurface
       {...interactionProps}
       ariaLabel={ariaLabel}
-      className="sidebar-commit-hover-card tw:min-w-[200px] tw:max-w-[280px] tw:px-3 tw:py-2"
+      className="sidebar-commit-hover-card"
       positionOutsideSidebar
     >
       <SidebarHoverCardFrame className="sidebar-commit-hover-card-content tw:flex tw:min-w-0 tw:flex-col tw:gap-2">
         <SidebarHoverCardHeader className="sidebar-commit-hover-card-header tw:grid-cols-[minmax(0,1fr)] tw:items-start">
-          <span className="sidebar-commit-hover-card-title tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:type-row-title tw:line-clamp-2 tw:wrap-anywhere tw:[word-break:break-word]">
+          <span className="sidebar-commit-hover-card-title tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:type-2 tw:weight-medium tw:line-clamp-2 tw:wrap-anywhere tw:[word-break:break-word]">
             {model.subject}
           </span>
         </SidebarHoverCardHeader>

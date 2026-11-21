@@ -4,7 +4,6 @@ import type { AppContextMenuAction } from './AppContextMenu.js'
 import { PopoverItem, PopoverSeparator } from './PopoverItem.js'
 import { SidebarRow } from './SidebarRow.js'
 import { APP_ICON_SIZE } from './IconTokens.js'
-import { buildPopoverSizingStyle } from './PopoverSizing.js'
 
 /** The same action tree powers a dropdown and its context menu. */
 export function DropdownActions({ actions }: { actions: readonly AppContextMenuAction[] }) {
@@ -41,12 +40,10 @@ export function DropdownActions({ actions }: { actions: readonly AppContextMenuA
         <Menu.Portal>
           <Menu.SubContent
             size="sm"
-            sideOffset={4}
             collisionPadding={6}
-            className="popover-surface popover popover-menu--grid tw:text-app-text"
-            style={buildPopoverSizingStyle({ size: 'sm' })}
+            className="popover-surface popover popover-menu--grid"
           >
-            <div className="popover-scroll-content tw:flex tw:min-w-0 tw:flex-col tw:gap-0.5">
+            <div className="popover-scroll-content popover-menu-list tw:min-w-0">
               <DropdownActions actions={action.children} />
             </div>
           </Menu.SubContent>

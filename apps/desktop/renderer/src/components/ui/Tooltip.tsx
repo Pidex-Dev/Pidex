@@ -9,7 +9,6 @@ import React, {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type HTMLAttributes,
   type ReactNode,
 } from 'react'
@@ -719,12 +718,13 @@ export interface TooltipContentProps extends HTMLAttributes<HTMLDivElement> {
 
 const VARIANT_STYLES: Record<TooltipVariant, string> = {
   default:
-    'tw:bg-app-raised tw:text-app-text tw:border tw:border-app-border-subtle tw:shadow-lg tw:backdrop-blur-md',
+    'tw:bg-app-raised tw:text-app-text tw:border tw:border-app-border-subtle tw:shadow-tooltip tw:backdrop-blur-md',
   contrast:
-    'tw:bg-[#18181b] [data-theme=dark]_&:tw:bg-[#27272a] tw:text-white tw:border tw:border-white/10 tw:shadow-lg',
+    'tw:bg-[#18181b] [data-theme=dark]_&:tw:bg-[#27272a] tw:text-white tw:border tw:border-white/10 tw:shadow-tooltip',
   glass:
-    'tw:bg-app-glass tw:text-app-text tw:border tw:border-app-border-subtle tw:backdrop-blur-xl tw:shadow-lg',
-  accent: 'tw:bg-app-accent tw:text-app-on-accent tw:border tw:border-transparent tw:shadow-lg',
+    'tw:bg-app-glass tw:text-app-text tw:border tw:border-app-border-subtle tw:backdrop-blur-xl tw:shadow-tooltip',
+  accent:
+    'tw:bg-app-accent tw:text-app-on-accent tw:border tw:border-transparent tw:shadow-tooltip',
   unstyled: '',
 }
 
@@ -867,7 +867,7 @@ export const TooltipContent = forwardRef<HTMLDivElement, TooltipContentProps>(
     const isUnstyled = variant === 'unstyled'
     const baseClasses = isUnstyled
       ? 'tooltip-presence'
-      : 'tooltip-presence tooltip-content tw:inline-flex tw:items-center tw:px-2.5 tw:py-1.5 tw:rounded-sm tw:type-caption tw:max-w-[min(280px,calc(100vw-16px))] tw:break-words tw:select-none tw:box-border tw:z-tooltip'
+      : 'tooltip-presence tooltip-content tw:inline-flex tw:items-center tw:px-2 tw:py-1 tw:rounded-3 tw:type-1 tw:max-w-[min(280px,calc(100vw-16px))] tw:break-words tw:select-none tw:box-border tw:z-tooltip'
     const variantClasses = isUnstyled ? '' : VARIANT_STYLES[variant] || VARIANT_STYLES.default
 
     const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -930,9 +930,9 @@ export const TooltipContent = forwardRef<HTMLDivElement, TooltipContentProps>(
           >
             <TooltipPositionContext.Provider value={positionContextValue}>
               {shortcut ? (
-                <span className="tooltip-with-shortcut tw:inline-flex tw:items-center tw:gap-1.5">
+                <span className="tooltip-with-shortcut tw:inline-flex tw:items-center tw:gap-2">
                   <span>{children}</span>
-                  <kbd className="tooltip-shortcut-badge tw:inline-flex tw:items-center tw:justify-center tw:rounded-xs tw:bg-[color-mix(in_srgb,currentColor_16%,transparent)] tw:px-1.5 tw:py-0.5 tw:font-sans tw:type-caption tw:text-inherit">
+                  <kbd className="tooltip-shortcut-badge tw:inline-flex tw:items-center tw:justify-center tw:rounded-2 tw:bg-[color-mix(in_srgb,currentColor_16%,transparent)] tw:px-1 tw:py-0 tw:font-sans tw:type-1 tw:text-inherit">
                     {shortcut}
                   </kbd>
                 </span>
@@ -1101,7 +1101,7 @@ export const InfoTooltip = forwardRef<HTMLButtonElement, InfoTooltipProps>(
           ref={ref}
           type="button"
           aria-label={ariaLabel}
-          className={`tw:inline-flex tw:items-center tw:justify-center tw:w-6 tw:h-6 tw:rounded-full tw:text-app-text-meta tw:hover:text-app-text tw:hover:bg-app-hover tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-app-focus tw:transition tw:duration-150 tw:cursor-help tw:select-none tw:shrink-0 ${className}`}
+          className={`tw:inline-flex tw:items-center tw:justify-center tw:w-5 tw:h-5 tw:rounded-full tw:text-app-text-meta tw:hover:text-app-text tw:hover:bg-app-hover tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-app-focus tw:transition tw:duration-150 tw:cursor-help tw:select-none tw:shrink-0 ${className}`}
         >
           <Info size={size} className={iconClassName} strokeWidth={strokeWidth} />
         </button>

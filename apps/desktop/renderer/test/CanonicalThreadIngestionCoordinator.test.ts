@@ -14,8 +14,8 @@ import {
 
 const permissionConfig = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 
 const thread: Thread = {
@@ -455,4 +455,32 @@ describe('canonical subscription stop', () => {
     expect(isCurrentCanonicalThreadRequest(thread.id, 2, 'thread-other', 1)).toBe(false)
     expect(isCurrentCanonicalThreadRequest('thread-other', 2, thread.id, 2)).toBe(false)
   })
+})
+
+test('reconciles accepted and consumed steer events once per batch', async () => {
+  const coordinator = new CanonicalThreadIngestionCoordinator({ threadId: thread.id })
+  coordinator.rehydrate(historyPage())
+  const actions = ['steer-accepted', 'steer-consumed'] as const
+  const events = actions.map((action, index): DurableEventEnvelope<'queue/updated'> => ({
+    eventId: action,
+    streamId: thread.id,
+    type: 'queue/updated',
+    version: 2,
+    occurredAt: index + 1,
+    threadId: thread.id,
+    turnId: turn.id,
+    durability: 'durable',
+    sequence: index + 1,
+    payload: { threadId: thread.id, turnId: turn.id, inputId: 'steer-1', action },
+  }))
+  let reads = 0
+  await deliverCanonicalBatch(events, {
+    coordinator,
+    readLatest: async () => {
+      reads += 1
+      return historyPage()
+    },
+    isCurrent: () => true,
+  })
+  expect(reads).toBe(1)
 })

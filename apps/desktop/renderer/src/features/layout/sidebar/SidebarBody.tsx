@@ -12,9 +12,10 @@ import {
   X,
 } from 'lucide-react'
 import { AnimatePresence, motion, useIsPresent } from 'motion/react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import type {
   DesktopSidebarOrganization,
+  DesktopSidebarPinnedSort,
   DesktopSidebarSort,
   DesktopWorkspace,
   SidebarSectionId,
@@ -73,6 +74,7 @@ import {
   sidebarPinnedProjectKey,
   sidebarPinnedSessionKey,
   sidebarProjectKey,
+  sortSidebarPinnedItems,
   type SidebarCustomSectionEntry,
   type SidebarCustomSectionModel,
   type SidebarFocusSection,
@@ -94,15 +96,15 @@ const PINNED_INITIAL_LIMIT = 10
 const PINNED_LIMIT_STEP = 10
 const CUSTOM_SECTION_INITIAL_LIMIT = 10
 
-/* 分组标题行：sticky 30px 头部、8px gutter、右侧 60px trailing 列。 */
+/* 分组标题行：sticky 30px 头部、左对齐下方图标左边缘、右侧 60px trailing 列。 */
 const SECTION_HEADER_CLASS =
-  'sidebar-section-header tw:sticky tw:top-0 tw:z-local tw:grid tw:h-[var(--sidebar-row-height)] tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:grid-cols-[minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:select-none tw:focus-within:outline-none tw:group'
+  'sidebar-section-header tw:sticky tw:top-0 tw:z-local tw:grid tw:h-[var(--sidebar-row-height)] tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:grid-cols-[minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-3 tw:pr-1 tw:select-none tw:focus-within:outline-none tw:group'
 const SECTION_TITLE_CLASS =
-  'sidebar-section-title tw:flex tw:min-w-0 tw:items-center tw:type-body tw:normal-case tw:text-app-text-meta'
+  'sidebar-section-title tw:flex tw:min-w-0 tw:items-center tw:type-2 tw:normal-case tw:text-app-text-meta'
 const SECTION_TOGGLE_CLASS =
-  'sidebar-section-toggle tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)] tw:items-center tw:gap-x-2 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit'
+  'sidebar-section-toggle tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)] tw:items-center tw:gap-x-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit'
 const SECTION_ACTIONS_CLASS =
-  'sidebar-section-actions tw:flex tw:w-full tw:items-center tw:justify-end tw:gap-1 tw:opacity-0 tw:pointer-events-none tw:transition-opacity tw:duration-feedback tw:ease-out tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-has-[:focus-visible]:opacity-100 tw:group-has-[:focus-visible]:pointer-events-auto tw:has-[[data-state=open]]:opacity-100 tw:has-[[data-state=open]]:pointer-events-auto'
+  'sidebar-section-actions tw:flex tw:w-full tw:items-center tw:justify-end tw:opacity-0 tw:pointer-events-none tw:transition-opacity tw:duration-feedback tw:ease-out tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-has-[:focus-visible]:opacity-100 tw:group-has-[:focus-visible]:pointer-events-auto tw:has-[[data-state=open]]:opacity-100 tw:has-[[data-state=open]]:pointer-events-auto'
 /* 展开/折叠箭头：随 aria-expanded 旋转，hover 时显现。 */
 const SECTION_CHEVRON_CLASS =
   'sidebar-section-chevron tw:inline-flex tw:flex-none tw:items-center tw:text-app-text-meta tw:opacity-0 tw:pointer-events-none tw:group-hover:opacity-100 tw:[transition:opacity_var(--cpx-sys-motion-feedback)_var(--cpx-sys-ease-out),color_var(--cpx-sys-motion-feedback)_var(--cpx-sys-ease-out),transform_var(--cpx-sys-motion-disclosure)_var(--cpx-sys-ease-disclosure)]'
@@ -115,8 +117,8 @@ const SECTION_CONTENT_CLASS =
   'sidebar-section-content tw:grid tw:min-w-0 tw:sidebar-row-gap tw:overflow-hidden tw:pt-0'
 /* 更多/收起操作行：与分组行同一 gutter，1px 行间距。 */
 const SHOW_MORE_ACTIONS_CLASS =
-  'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-2 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard'
-const SHOW_MORE_ROW_CLASS = 'sidebar-row-main tw:min-w-0 tw:flex tw:items-center tw:gap-4'
+  'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-1 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-3 tw:px-1 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard'
+const SHOW_MORE_ROW_CLASS = 'sidebar-row-main tw:gap-4'
 const SHOW_MORE_BUTTON_CLASS =
   'tw:w-auto sidebar-show-more-button tw:first:-ml-2 tw:min-w-0 tw:border-0 tw:[font:inherit]'
 const SHOW_MORE_LABEL_CLASS = 'tw:block tw:overflow-hidden tw:whitespace-nowrap'
@@ -125,6 +127,8 @@ type Props = {
   activeSessionId: string | null
   disclosureStore: KeyedDisclosureStore
   organization: DesktopSidebarOrganization
+  /** 由侧栏上层读取一次的 `gitShowPrIconsInSidebar` 设置，向下控制 PR 图标显隐。 */
+  showPullRequestIcons?: boolean
   showProjectsInRecents?: boolean
   onShowProjectsInRecentsChange?: (value: boolean) => void
   showActivityPriority?: boolean
@@ -157,8 +161,6 @@ type Props = {
   manualOrderByScope: Record<string, string[]>
   unavailableWorkspacePaths: Set<string>
   workspace: DesktopWorkspace | null
-  /** 滚动视口是否已滚过固定入口（scrollTop > 0），驱动动态分隔线。 */
-  onScrollOverlapChange: (overlapping: boolean) => void
   projectCatalogState: SidebarProjectCatalogState
   scrollModeKey: SidebarScrollModeKey
   scrollPositions: Map<SidebarScrollModeKey, number>
@@ -184,8 +186,8 @@ type Props = {
   onRequestArchiveAttention: () => void
   onShowTimelinePinnedChange: (value: boolean) => void
   customSections: SidebarCustomSectionModel[]
-  pinnedSort: 'manual' | 'updated'
-  onPinnedSortChange: (sort: 'manual' | 'updated') => void
+  pinnedSort: DesktopSidebarPinnedSort
+  onPinnedSortChange: (sort: DesktopSidebarPinnedSort) => void
   onCreateSection: (itemKeys?: string[]) => void
   onRenameSection: (sectionId: string, title: string) => void
   onDeleteSection: (sectionId: string) => void
@@ -236,6 +238,7 @@ function SidebarBodyContent({
   activeSessionId,
   disclosureStore,
   organization,
+  showPullRequestIcons = true,
   showProjectsInRecents = false,
   onShowProjectsInRecentsChange,
   timeline,
@@ -268,7 +271,6 @@ function SidebarBodyContent({
   manualOrderByScope,
   unavailableWorkspacePaths,
   workspace,
-  onScrollOverlapChange,
   projectCatalogState,
   scrollModeKey,
   scrollPositions,
@@ -320,7 +322,6 @@ function SidebarBodyContent({
     modeKey: scrollModeKey,
     positions: scrollPositions,
     viewportRef: scrollViewportRef,
-    onScrollOverlapChange,
   })
   const unavailablePaths = useMemo(
     () => new Set([...unavailableWorkspacePaths].map((path) => normalizeSidebarPath(path))),
@@ -362,12 +363,7 @@ function SidebarBodyContent({
     hasOverflow: hasProjectOverflow,
   } = getSidebarSessionDisplayGroups(orderedProjects, visibleProjectLimit)
   const displayedProjects = [...baseProjects, ...extraProjects]
-  const sortedPinnedItems =
-    pinnedSort === 'updated'
-      ? [...pinnedItems].sort(
-          (left, right) => pinnedAtMs(right.pinnedAt) - pinnedAtMs(left.pinnedAt),
-        )
-      : pinnedItems
+  const sortedPinnedItems = sortSidebarPinnedItems(pinnedItems, pinnedSort)
   const pinnedOrder = resolveSidebarDisplayOrder(drag.getSession(), {
     containerKey: 'pinned',
     order: sortedPinnedItems.map((item) => item.key),
@@ -496,11 +492,11 @@ function SidebarBodyContent({
             )?.name ?? '项目')
           : (customSections.find((item) => `section:${item.id}` === firstKey)?.title ?? '分组')
       const icon = sessionId ? (
-        <MessageSquare size={APP_ICON_SIZE} />
+        <MessageSquare className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
       ) : projectKey ? (
-        <Folder size={APP_ICON_SIZE} />
+        <Folder className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
       ) : (
-        <List size={APP_ICON_SIZE} />
+        <List className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
       )
       return { title, icon, count: items.length }
     },
@@ -664,6 +660,7 @@ function SidebarBodyContent({
         titleLoadingIds={titleLoadingIds}
         project={project}
         sessionFallbackTitles={sessionFallbackTitles}
+        showPullRequestIcons={showPullRequestIcons}
         sort={projectSort}
         workspace={workspace}
         onArchiveSessions={onArchiveSessions}
@@ -774,6 +771,7 @@ function SidebarBodyContent({
             sessionFallbackTitles={sessionFallbackTitles}
             sessions={[item.session]}
             showConversationIcon
+            showPullRequestIcons={showPullRequestIcons}
             onArchiveSessions={onArchiveSessions}
             onMoveToDefault={onMoveSessionToDefault}
             onMoveToSection={onMoveSessionToSection}
@@ -814,6 +812,7 @@ function SidebarBodyContent({
             <Timeline
               showPriority={showActivityPriority}
               onShowPriorityChange={onShowActivityPriorityChange}
+              showPullRequestIcons={showPullRequestIcons}
               showSources={showActivitySources}
               hasReadActivity={hasReadActivity}
               onClearReadActivity={onClearReadActivity}
@@ -846,7 +845,7 @@ function SidebarBodyContent({
             />
           ) : (
             <SidebarDropList
-              className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2"
+              className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1"
               list={{
                 key: 'default',
                 destination: { kind: 'default', index: 0 },
@@ -902,52 +901,55 @@ function SidebarBodyContent({
                 </SidebarSectionPresence>
               </SidebarPinnedPresence>
 
-              <SidebarDropList
-                className="tw:flex tw:min-w-0 tw:flex-col tw:gap-4"
-                list={{
-                  key: 'sections',
-                  destination: { kind: 'default', index: 0 },
-                  order: orderedSections.map((section) => `section:${section.id}`),
-                  onReorder: (order) => onReorderSections(order.map((key) => key.slice(8))),
-                }}
-              >
-                {orderedSections.map((section) => (
-                  <SidebarReorderItem
-                    key={section.id}
-                    value={`section:${section.id}`}
-                    reducedMotion={reducedMotion}
-                    dragHandleSelector=".sidebar-section-toggle"
-                  >
-                    <SidebarCustomSection
+              {orderedSections.length > 0 ? (
+                <SidebarDropList
+                  className="tw:flex tw:min-w-0 tw:flex-col tw:gap-4"
+                  list={{
+                    key: 'sections',
+                    destination: { kind: 'default', index: 0 },
+                    order: orderedSections.map((section) => `section:${section.id}`),
+                    onReorder: (order) => onReorderSections(order.map((key) => key.slice(8))),
+                  }}
+                >
+                  {orderedSections.map((section) => (
+                    <SidebarReorderItem
                       key={section.id}
-                      activeSessionId={activeSessionId}
-                      manualOrderByScope={manualOrderByScope}
-                      now={now}
-                      pendingPermissionSessionIds={pendingPermissionSessionIds}
-                      section={section}
-                      sectionOptions={customSectionOptions}
-                      selectedKeys={selectedKeys}
-                      sessionFallbackTitles={sessionFallbackTitles}
-                      titleLoadingIds={titleLoadingIds}
-                      unavailableProjectKeys={unavailableProjectKeys}
-                      onArchiveSessions={onArchiveSessions}
-                      onDelete={onDeleteSection}
-                      onMoveSessionToDefault={onMoveSessionToDefault}
-                      onMoveSessionToSection={onMoveSessionToSection}
-                      onPinSession={onPinSession}
-                      onRename={onRenameSection}
-                      onRenameSession={onRenameSession}
-                      onRenderProject={renderProjectGroup}
-                      onReorderItems={onReorderSectionItems}
-                      onSelectSession={onSelectSession}
-                      onSetCollapsed={onSetSectionCollapsed}
-                      onSetSort={onSetSectionSort}
-                      onToggleSessionUnread={onToggleSessionUnread}
-                      onUnpinSession={onUnpinSession}
-                    />
-                  </SidebarReorderItem>
-                ))}
-              </SidebarDropList>
+                      value={`section:${section.id}`}
+                      reducedMotion={reducedMotion}
+                      dragHandleSelector=".sidebar-section-toggle"
+                    >
+                      <SidebarCustomSection
+                        key={section.id}
+                        activeSessionId={activeSessionId}
+                        manualOrderByScope={manualOrderByScope}
+                        now={now}
+                        pendingPermissionSessionIds={pendingPermissionSessionIds}
+                        section={section}
+                        sectionOptions={customSectionOptions}
+                        selectedKeys={selectedKeys}
+                        sessionFallbackTitles={sessionFallbackTitles}
+                        showPullRequestIcons={showPullRequestIcons}
+                        titleLoadingIds={titleLoadingIds}
+                        unavailableProjectKeys={unavailableProjectKeys}
+                        onArchiveSessions={onArchiveSessions}
+                        onDelete={onDeleteSection}
+                        onMoveSessionToDefault={onMoveSessionToDefault}
+                        onMoveSessionToSection={onMoveSessionToSection}
+                        onPinSession={onPinSession}
+                        onRename={onRenameSection}
+                        onRenameSession={onRenameSession}
+                        onRenderProject={renderProjectGroup}
+                        onReorderItems={onReorderSectionItems}
+                        onSelectSession={onSelectSession}
+                        onSetCollapsed={onSetSectionCollapsed}
+                        onSetSort={onSetSectionSort}
+                        onToggleSessionUnread={onToggleSessionUnread}
+                        onUnpinSession={onUnpinSession}
+                      />
+                    </SidebarReorderItem>
+                  ))}
+                </SidebarDropList>
+              ) : null}
 
               <AnimatePresence initial={false}>
                 {organization === 'projects' ? (
@@ -968,11 +970,11 @@ function SidebarBodyContent({
                             isIconOnly
                             variant="text"
                             onClick={onChooseWorkspace}
-                            iconSize="md"
+                            iconSize="sm"
                             size="compact"
                             title="添加项目"
                           >
-                            <Plus size={APP_ICON_SIZE} />
+                            <Plus className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                           </Button>
                         </SidebarSectionActions>
                       }
@@ -1043,11 +1045,11 @@ function SidebarBodyContent({
                       isIconOnly
                       variant="text"
                       onClick={() => onCreateSession(null)}
-                      iconSize="md"
+                      iconSize="sm"
                       size="compact"
                       title="新建无项目任务"
                     >
-                      <SquarePen size={APP_ICON_SIZE} />
+                      <SquarePen className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                     </Button>
                   </SidebarSectionActions>
                 }
@@ -1075,6 +1077,7 @@ function SidebarBodyContent({
                     unavailableProjectKeys={unavailableProjectKeys}
                     sessionFallbackTitles={sessionFallbackTitles}
                     sessions={recentSessions}
+                    showPullRequestIcons={showPullRequestIcons}
                     sort={sessionSort}
                     onArchiveSessions={onArchiveSessions}
                     onManualOrderChange={onManualOrderChange}
@@ -1126,6 +1129,7 @@ function Timeline({
   titleLoadingIds,
   unavailableProjectKeys,
   sessionFallbackTitles,
+  showPullRequestIcons,
   onArchiveSessions,
   onPinSession,
   onSelectSession,
@@ -1141,6 +1145,7 @@ function Timeline({
   titleLoadingIds: ReadonlySet<string>
   unavailableProjectKeys: ReadonlySet<string>
   sessionFallbackTitles: Record<string, string>
+  showPullRequestIcons: boolean
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
   onPinSession: (session: SessionListItem) => void
   onSelectSession: (session: SessionListItem) => void
@@ -1197,6 +1202,7 @@ function Timeline({
     titleLoadingIds,
     unavailableProjectKeys,
     sessionFallbackTitles,
+    showPullRequestIcons,
     onArchiveSessions,
     onPinSession,
     onSelectSession,
@@ -1211,13 +1217,14 @@ function Timeline({
       {showPriority && options.hasReadActivity ? (
         <Button
           isIconOnly
+          iconSize="sm"
           aria-label="清除已读聊天"
           title="清除已读聊天"
           color="ghostSecondary"
           size="compact"
           onClick={options.onClearReadActivity}
         >
-          <RefreshCw size={APP_ICON_SIZE} />
+          <RefreshCw className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         </Button>
       ) : null}
     </div>
@@ -1233,7 +1240,7 @@ function Timeline({
   ]
   if (groups.length === 0) groups.push({ id: 'day-0', label: '今天', sessions: [] })
   return (
-    <div className="sidebar-timeline tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2">
+    <div className="sidebar-timeline tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1">
       {groups.map((section, index) => (
         <FocusSectionGroup
           key={section.id}
@@ -1288,12 +1295,13 @@ function TimelinePriorityMenu(options: ActivityMenuProps): React.ReactNode {
       trigger={
         <Button
           isIconOnly
+          iconSize="sm"
           aria-label="活动视图选项"
           title="活动视图选项"
           color="ghostSecondary"
           size="compact"
         >
-          <Ellipsis size={APP_ICON_SIZE} />
+          <Ellipsis className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         </Button>
       }
     >
@@ -1344,6 +1352,7 @@ function FocusSectionGroup({
   titleLoadingIds,
   unavailableProjectKeys,
   sessionFallbackTitles,
+  showPullRequestIcons,
   onArchiveSessions,
   onPinSession,
   onSelectSession,
@@ -1361,6 +1370,7 @@ function FocusSectionGroup({
   titleLoadingIds: ReadonlySet<string>
   unavailableProjectKeys: ReadonlySet<string>
   sessionFallbackTitles: Record<string, string>
+  showPullRequestIcons: boolean
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
   onPinSession: (session: SessionListItem) => void
   onSelectSession: (session: SessionListItem) => void
@@ -1395,6 +1405,7 @@ function FocusSectionGroup({
             unavailableProjectKeys={unavailableProjectKeys}
             sessionFallbackTitles={sessionFallbackTitles}
             sessions={section.sessions}
+            showPullRequestIcons={showPullRequestIcons}
             onArchiveSessions={onArchiveSessions}
             onPinSession={onPinSession}
             onSelectSession={onSelectSession}
@@ -1415,12 +1426,13 @@ const EMPTY_PROJECT_SESSION_BUCKET: SidebarProjectSessionBucket = {
   unreadCount: 0,
 }
 
-// 普通列表只提供最近更新与手动排序；历史 priority 值按最近更新呈现。
+// 普通列表提供最近更新、最近提问与手动排序；历史 priority 值按最近更新呈现。
 const SIDEBAR_SORT_OPTIONS: Array<{
   label: string
   value: DesktopSidebarSort
 }> = [
   { label: '最近更新', value: 'updated' },
+  { label: '最近提问', value: 'lastPrompt' },
   { label: '手动排序', value: 'manual' },
 ]
 
@@ -1455,8 +1467,8 @@ function SidebarOrganizeMenu({
       side="bottom"
       sideOffset={4}
       trigger={
-        <Button isIconOnly variant="text" iconSize="md" size="compact" title="整理侧栏">
-          <Ellipsis size={APP_ICON_SIZE} />
+        <Button isIconOnly variant="text" iconSize="sm" size="compact" title="整理侧栏">
+          <Ellipsis className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         </Button>
       }
       size="sm"
@@ -1519,7 +1531,7 @@ function SidebarOrganizeMenu({
         <>
           <PopoverSeparator />
           <PopoverItem
-            icon={<Plus size={APP_ICON_SIZE} />}
+            icon={<Plus className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
             onClick={() => {
               setOpen(false)
               onCreateSection()
@@ -1537,8 +1549,8 @@ function SidebarPinnedSortMenu({
   sort,
   onSortChange,
 }: {
-  sort: 'manual' | 'updated'
-  onSortChange: (sort: 'manual' | 'updated') => void
+  sort: DesktopSidebarPinnedSort
+  onSortChange: (sort: DesktopSidebarPinnedSort) => void
 }): React.ReactNode {
   const [open, setOpen] = useState(false)
   return (
@@ -1549,8 +1561,8 @@ function SidebarPinnedSortMenu({
       side="bottom"
       sideOffset={4}
       trigger={
-        <Button isIconOnly variant="text" iconSize="md" size="compact" title="置顶排序">
-          <Ellipsis size={APP_ICON_SIZE} />
+        <Button isIconOnly variant="text" iconSize="sm" size="compact" title="置顶排序">
+          <Ellipsis className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         </Button>
       }
       size="sm"
@@ -1558,9 +1570,10 @@ function SidebarPinnedSortMenu({
     >
       <PopoverRadioGroup
         value={sort}
-        onValueChange={(value) => onSortChange(value as 'manual' | 'updated')}
+        onValueChange={(value) => onSortChange(value as DesktopSidebarPinnedSort)}
       >
         <PopoverRadioItem value="updated">最近更新</PopoverRadioItem>
+        <PopoverRadioItem value="lastPrompt">最近提问</PopoverRadioItem>
         <PopoverRadioItem value="manual">手动排序</PopoverRadioItem>
       </PopoverRadioGroup>
     </PopoverMenu>
@@ -1584,10 +1597,7 @@ function SidebarShowMoreActions({
 }): React.ReactNode {
   return (
     <div className={SHOW_MORE_ACTIONS_CLASS}>
-      <span
-        aria-hidden="true"
-        className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:size-6 tw:w-6 tw:min-w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:items-center tw:justify-center"
-      />
+      <span aria-hidden="true" className="sidebar-row-leading sidebar-row-leading-spacer" />
       <div className={SHOW_MORE_ROW_CLASS}>
         {canShowMore ? (
           <Button
@@ -1613,17 +1623,7 @@ function SidebarShowMoreActions({
           </Button>
         ) : null}
       </div>
-      <span
-        aria-hidden="true"
-        className={cx(
-          'sidebar-row-trailing',
-          'tw:min-w-0',
-          'tw:flex',
-          'tw:items-center',
-          'tw:w-full',
-          'tw:justify-end',
-        )}
-      />
+      <span aria-hidden="true" className="sidebar-row-trailing tw:w-full tw:justify-end" />
     </div>
   )
 }
@@ -1647,12 +1647,6 @@ function orderItemsByKeys<T>(
   return [...ordered, ...items.filter((item) => !knownKeys.has(keyOf(item)))]
 }
 
-function pinnedAtMs(value: string | null | undefined): number {
-  if (!value) return 0
-  const parsed = new Date(value).getTime()
-  return Number.isNaN(parsed) ? 0 : parsed
-}
-
 /**
  * 自定义分组：容纳聊天与项目，归属在置顶、自定义组和默认区域之间唯一。
  * 默认显示 10 项，展开按同样步长增加；活动条目强制可见。
@@ -1666,6 +1660,7 @@ function SidebarCustomSection({
   sectionOptions,
   selectedKeys,
   sessionFallbackTitles,
+  showPullRequestIcons,
   titleLoadingIds,
   unavailableProjectKeys,
   onArchiveSessions,
@@ -1691,6 +1686,7 @@ function SidebarCustomSection({
   sectionOptions: readonly { id: string; title: string }[]
   selectedKeys: readonly string[]
   sessionFallbackTitles: Record<string, string>
+  showPullRequestIcons: boolean
   titleLoadingIds: ReadonlySet<string>
   unavailableProjectKeys: ReadonlySet<string>
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
@@ -1774,6 +1770,7 @@ function SidebarCustomSection({
           sessionFallbackTitles={sessionFallbackTitles}
           sessions={[entry.session]}
           showConversationIcon
+          showPullRequestIcons={showPullRequestIcons}
           sort="preserve"
           titleLoadingIds={titleLoadingIds}
           unavailableProjectKeys={unavailableProjectKeys}
@@ -1810,13 +1807,14 @@ function SidebarCustomSection({
             <input
               aria-label="分组名称"
               autoFocus
-              className="sidebar-section-rename-input tw:h-[var(--sidebar-row-height)] tw:w-full tw:min-w-0 tw:rounded-md tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:text-app-text tw:type-body tw:outline-none"
+              className="sidebar-section-rename-input tw:h-[var(--sidebar-row-height)] tw:w-full tw:min-w-0 tw:rounded-3 tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:text-app-text tw:type-2 tw:outline-none"
               onBlur={() => {
                 onRename(section.id, renameValue)
                 setRenaming(false)
               }}
               onChange={(event) => setRenameValue(event.target.value)}
               onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
                 if (event.key === 'Enter') {
                   onRename(section.id, renameValue)
                   setRenaming(false)
@@ -1841,7 +1839,7 @@ function SidebarCustomSection({
                   aria-hidden="true"
                   className={cx(SECTION_CHEVRON_CLASS, section.collapsed && 'tw:-rotate-90')}
                 >
-                  <ChevronDown size={APP_ICON_SIZES.sm} />
+                  <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </span>
               </span>
             </button>
@@ -1856,16 +1854,14 @@ function SidebarCustomSection({
               side="bottom"
               sideOffset={4}
               trigger={
-                <Button isIconOnly variant="text" iconSize="md" size="compact" title="分组操作">
-                  <Ellipsis size={APP_ICON_SIZE} />
+                <Button isIconOnly variant="text" iconSize="sm" size="compact" title="分组操作">
+                  <Ellipsis className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                 </Button>
               }
               size="sm"
               onOpenChange={setMenuOpen}
             >
-              <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">
-                排序方式
-              </PopoverLabel>
+              <PopoverLabel className="popover-sidebar-organize-heading">排序方式</PopoverLabel>
               <PopoverRadioGroup
                 value={section.sort}
                 onValueChange={(value) => onSetSort(section.id, value as 'manual' | 'updated')}
@@ -1875,7 +1871,7 @@ function SidebarCustomSection({
               </PopoverRadioGroup>
               <PopoverSeparator />
               <PopoverItem
-                icon={<SquarePen size={APP_ICON_SIZE} />}
+                icon={<SquarePen className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
                 onClick={() => {
                   setRenameValue(section.title)
                   setRenaming(true)
@@ -1883,7 +1879,10 @@ function SidebarCustomSection({
               >
                 重命名分组
               </PopoverItem>
-              <PopoverItem icon={<X size={APP_ICON_SIZE} />} onClick={() => onDelete(section.id)}>
+              <PopoverItem
+                icon={<X className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />}
+                onClick={() => onDelete(section.id)}
+              >
                 删除分组
               </PopoverItem>
             </PopoverMenu>
@@ -1956,7 +1955,7 @@ function SidebarSection({
                 aria-hidden="true"
                 className={cx(SECTION_CHEVRON_CLASS, !expanded && 'tw:-rotate-90')}
               >
-                <ChevronDown size={APP_ICON_SIZES.sm} />
+                <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
               </span>
             </span>
           </button>

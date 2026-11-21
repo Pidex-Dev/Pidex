@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { isGranularApprovalPolicy, type ApprovalPolicy } from '@pidex/shared/thread'
+import type { ApprovalPolicy } from '@pidex/shared/thread'
 import { z } from 'zod'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { PermissionDecision, ToolInvocation } from '../Domain'
@@ -259,22 +259,10 @@ export function guardianReview(input: {
   }
 }
 
-export function attachGuardianReview(
-  decision: PermissionDecision,
-  review: GuardianReview,
-): PermissionDecision {
-  return { ...decision, guardian: review }
-}
-
-export type GuardianFallbackApprovalCategory =
-  keyof import('@pidex/shared/thread').GranularApprovalConfig
-
 /**
  * Fail-closed fallback when the synchronous reviewer cannot decide.
  *
- * - `never`/`untrusted` may not wait for approval, so they deny.
- * - A granular policy that disables a requested approval category denies; when
- *   the caller cannot name the categories we still degrade to `ask`, never allow.
+ * - `never` may not wait for approval, so it denies.
  * - An open circuit denies, because the model kept retrying after repeated
  *   denials.
  * - Everything else asks the user. The fallback never silently allows.
@@ -285,20 +273,9 @@ export function guardianFallbackDecision(input: {
   reason: string
   approvalPolicy: unknown
   categories?: readonly RiskCategory[]
-  /** Host-derived categories required by this action under a granular policy. */
-  approvalCategories?: readonly GuardianFallbackApprovalCategory[]
 }): PermissionDecision {
   const policy = input.approvalPolicy as ApprovalPolicy
-  const granularDisabled =
-    isGranularApprovalPolicy(policy) &&
-    (input.approvalCategories ?? []).some((category) => policy[category] !== true)
-  const decision =
-    policy === 'never' ||
-    policy === 'untrusted' ||
-    input.status === 'circuit_open' ||
-    granularDisabled
-      ? 'deny'
-      : 'ask'
+  const decision = policy === 'never' || input.status === 'circuit_open' ? 'deny' : 'ask'
   return {
     decision,
     risk: input.risk,
@@ -495,11 +472,10 @@ export class GuardianCircuitBreaker {
 
 /**
  * Gate for the Guardian async fast path. Only benign, narrowly scoped shell
- * actions under `auto_review` + `on-request` may be scored ahead of the real
- * reviewer. Everything that expresses user intent or elevated risk is excluded:
+ * actions under `auto_review` may be scored ahead of the real reviewer.
+ * Everything that expresses user intent or elevated risk is excluded:
  *
- * - human review (`approvalsReviewer: 'user'`)
- * - `never`/`untrusted`/granular policies and full access
+ * - `never` policy and full access
  * - newly requested permissions, forced approvals (Hook/skill/rule), protected
  *   resources, host-confirmed computer grants and resumed SDK preflights
  * - always-review tools, sensitive actions and non-shell capabilities
@@ -511,17 +487,16 @@ export class GuardianCircuitBreaker {
 export function guardianFastPathEligible(invocation: ToolInvocation): boolean {
   const config = invocation.permissionConfig
   if (config.approvalsReviewer !== 'auto_review') return false
-  if (config.approvalPolicy !== 'on-request') return false
+  if (config.approvalPolicy !== 'auto_review') return false
   if (config.sandboxMode === 'danger-full-access') return false
-  if (invocation.durableApproval || invocation.retryAuthorization) return false
+  if (invocation.durableApproval) return false
   const facts = invocation.permissionFacts
   if (facts?.denyReason || facts?.hookRequiresApproval || facts?.skillScript) return false
-  // Rule-driven asks, protected resources, forced approvals and explicit
-  // approval categories are user intent; a probabilistic score must not approve
-  // them.
+  // Rule-driven asks, protected resources and forced approvals are user intent;
+  // a probabilistic score must not approve them.
   if (facts?.forcedApproval || facts?.ruleIDs?.length) return false
   if (facts?.ruleEffect === 'ask' || facts?.ruleEffect === 'deny') return false
-  if (facts?.ruleRequiresApproval || facts?.approvalCategories?.length) return false
+  if (facts?.ruleRequiresApproval) return false
   if (facts?.destructive) return false
   const scope = invocation.authorizationScope
   if (scope?.ruleRequiresApproval || scope?.computerApp) return false
@@ -618,19 +593,4 @@ export function guardianActionSensitivity(invocation: ToolInvocation): {
     analysis.risk !== 'low' ||
     analysis.categories.some((category) => SENSITIVE_CATEGORIES.has(category))
   return { scope, sensitive }
-}
-
-export function guardianStatusLabel(status: GuardianReviewStatus): string {
-  switch (status) {
-    case 'completed':
-      return '审查完成'
-    case 'cached':
-      return '低风险自动放行'
-    case 'unavailable':
-      return '审查不可用'
-    case 'timeout':
-      return '审查超时'
-    case 'circuit_open':
-      return '本轮已中断'
-  }
 }

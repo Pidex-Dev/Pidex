@@ -1,3 +1,4 @@
+import React from 'react'
 import type { SubagentStatus } from '@pidex/shared/thread'
 
 export function subagentStatusLabel(status: string): string {
@@ -33,4 +34,46 @@ export function subagentAttentionLabel(status: SubagentStatus): string | null {
     return subagentStatusLabel(status)
   }
   return null
+}
+
+let clockNow = Date.now()
+const clockListeners = new Set<() => void>()
+let clockTimer: number | null = null
+
+function subscribeClock(listener: () => void): () => void {
+  clockListeners.add(listener)
+  if (clockTimer == null && typeof window !== 'undefined') {
+    clockNow = Date.now()
+    clockTimer = window.setInterval(() => {
+      clockNow = Date.now()
+      for (const notify of clockListeners) notify()
+    }, 1_000)
+  }
+  return () => {
+    clockListeners.delete(listener)
+    if (clockListeners.size === 0 && clockTimer != null && typeof window !== 'undefined') {
+      window.clearInterval(clockTimer)
+      clockTimer = null
+    }
+  }
+}
+
+const subscribeNoop = () => () => {}
+const SERVER_CLOCK_FALLBACK = 0
+
+export function useRunningClock(running: boolean): number {
+  return React.useSyncExternalStore(
+    running ? subscribeClock : subscribeNoop,
+    () => (running ? clockNow : SERVER_CLOCK_FALLBACK),
+    () => SERVER_CLOCK_FALLBACK,
+  )
+}
+
+export function formatElapsed(since: number | null, now: number): string {
+  if (since == null) return '运行中'
+  const seconds = Math.max(0, Math.floor((now - since) / 1_000))
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m`
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 }

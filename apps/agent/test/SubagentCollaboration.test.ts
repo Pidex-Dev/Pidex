@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { Model, Provider } from '@pidex/model-schema'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { SubagentService } from '../src/subagent/SubagentService'
-import { SubagentRepository } from '../src/subagent/SubagentRepository'
 import { SubagentCollaborationRepository } from '../src/subagent/SubagentCollaborationRepository'
 import type {
   AgentRuntimeRequest,
@@ -31,8 +30,8 @@ const model = Model.Ref.make({
 })
 const permission = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
-  approvalsReviewer: 'user',
+  approvalPolicy: 'auto_review',
+  approvalsReviewer: 'auto_review',
 } as const
 const completed: AgentRuntimeResult = {
   status: 'completed',
@@ -152,7 +151,7 @@ test('后续消息 FIFO、幂等及整树停止等待实际退出', async () => 
   const started: string[] = []
   const release = new Map<string, () => void>()
   const { service, root, repo } = fixture(async (request) => {
-    const label = request.content.startsWith('子 Agent 任务：') ? '初始' : request.content
+    const label = request.content.startsWith('Subagent task:') ? '初始' : request.content
     started.push(label)
     await new Promise<void>((resolve) => {
       release.set(label, resolve)
@@ -454,4 +453,117 @@ test('父代理显式工具白名单持久化并限制后代，不能在递归�
     'Read',
     'spawn_agents',
   ])
+})
+
+test('spawn 分离默认智能体名称与任务标题，并向父线程注入实时协作状态与阻塞通知', async () => {
+  let releaseChild!: () => void
+  const childGate = new Promise<void>((resolve) => {
+    releaseChild = resolve
+  })
+  let agentStatusHandler: ((agentID: string, status: string) => void) | undefined
+  const path = join(tmpdir(), `cpx-bg-notify-${crypto.randomUUID()}.sqlite`)
+  paths.push(path)
+  const db = new AgentDatabase(path)
+  databases.push(db)
+  const thread = db.createThread()
+  const turn = db.createTurn(thread.id, {
+    content: 'root',
+    model,
+    permissionConfig: permission,
+    strategy: 'queue',
+    taskMode: 'chat',
+  })
+  const service = new SubagentService(
+    db,
+    { publish: () => Effect.void } as never,
+    { resolve: async () => model, getModel: async () => ({ contextWindow: 8000 }) } as never,
+    {
+      setAgentStatusHandler: (fn: (agentID: string, status: string) => void) => {
+        agentStatusHandler = fn
+      },
+      cancelTurn: () => {},
+    } as never,
+    { cancelTurn: () => {} } as never,
+    {
+      run: async () => {
+        await childGate
+        return completed
+      },
+    } as never,
+    { listByBinding: async () => [] } as never,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    false,
+  )
+  const repo = service.repository
+  const root: Parameters<SubagentService['delegationFor']>[0] = {
+    threadID: thread.id,
+    turnID: turn.turnID,
+    agentID: turn.agentID,
+    taskMode: 'chat' as const,
+    model,
+    permissionConfig: permission,
+    workspaceRoot: process.cwd(),
+  }
+
+  const delivered: string[] = []
+  service.setBackgroundNotifyHandler((_threadID, _sourceTurnID, prompt) => {
+    delivered.push(prompt)
+  })
+
+  const created = await service.spawn(root, [
+    {
+      profile: 'explorer',
+      role: 'general',
+      title: '核对子智能体命名',
+      task: '检查 Explorer 命名',
+      background: true,
+    },
+    {
+      profile: 'worker',
+      role: 'frontend',
+      title: '更新概览面板',
+      task: '实现概览面板',
+      background: true,
+    },
+  ])
+
+  expect(created.agents.map((item) => item.displayName)).toEqual(['Explorer', 'Frontend'])
+  expect(created.agents.map((item) => item.title)).toEqual(['核对子智能体命名', '更新概览面板'])
+
+  const persisted = repo.task(created.agents[0]!.taskId)!
+  expect(persisted.displayName).toBe('Explorer')
+  expect(persisted.title).toBe('核对子智能体命名')
+
+  await until(() => repo.task(created.agents[0]!.taskId)!.currentRun!.status === 'running')
+
+  // 运行中通过 collaborationNotices 暴露实时状态（无需等待子任务结束）
+  const liveNotices = await service.collaborationNotices(root.threadID)
+  expect(
+    liveNotices.some(
+      (item) => item.message.includes('Explorer') && item.message.includes('核对子智能体命名'),
+    ),
+  ).toBe(true)
+
+  // 触发等待审批阻塞状态时，立即生成后台 <task-notification> 并通知父会话
+  expect(
+    service.collaboration.pendingBackgroundNotificationSourceTurn(created.agents[0]!.taskId),
+  ).toBe(turn.turnID)
+  const runningChild = repo.task(created.agents[0]!.taskId)!
+  const childExec = repo.latestExecution(runningChild.currentRun!.id)!
+  agentStatusHandler?.(childExec.id, 'waiting_permission')
+  await until(() => delivered.length > 0)
+  expect(delivered[0]).toContain('<task-notification ')
+  expect(delivered[0]).toContain('Explorer')
+  expect(delivered[0]).toContain('waiting-permission')
+  expect(delivered[0]).toContain('核对子智能体命名')
+
+  releaseChild()
+  await until(() => repo.task(created.agents[0]!.taskId)!.currentRun!.status === 'completed')
+  await until(() => repo.task(created.agents[1]!.taskId)!.currentRun!.status === 'completed')
 })

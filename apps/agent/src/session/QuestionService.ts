@@ -1,16 +1,20 @@
 import { Effect } from 'effect'
-import { QUESTION_CHOICES_READ_MAX, isReadOnlyTaskMode } from '@pidex/shared/thread'
+import { isReadOnlyTaskMode } from '@pidex/shared/thread'
 import { AgentError } from '../Domain'
 import type { PendingApproval, PlanCheckpoint } from '../orchestration/AgentRuntimeTypes'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import type { InteractionOperationInput } from '../storage/repositories/InteractionRepository'
 import {
+  formatQuestionAnswerForModel,
   interactionQuestions,
   requestUserInputSchema,
+  storedQuestions,
   type InteractionQuestion,
 } from './QuestionInput'
 import { QuestionAutoResolutionScheduler } from '../interaction/QuestionAutoResolutionScheduler'
+
+export { storedQuestions }
 
 type ResumeHandler = (threadID: string, turnID: string) => void
 
@@ -42,53 +46,6 @@ const toolCallID = (value: unknown) => {
 type StoredAnswer = {
   resolution: 'user' | 'auto'
   answers: Array<{ questionId: string; choiceIds: string[]; text?: string; skipped?: true }>
-}
-
-/**
- * 把已落库的 question payload 归一化为 InteractionQuestion。写入侧上限只约束
- * 模型，读取侧必须接受任何构建写入的问题，否则同一份共享数据会出现“看得到
- * 卡片却无法作答”。InteractionService.listPending 复用本函数。
- */
-export const storedQuestions = (payload: Record<string, unknown>): InteractionQuestion[] => {
-  if (!Array.isArray(payload.questions)) return []
-  return payload.questions.flatMap((value) => {
-    const question = record(value)
-    if (
-      typeof question.id !== 'string' ||
-      typeof question.header !== 'string' ||
-      typeof question.prompt !== 'string' ||
-      !Array.isArray(question.choices)
-    )
-      return []
-    const choices = question.choices.flatMap((item) => {
-      const choice = record(item)
-      return typeof choice.id === 'string' &&
-        typeof choice.label === 'string' &&
-        typeof choice.description === 'string'
-        ? [
-            {
-              id: choice.id,
-              label: choice.label,
-              description: choice.description,
-              recommended: choice.recommended === true,
-            },
-          ]
-        : []
-    })
-    if (choices.length > QUESTION_CHOICES_READ_MAX) return []
-    return [
-      {
-        id: question.id,
-        header: question.header,
-        prompt: question.prompt,
-        choices,
-        allowFreeform: true as const,
-        required: true as const,
-        minAnswers: typeof question.minAnswers === 'number' ? question.minAnswers : 1,
-        maxAnswers: typeof question.maxAnswers === 'number' ? question.maxAnswers : 1,
-      },
-    ]
-  })
 }
 
 const normalizeRichAnswer = (
@@ -271,44 +228,12 @@ export class QuestionService {
         ? (checkpoint.payload as Record<string, unknown>).interruption
         : undefined)
     if (typeof state !== 'string' || interruption === undefined) return null
-    const storedAnswer = row.answer
-    const answer = Object.prototype.hasOwnProperty.call(storedAnswer, 'value')
-      ? storedAnswer.value
-      : null
-    const resolved = record(answer)
-    const questions = storedQuestions(payload)
-    // Model-facing labels remove index guessing; persisted IDs remain unchanged.
-    const answerForModel = Array.isArray(resolved.answers)
-      ? {
-          ...resolved,
-          answers: resolved.answers.map((value) => {
-            const item = record(value)
-            const question = questions.find(({ id }) => id === item.questionId)
-            return question
-              ? {
-                  ...item,
-                  question: question.prompt,
-                  selectedChoices: question.choices
-                    .filter(
-                      ({ id }) => Array.isArray(item.choiceIds) && item.choiceIds.includes(id),
-                    )
-                    .map(({ id, label }) => ({ id, label })),
-                }
-              : item
-          }),
-        }
-      : answer
     return {
       id: row.id,
       approval: {
         state,
         interruption,
-        answer:
-          typeof answerForModel === 'string'
-            ? answerForModel
-            : answerForModel == null
-              ? null
-              : JSON.stringify(answerForModel),
+        answer: formatQuestionAnswerForModel(payload, row.answer),
         checkpointID: row.id,
       },
     }

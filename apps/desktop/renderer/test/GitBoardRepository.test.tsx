@@ -28,10 +28,6 @@ import {
   filterGitBoardBranches,
   gitBoardLocalBranches,
 } from '../src/features/git-board/GitBoardCheckoutDialog.js'
-import {
-  GitBoardFilterBar,
-  GitBoardFilterEmpty,
-} from '../src/features/git-board/GitBoardFilterBar.js'
 import * as boardContext from '../src/features/git-board/GitBoardContext.js'
 import { DesktopSettingsProvider } from '../src/features/settings/UseDesktopSettings.js'
 import { mockWorkspace } from '../src/services/desktop-client/Fixtures.js'
@@ -369,18 +365,6 @@ test('签出选择器只列本地分支，支持搜索过滤且未加载时可�
   ])
 })
 
-test('筛选栏显示匹配数量，空结果提供重置入口', () => {
-  const bar = renderToStaticMarkup(
-    <GitBoardFilterBar filter="attention" matched={0} total={3} onChange={() => {}} />,
-  )
-  expect(bar).toContain('aria-label="仓库筛选"')
-  expect(bar).toContain('待处理')
-  expect(bar).toContain('匹配 0 / 3 个仓库')
-  const empty = renderToStaticMarkup(<GitBoardFilterEmpty filter="conflict" onReset={() => {}} />)
-  expect(empty).toContain('没有存在冲突的仓库')
-  expect(empty).toContain('查看全部仓库')
-})
-
 test('仓库分节包含未提交改动与最近提交，复用共享折叠动画并默认展开', () => {
   const hook = spyOn(boardContext, 'useGitBoard').mockReturnValue(repositoryColumnContext())
   try {
@@ -510,14 +494,15 @@ test('没有尾部操作的侧栏行不预留空列', () => {
       <button type="button">Row</button>
     </SidebarRow>,
   )
-  expect(plain).toContain('tw:grid-cols-1')
-  expect(plain).not.toContain('tw:grid-cols-[minmax(0,1fr)_auto]')
+  expect(plain).toContain('data-layout="flex"')
+  expect(plain).toContain('data-leading-mode="none"')
+  expect(plain).not.toContain('data-has-trailing="true"')
   const actions = renderToStaticMarkup(
     <SidebarRow layout="flex" leadingMode="none" trailing={<span>Action</span>}>
       Row
     </SidebarRow>,
   )
-  expect(actions).toContain('tw:grid-cols-[minmax(0,1fr)_auto]')
+  expect(actions).toContain('data-has-trailing="true"')
 })
 
 test('同一不可用状态的后台刷新不重试 Review，状态变化或手动刷新后恢复', async () => {

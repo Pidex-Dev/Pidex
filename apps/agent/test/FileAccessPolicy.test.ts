@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { DEFAULT_PERMISSION_CONFIG, FULL_ACCESS_PERMISSION_CONFIG } from '@pidex/shared/thread'
-import type { ApprovalPolicy, GranularApprovalConfig, PermissionConfig } from '@pidex/shared/thread'
+import type { ApprovalPolicy, PermissionConfig } from '@pidex/shared/thread'
 import { removeFixturePaths } from './FixtureCleanup'
 import { createLifecycleTools } from '../src/orchestration/pi/PiToolAdapter'
 import { createToolExposurePlan } from '../src/tool/ToolExposurePlan'
@@ -15,17 +15,6 @@ const paths: string[] = []
 afterEach(async () => removeFixturePaths(paths.splice(0)))
 
 type ExecutionContext = Parameters<ToolExecutor['execute']>[2]
-
-const granular = (overrides: Partial<GranularApprovalConfig> = {}): ApprovalPolicy => ({
-  type: 'granular',
-  sandboxApproval: false,
-  rules: false,
-  skillApproval: false,
-  requestPermissions: false,
-  mcpTools: false,
-  mcpElicitations: false,
-  ...overrides,
-})
 
 /** Fixture whose external directory deliberately contains a space. */
 const fixture = async () => {
@@ -72,17 +61,26 @@ describe('完全访问权限下的文件工具', () => {
   test('直接读取、创建并编辑工作区外文件，且不触发任何审批', async () => {
     const { outside, executor, approvals, context } = await fixture()
     const external = join(outside, 'plan.md')
+    const externalImg = join(outside, 'diagram.png')
     await writeFile(external, 'external plan\n', 'utf8')
+    await writeFile(externalImg, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
 
-    const read = await executor.execute<{ path: string; content: string }>(
+    const externalDoc = await executor.execute<{ content: string; path: string }>(
       'Read',
-      { file_path: external },
+      { path: external },
       context(FULL_ACCESS_PERMISSION_CONFIG),
     )
-    expect(read.content).toBe('external plan\n')
-    // 外部路径必须可识别为绝对路径，且不受工作区相对化影响。
-    expect(isAbsolute(read.path)).toBe(true)
-    expect(read.path.endsWith('plan.md')).toBe(true)
+    expect(externalDoc.content).toBe('external plan\n')
+    expect(isAbsolute(externalDoc.path)).toBe(true)
+
+    const image = await executor.execute<{ path: string; kind: string }>(
+      'Read',
+      { path: externalImg },
+      context(FULL_ACCESS_PERMISSION_CONFIG),
+    )
+    expect(image.kind).toBe('image')
+    expect(isAbsolute(image.path)).toBe(true)
+    expect(image.path.endsWith('diagram.png')).toBe(true)
 
     const created = join(outside, 'nested dir', 'created by agent.txt')
     await mkdir(join(outside, 'nested dir'))
@@ -93,7 +91,6 @@ describe('完全访问权限下的文件工具', () => {
     )
     expect(await readFile(created, 'utf8')).toBe('created\n')
 
-    await executor.execute('Read', { file_path: external }, context(FULL_ACCESS_PERMISSION_CONFIG))
     await executor.execute(
       'Edit',
       { path: external, edits: [{ oldText: 'external plan', newText: 'edited plan' }] },
@@ -103,73 +100,44 @@ describe('完全访问权限下的文件工具', () => {
     expect(approvals).toEqual([])
   })
 
-  test('完全访问模式下 Glob 与 Grep 可搜索工作区外目录', async () => {
+  test('完全访问与 never 策略下 Read 可读取工作区外文本与图片而不触发审批', async () => {
     const { outside, executor, approvals, context } = await fixture()
-    const external = join(outside, 'plan.md')
-    await writeFile(external, 'edited plan\n', 'utf8')
+    const externalText = join(outside, 'notes.md')
+    const externalImage = join(outside, 'diagram.png')
+    await writeFile(externalText, 'outside notes\n', 'utf8')
+    await writeFile(externalImage, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
 
-    const glob = await executor.execute<{ matches: string[] }>(
-      'Glob',
-      { pattern: '*.md', path: outside },
+    const fullAccessImage = await executor.execute<{ path: string; kind: string }>(
+      'Read',
+      { path: externalImage },
       context(FULL_ACCESS_PERMISSION_CONFIG),
     )
-    expect(glob.matches.some((match) => match.endsWith('plan.md'))).toBe(true)
+    expect(fullAccessImage.kind).toBe('image')
+    expect(fullAccessImage.path.endsWith('diagram.png')).toBe(true)
 
-    const grep = await executor.execute<{ matches: Array<{ path: string }> }>(
-      'Grep',
-      { pattern: 'edited plan', path: outside },
-      context(FULL_ACCESS_PERMISSION_CONFIG),
+    const neverWorkspaceWriteText = await executor.execute<{ content: string }>(
+      'Read',
+      { path: externalText },
+      context({ ...DEFAULT_PERMISSION_CONFIG, approvalPolicy: 'never' }),
     )
-    expect(grep.matches.map((match) => match.path).some((path) => path.endsWith('plan.md'))).toBe(
-      true,
+    expect(neverWorkspaceWriteText.content).toBe('outside notes\n')
+
+    const neverPlanText = await executor.execute<{ content: string }>(
+      'Read',
+      { path: externalText },
+      context({ ...DEFAULT_PERMISSION_CONFIG, approvalPolicy: 'never' }, { taskMode: 'plan' }),
     )
-    expect(approvals).toEqual([])
-
-    await expect(
-      executor.execute(
-        'Glob',
-        { pattern: '*.md', path: outside },
-        context(DEFAULT_PERMISSION_CONFIG),
-      ),
-    ).resolves.toHaveProperty('matches')
-  })
-
-  test('完全访问模式下 apply_patch 的写入预检与提交同样作用于工作区外文件', async () => {
-    const { outside, executor, approvals, context } = await fixture()
-    const external = join(outside, 'patched.md')
-    const added = join(outside, 'added.md')
-    await writeFile(external, 'before\n', 'utf8')
-    await executor.execute('Read', { file_path: external }, context(FULL_ACCESS_PERMISSION_CONFIG))
-
-    await executor.execute(
-      'apply_patch',
-      {
-        patch: [
-          '*** Begin Patch',
-          `*** Update File: ${external}`,
-          '@@',
-          '-before',
-          '+after',
-          `*** Add File: ${added}`,
-          '+added',
-          '*** End Patch',
-        ].join('\n'),
-      },
-      context(FULL_ACCESS_PERMISSION_CONFIG),
-    )
-
-    expect(await readFile(external, 'utf8')).toBe('after\n')
-    expect(await readFile(added, 'utf8')).toBe('added\n')
+    expect(neverPlanText.content).toBe('outside notes\n')
     expect(approvals).toEqual([])
   })
 
   test('默认允许外部低风险读取，外部写入先审批，只读配置仍拒绝写入', async () => {
     const { outside, executor, approvals, context } = await fixture()
-    const external = join(outside, 'plan.md')
-    await writeFile(external, 'external plan\n', 'utf8')
+    const externalImg = join(outside, 'plan.png')
+    await writeFile(externalImg, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
     await expect(
-      executor.execute('Read', { file_path: external }, context(DEFAULT_PERMISSION_CONFIG)),
-    ).resolves.toMatchObject({ content: 'external plan\n' })
+      executor.execute('Read', { path: externalImg }, context(DEFAULT_PERMISSION_CONFIG)),
+    ).resolves.toMatchObject({ kind: 'image' })
     expect(approvals).toEqual([])
     const target = join(outside, 'approved.txt')
     await executor.execute(
@@ -191,24 +159,29 @@ describe('完全访问权限下的文件工具', () => {
 
   test('默认模式可以读取只读本地上下文但不能写入', async () => {
     const { outside, workspace, executor, context } = await fixture()
-    const reference = join(outside, 'reference.txt')
-    await writeFile(reference, 'read only\n', 'utf8')
-    workspace.grantReadOnlyPaths([{ path: reference, kind: 'file' }])
+    const referenceText = join(outside, 'reference.txt')
+    const referenceImage = join(outside, 'reference.png')
+    await writeFile(referenceText, 'read only\n', 'utf8')
+    await writeFile(referenceImage, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    workspace.grantReadOnlyPaths([
+      { path: referenceText, kind: 'file' },
+      { path: referenceImage, kind: 'file' },
+    ])
 
-    const read = await executor.execute<{ content: string }>(
+    const read = await executor.execute<{ kind: string }>(
       'Read',
-      { file_path: reference },
+      { path: referenceImage },
       context(DEFAULT_PERMISSION_CONFIG),
     )
-    expect(read.content).toBe('read only\n')
+    expect(read.kind).toBe('image')
     await expect(
       executor.execute(
         'Write',
-        { file_path: reference, content: 'changed\n' },
+        { file_path: referenceText, content: 'changed\n' },
         context(DEFAULT_PERMISSION_CONFIG),
       ),
     ).rejects.toMatchObject({ code: 'WORKSPACE_FILE_READONLY' })
-    expect(await readFile(reference, 'utf8')).toBe('read only\n')
+    expect(await readFile(referenceText, 'utf8')).toBe('read only\n')
   })
 
   test('Plan 模式在完全访问权限下仍然禁止写文件', async () => {
@@ -233,6 +206,8 @@ describe('完全访问权限下的文件工具', () => {
     await mkdir(primary)
     await mkdir(locked)
     await writeFile(join(locked, 'locked.txt'), 'locked\n', 'utf8')
+    const lockedPng = join(locked, 'locked.png')
+    await writeFile(lockedPng, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
     const workspace = await WorkspaceService.openRoots({
       primaryRoot: primary,
       roots: [
@@ -251,14 +226,8 @@ describe('完全访问权限下的文件工具', () => {
     }
 
     expect(
-      (
-        await executor.execute<{ content: string }>(
-          'Read',
-          { file_path: join(locked, 'locked.txt') },
-          context,
-        )
-      ).content,
-    ).toBe('locked\n')
+      (await executor.execute<{ kind: string }>('Read', { path: lockedPng }, context)).kind,
+    ).toBe('image')
     await expect(
       executor.execute(
         'Write',
@@ -295,13 +264,13 @@ describe('完全访问权限下的文件工具', () => {
 
   test('默认读取链接按宿主真实目标访问外部低风险文件', async () => {
     const { root, outside, executor, context } = await fixture()
-    const external = join(outside, 'secret.txt')
-    await writeFile(external, 'secret\n', 'utf8')
-    await symlink(external, join(root, 'linked.txt'), 'file')
+    const external = join(outside, 'secret.png')
+    await writeFile(external, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    await symlink(external, join(root, 'linked.png'), 'file')
 
     await expect(
-      executor.execute('Read', { file_path: 'linked.txt' }, context(DEFAULT_PERMISSION_CONFIG)),
-    ).resolves.toMatchObject({ content: 'secret\n' })
+      executor.execute('Read', { path: 'linked.png' }, context(DEFAULT_PERMISSION_CONFIG)),
+    ).resolves.toMatchObject({ kind: 'image' })
   })
 })
 
@@ -314,14 +283,9 @@ describe('权限申请工具的暴露与审批', () => {
       profile: 'main',
     })
 
-  test('never 与细粒度禁止时不暴露权限申请工具', () => {
+  test('never 时不暴露权限申请工具', () => {
     expect(exposure('never').allows('request_permissions')).toBe(false)
-    expect(exposure(granular()).allows('request_permissions')).toBe(false)
-    expect(exposure('on-request').allows('request_permissions')).toBe(true)
-    expect(exposure('untrusted').allows('request_permissions')).toBe(true)
-    expect(exposure(granular({ requestPermissions: true })).allows('request_permissions')).toBe(
-      true,
-    )
+    expect(exposure('auto_review').allows('request_permissions')).toBe(true)
     // 进度工具不受审批策略影响，主 Agent 不再暴露结构化收尾工具。
     expect(exposure('never').allows('update_plan')).toBe(true)
     expect(exposure('never').allows('finalize_result')).toBe(false)
@@ -341,7 +305,7 @@ describe('权限申请工具的暴露与审批', () => {
       taskMode: 'chat',
     } as never)
     expect(tool?.name).toBe('request_permissions')
-    expect(tool?.description).toContain('never 策略下本工具不可用')
+    expect(tool?.description).toContain('Unavailable under never approval policy')
     const parameters = JSON.stringify(tool?.parameters)
     expect(parameters).toContain('"enum":["tool-call","turn","session"]')
     expect(parameters).toContain('"required":["scope","justification"]')
@@ -350,11 +314,16 @@ describe('权限申请工具的暴露与审批', () => {
   })
 
   test('禁止审批的权限申请在执行端仍被拒绝，允许时进入既有审批流程', async () => {
-    const { root, executor, approvals, context } = await fixture()
+    const { root, outside, executor, approvals, context } = await fixture()
     const request = {
       scope: 'turn',
       readPaths: [root],
       justification: '需要读取工作区外的计划文件',
+    }
+    const deniedWriteRequest = {
+      scope: 'turn',
+      writePaths: [outside],
+      justification: '需要写入工作区外文件',
     }
 
     await expect(
@@ -363,11 +332,11 @@ describe('权限申请工具的暴露与审批', () => {
     await expect(
       executor.execute(
         'request_permissions',
-        request,
+        deniedWriteRequest,
         context({
           sandboxMode: 'workspace-write',
-          approvalPolicy: granular(),
-          approvalsReviewer: 'user',
+          approvalPolicy: 'never',
+          approvalsReviewer: 'auto_review',
         }),
       ),
     ).rejects.toMatchObject({ code: 'TOOL_PERMISSION_DENIED' })
@@ -384,7 +353,7 @@ describe('权限申请工具的暴露与审批', () => {
 })
 
 describe('真实路径的配置与敏感文件保护', () => {
-  for (const tool of ['Write', 'Edit', 'apply_patch'] as const) {
+  for (const tool of ['Write', 'Edit'] as const) {
     test(`${tool} 通过绝对路径写用户配置仍执行校验并保持原文件`, async () => {
       const { parent, outside, context } = await fixture()
       const target = join(outside, 'config.json')
@@ -402,20 +371,10 @@ describe('真实路径的配置与敏感文件保护', () => {
         },
       })
       const ctx = context(FULL_ACCESS_PERMISSION_CONFIG)
-      await executor.execute('Read', { file_path: target }, ctx)
       const input =
         tool === 'Write'
           ? { file_path: target, content: 'after\n' }
-          : tool === 'Edit'
-            ? { path: target, edits: [{ oldText: 'before', newText: 'after' }] }
-            : {
-                patch: `*** Begin Patch
-*** Update File: ${target}
-@@
--before
-+after
-*** End Patch`,
-              }
+          : { path: target, edits: [{ oldText: 'before', newText: 'after' }] }
       await expect(executor.execute(tool, input, ctx)).rejects.toThrow('配置校验拒绝')
       expect(scopes).toEqual(['user'])
       expect(await readFile(target, 'utf8')).toBe('before\n')
@@ -446,21 +405,15 @@ describe('真实路径的配置与敏感文件保护', () => {
     expect(approvals).toEqual([])
   })
 
-  test('完全访问允许外部环境文件与示例文件补丁', async () => {
+  test('完全访问允许外部环境文件与示例文件写入', async () => {
     const { outside, executor, context } = await fixture()
     for (const name of ['.env', '.env.example']) {
       const target = join(outside, name)
-      const operation = executor.execute(
-        'apply_patch',
-        {
-          patch: `*** Begin Patch
-*** Add File: ${target}
-+example
-*** End Patch`,
-        },
+      await executor.execute(
+        'Write',
+        { file_path: target, content: 'example\n' },
         context(FULL_ACCESS_PERMISSION_CONFIG),
       )
-      await operation
       expect(await readFile(target, 'utf8')).toBe('example\n')
     }
   })

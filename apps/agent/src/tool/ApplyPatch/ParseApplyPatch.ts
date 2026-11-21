@@ -10,7 +10,19 @@ export type ApplyPatchOperation =
       readonly type: 'update'
       readonly path: string
       readonly chunks: readonly ApplyPatchChunk[]
+      readonly moveTo?: string
     }
+  | {
+      readonly type: 'delete'
+      readonly path: string
+    }
+
+/** One minimal replacement block inside a hunk, relative to `ApplyPatchChunk.oldLines`. */
+export interface ApplyPatchEdit {
+  readonly oldIndex: number
+  readonly oldCount: number
+  readonly newLines: readonly string[]
+}
 
 export interface ApplyPatchChunk {
   readonly oldLines: readonly string[]
@@ -21,6 +33,8 @@ export interface ApplyPatchChunk {
   readonly changeContext?: string
   readonly endOfFile?: boolean
   readonly patchLine: number
+  /** Parser-provided mapping so the applier only replaces actually changed lines. */
+  readonly edits?: readonly ApplyPatchEdit[]
 }
 
 const BEGIN_MARKER = '*** Begin Patch'
@@ -45,15 +59,6 @@ const parseError = (line: number, message: string): never => {
     `补丁第 ${line} 行格式无效：${message}。本次补丁未修改任何文件`,
     400,
     { line },
-  )
-}
-
-const unsupported = (line: number, operation: 'Delete File' | 'Move to'): never => {
-  throw new AgentError(
-    'PATCH_UNSUPPORTED_OPERATION',
-    `补丁第 ${line} 行使用了暂不支持的 ${operation} 操作；当前仅支持 Add File 和 Update File。本次补丁未修改任何文件`,
-    400,
-    { line, operation },
   )
 }
 
@@ -120,6 +125,21 @@ const parseUpdateChunk = (lines: readonly string[], start: number, end: number) 
 
   const oldLines: string[] = []
   const newLines: string[] = []
+  const edits: ApplyPatchEdit[] = []
+  let editOldIndex = -1
+  let editOldCount = 0
+  let editNewLines: string[] = []
+  const beginEdit = () => {
+    if (editOldIndex < 0) editOldIndex = oldLines.length
+  }
+  const flushEdit = () => {
+    if (editOldIndex < 0) return
+    edits.push({ oldIndex: editOldIndex, oldCount: editOldCount, newLines: editNewLines })
+    editOldIndex = -1
+    editOldCount = 0
+    editNewLines = []
+  }
+
   let additions = 0
   let deletions = 0
   let endOfFile = false
@@ -137,13 +157,18 @@ const parseUpdateChunk = (lines: readonly string[], start: number, end: number) 
     }
     if (line.startsWith('***')) break
     if (line.startsWith(' ')) {
+      flushEdit()
       oldLines.push(line.slice(1))
       newLines.push(line.slice(1))
     } else if (line.startsWith('-')) {
+      beginEdit()
       oldLines.push(line.slice(1))
+      editOldCount += 1
       deletions += 1
     } else if (line.startsWith('+')) {
+      beginEdit()
       newLines.push(line.slice(1))
+      editNewLines.push(line.slice(1))
       additions += 1
     } else {
       parseError(index + 1, 'hunk 内容必须以空格、+ 或 - 开头')
@@ -151,6 +176,7 @@ const parseUpdateChunk = (lines: readonly string[], start: number, end: number) 
     diffLineCount += 1
     index += 1
   }
+  flushEdit()
 
   if (diffLineCount === 0) parseError(start + 1, 'hunk 至少需要一行上下文、删除或新增内容')
   if (declaredOldLineCount !== undefined && oldLines.length !== declaredOldLineCount) {
@@ -178,6 +204,7 @@ const parseUpdateChunk = (lines: readonly string[], start: number, end: number) 
       newLines,
       additions,
       deletions,
+      edits,
       ...(oldStartLine !== undefined ? { oldStartLine } : {}),
       ...(changeContext ? { changeContext } : {}),
       ...(endOfFile ? { endOfFile: true } : {}),
@@ -187,18 +214,30 @@ const parseUpdateChunk = (lines: readonly string[], start: number, end: number) 
   }
 }
 
-const parseUpdate = (lines: readonly string[], start: number, end: number) => {
-  const chunks: ApplyPatchChunk[] = []
+const parseUpdate = (lines: readonly string[], start: number, end: number, path: string) => {
   let index = start
-  if (lines[index]?.startsWith(MOVE_PREFIX)) unsupported(index + 1, 'Move to')
+  let moveTo: string | undefined
+  if (lines[index]?.startsWith(MOVE_PREFIX)) {
+    moveTo = operationPath(lines[index]!, MOVE_PREFIX, index + 1)
+    index += 1
+  }
+  const chunks: ApplyPatchChunk[] = []
   while (index < end && !lines[index]!.startsWith('***')) {
     if (!lines[index]!.startsWith('@@')) parseError(index + 1, 'Update File 后必须是 @@ hunk')
     const parsed = parseUpdateChunk(lines, index, end)
     chunks.push(parsed.chunk)
     index = parsed.next
   }
-  if (chunks.length === 0) parseError(start + 1, 'Update File 至少需要一个 @@ hunk')
-  return { chunks, next: index }
+  if (chunks.length === 0 && !moveTo)
+    parseError(start + 1, 'Update File 至少需要一个 @@ hunk 或 *** Move to')
+  if (moveTo && pathKey(moveTo) === pathKey(path)) {
+    throw new AgentError(
+      'PATCH_MOVE_INVALID',
+      `补丁第 ${start + 1} 行不能把 "${safePathLabel(path)}" 移动到自身；源和目标必须是不同文件。本次补丁未修改任何文件`,
+      400,
+    )
+  }
+  return { chunks, next: index, ...(moveTo ? { moveTo } : {}) }
 }
 
 export const parseApplyPatch = (patchText: string): readonly ApplyPatchOperation[] => {
@@ -216,6 +255,20 @@ export const parseApplyPatch = (patchText: string): readonly ApplyPatchOperation
 
   const operations: ApplyPatchOperation[] = []
   const paths = new Map<string, { path: string; line: number }>()
+  const registerPath = (path: string, line: number) => {
+    const key = pathKey(path)
+    const previous = paths.get(key)
+    if (previous) {
+      throw new AgentError(
+        'PATCH_DUPLICATE_PATH',
+        `补丁中的路径 "${safePathLabel(path)}" 在第 ${previous.line} 行和第 ${line} 行重复；每个文件只能出现一次。本次补丁未修改任何文件`,
+        409,
+        { firstLine: previous.line, secondLine: line },
+      )
+    }
+    paths.set(key, { path, line })
+  }
+
   let index = 1
   while (index < end) {
     const line = lines[index]!
@@ -228,34 +281,35 @@ export const parseApplyPatch = (patchText: string): readonly ApplyPatchOperation
       next = parsed.next
     } else if (line.startsWith(UPDATE_PREFIX)) {
       const path = operationPath(line, UPDATE_PREFIX, index + 1)
-      const parsed = parseUpdate(lines, index + 1, end)
-      operation = { type: 'update', path, chunks: parsed.chunks }
+      const parsed = parseUpdate(lines, index + 1, end, path)
+      operation = {
+        type: 'update',
+        path,
+        chunks: parsed.chunks,
+        ...(parsed.moveTo ? { moveTo: parsed.moveTo } : {}),
+      }
       next = parsed.next
     } else if (line.startsWith(DELETE_PREFIX)) {
-      operationPath(line, DELETE_PREFIX, index + 1)
-      unsupported(index + 1, 'Delete File')
+      const path = operationPath(line, DELETE_PREFIX, index + 1)
+      operation = { type: 'delete', path }
+      next = index + 1
     } else if (line.startsWith(MOVE_PREFIX)) {
-      unsupported(index + 1, 'Move to')
+      parseError(index + 1, '*** Move to 只能紧跟在 *** Update File 之后')
     } else {
-      parseError(index + 1, '只能使用 Add File 或 Update File 操作')
+      parseError(index + 1, '只能使用 Add File、Update File 或 Delete File 操作')
     }
     const parsedOperation = operation ?? parseError(index + 1, '无法解析文件操作')
 
-    const key = pathKey(parsedOperation.path)
-    const previous = paths.get(key)
-    if (previous) {
-      throw new AgentError(
-        'PATCH_DUPLICATE_PATH',
-        `补丁中的路径 "${safePathLabel(parsedOperation.path)}" 在第 ${previous.line} 行和第 ${index + 1} 行重复；每个文件只能出现一次。本次补丁未修改任何文件`,
-        409,
-        { firstLine: previous.line, secondLine: index + 1 },
-      )
+    registerPath(parsedOperation.path, index + 1)
+    if (parsedOperation.type === 'update' && parsedOperation.moveTo) {
+      // Move to must immediately follow Update File, so its line is always index + 2.
+      registerPath(parsedOperation.moveTo, index + 2)
     }
-    paths.set(key, { path: parsedOperation.path, line: index + 1 })
     operations.push(parsedOperation)
     index = next
   }
 
-  if (operations.length === 0) parseError(2, '补丁至少需要一个 Add File 或 Update File 操作')
+  if (operations.length === 0)
+    parseError(2, '补丁至少需要一个 Add File、Update File 或 Delete File 操作')
   return operations
 }

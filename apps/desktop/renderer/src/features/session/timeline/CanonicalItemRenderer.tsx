@@ -31,6 +31,7 @@ import type {
   LocalContextReference,
   ToolResultBlock,
 } from '@pidex/shared/thread'
+import { stripTerminalControlSequences } from '@pidex/shared'
 import { decodeResultCardEnvelope } from '@pidex/shared/thread-result-card'
 import type { RpcParams, RpcResult } from '@pidex/agent-protocol'
 import type { DesktopDiffMarkerStyle } from '../../../../shared/Types.js'
@@ -53,10 +54,8 @@ import {
   type KeyedDisclosureStore,
   useDisclosureExpanded,
 } from '../../../components/ui/KeyedDisclosureStore.js'
-import { CodeBlock } from '../../syntax/CodeBlock.js'
 import { MarkdownMessage } from '../../markdown/index.js'
 import { ConversationMarkdownErrorBoundary } from '../conversation/ConversationTurnErrorBoundary.js'
-import { useScrollEdgeState } from '../../../hooks/UseScrollEdgeState.js'
 import {
   ConversationItemContext,
   useConversationItemContext,
@@ -93,7 +92,13 @@ import { QuestionItemView } from './QuestionItemView.js'
 import { CopyButton } from './CopyButton.js'
 import { ReasoningItemView } from './ReasoningItemView.js'
 import { CanonicalUserMessageContent } from './CanonicalUserMessageContent.js'
-import { isShellTool, ToolCommandCard, toolDetailKind } from './ToolCommandCard.js'
+import {
+  CanonicalCommandBlock,
+  ToolCardFooter,
+  ToolCardOutputViewport,
+  ToolCommandCard,
+  toolDetailKind,
+} from './ToolCommandCard.js'
 export { isShellTool } from './ToolCommandCard.js'
 import { cx } from '../../../utils/Cx.js'
 import { ResultCardView } from './ResultCardView.js'
@@ -170,6 +175,7 @@ export type ToolItemDisplay = {
   executionContent: string
   expandedLabel: string
   failed: boolean
+  hasExplicitInput: boolean
   iconKind: ToolActivityIconKind
   resultText: string | null
   semanticSummary: ToolSemanticSummary | null
@@ -207,12 +213,15 @@ export type ReadThreadPatchDiff = (
 ) => Promise<RpcResult<'thread/patch/diff'>>
 
 export type CanonicalItemRendererProps = {
+  diffMarkerStyle?: DesktopDiffMarkerStyle
   disclosure?: CanonicalItemDisclosure
+  disclosureStore?: KeyedDisclosureStore
   item: Item
   onApplyPatch?: (itemId: string, action: PatchAction, expectedVersion: number) => Promise<void>
   onOpenPatchReview?: (path?: string) => void
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void
   onOpenSubagent: (taskId: string) => void
+  readThreadPatchDiff?: ReadThreadPatchDiff
   dockedPlanItemId: string | null
   /** 该聊天最新的计划项；只有它提供右栏打开入口。 */
   latestPlanItemId?: string | null
@@ -232,11 +241,13 @@ export function CanonicalUserInput({
   attachments,
   contextReferences,
   input,
+  inline = false,
   registerInputRow,
 }: {
   attachments: readonly Attachment[]
   contextReferences: readonly LocalContextReference[]
   input: Input
+  inline?: boolean
   registerInputRow?: (inputId: string, node: HTMLElement | null) => void
 }): React.ReactNode {
   const inputRef = React.useCallback(
@@ -251,7 +262,7 @@ export function CanonicalUserInput({
     editableInputId,
     sessionStatus,
   } = useConversationItemContext()
-  const editingAllowed = Boolean(canEditUserMessage && editableInputId === input.id)
+  const editingAllowed = Boolean(!inline && canEditUserMessage && editableInputId === input.id)
   const operationRef = React.useRef(crypto.randomUUID())
   const [editing, setEditing] = React.useState(false)
   const displayText = input.skills?.length
@@ -401,14 +412,14 @@ export function CanonicalUserInput({
           </React.Suspense>
           {submitError ? (
             <p
-              className="canonical-user-message__editor-error"
+              className="canonical-user-message__editor-error tw:m-0 tw:text-app-danger tw:type-1"
               id={`edit-error-${input.id}`}
               role="alert"
             >
               {submitError}
             </p>
           ) : null}
-          <div className="canonical-user-message__editor-actions">
+          <div className="canonical-user-message__editor-actions tw:flex tw:justify-end tw:gap-2">
             <Button color="secondary" disabled={submitting} onClick={cancelEditing}>
               取消
             </Button>
@@ -438,29 +449,35 @@ export function CanonicalUserInput({
         skills={input.skills}
         withActions={false}
       />
-      <div className="canonical-message-actions" aria-label="用户消息操作">
-        <MessageSentTime sentAt={input.createdAt} />
-        <CopyButton text={displayText} />
-        {editingAllowed ? (
-          <Tooltip content="修改并重新发送">
-            <Button
-              isIconOnly
-              aria-label="修改并重新发送"
-              color="ghostSecondary"
-              size="xs"
-              title="修改并重新发送"
-              disabled={
-                sessionStatus === 'running' ||
-                sessionStatus === 'waiting' ||
-                sessionStatus === 'queued'
-              }
-              onClick={startEditing}
-            >
-              <Pencil aria-hidden="true" size={APP_ICON_SIZE} />
-            </Button>
-          </Tooltip>
-        ) : null}
-      </div>
+      {inline && input.state === 'active' ? <small role="status">等待模型接收…</small> : null}
+      {!inline && (
+        <div
+          className="canonical-message-actions tw:flex tw:items-center tw:gap-1 tw:min-h-[26px]"
+          aria-label="用户消息操作"
+        >
+          <MessageSentTime sentAt={input.createdAt} />
+          <CopyButton text={displayText} />
+          {editingAllowed ? (
+            <Tooltip content="修改并重新发送">
+              <Button
+                isIconOnly
+                aria-label="修改并重新发送"
+                color="ghostSecondary"
+                size="xs"
+                title="修改并重新发送"
+                disabled={
+                  sessionStatus === 'running' ||
+                  sessionStatus === 'waiting' ||
+                  sessionStatus === 'queued'
+                }
+                onClick={startEditing}
+              >
+                <Pencil className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
+              </Button>
+            </Tooltip>
+          ) : null}
+        </div>
+      )}
     </article>
   )
 }
@@ -497,6 +514,9 @@ function areCanonicalItemRendererPropsEqual(
     previous.item === next.item &&
     previous.threadId === next.threadId &&
     previous.presentation === next.presentation &&
+    previous.diffMarkerStyle === next.diffMarkerStyle &&
+    previous.disclosureStore === next.disclosureStore &&
+    previous.readThreadPatchDiff === next.readThreadPatchDiff &&
     previous.dockedPlanItemId === next.dockedPlanItemId &&
     previous.latestPlanItemId === next.latestPlanItemId &&
     previous.pendingPlanItemId === next.pendingPlanItemId &&
@@ -529,12 +549,15 @@ function SubscribedCanonicalItemRenderer({
 }
 
 function CanonicalItemRendererContentComponent({
+  diffMarkerStyle,
   disclosure,
+  disclosureStore,
   item,
   onApplyPatch,
   onOpenPatchReview,
   onOpenPlanInRightDock,
-  onOpenSubagent,
+  onOpenSubagent: _onOpenSubagent,
+  readThreadPatchDiff,
   dockedPlanItemId,
   latestPlanItemId = null,
   pendingPlanItemId = null,
@@ -567,6 +590,17 @@ function CanonicalItemRendererContentComponent({
       const scheduleDraft = scheduleDraftFromTool(item)
       if (scheduleDraft) return <ScheduleDraftCard initial={scheduleDraft} />
       if (isSchedulePlanTool(item)) return <SchedulePlanCard item={item} />
+      if (isFileMutationTool(item) && (disclosureStore || readThreadPatchDiff)) {
+        return (
+          <FileMutationItemView
+            diffMarkerStyle={diffMarkerStyle}
+            disclosureStore={disclosureStore}
+            item={item}
+            readThreadPatchDiff={readThreadPatchDiff}
+            threadId={threadId}
+          />
+        )
+      }
       return (
         <ToolItemView
           disclosure={disclosure}
@@ -648,6 +682,7 @@ function AssistantActionsGroup({
             title="更多操作"
           >
             <MoreHorizontal
+              className="tw:size-icon-md"
               aria-hidden="true"
               size={APP_ICON_SIZE}
               strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -707,7 +742,14 @@ function TextItemView({
       actionItems.push({
         id: 'fork',
         label: '在新聊天中继续',
-        icon: <Split aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
+        icon: (
+          <Split
+            className="tw:size-icon-md"
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+        ),
         onClick: () => onForkFromMessage({ itemId: item.id, turnId: item.turnId }),
         element: (
           <Tooltip content="在新聊天中继续">
@@ -722,7 +764,12 @@ function TextItemView({
                 onForkFromMessage({ itemId: item.id, turnId: item.turnId })
               }}
             >
-              <Split aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Split
+                className="tw:size-icon-md"
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </Button>
           </Tooltip>
         ),
@@ -735,7 +782,7 @@ function TextItemView({
   return (
     <article
       className={cx(
-        'canonical-text-item tw:min-w-0 tw:text-app-text tw:type-reading',
+        'canonical-text-item tw:min-w-0 tw:text-app-text tw:type-2',
         item.placement === 'process'
           ? 'canonical-text-item--process tw:text-app-text-soft'
           : 'canonical-text-item--result tw:w-full tw:bg-transparent tw:shadow-none',
@@ -754,17 +801,18 @@ function TextItemView({
         />
       </ConversationMarkdownErrorBoundary>
       {hasBottomBar ? (
-        <div className="canonical-message-actions canonical-message-actions--assistant tw:flex tw:items-center tw:gap-1.5 tw:mt-1 tw:min-h-[26px]">
+        <div className="canonical-message-actions canonical-message-actions--assistant tw:flex tw:items-center tw:justify-start tw:gap-1 tw:mt-1 tw:min-h-[26px]">
           {actionItems.length > 0 ? <AssistantActionsGroup actions={actionItems} /> : null}
           {actionItems.length > 0 && goalAchievedDuration ? (
             <span
-              className="toolbar-divider tw:inline-block tw:h-3.5 tw:w-px tw:shrink-0 tw:bg-app-border-strong tw:mx-1"
+              className="toolbar-divider tw:inline-block tw:h-3 tw:w-px tw:shrink-0 tw:bg-app-border-strong tw:mx-1"
               aria-hidden="true"
             />
           ) : null}
           {goalAchievedDuration ? (
-            <span className="canonical-goal-achieved tw:inline-flex tw:items-center tw:gap-1.5 tw:text-app-text-meta tw:type-caption">
+            <span className="canonical-goal-achieved tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
               <CheckCircle2
+                className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -805,7 +853,11 @@ function ContextCompactionItemView({ item }: { item: ItemOf<'activity'> }): Reac
       data-compaction-id={item.id}
     >
       <div className="cpx-agent-activity__item-header cpx-agent-activity__item-header--static">
-        <Icon size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
+        <Icon
+          size={APP_ICON_SIZES.sm}
+          className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
+          aria-hidden="true"
+        />
         <span className="reasoning-node__label">
           {label}
           {active && !reducedMotion ? (
@@ -888,22 +940,26 @@ function ActivityItemView({
         {active ? (
           <LoaderCircle
             size={APP_ICON_SIZES.sm}
-            className="cpx-agent-activity__icon canonical-spin"
+            className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon canonical-spin"
             aria-hidden="true"
           />
         ) : item.status === 'error' ? (
           <CircleAlert
             size={APP_ICON_SIZES.sm}
-            className="cpx-agent-activity__icon"
+            className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
             aria-hidden="true"
           />
         ) : (
-          <Check size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
+          <Check
+            size={APP_ICON_SIZES.sm}
+            className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
+            aria-hidden="true"
+          />
         )}
         <span className="cpx-agent-activity__label">{item.title}</span>
         <ChevronRight
           size="var(--inline-icon-size, 1em)"
-          className="cpx-agent-activity__chevron"
+          className="tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 cpx-agent-activity__chevron"
           aria-hidden="true"
         />
       </button>
@@ -984,27 +1040,27 @@ export function ToolItemView({
           {view.active ? (
             <LoaderCircle
               size={APP_ICON_SIZES.sm}
-              className="canonical-spin cpx-agent-activity__icon"
+              className="tw:size-icon-sm tw:shrink-0 canonical-spin cpx-agent-activity__icon"
               aria-hidden="true"
             />
           ) : item.state === 'interrupted' ? (
             <CircleStop
               size={APP_ICON_SIZES.sm}
-              className="cpx-agent-activity__icon"
+              className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
               aria-hidden="true"
             />
           ) : view.failed ? (
             <CircleAlert
               size={APP_ICON_SIZES.sm}
-              className="cpx-agent-activity__icon"
+              className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
               aria-hidden="true"
             />
           ) : (
-            <SummaryIcon
-              size={APP_ICON_SIZES.sm}
-              className="cpx-agent-activity__icon"
-              aria-hidden="true"
-            />
+            React.createElement(SummaryIcon, {
+              size: APP_ICON_SIZES.sm,
+              className: 'tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon',
+              'aria-hidden': 'true',
+            })
           )}
           {view.semanticSummary ? (
             <ToolActivityLabel summary={view.semanticSummary} />
@@ -1013,11 +1069,13 @@ export function ToolItemView({
               {expanded ? view.expandedLabel : view.collapsedLabel}
             </span>
           )}
-          <ChevronRight
-            size={APP_ICON_SIZES.sm}
-            className="cpx-agent-activity__chevron"
-            aria-hidden="true"
-          />
+          {view.canExpand ? (
+            <ChevronRight
+              size={APP_ICON_SIZES.sm}
+              className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__chevron"
+              aria-hidden="true"
+            />
+          ) : null}
         </ToolActivityHeader>
         <CollapsibleContent
           contentClassName="cpx-agent-activity__details"
@@ -1137,8 +1195,6 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
   view: ToolItemDisplay
 }): React.ReactNode {
   const embedded = presentation === 'grouped'
-  const executionLang = resolveToolContentLanguage(item, view.executionContent)
-  const resultLang = view.resultText ? resolveToolResultLanguage(view.resultText) : null
   const detailKind = toolDetailKind(item)
   if (detailKind === 'command') {
     return (
@@ -1147,6 +1203,7 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
         item={item}
         command={item.command?.trim() ? item.command : view.executionContent}
         output={view.resultText}
+        shellTag={resolveShellTag(item)}
         statusLabel={view.statusLabel}
         expanded={expanded}
         grouped={embedded}
@@ -1162,41 +1219,43 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
     )
   }
 
+  const showInputSection = detailKind !== 'result' && view.hasExplicitInput
+  const showOutputSection =
+    view.resultText !== null || (!showInputSection && !item.resultBlocks?.length)
+
   return (
     <article
       className={cx(
-        'canonical-command-shell md-code-surface tw:mx-0 tw:my-2 tw:min-w-0',
-        embedded && 'canonical-command-shell--embedded tw:my-1',
+        'canonical-command-shell canonical-command-card',
+        embedded && 'canonical-command-shell--embedded',
       )}
       data-state={item.state}
     >
       <div className="canonical-command-shell__body tw:flex tw:min-w-0 tw:flex-col">
-        {detailKind !== 'result' ? (
-          <CodeBlock
-            surface="embedded"
-            showWrapControl
-            ariaLabel="执行内容"
-            headerLabel={executionLang.headerLabel}
-            copyLabel="复制执行内容"
-            code={view.executionContent}
-            language={executionLang.language}
-            streaming={view.active}
-          />
+        {showInputSection ? (
+          <div className="canonical-command-card__section">
+            <div className="canonical-command-card__section-label">输入</div>
+            <CanonicalCommandBlock
+              ariaLabel="执行内容"
+              command={view.executionContent}
+              showPrompt={false}
+            />
+          </div>
         ) : null}
-        {view.resultText && resultLang ? (
-          <div className="canonical-command-shell__result tw:border-t tw:border-app-border-subtle">
-            <CodeBlock
-              surface="embedded"
-              showWrapControl
-              ariaLabel="返回结果"
-              headerLabel={resultLang.headerLabel}
-              copyLabel="复制返回结果"
-              code={view.resultText}
-              language={resultLang.language}
-              streaming={view.active}
-              wrapContent={(content) => (
-                <CommandShellEmbeddedScroll>{content}</CommandShellEmbeddedScroll>
-              )}
+        {showOutputSection ? (
+          <div
+            className={cx(
+              'canonical-command-card__section',
+              showInputSection && 'canonical-command-card__section--divided',
+            )}
+          >
+            {detailKind !== 'result' ? (
+              <div className="canonical-command-card__section-label">输出</div>
+            ) : null}
+            <ToolCardOutputViewport
+              active={view.active}
+              expanded={expanded}
+              output={view.resultText}
             />
           </div>
         ) : null}
@@ -1208,18 +1267,7 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
           />
         ) : null}
       </div>
-      <footer className="canonical-command-shell__footer tw:flex tw:min-h-6 tw:items-center tw:justify-end tw:border-t-0 tw:bg-transparent tw:px-3 tw:pt-0 tw:pb-2">
-        <span className="canonical-command-shell__status">
-          {item.state === 'completed' ? (
-            <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
-          ) : item.state === 'error' || item.state === 'interrupted' ? (
-            <CircleAlert size={APP_ICON_SIZES.sm} aria-hidden="true" />
-          ) : (
-            <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" aria-hidden="true" />
-          )}
-          {view.statusLabel}
-        </span>
-      </footer>
+      <ToolCardFooter state={item.state} statusLabel={view.statusLabel} />
     </article>
   )
 })
@@ -1245,7 +1293,7 @@ function ToolResultBlocksView({
         return false
       }
       if (renderedResultText) {
-        const blockText = block.text.trim()
+        const blockText = stripTerminalControlSequences(block.text).trim()
         const resultText = renderedResultText.trim()
         if (
           blockText &&
@@ -1292,7 +1340,7 @@ function ToolResultBlockView({
     case 'text':
       return (
         <pre className="canonical-tool-result-block canonical-tool-result-block--text">
-          <code>{block.text}</code>
+          <code>{stripTerminalControlSequences(block.text)}</code>
         </pre>
       )
     case 'citation': {
@@ -1302,7 +1350,7 @@ function ToolResultBlockView({
           <Globe2 aria-hidden="true" size="var(--inline-icon-size, 1em)" />
           {url ? (
             <a
-              className="tw:inline-flex tw:min-h-6 tw:min-w-6 tw:items-center"
+              className="tw:inline-flex tw:min-h-5 tw:min-w-5 tw:items-center"
               href={url}
               rel="noopener noreferrer"
               target="_blank"
@@ -1383,26 +1431,6 @@ function formatArtifactByteSize(sizeBytes: number): string {
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function CommandShellEmbeddedScroll({ children }: { children: React.ReactNode }): React.ReactNode {
-  const scrollerRef = React.useRef<HTMLDivElement | null>(null)
-  const contentRef = React.useRef<HTMLDivElement | null>(null)
-  const edge = useScrollEdgeState(scrollerRef, { contentRef })
-  return (
-    <div
-      className="canonical-command-shell__edge-fade tw:relative tw:min-w-0"
-      data-at-end={edge.atEnd}
-      data-at-start={edge.atStart}
-      data-scrollable={edge.scrollable}
-    >
-      <div className="canonical-command-shell__scroller" ref={scrollerRef}>
-        <div className="canonical-command-shell__scroll-content" ref={contentRef}>
-          {children}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function PatchItemView({
   item,
   onApplyPatch,
@@ -1480,7 +1508,7 @@ export function PatchSummaryView({
     <article className="canonical-patch-card">
       <header className="canonical-patch-card__header">
         <span className="canonical-patch-card__icon" aria-hidden="true">
-          <FileDiff size={APP_ICON_SIZES.sm} />
+          <FileDiff className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
         </span>
         <span className="canonical-patch-card__summary">
           <strong>已编辑 {patch.files.length} 个文件</strong>
@@ -1493,7 +1521,7 @@ export function PatchSummaryView({
             ) : null}
           </span>
         </span>
-        <span className="canonical-patch-card__actions">
+        <span className="canonical-patch-card__actions tw:flex tw:flex-none tw:flex-nowrap tw:items-center tw:justify-end tw:gap-2">
           {canApplyPatch ? (
             <Button
               color="primary"
@@ -1501,7 +1529,7 @@ export function PatchSummaryView({
               size="sm"
               onClick={() => void applyPatch()}
             >
-              <RotateCcw aria-hidden="true" size={APP_ICON_SIZE} />
+              <RotateCcw className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               {patchAction === 'undo' ? '撤销' : '重新应用'}
             </Button>
           ) : null}
@@ -1538,14 +1566,21 @@ export function PatchSummaryView({
         >
           {filesExpanded ? '收起文件' : `再显示 ${hiddenFileCount} 个文件`}
           {filesExpanded ? (
-            <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" className="is-expanded" />
+            <ChevronDown
+              size={APP_ICON_SIZES.sm}
+              aria-hidden="true"
+              className="tw:size-icon-sm is-expanded"
+            />
           ) : (
-            <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" />
+            <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
           )}
         </button>
       ) : null}
       {actionError ? (
-        <p className="canonical-patch-card__error" role="alert">
+        <p
+          className="canonical-patch-card__error tw:m-0 tw:border-t tw:border-app-border-subtle tw:px-3 tw:py-2 tw:text-app-danger tw:type-1"
+          role="alert"
+        >
           {actionError}
         </p>
       ) : null}
@@ -1579,12 +1614,17 @@ export function FileMutationItemView({
     >
       {mutation.files.map((file, fileIndex) => {
         const disclosureId = `file-mutation:${item.id}:${fileIndex}`
+        const matchedDiffPath = item.mutationDiffPaths?.find(
+          (path) =>
+            sameMutationPath(path, file.path) ||
+            (file.sourcePath !== undefined && sameMutationPath(path, file.sourcePath)),
+        )
         const canExpand =
           item.state === 'completed' &&
           Boolean(disclosureStore) &&
           Boolean(threadId) &&
           Boolean(readThreadPatchDiff) &&
-          item.mutationDiffPaths?.some((path) => sameMutationPath(path, file.path)) === true
+          matchedDiffPath !== undefined
         if (!canExpand || !readThreadPatchDiff || !threadId) {
           return (
             <div
@@ -1594,19 +1634,19 @@ export function FileMutationItemView({
               {active ? (
                 <LoaderCircle
                   size={APP_ICON_SIZES.sm}
-                  className="canonical-spin cpx-agent-activity__icon"
+                  className="tw:size-icon-sm tw:shrink-0 canonical-spin cpx-agent-activity__icon"
                   aria-hidden="true"
                 />
               ) : failed ? (
                 <CircleAlert
                   size={APP_ICON_SIZES.sm}
-                  className="cpx-agent-activity__icon"
+                  className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
                   aria-hidden="true"
                 />
               ) : (
                 <Pencil
                   size={APP_ICON_SIZES.sm}
-                  className="cpx-agent-activity__icon"
+                  className="tw:size-icon-sm tw:shrink-0 cpx-agent-activity__icon"
                   aria-hidden="true"
                 />
               )}
@@ -1634,7 +1674,7 @@ export function FileMutationItemView({
               <div className="cpx-agent-activity__item-header cpx-agent-activity__item-header--static">
                 <Pencil
                   size="var(--inline-icon-size, 1em)"
-                  className="cpx-agent-activity__icon"
+                  className="tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 cpx-agent-activity__icon"
                   aria-hidden="true"
                 />
                 <span
@@ -1657,6 +1697,7 @@ export function FileMutationItemView({
           >
             <LazyExpandableFileMutationRow
               diffMarkerStyle={diffMarkerStyle}
+              diffPath={matchedDiffPath}
               disclosure={{ id: disclosureId, store: disclosureStore }}
               file={file}
               item={item}
@@ -1709,6 +1750,7 @@ export function buildToolItemDisplay(item: ToolItem, nowMs?: number): ToolItemDi
       executionContent: lifecycle.label,
       expandedLabel: lifecycle.label,
       failed: lifecycle.failed,
+      hasExplicitInput: false,
       iconKind: 'tool',
       resultText: null,
       semanticSummary: null,
@@ -1719,29 +1761,34 @@ export function buildToolItemDisplay(item: ToolItem, nowMs?: number): ToolItemDi
   }
   const structuredDetail = buildStructuredToolDetail(item)
   const formattedInput = formatToolInputForDisplay(item.tool, item.input)
-  const safeInput =
-    formattedInput.trim() && formattedInput.trim() !== 'null' ? formattedInput : null
+  const trimmedInput = formattedInput.trim()
+  const safeInput = trimmedInput && trimmedInput !== 'null' ? formattedInput : null
+  const nonEmptyInput = safeInput && trimmedInput !== '{}' ? safeInput : null
   const fallbackExecution = item.title.trim() || item.tool
-  const executionContent =
-    structuredDetail?.executionContent ?? command ?? safeInput ?? fallbackExecution
+  const explicitExecution = structuredDetail?.executionContent ?? command ?? nonEmptyInput
+  const executionContent = explicitExecution ?? safeInput ?? fallbackExecution
   const rawResultText = structuredDetail
     ? structuredDetail.resultText
     : appendToolError(cleanCommandOutput(nonBlank(item.output)), nonBlank(item.error))
   const resultText = cleanCommandOutput(rawResultText)
   const active = isActiveToolState(item.state)
   const terminal = !active
+  const failed = item.state === 'error' || item.state === 'interrupted'
   const semanticSummary = buildToolSemanticSummary(item, { nowMs })
+  const hasExplicitInput = Boolean(explicitExecution)
+  const hasOutput = resultText !== null || Boolean(item.resultBlocks?.length)
+  const detailKind = toolDetailKind(item)
+  const canExpand =
+    detailKind === 'result' ? failed && hasOutput : hasExplicitInput || hasOutput || terminal
 
   return {
     active,
-    canExpand:
-      toolDetailKind(item) === 'result'
-        ? resultText !== null || Boolean(item.resultBlocks?.length)
-        : terminal || resultText !== null,
+    canExpand,
     collapsedLabel: semanticSummary.collapsedLabel,
     executionContent,
     expandedLabel: semanticSummary.expandedLabel,
-    failed: item.state === 'error' || item.state === 'interrupted',
+    failed,
+    hasExplicitInput,
     iconKind: semanticSummary.iconKind,
     resultText,
     semanticSummary,
@@ -1824,6 +1871,14 @@ const LIFECYCLE_ACTIONS: Readonly<Record<string, LifecycleAction>> = {
     interrupted: '已中断提问',
     running: '正在询问问题',
     toolLabel: '提问',
+  },
+  agent: {
+    completed: '子代理已完成',
+    error: '运行子代理失败',
+    icon: UserRoundPlus,
+    interrupted: '已中断子代理',
+    running: '正在运行子代理',
+    toolLabel: '运行子代理',
   },
   spawn_agents: {
     completed: '已创建子代理',
@@ -1994,13 +2049,15 @@ export function cleanCommandOutput(rawText: string | null): string | null {
         const stdout = typeof record.stdout === 'string' ? record.stdout : ''
         const stderr = typeof record.stderr === 'string' ? record.stderr : ''
         const combined = stdout + (stdout && stderr && !stdout.endsWith('\n') ? '\n' : '') + stderr
-        return combined.trim() ? combined : null
+        const sanitized = stripTerminalControlSequences(combined)
+        return sanitized.trim() ? sanitized : null
       }
     } catch {
       // 保持原样文本
     }
   }
-  return text
+  const sanitized = stripTerminalControlSequences(text)
+  return sanitized.trim() ? sanitized : null
 }
 
 function isToolSearchName(tool: string): boolean {
@@ -2104,7 +2161,7 @@ export function buildStructuredToolDetail(item: ToolItem): StructuredToolDetail 
         executionContent: inputText(input, 'pattern', 'glob') ?? '未提供匹配条件',
         resultText: structuredResult(
           output,
-          projectedOutputArray(output, ['matches'], projectSearchResult),
+          projectedOutputArray(output, ['filenames', 'matches'], projectSearchResult),
           error,
         ),
       }
@@ -2140,17 +2197,11 @@ export function isStandaloneLifecycleTool(item: ToolItem): boolean {
   return buildLifecycleToolDisplay(item) !== null
 }
 
-export function LifecycleToolItemView({
-  item,
-  isSubagent = false,
-}: {
-  item: ToolItem
-  isSubagent?: boolean
-}): React.ReactNode {
+export function LifecycleToolItemView({ item }: { item: ToolItem }): React.ReactNode {
   const context = React.useContext(ConversationItemContext)
   const display = buildLifecycleToolDisplay(item)
   if (!display) return null
-  const text = !isSubagent ? historicalDeliveryText(item, context?.workspacePath) : null
+  const text = historicalDeliveryText(item, context?.workspacePath)
   if (text) return <StructuredDeliveryText text={text} />
   const LifecycleIcon = display.icon
   return (
@@ -2161,7 +2212,7 @@ export function LifecycleToolItemView({
         role={display.active ? 'status' : undefined}
       >
         {display.failed ? (
-          <CircleAlert size={APP_ICON_SIZES.sm} aria-hidden="true" />
+          <CircleAlert className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
         ) : (
           <span className="canonical-lifecycle-tool__icon">
             <LifecycleIcon size={APP_ICON_SIZES.sm} aria-hidden="true" />

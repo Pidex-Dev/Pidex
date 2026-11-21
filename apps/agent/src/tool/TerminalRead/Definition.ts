@@ -37,7 +37,7 @@ export const createTerminalReadDefinition = (
   name: 'terminal.read',
   schema,
   description:
-    '读取当前任务的集成终端纯文本输出。输出已移除终端控制序列并脱敏；仅在确实需要观察终端结果时使用。',
+    'Read sanitized plain-text output from an integrated terminal belonging to this task. Terminal control sequences are removed. Use only when terminal output is needed.',
   capabilities: {
     filesystem: 'none',
     network: 'none',
@@ -56,19 +56,20 @@ export const createTerminalReadDefinition = (
     properties: {
       terminalId: {
         type: 'string',
-        description: '可选的终端 ID；省略时读取当前任务最近更新的终端。',
+        description:
+          'Optional terminal ID; defaults to the most recently updated terminal in this task.',
       },
       afterSequence: {
         type: 'integer',
         minimum: -1,
-        description: '只读取该序号之后的输出。首次读取可省略。',
+        description: 'Read output after this sequence number. Omit for the first read.',
       },
       maxBytes: {
         type: 'integer',
         minimum: 1,
         maximum: 32_768,
         default: 8_192,
-        description: '返回的最大 UTF-8 字节数；默认 8192。',
+        description: 'Maximum returned UTF-8 bytes; default 8192.',
       },
     },
     additionalProperties: false,

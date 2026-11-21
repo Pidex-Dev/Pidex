@@ -53,7 +53,7 @@ const fixture = async () => {
 const model = Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt-5') })
 const permission = {
   sandboxMode: 'workspace-write',
-  approvalPolicy: 'on-request',
+  approvalPolicy: 'auto_review',
   approvalsReviewer: 'auto_review',
 } as const
 
@@ -161,13 +161,17 @@ describe('v4 会话事件投影契约', () => {
         threadID: thread.id,
         turnID: turn.turnID,
         agentID: turn.agentID,
-        name: 'PowerShell',
+        name: 'exec_command',
         input: {
           command: 'Write-Output "api_key=projection-secret"',
           cwd: root,
           additionalPermissions: { readPaths: [root], writePaths: [join(root, 'target.txt')] },
         },
-        permissionConfig: { ...permission, approvalPolicy: 'untrusted', approvalsReviewer: 'user' },
+        permissionConfig: {
+          ...permission,
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
+        },
         model,
         taskMode: 'chat',
         durableApproval: true,
@@ -208,7 +212,7 @@ describe('v4 会话事件投影契约', () => {
         createdAt: row.created_at,
       } as EventEnvelope
       const live = decodeFromStorage(stored, projection).payload as Record<string, unknown>
-      expect(live).toMatchObject({ tool: 'PowerShell', cwd: root })
+      expect(live).toMatchObject({ tool: 'exec_command', cwd: root })
       expect(live.command).not.toContain('projection-secret')
       const before = projection
         .snapshot(thread.id)!

@@ -22,7 +22,8 @@ test.describe('Plan 桌面全流程', () => {
   let application: ElectronApplication | undefined
   let page: Page | undefined
 
-  test.afterEach(async ({}, testInfo) => {
+  test.afterEach(async () => {
+    const testInfo = test.info()
     if (application && page && testInfo.status !== testInfo.expectedStatus) {
       const screenshot = testInfo.outputPath('failure.png')
       await mkdir(dirname(screenshot), { recursive: true })

@@ -9,7 +9,6 @@
       content="default-src 'self'; base-uri 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; media-src 'self' data: blob: http: https:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; worker-src 'self' blob:"
     />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/fonts/fonts.css" />
     <title>Pidex Desktop</title>
     <script src="/startup-theme.js"></script>
     <style>
@@ -35,9 +34,7 @@
         color: color-mix(in srgb, var(--startup-splash-foreground) 65%, transparent);
       }
 
-      #startup-actions[hidden],
-      #startup-connection-notice[hidden],
-      #startup-connection-retry[hidden] {
+      #startup-actions[hidden] {
         display: none;
       }
       #startup-actions {
@@ -49,16 +46,6 @@
       }
       #startup-detail {
         margin: 0 0 12px;
-      }
-      #startup-connection-notice {
-        position: fixed;
-        top: 36px;
-        inset-inline: 0;
-        z-index: 99999;
-        padding: 8px;
-        text-align: center;
-        background: var(--cpx-sys-color-surface-canvas, var(--startup-splash-background));
-        color: var(--cpx-sys-color-fg-primary, var(--startup-splash-foreground));
       }
       .full-screen-whale-loader {
         position: fixed;
@@ -144,6 +131,10 @@
         height: 1.5em;
         overflow: hidden;
         text-align: center;
+      }
+
+      .full-screen-whale-loader__status-viewport[hidden] {
+        display: none;
       }
 
       .full-screen-whale-loader__status-viewport > span {
@@ -245,7 +236,7 @@
           <img class="full-screen-whale-loader__base" src="/pidex-mark-green.svg" alt="" />
           <div class="full-screen-whale-loader__overlay"></div>
         </div>
-        <div class="full-screen-whale-loader__status-viewport">
+        <div class="full-screen-whale-loader__status-viewport" hidden>
           <span class="full-screen-whale-loader__status">正在加载桌面界面…</span>
         </div>
         <div id="startup-actions" hidden>
@@ -254,10 +245,6 @@
           <a id="startup-logs" href="#">打开日志</a>
         </div>
       </div>
-    </div>
-    <div id="startup-connection-notice" role="status" aria-live="polite" hidden>
-      <span id="startup-connection-label"></span>
-      <a id="startup-connection-retry" href="#" hidden>重试连接</a>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

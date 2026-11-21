@@ -14,7 +14,7 @@ function session(id: string, overrides: Partial<SessionListItem> = {}): SessionL
     aiTitle: null,
     workspaceName: 'Pidex',
     workspacePath: 'F:\\CodeProject\\Pidex',
-    permissionMode: 'default',
+    permissionMode: 'auto-review',
     model: null,
     thinkingMode: 'medium',
     hasSystemPrompt: false,

@@ -15,7 +15,7 @@ const invocation = (overrides: Record<string, unknown> = {}): ToolInvocation =>
     input: { command: 'git status' },
     permissionConfig: {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       approvalsReviewer: 'auto_review',
     },
     taskMode: 'chat',

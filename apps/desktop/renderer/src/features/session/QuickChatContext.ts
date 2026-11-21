@@ -17,7 +17,6 @@ import type { OpenPlanInDockRequest } from './workflow/WorkflowPlanCard.js'
 import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../markdown/index.js'
 import type { SessionDisplayStore } from './state/SessionDisplayStore.js'
 import type { SessionBoundComposerProps } from './composer/SessionBoundComposer.js'
-import type { NewSessionRecentTask } from './NewSessionSuggestions.js'
 import type { Attachment, LocalContextReference } from '@pidex/shared/thread'
 import type { ThreadArtifactPreviewInput } from './attachments/AttachmentPreviewDescriptor.js'
 
@@ -53,7 +52,6 @@ export type QuickChatContextValue = {
   reviewSource?: DesktopReviewSource
   reviewSummary?: import('../review/source/ReviewAgentClient.js').ReviewSummarySnapshot | null
   recentWorkspaces: DesktopWorkspace[]
-  recentTasks: NewSessionRecentTask[]
   titleRegenerating: boolean
   permissionMode: DesktopPermissionMode
   planModeActive: boolean
@@ -85,6 +83,7 @@ export type QuickChatContextValue = {
   onOpenSideChat: () => void
   sideChatAvailable: boolean
   onOpenSubagent: (taskId: string) => void
+  onOpenSubagentDirectory?: () => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshDiff: () => void
   onRenameSession: (title: string) => Promise<boolean>

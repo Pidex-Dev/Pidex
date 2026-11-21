@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import {
   DEFAULT_PERMISSION_CONFIG,
   decodeApprovalPolicy,
+  decodeApprovalsReviewer,
   encodeApprovalPolicy,
   type ThreadCreationSurface,
   type ThreadForkOrigin,
@@ -102,7 +103,7 @@ export type ThreadTitleRegenerationContext = AutomaticTitleCandidate & {
 type PermissionColumns = {
   sandbox_mode: PermissionConfig['sandboxMode']
   approval_policy: string
-  approvals_reviewer: PermissionConfig['approvalsReviewer']
+  approvals_reviewer: string
 }
 
 type ThreadSettingsColumns = PermissionColumns & {
@@ -113,7 +114,7 @@ type ThreadSettingsColumns = PermissionColumns & {
 const permissionConfigFromRow = (row: PermissionColumns): PermissionConfig => ({
   sandboxMode: row.sandbox_mode,
   approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-  approvalsReviewer: row.approvals_reviewer,
+  approvalsReviewer: decodeApprovalsReviewer(row.approvals_reviewer),
 })
 
 const threadSettingsFromRow = (row: ThreadSettingsColumns): ThreadSettings => ({

@@ -31,29 +31,77 @@ describe('loading interaction primitives', () => {
    * stylesheet needs is selected from the emitted attributes.
    */
   const buttonFixtures: Array<[string, React.ReactElement]> = [
-    ['plain', <Button>确认</Button>],
+    ['plain', <Button key="plain">确认</Button>],
     [
       'icon only',
-      <Button isIconOnly size="md" aria-label="搜索">
+      <Button key="icon-only" isIconOnly size="md" aria-label="搜索">
         <span />
       </Button>,
     ],
     [
       'sidebar',
-      <Button data-position="sidebar" variant="ghost" size="md" isIconOnly aria-label="首页">
+      <Button
+        key="sidebar"
+        data-position="sidebar"
+        variant="ghost"
+        size="md"
+        isIconOnly
+        aria-label="首页"
+      >
         <span />
       </Button>,
     ],
-    ['primary', <Button variant="primary">保存</Button>],
-    ['danger', <Button variant="danger">删除</Button>],
-    ['pill', <Button shape="pill">圆角</Button>],
-    ['balanced', <Button contentLayout="balanced">居中</Button>],
-    ['full width', <Button fullWidth>撑满</Button>],
-    ['loading', <Button loading>加载中</Button>],
-    ['disabled', <Button disabled>禁用</Button>],
+    [
+      'primary',
+      <Button key="primary" variant="primary">
+        保存
+      </Button>,
+    ],
+    [
+      'danger',
+      <Button key="danger" variant="danger">
+        删除
+      </Button>,
+    ],
+    [
+      'dangerSubtle',
+      <Button key="dangerSubtle" color="dangerSubtle" shape="pill">
+        确认
+      </Button>,
+    ],
+    [
+      'pill',
+      <Button key="pill" shape="pill">
+        圆角
+      </Button>,
+    ],
+    [
+      'balanced',
+      <Button key="balanced" contentLayout="balanced">
+        居中
+      </Button>,
+    ],
+    [
+      'full width',
+      <Button key="full-width" fullWidth>
+        撑满
+      </Button>,
+    ],
+    [
+      'loading',
+      <Button key="loading" loading>
+        加载中
+      </Button>,
+    ],
+    [
+      'disabled',
+      <Button key="disabled" disabled>
+        禁用
+      </Button>,
+    ],
     [
       'grouped',
-      <ButtonGroup>
+      <ButtonGroup key="grouped">
         <Button>确认</Button>
       </ButtonGroup>,
     ],
@@ -172,7 +220,7 @@ describe('loading interaction primitives', () => {
       <Button
         variant="ghost"
         size="md"
-        className="tw:h-8 tw:px-0 tw:rounded-full tw:type-caption tw:text-app-text-meta tw:hover:bg-app-selected"
+        className="tw:h-8 tw:px-0 tw:rounded-full tw:type-1 tw:text-app-text-meta tw:hover:bg-app-selected"
       >
         操作
       </Button>,
@@ -184,25 +232,24 @@ describe('loading interaction primitives', () => {
       'tw:h-8',
       'tw:px-0',
       'tw:rounded-full',
-      'tw:type-caption',
+      'tw:type-1',
       'tw:text-app-text-meta',
       'tw:hover:bg-app-selected',
     ]) {
       expect(classes).toContain(value)
     }
     // 共享默认样式不再以 utility 下发，覆盖只与共享样式在级联层上竞争。
-    for (const value of ['tw:h-9', 'tw:px-3.5', 'tw:rounded-md', 'tw:type-control']) {
+    for (const value of ['tw:h-9', 'tw:px-3.5', 'tw:rounded-md', 'tw:type-2']) {
       expect(classes).not.toContain(value)
     }
     expect(classes).toHaveLength(6)
   })
 
   test('custom utilities merge without treating typography as text color', () => {
-    expect(cn('tw:type-control tw:text-app-text', 'tw:type-caption')).toBe(
-      'tw:text-app-text tw:type-caption',
-    )
-    expect(cn('tw:type-control', 'tw:[font:inherit]')).toBe('tw:[font:inherit]')
-    expect(cn('tw:[font:inherit]', 'tw:type-control')).toBe('tw:type-control')
+    expect(cn('tw:type-2 tw:text-app-text', 'tw:type-1')).toBe('tw:text-app-text tw:type-1')
+    expect(cn('tw:type-2 tw:weight-regular', 'tw:weight-bold')).toBe('tw:type-2 tw:weight-bold')
+    expect(cn('tw:type-2', 'tw:[font:inherit]')).toBe('tw:[font:inherit]')
+    expect(cn('tw:[font:inherit]', 'tw:type-2')).toBe('tw:type-2')
     expect(cn('tw:[&>svg]:size-icon', 'tw:[&>svg]:size-6')).toBe('tw:[&>svg]:size-6')
     expect(cn('tw:[&>svg]:size-6', 'tw:[&>svg]:size-icon-lg')).toBe('tw:[&>svg]:size-icon-lg')
     expect(cn('tw:w-6 tw:h-6', 'tw:size-icon-md')).toBe('tw:size-icon-md')
@@ -290,14 +337,13 @@ describe('loading interaction primitives', () => {
     const buttonHtml = renderToStaticMarkup(<Button>确认</Button>)
     expect(buttonHtml).not.toContain('tw:text-trim')
 
-    const chipCss = await readFile(
-      resolve(import.meta.dir, '../src/components/ui/Chip.css'),
+    const chipSource = await readFile(
+      resolve(import.meta.dir, '../src/components/ui/Chip.tsx'),
       'utf8',
     )
-    // Ensure .chip-button does not apply to child > span which causes nested double padding
-    expect(chipCss).not.toMatch(/\.chip-button\s*,\s*\.chip-button\s*>\s*span/)
-    expect(chipCss).not.toContain('text-box-trim')
-    expect(chipCss).not.toContain('text-box:')
+    expect(chipSource).not.toContain('./Chip.css')
+    expect(chipSource).not.toContain('text-box-trim')
+    expect(chipSource).not.toContain('text-box:')
 
     const interactiveRowCss = await readFile(
       resolve(import.meta.dir, '../src/styles/components/interactive-row.css'),
@@ -320,12 +366,13 @@ describe('loading interaction primitives', () => {
     expect(menuItemCss).not.toContain('text-box-trim')
     expect(menuItemCss).not.toContain('text-box:')
 
-    const inputCss = await readFile(
-      resolve(import.meta.dir, '../src/components/ui/Input.css'),
+    const inputSource = await readFile(
+      resolve(import.meta.dir, '../src/components/ui/Input.tsx'),
       'utf8',
     )
-    expect(inputCss).not.toContain('text-box-trim')
-    expect(inputCss).not.toContain('text-box:')
+    expect(inputSource).not.toContain('./Input.css')
+    expect(inputSource).not.toContain('text-box-trim')
+    expect(inputSource).not.toContain('text-box:')
 
     const popoverCss = await readFile(resolve(import.meta.dir, '../src/styles/popover.css'), 'utf8')
     expect(popoverCss).not.toContain('text-box-trim')
@@ -345,9 +392,12 @@ describe('controlled interaction state', () => {
   test('keeps a close request after opening before the owner renders again', () => {
     const changes: boolean[] = []
     let setOpen!: (open: boolean) => void
+    const captureUpdate = (update: (open: boolean) => void) => {
+      setOpen = update
+    }
     function Controlled() {
       const [, update] = useControllableState(false, false, (open) => changes.push(open))
-      setOpen = update
+      captureUpdate(update)
       return null
     }
     renderToStaticMarkup(<Controlled />)
@@ -358,5 +408,19 @@ describe('controlled interaction state', () => {
     setOpen(false)
 
     expect(changes).toEqual([true, false])
+  })
+
+  test('interaction.css keeps the 24px min-height floor in @layer reset so primitive row heights win', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const { resolve } = await import('node:path')
+    const interactionCss = await readFile(
+      resolve(import.meta.dir, '../src/styles/primitives/interaction.css'),
+      'utf8',
+    )
+    const resetBlock = interactionCss.match(/@layer reset\s*\{[\s\S]*?\n\}/)?.[0] ?? ''
+    const overridesBlock = interactionCss.match(/@layer overrides\s*\{[\s\S]*?\n\}/)?.[0] ?? ''
+
+    expect(resetBlock).toContain('min-height: 24px;')
+    expect(overridesBlock).not.toContain('min-height:')
   })
 })

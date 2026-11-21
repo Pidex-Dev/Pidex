@@ -3,6 +3,8 @@ import * as Switch from '@radix-ui/react-switch'
 import { cx } from '../../utils/Cx.js'
 import './ToggleSwitch.css'
 
+export type ToggleSwitchSize = 'xs' | 'sm' | 'md' | 'lg'
+
 type Props = {
   checked: boolean
   onChange: (checked: boolean) => void
@@ -11,10 +13,21 @@ type Props = {
   ariaLabelledby?: string
   ariaDescribedby?: string | null
   disabled?: boolean
+  size?: ToggleSwitchSize
+  className?: string
 }
 
 export const ToggleSwitch = forwardRef<HTMLButtonElement, Props>(function ToggleSwitch(
-  { checked, onChange, ariaLabel, ariaLabelledby, ariaDescribedby, disabled = false },
+  {
+    checked,
+    onChange,
+    ariaLabel,
+    ariaLabelledby,
+    ariaDescribedby,
+    disabled = false,
+    size = 'md',
+    className,
+  },
   ref,
 ) {
   return (
@@ -24,7 +37,7 @@ export const ToggleSwitch = forwardRef<HTMLButtonElement, Props>(function Toggle
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledby}
       className={cx(
-        'toggle-switch tw:relative tw:box-border tw:h-6 tw:w-8 tw:shrink-0 tw:cursor-pointer tw:rounded-full tw:border tw:border-app-border tw:bg-app-text/10 tw:p-0',
+        'toggle-switch tw:relative tw:box-border tw:shrink-0 tw:cursor-pointer tw:rounded-full tw:border tw:border-app-border tw:bg-app-text/10 tw:p-0',
         'tw:transition-[background-color,border-color,opacity] tw:duration-state tw:ease-standard',
         'tw:not-disabled:hover:bg-app-text/20',
 
@@ -36,16 +49,17 @@ export const ToggleSwitch = forwardRef<HTMLButtonElement, Props>(function Toggle
 
         'tw:disabled:cursor-default tw:disabled:border-app-border-subtle tw:disabled:text-app-text-disabled tw:disabled:opacity-50 tw:disabled:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-disabled)_12%,var(--cpx-sys-color-surface-panel))]',
         'tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus',
+        className,
       )}
       checked={checked}
+      data-size={size}
       disabled={disabled}
       onCheckedChange={onChange}
     >
       <Switch.Thumb
         className={cx(
-          'toggle-knob tw:absolute tw:top-1/2 tw:-translate-y-1/2 tw:left-px tw:box-border tw:size-4 tw:rounded-full tw:border tw:shadow-sm tw:translate-x-0',
-          'tw:transition-[background-color,border-color,translate] tw:duration-state tw:ease-standard',
-          'tw:data-[state=checked]:translate-x-3',
+          'toggle-knob tw:box-border tw:rounded-full tw:shadow-sm',
+          'tw:transition-[background-color,border-color,transform] tw:duration-state tw:ease-standard',
           'tw:data-[disabled]:shadow-none',
         )}
       />

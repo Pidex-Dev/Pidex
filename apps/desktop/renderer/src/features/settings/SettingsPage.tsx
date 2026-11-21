@@ -7,6 +7,7 @@ type Props = {
   activeTab: string
   workspacePath: string | null
   onUseSkill: (skill: DesktopInstalledSkill) => void
+  onOpenJudgePanel?: () => void
   onError: (message: string) => void
   onNotice?: (message: string) => void
 }
@@ -14,6 +15,7 @@ type Props = {
 type SettingsPanelProps = {
   workspacePath: string | null
   onUseSkill: (skill: DesktopInstalledSkill) => void
+  onOpenJudgePanel?: () => void
   onError: (message: string) => void
   onNotice: (message: string) => void
 }
@@ -22,6 +24,9 @@ type SettingsPanel = React.ComponentType<SettingsPanelProps>
 
 const SETTINGS_PANELS: Record<SettingsTabId, SettingsPanel> = {
   general: lazy(() => import('./GeneralSettings.js').then((m) => ({ default: m.GeneralSettings }))),
+  permissions: lazy(() =>
+    import('./PermissionsSettings.js').then((m) => ({ default: m.PermissionsSettings })),
+  ),
   voice: lazy(() => import('./VoiceSettings.js').then((m) => ({ default: m.VoiceSettings }))),
   profile: lazy(() => import('./ProfileSettings.js').then((m) => ({ default: m.ProfileSettings }))),
   appearance: lazy(() =>
@@ -41,12 +46,22 @@ const SETTINGS_PANELS: Record<SettingsTabId, SettingsPanel> = {
   billing: lazy(() =>
     import('./UsageBillingSettings.js').then((m) => ({ default: m.UsageBillingSettings })),
   ),
+  storage: lazy(() => import('./StorageSettings.js').then((m) => ({ default: m.StorageSettings }))),
   plugins: lazy(() =>
     import('./plugins/PluginsSettingsPage.js').then((m) => ({ default: m.PluginsSettingsPage })),
   ),
   browser: lazy(() => import('./BrowserSettings.js').then((m) => ({ default: m.BrowserSettings }))),
   computer: lazy(() =>
     import('./ComputerSettings.js').then((m) => ({ default: m.ComputerSettings })),
+  ),
+  hooks: lazy(() => import('./hooks/HookSettings.js').then((m) => ({ default: m.HookSettings }))),
+  decision: lazy(() =>
+    import('./DecisionSettings.js').then((m) => ({ default: m.DecisionSettings })),
+  ),
+  environments: lazy(() =>
+    import('./local-environment/EnvironmentPage.js').then((m) => ({
+      default: m.EnvironmentPage,
+    })),
   ),
   worktrees: lazy(() =>
     import('../worktree/WorktreeSettings.js').then((m) => ({ default: m.WorktreeSettings })),
@@ -71,6 +86,7 @@ export function SettingsPage({
   activeTab,
   workspacePath,
   onUseSkill,
+  onOpenJudgePanel,
   onError,
   onNotice,
 }: Props): React.ReactNode {
@@ -85,6 +101,7 @@ export function SettingsPage({
         key={resolvedTab === 'memory' ? (workspacePath ?? 'no-workspace') : undefined}
         workspacePath={workspacePath}
         onUseSkill={onUseSkill}
+        onOpenJudgePanel={onOpenJudgePanel}
         onError={onError}
         onNotice={onNotice ?? (() => {})}
       />

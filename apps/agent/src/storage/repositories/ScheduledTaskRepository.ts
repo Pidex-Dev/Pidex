@@ -13,7 +13,7 @@ import type {
 import type { CalendarSourceRef } from '@pidex/shared/calendar'
 import type { AutomationExecution, AutomationNotificationPolicy } from '@pidex/shared/automation'
 import type { ModelRef } from '@pidex/shared/model'
-import type { PermissionConfig } from '@pidex/shared/thread'
+import { decodePermissionConfig, type PermissionConfig } from '@pidex/shared/thread'
 import { AgentError } from '../../Domain'
 
 export type ScheduleCalendarDatabase = {
@@ -103,7 +103,7 @@ const taskFromRow = (row: ScheduledTaskRow): ScheduledTask => ({
   execution: row.execution === null ? null : parse<AutomationExecution>(row.execution),
   model: parse<ModelRef>(row.model_ref),
   reasoningEffort: row.reasoning_effort,
-  permissionConfig: parse<PermissionConfig>(row.permission_config),
+  permissionConfig: decodePermissionConfig(parse<unknown>(row.permission_config)),
   scheduledFor: row.scheduled_for,
   timeZone: row.time_zone,
   notificationPolicy: row.notification_policy,
@@ -119,21 +119,27 @@ const taskFromRow = (row: ScheduledTaskRow): ScheduledTask => ({
   cancelledAt: row.cancelled_at,
 })
 
-const proposalFromRow = (row: ProposalRow): SchedulePlanProposal => ({
-  id: row.id,
-  revision: row.revision,
-  threadId: row.thread_id,
-  turnId: row.turn_id,
-  toolCallId: row.tool_call_id,
-  status: row.status,
-  horizon: row.horizon,
-  defaults: parse<SchedulePlanExecutionDefaults>(row.defaults),
-  items: parse<SchedulePlanItemDraft[]>(row.items),
-  createdRefs: parse<CalendarSourceRef[]>(row.created_refs),
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-  committedAt: row.committed_at,
-})
+const proposalFromRow = (row: ProposalRow): SchedulePlanProposal => {
+  const rawDefaults = parse<SchedulePlanExecutionDefaults>(row.defaults)
+  return {
+    id: row.id,
+    revision: row.revision,
+    threadId: row.thread_id,
+    turnId: row.turn_id,
+    toolCallId: row.tool_call_id,
+    status: row.status,
+    horizon: row.horizon,
+    defaults: {
+      ...rawDefaults,
+      permissionConfig: decodePermissionConfig(rawDefaults.permissionConfig),
+    },
+    items: parse<SchedulePlanItemDraft[]>(row.items),
+    createdRefs: parse<CalendarSourceRef[]>(row.created_refs),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    committedAt: row.committed_at,
+  }
+}
 
 const missingTask = () => new AgentError('SCHEDULED_TASK_NOT_FOUND', '计划任务不存在', 404)
 const missingProposal = () => new AgentError('SCHEDULE_PLAN_NOT_FOUND', '排期方案不存在', 404)

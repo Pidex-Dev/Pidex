@@ -47,6 +47,8 @@ export function filterAdvertisedCapabilities(
   return Capabilities.filter(
     (capability): capability is ProtocolCapability =>
       capability !== 'integrations.minimax-cli.v1' &&
+      (capability !== 'model.documents.v1' ||
+        (tables.has('model_price_snapshots') && tables.has('model_pricing_cache'))) &&
       (capability !== 'thread.editUserMessage.v1' ||
         ['thread_edits', 'thread_inactive_turns', 'turn_pi_starts'].every((table) =>
           tables.has(table),
@@ -61,8 +63,6 @@ export function filterAdvertisedCapabilities(
       (capability !== 'browser.data.v1' || new BrowserDataRepository(db).available()) &&
       (capability !== 'mcp.elicitation.v1' ||
         db.repositories.interactions.interactionTableAvailable('mcp_elicitations')) &&
-      (capability !== 'approval.retry.v1' ||
-        db.repositories.interactions.interactionTableAvailable('approval_reviews')) &&
       ((capability !== 'project.edit.v1' && capability !== 'project.restore.v1') ||
         db.projectMembershipAvailable()) &&
       (capability !== 'thread.creation-surface.v1' || creationSurface) &&
@@ -105,7 +105,9 @@ export function filterAdvertisedCapabilities(
       // 规则管理写入依赖独立表；高版本未知库缺少表时只隐藏能力，不擅自修库。
       (capability !== 'permission.rules.v1' ||
         (permissionRules.chatRules && permissionRules.legacyGrantRevocations)) &&
-      (capability !== 'model.preferences.v1' || tables.has('model_runtime_preferences')),
+      (capability !== 'model.preferences.v1' || tables.has('model_runtime_preferences')) &&
+      // SAFETY: 决策账本依赖独立表；旧库缺表时只隐藏能力，不擅自修库。
+      (capability !== 'decision.engine.v1' || db.repositories.decisionLedger.available()),
   )
 }
 

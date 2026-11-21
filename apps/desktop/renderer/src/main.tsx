@@ -4,10 +4,12 @@ import {
   installStartupSplashHandoff,
   reportStartupLabel,
   reportStartupFailure,
-  startupSplashActive,
   PET_OVERLAY_HASH_PREFIX,
 } from './startup/StartupSplashHandoff.js'
-import { subscribeStartupConnection } from './startup/StartupConnection.js'
+import {
+  publishStartupConnectionSnapshot,
+  subscribeStartupConnection,
+} from './startup/StartupConnection.js'
 import './styles/tailwind.css'
 
 installStartupSplashHandoff()
@@ -37,24 +39,7 @@ if (!window.location.hash.startsWith(PET_OVERLAY_HASH_PREFIX) && bridge) {
   const unsubscribe = subscribeStartupConnection(
     bridge,
     (snapshot) => {
-      const notice = document.getElementById('startup-connection-notice')
-      if (notice && !window.location.hash.startsWith(PET_OVERLAY_HASH_PREFIX)) {
-        notice.hidden = snapshot.state === 'connected' || startupSplashActive()
-        const label = document.getElementById('startup-connection-label')
-        if (label)
-          label.textContent =
-            snapshot.state === 'failed' ? snapshot.label : 'Agent 连接中断，正在重试…'
-        const retry = document.getElementById('startup-connection-retry')
-        if (retry) {
-          retry.hidden = snapshot.state !== 'failed'
-          retry.onclick = (event) => {
-            event.preventDefault()
-            void bridge.retryStartup(snapshot.generation).catch(() => {
-              if (label) label.textContent = '无法重试连接，请查看日志。'
-            })
-          }
-        }
-      }
+      publishStartupConnectionSnapshot(snapshot)
       if (snapshot.state === 'connected') {
         reportStartupLabel(snapshot.label)
         void mountApplication()

@@ -1,5 +1,6 @@
 import type { PlanCheckpoint } from '../orchestration/AgentRuntimeTypes'
 import type { ApprovalService } from '../permission/ApprovalService'
+import { formatQuestionAnswerForModel } from '../session/QuestionInput'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type {
   AcquiredResumeCheckpoint,
@@ -105,22 +106,13 @@ export class ResumeCheckpointResolver {
         ? storedCheckpoint.interruption
         : nested.interruption
       if (state && interruption !== undefined) {
-        const storedAnswer = question.answer
-        const answerValue = Object.prototype.hasOwnProperty.call(storedAnswer, 'value')
-          ? storedAnswer.value
-          : null
         const checkpoint: ResolvedResumeCheckpoint = {
           kind: 'question',
           questionID: question.id,
           toolCallID: question.toolCallID ?? question.id,
           state,
           interruption,
-          answer:
-            typeof answerValue === 'string'
-              ? answerValue
-              : answerValue == null
-                ? null
-                : JSON.stringify(answerValue),
+          answer: formatQuestionAnswerForModel(payload, question.answer),
         }
         return this.db.repositories.interactions.acquireResumeCheckpointLease({
           turnID,

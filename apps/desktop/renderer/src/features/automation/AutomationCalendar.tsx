@@ -1,5 +1,5 @@
 import { APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type React from 'react'
 import type { CalendarOccurrence } from '@pidex/shared/calendar'
 import { Popover as Popover } from '../../components/ui/floating/Popover.js'
@@ -17,7 +17,6 @@ import {
   calendarDates,
   calendarStatusLabel as statusLabel,
   calendarOccurrencesByDate,
-  type CalendarDateCell,
 } from './CalendarDates.js'
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'] as const
@@ -67,7 +66,7 @@ export function AutomationCalendar({
   onRunOccurrence,
   onOpenThread,
 }: Props): React.ReactNode {
-  const today = useMemo(() => new Date(), [])
+  const [today] = useState(() => new Date())
   const initialDate = parseDateValue(selectedDate ?? defaultSelectedDate) ?? today
   const [internalSelectedDate, setInternalSelectedDate] = useState(formatDateValue(initialDate))
   const activeDateValue = selectedDate ?? internalSelectedDate
@@ -255,16 +254,17 @@ export function AutomationCalendar({
             <Popover.Trigger asChild>
               <button
                 type="button"
-                className="automation-calendar__month-trigger tw:-ml-2 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1 tw:rounded-control tw:border tw:border-transparent tw:bg-transparent tw:px-2 tw:py-0.5 tw:text-app-text tw:transition-[background-color,border-color] tw:duration-feedback tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover tw:focus-visible:outline-none"
+                className="automation-calendar__month-trigger tw:-ml-2 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1 tw:rounded-control tw:border tw:border-transparent tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:transition-[background-color,border-color] tw:duration-feedback tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover tw:focus-visible:outline-none"
                 aria-label={`选择年月，当前为 ${monthLabel(visibleMonth)}`}
               >
-                <h2 className="automation-calendar__period tw:m-0 tw:whitespace-nowrap tw:type-title-md tw:text-app-text">
+                <h2 className="automation-calendar__period tw:m-0 tw:whitespace-nowrap tw:type-5 tw:weight-bold tw:text-app-text">
                   {monthLabel(visibleMonth)}
                 </h2>
                 <ChevronDown
                   size={APP_ICON_SIZES.sm}
                   aria-hidden="true"
                   className={cx(
+                    'tw:size-icon-sm',
                     'automation-calendar__month-trigger-icon tw:text-app-text-meta tw:transition-transform tw:duration-state tw:ease-standard',
                     monthPickerOpen && 'tw:rotate-180',
                   )}
@@ -274,7 +274,7 @@ export function AutomationCalendar({
             <Popover.Portal>
               <Popover.Content
                 size="md"
-                className="popover-surface automation-calendar__month-picker-popover tw:flex tw:flex-col tw:gap-3 tw:p-3"
+                className="popover-surface automation-calendar__month-picker-popover tw:flex tw:flex-col"
                 side="bottom"
                 align="start"
                 sideOffset={6}
@@ -288,9 +288,9 @@ export function AutomationCalendar({
                     aria-label="上一年"
                     onClick={() => setPickerYear((y) => y - 1)}
                   >
-                    <ChevronLeft size={APP_ICON_SIZES.sm} />
+                    <ChevronLeft className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                   </Button>
-                  <span className="automation-calendar__year-label tw:type-label tw:text-app-text">
+                  <span className="automation-calendar__year-label tw:type-1 tw:weight-medium tw:text-app-text">
                     {pickerYear}年
                   </span>
                   <Button
@@ -301,7 +301,7 @@ export function AutomationCalendar({
                     aria-label="下一年"
                     onClick={() => setPickerYear((y) => y + 1)}
                   >
-                    <ChevronRight size={APP_ICON_SIZES.sm} />
+                    <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                   </Button>
                 </div>
                 <div className="automation-calendar__month-grid tw:grid tw:grid-cols-3 tw:gap-2">
@@ -313,7 +313,7 @@ export function AutomationCalendar({
                         key={name}
                         type="button"
                         className={cx(
-                          'automation-calendar__month-grid-btn tw:flex tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-control tw:border tw:border-transparent tw:bg-transparent tw:px-1 tw:py-2 tw:type-label tw:text-app-text tw:transition-[background-color,color,border-color] tw:duration-feedback tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover tw:focus-visible:outline-none',
+                          'automation-calendar__month-grid-btn tw:flex tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-control tw:border tw:border-transparent tw:bg-transparent tw:px-1 tw:py-2 tw:type-1 tw:weight-medium tw:text-app-text tw:transition-[background-color,color,border-color] tw:duration-feedback tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover tw:focus-visible:outline-none',
                           isCurrent &&
                             'automation-calendar__month-grid-btn--active tw:bg-app-accent-fg tw:text-app-main tw:hover:bg-app-accent-fg tw:hover:text-app-main',
                         )}
@@ -348,25 +348,25 @@ export function AutomationCalendar({
             <Popover.Portal>
               <Popover.Content
                 size="md"
-                className="popover-surface automation-calendar__tasks-popover tw:flex tw:max-h-88 tw:flex-col tw:gap-2 tw:p-3"
+                className="popover-surface automation-calendar__tasks-popover tw:flex tw:flex-col tw:[--popover-max-height:22rem]"
                 side="bottom"
                 align="start"
                 sideOffset={6}
               >
                 <div className="automation-calendar__tasks-popover-header tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:pb-2">
-                  <span className="automation-calendar__tasks-popover-title tw:m-0 tw:type-label tw:text-app-text">
+                  <span className="automation-calendar__tasks-popover-title tw:m-0 tw:type-1 tw:weight-medium tw:text-app-text">
                     {monthLabel(visibleMonth)}任务清单
                   </span>
-                  <span className="automation-calendar__tasks-popover-count tw:type-caption tw:text-app-text-meta">
+                  <span className="automation-calendar__tasks-popover-count tw:type-1 tw:text-app-text-meta">
                     共 {currentMonthOccurrences.length} 项
                   </span>
                 </div>
                 <div
-                  className="automation-calendar__tasks-popover-list tw:flex tw:max-h-68 tw:flex-col tw:gap-1 tw:overflow-y-auto"
+                  className="automation-calendar__tasks-popover-list popover-menu-list tw:max-h-[17rem] tw:overflow-y-auto"
                   role="list"
                 >
                   {currentMonthOccurrences.length === 0 ? (
-                    <div className="automation-calendar__tasks-popover-empty tw:py-4 tw:text-center tw:type-caption tw:text-app-text-meta">
+                    <div className="automation-calendar__tasks-popover-empty tw:py-4 tw:text-center tw:type-1 tw:text-app-text-meta">
                       当月暂无任务
                     </div>
                   ) : (
@@ -384,7 +384,7 @@ export function AutomationCalendar({
                             setTasksPopoverOpen(false)
                           }}
                         >
-                          <span className="automation-calendar__tasks-popover-time tw:shrink-0 tw:whitespace-nowrap tw:tabular-nums tw:type-caption tw:text-app-text-soft">
+                          <span className="automation-calendar__tasks-popover-time tw:shrink-0 tw:whitespace-nowrap tw:tabular-nums tw:type-1 tw:text-app-text-soft">
                             {dateText} {timeText}
                           </span>
                           <span
@@ -392,10 +392,10 @@ export function AutomationCalendar({
                             data-status={occurrenceStatusKind(occ)}
                             aria-hidden="true"
                           />
-                          <span className="automation-calendar__tasks-popover-item-title tw:min-w-0 tw:flex-1 tw:truncate tw:type-body-sm tw:text-app-text">
+                          <span className="automation-calendar__tasks-popover-item-title tw:min-w-0 tw:flex-1 tw:truncate tw:type-1 tw:text-app-text">
                             {occ.title}
                           </span>
-                          <span className="automation-calendar__tasks-popover-source tw:shrink-0 tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta">
+                          <span className="automation-calendar__tasks-popover-source tw:shrink-0 tw:whitespace-nowrap tw:type-1 tw:text-app-text-meta">
                             {sourceLabel(occ)}
                           </span>
                         </button>
@@ -408,12 +408,12 @@ export function AutomationCalendar({
           </Popover.Root>
 
           {refreshing ? (
-            <span className="automation-calendar__sync-status tw:inline-flex tw:items-center tw:gap-1 tw:pb-0.5 tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta">
+            <span className="automation-calendar__sync-status tw:inline-flex tw:items-center tw:gap-1 tw:pb-1 tw:whitespace-nowrap tw:type-1 tw:text-app-text-meta">
               <Spinner size="small" />
               正在同步...
             </span>
           ) : refreshError ? (
-            <span className="automation-calendar__sync-status automation-calendar__sync-status--error tw:inline-flex tw:items-center tw:gap-1 tw:pb-0.5 tw:whitespace-nowrap tw:type-caption tw:text-app-chart-red">
+            <span className="automation-calendar__sync-status automation-calendar__sync-status--error tw:inline-flex tw:items-center tw:gap-1 tw:pb-1 tw:whitespace-nowrap tw:type-1 tw:text-app-chart-red">
               同步失败
             </span>
           ) : null}
@@ -427,7 +427,7 @@ export function AutomationCalendar({
             aria-label="上个月"
             onClick={() => handleMonthChange(-1)}
           >
-            <ChevronLeft size={APP_ICON_SIZES.sm} />
+            <ChevronLeft className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
           </Button>
           <Button size="compact" color="secondary" onClick={handleToday}>
             今天
@@ -440,7 +440,7 @@ export function AutomationCalendar({
             aria-label="下个月"
             onClick={() => handleMonthChange(1)}
           >
-            <ChevronRight size={APP_ICON_SIZES.sm} />
+            <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
           </Button>
         </div>
       </div>
@@ -458,7 +458,7 @@ export function AutomationCalendar({
           {WEEKDAYS.map((name) => (
             <span
               key={name}
-              className="automation-calendar__weekday tw:type-label tw:text-app-text-soft"
+              className="automation-calendar__weekday tw:type-1 tw:weight-medium tw:text-app-text-soft"
               role="columnheader"
             >
               {name}
@@ -501,9 +501,9 @@ export function AutomationCalendar({
                   >
                     <span
                       className={cx(
-                        'automation-calendar__day-num tw:text-[length:var(--cpx-sys-font-size-xs)] tw:type-weight-label tw:[line-height:var(--cpx-sys-line-height-none)]',
+                        'automation-calendar__day-num tw:text-[length:var(--cpx-sys-font-size-1)] tw:weight-medium tw:[line-height:var(--cpx-sys-line-height-none)]',
                         cell.today &&
-                          'tw:inline-flex tw:h-6 tw:min-w-6 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-accent-fg tw:px-1 tw:text-app-main',
+                          'tw:inline-flex tw:h-5 tw:min-w-5 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-accent-fg tw:px-1 tw:text-app-main',
                       )}
                     >
                       {cell.day}
@@ -520,7 +520,7 @@ export function AutomationCalendar({
                         />
                       ))}
                       {overflow > 0 ? (
-                        <span className="automation-calendar__dot-overflow tw:text-[length:var(--cpx-sys-font-size-xs)] tw:type-weight-body tw:[line-height:var(--cpx-sys-line-height-none)] tw:text-app-text-meta">
+                        <span className="automation-calendar__dot-overflow tw:text-[length:var(--cpx-sys-font-size-1)] tw:weight-regular tw:[line-height:var(--cpx-sys-line-height-none)] tw:text-app-text-meta">
                           +{overflow}
                         </span>
                       ) : null}
@@ -537,10 +537,10 @@ export function AutomationCalendar({
       <section className="automation-calendar__residing-agenda tw:flex tw:flex-col tw:gap-3 tw:border-t tw:border-app-border-subtle tw:pt-4">
         <div className="automation-calendar__agenda-header tw:flex tw:shrink-0 tw:items-center tw:justify-between tw:gap-3">
           <div className="automation-calendar__agenda-title-group tw:flex tw:min-w-0 tw:items-center tw:gap-2">
-            <h3 className="automation-calendar__agenda-title tw:m-0 tw:whitespace-nowrap tw:type-title-sm tw:text-app-text">
+            <h3 className="automation-calendar__agenda-title tw:m-0 tw:whitespace-nowrap tw:type-4 tw:weight-bold tw:text-app-text">
               {agendaDateHeading(selectedDateObj)}
             </h3>
-            <span className="automation-calendar__agenda-count tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta">
+            <span className="automation-calendar__agenda-count tw:whitespace-nowrap tw:type-1 tw:text-app-text-meta">
               {selectedDayOccurrences.length} 项任务
             </span>
           </div>
@@ -549,13 +549,13 @@ export function AutomationCalendar({
         {/* Task List */}
         <div className="automation-calendar__agenda-list tw:flex tw:flex-col tw:gap-1">
           {sortedOccurrences.length === 0 ? (
-            <div className="automation-calendar__agenda-empty tw:flex tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-center">
+            <div className="automation-calendar__agenda-empty tw:flex tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-5 tw:text-center">
               <Calendar
-                className="automation-calendar__agenda-empty-icon tw:text-app-text-meta tw:opacity-70"
+                className="tw:size-icon-lg automation-calendar__agenda-empty-icon tw:text-app-text-meta tw:opacity-70"
                 size={APP_ICON_SIZES.lg}
                 aria-hidden="true"
               />
-              <p className="automation-calendar__agenda-empty-text tw:m-0 tw:type-body tw:text-app-text-meta">
+              <p className="automation-calendar__agenda-empty-text tw:m-0 tw:type-2 tw:text-app-text-meta">
                 当日暂无任务
               </p>
             </div>
@@ -574,8 +574,8 @@ export function AutomationCalendar({
                   }
                 }}
               >
-                <div className="automation-calendar__agenda-time tw:flex tw:w-16 tw:shrink-0 tw:items-center tw:gap-2">
-                  <span className="automation-calendar__agenda-time-text tw:tabular-nums tw:type-label tw:text-app-text-soft">
+                <div className="automation-calendar__agenda-time tw:flex tw:w-9 tw:shrink-0 tw:items-center tw:gap-2">
+                  <span className="automation-calendar__agenda-time-text tw:tabular-nums tw:type-1 tw:weight-medium tw:text-app-text-soft">
                     {timeLabel(occurrence.scheduledFor)}
                     {occurrence.durationMinutes
                       ? `–${timeLabel(occurrence.scheduledFor + occurrence.durationMinutes * 60_000)}`
@@ -587,10 +587,10 @@ export function AutomationCalendar({
                   />
                 </div>
                 <div className="automation-calendar__agenda-main tw:flex tw:min-w-0 tw:flex-auto tw:items-center tw:gap-3">
-                  <span className="automation-calendar__agenda-item-title tw:truncate tw:type-body tw:text-app-text">
+                  <span className="automation-calendar__agenda-item-title tw:truncate tw:type-2 tw:text-app-text">
                     {occurrence.title}
                   </span>
-                  <span className="automation-calendar__agenda-item-meta tw:shrink-0 tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta">
+                  <span className="automation-calendar__agenda-item-meta tw:shrink-0 tw:whitespace-nowrap tw:type-1 tw:text-app-text-meta">
                     {sourceLabel(occurrence)} · {statusLabel(occurrence.status)}
                   </span>
                 </div>
@@ -607,7 +607,7 @@ export function AutomationCalendar({
                         onRunOccurrence(occurrence)
                       }}
                     >
-                      <Play size={APP_ICON_SIZES.sm} />
+                      <Play className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                     </Button>
                   ) : null}
                   {occurrence.threadId && onOpenThread ? (
@@ -622,7 +622,7 @@ export function AutomationCalendar({
                         onOpenThread(occurrence.threadId!)
                       }}
                     >
-                      <MessageSquare size={APP_ICON_SIZES.sm} />
+                      <MessageSquare className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                     </Button>
                   ) : null}
                 </div>

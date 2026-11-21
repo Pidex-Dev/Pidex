@@ -44,8 +44,8 @@ describe('本地路径上下文', () => {
         }),
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
         strategy: 'start',
         taskMode: 'chat',
@@ -89,8 +89,8 @@ describe('本地路径上下文', () => {
         }),
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
         strategy: 'start',
         taskMode: 'chat',

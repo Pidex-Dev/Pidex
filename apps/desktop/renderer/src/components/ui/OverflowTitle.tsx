@@ -4,41 +4,45 @@ import { cx } from '../../utils/Cx.js'
 
 const TITLE_SCROLL_MIN_SECONDS = 4
 const TITLE_SCROLL_PIXELS_PER_SECOND = 20
-
-/*
- * Surfaces that truncate one label into a fixed slot measure their own overflow
- * here and publish the distance and duration as custom properties on the
- * viewport. Each variant owns its class names, its custom properties and its
- * fade/scroll rules, because a gradient mask and a runtime distance cannot be
- * static utilities.
- */
-export type OverflowTitleVariant = 'sidebar' | 'composer'
+export type OverflowTitleVariant = 'sidebar' | 'composer' | 'menu' | 'tab'
 type OverflowTitlePresentation = 'compact' | 'workspace-meta' | 'activity'
+type MeasuredPresentation = Exclude<OverflowTitleVariant, 'menu'>
 
 const ROOT_CLASS = 'tw:block tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap tw:text-app-text'
+/* Menu labels inherit the row color, so they must never paint their own foreground. */
+const MENU_ROOT_CLASS = 'tw:block tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap'
 const TRACK_CLASS = 'tw:inline-flex tw:min-w-max tw:items-center tw:gap-1'
 /* The model row constrains the name slot itself, so only the fills and the tight tracking are left. */
 const COMPOSER_EXTRA_CLASS = 'tw:grow tw:shrink tw:basis-auto tw:tracking-[-0.01em]'
 const SIDEBAR_PRESENTATION_CLASS: Record<OverflowTitlePresentation, string> = {
-  compact: 'tw:grow tw:shrink tw:basis-auto tw:type-row-title',
-  'workspace-meta': 'tw:flex-none tw:type-body',
-  activity: 'tw:flex-none tw:type-body',
+  compact: 'tw:grow tw:shrink tw:basis-auto tw:type-2 tw:weight-medium',
+  'workspace-meta': 'tw:flex-none tw:type-2',
+  activity: 'tw:flex-none tw:type-2',
+}
+
+function scrollSeconds(distance: number): string {
+  return `${Math.max(TITLE_SCROLL_MIN_SECONDS, distance / TITLE_SCROLL_PIXELS_PER_SECOND).toFixed(
+    2,
+  )}s`
 }
 
 function overflowStyle(
-  variant: OverflowTitleVariant,
+  variant: MeasuredPresentation,
   overflowDistance: number | null,
 ): React.CSSProperties | undefined {
   if (overflowDistance === null) return undefined
   const distance = `${overflowDistance}px`
-  const duration = `${Math.max(
-    TITLE_SCROLL_MIN_SECONDS,
-    overflowDistance / TITLE_SCROLL_PIXELS_PER_SECOND,
-  ).toFixed(2)}s`
+  const duration = scrollSeconds(overflowDistance)
   if (variant === 'sidebar') {
     return {
       '--sidebar-title-scroll-distance': distance,
       '--sidebar-title-scroll-duration': duration,
+    } as React.CSSProperties
+  }
+  if (variant === 'tab') {
+    return {
+      '--tab-title-scroll-distance': distance,
+      '--tab-title-scroll-duration': duration,
     } as React.CSSProperties
   }
   return {
@@ -48,16 +52,18 @@ function overflowStyle(
 }
 
 export function OverflowTitle({
-  active,
+  active = false,
   children,
+  className,
   presentation = 'compact',
-  reducedMotion,
+  reducedMotion = false,
   variant = 'sidebar',
 }: {
-  active: boolean
+  active?: boolean
   children: React.ReactNode
+  className?: string
   presentation?: OverflowTitlePresentation
-  reducedMotion: boolean
+  reducedMotion?: boolean
   variant?: OverflowTitleVariant
 }): React.ReactNode {
   const viewportRef = useRef<HTMLSpanElement>(null)
@@ -87,19 +93,31 @@ export function OverflowTitle({
     observer.observe(viewport)
     observer.observe(track)
     return () => observer.disconnect()
-  }, [children])
+  }, [children, variant])
+
+  if (variant === 'menu') {
+    return <span className={cx('menu-item-label', MENU_ROOT_CLASS, className)}>{children}</span>
+  }
 
   const scrolling = active && overflowDistance !== null && !reducedMotion
-  const rootClassName = variant === 'sidebar' ? 'sidebar-session-title' : 'composer-model-name'
-
+  const rootClassName =
+    variant === 'sidebar'
+      ? 'sidebar-session-title'
+      : variant === 'tab'
+        ? 'menubar-session-tab-title'
+        : 'composer-model-name'
   return (
     <span
-      /* Session titles regenerate asynchronously, so only they are announced. */
       aria-live={variant === 'sidebar' ? 'polite' : undefined}
       className={cx(
         rootClassName,
-        ROOT_CLASS,
-        variant === 'sidebar' ? SIDEBAR_PRESENTATION_CLASS[presentation] : COMPOSER_EXTRA_CLASS,
+        variant === 'tab' ? MENU_ROOT_CLASS : ROOT_CLASS,
+        variant === 'sidebar'
+          ? SIDEBAR_PRESENTATION_CLASS[presentation]
+          : variant === 'tab'
+            ? 'tw:grow tw:shrink tw:basis-auto'
+            : COMPOSER_EXTRA_CLASS,
+        className,
       )}
       data-overflowing={overflowDistance !== null || undefined}
       data-scrolling={scrolling || undefined}

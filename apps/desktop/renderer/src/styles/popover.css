@@ -5,10 +5,12 @@
 @layer primitives {
   :root {
     --popover-default-max-width: min(360px, calc(100vw - 16px));
-    --popover-surface-padding: var(--cpx-comp-menu-surface-padding);
   }
 
-  /* UI-Design: one frame and three widths for every floating menu/popover. */
+  /*
+   * Presets remain available to dedicated surfaces such as the model picker.
+   * Shared floating surfaces use the intrinsic width rule below.
+   */
   [data-popover-size='sm'] {
     --popover-width: 220px;
   }
@@ -38,6 +40,87 @@
     background: var(--cpx-comp-dropdown-menu-bg, var(--cpx-comp-surface-floating));
     backdrop-filter: var(--cpx-comp-dropdown-menu-backdrop-filter, blur(16px));
     box-shadow: var(--cpx-comp-dropdown-menu-shadow, var(--cpx-sys-shadow-floating));
+  }
+
+  /*
+   * Menu / selector sizing contract.
+   *
+   * The widest row, including its shortcut and indicators, sets the surface
+   * width. The surface adds 4px of padding on each side.
+   *
+   * The composer command dropdown (`.chat-input__dropdown`) is excluded: it is an
+   * absolutely positioned surface that follows the composer width and measures
+   * its own height.
+   *
+   * Specificity is 0,2,0 and equal to the preset block above, so this rule must
+   * stay after it: same-specificity widths resolve by source order.
+   */
+  :is(
+    [data-theme-component='dropdown-surface'],
+    .popover-menu-spacing,
+    .popover-panel-spacing,
+    .sidebar-hover-card-surface
+  ):not(.chat-input__dropdown) {
+    --popover-surface-inset: var(--cpx-sys-space-1);
+    padding: var(--popover-surface-inset);
+    row-gap: var(--cpx-comp-row-gap-y);
+  }
+
+  /* Hover cards render unpadded layout rows directly inside the surface, so use 8px block / 4px inline padding. */
+  .sidebar-hover-card-surface:not(.chat-input__dropdown) {
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+  }
+
+  :is([data-theme-component='dropdown-surface'], .popover-menu-spacing):not(.chat-input__dropdown) {
+    --popover-menu-row-inset: var(--cpx-comp-row-padding-inline);
+    --sidebar-leading-width: max-content;
+    --popover-menu-row-gap: var(--cpx-comp-row-gap);
+  }
+
+  :is(
+    [data-theme-component='dropdown-surface'],
+    .popover-panel-spacing,
+    .popover-menu-spacing,
+    .sidebar-hover-card-surface
+  ):not(.chat-input__dropdown, .composer-model-panel-content, .ui-dialog-surface) {
+    width: max-content;
+    min-width: 0;
+    max-width: calc(100vw - 16px);
+  }
+
+  .permission-select-content {
+    --dropdown-list-max-height: none;
+  }
+
+  .permission-select-scroll-area {
+    max-height: max(80px, calc(min(440px, 100vh - 96px) - 2 * var(--popover-surface-inset)));
+  }
+
+  .popover-menu-option {
+    min-height: var(--cpx-comp-row-height-menu);
+    padding: var(--cpx-comp-row-padding-block) var(--cpx-comp-row-padding-inline);
+  }
+
+  .popover-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cpx-comp-row-gap-y);
+  }
+
+  .popover-menu-separator {
+    flex-shrink: 0;
+    height: 1px;
+    margin-block: var(--cpx-comp-menu-surface-padding);
+    background-color: var(--cpx-sys-color-border-default);
+  }
+
+  /*
+   * Search boxes, headers and footer actions follow the list width instead of
+   * widening it. The empty-state message supplies the width when no rows match.
+   */
+  [data-theme-component='dropdown-surface']
+    :is(.popover-search-region, .popover-title-region, .popover-footer-region) {
+    contain: inline-size;
   }
 
   .popover-arrow {
@@ -200,10 +283,14 @@
     overflow-x: var(--popover-overflow-x, hidden);
     overflow-y: var(--popover-overflow-y, auto);
     overscroll-behavior: contain;
-    border-radius: var(--cpx-comp-dropdown-menu-radius);
+    border-radius: var(--cpx-comp-dropdown-menu-radius, var(--cpx-sys-radius-floating));
     corner-shape: var(--cpx-sys-corner-shape);
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
     outline: none;
     user-select: none;
     -webkit-user-select: none;
@@ -239,13 +326,6 @@
       background: var(--cpx-comp-surface-floating);
     }
   }
-  .popover-surface {
-    border: 0;
-    background: var(--cpx-comp-dropdown-menu-bg, var(--cpx-comp-surface-floating));
-    backdrop-filter: var(--cpx-comp-dropdown-menu-backdrop-filter, blur(16px));
-    box-shadow: var(--cpx-comp-dropdown-menu-shadow, var(--cpx-sys-shadow-floating));
-    border-radius: var(--cpx-comp-dropdown-menu-radius, var(--cpx-sys-radius-floating));
-  }
 
   /* The floating tooltip surface (border, background, radius, shadow, padding and
    * typography) is expressed as Tailwind utilities in components/ui/Tooltip.tsx. */
@@ -253,11 +333,6 @@
   /* Popover body, scroll/search regions and footer regions are expressed as
    * Tailwind utilities in components/ui/Dropdown.tsx, ui/Select.tsx and
    * ui/SearchablePopoverContent.tsx. */
-  .settings-dropdown-content,
-  .permission-select-content {
-    padding: var(--popover-surface-padding);
-  }
-
   .popover {
     z-index: var(--cpx-sys-z-popover);
     display: inline-block;
@@ -272,28 +347,22 @@
     backdrop-filter: none;
     box-shadow: none;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
     outline: none;
     user-select: none;
     -webkit-user-select: none;
     -webkit-app-region: no-drag;
   }
 
+  /* Width and padding belong to the menu sizing contract above. */
   .sidebar-context-menu-content {
     display: flex;
     flex-direction: column;
     gap: var(--cpx-comp-row-gap-y, 2px);
-    width: var(--popover-width, 280px);
-    max-width: var(--popover-max-width, var(--popover-default-max-width));
-    padding: var(--cpx-comp-menu-surface-padding);
-  }
-
-  .app-context-menu-root {
-    min-width: 180px;
-  }
-
-  .app-context-menu-sub-content {
-    min-width: 200px;
   }
 
   .sidebar-context-menu-item[data-color='red'] {
@@ -308,8 +377,6 @@
   }
 
   .sidebar-context-menu-leading {
-    width: var(--cpx-comp-menu-icon-size);
-    height: var(--cpx-comp-menu-icon-size);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -324,6 +391,7 @@
   .sidebar-context-menu-arrow {
     width: var(--cpx-sys-icon-size-sm);
     height: var(--cpx-sys-icon-size-sm);
+    flex-shrink: 0;
     stroke-width: var(--cpx-comp-icon-stroke-width);
     color: var(--cpx-sys-color-fg-tertiary);
   }
@@ -332,24 +400,33 @@
     min-width: 0;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--cpx-comp-row-gap);
     justify-self: end;
+  }
+
+  .app-context-menu--flex .sidebar-context-menu-leading {
+    display: none;
+  }
+
+  .app-context-menu--flex .sidebar-context-menu-label {
+    flex: 1 1 auto;
+  }
+
+  .app-context-menu--flex .sidebar-context-menu-trailing {
+    flex: 0 0 auto;
+    margin-inline-start: auto;
   }
 
   .sidebar-context-menu-shortcut {
     color: var(--cpx-sys-color-fg-tertiary);
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     white-space: nowrap;
   }
 
-  .sidebar-context-menu-separator {
-    height: 1px;
-    margin: 4px 0;
-    background-color: var(--cpx-sys-color-border-default);
-  }
-
   .popover *,
-  .chip-button *,
   .meta-chip * {
     user-select: none;
     -webkit-user-select: none;
@@ -366,14 +443,13 @@
       color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
   }
 
-  .popover-sub-content {
-    padding: var(--cpx-comp-menu-surface-padding);
-  }
-
   .popover-header {
-    padding: 4px 8px;
+    padding: var(--cpx-comp-menu-surface-padding) var(--cpx-comp-row-padding-inline);
     color: var(--cpx-sys-color-fg-tertiary);
-    font: var(--cpx-sys-type-label);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    font-weight: var(--cpx-sys-font-weight-medium);
     letter-spacing: normal;
   }
 
@@ -386,38 +462,13 @@
     padding: 0;
   }
 
-  .popover-empty {
-    padding: 8px;
-    color: var(--cpx-comp-input-placeholder-fg);
-    font: var(--cpx-sys-type-body-sm);
-    text-align: center;
-  }
-
   /* --- Popover item interaction states --- */
   .permission-select-item[data-highlighted] .permission-select-item-icon {
     color: var(--cpx-sys-color-fg-primary);
   }
 
   /* --- Popover item children --- */
-  .popover-item-leading {
-    width: var(--cpx-comp-menu-icon-size);
-    height: var(--cpx-comp-menu-icon-size);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .popover-item-trailing {
-    min-width: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--cpx-comp-row-gap);
-    justify-self: end;
-  }
-
   .popover-item-icon {
-    width: var(--cpx-comp-menu-icon-size);
-    height: var(--cpx-comp-menu-icon-size);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -440,6 +491,7 @@
     width: var(--cpx-sys-icon-size-sm);
     height: var(--cpx-sys-icon-size-sm);
     display: block;
+    flex-shrink: 0;
     stroke-width: var(--cpx-comp-icon-stroke-width);
     object-fit: contain;
   }
@@ -448,7 +500,11 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
     white-space: nowrap;
   }
 
@@ -462,7 +518,11 @@
 
   .popover-item-title {
     color: currentColor;
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -470,10 +530,12 @@
 
   .popover-item-description {
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .popover-text-wrap .popover-item-label {
@@ -486,15 +548,12 @@
     align-items: flex-start;
   }
 
-  .popover-item.rich .popover-item-leading,
-  .popover-item.rich .popover-item-icon {
-    width: var(--cpx-comp-menu-icon-size);
-    height: var(--cpx-comp-menu-icon-size);
-  }
-
   .popover-item-shortcut {
     color: var(--cpx-sys-color-fg-tertiary);
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     letter-spacing: normal;
     white-space: nowrap;
   }
@@ -506,6 +565,18 @@
 
   .popover-item-arrow {
     color: var(--cpx-sys-color-fg-tertiary);
+  }
+
+  .menu-item-label {
+    text-overflow: ellipsis;
+  }
+
+  [data-menu-shortcut] {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    white-space: nowrap;
+    pointer-events: none;
   }
 
   /* Tooltip surface and the floating enter/exit keyframes are
@@ -520,6 +591,86 @@
     ):is([data-highlighted], :focus-visible) {
       outline: 2px solid Highlight;
       outline-offset: -2px;
+    }
+  }
+}
+
+@layer overrides {
+  /* Nested list and scroll wrappers share the surface's column tracks. */
+  :is([data-theme-component='dropdown-surface'], .popover-menu-spacing):not(
+      .chat-input__dropdown,
+      .ui-select-content,
+      .app-context-menu--flex
+    ):has(
+      :is(.sidebar-row-main, .sidebar-context-menu-label, .menubar-item-label, .menu-column-label)
+    ) {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+
+    & > *,
+    &
+      :where(
+        :has(
+          :is(
+            .sidebar-row-main,
+            .sidebar-context-menu-label,
+            .menubar-item-label,
+            .menu-column-label
+          )
+        )
+      )
+      > * {
+      grid-column: 1 / -1;
+    }
+
+    &
+      :where(
+        :has(
+          :is(
+            .sidebar-row-main,
+            .sidebar-context-menu-label,
+            .menubar-item-label,
+            .menu-column-label
+          )
+        )
+      ):not([hidden]) {
+      display: grid;
+      grid-template-columns: subgrid;
+      align-items: center;
+      column-gap: 0;
+    }
+
+    & :is(.sidebar-row-leading, .sidebar-context-menu-leading, .menu-column-leading) {
+      grid-column: 1;
+      width: max-content;
+      justify-self: start;
+      margin-inline-end: var(--cpx-comp-row-gap);
+    }
+
+    & :where(.sidebar-row-leading-spacer, .sidebar-context-menu-leading:empty) {
+      display: none;
+    }
+
+    & :is(.sidebar-row-main, .sidebar-context-menu-label, .menubar-item-label, .menu-column-label) {
+      grid-column: 2;
+      min-width: 0;
+      padding-inline-end: 30px;
+    }
+
+    &
+      :is(
+        .sidebar-row-trailing,
+        .sidebar-context-menu-trailing,
+        .menubar-item-trailing,
+        .menu-column-trailing
+      ) {
+      grid-column: 3;
+      justify-self: end;
+    }
+
+    & :is(.menu-column-detail, .popover-item-description) {
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
   }
 }

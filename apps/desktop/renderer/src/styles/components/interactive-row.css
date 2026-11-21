@@ -36,7 +36,11 @@
     corner-shape: var(--cpx-sys-corner-shape);
     background: var(--cpx-comp-row-bg, transparent);
     color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
     text-align: left;
     text-decoration: none;
     cursor: pointer;
@@ -78,10 +82,25 @@
   .interactive-row--nav {
     --interactive-row-current-min-height: var(--cpx-comp-row-height-nav);
     --interactive-row-current-radius: var(--cpx-comp-row-radius);
+    --interactive-row-current-padding-block: var(--cpx-comp-row-padding-block);
     --interactive-row-current-padding-inline: var(--cpx-comp-row-padding-inline);
   }
 
-  .interactive-row--menu,
+  .thread-summary-row {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) max-content;
+  }
+
+  .thread-summary-row[data-tone='meta'] {
+    color: var(--cpx-sys-color-fg-tertiary);
+  }
+
+  .thread-summary-row[data-tone='meta']:is(:hover, :focus-visible):not(
+      :where(:disabled, [data-disabled], [aria-disabled='true'])
+    ) {
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
   .menubar-item,
   .settings-dropdown-item,
   .permission-select-item,
@@ -94,12 +113,19 @@
     --interactive-row-current-padding-inline: var(--cpx-comp-row-padding-inline);
   }
 
-  .interactive-row--rich,
   .permission-select-item {
     --interactive-row-current-min-height: var(--cpx-comp-row-height-menu-rich, 40px);
     --interactive-row-current-padding-block: var(--cpx-comp-row-padding-block-rich, 6px);
-    --interactive-row-current-padding-inline: 12px;
-    --interactive-row-current-gap: 8px;
+  }
+
+  /*
+   * Permission selector scroll areas: bound the single grid track so long rows
+   * ellipsize inside the menu clamp instead of sizing the track to their
+   * max-content width and overflowing it.
+   */
+  .permission-select-scroll-area,
+  .permission-select-scroll-content {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .permission-select-scroll-content {
@@ -225,6 +251,12 @@
     transform: none;
     cursor: default;
     opacity: var(--cpx-comp-row-disabled-opacity, 0.55);
+  }
+
+  .chat-input__dropdown-item:disabled,
+  .chat-input__dropdown-item[aria-disabled='true'] {
+    cursor: not-allowed;
+    pointer-events: none;
   }
 
   @media (forced-colors: active) {

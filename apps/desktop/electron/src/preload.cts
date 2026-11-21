@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { DesktopThemeSettingsV8 } from './settings/AppearanceSettingsStore.js'
-import type { DesktopSystemFontFace, DesktopSystemFontsResult } from '@pidex/shared/desktop-theme'
+import type {
+  DesktopExternalFontDownloadResult,
+  DesktopExternalFontState,
+} from '@pidex/shared/desktop-external-fonts'
 import type {
   DesktopPetOverlayBridge,
   DesktopPetPresentation,
@@ -215,6 +218,10 @@ const DESKTOP_SHELL_IPC_CHANNELS = {
   listExternalOpenTargets: 'shell:list-external-open-targets',
   openPathWithTarget: 'shell:open-path-with-target',
   revealPathInFolder: 'shell:reveal-path-in-folder',
+  openDirectory: 'shell:open-directory',
+  getUserDataStorageSummary: 'shell:get-user-data-storage-summary',
+  listUserDataDownloadedResources: 'shell:list-user-data-downloaded-resources',
+  deleteUserDataDownloadedResource: 'shell:delete-user-data-downloaded-resource',
 } as const satisfies typeof import('@pidex/shared/desktop-shell-ipc').DESKTOP_SHELL_IPC_CHANNELS
 
 const DESKTOP_CLIPBOARD_IPC_CHANNELS = {
@@ -241,6 +248,9 @@ const DESKTOP_APPEARANCE_IPC_CHANNELS = {
   canRestorePreviousAppearance: 'appearance:previous-appearance:can-restore',
   restorePreviousAppearance: 'appearance:previous-appearance:restore',
   applyNewDesignTheme: 'appearance:new-design-theme:apply',
+  listExternalFonts: 'appearance:external-fonts:list',
+  downloadExternalFont: 'appearance:external-fonts:download',
+  getExternalFontCss: 'appearance:external-fonts:css',
 } as const satisfies typeof import('@pidex/shared/desktop-appearance-ipc').DESKTOP_APPEARANCE_IPC_CHANNELS
 
 applyStartupThemeSeed(
@@ -557,6 +567,18 @@ const desktop = {
     ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.openPathWithTarget, targetPath, targetId),
   revealPathInFolder: (targetPath: string): Promise<void> =>
     ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.revealPathInFolder, targetPath),
+  openDirectory: (targetPath: string): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.openDirectory, targetPath),
+  getUserDataStorageSummary: (): Promise<
+    import('@pidex/shared/desktop-shell-ipc').DesktopUserDataStorageSummary
+  > => ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.getUserDataStorageSummary),
+  listUserDataDownloadedResources: (): Promise<
+    import('@pidex/shared/desktop-shell-ipc').DesktopUserDataDownloadedResource[]
+  > => ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.listUserDataDownloadedResources),
+  deleteUserDataDownloadedResource: (
+    resourceId: string,
+  ): Promise<{ resourceId: string; reclaimedBytes: number }> =>
+    ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.deleteUserDataDownloadedResource, resourceId),
   getStartupSnapshot: async (): Promise<DesktopStartupSnapshot> => {
     const snapshot: unknown = await ipcRenderer.invoke(DESKTOP_STARTUP_IPC_CHANNELS.snapshot)
     if (!isDesktopStartupSnapshot(snapshot)) throw new Error('启动状态无效')
@@ -586,6 +608,12 @@ const desktop = {
     ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.restorePreviousAppearance),
   applyNewDesignTheme: (): Promise<DesktopThemeSettingsV8> =>
     ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.applyNewDesignTheme),
+  listExternalFonts: (): Promise<DesktopExternalFontState[]> =>
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.listExternalFonts),
+  downloadExternalFont: (fontId: string): Promise<DesktopExternalFontDownloadResult> =>
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.downloadExternalFont, fontId),
+  getExternalFontCss: (fontId: string): Promise<string | null> =>
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.getExternalFontCss, fontId),
   getSystemTheme: (): Promise<SystemThemeVariant> =>
     ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.getSystemTheme),
   onSystemThemeChange: (listener: (variant: SystemThemeVariant) => void): (() => void) => {
@@ -601,44 +629,6 @@ const desktop = {
   getPetOverlayWindowState: () => ipcRenderer.invoke(PET_OVERLAY_CHANNELS.getState),
   previewPetPresentation: (presentation: DesktopPetPresentation): Promise<DesktopPetPresentation> =>
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.previewPresentation, presentation),
-  listSystemFonts: async (): Promise<DesktopSystemFontsResult> => {
-    // Local Font Access (Chromium 103+). Only display metadata is returned;
-    // font file paths, Blobs, and filesystem access never cross the bridge.
-    const queryLocalFonts = (
-      window as unknown as {
-        queryLocalFonts?: () => Promise<readonly LocalFontMetadata[]>
-      }
-    ).queryLocalFonts
-    if (typeof queryLocalFonts !== 'function') {
-      return { ok: false, error: 'unsupported' }
-    }
-    try {
-      const entries = await queryLocalFonts()
-      if (!Array.isArray(entries)) return { ok: false, error: 'failed' }
-      const seen = new Set<string>()
-      const fonts: DesktopSystemFontFace[] = []
-      for (const entry of entries) {
-        const face = normalizeSystemFontFace(entry)
-        if (!face) continue
-        const key = `${face.family}\u0000${face.postscriptName}`
-        if (seen.has(key)) continue
-        seen.add(key)
-        fonts.push(face)
-      }
-      fonts.sort(
-        (left, right) =>
-          left.family.localeCompare(right.family) ||
-          left.fullName.localeCompare(right.fullName) ||
-          left.postscriptName.localeCompare(right.postscriptName),
-      )
-      return { ok: true, fonts }
-    } catch (error) {
-      if (isRecord(error) && error.name === 'NotAllowedError') {
-        return { ok: false, error: 'denied' }
-      }
-      return { ok: false, error: 'failed' }
-    }
-  },
   onPetPresentationPreview: (
     listener: (presentation: DesktopPetPresentation) => void,
   ): (() => void) => {
@@ -780,33 +770,6 @@ function isDesktopBrowserSnapshot(value: unknown): value is DesktopBrowserSnapsh
     value.allowedSites.every((site) => typeof site === 'string') &&
     Array.isArray(value.sitePermissions)
   )
-}
-type LocalFontMetadata = {
-  family: string
-  fullName: string
-  postscriptName: string
-  style: string
-}
-
-function normalizeSystemFontFace(value: unknown): DesktopSystemFontFace | null {
-  if (!isRecord(value)) return null
-  const family = fontMetadataField(value.family, 200)
-  const fullName = fontMetadataField(value.fullName, 200)
-  const postscriptName = fontMetadataField(value.postscriptName, 200)
-  if (!family || !fullName || !postscriptName) return null
-  const style = typeof value.style === 'string' ? value.style.trim() : ''
-  return {
-    family,
-    fullName,
-    postscriptName,
-    style: style.length > 0 && style.length <= 100 ? style : 'Regular',
-  }
-}
-
-function fontMetadataField(value: unknown, maximumLength: number): string | null {
-  if (typeof value !== 'string') return null
-  const trimmed = value.trim()
-  return trimmed.length > 0 && trimmed.length <= maximumLength ? trimmed : null
 }
 
 function isPetPresentation(value: unknown): value is DesktopPetPresentation {

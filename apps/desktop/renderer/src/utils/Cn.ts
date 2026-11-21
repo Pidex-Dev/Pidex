@@ -1,31 +1,18 @@
 import { extendTailwindMerge } from 'tailwind-merge'
 import { cx, type ClassValue } from './Cx.js'
 
-const mergeClasses = extendTailwindMerge<'type-role' | 'arbitrary..font'>({
+const mergeClasses = extendTailwindMerge<'type-role' | 'weight-role' | 'arbitrary..font'>({
   prefix: 'tw',
   extend: {
     classGroups: {
       'type-role': [
         {
-          type: [
-            'display',
-            'body',
-            'control',
-            'secondary',
-            'meta',
-            'caption',
-            'label',
-            'body-sm',
-            'body-lg',
-            'reading',
-            'row-title',
-            'title-sm',
-            'title-md',
-            'title-lg',
-            'title-xl',
-            'metric',
-            'code',
-          ],
+          type: ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'code'],
+        },
+      ],
+      'weight-role': [
+        {
+          weight: ['light', 'regular', 'medium', 'bold'],
         },
       ],
       size: [{ size: ['icon', 'icon-sm', 'icon-md', 'icon-lg'] }],

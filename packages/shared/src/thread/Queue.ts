@@ -2,15 +2,13 @@ import { Schema } from 'effect'
 import { ThreadContextStateSchema } from './Context'
 import {
   ApprovalRequestSchema,
-  AttachmentSchema,
   InputSchema,
   ItemSchema,
   LocalContextReferenceSchema,
   MessageSchema,
-  ThreadTurnBundleSchema,
 } from './Items'
 import { ThreadGoalSchema } from './Goal'
-import { ThreadListItemSchema, ThreadSchema, TurnSchema } from './Schema'
+import { ThreadSchema, TurnSchema } from './Schema'
 import { AgentExecutionSchema, SubagentProjectionSchema } from './Subagent'
 import { PlanApprovalSchema } from './PlanApproval'
 

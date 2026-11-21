@@ -1,7 +1,8 @@
 import type { SubagentProfile, TaskMode } from '../Domain'
 import { MAX_SUBAGENT_DEPTH, isReadOnlyTaskMode, type SandboxMode } from '@pidex/shared/thread'
-import { isGranularApprovalPolicy, type PermissionConfig } from '@pidex/shared/thread'
+import { type PermissionConfig } from '@pidex/shared/thread'
 import type { ToolCatalog } from './ToolRegistry'
+import { filterPoisonedTools } from '../decision/integrations/ToolDescriptionScreen'
 
 export const PI_LIFECYCLE_TOOLS = [
   // These Skill names remain bindable only for already persisted turn snapshots.
@@ -15,6 +16,7 @@ export const PI_LIFECYCLE_TOOLS = [
   'submit_plan',
   'submit_schedule_plan',
   'submit_task_schedule',
+  'Agent',
   'spawn_agents',
   'wait_agents',
   'send_agent',
@@ -52,11 +54,10 @@ export interface ToolExposureInput {
 
 /**
  * `request_permissions` can only ever be answered when the policy permits
- * approvals: `never` forbids waiting, and a granular policy that switches the
- * capability off is a hard denial rather than a review.
+ * approvals: `never` forbids waiting.
  */
 export const approvalAllowsPermissionRequests = (policy: PermissionConfig['approvalPolicy']) =>
-  policy !== 'never' && !(isGranularApprovalPolicy(policy) && !policy.requestPermissions)
+  policy !== 'never'
 
 export interface ToolExposurePlan {
   eager: readonly string[]
@@ -74,17 +75,27 @@ export function createToolExposurePlan(
   // Collaboration modes gate tools, not the user's file-access scope. Passing
   // the stored sandbox mode through keeps exposure, preview and execution on
   // the same policy; mutating tools are filtered by the mode rule instead.
-  const definitions = catalog.list(input.taskMode, input.sandboxMode, profile)
+  // SAFETY: 描述投毒命中的工具从暴露集剔除；无缓存结论时该过滤为空操作，行为与现状一致。
+  const definitions = filterPoisonedTools(catalog.list(input.taskMode, input.sandboxMode, profile))
   const eager = definitions
     .filter((tool) => tool.visibility === 'eager')
     .map((tool) => tool.sdkName)
+  const canDelegate =
+    input.delegationEnabled !== false &&
+    (input.collaborationEnabled !== false || profile === 'main')
+  const canCollaborate = canDelegate && input.collaborationEnabled !== false
+  const deferredControlAllowed = (name: string) => {
+    if (name === 'send_agent' || name === 'stop_agent') return canDelegate
+    if (name === 'followup_agent' || name === 'list_agents') return canCollaborate
+    return true
+  }
   const deferredCandidates = definitions
-    .filter((tool) => tool.visibility === 'deferred')
+    .filter((tool) => tool.visibility === 'deferred' && deferredControlAllowed(tool.sdkName))
     .map((tool) => tool.sdkName)
   const lifecycle: string[] = []
+  if (input.hasSkillService) lifecycle.push('skill_read')
   if (input.hasProjectSources) lifecycle.push('project_source_list', 'project_source_read')
-  if (profile !== 'main') lifecycle.push('finalize_result')
-  else {
+  if (profile === 'main') {
     if (isReadOnlyTaskMode(input.taskMode) || input.defaultModeRequestUserInput)
       lifecycle.push('request_user_input')
     // Plan 主 Agent 以结构化 submit_plan 交付最终方案；<proposed_plan> 仅作兼容回退。
@@ -102,14 +113,12 @@ export function createToolExposurePlan(
     }
   }
 
-  if (
-    input.delegationEnabled !== false &&
-    (input.collaborationEnabled !== false || profile === 'main')
-  ) {
-    if ((input.depth ?? (profile === 'main' ? 0 : 1)) < MAX_SUBAGENT_DEPTH)
-      lifecycle.push('spawn_agents')
-    lifecycle.push('wait_agents', 'send_agent', 'stop_agent')
-    if (input.collaborationEnabled !== false) lifecycle.push('followup_agent', 'list_agents')
+  if (canDelegate) {
+    if (
+      (profile === 'main' || profile === 'default') &&
+      (input.depth ?? (profile === 'main' ? 0 : 1)) < MAX_SUBAGENT_DEPTH
+    )
+      lifecycle.push('Agent')
     if (profile !== 'main' && input.collaborationEnabled !== false) lifecycle.push('report_agent')
   }
   const allowlist = input.allowedTools ? new Set(input.allowedTools) : null
@@ -121,10 +130,6 @@ export function createToolExposurePlan(
   const explicitlyAllowedDeferred = allowlist
     ? deferredCandidates.filter((name) => allowlist.has(name))
     : []
-  // 子 Agent 无论 allowlist 收紧都必须能够收尾提交。
-  const finalizers = new Set(['finalize_result'])
-  const lifecycleExemption =
-    profile !== 'main' ? (name: string) => finalizers.has(name) : () => false
   const exposed = [
     ...new Set([
       ...eager,
@@ -132,7 +137,7 @@ export function createToolExposurePlan(
       ...explicitlyAllowedDeferred,
       ...lifecycle,
     ]),
-  ].filter((name) => !allowlist || allowlist.has(name) || lifecycleExemption(name))
+  ].filter((name) => !allowlist || allowlist.has(name))
   const exposedSet = new Set(exposed)
   return {
     eager: eager.filter((name) => exposedSet.has(name)),

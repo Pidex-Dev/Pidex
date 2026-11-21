@@ -3,11 +3,13 @@ import {
   applyThreadEnvelopes,
   canApplyItemDelta,
   createCanonicalThreadState,
+  mergeDecisionLedgerIntoState,
   prependOlderThreadPage,
   reconcileLatestThreadPage,
   type CanonicalThreadState,
   type ThreadHistoryPageLike,
 } from '@pidex/session-view'
+import type { DecisionLedgerRecord, DecisionOutcomeRecord } from '@pidex/shared/decision'
 
 import { countCanonicalCommit, setPendingDeltaCharacters } from '../state/StreamingPerfCounters.js'
 import {
@@ -144,6 +146,19 @@ export class CanonicalThreadIngestionCoordinator {
         ),
       }),
     )
+  }
+
+  /**
+   * Merges a `decision/listLedger` page into the decision slice without moving
+   * the history stream fence, so a concurrent durable event is never skipped.
+   */
+  mergeDecisionLedger(page: {
+    records: readonly DecisionLedgerRecord[]
+    outcomes: readonly DecisionOutcomeRecord[]
+  }): void {
+    this.#flushPending()
+    if (!this.#state || this.#state.thread.id !== this.#threadId) return
+    this.#commit(mergeDecisionLedgerIntoState(this.#state, page))
   }
 
   /**

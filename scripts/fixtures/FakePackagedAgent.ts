@@ -43,10 +43,29 @@ const server = serve({
         })
       }
       if (body.method === 'model/list') {
+        if (mode === 'clean-catalog' || mode === 'bad-discovered-catalog') {
+          return Response.json({
+            jsonrpc: '2.0',
+            result: {
+              providers: [{ id: 'pi', models: [] }],
+            },
+          })
+        }
         return Response.json({
           jsonrpc: '2.0',
           result: {
             providers: [{ id: 'pi', models: [{ id: 'm1', api: { type: 'pi' } }] }],
+          },
+        })
+      }
+      if (body.method === 'provider/model/discover') {
+        if (mode === 'bad-discovered-catalog') {
+          return Response.json({ jsonrpc: '2.0', result: { models: [] } })
+        }
+        return Response.json({
+          jsonrpc: '2.0',
+          result: {
+            models: [{ id: 'gpt-5', name: 'GPT-5', api: 'openai-responses' }],
           },
         })
       }

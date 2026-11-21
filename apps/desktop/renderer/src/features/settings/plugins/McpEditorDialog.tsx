@@ -306,7 +306,7 @@ export function McpEditorDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:flex-col tw:overflow-hidden tw:p-0 tw:text-app-text ${SETTINGS_MANAGEMENT_DIALOG_SIZE.mcpEditor}`}
+          className={`ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:min-w-0 tw:flex-col tw:overflow-hidden tw:p-0 tw:text-app-text ${SETTINGS_MANAGEMENT_DIALOG_SIZE.mcpEditor}`}
           onCloseAutoFocus={(event) => {
             if (!restoreFocusElement?.isConnected) return
             event.preventDefault()
@@ -317,17 +317,17 @@ export function McpEditorDialog({
             closeRef.current?.focus()
           }}
         >
-          <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3">
-            <span className="settings-management-dialog-heading tw:min-w-0 tw:flex-1">
-              <Dialog.Title className="tw:type-title-sm tw:m-0">
+          <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:p-5">
+            <span className="settings-management-dialog-heading tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
+              <Dialog.Title className="tw:type-4 tw:weight-bold tw:m-0">
                 {server ? `MCP：${server.name}` : '新增 MCP server'}
               </Dialog.Title>
-              <Dialog.Description className="tw:type-body-sm tw:mt-1 tw:mb-0 tw:text-app-text-soft">
+              <Dialog.Description className="tw:type-1 tw:mt-1 tw:mb-0 tw:text-app-text-soft">
                 使用结构化字段配置 stdio 或 Streamable HTTP；HTTP 会在协议不兼容时自动回退 SSE。
               </Dialog.Description>
               <Button size="md" color="secondary" className="tw:mt-1" onClick={onOpenDocumentation}>
                 官方 MCP 文档
-                <ExternalLink aria-hidden="true" size={APP_ICON_SIZE} />
+                <ExternalLink className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
               </Button>
             </span>
             <Dialog.Close asChild>
@@ -338,31 +338,43 @@ export function McpEditorDialog({
                 size="toolbar"
                 title="关闭 MCP 编辑器"
               >
-                <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <X
+                  className="tw:size-icon-md"
+                  aria-hidden="true"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               </Button>
             </Dialog.Close>
           </header>
 
-          <div className="settings-management-dialog-body tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto">
+          <div className="settings-management-dialog-body tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto tw:p-5">
             {runtimeError || needsAuth ? (
-              <div className="tw:type-body-sm tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text-soft">
+              <div className="tw:type-1 tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text-soft">
                 {runtimeError ??
                   '该 server 需要认证。请从 MCP 列表发起 OAuth 登录，或配置宿主环境变量凭据。'}
               </div>
             ) : null}
             {validationError ? (
               <div
-                className="tw:type-body-sm tw:border tw:border-app-danger/40 tw:bg-app-danger/10 tw:px-3 tw:py-2 tw:text-app-danger"
+                className="tw:type-1 tw:border tw:border-app-danger/40 tw:bg-app-danger/10 tw:px-3 tw:py-2 tw:text-app-danger"
                 role="alert"
               >
                 {validationError}
               </div>
             ) : null}
 
+            {server?.name === 'node_repl' ? (
+              <p className="tw:type-1 tw:text-app-text-soft">
+                按需启动兼容 js 工具的 stdio MCP
+                服务。更换程序需要配套运行时；删除自定义配置会恢复插件默认入口。
+              </p>
+            ) : null}
             <FormCard>
               <FormRow label="名称">
                 <Input
                   aria-label="MCP server 名称"
+                  disabled={server?.name === 'node_repl'}
                   value={form.name}
                   placeholder="MCP server name"
                   onChange={(event) =>
@@ -373,7 +385,7 @@ export function McpEditorDialog({
               <FormRow label="类型">
                 <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2">
                   {server ? (
-                    <span className="tw:type-caption tw:text-app-text-soft">
+                    <span className="tw:type-1 tw:text-app-text-soft">
                       已有配置的 transport 不可修改。
                     </span>
                   ) : (
@@ -505,18 +517,20 @@ export function McpEditorDialog({
                   onChange={(enabled) => update((current) => ({ ...current, enabled }))}
                 />
               </FormRow>
-              <FormRow label="必需 Server">
-                <span className="tw:flex tw:items-center tw:gap-2">
-                  <ToggleSwitch
-                    ariaLabel="必需 Server"
-                    checked={form.required}
-                    onChange={(required) => update((current) => ({ ...current, required }))}
-                  />
-                  <span className="tw:type-caption tw:text-app-text-soft">
-                    开启后，连接失败会阻止任务开始。
+              {server?.name !== 'node_repl' ? (
+                <FormRow label="必需 Server">
+                  <span className="tw:flex tw:items-center tw:gap-2">
+                    <ToggleSwitch
+                      ariaLabel="必需 Server"
+                      checked={form.required}
+                      onChange={(required) => update((current) => ({ ...current, required }))}
+                    />
+                    <span className="tw:type-1 tw:text-app-text-soft">
+                      开启后，连接失败会阻止任务开始。
+                    </span>
                   </span>
-                </span>
-              </FormRow>
+                </FormRow>
+              ) : null}
               {form.type === 'http' ? (
                 <>
                   <FormRow label="OAuth">
@@ -531,7 +545,7 @@ export function McpEditorDialog({
                           }))
                         }
                       />
-                      <span className="tw:type-body-sm tw:text-app-text-soft">
+                      <span className="tw:type-1 tw:text-app-text-soft">
                         {form.httpAuth === 'oauth' ? '使用 OAuth 登录' : '不使用 OAuth'}
                       </span>
                     </span>
@@ -606,7 +620,7 @@ export function McpEditorDialog({
                   rows={form.toolApprovals}
                   onChange={(toolApprovals) => update((current) => ({ ...current, toolApprovals }))}
                 />
-                {form.type === 'stdio' ? (
+                {form.type === 'stdio' && server?.name !== 'node_repl' ? (
                   <FormRow label="传递会话诊断上下文">
                     <ToggleSwitch
                       ariaLabel="传递会话诊断上下文"
@@ -618,7 +632,7 @@ export function McpEditorDialog({
                         }))
                       }
                     />
-                    <span className="tw:type-caption tw:text-app-text-soft">
+                    <span className="tw:type-1 tw:text-app-text-soft">
                       仅向本地进程传递最近的可见消息和工具状态摘要，不包含系统提示词、推理内容、路径或工具原始参数。
                     </span>
                   </FormRow>
@@ -648,7 +662,7 @@ export function McpEditorDialog({
               </FormCard>
               <Field label="Server JSON">
                 <textarea
-                  className="settings-textarea settings-code-textarea tw:min-h-52 tw:w-full tw:resize-y"
+                  className="tw:min-h-[13rem] tw:w-full tw:resize-y tw:rounded-control tw:border tw:border-app-border tw:bg-app-underlay tw:px-control-inline tw:py-control-block tw:text-app-text tw:type-code tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard tw:hover:not-disabled:border-app-border-strong tw:focus-visible:border-app-focus tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:disabled:cursor-default tw:disabled:border-app-border-subtle tw:disabled:bg-app-panel tw:disabled:text-app-text-disabled tw:disabled:opacity-55"
                   rows={10}
                   spellCheck={false}
                   value={form.configText}
@@ -665,16 +679,17 @@ export function McpEditorDialog({
             </McpAdvancedDisclosure>
           </div>
 
-          <footer className="settings-management-dialog-footer tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2">
+          <footer className="settings-management-dialog-footer tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4">
             <span>
               {server?.removable ? (
                 <Button size="md" color="danger" disabled={busy} onClick={() => onRemove(server)}>
                   <Trash2
+                    className="tw:size-icon-md"
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
-                  删除
+                  {server.name === 'node_repl' ? '恢复默认配置' : '删除'}
                 </Button>
               ) : null}
             </span>
@@ -732,14 +747,14 @@ const McpAdvancedDisclosure = memo(function McpAdvancedDisclosure({
       <button
         aria-controls={contentId}
         aria-expanded={expanded}
-        className="mcp-editor-advanced-disclosure tw:inline-flex tw:min-h-8 tw:cursor-pointer tw:items-center tw:justify-start tw:gap-2 tw:rounded-compact tw:border-0 tw:bg-transparent tw:px-2 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text tw:aria-expanded:bg-app-hover tw:aria-expanded:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+        className="mcp-editor-advanced-disclosure tw:inline-flex tw:min-h-6 tw:cursor-pointer tw:items-center tw:justify-start tw:gap-2 tw:rounded-compact tw:border-0 tw:bg-transparent tw:px-2 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text tw:aria-expanded:bg-app-hover tw:aria-expanded:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
         type="button"
         onClick={toggle}
       >
         {expanded ? (
-          <ChevronUp aria-hidden="true" size={APP_ICON_SIZES.sm} />
+          <ChevronUp className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
         ) : (
-          <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
+          <ChevronDown className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
         )}
         高级选项
       </button>
@@ -757,8 +772,8 @@ const McpAdvancedDisclosure = memo(function McpAdvancedDisclosure({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }): React.ReactNode {
   return (
-    <label className="tw:grid tw:gap-1.5">
-      <span className="tw:type-control">{label}</span>
+    <label className="tw:grid tw:gap-1">
+      <span className="tw:type-2 tw:weight-medium">{label}</span>
       {children}
     </label>
   )
@@ -766,7 +781,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function FormCard({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
-    <section className="settings-management-dialog-card tw:grid tw:overflow-hidden">
+    <section className="settings-management-dialog-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel">
       {children}
     </section>
   )
@@ -780,9 +795,13 @@ function FormRow({
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <div className="settings-management-dialog-row">
-      <span className="settings-management-dialog-row-label">{label}</span>
-      <div className="settings-management-dialog-row-control">{children}</div>
+    <div className="settings-management-dialog-row tw:grid tw:min-w-0 tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:gap-4 tw:px-4 tw:py-3 tw:max-[640px]:grid-cols-1 tw:max-[640px]:gap-2">
+      <span className="settings-management-dialog-row-label tw:text-app-text tw:type-2 tw:weight-medium">
+        {label}
+      </span>
+      <div className="settings-management-dialog-row-control tw:grid tw:min-w-0 tw:gap-2">
+        {children}
+      </div>
     </div>
   )
 }
@@ -830,6 +849,7 @@ function ValueListField({
               onClick={() => onChange(removeValueRow(rows, row.id))}
             >
               <Trash2
+                className="tw:size-icon-sm"
                 aria-hidden="true"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -838,7 +858,12 @@ function ValueListField({
           </div>
         ))}
         <Button color="primary" fullWidth onClick={() => onChange([...rows, createValueRow()])}>
-          <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus
+            className="tw:size-icon-md"
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
           {addLabel}
         </Button>
       </div>
@@ -897,6 +922,7 @@ function MapListField({
               onClick={() => onChange(removeMapRow(rows, row.id))}
             >
               <Trash2
+                className="tw:size-icon-sm"
                 aria-hidden="true"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -905,7 +931,12 @@ function MapListField({
           </div>
         ))}
         <Button color="primary" fullWidth onClick={() => onChange([...rows, createMapRow()])}>
-          <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus
+            className="tw:size-icon-md"
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
           {addLabel}
         </Button>
       </div>
@@ -955,6 +986,7 @@ function ToolApprovalListField({
               onClick={() => onChange(removeMapRow(rows, row.id))}
             >
               <Trash2
+                className="tw:size-icon-sm"
                 aria-hidden="true"
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -967,7 +999,12 @@ function ToolApprovalListField({
           fullWidth
           onClick={() => onChange([...rows, createMapRow('', 'auto')])}
         >
-          <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus
+            className="tw:size-icon-md"
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
           添加工具覆盖
         </Button>
       </div>

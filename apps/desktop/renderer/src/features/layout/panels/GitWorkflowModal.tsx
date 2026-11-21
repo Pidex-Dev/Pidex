@@ -206,25 +206,25 @@ export function GitWorkflowModal({
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
           aria-describedby="git-workflow-description"
-          className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:grid tw:w-[min(40rem,calc(100%-3rem))] tw:max-h-[calc(100dvh-3rem)] tw:gap-4 tw:overflow-y-auto tw:p-5 tw:type-body"
+          className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:grid tw:w-[min(40rem,calc(100%-3rem))] tw:max-h-[calc(100dvh-3rem)] tw:gap-4 tw:overflow-y-auto tw:p-5 tw:type-2"
           onCloseAutoFocus={onCloseAutoFocus}
         >
           <header className={cx('tw:flex', 'tw:items-center', 'tw:justify-between', 'tw:gap-3')}>
             <Dialog.Title asChild>
-              <h2 className="tw:m-0 tw:type-title-sm">{title}</h2>
+              <h2 className="tw:m-0 tw:type-4 tw:weight-bold">{title}</h2>
             </Dialog.Title>
-            <span className="tw:max-w-[50%] tw:truncate tw:type-caption">
+            <span className="tw:max-w-[50%] tw:truncate tw:type-1">
               {workspace?.name ?? '无项目'}
             </span>
           </header>
           <Dialog.Description
             id="git-workflow-description"
-            className="tw:m-0 tw:break-all tw:type-caption tw:text-app-text-meta"
+            className="tw:m-0 tw:break-all tw:type-1 tw:text-app-text-meta"
           >
             {workspace?.path ?? '请选择一个本地项目后再操作 Git。'}
           </Dialog.Description>
           {(mode === 'push' || mode === 'commitPush') && (
-            <p className="tw:m-0 tw:type-body-sm tw:text-app-text-meta">
+            <p className="tw:m-0 tw:type-1 tw:text-app-text-meta">
               当前分支：{gitStatus?.branchName ?? 'detached HEAD'} · 上游：
               {gitStatus?.upstream ?? '未设置'}
             </p>
@@ -249,7 +249,7 @@ export function GitWorkflowModal({
           )}
           {mode === 'branch' ? (
             <div className={cx('tw:grid', 'tw:gap-3')}>
-              <label className="tw:grid tw:min-w-0 tw:gap-2 tw:type-body-sm">
+              <label className="tw:grid tw:min-w-0 tw:gap-2 tw:type-1">
                 <span>分支名称</span>
                 <Input
                   disabled={isSubmitting}
@@ -263,7 +263,7 @@ export function GitWorkflowModal({
             <div className={cx('tw:grid', 'tw:gap-3')}>
               {mode !== 'push' ? (
                 <>
-                  <label className="tw:grid tw:min-w-0 tw:gap-2 tw:type-body-sm">
+                  <label className="tw:grid tw:min-w-0 tw:gap-2 tw:type-1">
                     <span>提交信息</span>
                     <Textarea
                       rows={4}
@@ -301,7 +301,7 @@ export function GitWorkflowModal({
                               onCheckedChange={() => togglePath(file.path)}
                             />
                             <span
-                              className="tw:min-w-0 tw:flex-1 tw:truncate tw:type-body-sm"
+                              className="tw:min-w-0 tw:flex-1 tw:truncate tw:type-1"
                               title={file.path}
                             >
                               {file.path}
@@ -338,7 +338,7 @@ export function GitWorkflowModal({
           ) : null}
           {mode === 'pullRequest' ? (
             <div className={cx('tw:grid', 'tw:gap-3')}>
-              <label className="tw:grid tw:min-w-0 tw:gap-2 tw:type-body-sm">
+              <label className="tw:grid tw:min-w-0 tw:gap-2 tw:type-1">
                 <span>标题</span>
                 <Input
                   disabled={isSubmitting}
@@ -349,7 +349,7 @@ export function GitWorkflowModal({
                   }}
                 />
               </label>
-              <label className="tw:grid tw:min-w-0 tw:gap-2 tw:type-body-sm">
+              <label className="tw:grid tw:min-w-0 tw:gap-2 tw:type-1">
                 <span>描述</span>
                 <Textarea
                   rows={4}

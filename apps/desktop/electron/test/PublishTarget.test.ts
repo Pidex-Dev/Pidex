@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
  * 不得改动 owner／repo：一旦改动，打包产物的 app-update.yml 会指向不存在的仓库，
  * 自动更新静默失效。这里用配置契约把三处独立来源钉在同一个仓库上。
  */
-const EXPECTED_OWNER = 'codepilotx-dev'
+const EXPECTED_OWNER = 'Pidex-Dev'
 const EXPECTED_REPO = 'Pidex'
 
 describe('desktop publish target', () => {

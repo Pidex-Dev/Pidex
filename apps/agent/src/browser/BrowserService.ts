@@ -38,12 +38,33 @@ export function browserUrl(input: string): string {
     throw new AgentError('INVALID_REQUEST', '浏览器地址不得包含凭据', 400)
   return url.href
 }
+const MAX_SNAPSHOT_REF_TABS = 64
+const MAX_SNAPSHOT_REFS_PER_TAB = 1_500
+const MAX_REF_SUMMARY_CHARS = 300
+const SNAPSHOT_REF_PATTERN = /\bref=([A-Za-z0-9_-]+)/
+
+const indexSnapshotRefs = (text: string): Map<string, string> => {
+  const refs = new Map<string, string>()
+  for (const rawLine of text.split(/\r?\n/)) {
+    if (refs.size >= MAX_SNAPSHOT_REFS_PER_TAB) break
+    const match = SNAPSHOT_REF_PATTERN.exec(rawLine)
+    if (!match?.[1]) continue
+    const summary = rawLine.trim().slice(0, MAX_REF_SUMMARY_CHARS)
+    if (summary) refs.set(match[1], summary)
+  }
+  return refs
+}
+
 export class BrowserService {
   readonly repository: BrowserRepository
   readonly data: BrowserDataService
   private readonly tabs = new Map<string, BrowserTab>()
   private readonly hosts = new Map<string, Host>()
   private readonly pending = new Map<string, Pending>()
+  private readonly snapshotRefs = new Map<
+    string,
+    { documentId: string; refs: Map<string, string> }
+  >()
   constructor(
     private readonly db: AgentDatabase,
     private readonly hub: EventHub,
@@ -307,6 +328,7 @@ export class BrowserService {
     this.require(tabId)
     this.cancelTab(tabId)
     this.tabs.delete(tabId)
+    this.snapshotRefs.delete(tabId)
     await this.changed(tabId, () => this.repository.remove(tabId))
     this.wakeAll()
   }
@@ -374,6 +396,49 @@ export class BrowserService {
       dataRevision: this.data.revision,
     }
   }
+  private rememberSnapshotRefs(tabId: string, documentId: string | undefined, text: string) {
+    if (!documentId || !text) return
+    const refs = indexSnapshotRefs(text)
+    if (refs.size === 0) return
+    this.snapshotRefs.delete(tabId)
+    this.snapshotRefs.set(tabId, { documentId, refs })
+    while (this.snapshotRefs.size > MAX_SNAPSHOT_REF_TABS) {
+      const oldest = this.snapshotRefs.keys().next().value
+      if (oldest === undefined) break
+      this.snapshotRefs.delete(oldest)
+    }
+  }
+  /** Read-only action target summary used by `browser.action.risk` without mutating tab state. */
+  describeActionTarget(
+    tabId: string,
+    operation: Pick<BrowserOperation, 'action' | 'target' | 'key' | 'accept' | 'x' | 'y'>,
+  ): { url: string | null; title: string | null; targetText: string | null } | null {
+    const tab = this.tabs.get(tabId)
+    if (!tab) return null
+    const cached = this.snapshotRefs.get(tabId)
+    const ref = operation.target?.ref?.trim()
+    const docId = operation.target?.documentId ?? tab.documentId
+    const matchedRef =
+      ref && cached && cached.documentId === docId ? (cached.refs.get(ref) ?? null) : null
+    const selector = operation.target?.selector?.trim()
+    const targetText =
+      matchedRef ??
+      (selector ? selector : null) ??
+      (ref ? `ref=${ref}` : null) ??
+      (typeof operation.x === 'number' && typeof operation.y === 'number'
+        ? `coordinates(${operation.x}, ${operation.y})`
+        : null) ??
+      (operation.action === 'dialog'
+        ? `dialog(accept=${String(operation.accept ?? false)})`
+        : operation.action === 'key' && operation.key
+          ? `key=${operation.key}`
+          : null)
+    return {
+      url: tab.url || null,
+      title: tab.title || null,
+      targetText,
+    }
+  }
   complete(
     windowId: string,
     instanceId: string,
@@ -387,6 +452,10 @@ export class BrowserService {
     if (!pending) return
     if (pending.windowId !== windowId || pending.command.generation !== generation)
       throw new AgentError('PERMISSION_DENIED', '浏览器命令代际不匹配', 403)
+    if (!error && result?.text && pending.command.operation.action === 'snapshot') {
+      const tab = this.tabs.get(pending.command.tabId)
+      this.rememberSnapshotRefs(pending.command.tabId, tab?.documentId, result.text)
+    }
     pending.finish(
       result,
       error ? new AgentError('INVALID_REQUEST', error.slice(0, 2000), 409) : undefined,
@@ -421,6 +490,8 @@ export class BrowserService {
     ] as const)
       if (p && key in p) values[key] = p[key]
     if (typeof values.url === 'string') values.url = browserUrl(values.url)
+    if (typeof values.documentId === 'string' && values.documentId !== tab.documentId)
+      this.snapshotRefs.delete(tabId)
     if ((p?.historyEpoch ?? 0) !== (tab.historyEpoch ?? 0)) {
       delete values.canGoBack
       delete values.canGoForward

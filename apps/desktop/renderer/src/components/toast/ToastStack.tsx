@@ -66,19 +66,20 @@ export function ToastStack(): React.ReactNode {
 
   useLayoutEffect(() => {
     // 删除聚焦的通知按钮不一定触发 blur，不能让旧焦点把后续通知永久展开。
-    if (
-      !containsRelatedTarget(
-        containerRef.current,
-        containerRef.current?.ownerDocument.activeElement ?? null,
-      )
-    ) {
+    const focused = containsRelatedTarget(
+      containerRef.current,
+      containerRef.current?.ownerDocument.activeElement ?? null,
+    )
+    if (!focused) {
       setIsFocused(false)
     }
     if (toasts.length === 0) {
       setIsHovered(false)
       toastStore.setHovered(false)
+    } else {
+      toastStore.setHovered(isHovered || focused)
     }
-  }, [toasts])
+  }, [toasts, isHovered])
 
   const isExpanded = (isHovered || isFocused) && toasts.length > 1
   const heightArray = toasts.map((t) => heights[t.id] ?? 52)
@@ -149,7 +150,7 @@ export function ToastStack(): React.ReactNode {
           onPointerOut={(e) => {
             if (!containsRelatedTarget(containerRef.current, e.relatedTarget)) {
               setIsHovered(false)
-              toastStore.setHovered(false)
+              toastStore.setHovered(isFocused)
             }
           }}
           onFocus={() => {
@@ -159,7 +160,7 @@ export function ToastStack(): React.ReactNode {
           onBlur={(e) => {
             if (!containsRelatedTarget(containerRef.current, e.relatedTarget)) {
               setIsFocused(false)
-              toastStore.setHovered(false)
+              toastStore.setHovered(isHovered)
             }
           }}
         >

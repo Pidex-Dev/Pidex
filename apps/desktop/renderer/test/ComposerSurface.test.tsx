@@ -42,7 +42,7 @@ function composerCardProps(overrides: Partial<ComposerCardProps> = {}): Composer
     input: '',
     canSubmit: true,
     sessionStatus: 'idle',
-    permissionMode: 'default',
+    permissionMode: 'auto-review',
     thinkingMode: 'default',
     showThinkingOptions: false,
     deepSeekThinkingControls: false,
@@ -52,10 +52,8 @@ function composerCardProps(overrides: Partial<ComposerCardProps> = {}): Composer
     modelPresets: [],
     providerOptions: [],
     permissionOptions: [
-      { value: 'default', label: '默认权限' },
-      { value: 'auto-review', label: '自动审查' },
+      { value: 'auto-review', label: '帮我批准' },
       { value: 'full-access', label: '完全访问' },
-      { value: 'custom', label: '自定义' },
     ],
     thinkingOptions: [{ value: 'default', label: '默认' }],
     branchName: 'feature/working-surface',
@@ -68,8 +66,6 @@ function composerCardProps(overrides: Partial<ComposerCardProps> = {}): Composer
     onProviderModelChange: () => {},
     onOpenWorkspace: () => {},
     onClearWorkspace: () => {},
-    onBranchSelect: () => {},
-    onCreateBranch: () => {},
     onPermissionChange: () => {},
     onSubmit: () => {},
     onThinkingChange: () => {},
@@ -265,6 +261,10 @@ describe('composer surface variant', () => {
     let commands: ReturnType<typeof useComposerSlashCommands>['commands'] = []
     let executeCommand: ReturnType<typeof useComposerSlashCommands>['executeCommand']
     let failPlan = false
+    const captureControls = (controls: ReturnType<typeof useComposerSlashCommands>) => {
+      commands = controls.commands
+      executeCommand = controls.executeCommand
+    }
     function Harness({ plan }: { plan: boolean }) {
       const controls = useComposerSlashCommands({
         capabilities: DEFAULT_COMPOSER_CAPABILITIES,
@@ -292,8 +292,7 @@ describe('composer surface variant', () => {
           changes.push(`plan:${active}`)
         },
       })
-      commands = controls.commands
-      executeCommand = controls.executeCommand
+      captureControls(controls)
       return null
     }
     renderToStaticMarkup(<Harness plan />)
@@ -312,36 +311,41 @@ describe('composer surface variant', () => {
     const changes: string[] = []
     let taskMode = 'plan'
     let commands: ReturnType<typeof useComposerSlashCommands>['commands'] = []
+    const captureCommands = (next: ReturnType<typeof useComposerSlashCommands>['commands']) => {
+      commands = next
+    }
     function Harness({ plan, grill }: { plan: boolean; grill: boolean }) {
-      commands = useComposerSlashCommands({
-        capabilities: DEFAULT_COMPOSER_CAPABILITIES,
-        planModeActive: plan,
-        grillModeActive: grill,
-        goalModeEnabled: false,
-        hasConversationMessages: true,
-        hasThread: true,
-        canReview: false,
-        subagentMode: false,
-        sessionBusy: false,
-        reasoningAvailable: false,
-        showThreadActions: false,
-        showNewSessionActions: false,
-        canFork: false,
-        hasProject: false,
-        onOpenModel: () => {},
-        onOpenReasoning: () => {},
-        onOpenStatus: () => {},
-        onOpenReview: () => {},
-        onGoalModeChange: (active) => changes.push(`goal:${active}`),
-        onPlanModeChange: (active) => {
-          taskMode = active ? 'plan' : 'chat'
-          changes.push(`plan:${active}`)
-        },
-        onGrillModeChange: (active) => {
-          taskMode = active ? 'grill' : 'chat'
-          changes.push(`grill:${active}`)
-        },
-      }).commands
+      captureCommands(
+        useComposerSlashCommands({
+          capabilities: DEFAULT_COMPOSER_CAPABILITIES,
+          planModeActive: plan,
+          grillModeActive: grill,
+          goalModeEnabled: false,
+          hasConversationMessages: true,
+          hasThread: true,
+          canReview: false,
+          subagentMode: false,
+          sessionBusy: false,
+          reasoningAvailable: false,
+          showThreadActions: false,
+          showNewSessionActions: false,
+          canFork: false,
+          hasProject: false,
+          onOpenModel: () => {},
+          onOpenReasoning: () => {},
+          onOpenStatus: () => {},
+          onOpenReview: () => {},
+          onGoalModeChange: (active) => changes.push(`goal:${active}`),
+          onPlanModeChange: (active) => {
+            taskMode = active ? 'plan' : 'chat'
+            changes.push(`plan:${active}`)
+          },
+          onGrillModeChange: (active) => {
+            taskMode = active ? 'grill' : 'chat'
+            changes.push(`grill:${active}`)
+          },
+        }).commands,
+      )
       return null
     }
     renderToStaticMarkup(<Harness plan grill={false} />)
@@ -443,7 +447,7 @@ describe('composer surface variant', () => {
     expect(thread).toContain('footerClassName="workflow-main-scroll-footer tw:px-0 tw:pb-4"')
   })
 
-  test('Composer utility bar 只在有内容时渲染，首页默认显示项目、工作组和分支', () => {
+  test('Composer utility bar 只在有内容时渲染，首页默认显示项目和工作组', () => {
     const emptyThread = renderToStaticMarkup(
       <ComposerCard {...composerCardProps({ placement: 'thread' })} />,
     )
@@ -461,7 +465,9 @@ describe('composer surface variant', () => {
     expect(home.split('composer-bottom composer-utility-bar').length - 1).toBe(1)
     expect(home).toContain(WORKSPACE.name)
     expect(home).toContain('工作组')
-    expect(home).toContain(WORKSPACE.branchName)
+    // 分支切换已移入“配置本地环境”菜单，不再占用悬浮栏芯片。
+    expect(home).not.toContain('选择分支')
+    expect(home).toContain('aria-label="配置本地环境"')
   })
 
   test('暂停队列与 thread Goal 共用一个 utility bar，且队列不再显示数量头', () => {
@@ -519,6 +525,10 @@ describe('composer surface variant', () => {
     let commands: ReturnType<typeof useComposerSlashCommands>['commands'] = []
     let executeCommand: ReturnType<typeof useComposerSlashCommands>['executeCommand']
     let opens = 0
+    const captureControls = (controls: ReturnType<typeof useComposerSlashCommands>) => {
+      commands = controls.commands
+      executeCommand = controls.executeCommand
+    }
 
     function Harness() {
       const controls = useComposerSlashCommands({
@@ -542,8 +552,7 @@ describe('composer surface variant', () => {
         },
         onOpenReview: () => {},
       })
-      commands = controls.commands
-      executeCommand = controls.executeCommand
+      captureControls(controls)
       return null
     }
 
@@ -579,14 +588,15 @@ describe('composer surface variant', () => {
     expect(html).not.toContain('选择文件夹')
   })
 
-  test('Coding 选中 workspace 后显示工作组、分支与项目行为', () => {
+  test('Coding 首页把分支切换收进本地环境设置菜单', () => {
     const html = renderToStaticMarkup(
       <ComposerCard {...composerCardProps({ surface: 'coding', workspace: WORKSPACE })} />,
     )
     expect(html).toContain('Alpha 工作区')
     expect(html).toContain('工作组')
-    expect(html).toContain('feature/working-surface')
-    expect(html).toContain('选择分支')
+    // 顶部悬浮栏不再单独占用分支芯片，分支入口只保留在“配置本地环境”菜单里。
+    expect(html).not.toContain('选择分支')
+    expect(html).toContain('aria-label="配置本地环境"')
   })
 
   test('Chat 不渲染项目选择，但保留工作组、输入与提交结构', () => {
@@ -716,29 +726,20 @@ describe('composer surface variant', () => {
     expect(html).not.toContain('选择分支')
   })
 
-  test('隐藏的已配置预设显示实际标签与不可用原因', () => {
-    const reason = '“帮我批准”预设已在设置中关闭；当前配置保持不变。'
+  test('权限菜单仅保留帮我批准与完全访问两个选项', () => {
     const html = renderToStaticMarkup(
       <ComposerCard
         {...composerCardProps({
           permissionMode: 'auto-review',
           permissionOptions: [
-            { value: 'default', label: '请求批准' },
-            {
-              value: 'auto-review',
-              label: '帮我批准',
-              detail: reason,
-              disabled: true,
-            },
-            { value: 'custom', label: '自定义' },
+            { value: 'auto-review', label: '帮我批准' },
+            { value: 'full-access', label: '完全访问' },
           ],
-          permissionUnavailableReason: reason,
         })}
       />,
     )
     expect(html).toContain('帮我批准')
     expect(html).toContain('aria-label="更改权限"')
-    expect(html).toContain(reason)
   })
 
   test('Composer 发送门禁不依赖 Git/Review 状态，非 Git 项目仍可提交', () => {

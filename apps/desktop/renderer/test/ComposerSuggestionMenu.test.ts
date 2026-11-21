@@ -200,8 +200,9 @@ describe('composer suggestion routing and selection', () => {
       ),
     )
     expect(html).toContain('chat-input__dropdown--suggestion')
-    expect(html).toContain('tw:w-full')
-    expect(html).toContain('tw:max-w-full')
+    expect(html).toContain('tw:[--popover-width:100%]')
+    expect(html).toContain('tw:[--popover-max-width:100%]')
+    expect(html).not.toContain('--popover-width:360px')
     const composerCss = await Bun.file(
       new URL('../src/styles/primitives/composer.css', import.meta.url),
     ).text()

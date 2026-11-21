@@ -15,15 +15,27 @@
     margin-top: var(--cpx-sys-space-6);
     padding-bottom: var(--cpx-sys-space-8);
   }
-}
 
-@layer overrides {
   /*
    * 一级页面常驻搜索框布局（search && !expandableSearch）：
    * 宽屏容器（>= 680px）时，搜索框与顶部操作按钮并列在右上角，与主标题（32px）纵向严格对齐；
    * 窄屏容器（< 680px）时，操作按钮保持在右上角，搜索框自动换行到 header-top 正下方独占全宽，
    * 严密左对齐标题与描述，避免挤压标题与描述导致多行折行。
    */
+  .primary-page-layout__header--with-search {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .primary-page-layout__header-top {
+    display: flex;
+  }
+
+  .primary-page-layout__header--with-search .primary-page-layout__search {
+    width: 100%;
+    margin-top: var(--cpx-sys-space-4);
+  }
+
   @container (min-width: 680px) {
     .primary-page-layout__header--with-search {
       display: grid;

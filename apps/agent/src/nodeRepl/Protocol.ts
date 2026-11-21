@@ -1,8 +1,8 @@
 import type { ComputerAction, ComputerResult } from '@pidex/agent-protocol'
 
 /**
- * Wire contract between the host and the isolated JavaScript child process.
- * One JSON object per line; the child only ever speaks this protocol on stdout.
+ * Internal cell messages. The stdio boundary uses MCP JSON-RPC; computer
+ * operations cross it as pidex/computer requests and are checked by the host.
  */
 export const DEFAULT_NODE_REPL_TIMEOUT_MS = 60_000
 export const MIN_NODE_REPL_TIMEOUT_MS = 1_000
@@ -20,10 +20,19 @@ export type NodeReplOperationRequest =
 
 export type NodeReplImage = { data: string; mimeType: string }
 
+/**
+ * 宿主结果帧带回单元格标识：子进程只接受属于当前活动单元格的帧，上一单元格
+ * 迟到的结果不能冒充当前单元格的返回值。
+ */
 export type NodeReplHostMessage =
-  | { type: 'init'; code: string; timeoutMs: number }
-  | { type: 'result'; id: number; ok: true; result: ComputerResult }
-  | { type: 'result'; id: number; ok: false; error: { code: string; message: string } }
+  | { type: 'result'; id: number; cellId?: string; ok: true; result: ComputerResult }
+  | {
+      type: 'result'
+      id: number
+      cellId?: string
+      ok: false
+      error: { code: string; message: string }
+    }
 
 export type NodeReplChildMessage =
   | { type: 'call'; id: number; method: NodeReplMethod; args: Record<string, unknown> }

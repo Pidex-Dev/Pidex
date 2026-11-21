@@ -1,7 +1,36 @@
-import type { PluginAssetKind } from '@pidex/agent-protocol'
+import type { PluginAssetKind, PluginInstallSource } from '@pidex/agent-protocol'
 
 export const MAX_PLUGIN_ASSET_BYTES = 2 * 1024 * 1024
 export type PluginAssets = Partial<Record<PluginAssetKind, string>>
+
+/**
+ * Manifest keys that declare components the host only diagnoses. They are never
+ * executed, loaded as capabilities, or reported as installed components.
+ */
+export const UNSUPPORTED_MANIFEST_KEYS = ['commands', 'agents'] as const
+
+const declaredNames = (value: unknown): string[] => {
+  if (typeof value === 'string') return value.trim() ? [value.trim()] : []
+  if (Array.isArray(value)) return value.flatMap((entry) => declaredNames(entry))
+  if (!value || typeof value !== 'object') return []
+  const declared = (value as Record<string, unknown>).name
+  if (typeof declared === 'string' && declared.trim()) return [declared.trim()]
+  return Object.entries(value as Record<string, unknown>).flatMap(([key, entry]) => {
+    const child =
+      entry && typeof entry === 'object' && !Array.isArray(entry)
+        ? (entry as Record<string, unknown>).name
+        : undefined
+    const name = typeof child === 'string' && child.trim() ? child.trim() : key.trim()
+    return name ? [name] : []
+  })
+}
+
+/** Normalizes declared-but-unsupported manifest entries into unique names. */
+export function unsupportedPluginComponents(
+  sources: readonly unknown[],
+): PluginInstallSource['unsupportedComponents'] {
+  return [...new Set(sources.flatMap((source) => declaredNames(source)))].sort()
+}
 
 export function pluginAssetPath(value: unknown): string {
   if (typeof value !== 'string') throw new Error('无效资源路径')

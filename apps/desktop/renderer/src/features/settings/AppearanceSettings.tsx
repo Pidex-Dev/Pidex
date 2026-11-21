@@ -112,7 +112,7 @@ function NumberInput({
     <div className="appearance-number-input tw:flex tw:items-center tw:gap-2">
       <Input
         aria-label={ariaLabel}
-        className="tw:w-16 tw:min-w-0 tw:rounded-md tw:border tw:border-app-border tw:bg-app-control tw:px-2 tw:text-right tw:text-app-text tw:type-body tw:shadow-none"
+        className="tw:w-9 tw:min-w-0 tw:rounded-3 tw:border tw:border-app-border tw:bg-app-control tw:px-2 tw:text-right tw:text-app-text tw:type-2 tw:shadow-none"
         max={max}
         min={min}
         size="compact"
@@ -121,6 +121,7 @@ function NumberInput({
         onBlur={commit}
         onChange={(event) => setInputValue(event.target.value)}
         onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
             setInputValue(String(value))
@@ -128,7 +129,7 @@ function NumberInput({
           }
         }}
       />
-      <span aria-hidden="true" className="tw:text-app-text-soft tw:type-body-sm">
+      <span aria-hidden="true" className="tw:text-app-text-soft tw:type-1">
         px
       </span>
     </div>
@@ -159,17 +160,17 @@ function ColorControl({
   }
 
   return (
-    <div className="appearance-color-control tw:flex tw:h-7 tw:w-28 tw:shrink-0 tw:items-center tw:gap-2 tw:rounded-pill tw:border tw:border-app-border tw:bg-app-control tw:px-1.5 tw:text-app-text tw:transition-[background-color,border-color,color] tw:hover:border-app-border-strong tw:has-[:focus-visible]:outline-solid tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus">
+    <div className="appearance-color-control tw:flex tw:h-[28px] tw:w-[7rem] tw:shrink-0 tw:items-center tw:gap-2 tw:rounded-pill tw:border tw:border-app-border tw:bg-app-control tw:px-2 tw:text-app-text tw:transition-[background-color,border-color,color] tw:hover:border-app-border-strong tw:has-[:focus-visible]:outline-solid tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus">
       <AnchoredPopover
         data-popover-size="md"
         align="end"
-        className="appearance-color-popover tw:p-1"
+        className="appearance-color-popover"
         contentLabel={`${ariaLabel}颜色选项`}
         contentRole="dialog"
         trigger={
           <button
             aria-label={`${ariaLabel}颜色选择器`}
-            className="appearance-color-swatch tw:size-5"
+            className="appearance-color-swatch tw:relative tw:size-5 tw:cursor-pointer tw:rounded-pill"
             style={
               {
                 '--appearance-color-swatch-background': normalizedValue,
@@ -191,7 +192,7 @@ function ColorControl({
       <input
         aria-label={ariaLabel}
         aria-invalid={!HEX_COLOR.test(draft) || undefined}
-        className="appearance-color-input tw:min-w-0 tw:flex-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:font-mono tw:text-[length:var(--cpx-sys-font-size-xs)] tw:tabular-nums tw:uppercase tw:outline-none"
+        className="appearance-color-input tw:min-w-0 tw:flex-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:font-mono tw:text-[length:var(--cpx-sys-font-size-1)] tw:tabular-nums tw:uppercase tw:outline-none"
         maxLength={7}
         spellCheck={false}
         type="text"
@@ -207,6 +208,7 @@ function ColorControl({
           }
         }}
         onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
             setDraft(normalizedValue)
@@ -406,11 +408,11 @@ function ThemeModeCard({
       />
       <span
         aria-hidden="true"
-        className="appearance-mode-visual tw:relative tw:box-border tw:block tw:aspect-4/3 tw:w-full tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:transition-[border-color] tw:duration-state tw:ease-standard tw:peer-focus-visible:outline-solid tw:peer-focus-visible:outline-2 tw:peer-focus-visible:outline-offset-2 tw:peer-focus-visible:outline-app-focus tw:group-data-[state=checked]:border-2 tw:group-data-[state=checked]:border-app-text tw:[&>svg]:block tw:[&>svg]:size-full"
+        className="appearance-mode-visual tw:relative tw:box-border tw:block tw:aspect-4/3 tw:w-full tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:transition-[border-color] tw:duration-state tw:ease-standard tw:peer-focus-visible:outline-solid tw:peer-focus-visible:outline-2 tw:peer-focus-visible:outline-offset-2 tw:peer-focus-visible:outline-app-focus tw:group-data-[state=checked]:border-2 tw:group-data-[state=checked]:border-app-text tw:[&>svg]:block tw:[&>svg]:size-full"
       >
         <ThemeModePreview mode={mode} />
       </span>
-      <span className="appearance-mode-label tw:block tw:max-w-full tw:truncate tw:text-center tw:type-body tw:group-data-[state=checked]:text-app-text">
+      <span className="appearance-mode-label tw:block tw:max-w-full tw:truncate tw:text-center tw:type-2 tw:group-data-[state=checked]:text-app-text">
         {label}
       </span>
     </label>
@@ -586,7 +588,7 @@ function ThemePreview({
   return (
     <div
       aria-label={`${labelPrefix}${variant === 'light' ? '浅色' : '深色'}主题差异预览`}
-      className="appearance-diff-preview tw:mx-0 tw:mt-0 tw:mb-4 tw:block tw:overflow-hidden tw:rounded-lg tw:bg-app-editor"
+      className="appearance-diff-preview tw:mx-0 tw:mt-0 tw:mb-4 tw:block tw:overflow-hidden tw:rounded-4 tw:bg-app-editor"
       data-variant={variant}
       style={style}
     >
@@ -646,6 +648,7 @@ function VariantThemeEditor({
   onUpdate,
   onError,
   needsThemeSeeds = true,
+  extraRows,
 }: {
   section: 'visual' | 'advanced'
   variant: DesktopThemeVariant
@@ -653,6 +656,7 @@ function VariantThemeEditor({
   onUpdate: (updater: ThemeSettingsUpdater) => void
   onError: (message: string) => void
   needsThemeSeeds?: boolean
+  extraRows?: React.ReactNode
 }) {
   const chromeTheme = settings.chromeThemes[variant]
   const { t } = useLocale()
@@ -850,6 +854,7 @@ function VariantThemeEditor({
                 />
               }
             />
+            {extraRows}
           </>
         ) : null}
         {section === 'advanced' ? (
@@ -921,6 +926,7 @@ function SharedFontRow({
         />
       }
       title={title}
+      size="compact"
     />
   )
 }
@@ -997,7 +1003,7 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
     <SettingsContentArea>
       <div className="settings-content-inner appearance-settings tw:[&>.settings-section>.appearance-shared-fonts]:mt-4 tw:[&>.settings-section>.appearance-theme-editors]:mt-4 tw:[&>.settings-section]:grid tw:[&>.settings-section]:gap-4 tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-page-title tw:text-app-text">
+          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
             {t('外观')}
           </h2>
         </div>
@@ -1009,7 +1015,7 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
               control={
                 <div
                   aria-label="外观模式"
-                  className="appearance-mode-gallery tw:grid tw:w-68 tw:max-w-full tw:grid-cols-3 tw:gap-3"
+                  className="appearance-mode-gallery tw:grid tw:w-[17rem] tw:max-w-full tw:grid-cols-3 tw:gap-3 tw:@max-[760px]:gap-2"
                   role="radiogroup"
                   onKeyDown={(event) => {
                     const keyOffsets: Partial<Record<string, number>> = {
@@ -1066,41 +1072,45 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
               variants={visibleVariants}
             />
           </div>
-          <div className="settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:[&>.settings-row]:px-4">
-            <SharedFontRow
-              ariaLabel={t('界面字体')}
-              face={settings.fonts.uiFace ?? null}
-              family={settings.fonts.ui}
-              kind="ui"
-              placeholder="ui-sans-serif, system-ui, sans-serif"
-              title="UI 字体"
-              onCommit={(ui, uiFace) =>
-                saveThemeSettings((current) =>
-                  applySharedDesktopThemeFonts(current, { ui, uiFace }),
-                )
-              }
-            />
-            <SharedFontRow
-              ariaLabel={t('代码字体')}
-              face={settings.fonts.codeFace ?? null}
-              family={settings.fonts.code}
-              kind="code"
-              placeholder="ui-monospace, SFMono-Regular, Consolas, monospace"
-              title="代码字体"
-              onCommit={(code, codeFace) =>
-                saveThemeSettings((current) =>
-                  applySharedDesktopThemeFonts(current, { code, codeFace }),
-                )
-              }
-            />
-          </div>
           <div className="appearance-theme-editors tw:grid tw:gap-5">
-            {visibleVariants.map((variant) => (
+            {visibleVariants.map((variant, index) => (
               <VariantThemeEditor
                 section="visual"
                 key={variant}
                 settings={settings}
                 variant={variant}
+                extraRows={
+                  index === visibleVariants.length - 1 ? (
+                    <>
+                      <SharedFontRow
+                        ariaLabel={t('界面字体')}
+                        face={settings.fonts.uiFace ?? null}
+                        family={settings.fonts.ui}
+                        kind="ui"
+                        placeholder="ui-sans-serif, system-ui, sans-serif"
+                        title="UI 字体"
+                        onCommit={(ui, uiFace) =>
+                          saveThemeSettings((current) =>
+                            applySharedDesktopThemeFonts(current, { ui, uiFace }),
+                          )
+                        }
+                      />
+                      <SharedFontRow
+                        ariaLabel={t('代码字体')}
+                        face={settings.fonts.codeFace ?? null}
+                        family={settings.fonts.code}
+                        kind="code"
+                        placeholder="ui-monospace, SFMono-Regular, Consolas, monospace"
+                        title="代码字体"
+                        onCommit={(code, codeFace) =>
+                          saveThemeSettings((current) =>
+                            applySharedDesktopThemeFonts(current, { code, codeFace }),
+                          )
+                        }
+                      />
+                    </>
+                  ) : undefined
+                }
                 onError={reportError}
                 onUpdate={saveThemeSettings}
               />
@@ -1164,6 +1174,23 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
                         fontSizes: { ...current.fontSizes, ui },
                       }))
                     }
+                  />
+                }
+              />
+              <SettingsRow
+                autoSave
+                title="界面密度"
+                description="按 90%、100% 或 110% 整体缩放界面间距、圆角与字号。"
+                control={
+                  <SegmentedControl
+                    ariaLabel="界面密度选项"
+                    options={[
+                      { value: 'compact', label: '紧凑 90%' },
+                      { value: 'default', label: '默认 100%' },
+                      { value: 'spacious', label: '宽松 110%' },
+                    ]}
+                    value={settings.uiDensity ?? 'default'}
+                    onChange={(uiDensity) => updateThemeSettings({ uiDensity })}
                   />
                 }
               />

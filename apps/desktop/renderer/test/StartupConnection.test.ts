@@ -1,6 +1,16 @@
-import { expect, test } from 'bun:test'
+import { afterEach, expect, test } from 'bun:test'
 import type { DesktopStartupSnapshot } from '@pidex/shared/desktop-startup-ipc'
-import { subscribeStartupConnection } from '../src/startup/StartupConnection.js'
+import {
+  getStartupConnectionSnapshot,
+  publishStartupConnectionSnapshot,
+  resetStartupConnectionStore,
+  subscribeStartupConnection,
+  subscribeStartupConnectionStore,
+} from '../src/startup/StartupConnection.js'
+
+afterEach(() => {
+  resetStartupConnectionStore()
+})
 
 test('早到事件优先于旧快照，拒绝旧代通知并在清理后停止投递', async () => {
   const seen: number[] = []
@@ -37,4 +47,42 @@ test('早到事件优先于旧快照，拒绝旧代通知并在清理后停止�
   stop()
   emit(state(3, 6))
   expect(seen).toEqual([3, 5])
+})
+
+test('连接快照仓库过滤旧快照并通知订阅方', () => {
+  expect(getStartupConnectionSnapshot().state).toBe('connected')
+
+  let notifications = 0
+  const unsubscribe = subscribeStartupConnectionStore(() => {
+    notifications += 1
+  })
+
+  publishStartupConnectionSnapshot({
+    generation: 2,
+    revision: 5,
+    state: 'loading',
+    label: 'Agent 连接中断，正在重试',
+  })
+  publishStartupConnectionSnapshot({
+    generation: 1,
+    revision: 99,
+    state: 'failed',
+    label: 'stale',
+  })
+  publishStartupConnectionSnapshot({
+    generation: 2,
+    revision: 5,
+    state: 'failed',
+    label: 'duplicate',
+  })
+
+  expect(notifications).toBe(1)
+  expect(getStartupConnectionSnapshot()).toEqual({
+    generation: 2,
+    revision: 5,
+    state: 'loading',
+    label: 'Agent 连接中断，正在重试',
+  })
+
+  unsubscribe()
 })

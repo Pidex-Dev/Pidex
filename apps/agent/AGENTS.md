@@ -16,8 +16,8 @@
 
 - 目录分层：SQLite 按 `storage/database/`、`storage/repositories/`、`storage/events/`、`storage/recovery/` 分层；实际 SQL 必须位于领域 repository，`AgentDatabase` 只负责连接、最终 schema、repository 装配和恢复入口。
 - 事务与连接：所有 repository 必须复用同一 SQLite 连接和事务状态，业务状态与 transactional outbox event 必须在同一 transaction 中提交；保留 WAL、外键、`busy_timeout`、事件顺序、SSE replay、checkpoint 和 interrupted recovery。
-- Schema 与文件保护：新数据库一次性创建当前最终 schema，已知旧 schema 通过顺序、事务化迁移升级并保留数据；遵守根文件的兼容基线与禁删规则，禁止删除数据库、`-wal`、`-shm` 或父目录来恢复启动。
-- 凭据存储：凭据必须经过现有加密凭据仓库和 Bun secrets 流程，禁止写入 SQLite、event、日志或错误。
+- Schema 与文件保护：新数据库一次性创建当前最终 schema，已知旧 schema 通过顺序、事务化迁移升级并保留数据；禁止删除数据库、`-wal`、`-shm` 或父目录来恢复启动。
+- 凭据存储：凭据必须经过现有加密凭据仓库和 Bun secrets 流程。
 
 ## RPC v4
 
@@ -45,4 +45,4 @@
 - 类型检查：`bun run --cwd apps/agent typecheck`。
 - 行为变化时运行：`bun run --cwd apps/agent test`。
 - 入口、编译或 sidecar 产物变化时运行：`bun run build:agent`。
-- 修改 RPC、schema、outbox、recovery，或工具注册、能力目录、激活与冻结恢复后，必须运行相关 Agent 回归测试和根目录 `bun run typecheck`。
+- 修改 RPC、schema、outbox、recovery，或工具注册、能力目录、激活与冻结恢复后，必须运行相关 Agent 回归测试（跨 workspace 契约变更按根文件要求运行全仓 `typecheck`）。

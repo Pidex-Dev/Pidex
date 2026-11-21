@@ -1,8 +1,174 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": ["react", "typescript", "oxc", "import"],
   "rules": {
+    "no-constant-condition": "error",
+    "no-empty-pattern": "error",
+    "no-irregular-whitespace": "error",
+    "no-unsafe-finally": "error",
+    "no-unsafe-optional-chaining": "error",
+    "no-unused-expressions": "error",
+    "no-useless-catch": "error",
+    "no-useless-escape": "error",
+    "oxc/const-comparisons": "error",
+    "react/globals": "error",
+    "react/jsx-key": "error",
+    "react/no-did-update-set-state": "error",
+    "react/purity": "error",
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/static-components": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "import/no-self-import": "error",
+    "import/no-empty-named-blocks": "error",
+    "import/no-mutable-exports": "error",
+    "import/no-amd": "error",
+    "import/no-webpack-loader-syntax": "error",
+    "import/no-absolute-path": "error",
+    "import/no-duplicates": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["apps/desktop/renderer/src/**/*.ts", "apps/desktop/renderer/src/**/*.tsx"],
+      "rules": {
+        "import/no-nodejs-modules": "error",
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "electron",
+                "message": "Renderer source must not import Electron directly; use the typed preload bridge."
+              },
+              {
+                "name": "@pidex/agent",
+                "message": "Renderer source must not import @pidex/agent directly; use @pidex/agent-protocol or @pidex/shared."
+              },
+              {
+                "name": "@pidex/desktop-electron",
+                "message": "Renderer source must not import Electron main-process code."
+              }
+            ],
+            "patterns": [
+              {
+                "group": ["node:*", "**/apps/desktop/electron/**", "**/apps/agent/**"],
+                "message": "Renderer source must stay browser-safe and decoupled from Electron/Agent internals."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "apps/desktop/electron/**/*.ts",
+        "apps/desktop/electron/**/*.cts",
+        "apps/desktop/electron/**/*.mts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@pidex/renderer",
+                "message": "Electron must not import @pidex/renderer; only apps/desktop/renderer/shared is allowed."
+              }
+            ],
+            "patterns": [
+              {
+                "group": ["**/renderer/src/**"],
+                "message": "Electron must not import apps/desktop/renderer/src; use apps/desktop/renderer/shared or @pidex/*."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/agent/**/*.ts", "apps/agent/**/*.mts", "apps/agent/**/*.cts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "electron",
+                "message": "Agent runtime must not depend on Electron."
+              },
+              {
+                "name": "react",
+                "message": "Agent runtime must not depend on React."
+              },
+              {
+                "name": "react-dom",
+                "message": "Agent runtime must not depend on react-dom."
+              },
+              {
+                "name": "@pidex/desktop-electron",
+                "message": "Agent runtime must not import apps/desktop."
+              },
+              {
+                "name": "@pidex/renderer",
+                "message": "Agent runtime must not import apps/desktop/renderer."
+              }
+            ],
+            "patterns": [
+              {
+                "group": ["**/apps/desktop/**"],
+                "message": "Agent runtime must never import from apps/desktop/**."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/model-schema/src/*.ts"],
+      "rules": {
+        "import/no-self-import": "off"
+      }
+    },
+    {
+      "files": ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.mts", "packages/**/*.cts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "electron",
+                "message": "Shared packages must not depend on Electron."
+              },
+              {
+                "name": "react",
+                "message": "Shared packages must not depend on React."
+              },
+              {
+                "name": "react-dom",
+                "message": "Shared packages must not depend on react-dom."
+              },
+              {
+                "name": "@pidex/agent",
+                "message": "Shared packages must not depend on apps/agent."
+              },
+              {
+                "name": "@pidex/desktop-electron",
+                "message": "Shared packages must not depend on apps/desktop."
+              },
+              {
+                "name": "@pidex/renderer",
+                "message": "Shared packages must not depend on apps/desktop/renderer."
+              }
+            ],
+            "patterns": [
+              {
+                "group": ["**/apps/**"],
+                "message": "Shared packages must never import from apps/**."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }

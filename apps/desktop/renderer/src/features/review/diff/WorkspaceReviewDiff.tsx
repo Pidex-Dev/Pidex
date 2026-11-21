@@ -2,35 +2,21 @@ import React from 'react'
 import { MarkdownMessage } from '../../markdown/index.js'
 import { VList } from 'virtua'
 import {
-  Briefcase,
   ChevronDown,
   ChevronRight,
-  Clipboard,
   Code2,
   CheckCircle2,
-  Columns2,
-  Ellipsis,
   Eye,
   ExternalLink,
-  File,
   FileDiff,
-  GitCommitHorizontal,
-  GitFork,
-  GitPullRequestArrow,
   Minus,
   Plus,
-  RotateCcw,
-  Rows2,
-  Search,
   Trash2,
-  Type,
   Undo2,
-  WrapText,
   createLucideIcon,
 } from 'lucide-react'
 import type {
   DesktopDiffMarkerStyle,
-  DesktopGitStatus,
   DesktopReviewComment,
   DesktopReviewDiffFile,
   DesktopReviewDiffHunk,
@@ -38,14 +24,11 @@ import type {
   DesktopReviewScope,
   DesktopReviewSource,
   DesktopReviewView,
-  DesktopSessionStatus,
 } from '../../../../shared/Types.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 
-import { PopoverItem } from '../../../components/ui/PopoverItem.js'
-import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { FileTypeIcon } from '../../layout/FileTypeIcon.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
@@ -53,15 +36,7 @@ import {
   useDisclosureExpanded,
   type KeyedDisclosureStore,
 } from '../../../components/ui/KeyedDisclosureStore.js'
-import { buildCommentCountsByPath } from '../comments/ReviewCommentUtils.js'
-import { CommitPopover } from '../workspace/CommitPopover.js'
-import { PullRequestPopover } from '../workspace/PullRequestPopover.js'
 import { formatReviewCount } from './ReviewFormat.js'
-import {
-  isReviewDiffExpanded,
-  toggleReviewDiffExpansion,
-  type ReviewTabUiState,
-} from '../../layout/tabs/ConversationUiState.js'
 import {
   buildReviewIntralineByLineId,
   type ReviewIntralineByLineId,
@@ -79,26 +54,12 @@ import {
   formatUnmodifiedLines,
   splitDiffLines,
   useReviewDiffSyntax,
-  type CommentAnchor,
   type CommentDraft,
   type ReviewCell,
   type ReviewSyntaxByLineId,
 } from './ReviewDiffSurface.js'
 export { ReviewComment, type CommentAnchor, type CommentDraft } from './ReviewDiffSurface.js'
-import {
-  ReviewFileRequestCoordinator,
-  reviewAgentClient,
-  pickDefaultReviewBaseBranch,
-  retainCurrentReviewFileDiffs,
-  reviewLoadStateForError,
-  reviewSourceLabel,
-  summaryFileToDesktop,
-  type ReviewBranch,
-  type ReviewCommit,
-  type ReviewFileDiff,
-  type ReviewLoadState,
-  type ReviewSummarySnapshot,
-} from '../source/ReviewAgentClient.js'
+import type { ReviewLoadState } from '../source/ReviewAgentClient.js'
 import { errorMessageOf } from '@pidex/shared/errors'
 import { cx } from '../../../utils/Cx.js'
 
@@ -671,7 +632,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   } else if (fileLoadState.status === 'loading') {
     diffBody = (
       <div
-        className="review-empty-state review-file-load-state tw:flex tw:min-h-16 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm"
+        className="review-empty-state review-file-load-state tw:flex tw:min-h-9 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-5 tw:text-app-text-meta tw:type-1"
         role="status"
       >
         {reviewFileLoadMessage(fileLoadState, summaryLoadState)}
@@ -680,7 +641,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   } else if (fileLoadState.status === 'idle') {
     diffBody = (
       <div
-        className="review-empty-state review-file-load-state tw:flex tw:min-h-16 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm"
+        className="review-empty-state review-file-load-state tw:flex tw:min-h-9 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-5 tw:text-app-text-meta tw:type-1"
         role="status"
       >
         {reviewFileLoadMessage(fileLoadState, summaryLoadState)}
@@ -689,7 +650,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   } else if (fileLoadState.status === 'error') {
     diffBody = (
       <div
-        className="review-empty-state review-file-load-state tw:flex tw:min-h-16 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm"
+        className="review-empty-state review-file-load-state tw:flex tw:min-h-9 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-5 tw:text-app-text-meta tw:type-1"
         role="alert"
       >
         <span>{fileLoadState.message}</span>
@@ -700,7 +661,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
     )
   } else if (!hasContent) {
     diffBody = (
-      <div className="review-empty-state tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm">
+      <div className="review-empty-state tw:px-4 tw:py-5 tw:text-app-text-meta tw:type-1">
         {file.isUntracked
           ? '未跟踪文件暂不展示 hunk 预览，可直接暂存或删除。'
           : '此文件没有可用的 hunk 预览。'}
@@ -764,14 +725,14 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
     >
       <div
         className={cx(
-          'review-file-row preview-header tw:group/file-header tw:sticky tw:top-0 tw:z-local tw:m-0 tw:flex tw:h-10 tw:min-h-10 tw:flex-none tw:items-center tw:gap-0 tw:rounded-none tw:border-0 tw:border-b tw:border-b-app-border-subtle tw:px-4 tw:py-1 tw:text-left tw:text-app-text-soft tw:type-body-sm tw:transition-[color,background-color] tw:duration-feedback tw:ease-standard tw:hover:text-app-text',
+          'review-file-row preview-header tw:group/file-header tw:sticky tw:top-0 tw:z-local tw:m-0 tw:flex tw:h-7 tw:min-h-7 tw:flex-none tw:items-center tw:gap-0 tw:rounded-none tw:border-0 tw:border-b tw:border-b-app-border-subtle tw:px-4 tw:py-1 tw:text-left tw:text-app-text-soft tw:type-1 tw:transition-[color,background-color] tw:duration-feedback tw:ease-standard tw:hover:text-app-text',
           active && 'active tw:text-app-text',
         )}
       >
         <button
           aria-controls={diffBodyId}
           aria-expanded={!isCollapsed}
-          className="review-file-summary tw:flex tw:flex-auto tw:min-w-0 tw:items-center tw:gap-0 tw:self-stretch tw:appearance-none tw:rounded-sm tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:outline-none tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)]"
+          className="review-file-summary tw:flex tw:flex-auto tw:min-w-0 tw:items-center tw:gap-0 tw:self-stretch tw:appearance-none tw:rounded-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:outline-none tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)]"
           type="button"
           onClick={() => onDiffExpandedChange(file.path, !isExpanded)}
         >
@@ -783,7 +744,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
             size={APP_ICON_SIZE}
           />
           <span
-            className="review-file-path tw:min-w-0 tw:flex-[0_1_auto] tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-meta tw:type-body-sm tw:[direction:rtl] tw:text-start"
+            className="review-file-path tw:min-w-0 tw:flex-[0_1_auto] tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-meta tw:type-1 tw:[direction:rtl] tw:text-start"
             title={file.path}
           >
             <span className="review-file-path__content tw:[direction:ltr] tw:[unicode-bidi:plaintext]">
@@ -796,10 +757,10 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
             </span>
           </span>
           <span className="review-file-counts tw:inline-flex tw:flex-none tw:items-center tw:gap-2 tw:ml-1">
-            <strong className="tw:text-app-success tw:type-weight-label">
+            <strong className="tw:text-app-success tw:weight-medium">
               +{formatPanelNumber(file.additions)}
             </strong>
-            <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
+            <em className="tw:text-app-danger tw:not-italic tw:weight-medium">
               -{formatPanelNumber(file.deletions)}
             </em>
           </span>
@@ -962,7 +923,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
           <button
             type="button"
             aria-expanded={showFullContext}
-            className="tw:mx-2 tw:mb-2 tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-app-raised tw:px-3 tw:py-2 tw:text-left tw:text-app-text-meta tw:type-body-sm tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+            className="tw:mx-2 tw:mb-2 tw:flex tw:items-center tw:gap-2 tw:rounded-4 tw:border-0 tw:bg-app-raised tw:px-3 tw:py-2 tw:text-left tw:text-app-text-meta tw:type-1 tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
             onClick={() => setShowFullContext((value) => !value)}
           >
             <ChevronDown size={REVIEW_FILE_ACTION_ICON_SIZE} />
@@ -1336,26 +1297,26 @@ export function ReviewProjectEmptyState({
 }): React.ReactNode {
   if (source.kind === 'unstaged') {
     return (
-      <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-6 tw:text-center">
+      <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-5 tw:text-center">
         <div className="review-project-empty-state__copy tw:flex tw:flex-col tw:items-center tw:gap-2">
-          <strong className="tw:text-app-text tw:type-title-sm">无未暂存更改</strong>
-          <span className="tw:text-app-text-soft tw:type-body-sm">代码更改将在此处显示</span>
+          <strong className="tw:text-app-text tw:type-4 tw:weight-bold">无未暂存更改</strong>
+          <span className="tw:text-app-text-soft tw:type-1">代码更改将在此处显示</span>
         </div>
       </div>
     )
   }
   if (source.kind === 'staged') {
     return (
-      <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-6 tw:text-center">
+      <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-5 tw:text-center">
         <div className="review-project-empty-state__copy tw:flex tw:flex-col tw:items-center tw:gap-2">
-          <strong className="tw:text-app-text tw:type-title-sm">无暂存更改</strong>
-          <span className="tw:text-app-text-soft tw:type-body-sm">接受编辑内容并暂存</span>
+          <strong className="tw:text-app-text tw:type-4 tw:weight-bold">无暂存更改</strong>
+          <span className="tw:text-app-text-soft tw:type-1">接受编辑内容并暂存</span>
         </div>
       </div>
     )
   }
   return (
-    <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-6 tw:text-center">
+    <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-5 tw:text-center">
       <div className="review-project-empty-state__content tw:flex tw:w-full tw:max-w-[576px] tw:flex-col tw:items-center tw:gap-3">
         <FileDiff
           className="tw:size-icon-lg tw:text-app-text-meta tw:[stroke-width:var(--cpx-sys-icon-stroke-width)]"
@@ -1363,10 +1324,8 @@ export function ReviewProjectEmptyState({
           aria-hidden="true"
         />
         <div className="review-project-empty-state__copy tw:flex tw:flex-col tw:items-center tw:gap-2">
-          <strong className="tw:text-app-text tw:type-title-sm">尚无文件更改</strong>
-          <span className="tw:text-app-text-soft tw:type-body-sm">
-            此项目中的更改将显示在此处。
-          </span>
+          <strong className="tw:text-app-text tw:type-4 tw:weight-bold">尚无文件更改</strong>
+          <span className="tw:text-app-text-soft tw:type-1">此项目中的更改将显示在此处。</span>
         </div>
       </div>
     </div>
@@ -1384,26 +1343,6 @@ export function scopeLabel(scope: DesktopReviewScope): string {
 
 export function formatPanelNumber(value: number): string {
   return formatReviewCount(value)
-}
-
-export function buildReviewComposerPrompt(
-  gitStatus: DesktopGitStatus | null,
-  files: DesktopReviewDiffFile[],
-): string {
-  const changedFiles = files.length > 0 ? files : []
-  const fileList =
-    changedFiles.length > 0
-      ? changedFiles
-          .slice(0, 50)
-          .map((file) => `- ${file.path} (+${file.additions}/-${file.deletions})`)
-          .join('\n')
-      : gitStatus?.files.length
-        ? gitStatus.files
-            .slice(0, 50)
-            .map((file) => `- ${file.path} (${file.status.trim() || '已修改'})`)
-            .join('\n')
-        : '- 当前没有可用变更'
-  return ['请对当前工作区变更发起一次代码审查。', '', '变更文件：', fileList].join('\n')
 }
 
 export function parseGithubPullRequestUrl(

@@ -16,7 +16,7 @@ import type {
   DesktopAgentPermissionMode,
 } from '@pidex/core/agent/Permissions.js'
 import type { ThreadEvent } from '@pidex/core/agent/Workflow.js'
-import type { Attachment, UserMessage } from '@pidex/core/attachments/Types.js'
+import type { UserMessage } from '@pidex/core/attachments/Types.js'
 import type {
   ApprovalRequest,
   SubagentProjection,
@@ -34,6 +34,15 @@ import type {
   DesktopDataLocationControlSource,
   DesktopDataLocationState,
 } from '@pidex/shared/desktop-data-location-ipc'
+import type { DesktopUserDataStorageSummary } from '@pidex/shared/desktop-shell-ipc'
+import type {
+  DownloadedResourceItem,
+  StorageOldChatsDeleteResult,
+  StorageOldChatsListResult,
+  StorageResourcesDeleteResult,
+  StorageResourcesListResult,
+  StorageSummaryResult,
+} from '@pidex/agent-protocol'
 import type { DesktopUpdateStatus } from '@pidex/shared/desktop-update-ipc'
 export type { DesktopUpdateStatus } from '@pidex/shared/desktop-update-ipc'
 export type { ThreadCreationSurface } from '@pidex/shared/thread'
@@ -574,22 +583,9 @@ export type DesktopPermissionMode = DesktopAgentPermissionMode
 
 export type DesktopPermissionProfile = string
 
-export type DesktopApprovalPolicy =
-  | 'untrusted'
-  | 'on-request'
-  | 'on-failure'
-  | 'never'
-  | {
-      type: 'granular'
-      sandboxApproval: boolean
-      rules: boolean
-      skillApproval: boolean
-      requestPermissions: boolean
-      mcpTools: boolean
-      mcpElicitations: boolean
-    }
+export type DesktopApprovalPolicy = 'auto_review' | 'never'
 
-export type DesktopApprovalsReviewer = 'user' | 'auto_review'
+export type DesktopApprovalsReviewer = 'auto_review'
 
 export type DesktopPermissionConfig = {
   sandboxMode: Exclude<DesktopSandboxMode, 'full-access'>
@@ -608,6 +604,7 @@ export type ModelProviderID = CoreModelProviderID
 export type DesktopModelProviderKind = ModelProviderKind
 
 export type DesktopModelMetadata = ModelMetadata & {
+  catalog?: NonNullable<DesktopProviderModelDefinition['catalog']>
   inputTokens?: number
   nativeApi?: string
   variants?: string[]
@@ -866,6 +863,14 @@ export type DesktopBuiltinProviderDefinition = Extract<
 >
 export type DesktopCustomProviderDefinition = RpcParams<'provider/create'>['definition']
 export type DesktopProviderModelDefinition = DesktopCustomProviderDefinition['models'][number]
+/** 候选模型的规格来源；旧 Agent 不返回时视为未知。 */
+export type DesktopProviderModelMatch = NonNullable<
+  RpcResult<'provider/model/discover'>['matches']
+>[number]
+export type DesktopProviderModelDiscovery = {
+  models: readonly DesktopProviderModelDefinition[]
+  matches?: readonly DesktopProviderModelMatch[]
+}
 /** 未保存的 Provider 请求草稿；`apiKey` 只用于单次请求，不落盘、不进事件。 */
 export type DesktopProviderDraft = NonNullable<RpcParams<'provider/model/discover'>['draft']>
 /** 可发起模型列表读取与最小生成探测的四类 wire 协议。 */
@@ -900,7 +905,7 @@ export type DesktopReviewView = 'inline' | 'split'
 export type DesktopDiffMarkerStyle = 'color' | 'symbol'
 export type DesktopMessageDelivery = 'steer' | 'follow-up'
 export type DesktopSidebarOrganization = 'projects' | 'flat'
-export type DesktopSidebarSort = 'priority' | 'updated' | 'manual'
+export type DesktopSidebarSort = 'priority' | 'updated' | 'lastPrompt' | 'manual'
 
 export type DesktopRemovedWorkspace = {
   projectId?: string
@@ -971,13 +976,26 @@ export type ProjectAppearance = {
   icon: ProjectAppearanceIcon
 }
 
+export type DesktopVoiceLanguage = 'auto' | 'zh' | 'yue' | 'en' | 'ja' | 'ko'
+
+export type DesktopVoiceHandsFreeMode = 'hold-or-double-tap' | 'toggle'
+
+export type DesktopVoiceRecordingStatus = 'saved' | 'cancelled' | 'error'
+
+export type DesktopVoiceRecordingEntry = {
+  id: string
+  status: DesktopVoiceRecordingStatus
+  createdAt: number
+  durationMs?: number
+  transcript?: string
+  error?: string
+}
+
 export type DesktopStoredSettings = {
   gitBoardState?: string | null
   language: 'system' | 'zh-CN' | 'en-US'
   enableParetoCodeRouter?: boolean
   enableFusionRouter?: boolean
-  enableAutoReviewPermissionMode?: boolean
-  enableFullAccessPermissionMode?: boolean
   permissionConfig: DesktopPermissionConfig
   shellSecurityLevel: DesktopShellSecurityLevel
   terminalProfileId: string | null
@@ -1028,6 +1046,7 @@ export type DesktopStoredSettings = {
   gitDraftPullRequest: boolean
   gitAutoDeleteWorktree: boolean
   gitAutoDeleteWorktreeLimit: number
+  gitConfirmDeleteWorktree: boolean
   worktreeRoot: string
   worktreeFetchUpstream: boolean
   prWatchAutoMerge: boolean
@@ -1042,6 +1061,14 @@ export type DesktopStoredSettings = {
   workspaceDependenciesMigrated: boolean
   firstUseSetupCompleted?: 0 | 1
   'desktop.voice.preferredInputDeviceId': string
+  'desktop.voice.language': DesktopVoiceLanguage
+  'desktop.voice.showLiveTranscript': boolean
+  'desktop.voice.dictationShortcut': string
+  'desktop.voice.handsFreeMode': DesktopVoiceHandsFreeMode
+  'desktop.voice.recentRecordings': DesktopVoiceRecordingEntry[]
+  'desktop.voice.dictionary': string[]
+  /** 输入框灰字预测；默认关闭，开启后会调用模型产生额外费用。 */
+  'desktop.composer_predictions': boolean
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean
@@ -1072,6 +1099,7 @@ export type DesktopStoredSettings = {
   sidebarActivityCoachmarkDismissed?: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
+  titlebarSessionTabIds: string[]
   collapsedSidebarProjectPaths: string[]
   sidebarSectionOrder: SidebarSectionId[]
   browserAllowedSites: string[]
@@ -1090,11 +1118,13 @@ export type SidebarCustomSection = {
   collapsed: boolean
 }
 
+export type DesktopSidebarPinnedSort = 'manual' | 'updated' | 'lastPrompt'
+
 export type SidebarCustomization = {
   version: number
   sections: SidebarCustomSection[]
   sectionOrder: string[]
-  pinnedSort: 'manual' | 'updated'
+  pinnedSort: DesktopSidebarPinnedSort
   showProjectsInRecents?: boolean
   destinationOrder: string[]
   hiddenDestinationIds: string[]
@@ -1169,6 +1199,7 @@ export type {
   DesktopThemeFonts,
   DesktopThemeMode,
   DesktopThemeVariant,
+  DesktopUiDensity,
 } from '@pidex/shared/desktop-theme'
 import type {
   DesktopChromeTheme,
@@ -1289,6 +1320,7 @@ export type DesktopSessionListItem = {
   pendingPlanApproval?: boolean
   creationSurface?: ThreadCreationSurface
   lastMessageAt?: string | null
+  lastUserMessageAt?: string | null
   createdAt: string
 }
 
@@ -1415,6 +1447,11 @@ export type CreateDesktopSessionOptions = {
   execution?: DesktopSessionExecution
   /** 失败后重试时复用同一个创建操作，避免重复创建工作树。 */
   operationId?: string
+  /**
+   * 客户端预分配的会话 ID。首条消息需要在发送时就确定路由身份，避免创建前后
+   * 走两条路由；省略时由 Agent 生成。
+   */
+  threadId?: string
   projectId?: string
   workspacePath?: string
   /** Optional workflow the new thread joins. */
@@ -1635,19 +1672,35 @@ export type RustSidecarProbeInfo = {
 
 export type DesktopProjectMemoryType = 'user' | 'feedback' | 'project' | 'reference'
 
+/** The three memory namespaces; named agents stay scoped to one project. */
+export type DesktopMemoryNamespace =
+  | { kind: 'user' }
+  | { kind: 'project'; projectId: string }
+  | { kind: 'agent'; projectId: string; memoryKey: string }
+
 export type DesktopProjectMemory = {
   relativePath: string
+  /** Absolute path of the file on disk, for reveal/open actions. */
   absolutePath: string
   type?: DesktopProjectMemoryType
   description: string | null
   size: number
   mtimeMs: number
+  revision?: string
+  indexed?: boolean
+  sourceThreadId?: string | null
+  sourceTurnId?: string | null
 }
 
 export type DesktopProjectMemoryListing = {
+  /** The namespace the Agent actually resolved for this request. */
+  namespace: DesktopMemoryNamespace
   memoryDir: string
   entrypointPath: string
   memories: DesktopProjectMemory[]
+  /** Index diagnostics: broken frontmatter, missing links, oversized files. */
+  diagnostics: ReadonlyArray<{ path: string; code: string; message: string }>
+  indexContent: string
 }
 
 export type DesktopUserMemoryListing = {
@@ -1661,6 +1714,10 @@ export type DesktopUserMemoryListing = {
 
 export type DesktopProjectMemoryContent = DesktopProjectMemory & {
   content: string
+  /** Present for every file read; required for conflict-safe saves. */
+  revision: string
+  nextOffset: number | null
+  truncated: boolean
 }
 
 export type DesktopTaskSuggestion = RpcResult<'task-suggestion/generate'>['suggestions'][number]
@@ -1671,34 +1728,42 @@ export type GenerateDesktopTaskSuggestionsInput = {
   context: RpcParams<'task-suggestion/generate'>['context']
 }
 
+/** 输入预测只传线程与轮次身份，对话上下文由 Agent 侧读取。 */
+export type GenerateDesktopComposerPredictionInput = RpcParams<'composer-prediction/generate'>
+
 export type SaveProjectMemoryInput = {
   workspacePath: string
   relativePath: string
   content: string
+  /** Revision returned by the last read; conflicts are reported, never overwritten. */
+  expectedRevision?: string | null
+  namespace?: DesktopMemoryNamespace
 }
 
 export type DeleteProjectMemoryInput = {
   workspacePath: string
   relativePath: string
+  expectedRevision?: string | null
+  namespace?: DesktopMemoryNamespace
 }
 
 export type ResetProjectMemoryInput = {
   workspacePath: string
-  includeRecallLog: boolean
+  namespace?: DesktopMemoryNamespace
 }
 
 export type SaveUserMemoryInput = {
   relativePath: string
   content: string
+  expectedRevision?: string | null
 }
 
 export type DeleteUserMemoryInput = {
   relativePath: string
+  expectedRevision?: string | null
 }
 
-export type ResetUserMemoryInput = {
-  includeEventLog: boolean
-}
+export type ResetUserMemoryInput = Record<string, never>
 
 export type ExportUserMemoryResult = {
   memoryDir: string
@@ -1715,26 +1780,38 @@ export type ImportUserMemoryInput = {
   }>
 }
 
-export type DesktopMemoryRecallFile = {
-  relativePath: string
-  type?: DesktopProjectMemoryType
-  description?: string | null
-  mtimeMs?: number
-  truncated?: boolean
+/** Real usage timeline: index injection and body reads are separate records. */
+export type DesktopMemoryUsageRecord = {
+  id: string
+  namespace: DesktopMemoryNamespace
+  kind: 'index' | 'body'
+  threadId: string | null
+  turnId: string | null
+  relativePath: string | null
+  revision: string | null
+  truncated: boolean
+  bytes: number
+  createdAt: number
 }
 
-export type DesktopMemoryRecallEvent = {
-  sessionId: string
-  createdAt: string
-  querySummary: string
-  status: 'injected' | 'viewed'
-  consumedOnIteration: number
-  memories: DesktopMemoryRecallFile[]
+export type DesktopMemoryTask = {
+  id: string
+  namespace: DesktopMemoryNamespace
+  kind: 'extract' | 'organize'
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+  trigger: 'turn' | 'manual' | 'auto'
+  threadId: string | null
+  turnId: string | null
+  error: string | null
+  createdAt: number
+  startedAt: number | null
+  finishedAt: number | null
 }
 
-export type DesktopMemoryRecallListing = {
-  recallLogPath: string
-  recalls: DesktopMemoryRecallEvent[]
+export type DesktopMemorySettings = {
+  autoOrganize: boolean
+  memoryDir: string
+  namedAgents: readonly string[]
 }
 
 export type DesktopApi = {
@@ -1763,31 +1840,54 @@ export type DesktopApi = {
   deleteDesktopToolchain(): Promise<DesktopToolchainInstallResult>
   readConfig(params?: RpcParams<'config/read'>): Promise<DesktopConfigReadResult>
   pauseQuestion(interactionId: string, expectedVersion: number): Promise<void>
-  approvalReviewState(threadId: string): Promise<RpcResult<'approval/reviewState'>>
-  retryApproval(threadId: string, reviewId: string): Promise<void>
-  listApprovalRules(threadId: string): Promise<RpcResult<'approval/rules/list'>>
+  listApprovalRules(
+    params?: RpcParams<'approval/rules/list'>,
+  ): Promise<RpcResult<'approval/rules/list'>>
   upsertApprovalRule(
     params: RpcParams<'approval/rules/upsert'>,
   ): Promise<RpcResult<'approval/rules/upsert'>>
   revokeApprovalRule(
-    threadId: string,
-    ruleId: string,
-    expectedVersion?: string,
+    params: RpcParams<'approval/rules/revoke'>,
   ): Promise<RpcResult<'approval/rules/revoke'>>
   writeConfigBatch(params: DesktopConfigBatchWriteParams): Promise<DesktopConfigWriteResult>
   listConfigProfiles(): Promise<DesktopConfigProfileListResult>
   selectConfigProfile(profileId: string | null): Promise<DesktopConfigProfileSelectResult>
   getDesktopSettings(): Promise<DesktopStoredSettings>
   saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
-  listProjectMemories(workspacePath: string): Promise<DesktopProjectMemoryListing>
+  listProjectMemories(
+    workspacePath: string | null,
+    namespace?: DesktopMemoryNamespace,
+  ): Promise<DesktopProjectMemoryListing>
   readProjectMemory(
-    workspacePath: string,
+    workspacePath: string | null,
     relativePath: string,
+    namespace?: DesktopMemoryNamespace,
   ): Promise<DesktopProjectMemoryContent>
   saveProjectMemory(input: SaveProjectMemoryInput): Promise<DesktopProjectMemory>
   deleteProjectMemory(input: DeleteProjectMemoryInput): Promise<void>
   resetProjectMemory(input: ResetProjectMemoryInput): Promise<void>
-  listProjectMemoryRecalls(workspacePath: string): Promise<DesktopMemoryRecallListing>
+  /** Real usage timeline for the selected namespace (no placeholder data). */
+  listMemoryUsage(
+    workspacePath: string | null,
+    namespace: DesktopMemoryNamespace,
+  ): Promise<DesktopMemoryUsageRecord[]>
+  listMemoryTasks(
+    workspacePath: string | null,
+    namespace: DesktopMemoryNamespace,
+  ): Promise<{ tasks: DesktopMemoryTask[]; autoOrganize: boolean }>
+  organizeMemory(input: {
+    workspacePath: string | null
+    namespace: DesktopMemoryNamespace
+  }): Promise<{ taskId: string | null; queued: boolean }>
+  readMemorySettings(
+    workspacePath: string | null,
+    namespace: DesktopMemoryNamespace,
+  ): Promise<DesktopMemorySettings>
+  saveMemorySettings(input: {
+    workspacePath: string | null
+    namespace: DesktopMemoryNamespace
+    autoOrganize: boolean
+  }): Promise<DesktopMemorySettings>
   listUserMemories(): Promise<DesktopUserMemoryListing>
   readUserMemory(relativePath: string): Promise<DesktopProjectMemoryContent>
   saveUserMemory(input: SaveUserMemoryInput): Promise<DesktopProjectMemory>
@@ -1796,6 +1896,9 @@ export type DesktopApi = {
   generateTaskSuggestions(
     input: GenerateDesktopTaskSuggestionsInput,
   ): Promise<RpcResult<'task-suggestion/generate'>>
+  generateComposerPrediction(
+    input: GenerateDesktopComposerPredictionInput,
+  ): Promise<RpcResult<'composer-prediction/generate'>>
   exportUserMemory(): Promise<ExportUserMemoryResult>
   importUserMemory(input: ImportUserMemoryInput): Promise<ExportUserMemoryResult>
   getBrowserState(): Promise<DesktopBrowserState>
@@ -1919,18 +2022,33 @@ export type DesktopApi = {
   updateProvider(providerId: ModelProviderID, definition: DesktopProviderDefinition): Promise<void>
   deleteProvider(providerId: ModelProviderID): Promise<void>
   modelRecommendations?: {
+    documentsSupported(): Promise<boolean>
+    extractDocument(
+      input: RpcParams<'model/document/extract'>,
+    ): Promise<RpcResult<'model/document/extract'>>
+    cancelDocument(operationId: string): Promise<RpcResult<'model/document/cancel'>>
+    refreshPricing(force?: boolean): Promise<RpcResult<'model/pricing/refresh'>>
+
     supported(): Promise<boolean>
     preview(
       input: RpcParams<'model/recommendation/preview'>,
     ): Promise<RpcResult<'model/recommendation/preview'>>
     refresh(): Promise<RpcResult<'model/recommendation/refresh'>>
+    /** 存量 32K 规格批量检查；一次只处理当前提供商。 */
+    specsSupported(): Promise<boolean>
+    previewModelSpecs(
+      providerId: ModelProviderID,
+    ): Promise<RpcResult<'provider/model/specs/preview'>>
+    applyModelSpecs(
+      input: RpcParams<'provider/model/specs/apply'>,
+    ): Promise<RpcResult<'provider/model/specs/apply'>>
   }
   /** 读取上游模型列表；提供 draft 时用于保存前获取，不访问已保存配置。 */
   discoverProviderModels(input: {
     providerId?: ModelProviderID
     api: DesktopProviderChatApi
     draft?: DesktopProviderDraft
-  }): Promise<DesktopProviderModelDefinition[]>
+  }): Promise<DesktopProviderModelDiscovery>
   startAuthSession(target: DesktopAuthTarget): Promise<DesktopAuthSession>
   respondAuthSession(
     sessionId: string,
@@ -2238,6 +2356,21 @@ export type DesktopApi = {
   exitApp(): Promise<void>
   getDataLocation(): Promise<DesktopDataLocationState>
   chooseDataLocation(): Promise<DesktopDataLocationMigrationResult | null>
+  getStorageSummary(): Promise<StorageSummaryResult>
+  listOldChatsForStorage(
+    params: RpcParams<'storage/oldChats/list'>,
+  ): Promise<StorageOldChatsListResult>
+  deleteOldChatsForStorage(threadIds: readonly string[]): Promise<StorageOldChatsDeleteResult>
+  getUserDataStorageSummary(): Promise<DesktopUserDataStorageSummary>
+  openStorageDirectory(targetPath: string): Promise<void>
+  listAgentDownloadedResources(): Promise<StorageResourcesListResult>
+  deleteAgentDownloadedResource(resourceId: string): Promise<StorageResourcesDeleteResult>
+  listUserDataDownloadedResources(): Promise<
+    Array<Omit<DownloadedResourceItem, 'category'> & { category: 'font' | 'runtime' }>
+  >
+  deleteUserDataDownloadedResource(
+    resourceId: string,
+  ): Promise<{ resourceId: string; reclaimedBytes: number }>
   onAgentEvent(callback: (event: DesktopAgentEvent) => void): () => void
   onWorkflowEvent(callback: (event: DesktopWorkflowEvent) => void): () => void
   onUiCommand(callback: (command: DesktopUiCommand) => void): () => void

@@ -12,8 +12,6 @@ export const interactionHandlers = {
     'approval/rules/list',
     'approval/rules/revoke',
     'approval/rules/upsert',
-    'approval/reviewState',
-    'approval/retry',
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown): Promise<unknown> {
     const params = optionalRecord(rawParams)
@@ -26,31 +24,26 @@ export const interactionHandlers = {
           Number(params.expectedVersion),
         )
       case 'approval/rules/list':
-        return runtime.dependencies.approvals.rules.list(String(params.threadId))
+        return runtime.dependencies.approvals.rules.list(
+          typeof params.threadId === 'string' ? params.threadId : undefined,
+          typeof params.cwd === 'string' ? params.cwd : undefined,
+        )
       case 'approval/rules/revoke':
         return runtime.dependencies.approvals.rules.revoke(
-          String(params.threadId),
+          typeof params.threadId === 'string' ? params.threadId : undefined,
           String(params.ruleId),
           typeof params.expectedVersion === 'string' ? params.expectedVersion : undefined,
+          typeof params.cwd === 'string' ? params.cwd : undefined,
         )
       case 'approval/rules/upsert':
         return runtime.dependencies.approvals.rules
           .upsert(
-            String(params.threadId),
+            typeof params.threadId === 'string' ? params.threadId : undefined,
             params.rule as import('@pidex/shared/thread').PermissionRuleInput,
             typeof params.expectedVersion === 'string' ? params.expectedVersion : undefined,
+            typeof params.cwd === 'string' ? params.cwd : undefined,
           )
           .then((rule) => ({ rule }))
-      case 'approval/reviewState':
-        return runtime.dependencies.db.repositories.interactions.approvalReviewState(
-          String(params.threadId),
-        )
-      case 'approval/retry':
-        return runtime.dependencies.approvals.requestRetry(
-          String(params.threadId),
-          String(params.reviewId),
-          String(params.operationId),
-        )
       default:
         throw new AgentError('METHOD_NOT_FOUND', `未知 RPC 方法：${method}`, 404)
     }

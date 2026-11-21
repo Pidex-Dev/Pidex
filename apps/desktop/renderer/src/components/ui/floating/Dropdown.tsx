@@ -290,7 +290,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
         data-theme-component="dropdown-surface"
         tabIndex={-1}
         style={{ ...floatingStyle, ...style }}
-        className={`popover-surface popover tw:p-1.5  tw:select-none tw:text-[var(--cpx-sys-color-fg-primary)] ${className}`}
+        className={`popover-surface popover popover-menu-list ${className}`}
         onKeyDown={(event) => {
           onKeyDown?.(event)
           if (
@@ -331,7 +331,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
         }}
       >
         {title && !showSearch && (
-          <div className="tw:px-2.5 tw:py-1 tw:type-label tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:uppercase tw:tracking-[0.8px]">
+          <div className="popover-title-region tw:px-3 tw:py-1 tw:type-1 tw:weight-medium tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:uppercase tw:tracking-[0.8px]">
             {title}
           </div>
         )}
@@ -356,16 +356,16 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
           role={context.mode === 'menu' ? 'menu' : 'listbox'}
           id={listboxId}
           aria-label={listLabel ?? props['aria-label'] ?? (title || searchPlaceholder)}
-          className={`tw:flex tw:flex-col tw:gap-0.5 ${context.mode === 'select' ? 'tw:max-h-[220px] tw:overflow-y-auto' : ''}`}
+          className={`popover-menu-list ${context.mode === 'select' ? 'tw:max-h-[var(--dropdown-list-max-height,220px)] tw:overflow-y-auto' : ''}`}
         >
           <SearchContext.Provider value={showSearch ? query : ''}>
             {children}
           </SearchContext.Provider>
         </div>
-        {footer}
+        {footer ? <div className="popover-footer-region">{footer}</div> : null}
         {empty && (
           <div
-            className="tw:px-2.5 tw:py-3 tw:text-center tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:type-caption"
+            className="popover-empty-region tw:px-3 tw:py-3 tw:text-center tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:type-1"
             role="status"
           >
             {emptyText}
@@ -486,33 +486,31 @@ const DropdownItem = forwardRef<HTMLDivElement, DropdownItemProps>(
         className={
           asChild
             ? `${hidden ? 'tw:hidden' : ''} ${className}`
-            : `tw:px-2.5 tw:py-1.5 tw:type-control tw:rounded-[var(--cpx-sys-radius-control)] tw:cursor-pointer tw:items-center tw:justify-between tw:transition-colors tw:outline-none ${hidden ? 'tw:hidden' : 'tw:flex'} ${disabled || context.disabled ? 'tw:opacity-40 tw:cursor-not-allowed' : highlighted ? 'tw:bg-[var(--cpx-sys-color-hover)] tw:text-[var(--cpx-sys-color-fg-primary)]' : selected ? 'tw:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]' : 'tw:text-[var(--cpx-sys-color-fg-secondary)] tw:hover:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]'} ${className}`
+            : `popover-menu-option tw:type-2 tw:weight-medium tw:rounded-[var(--cpx-sys-radius-control)] tw:cursor-pointer tw:items-center tw:justify-between tw:transition-colors tw:outline-none ${hidden ? 'tw:hidden' : 'tw:flex'} ${disabled || context.disabled ? 'tw:opacity-40 tw:cursor-not-allowed' : highlighted ? 'tw:bg-[var(--cpx-sys-color-hover)] tw:text-[var(--cpx-sys-color-fg-primary)]' : selected ? 'tw:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]' : 'tw:text-[var(--cpx-sys-color-fg-secondary)] tw:hover:text-[var(--cpx-sys-color-fg-primary)] tw:hover:bg-[var(--cpx-sys-color-hover)]'} ${className}`
         }
       >
         {asChild ? (
           children
         ) : (
           <>
-            <div className="tw:flex tw:items-center tw:gap-2 tw:min-w-0 tw:pr-1">
-              {icon && (
-                <span className="tw:shrink-0 tw:[&>svg]:size-[var(--inline-icon-size,1em)]">
-                  {icon}
-                </span>
+            {icon && (
+              <span className="menu-column-leading tw:shrink-0 tw:[&>svg]:size-[var(--inline-icon-size,1em)]">
+                {icon}
+              </span>
+            )}
+            <div className="menu-column-label">
+              <div className="tw:truncate">{children}</div>
+              {description && (
+                <div className="menu-column-detail tw:type-1 tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:mt-1">
+                  {description}
+                </div>
               )}
-              <div className="tw:min-w-0">
-                <div className="tw:truncate">{children}</div>
-                {description && (
-                  <div className="tw:type-caption tw:text-[var(--cpx-sys-color-fg-tertiary)] tw:truncate tw:mt-0.5">
-                    {description}
-                  </div>
-                )}
-              </div>
             </div>
             {selected && (
               <Check
                 size="var(--inline-icon-size, 1em)"
                 strokeWidth={2.8}
-                className="tw:flex-shrink-0 tw:ml-1.5"
+                className="menu-column-trailing tw:shrink-0"
               />
             )}
           </>

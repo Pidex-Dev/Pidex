@@ -24,7 +24,7 @@ export function MessageSentTime({ sentAt }: { sentAt: number }): React.ReactNode
   return label === null ? null : (
     <time
       dateTime={new Date(sentAt).toISOString()}
-      className="tw:shrink-0 tw:text-app-text-meta tw:type-caption"
+      className="tw:shrink-0 tw:text-app-text-meta tw:type-1"
     >
       {label}
     </time>

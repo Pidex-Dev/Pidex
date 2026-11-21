@@ -101,7 +101,7 @@ export function TaskArrangementCard({ initial }: { initial: TaskArrangementPropo
   return (
     <section
       aria-label="时间安排草案"
-      className="tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:p-3"
+      className="tw:grid tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:p-3"
     >
       <strong>
         {proposal.status === 'pending'

@@ -28,6 +28,7 @@ import {
   buildSidebarCustomSections,
   buildSidebarViewModel,
   sidebarClaimedItemKeys,
+  sortSidebarPinnedItems,
   sidebarPinnedProjectKey,
   sidebarPinnedSessionKey,
 } from '../src/features/layout/sidebar/SidebarViewModel.js'
@@ -315,6 +316,32 @@ describe('普通列表排序语义', () => {
       sortSessionsForSidebar(items, { ...options, sort: 'updated' }).map((item) => item.id),
     ).toEqual(['newer', 'older'])
   })
+
+  test('普通列表支持按最近提问排序', () => {
+    const items = [
+      {
+        ...session('older-prompt'),
+        lastUserMessageAt: '2026-07-18T02:00:00.000Z',
+        lastMessageAt: '2026-07-18T08:00:00.000Z',
+      },
+      {
+        ...session('newer-prompt'),
+        lastUserMessageAt: '2026-07-18T05:00:00.000Z',
+        lastMessageAt: '2026-07-18T06:00:00.000Z',
+      },
+    ]
+    const options = {
+      needsInputSessionIds: new Set<string>(),
+      unreadSessionIds: new Set<string>(),
+      manualOrderByScope: {},
+    }
+    expect(
+      sortSessionsForSidebar(items, { ...options, sort: 'lastPrompt' }).map((item) => item.id),
+    ).toEqual(['newer-prompt', 'older-prompt'])
+    expect(
+      sortSessionsForSidebar(items, { ...options, sort: 'updated' }).map((item) => item.id),
+    ).toEqual(['older-prompt', 'newer-prompt'])
+  })
 })
 
 describe('自定义信息保留式迁移', () => {
@@ -413,4 +440,57 @@ test('最近区显示项目聊天开关保留置顶和分区归属', () => {
   expect(normalizeSidebarCustomization({ showProjectsInRecents: true }).showProjectsInRecents).toBe(
     true,
   )
+})
+
+test('置顶区支持按最近提问排序并保留 pinnedSort 设置', () => {
+  expect(normalizeSidebarCustomization({ pinnedSort: 'lastPrompt' }).pinnedSort).toBe('lastPrompt')
+
+  const items = [
+    {
+      key: 'session:older-prompt',
+      kind: 'session' as const,
+      pinnedAt: '2026-07-18T12:00:00.000Z',
+      session: {
+        ...session('older-prompt'),
+        lastUserMessageAt: '2026-07-18T08:00:00.000Z',
+        lastMessageAt: '2026-07-18T11:00:00.000Z',
+      },
+    },
+    {
+      key: 'project:id:beta',
+      kind: 'project' as const,
+      pinnedAt: '2026-07-18T09:00:00.000Z',
+      project: {
+        name: 'Beta',
+        path: 'C:\\beta',
+        projectId: 'beta',
+        lastOpenedAt: '2026-07-18T09:30:00.000Z',
+      },
+    },
+    {
+      key: 'session:newer-prompt',
+      kind: 'session' as const,
+      pinnedAt: '2026-07-18T07:00:00.000Z',
+      session: {
+        ...session('newer-prompt'),
+        lastUserMessageAt: '2026-07-18T10:00:00.000Z',
+      },
+    },
+  ]
+
+  expect(sortSidebarPinnedItems(items, 'lastPrompt').map((item) => item.key)).toEqual([
+    'session:newer-prompt',
+    'project:id:beta',
+    'session:older-prompt',
+  ])
+  expect(sortSidebarPinnedItems(items, 'updated').map((item) => item.key)).toEqual([
+    'session:older-prompt',
+    'project:id:beta',
+    'session:newer-prompt',
+  ])
+  expect(sortSidebarPinnedItems(items, 'manual').map((item) => item.key)).toEqual([
+    'session:older-prompt',
+    'project:id:beta',
+    'session:newer-prompt',
+  ])
 })

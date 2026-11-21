@@ -1,3 +1,10 @@
+import {
+  createAssistantMessageEventStream,
+  type AssistantMessageEventStream,
+} from '@earendil-works/pi-ai'
+import type { ModelPricingService } from '../ModelPricingService'
+import type { ProviderFailure } from '@pidex/agent-protocol'
+import { providerRequestError } from '../ProviderError'
 import { ModelRecommendationStore } from './ModelRecommendationStore'
 import {
   ProviderDirectoryStore,
@@ -11,7 +18,7 @@ import {
   compileOptionSpecs,
   type CompiledOptionSpecs,
 } from './PiModelOptionMapping'
-import { resolveZCodeOptionSpecs } from './ZCodeModelOptions'
+import { resolveZCodeOptionSpecsDetailed, type ZCodeOptionResolution } from './ZCodeModelOptions'
 import { AgentError } from '../../Domain'
 import type { AgentLogger } from '../../observability/AgentLogger'
 import { providerFailureCategory, providerFailureMessage } from '../ModelHealthService'
@@ -36,6 +43,7 @@ import {
   type EncryptedCredentialStoreOptions,
 } from './EncryptedCredentialStore'
 import {
+  CUSTOM_PROVIDER_APIS,
   parsePiProviderCatalog,
   PI_PROVIDER_CONFIG_SCHEMA_VERSION,
   DEEPSEEK_PROVIDER_ID,
@@ -61,6 +69,7 @@ import {
 } from './PiCustomProvider'
 
 export interface PiModelServiceOptions extends EncryptedCredentialStoreOptions {
+  readonly pricing?: ModelPricingService
   readonly logger?: Pick<AgentLogger, 'warn'>
   readonly recommendations?: ModelRecommendationStore
   readonly directory?: ProviderDirectoryStore
@@ -82,7 +91,7 @@ export class PiModelServiceError extends Error {
       | 'DISPOSED',
     message: string,
     options?: ErrorOptions,
-    readonly refreshFailures: readonly string[] = [],
+    readonly refreshFailures: readonly ProviderFailure[] = [],
   ) {
     super(message, options)
     this.name = 'PiModelServiceError'
@@ -145,6 +154,7 @@ const cost = (model: PiModel<Api>): Model.Cost[] => [
 const thinkingLevels = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 
 type ConfiguredPiModel = PiModel<Api> & {
+  catalog?: Model.CatalogDetails
   maxInputTokens?: number
   inputExplicit?: boolean
   modelType?: 'chat' | 'embedding' | 'rerank'
@@ -158,35 +168,72 @@ const isChatModel = (model: PiModel<Api>) => {
   return !kind || kind === 'chat'
 }
 
-/** 显式 values 优先；存在时严格使用该值域，不再回退固定七档。 */
-const explicitReasoningValues = (model: PiModel<Api>): readonly string[] | undefined => {
-  const values = (model as ConfiguredPiModel).optionSpecs?.reasoningLevel?.values
-  return values && values.length ? values : undefined
-}
+/**
+ * ZCode `.*` 兜底规则的产物：`values` 恰为 disabled/enabled 且 `map` 是空补丁
+ * （不改写请求，交回 Pi 原生处理）。它是全局默认值，不是模型事实，
+ * 只有在模型自身与推荐目录都没有更精确档位时才采用。
+ */
+const isGenericReasoningPlaceholder = (spec: Model.OptionSpecs['reasoningLevel']): boolean =>
+  spec?.map === '{}' &&
+  spec.values?.length === 2 &&
+  spec.values[0] === 'disabled' &&
+  spec.values[1] === 'enabled'
 
+/** 模型在 Pi 目录里明确声明的档位（thinkingLevelMap 中非 null 的键），保持七档顺序。 */
+const declaredThinkingValues = (
+  reasoning: boolean,
+  map: NonNullable<PiModel<Api>['thinkingLevelMap']> | undefined,
+): readonly string[] =>
+  reasoning && map ? thinkingLevels.filter((level) => map[level] != null) : []
+
+/** 显式 values 优先；显式值域不是通用兜底占位时严格使用，不再回退固定七档。 */
 const supportedThinkingLevels = (model: PiModel<Api>): readonly string[] => {
   if (!isChatModel(model)) return []
-  const explicit = explicitReasoningValues(model)
-  if (explicit) return explicit
+  const spec = (model as ConfiguredPiModel).optionSpecs?.reasoningLevel
+  if (spec?.values?.length && !isGenericReasoningPlaceholder(spec)) return spec.values
+  const declared = declaredThinkingValues(model.reasoning, model.thinkingLevelMap)
+  if (declared.length) return declared
+  if (spec?.values?.length) return spec.values
   return model.reasoning
     ? thinkingLevels.filter((level) => model.thinkingLevelMap?.[level] !== null)
     : []
 }
 
-/** 逐字段叠加：next（更高优先级，如 ZCode）覆盖 base，缺失字段继续继承。 */
-const overlayRecommendedOptionSpecs = (
-  base: Model.OptionSpecs | undefined,
-  next: Model.OptionSpecs | undefined,
+/**
+ * 档位值域优先级：推荐目录/上游明确值 → ZCode 模型专用规则 → 模型自身声明
+ * → ZCode `.*` 兜底。兜底只是全局默认值，仅在别无信息时使用。
+ */
+const resolveReasoningValues = (
+  recommendation: Model.Recommendation,
+  zcode: ZCodeOptionResolution,
+  declared: readonly string[],
+): readonly string[] | undefined => {
+  const explicit =
+    recommendation.optionSpecs?.reasoningLevel?.values ?? recommendation.reasoningLevels
+  if (explicit?.length) return explicit
+  const specific = zcode.optionSpecs?.reasoningLevel?.values
+  if (specific?.length && !zcode.genericReasoningValues) return specific
+  if (declared.length) return declared
+  return specific?.length ? specific : undefined
+}
+
+/**
+ * 合成运行时规格：档位值域按优先级取一个来源，协议 `map` 与输出上限始终由
+ * ZCode 规则补缺（map 是请求字段的唯一权威，与档位来源无关）。
+ */
+const composeOptionSpecs = (
+  recommendation: Model.Recommendation,
+  zcode: ZCodeOptionResolution,
+  declared: readonly string[] = [],
 ): Model.OptionSpecs | undefined => {
-  if (!base && !next) return undefined
-  const reasoningLevel =
-    base?.reasoningLevel || next?.reasoningLevel
-      ? { ...(base?.reasoningLevel ?? {}), ...(next?.reasoningLevel ?? {}) }
-      : undefined
+  const values = resolveReasoningValues(recommendation, zcode, declared)
+  const map =
+    zcode.optionSpecs?.reasoningLevel?.map ?? recommendation.optionSpecs?.reasoningLevel?.map
   const maxOutputTokens =
-    base?.maxOutputTokens || next?.maxOutputTokens
-      ? { ...(base?.maxOutputTokens ?? {}), ...(next?.maxOutputTokens ?? {}) }
-      : undefined
+    zcode.optionSpecs?.maxOutputTokens ?? recommendation.optionSpecs?.maxOutputTokens
+  const reasoningLevel =
+    values || map ? { ...(values ? { values } : {}), ...(map ? { map } : {}) } : undefined
+  if (!reasoningLevel && !maxOutputTokens) return undefined
   return {
     ...(reasoningLevel ? { reasoningLevel } : {}),
     ...(maxOutputTokens ? { maxOutputTokens } : {}),
@@ -210,6 +257,12 @@ const piModelToInfo = (model: PiModel<Api>, enabled: boolean, variant?: string):
   id: Model.ID.make(model.id),
   providerID: Provider.ID.make(model.provider),
   name: model.name,
+  ...((model as ConfiguredPiModel).catalog
+    ? { catalog: (model as ConfiguredPiModel).catalog }
+    : {}),
+  ...((model as ConfiguredPiModel).catalog?.family
+    ? { family: Model.Family.make((model as ConfiguredPiModel).catalog!.family!) }
+    : {}),
   ...((model as ConfiguredPiModel).modelType && (model as ConfiguredPiModel).modelType !== 'chat'
     ? { modelType: (model as ConfiguredPiModel).modelType! }
     : {}),
@@ -237,9 +290,9 @@ const piModelToInfo = (model: PiModel<Api>, enabled: boolean, variant?: string):
   variants: supportedThinkingLevels(model).map((level) => ({
     id: Model.VariantID.make(level),
   })),
-  time: { released: 0 },
+  time: { released: Date.parse((model as ConfiguredPiModel).catalog?.releaseDate ?? '') || 0 },
   cost: cost(model),
-  status: 'active',
+  status: (model as ConfiguredPiModel).catalog?.status ?? 'active',
   enabled,
   limit: {
     context: model.contextWindow,
@@ -481,13 +534,12 @@ export class PiModelService {
             ...(model.tools !== undefined ? { tools: model.tools } : {}),
             reasoning: model.reasoning,
             input: [...model.input],
+            ...(model.pricing ? { pricing: model.pricing } : {}),
             cost: { ...model.cost },
             ...(Object.keys(model.headers).length ? { headers: { ...model.headers } } : {}),
             ...(model.thinkingLevelMap ? { thinkingLevelMap: { ...model.thinkingLevelMap } } : {}),
             ...(model.compat ? { compat: structuredClone(model.compat) } : {}),
-            ...(model.smartConfig
-              ? { smartConfig: { pinned: [...model.smartConfig.pinned] } }
-              : {}),
+            ...(model.smartConfig ? { smartConfig: structuredClone(model.smartConfig) } : {}),
             ...(model.optionSpecs ? { optionSpecs: structuredClone(model.optionSpecs) } : {}),
           })),
         }
@@ -514,6 +566,33 @@ export class PiModelService {
     return definitions.map(clone)
   }
 
+  async discoverBuiltinModels(providerID: string) {
+    const config = await this.syncProviders()
+    if (!this.builtinProviderIDs.has(providerID) || config.providers[providerID]?.kind === 'custom')
+      throw new AgentError('PROVIDER_NOT_FOUND', '内置供应商不存在', 404)
+    return Promise.all(
+      this.pi.getModels(providerID).map(async (original) => {
+        const model = await this.withCatalog(original)
+        const input = effectiveInput(model)
+        return {
+          ...(model.catalog ? { catalog: model.catalog } : {}),
+          id: model.id,
+          name: model.name,
+          api: (CUSTOM_PROVIDER_APIS as readonly string[]).includes(model.api)
+            ? (model.api as CustomProviderApi)
+            : ('openai-completions' as const),
+          enabled: false,
+          contextWindow: model.contextWindow,
+          maxTokens: model.maxTokens,
+          reasoning: model.reasoning,
+          tools: piModelToInfo(model, false).capabilities.tools,
+          ...(input.length ? { input } : {}),
+          cost: model.cost,
+        }
+      }),
+    )
+  }
+
   async models(providerID?: Provider.ID): Promise<readonly Model.Info[]> {
     this.assertActive()
     const config = await this.syncProviders()
@@ -522,11 +601,19 @@ export class PiModelService {
         (model) => `${model.provider}/${model.id}`,
       ),
     )
-    return this.pi
-      .getModels(providerID ? String(providerID) : undefined)
-      .filter((model) => this.modelEnabled(model, config))
-      .map((model) => piModelToInfo(model, available.has(`${model.provider}/${model.id}`)))
-      .map(clone)
+    return Promise.all(
+      this.pi
+        .getModels(providerID ? String(providerID) : undefined)
+        .filter((model) => this.modelEnabled(model, config))
+        .map(async (model) =>
+          clone(
+            piModelToInfo(
+              await this.withCatalog(model),
+              available.has(`${model.provider}/${model.id}`),
+            ),
+          ),
+        ),
+    )
   }
 
   async resolve(ref: Model.Ref): Promise<Model.Info> {
@@ -534,6 +621,16 @@ export class PiModelService {
     const auth = await this.pi.checkAuth(model.provider)
     const variant = ref.variant ? String(ref.variant) : supportedThinkingLevels(model)[0]
     return clone(piModelToInfo(model, auth !== undefined, variant))
+  }
+
+  private async withCatalog(model: PiModel<Api>): Promise<ConfiguredPiModel> {
+    const { recommended } = await this.recommendations.resolve({
+      providerId: model.provider,
+      modelId: model.id,
+      baseUrl: model.baseUrl,
+      modelType: (model as ConfiguredPiModel).modelType ?? 'chat',
+    })
+    return recommended.catalog ? { ...model, catalog: recommended.catalog } : model
   }
 
   async getPiModel(ref: Model.Ref): Promise<PiModel<Api>> {
@@ -544,7 +641,8 @@ export class PiModelService {
     if (!this.providerEnabled(providerID, config)) {
       throw new PiModelServiceError('PROVIDER_NOT_FOUND', `Provider ${providerID} was not found`)
     }
-    const model = this.pi.getModel(providerID, modelID)
+    const found = this.pi.getModel(providerID, modelID)
+    const model = found ? await this.withCatalog(found) : undefined
     if (!model || !this.modelEnabled(model, config)) {
       throw new PiModelServiceError(
         'MODEL_NOT_FOUND',
@@ -723,7 +821,13 @@ export class PiModelService {
         ]).get(error.message)
         const reason = `${discoveryReason ?? providerFailureMessage(category, 'request')}${httpStatus ? `（HTTP ${httpStatus}）` : ''}`
         this.options.logger?.warn('provider.catalog.refresh.failed', { provider, category, reason })
-        return `${provider}：${reason}`
+        const failure = providerRequestError(error, provider)
+        return {
+          providerId: provider,
+          code: failure.code as ProviderFailure['code'],
+          retryable: failure.retryable,
+          ...(httpStatus ? { httpStatus: Number(httpStatus) } : {}),
+        }
       })
       throw new PiModelServiceError(
         'CATALOG_REFRESH_FAILED',
@@ -735,6 +839,12 @@ export class PiModelService {
       )
     }
     this.catalogVersion += 1
+  }
+
+  async refreshModelPricing(force = true, year?: number) {
+    if (!this.options.pricing)
+      throw new AgentError('PROVIDER_UNAVAILABLE', '计费资料服务暂不可用。', 503)
+    return this.options.pricing.refresh(force, year)
   }
 
   async reload(): Promise<void> {
@@ -845,18 +955,16 @@ export class PiModelService {
   async previewRecommendation(input: RecommendationInput) {
     const resolved = await this.recommendations.resolve(input)
     // 预览阶段通常没有协议的精确 api，仅用通用层规则贡献思考 values/map。
-    const zcode = resolveZCodeOptionSpecs({
+    const zcode = resolveZCodeOptionSpecsDetailed({
       modelId: input.modelId,
       api: '',
       baseUrl: input.baseUrl,
     })
-    if (!zcode) return resolved
+    const optionSpecs = composeOptionSpecs(resolved.recommended, zcode)
+    if (!optionSpecs) return resolved
     return {
       ...resolved,
-      recommended: {
-        ...resolved.recommended,
-        optionSpecs: overlayRecommendedOptionSpecs(resolved.recommended.optionSpecs, zcode),
-      },
+      recommended: { ...resolved.recommended, optionSpecs },
     }
   }
 
@@ -871,7 +979,7 @@ export class PiModelService {
   }
 
   /**
-   * 运行时合成：已启用智能配置的模型，用当前推荐值覆盖 `pinned` 之外的字段。
+   * 运行时合成：已启用智能配置的模型，用当前推荐值覆盖全部推荐字段。
    * 只作用于交给 Pi 的运行时配置；`parsedConfig` 仍保存用户原始值，
    * 否则 UI 读到的推荐值会被当成用户值回写并永久固定。
    */
@@ -882,7 +990,12 @@ export class PiModelService {
     if (!Object.values(provider.models).some((model) => model.smartConfig)) return provider
     const models: Record<string, PiCustomModelConfig> = {}
     for (const [id, model] of Object.entries(provider.models)) {
-      if (!model.smartConfig) {
+      // 旧版逐字段固定配置按整份手动配置保留，重新采用推荐后切换自动模式。
+      if (
+        !model.smartConfig ||
+        model.smartConfig.enabled === false ||
+        model.smartConfig.pinned.length > 0
+      ) {
         models[id] = model
         continue
       }
@@ -893,20 +1006,22 @@ export class PiModelService {
         modelId: model.id,
         modelType: model.modelType ?? 'chat',
       })
-      // ZCode 优先于 models.dev 推荐：逐字段覆盖，缺失继续继承。
-      const zcode = resolveZCodeOptionSpecs({ modelId: model.id, api: model.api, baseUrl })
-      const recommended = zcode
-        ? {
-            ...baseRecommended,
-            optionSpecs: overlayRecommendedOptionSpecs(baseRecommended.optionSpecs, zcode),
-          }
-        : baseRecommended
-      const applied = applyRecommendation(model, recommended, model.smartConfig.pinned)
-      // 用户显式配置优先于推荐；只有缺失时才从推荐（含 ZCode）继承。
-      models[id] =
-        !model.optionSpecs && recommended.optionSpecs
-          ? { ...applied, optionSpecs: recommended.optionSpecs }
-          : applied
+      // 档位值域按“推荐 → ZCode 专用规则 → 模型自身声明 → 通用兜底”取值，
+      // 协议 map 继续由静态规则补齐。
+      const zcode = resolveZCodeOptionSpecsDetailed({ modelId: model.id, api: model.api, baseUrl })
+      const recommended = {
+        ...baseRecommended,
+        optionSpecs: composeOptionSpecs(
+          baseRecommended,
+          zcode,
+          declaredThinkingValues(model.reasoning, model.thinkingLevelMap),
+        ),
+      }
+      const document =
+        model.smartConfig.source === 'document' ? model.smartConfig.document?.data : undefined
+      const applied = applyRecommendation(applyRecommendation(model, recommended), document ?? {})
+      if (document?.pricing) (applied as { pricing?: Model.Pricing }).pricing = document.pricing
+      models[id] = applied
     }
     return { ...provider, models }
   }
@@ -925,9 +1040,82 @@ export class PiModelService {
     const original = pi.streamSimple.bind(this.pi)
     try {
       pi.streamSimple = (model: unknown, context: unknown, options?: unknown) => {
+        const priced =
+          model && typeof model === 'object'
+            ? this.options.pricing?.begin(model as PiModel<Api>)
+            : undefined
+        const requestModel = priced?.model ?? model
+        const dispatch = (m: unknown, c: unknown, o?: unknown) => {
+          const source = original(
+            m === model ? requestModel : m,
+            c,
+            o,
+          ) as AssistantMessageEventStream
+          if (!priced) return source
+          const result = createAssistantMessageEventStream()
+          void (async () => {
+            try {
+              for await (const event of source) {
+                priced.annotate(
+                  event.type === 'done'
+                    ? event.message
+                    : event.type === 'error'
+                      ? event.error
+                      : event.partial,
+                )
+                result.push(event)
+              }
+              result.end()
+            } catch {
+              const error = {
+                role: 'assistant' as const,
+                content: [],
+                api: (requestModel as PiModel<Api>).api,
+                provider: (requestModel as PiModel<Api>).provider,
+                model: (requestModel as PiModel<Api>).id,
+                timestamp: Date.now(),
+                stopReason: 'error' as const,
+                errorMessage: '模型响应流未能完成，请重试。',
+                usage: {
+                  input: 0,
+                  output: 0,
+                  cacheRead: 0,
+                  cacheWrite: 0,
+                  totalTokens: 0,
+                  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+                },
+              }
+              priced.annotate(error)
+              result.push({ type: 'error', reason: 'error', error })
+              result.end()
+            }
+          })().catch(() => undefined)
+          return result
+        }
+        if (
+          (model as ConfiguredPiModel | undefined)?.catalog?.temperature === false &&
+          options &&
+          typeof options === 'object'
+        ) {
+          const { temperature: _temperature, ...rest } = options as Record<string, unknown>
+          options = rest
+        }
         const compiled =
           model && typeof model === 'object' ? this.compiledOptionMap(model as object) : null
-        if (!compiled) return original(model, context, options)
+        if (!compiled) {
+          const catalog = (model as ConfiguredPiModel | undefined)?.catalog
+          if (
+            catalog?.reasoningOptions?.some((option) => option.type === 'toggle') &&
+            options &&
+            typeof options === 'object'
+          ) {
+            const opts = { ...options } as Record<string, unknown>
+            if (opts.reasoning === 'disabled') delete opts.reasoning
+            else if (opts.reasoning === 'enabled') opts.reasoning = 'medium'
+            return dispatch(model, context, opts)
+          }
+          return dispatch(model, context, options)
+        }
         const opts = (options && typeof options === 'object' ? options : {}) as Record<
           string,
           unknown
@@ -952,7 +1140,7 @@ export class PiModelService {
             return resolved
           }
         }
-        return original(model, context, next)
+        return dispatch(model, context, next)
       }
     } catch {
       /* 只读或冻结的 Models 实例保持原样；不影响其余行为 */
@@ -1091,9 +1279,90 @@ export class PiModelService {
           continue
         const source =
           id === DEEPSEEK_PROVIDER_ID ? (this.deepSeekProtocol?.provider ?? base) : base
+        let runtimeConfig = configured
+        if (configured?.kind === 'builtin') {
+          const models = { ...configured.models }
+          for (const [modelID, override] of Object.entries(models)) {
+            if (
+              !override.enabled ||
+              (override.optionSpecs && !override.smartConfig) ||
+              override.smartConfig?.pinned.length ||
+              override.smartConfig?.enabled === false
+            )
+              continue
+            const native = source.getModels().find((model) => model.id === modelID)
+            if (!native) continue
+            const api = override.api ?? configured.protocol ?? native.api
+            const baseUrl =
+              configured.endpoints?.[api as CustomProviderApi] ??
+              configured.baseUrl ??
+              native.baseUrl
+            const { recommended } = await this.recommendations.resolve({
+              providerId: id,
+              modelId: modelID,
+              modelType: 'chat',
+              baseUrl,
+            })
+            if (override.smartConfig) {
+              const document =
+                override.smartConfig.source === 'document'
+                  ? override.smartConfig.document?.data
+                  : undefined
+              const composed = applyRecommendation(
+                applyRecommendation(
+                  {
+                    ...native,
+                    ...override,
+                    input: [...(override.input ?? native.input)] as PiCustomModelConfig['input'],
+                    cost: { ...native.cost, ...override.cost },
+                  },
+                  recommended,
+                ),
+                document ?? {},
+              )
+              const { pricing: _pricing, ...baseOverride } = override
+              models[modelID] = {
+                ...baseOverride,
+                name: composed.name,
+                contextWindow: composed.contextWindow,
+                maxTokens: composed.maxTokens,
+                reasoning: composed.reasoning,
+                input: composed.input,
+                cost: composed.cost,
+                ...(composed.maxInputTokens !== undefined
+                  ? { maxInputTokens: composed.maxInputTokens }
+                  : {}),
+                ...(composed.tools !== undefined ? { tools: composed.tools } : {}),
+                ...(composed.modelType !== undefined ? { modelType: composed.modelType } : {}),
+                ...(composed.optionSpecs ? { optionSpecs: composed.optionSpecs } : {}),
+                ...(composed.pricing ? { pricing: composed.pricing } : {}),
+              }
+              continue
+            }
+            // 内置模型只在推荐目录给出档位时才改写；其自身 declaration 已由 Pi 目录驱动。
+            if (
+              !recommended.optionSpecs?.reasoningLevel?.values?.length &&
+              !recommended.reasoningLevels?.length &&
+              !(override.smartConfig && recommended.cost?.tiers)
+            )
+              continue
+            const optionSpecs = composeOptionSpecs(
+              recommended,
+              resolveZCodeOptionSpecsDetailed({ modelId: modelID, api, baseUrl }),
+            )
+            models[modelID] = {
+              ...override,
+              ...(optionSpecs ? { optionSpecs } : {}),
+              ...(override.smartConfig && recommended.cost?.tiers
+                ? { cost: applyRecommendation(native, recommended).cost }
+                : {}),
+            }
+          }
+          runtimeConfig = { ...configured, models }
+        }
         this.mutablePi?.setProvider(
-          configured?.kind === 'builtin'
-            ? withPiBuiltinProviderOverrides(source, configured)
+          runtimeConfig?.kind === 'builtin'
+            ? withPiBuiltinProviderOverrides(source, runtimeConfig)
             : source,
         )
       }
@@ -1145,7 +1414,7 @@ export class PiModelService {
   private modelEnabled(model: PiModel<Api>, config: ParsedPiProviderCatalog) {
     if (!this.providerEnabled(model.provider, config)) return false
     const provider = config.providers?.[model.provider]
-    if (!provider) return true
+    if (!provider) return false
     if (provider.kind === 'custom') {
       return (
         provider.models[model.id]?.enabled !== false &&
@@ -1156,7 +1425,10 @@ export class PiModelService {
     }
     if (provider.allowModels.length > 0 && !provider.allowModels.includes(model.id)) return false
     if (provider.denyModels.includes(model.id)) return false
-    return provider.models[model.id]?.enabled !== false
+    return (
+      provider.models[model.id]?.enabled !== false &&
+      (provider.models[model.id] !== undefined || provider.allowModels.includes(model.id))
+    )
   }
 
   private assertActive() {

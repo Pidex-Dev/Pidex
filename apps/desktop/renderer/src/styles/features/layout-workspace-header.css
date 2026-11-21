@@ -39,24 +39,8 @@
     padding: 0 var(--cpx-sys-space-2) 0 var(--cpx-sys-space-1);
   }
 
-  .workspace-shell-control-button {
-    border: 0;
-    background: transparent;
-    color: var(--cpx-sys-color-fg-secondary);
-    transition:
-      background var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
-      color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
-  }
-  .workspace-shell-control-button[aria-pressed='true'] {
-    background: var(--cpx-sys-color-selected);
-    color: var(--cpx-sys-color-fg-primary);
-  }
   .workspace-shell-control-button:focus-visible {
     outline-color: color-mix(in srgb, var(--cpx-sys-color-accent) 72%, transparent);
-  }
-
-  :root[data-reduce-motion='on'] .workspace-shell-control-button {
-    transition: none;
   }
 
   @media (forced-colors: active) {

@@ -46,10 +46,6 @@ export function formatCompactNumber(value: number): string {
   return String(value)
 }
 
-export function formatTokens(value: number | undefined): string {
-  return value === undefined ? '—' : `${compactNumberFormatter.format(value)} Token`
-}
-
 export function formatUsdAmount(amount: string): string {
   return formatAmount('USD', amount)
 }
@@ -217,29 +213,6 @@ export function criticalQuotaWindows(
 
 export function allBalances(source: ProviderUsageSource | undefined): ProviderBalance[] {
   return source?.groups.flatMap((group) => group.balances) ?? []
-}
-
-const statusOrder: Record<ProviderUsageSource['status'], number> = {
-  available: 0,
-  'permission-required': 1,
-  'plan-required': 1,
-  unavailable: 1,
-  'not-connected': 2,
-  unsupported: 3,
-}
-
-export function sortProviderUsageSources(
-  sources: readonly ProviderUsageSource[],
-): ProviderUsageSource[] {
-  return [...sources].sort((left, right) => {
-    const leftConnected = left.connection.kind === 'none' ? 1 : 0
-    const rightConnected = right.connection.kind === 'none' ? 1 : 0
-    return (
-      leftConnected - rightConnected ||
-      statusOrder[left.status] - statusOrder[right.status] ||
-      left.displayName.localeCompare(right.displayName, 'zh-CN')
-    )
-  })
 }
 
 export function usageStatusLabel(status: ProviderUsageSource['status']): string {

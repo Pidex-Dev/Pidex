@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { ThreadPullRequestState } from '@pidex/shared/thread'
 import { SidebarSessionGroup } from '../src/features/layout/sidebar/SidebarSessionGroup.js'
@@ -11,8 +12,9 @@ import {
   threadPullRequestStore,
 } from '../src/features/layout/sidebar/ThreadPullRequestStore.js'
 import { threadPullRequestVisual } from '../src/features/layout/sidebar/ThreadPullRequestPresentation.js'
+import { expectSourceContains } from './SourceContract.js'
 
-function renderSessionRows(sessions: SessionListItem[]) {
+function renderSessionRows(sessions: SessionListItem[], showPullRequestIcons?: boolean) {
   // 静态渲染读取 Zustand 的初始快照；夹具已在渲染前写入缓存。
   const getInitialState = threadPullRequestStore.getInitialState
   threadPullRequestStore.getInitialState = threadPullRequestStore.getState
@@ -25,6 +27,7 @@ function renderSessionRows(sessions: SessionListItem[]) {
             groupKey="pull-request"
             now={0}
             sessions={sessions}
+            {...(showPullRequestIcons === undefined ? {} : { showPullRequestIcons })}
             pendingPermissionSessionIds={new Set()}
             titleLoadingIds={new Set()}
             sessionFallbackTitles={{}}
@@ -51,9 +54,15 @@ test('pull request status maps to the documented color and Chinese copy', () => 
   expect(visual('closed').className).toBe('tw:text-app-danger')
   expect(visual('draft').className).toBe('tw:text-app-text-meta')
   expect(visual('conflicts').className).toBe('tw:text-app-danger')
-  expect(visual('checks-failed').label).toBe('检查失败')
+  expect(visual('checks-failed')).toEqual({
+    className: 'tw:text-app-danger',
+    label: '检查失败',
+  })
   expect(visual('mergeable').className).toBe('tw:text-app-success')
-  expect(visual('checks-passing').label).toBe('检查通过，尚不可合并')
+  expect(visual('checks-passing')).toEqual({
+    className: 'tw:text-app-success',
+    label: '检查通过，尚不可合并',
+  })
   expect(visual('waiting', 'checks-running')).toEqual({
     className: 'tw:text-app-warning',
     label: '等待中：检查进行中',
@@ -78,6 +87,53 @@ test('sidebar marks the worktree environment and colors the primary pull request
       revision: 1,
     },
   }
+  const primary = {
+    owner: 'octocat',
+    repository: 'fixture',
+    number: 42,
+    url: 'https://github.com/octocat/fixture/pull/42',
+    title: 'Fix it',
+    origin: 'manual' as const,
+    primary: true,
+    status: { state: 'mergeable' as const, reason: null, stale: false, checkedAt: 1 },
+  }
+  applyThreadPullRequestList({
+    threadId: session.id,
+    items: [primary],
+  })
+
+  const markup = renderSessionRows([session])
+  expect(markup).toContain('工作树会话')
+  expect(markup).toContain('aria-label="Pull Request #42"')
+  expect(markup).toContain('tw:text-app-success')
+  expect(markup).toContain('#42 Fix it · 可合并')
+
+  applyThreadPullRequestList({
+    threadId: session.id,
+    items: [
+      primary,
+      {
+        ...primary,
+        number: 68,
+        url: 'https://github.com/octocat/fixture/pull/68',
+        title: 'Second PR',
+        primary: false,
+      },
+    ],
+  })
+  const multiple = renderSessionRows([session])
+  expect(multiple).toContain('aria-label="Pull Request #42, Pull Request #68"')
+  expect(multiple).toContain('#68 Second PR · 可合并')
+  const indicator =
+    multiple.match(/<button[^>]*sidebar-pull-request[^>]*>[\s\S]*?<\/button>/)?.[0] ?? ''
+  expect(indicator).toContain('tw:text-app-success')
+  expect(indicator).not.toMatch(/>\s*\d+\s*</)
+})
+
+test('关闭 gitShowPrIconsInSidebar 后已绑定的 PR 图标不再渲染', () => {
+  const project = mockWorkspace('C:\\sidebar-pr-hidden')
+  const base = mockSessionSnapshot('pr-hidden', project, { workspacePath: project.path }).item
+  const session: SessionListItem = { ...base }
   applyThreadPullRequestList({
     threadId: session.id,
     items: [
@@ -94,11 +150,23 @@ test('sidebar marks the worktree environment and colors the primary pull request
     ],
   })
 
-  const markup = renderSessionRows([session])
-  expect(markup).toContain('工作树会话')
-  expect(markup).toContain('aria-label="Pull Request #42"')
-  expect(markup).toContain('tw:text-app-success')
-  expect(markup).toContain('#42 Fix it · 可合并')
+  // 默认（开关开启）渲染图标。
+  expect(renderSessionRows([session])).toContain('aria-label="Pull Request #42"')
+  // 上层传入关闭后的开关：图标隐藏，其余指示器不受影响。
+  const hidden = renderSessionRows([session], false)
+  expect(hidden).not.toContain('aria-label="Pull Request #42"')
+  expect(hidden).not.toContain('sidebar-pull-request')
+})
+
+test('侧栏上层只读取一次 gitShowPrIconsInSidebar 并向下传递', () => {
+  const sidebar = readFileSync(
+    new URL('../src/features/layout/DesktopSidebar.tsx', import.meta.url),
+    'utf8',
+  )
+  // 设置只经侧栏选择器读取一次，并以 showPullRequestIcons 传给 SidebarBody。
+  expectSourceContains(sidebar, 'gitShowPrIconsInSidebar: settings.gitShowPrIconsInSidebar')
+  expectSourceContains(sidebar, 'showPullRequestIcons={gitShowPrIconsInSidebar}')
+  expect(sidebar.split('settings.gitShowPrIconsInSidebar').length - 1).toBe(1)
 })
 
 test('a local session without links shows neither the worktree nor the pull request marker', () => {

@@ -1,0 +1,38 @@
+#!/usr/bin/env sh
+set -eu
+
+if [ "${PIDEX_SKIP_PREPUSH:-0}" = "1" ]; then
+  printf '[pre-push] WARNING: PIDEX_SKIP_PREPUSH=1 is set; bypassing local pre-push gates. CI will still enforce all checks.\n' >&2
+  exit 0
+fi
+
+if ! command -v bun >/dev/null 2>&1; then
+  if [ -x "${HOME:-}/.bun/bin/bun" ]; then
+    PATH="${HOME}/.bun/bin:${PATH}"
+    export PATH
+  fi
+fi
+
+if ! command -v bun >/dev/null 2>&1; then
+  printf '[pre-push] FAIL: "bun" executable not found in PATH. Install Bun 1.4.4 or update PATH.\n' >&2
+  exit 1
+fi
+
+run_gate() {
+  label="$1"
+  shift
+  printf '[pre-push] Running %s...\n' "$label"
+  if ! "$@"; then
+    printf '[pre-push] FAIL: %s failed. Push aborted (emergency bypass: PIDEX_SKIP_PREPUSH=1).\n' "$label" >&2
+    exit 1
+  fi
+}
+
+run_gate "arch:check" bun run arch:check
+run_gate "feature-map:check" bun run feature-map:check
+run_gate "formal:check" bun run formal:check
+run_gate "lint-ratchet" bun run scripts/contracts/CheckLintRatchet.ts
+run_gate "test:governance" bun run test:governance
+run_gate "typecheck" bun run typecheck
+
+printf '[pre-push] PASS: all pre-push governance and typecheck gates succeeded.\n'

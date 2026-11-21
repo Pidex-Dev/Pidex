@@ -1,7 +1,7 @@
 import React from 'react'
 import { ArrowRightLeft } from 'lucide-react'
 import type { RenderTurnEntry } from '@pidex/session-view'
-import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
+import { APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import { ConversationItemContext } from './ConversationItemContext.js'
 
 type TurnModel = RenderTurnEntry['turn']['model']

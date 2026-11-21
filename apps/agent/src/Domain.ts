@@ -74,9 +74,17 @@ export type SubagentStatus =
 
 export type SubagentQueueReason = 'parent_limit' | 'global_limit' | 'workspace_writer' | null
 
+export interface SubagentStats {
+  durationMs?: number
+  toolUseCount?: number
+  totalTokens?: number
+}
+
 export interface SubagentResult {
   outcome: 'succeeded' | 'partial' | 'blocked'
   summary: string
+  reportText?: string
+  stats?: SubagentStats
   findings: Array<{
     title: string
     detail: string
@@ -228,13 +236,13 @@ export interface ToolPermissionFacts {
   networkAccess?: boolean
   externalWrite?: boolean
   externalCommand?: boolean
+  readOnlyShell?: boolean
   ruleRequiresApproval?: boolean
   hookRequiresApproval?: boolean
   skillScript?: boolean
   risk?: PermissionDecision['risk']
   denyReason?: string
   approvalReason?: string
-  approvalCategories?: readonly (keyof import('@pidex/shared/thread').GranularApprovalConfig)[]
   /** Host rule facts loaded immediately before final permission evaluation. */
   ruleEffect?: import('@pidex/shared/thread').PermissionRuleEffect
   ruleIDs?: readonly string[]
@@ -254,7 +262,6 @@ export interface ToolPermissionFacts {
 
 export interface ToolInvocation {
   fileDiffs?: readonly import('@pidex/agent-protocol').RpcResult<'thread/patch/diff'>[]
-  retryAuthorization?: { reviewId: string; fingerprint: string }
   toolPolicy?: Pick<
     import('./tool/ToolRegistry').ToolCatalogEntry,
     'sdkName' | 'capabilities' | 'allowedModes' | 'approvalStrategy' | 'origin'
@@ -280,7 +287,7 @@ export interface ToolInvocation {
 export interface ToolAffectedPath {
   /** Workspace-safe display path produced after host path validation. */
   path: string
-  operation: 'create' | 'update'
+  operation: 'create' | 'update' | 'delete'
 }
 
 export interface ToolReviewSummary {

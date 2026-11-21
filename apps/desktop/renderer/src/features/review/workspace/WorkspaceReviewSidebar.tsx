@@ -8,34 +8,21 @@ import {
   ChevronRight,
   Info,
   Columns2,
-  Ellipsis,
-  Eye,
-  ExternalLink,
-  FileDiff,
-  GitCommitHorizontal,
-  GitFork,
-  GitPullRequestArrow,
   MessageSquarePlus,
-  Minus,
   Plus,
   RotateCcw,
   Rows2,
   Search,
   Undo2,
   WrapText,
-  createLucideIcon,
 } from 'lucide-react'
 import type {
   DesktopDiffMarkerStyle,
   DesktopGitStatus,
   DesktopReviewComment,
-  DesktopReviewDiffFile,
-  DesktopReviewDiffHunk,
-  DesktopReviewDiffLine,
   DesktopReviewDiffResult,
   DesktopReviewScope,
   DesktopReviewSource,
-  DesktopReviewSide,
   DesktopReviewView,
   DesktopSessionStatus,
 } from '../../../../shared/Types.js'
@@ -51,7 +38,6 @@ import {
 import { Button } from '../../../components/ui/Button.js'
 
 import {
-  PopoverCheckboxItem,
   PopoverItem,
   PopoverRadioGroup,
   PopoverRadioItem,
@@ -65,6 +51,7 @@ import {
   type KeyedDisclosureStore,
 } from '../../../components/ui/KeyedDisclosureStore.js'
 import { useLiveResizeValue } from '../../layout/UseLiveResizeValue.js'
+import { WorkbenchPanelLoading } from '../../layout/panels/WorkbenchPanelStates.js'
 import { buildReviewFileTree } from './BuildReviewFileTree.js'
 import { buildCommentCountsByPath } from '../comments/ReviewCommentUtils.js'
 import { CommitPopover } from './CommitPopover.js'
@@ -72,18 +59,11 @@ import { PullRequestPopover } from './PullRequestPopover.js'
 import { ReviewFileTreeResizeController } from './ReviewFileTreeResizeController.js'
 import { ReviewFileTreeController } from './ReviewFileTreeController.js'
 import { ReviewFileTreePanelPresence } from './ReviewFileTreePanelPresence.js'
-import { formatReviewCount } from '../diff/ReviewFormat.js'
 import {
   isReviewDiffExpanded,
   type ReviewDiffExpansion,
   type ReviewTabUiState,
 } from '../../layout/tabs/ConversationUiState.js'
-import { syntaxTokenStyle } from '../../syntax/CodeBlock.js'
-import { resolveLanguageFromPath } from '../../syntax/Language.js'
-import { resolveThemeId } from '../../syntax/Theme.js'
-import type { SyntaxToken } from '../../syntax/Types.js'
-import { useHighlightedCode } from '../../syntax/UseHighlightedCode.js'
-import { useDesktopTheme } from '../../theme/ThemeContext.js'
 import {
   ReviewFileRequestCoordinator,
   reviewAgentClient,
@@ -125,7 +105,6 @@ import {
   ReviewProjectEmptyState,
   attachComments,
   clampReviewFileTreePanelWidth,
-  buildReviewComposerPrompt,
   copyGitApplyCommand,
   errorMessageOf,
   formatPanelNumber,
@@ -134,7 +113,6 @@ import {
   type CommentDraft,
   type ReviewFileLoadState,
 } from '../diff/WorkspaceReviewDiff.js'
-import { filterStatusForFile, type ReviewFilter } from './ReviewFileStatus.js'
 import { hideImportOnlyHunks } from '../diff/ReviewDiffAdapter.js'
 import { cx } from '../../../utils/Cx.js'
 import { containsRelatedTarget } from '../../../utils/DomTargets.js'
@@ -148,12 +126,12 @@ const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH = REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 
  * workbench panel instead of keeping the standalone column metrics.
  */
 const REVIEW_SIDEBAR_CLASS =
-  'review-sidebar tw:@container tw:flex tw:h-full tw:min-h-0 tw:flex-col tw:overflow-hidden tw:border-l tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-none tw:in-[.workbench-panel]:flex-auto tw:in-[.workbench-panel]:w-full tw:in-[.workbench-panel]:min-w-0 tw:in-[.workbench-panel]:max-w-none tw:in-[.workbench-panel]:border-l-0'
+  'review-sidebar tw:@container tw:flex tw:h-full tw:min-h-0 tw:flex-col tw:overflow-hidden tw:border-l tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-none tw:flex-auto tw:w-full tw:min-w-0 tw:max-w-none tw:in-[.workbench-panel]:border-l-0'
 const REVIEW_SIDEBAR_TOOLBAR_CLASS =
-  'tw:box-border tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:min-h-12 tw:items-start tw:gap-2 tw:bg-app-dock tw:px-2 tw:py-2 tw:shadow-none'
+  'tw:box-border tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:min-h-8 tw:items-start tw:gap-2 tw:bg-app-dock tw:px-2 tw:py-2 tw:shadow-none'
 const REVIEW_COUNTS_CLASS = 'tw:inline-flex tw:items-center tw:gap-2'
 const REVIEW_FOOTER_CLASS =
-  'tw:absolute tw:bottom-2.5 tw:left-1/2 tw:z-local tw:flex tw:-translate-x-1/2 tw:items-center tw:justify-center tw:gap-4 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:shadow-none'
+  'tw:absolute tw:bottom-3 tw:left-1/2 tw:z-local tw:flex tw:-translate-x-1/2 tw:items-center tw:justify-center tw:gap-4 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:shadow-none'
 
 function reviewDiffExpansionFromKeys(
   allPaths: readonly string[],
@@ -273,9 +251,7 @@ function WorkspaceReviewSidebarImpl({
   React.useEffect(() => {
     onReviewSummaryChange?.(summary)
   }, [summary, onReviewSummaryChange])
-  const [loadedDiffs, setLoadedDiffs] = React.useState<ReadonlyMap<string, ReviewFileDiff>>(
-    () => new Map(),
-  )
+  const [, setLoadedDiffs] = React.useState<ReadonlyMap<string, ReviewFileDiff>>(() => new Map())
   const [fileLoadStates, setFileLoadStates] = React.useState<
     ReadonlyMap<string, ReviewFileLoadState>
   >(() => new Map())
@@ -300,8 +276,6 @@ function WorkspaceReviewSidebarImpl({
     [onReviewTabStateChange],
   )
   const [search, setSearch] = React.useState('')
-  const [filter, setFilter] = React.useState<ReviewFilter>('all')
-  const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [loadState, setLoadState] = React.useState<ReviewLoadState>('loading')
@@ -1539,12 +1513,9 @@ function WorkspaceReviewSidebarImpl({
   const showProjectEmptyState = loadState === 'empty' && summary !== null && files.length === 0
   const visibleFiles = React.useMemo(() => {
     const query = search.trim().toLowerCase()
-    return files.filter((file) => {
-      if (query && !file.path.toLowerCase().includes(query)) return false
-      if (filter === 'all') return true
-      return filterStatusForFile(file) === filter
-    })
-  }, [files, filter, search])
+    if (!query) return files
+    return files.filter((file) => file.path.toLowerCase().includes(query))
+  }, [files, search])
 
   React.useEffect(() => {
     if (!selectedPath || !summary || visibleFiles.some((file) => file.path === selectedPath)) {
@@ -1604,7 +1575,6 @@ function WorkspaceReviewSidebarImpl({
     () => buildCommentCountsByPath(openComments),
     [openComments],
   )
-  const sessionBusy = sessionStatus === 'running' || sessionStatus === 'waiting'
 
   const setDiffExpanded = React.useCallback(
     (path: string, expanded: boolean): void => {
@@ -1754,21 +1724,6 @@ function WorkspaceReviewSidebarImpl({
     setComments((current) => current.filter((comment) => comment.id !== commentId))
   }
 
-  async function sendCommentsToAgent(): Promise<void> {
-    if (!activeSessionId || sessionBusy || openComments.length === 0) return
-    const body = [
-      '请按这些本地行内审查评论修改代码：',
-      '',
-      ...openComments.map(
-        (comment, index) =>
-          `${index + 1}. ${comment.filePath}:${comment.lineNumber} (${comment.side})\n` +
-          `   行内容：${comment.lineContent || '(空行)'}\n` +
-          `   评论：${comment.body}`,
-      ),
-    ].join('\n')
-    await desktopClient.sendUserMessage(activeSessionId, { text: body })
-  }
-
   async function submitGithubReview(
     event: 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES',
   ): Promise<void> {
@@ -1848,13 +1803,6 @@ function WorkspaceReviewSidebarImpl({
         setPending(false)
       }
     }
-  }
-
-  function sendReviewPromptToComposer(): void {
-    if (!onAppendComposerText) return
-    onAppendComposerText(
-      buildReviewComposerPrompt(reviewDiff?.status ?? gitStatus, reviewDiff?.files ?? []),
-    )
   }
 
   async function handleCommit(message: string, includeUnstaged: boolean): Promise<boolean> {
@@ -2260,10 +2208,10 @@ function WorkspaceReviewSidebarImpl({
               totals.additions > 0 || totals.deletions > 0 ? (
                 <span className={cx('review-sidebar-counts', REVIEW_COUNTS_CLASS)}>
                   <>
-                    <strong className="tw:text-app-success tw:type-weight-label">
+                    <strong className="tw:text-app-success tw:weight-medium">
                       +{formatPanelNumber(totals.additions)}
                     </strong>
-                    <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
+                    <em className="tw:text-app-danger tw:not-italic tw:weight-medium">
                       -{formatPanelNumber(totals.deletions)}
                     </em>
                   </>
@@ -2279,7 +2227,7 @@ function WorkspaceReviewSidebarImpl({
             )}
           </div>
           {source.kind === 'branch' ? (
-            <div className="review-branch-range tw:flex tw:min-w-0 tw:flex-[0_1_auto] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:py-1 tw:gap-1 tw:text-app-text-soft tw:type-caption">
+            <div className="review-branch-range tw:flex tw:min-w-0 tw:flex-[0_1_auto] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:py-1 tw:gap-1 tw:text-app-text-soft tw:type-1">
               <span
                 className="tw:min-w-0 tw:max-w-[38%] tw:overflow-hidden tw:px-2 tw:text-ellipsis tw:whitespace-nowrap"
                 title={gitStatus?.branchName ?? 'HEAD'}
@@ -2295,7 +2243,7 @@ function WorkspaceReviewSidebarImpl({
                 size="md"
                 trigger={
                   <button
-                    className="review-branch-range__trigger tw:inline-flex tw:min-w-0 tw:max-w-[54%] tw:items-center tw:gap-1 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text"
+                    className="review-branch-range__trigger tw:inline-flex tw:min-w-0 tw:max-w-[54%] tw:items-center tw:gap-1 tw:rounded-3 tw:px-2 tw:py-1 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text"
                     type="button"
                   >
                     <span className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
@@ -2312,14 +2260,14 @@ function WorkspaceReviewSidebarImpl({
                   placeholder="搜索分支"
                   aria-label="搜索基准分支"
                 />
-                <div className="tw:max-h-80 tw:overflow-y-auto">
+                <div className="tw:max-h-[20rem] tw:overflow-y-auto">
                   {sourceOptionsState === 'loading' ? (
-                    <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
+                    <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-1">
                       正在加载分支…
                     </div>
                   ) : sourceOptionsState === 'error' ? (
                     <>
-                      <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
+                      <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-1">
                         无法加载分支
                       </div>
                       <PopoverItem onClick={() => setSourceOptionsRetry((current) => current + 1)}>
@@ -2389,7 +2337,7 @@ function WorkspaceReviewSidebarImpl({
               title="搜索文件"
               onClick={() => fileSearchInputRef.current?.focus()}
             >
-              <Search size={APP_ICON_SIZES.sm} />
+              <Search className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
             </Button>
           </Tooltip>
           <div
@@ -2417,7 +2365,7 @@ function WorkspaceReviewSidebarImpl({
                   void refreshReviewDiff(true)
                 }}
               >
-                <RotateCcw size={APP_ICON_SIZE} />
+                <RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </Tooltip>
             <Tooltip content="自动换行">
@@ -2429,7 +2377,7 @@ function WorkspaceReviewSidebarImpl({
                 aria-pressed={wordWrap}
                 onClick={() => setWordWrap((value) => !value)}
               >
-                <WrapText size={APP_ICON_SIZE} />
+                <WrapText className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </Tooltip>
             <ReviewDiffExpansionToggle
@@ -2447,9 +2395,17 @@ function WorkspaceReviewSidebarImpl({
                 onClick={onToggleReviewView}
               >
                 {reviewView === 'inline' ? (
-                  <Columns2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Columns2
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 ) : (
-                  <Rows2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Rows2
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 )}
               </Button>
             </Tooltip>
@@ -2464,7 +2420,7 @@ function WorkspaceReviewSidebarImpl({
               title={hideFileList ? '显示文件' : '隐藏文件'}
               onClick={() => setHideFileList((value) => !value)}
             >
-              <Briefcase size={APP_ICON_SIZE} />
+              <Briefcase className="tw:size-icon-md" size={APP_ICON_SIZE} />
             </Button>
           </Tooltip>
         </div>
@@ -2472,7 +2428,7 @@ function WorkspaceReviewSidebarImpl({
 
       {largeWorkspaceMode && visibleFiles.length > 0 ? (
         <div
-          className="tw:mx-2 tw:mb-2 tw:flex tw:@max-[625px]:grid tw:@max-[625px]:grid-cols-[auto_minmax(0,1fr)] tw:min-h-12 tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-2xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-4 tw:type-control"
+          className="tw:mx-2 tw:mb-2 tw:flex tw:@max-[625px]:grid tw:@max-[625px]:grid-cols-[auto_minmax(0,1fr)] tw:min-h-8 tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-5 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-4 tw:type-2 tw:weight-medium"
           role="status"
         >
           <Info className="tw:shrink-0 tw:text-app-accent" size="var(--inline-icon-size, 1em)" />
@@ -2486,7 +2442,7 @@ function WorkspaceReviewSidebarImpl({
                 disabled={selectedFileIndex <= 0}
                 onClick={() => handleSelectFile(visibleFiles[selectedFileIndex - 1]!.path)}
               >
-                <ChevronLeft size={APP_ICON_SIZE} />
+                <ChevronLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </Tooltip>
             <Tooltip content="下一个文件">
@@ -2497,7 +2453,7 @@ function WorkspaceReviewSidebarImpl({
                 disabled={selectedFileIndex >= visibleFiles.length - 1}
                 onClick={() => handleSelectFile(visibleFiles[selectedFileIndex + 1]!.path)}
               >
-                <ChevronRight size={APP_ICON_SIZE} />
+                <ChevronRight className="tw:size-icon-md" size={APP_ICON_SIZE} />
               </Button>
             </Tooltip>
           </div>
@@ -2506,7 +2462,7 @@ function WorkspaceReviewSidebarImpl({
 
       {error ? (
         <div
-          className="review-error-state tw:flex tw:flex-none tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2 tw:text-app-danger tw:type-body-sm"
+          className="review-error-state tw:flex tw:flex-none tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2 tw:text-app-danger tw:type-1"
           role="alert"
         >
           <span>{error}</span>
@@ -2517,7 +2473,7 @@ function WorkspaceReviewSidebarImpl({
       ) : null}
 
       <motion.div
-        className="review-sidebar-main tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-stretch tw:overflow-hidden tw:bg-app-editor tw:[contain:size_layout_paint]"
+        className="review-sidebar-main tw:relative tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-1 tw:items-stretch tw:overflow-hidden tw:bg-app-editor tw:[contain:size_layout_paint]"
         ref={reviewMainRef}
         style={
           {
@@ -2592,7 +2548,7 @@ function WorkspaceReviewSidebarImpl({
               <SearchInput
                 ref={fileSearchInputRef}
                 aria-label="筛选文件"
-                className="review-file-search tw:w-full tw:min-h-7 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised"
+                className="review-file-search tw:w-full tw:min-h-6 tw:border tw:border-app-border-subtle tw:rounded-4 tw:bg-app-raised"
                 onChange={setSearch}
                 placeholder="筛选文件..."
                 value={search}
@@ -2600,27 +2556,31 @@ function WorkspaceReviewSidebarImpl({
               />
             </div>
 
-            <ReviewFileTreeController
-              commentCountsByPath={commentCountsByPath}
-              emptyMessage={
-                loadState === 'loading' && !summary
-                  ? '正在加载变更…'
-                  : loadState === 'not-repository' && !summary
-                    ? '当前工作区不是 Git 仓库。'
-                    : loadState === 'unsupported' && !summary
-                      ? '当前 Agent 不支持代码审阅。'
-                      : !summary && files.length === 0
-                        ? '无法加载变更，请重试。'
-                        : files.length === 0
-                          ? scope === 'staged'
-                            ? '暂无已暂存变更。'
-                            : '暂无未暂存变更。'
-                          : '当前筛选下没有匹配的文件。'
-              }
-              reviewTree={reviewTree}
-              selectedPath={selectedFile?.path ?? null}
-              onSelectFile={handleSelectFile}
-            />
+            {loadState === 'loading' && !summary && files.length === 0 ? (
+              <WorkbenchPanelLoading label="正在加载变更…" />
+            ) : (
+              <ReviewFileTreeController
+                commentCountsByPath={commentCountsByPath}
+                emptyMessage={
+                  loadState === 'loading' && !summary
+                    ? '正在加载变更…'
+                    : loadState === 'not-repository' && !summary
+                      ? '当前工作区不是 Git 仓库。'
+                      : loadState === 'unsupported' && !summary
+                        ? '当前 Agent 不支持代码审阅。'
+                        : !summary && files.length === 0
+                          ? '无法加载变更，请重试。'
+                          : files.length === 0
+                            ? scope === 'staged'
+                              ? '暂无已暂存变更。'
+                              : '暂无未暂存变更。'
+                            : '当前筛选下没有匹配的文件。'
+                }
+                reviewTree={reviewTree}
+                selectedPath={selectedFile?.path ?? null}
+                onSelectFile={handleSelectFile}
+              />
+            )}
 
             {staleComments.length > 0 ? (
               <ScrollArea
@@ -2628,7 +2588,7 @@ function WorkspaceReviewSidebarImpl({
                 contentClassName="review-stale-comments tw:border-t tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-3"
                 aria-label="过期评论"
               >
-                <div className="review-stale-title tw:mb-2 tw:text-app-text-soft tw:type-title-sm">
+                <div className="review-stale-title tw:mb-2 tw:text-app-text-soft tw:type-4 tw:weight-bold">
                   过期评论
                 </div>
                 {staleComments.map((comment) => (
@@ -2660,7 +2620,7 @@ function WorkspaceReviewSidebarImpl({
                     if (!reviewMutationPending) revertAll()
                   }}
                 >
-                  <Undo2 size={APP_ICON_SIZE} />
+                  <Undo2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   还原全部
                 </Button>
               </Tooltip>
@@ -2672,7 +2632,7 @@ function WorkspaceReviewSidebarImpl({
                     if (!reviewMutationPending) stageAll()
                   }}
                 >
-                  <Plus size={APP_ICON_SIZE} />
+                  <Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   暂存全部
                 </Button>
               </Tooltip>
@@ -2687,7 +2647,7 @@ function WorkspaceReviewSidebarImpl({
                     if (!reviewMutationPending) unstageAll()
                   }}
                 >
-                  <Undo2 size={APP_ICON_SIZE} />
+                  <Undo2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   取消暂存全部
                 </Button>
               </Tooltip>
@@ -2699,7 +2659,7 @@ function WorkspaceReviewSidebarImpl({
                     if (!reviewMutationPending) revertAll()
                   }}
                 >
-                  <Undo2 size={APP_ICON_SIZE} />
+                  <Undo2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
                   还原全部
                 </Button>
               </Tooltip>
@@ -2715,7 +2675,7 @@ function WorkspaceReviewSidebarImpl({
             disabled={pending || openComments.length === 0}
             onClick={() => void submitGithubReview('COMMENT')}
           >
-            <MessageSquarePlus size={APP_ICON_SIZE} />
+            <MessageSquarePlus className="tw:size-icon-md" size={APP_ICON_SIZE} />
             提交评论
           </Button>
           <Button
@@ -2723,7 +2683,7 @@ function WorkspaceReviewSidebarImpl({
             disabled={pending}
             onClick={() => void submitGithubReview('APPROVE')}
           >
-            <CheckCircle2 size={APP_ICON_SIZE} />
+            <CheckCircle2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
             批准
           </Button>
           <Button
@@ -2731,7 +2691,7 @@ function WorkspaceReviewSidebarImpl({
             color="danger"
             onClick={() => void submitGithubReview('REQUEST_CHANGES')}
           >
-            <RotateCcw size={APP_ICON_SIZE} />
+            <RotateCcw className="tw:size-icon-md" size={APP_ICON_SIZE} />
             请求修改
           </Button>
         </footer>

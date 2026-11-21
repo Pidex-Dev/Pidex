@@ -58,7 +58,7 @@ describe('SegmentedControl tabs', () => {
 
     expect(html).toContain('data-size="lg"')
     expect(html).toContain('data-shape="pill"')
-    expect(html).toContain('tw:h-[42px]')
+    expect(html).toContain('tw:h-[40px]')
     expect(html).toContain('tw:rounded-full')
   })
 
@@ -79,7 +79,7 @@ describe('SegmentedControl tabs', () => {
 
     expect(html).toContain('data-size="md"')
     expect(html).toContain('data-shape="pill"')
-    expect(html).toContain('tw:h-9')
+    expect(html).toContain('tw:h-[36px]')
     expect(html).toContain('tw:rounded-full')
   })
 

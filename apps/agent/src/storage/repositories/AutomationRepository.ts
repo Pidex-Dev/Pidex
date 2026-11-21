@@ -9,7 +9,7 @@ import type {
   AutomationSchedule,
 } from '@pidex/shared/automation'
 import type { ModelRef } from '@pidex/shared/model'
-import type { PermissionConfig } from '@pidex/shared/thread'
+import { decodePermissionConfig } from '@pidex/shared/thread'
 import { AgentError } from '../../Domain'
 import { nextAutomationOccurrence } from '../../automation/Schedule'
 
@@ -108,7 +108,7 @@ const automationFromRow = (row: AutomationRow): Automation => ({
   execution: row.execution === null ? null : parse<AutomationExecution>(row.execution),
   model: parse<ModelRef>(row.model_ref),
   reasoningEffort: row.reasoning_effort,
-  permissionConfig: parse<PermissionConfig>(row.permission_config),
+  permissionConfig: decodePermissionConfig(parse<unknown>(row.permission_config)),
   schedule: parse<AutomationSchedule>(row.schedule),
   canonicalRrule: row.canonical_rrule,
   timeZone: row.time_zone,

@@ -7,11 +7,9 @@ import { isProviderContextOverflow } from '../pi/ContextOverflow'
 import {
   type AssistantMessage,
   type Context,
-  EventStream,
   type ToolResultMessage,
   validateToolArguments,
 } from '@earendil-works/pi-ai'
-import { getDefaultStreamFn } from './StreamFn.ts'
 import type {
   AgentContext,
   AgentEvent,
@@ -24,75 +22,7 @@ import type {
   StreamFn,
 } from './AgentTypes.ts'
 
-export type AgentEventSink = (event: AgentEvent) => Promise<void> | void
-
-/**
- * Start an agent loop with a new prompt message.
- * The prompt is added to the context and events are emitted for it.
- */
-export function agentLoop(
-  prompts: AgentMessage[],
-  context: AgentContext,
-  config: AgentLoopConfig,
-  signal: AbortSignal | undefined,
-  streamFn: StreamFn,
-): EventStream<AgentEvent, AgentMessage[]> {
-  const stream = createAgentStream()
-
-  void runAgentLoop(
-    prompts,
-    context,
-    config,
-    async (event) => {
-      stream.push(event)
-    },
-    signal,
-    streamFn,
-  ).then((messages) => {
-    stream.end(messages)
-  })
-
-  return stream
-}
-
-/**
- * Continue an agent loop from the current context without adding a new message.
- * Used for retries - context already has user message or tool results.
- *
- * **Important:** The last message in context must convert to a `user` or `toolResult` message
- * via `convertToLlm`. If it doesn't, the LLM provider will reject the request.
- * This cannot be validated here since `convertToLlm` is only called once per turn.
- */
-export function agentLoopContinue(
-  context: AgentContext,
-  config: AgentLoopConfig,
-  signal: AbortSignal | undefined,
-  streamFn: StreamFn,
-): EventStream<AgentEvent, AgentMessage[]> {
-  if (context.messages.length === 0) {
-    throw new Error('Cannot continue: no messages in context')
-  }
-
-  if (context.messages.at(-1)!.role === 'assistant') {
-    throw new Error('Cannot continue from message role: assistant')
-  }
-
-  const stream = createAgentStream()
-
-  void runAgentLoopContinue(
-    context,
-    config,
-    async (event) => {
-      stream.push(event)
-    },
-    signal,
-    streamFn,
-  ).then((messages) => {
-    stream.end(messages)
-  })
-
-  return stream
-}
+type AgentEventSink = (event: AgentEvent) => Promise<void> | void
 
 export async function runAgentLoop(
   prompts: AgentMessage[],
@@ -115,40 +45,8 @@ export async function runAgentLoop(
     await emit({ type: 'message_end', message: prompt })
   }
 
-  await runLoop(currentContext, newMessages, config, signal, emit, streamFn ?? getDefaultStreamFn())
+  await runLoop(currentContext, newMessages, config, signal, emit, streamFn)
   return newMessages
-}
-
-export async function runAgentLoopContinue(
-  context: AgentContext,
-  config: AgentLoopConfig,
-  emit: AgentEventSink,
-  signal: AbortSignal | undefined,
-  streamFn: StreamFn,
-): Promise<AgentMessage[]> {
-  if (context.messages.length === 0) {
-    throw new Error('Cannot continue: no messages in context')
-  }
-
-  if (context.messages.at(-1)!.role === 'assistant') {
-    throw new Error('Cannot continue from message role: assistant')
-  }
-
-  const newMessages: AgentMessage[] = []
-  const currentContext: AgentContext = { ...context }
-
-  await emit({ type: 'agent_start' })
-  await emit({ type: 'turn_start' })
-
-  await runLoop(currentContext, newMessages, config, signal, emit, streamFn ?? getDefaultStreamFn())
-  return newMessages
-}
-
-function createAgentStream(): EventStream<AgentEvent, AgentMessage[]> {
-  return new EventStream<AgentEvent, AgentMessage[]>(
-    (event: AgentEvent) => event.type === 'agent_end',
-    (event: AgentEvent) => (event.type === 'agent_end' ? event.messages : []),
-  )
 }
 
 /**

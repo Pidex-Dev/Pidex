@@ -79,7 +79,8 @@ export const createAutomationDefinitions = (
     name: 'automation.view',
     capabilities: capabilities(false),
     schema: z.object({ automationId: z.string().optional() }).strict(),
-    description: '列出本地自动化，或读取指定自动化及其当前 revision。更新或删除前必须先读取。',
+    description:
+      'List local automations or read one automation and its current revision. Read before updating or deleting.',
     inputSchema: {
       type: 'object',
       properties: { automationId: { type: 'string' } },
@@ -96,7 +97,8 @@ export const createAutomationDefinitions = (
     name: 'automation.create',
     capabilities: capabilities(true),
     schema: definition,
-    description: '用户确认任务、频率、执行位置和无人值守权限后，创建本地计划自动化。',
+    description:
+      'Create a scheduled local automation after the user confirms the task, frequency, execution location and unattended permissions.',
     inputSchema: { type: 'object', additionalProperties: true },
     execute: (input, context) =>
       service.create({
@@ -114,7 +116,7 @@ export const createAutomationDefinitions = (
       .extend({ automationId: z.string(), expectedRevision: z.number().int().positive() })
       .strict(),
     description:
-      '使用 automation.view 返回的当前 revision 更新自动化；冲突时重新读取，不覆盖较新修改。',
+      'Update using the current revision returned by automation.view. On conflict, read again rather than overwriting newer changes.',
     inputSchema: { type: 'object', additionalProperties: true },
     execute: (input) => {
       const { automationId, expectedRevision, sandboxMode, ...value } = input
@@ -133,7 +135,8 @@ export const createAutomationDefinitions = (
     schema: z
       .object({ automationId: z.string(), expectedRevision: z.number().int().positive() })
       .strict(),
-    description: '软删除自动化并停止未来运行；不会中断已开始的 turn，也不会删除历史聊天。',
+    description:
+      'Soft-delete an automation and stop future runs. Existing turns and historical conversations are preserved.',
     inputSchema: {
       type: 'object',
       properties: {

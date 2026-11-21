@@ -57,7 +57,7 @@ const record = (id: string, nextRunAt: number | null) => ({
   permissionConfig: {
     sandboxMode: 'workspace-write' as const,
     approvalPolicy: 'never' as const,
-    approvalsReviewer: 'user' as const,
+    approvalsReviewer: 'auto_review' as const,
   },
   schedule: { mode: 'daily' as const, time: '09:00' },
   canonicalRrule: 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0',

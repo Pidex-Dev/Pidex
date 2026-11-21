@@ -1,6 +1,6 @@
 {
   "name": "@pidex/desktop-electron",
-  "version": "0.2.0-beta.7",
+  "version": "0.2.0-beta.8",
   "private": true,
   "type": "module",
   "main": "dist/main.js",
@@ -30,7 +30,7 @@
     "productName": "Pidex Desktop",
     "publish": {
       "provider": "github",
-      "owner": "codepilotx-dev",
+      "owner": "Pidex-Dev",
       "repo": "Pidex"
     },
     "asar": true,
@@ -66,10 +66,6 @@
       {
         "from": "../../agent/resources/plugins",
         "to": "agent/plugins"
-      },
-      {
-        "from": "../native/cpx-cua/dist/cpx-cua.exe",
-        "to": "cua/cpx-cua.exe"
       },
       {
         "from": "../../../dist/renderer",

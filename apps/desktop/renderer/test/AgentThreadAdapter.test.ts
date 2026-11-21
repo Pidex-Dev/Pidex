@@ -216,7 +216,7 @@ describe('agent thread adapter', () => {
         permissionConfig: {
           sandboxMode: 'workspace-write',
           approvalPolicy: 'never',
-          approvalsReviewer: 'user',
+          approvalsReviewer: 'auto_review',
         },
       },
       createdAt: 1_000,
@@ -244,7 +244,7 @@ describe('agent thread adapter', () => {
           permissionConfig: {
             sandboxMode: 'workspace-write',
             approvalPolicy: 'never',
-            approvalsReviewer: 'user',
+            approvalsReviewer: 'auto_review',
           },
         },
       },
@@ -260,7 +260,7 @@ describe('agent thread adapter', () => {
           permissionConfig: {
             sandboxMode: 'workspace-write',
             approvalPolicy: 'never',
-            approvalsReviewer: 'user',
+            approvalsReviewer: 'auto_review',
           },
           rootAgentId: 'agent-1',
           mergedInputIDs: [],
@@ -279,100 +279,51 @@ describe('agent thread adapter', () => {
   })
 
   test('maps built-in permission modes without widening the default sandbox', () => {
-    expect(desktopPermissionModeToPermissionConfig('default')).toEqual({
-      sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
-    })
     expect(desktopPermissionModeToPermissionConfig('auto-review')).toEqual({
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
       approvalsReviewer: 'auto_review',
     })
     expect(desktopPermissionModeToPermissionConfig('full-access')).toEqual({
       sandboxMode: 'danger-full-access',
       approvalPolicy: 'never',
-      approvalsReviewer: 'user',
+      approvalsReviewer: 'auto_review',
     })
     expect(
       permissionModeFromPermissionConfig({
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       }),
-    ).toBe('default')
+    ).toBe('auto-review')
     expect(
       permissionModeFromPermissionConfig({
         sandboxMode: 'read-only',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
-      }),
-    ).toBe('custom')
-    expect(
-      permissionModeFromPermissionConfig({
-        sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       }),
     ).toBe('auto-review')
     expect(
       permissionModeFromPermissionConfig({
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'untrusted',
+        approvalPolicy: 'never',
         approvalsReviewer: 'auto_review',
       }),
-    ).toBe('custom')
-    expect(
-      permissionModeFromPermissionConfig({
-        sandboxMode: 'workspace-write',
-        approvalPolicy: {
-          type: 'granular' as const,
-          sandboxApproval: true,
-          rules: true,
-          skillApproval: true,
-          requestPermissions: true,
-          mcpTools: true,
-          mcpElicitations: true,
-        },
-        approvalsReviewer: 'auto_review',
-      }),
-    ).toBe('custom')
+    ).toBe('auto-review')
     expect(
       permissionModeFromPermissionConfig({
         sandboxMode: 'danger-full-access',
         approvalPolicy: 'never',
         approvalsReviewer: 'auto_review',
       }),
-    ).toBe('custom')
+    ).toBe('full-access')
   })
 
-  test('round-trips every shared preset and keeps reviewer-aware full access custom', () => {
-    for (const mode of ['default', 'auto-review', 'full-access'] as const) {
+  test('round-trips every shared preset', () => {
+    for (const mode of ['auto-review', 'full-access'] as const) {
       const config = desktopPermissionModeToPermissionConfig(mode)
       expect(permissionModeFromPermissionConfig(config)).toBe(mode)
     }
-    // Full access identity includes the reviewer; an automatic reviewer is custom.
-    const configuredReviewer = desktopPermissionModeToPermissionConfig('full-access')
-    expect(
-      permissionModeFromPermissionConfig({
-        ...configuredReviewer,
-        approvalsReviewer: 'auto_review',
-      }),
-    ).toBe('custom')
-  })
-
-  test('keeps the current custom config when the custom mode is selected', () => {
-    const current = {
-      sandboxMode: 'workspace-write' as const,
-      approvalPolicy: 'untrusted' as const,
-      approvalsReviewer: 'auto_review' as const,
-    }
-    expect(desktopPermissionModeToPermissionConfig('custom', current)).toEqual(current)
-    expect(desktopPermissionModeToPermissionConfig('custom')).toEqual({
-      sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
-    })
   })
 
   test('maps thread list item status and workspace fields', () => {
@@ -404,8 +355,7 @@ describe('agent thread adapter', () => {
     expect(item.workspacePath).toBe(project.rootPath)
     expect(item.preview).toBe('预览')
     expect(item.firstPrompt).toBe('第一条消息')
-    // Full access recognition includes approvalsReviewer; auto review makes it custom.
-    expect(item.permissionMode).toBe('custom')
+    expect(item.permissionMode).toBe('full-access')
     expect(item.planModeActive).toBe(true)
     expect(item.gitBranch).toBe('codex/hover-card')
     expect(item.unreadAt).toBe('2023-11-14T22:13:20.500Z')
@@ -427,8 +377,8 @@ describe('agent thread adapter', () => {
         taskMode: 'chat',
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
       },
       archivedAt: null,
@@ -473,8 +423,8 @@ describe('agent thread adapter', () => {
         taskMode: 'chat',
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
       },
       archivedAt: null,
@@ -533,8 +483,8 @@ describe('agent thread adapter', () => {
         taskMode: 'chat',
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
       },
       archivedAt: null,
@@ -560,7 +510,7 @@ describe('agent thread adapter', () => {
           taskMode: 'plan',
           permissionConfig: {
             sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
+            approvalPolicy: 'auto_review',
             approvalsReviewer: 'auto_review',
           },
         },
@@ -578,7 +528,7 @@ describe('agent thread adapter', () => {
           model: { providerID: 'deepseek', id: 'deepseek-chat' },
           permissionConfig: {
             sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
+            approvalPolicy: 'auto_review',
             approvalsReviewer: 'auto_review',
           },
           rootAgentId: 'agent-1',
@@ -617,7 +567,7 @@ describe('agent thread adapter', () => {
           model: { providerID: 'deepseek', id: 'deepseek-chat' },
           permissionConfig: {
             sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
+            approvalPolicy: 'auto_review',
             approvalsReviewer: 'auto_review',
           },
           state: 'active',
@@ -789,8 +739,8 @@ describe('agent thread adapter', () => {
           model: { providerID: 'openai', id: 'gpt-5' },
           permissionConfig: {
             sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
-            approvalsReviewer: 'user',
+            approvalPolicy: 'auto_review',
+            approvalsReviewer: 'auto_review',
           },
           rootAgentId: 'agent-old',
           mergedInputIDs: [],
@@ -825,15 +775,14 @@ describe('agent thread adapter', () => {
 
     const desktop = agentThreadSnapshotToDesktop(snapshot, project)
     expect(desktop.item.planModeActive).toBe(false)
-    // Thread settings include an automatic reviewer, so the preset identity is custom.
-    expect(desktop.item.permissionMode).toBe('custom')
+    expect(desktop.item.permissionMode).toBe('full-access')
   })
 
   test('projects queued inputs in queue order without duplicating them in the timeline', () => {
     const permissionConfig = {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     } as const
     const model = { providerID: 'openai', id: 'gpt-5' }
     const snapshot: ThreadSnapshot = {
@@ -1377,8 +1326,8 @@ describe('agent thread adapter', () => {
           taskMode: 'chat',
           permissionConfig: {
             sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
-            approvalsReviewer: 'user',
+            approvalPolicy: 'auto_review',
+            approvalsReviewer: 'auto_review',
           },
         },
         createdAt: 1,
@@ -1452,8 +1401,8 @@ describe('agent thread adapter', () => {
         taskMode: 'plan',
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
       },
       archivedAt: null,
@@ -1491,8 +1440,8 @@ describe('agent thread adapter', () => {
           taskMode: 'chat',
           permissionConfig: {
             sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
-            approvalsReviewer: 'user',
+            approvalPolicy: 'auto_review',
+            approvalsReviewer: 'auto_review',
           },
         },
         archivedAt: null,
@@ -1509,8 +1458,8 @@ describe('agent thread adapter', () => {
   test('uses durable pendingPlanApproval instead of inferring approval from plan text', () => {
     const permissionConfig = {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     } as const
     const model = { providerID: 'openai', id: 'gpt-5' }
     const snapshot: ThreadSnapshot = {
@@ -1591,8 +1540,8 @@ describe('agent thread adapter', () => {
   test('does not mark pendingPlanApproval for streaming plan, newer running turn, or planless completed turn', () => {
     const permissionConfig = {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     } as const
     const model = { providerID: 'openai', id: 'gpt-5' }
     const thread = {
@@ -1677,8 +1626,8 @@ describe('agent thread adapter', () => {
   test('list item and full snapshot expose the same durable priority state', () => {
     const permissionConfig = {
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
     } as const
     const model = { providerID: 'openai', id: 'gpt-5' }
     const thread: ThreadListItem = {
@@ -1786,8 +1735,8 @@ describe('agent thread adapter', () => {
         taskMode: 'chat',
         permissionConfig: {
           sandboxMode: 'workspace-write',
-          approvalPolicy: 'on-request',
-          approvalsReviewer: 'user',
+          approvalPolicy: 'auto_review',
+          approvalsReviewer: 'auto_review',
         },
       },
       archivedAt: null,
@@ -1810,8 +1759,8 @@ describe('agent thread adapter', () => {
           taskMode: 'chat',
           permissionConfig: {
             sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
-            approvalsReviewer: 'user',
+            approvalPolicy: 'auto_review',
+            approvalsReviewer: 'auto_review',
           },
         },
         createdAt: 1_700_000_000_000,
@@ -1827,8 +1776,8 @@ describe('agent thread adapter', () => {
           model: { providerID: 'openai', id: 'gpt-5' },
           permissionConfig: {
             sandboxMode: 'workspace-write',
-            approvalPolicy: 'on-request',
-            approvalsReviewer: 'user',
+            approvalPolicy: 'auto_review',
+            approvalsReviewer: 'auto_review',
           },
           rootAgentId: 'agent-cancelled',
           mergedInputIDs: [],

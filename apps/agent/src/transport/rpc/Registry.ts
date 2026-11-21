@@ -6,6 +6,7 @@ import { type RpcHandlers, type RpcMethod } from '@pidex/agent-protocol'
 import { AllRpcMethods as RpcMethods } from '@pidex/agent-protocol/host'
 import { browserHandlers } from './handlers/Browser'
 import { configHandlers } from './handlers/Config'
+import { decisionHandlers } from './handlers/Decision'
 import { githubHandlers } from './handlers/Github'
 import { gitHandlers } from './handlers/Git'
 import { interactionHandlers } from './handlers/Interaction'
@@ -14,6 +15,7 @@ import { localContextHandlers } from './handlers/LocalContext'
 import { mcpHandlers } from './handlers/Mcp'
 import { petHandlers } from './handlers/Pet'
 import { pluginHandlers } from './handlers/Plugins'
+import { hookHandlers } from './handlers/Hooks'
 import { miniMaxCliHandlers } from './handlers/MinimaxCli'
 import { releaseNotesHandlers } from './handlers/ReleaseNotes'
 import { permissionHandlers } from './handlers/Permission'
@@ -35,6 +37,7 @@ import { threadHandlers } from './handlers/Thread'
 import { toolingHandlers } from './handlers/Tooling'
 import { usageHandlers } from './handlers/Usage'
 import { speechHandlers } from './handlers/Speech'
+import { storageHandlers } from './handlers/Storage'
 import { sessionGroupHandlers } from './handlers/SessionGroup'
 import { workflowHandlers } from './handlers/Workflow'
 import { automationHandlers } from './handlers/Automation'
@@ -57,6 +60,7 @@ const groups: readonly RpcHandlerGroup[] = [
   computerHandlers,
   browserHandlers,
   configHandlers,
+  decisionHandlers,
   systemHandlers,
   interactionHandlers,
   permissionHandlers,
@@ -65,6 +69,7 @@ const groups: readonly RpcHandlerGroup[] = [
   gitHandlers,
   mcpHandlers,
   pluginHandlers,
+  hookHandlers,
   miniMaxCliHandlers,
   skillHandlers,
   githubHandlers,
@@ -87,6 +92,7 @@ const groups: readonly RpcHandlerGroup[] = [
   toolingHandlers,
   usageHandlers,
   speechHandlers,
+  storageHandlers,
   sessionGroupHandlers,
   workflowHandlers,
   automationHandlers,

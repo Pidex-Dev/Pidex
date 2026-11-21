@@ -1,12 +1,8 @@
-import type React from 'react'
+import React from 'react'
 import { CircleAlert, Folder, GitBranch, GitFork, Laptop, Unlink } from 'lucide-react'
 import type { ThreadPullRequestSummary } from '@pidex/shared/thread'
 import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-  APP_ICON_SIZES,
-} from '../../../components/ui/IconTokens.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { cx } from '../../../utils/Cx.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
@@ -49,13 +45,13 @@ function PullRequestRow({
   const visual = threadPullRequestVisual(item.status)
   const Icon = threadPullRequestIcon(item.status)
   return (
-    <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:text-app-text-meta tw:type-caption">
-      <Icon
-        aria-hidden="true"
-        className={cx('tw:size-[var(--inline-icon-size,1em)]', visual.className)}
-        size={APP_ICON_SIZE}
-        strokeWidth={APP_ICON_STROKE_WIDTH}
-      />
+    <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:text-app-text-meta tw:type-1">
+      {React.createElement(Icon, {
+        'aria-hidden': 'true',
+        className: cx('tw:size-[var(--inline-icon-size,1em)]', visual.className),
+        size: APP_ICON_SIZES.sm,
+        strokeWidth: APP_ICON_STROKE_WIDTH,
+      })}
       <span className="sidebar-session-hover-card-row-content tw:inline-flex tw:min-w-0 tw:items-center tw:gap-1">
         <button
           className="sidebar-session-hover-card-pr tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:hover:underline"
@@ -76,7 +72,7 @@ function PullRequestRow({
             type="button"
             onClick={() => onUnlink(item)}
           >
-            <Unlink aria-hidden="true" size={APP_ICON_SIZES.sm} />
+            <Unlink className="tw:size-icon-sm" aria-hidden="true" size={APP_ICON_SIZES.sm} />
           </button>
         ) : null}
       </span>
@@ -104,19 +100,19 @@ export function SidebarSessionHoverCardOverlay({
     <SidebarHoverCardSurface
       {...interactionProps}
       ariaLabel="会话详情"
-      className="sidebar-session-hover-card tw:min-w-[200px] tw:max-w-[280px] tw:max-h-[min(24rem,calc(100vh-2rem))] tw:overflow-y-auto tw:px-3 tw:py-2"
+      className="sidebar-session-hover-card tw:max-h-[min(24rem,calc(100vh-2rem))] tw:overflow-y-auto"
       focusRef={editing ? inputRef : undefined}
       focusRequest={editing ? focusRequest : 0}
       onFocusRequestHandled={onFocusRequestHandled}
       positionOutsideSidebar
     >
-      <SidebarHoverCardFrame className="sidebar-session-hover-card-content tw:flex tw:min-w-0 tw:flex-col tw:gap-2">
+      <SidebarHoverCardFrame className="sidebar-session-hover-card-content tw:flex tw:flex-col tw:gap-2">
         <SidebarHoverCardHeader className="sidebar-session-hover-card-header tw:grid-cols-[minmax(0,1fr)_auto] tw:items-start">
           {editing ? (
             <input
               aria-label="任务名称"
               aria-busy={saving}
-              className="sidebar-session-hover-card-rename-input tw:col-span-full tw:h-6 tw:w-full tw:min-w-0 tw:rounded-md tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-text tw:type-row-title tw:outline-none"
+              className="sidebar-session-hover-card-rename-input tw:col-span-full tw:h-5 tw:w-full tw:min-w-0 tw:rounded-3 tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-text tw:type-2 tw:weight-medium tw:outline-none"
               maxLength={160}
               readOnly={saving}
               ref={inputRef}
@@ -124,6 +120,7 @@ export function SidebarSessionHoverCardOverlay({
               onBlur={onCancelRename}
               onChange={(event) => onRenameValueChange(event.target.value)}
               onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
                 if (event.key === 'Enter') {
                   event.preventDefault()
                   onSaveRename()
@@ -146,11 +143,11 @@ export function SidebarSessionHoverCardOverlay({
             >
               {regeneratingTitle ? (
                 <>
-                  <SkeletonBlock className="sidebar-session-hover-card-title__skeleton tw:h-[var(--cpx-sys-font-size-md)] tw:max-h-[var(--cpx-sys-font-size-md)] tw:min-h-[var(--cpx-sys-font-size-md)] tw:w-34 tw:flex-none tw:rounded-sm" />
+                  <SkeletonBlock className="sidebar-session-hover-card-title__skeleton tw:h-[var(--cpx-sys-font-size-2)] tw:max-h-[var(--cpx-sys-font-size-2)] tw:min-h-[var(--cpx-sys-font-size-2)] tw:w-[8.5rem] tw:flex-none tw:rounded-3" />
                   <span className="tw:sr-only">正在更新会话标题</span>
                 </>
               ) : (
-                <span className="sidebar-session-hover-card-title tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:type-row-title tw:line-clamp-2 tw:wrap-anywhere tw:[word-break:break-word]">
+                <span className="sidebar-session-hover-card-title tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:type-2 tw:weight-medium tw:line-clamp-2 tw:wrap-anywhere tw:[word-break:break-word]">
                   {model.title}
                 </span>
               )}
@@ -159,37 +156,37 @@ export function SidebarSessionHoverCardOverlay({
           <span className="sidebar-session-hover-card-trailing tw:col-start-2 tw:inline-flex tw:items-center tw:gap-1 tw:pt-1">
             <Laptop
               aria-hidden="true"
-              className="sidebar-session-hover-card-device-icon tw:flex-none tw:text-app-text-meta"
+              className="sidebar-session-hover-card-device-icon tw:size-[var(--inline-icon-size,1em)] tw:shrink-0 tw:text-app-text-meta"
               size="var(--inline-icon-size, 1em)"
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
-            <span className="sidebar-session-hover-card-time tw:flex-none tw:text-app-text-meta tw:type-caption tw:tabular-nums tw:whitespace-nowrap">
+            <span className="sidebar-session-hover-card-time tw:flex-none tw:text-app-text-meta tw:type-1 tw:tabular-nums tw:whitespace-nowrap">
               {model.relativeTime}
             </span>
             {model.isRunning ? (
               <>
                 <span
                   aria-hidden="true"
-                  className="sidebar-session-hover-card-time-dot tw:flex-none tw:text-app-text-meta tw:type-caption"
+                  className="sidebar-session-hover-card-time-dot tw:flex-none tw:text-app-text-meta tw:type-1"
                 >
                   ·
                 </span>
                 <span
                   aria-label="运行中"
-                  className="sidebar-session-running-dot tw:size-1.5 tw:flex-none tw:rounded-full tw:bg-app-accent"
+                  className="sidebar-session-running-dot tw:size-2 tw:flex-none tw:rounded-full tw:bg-app-accent"
                 />
               </>
             ) : null}
             {model.unread ? (
               <span
                 aria-hidden="true"
-                className="sidebar-unread-dot tw:size-1.5 tw:flex-none tw:rounded-full tw:bg-app-accent"
+                className="sidebar-unread-dot tw:size-2 tw:flex-none tw:rounded-full tw:bg-app-accent"
               />
             ) : null}
           </span>
         </SidebarHoverCardHeader>
         <div className="sidebar-session-hover-card-meta tw:flex tw:min-w-0 tw:flex-col tw:gap-1">
-          <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:text-app-text-meta tw:type-caption">
+          <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:text-app-text-meta tw:type-1">
             <Folder
               aria-hidden="true"
               className="tw:size-[var(--inline-icon-size,1em)] tw:text-app-text-meta"
@@ -210,7 +207,7 @@ export function SidebarSessionHoverCardOverlay({
                   </span>
                   <GitBranch
                     aria-hidden="true"
-                    className="tw:flex-none tw:basis-3"
+                    className="tw:size-icon-sm tw:flex-none tw:basis-3"
                     size={APP_ICON_SIZES.sm}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
@@ -222,19 +219,19 @@ export function SidebarSessionHoverCardOverlay({
             </span>
           </SidebarHoverCardRow>
           {model.environmentLabel && model.environmentKind ? (
-            <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:text-app-text-meta tw:type-caption">
+            <SidebarHoverCardRow className="sidebar-session-hover-card-row tw:text-app-text-meta tw:type-1">
               {model.environmentKind === 'worktree' ? (
                 <GitFork
                   aria-hidden="true"
                   className="tw:size-[var(--inline-icon-size,1em)] tw:text-app-text-meta"
-                  size={APP_ICON_SIZE}
+                  size={APP_ICON_SIZES.sm}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
               ) : (
                 <Laptop
                   aria-hidden="true"
                   className="tw:size-[var(--inline-icon-size,1em)] tw:text-app-text-meta"
-                  size={APP_ICON_SIZE}
+                  size={APP_ICON_SIZES.sm}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
               )}
@@ -251,11 +248,11 @@ export function SidebarSessionHoverCardOverlay({
             />
           ))}
           {model.errorMessage ? (
-            <SidebarHoverCardRow className="sidebar-session-hover-card-row sidebar-session-hover-card-error-row tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:items-start tw:type-caption">
+            <SidebarHoverCardRow className="sidebar-session-hover-card-row sidebar-session-hover-card-error-row tw:items-start tw:type-1">
               <CircleAlert
                 aria-hidden="true"
-                className="sidebar-session-hover-card-error-icon tw:size-[var(--inline-icon-size,1em)] tw:text-app-danger tw:shrink-0 tw:mt-0.5"
-                size={APP_ICON_SIZE}
+                className="sidebar-session-hover-card-error-icon tw:size-[var(--inline-icon-size,1em)] tw:text-app-danger tw:shrink-0 tw:mt-1"
+                size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
               <span className="sidebar-session-hover-card-row-content sidebar-session-hover-card-error-text tw:min-w-0 tw:text-app-text tw:whitespace-pre-wrap tw:break-words tw:[overflow-wrap:anywhere] tw:select-text">

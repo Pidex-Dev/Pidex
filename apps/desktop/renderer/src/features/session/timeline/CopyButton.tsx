@@ -38,9 +38,9 @@ export function CopyButton({
         }}
       >
         {copied ? (
-          <Check aria-hidden="true" size={APP_ICON_SIZE} />
+          <Check className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
         ) : (
-          <Copy aria-hidden="true" size={APP_ICON_SIZE} />
+          <Copy className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
         )}
       </Button>
     </Tooltip>

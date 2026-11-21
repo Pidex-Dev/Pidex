@@ -767,7 +767,7 @@ function resolvePartialTemplate(
 function isCssLike(source: string): boolean {
   if (source.length < 64 || !source.includes('{') || !source.includes('}')) return false
   if (!/[\w-]+\s*:/.test(source)) return false
-  return /@(?:layer|keyframes|font-face|property)\b|(?:^|[}\s,])(?:[:.#*\[]|[A-Za-z][\w-]*)(?:[^{}]|\{[^{}]*\})*\{/s.test(
+  return /@(?:layer|keyframes|font-face|property)\b|(?:^|[}\s,])(?:[:.#*[]|[A-Za-z][\w-]*)(?:[^{}]|\{[^{}]*\})*\{/s.test(
     source,
   )
 }

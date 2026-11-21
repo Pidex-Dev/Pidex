@@ -80,7 +80,7 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
             footer={footer}
             className={cx('popover-menu--grid', className)}
           >
-            <div className={listClassName}>
+            <div className={cx('popover-menu-list', listClassName)}>
               {options.map((option) => (
                 <Dropdown.Item
                   key={option.value}

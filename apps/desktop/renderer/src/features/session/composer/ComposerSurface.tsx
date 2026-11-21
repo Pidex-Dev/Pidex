@@ -18,7 +18,7 @@ type ComposerFrameProps = {
  * page constrains `.composer` itself.
  */
 const FRAME_CLASS = cx(
-  'composer-frame tw:flex tw:min-w-0 tw:flex-col tw:gap-2.5 tw:bg-transparent tw:p-0 tw:pointer-events-auto tw:shadow-none',
+  'composer-frame tw:flex tw:min-w-0 tw:flex-col tw:gap-2 tw:bg-transparent tw:p-0 tw:pointer-events-auto tw:shadow-none',
   'tw:[container-type:inline-size] tw:transition-[height] tw:duration-panel tw:ease-standard',
   'tw:[&>.composer-stack]:w-full tw:[&>.composer-stack]:max-w-none',
   'tw:[&>.composer-stack>.composer]:w-full tw:[&>.composer-stack>.composer]:max-w-none',

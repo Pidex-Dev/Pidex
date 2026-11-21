@@ -35,18 +35,27 @@ import {
 } from '../../session/GoalDirectiveService'
 import { AgentHarnessError } from '../harness/Types'
 
-const promptContext = (request: HarnessRuntimeRequest, contextItems: readonly unknown[]) => {
+export const promptContext = (request: HarnessRuntimeRequest, contextItems: readonly unknown[]) => {
+  if (typeof request.resumedContent === 'string') return request.resumedContent
   const attachments =
     request.attachments?.flatMap((attachment) =>
       attachment.kind === 'text'
         ? [`<attachment name=${JSON.stringify(attachment.name)}>${attachment.text}</attachment>`]
         : [],
     ) ?? []
-  const contextual = contextItems.flatMap((item) => {
-    const content = (item as { content?: Array<{ text?: unknown }> }).content
-    return content?.flatMap((part) => (typeof part.text === 'string' ? [part.text] : [])) ?? []
-  })
-  return [...contextual, ...attachments, request.content].filter(Boolean).join('\n\n')
+  const current = contextItems.find(
+    (item) => (item as { sectionID?: string }).sectionID === 'turn.user-message',
+  )
+  const contextual = contextItems
+    .filter((item) => item !== current)
+    .flatMap((item) => {
+      const content = (item as { content?: Array<{ text?: unknown }> }).content
+      return content?.flatMap((part) => (typeof part.text === 'string' ? [part.text] : [])) ?? []
+    })
+  const userText = current
+    ? (current as { content: Array<{ text: string }> }).content.map((part) => part.text).join('\n')
+    : request.content
+  return [...contextual, ...attachments, userText].filter(Boolean).join('\n\n')
 }
 
 const promptImages = (request: HarnessRuntimeRequest): ImageContent[] =>
@@ -111,7 +120,10 @@ export async function executeHarnessRun(
         }
       : {}),
   }
-  const tools = createPiTools({ executor: options.toolExecutor, request }, lifecycle)
+  const tools = createPiTools(
+    { executor: options.toolExecutor, request, callbacks: lifecycle },
+    lifecycle,
+  )
   /**
    * Objective revision injected into the request currently being sent. It is
    * confirmed only if that request succeeds, so a failed or cancelled request
@@ -132,6 +144,12 @@ export async function executeHarnessRun(
       sandboxMode: request.permissionConfig.sandboxMode,
       approvalPolicy: request.permissionConfig.approvalPolicy,
       profile: request.profile ?? 'main',
+      ...(request.delegationEnabled !== undefined
+        ? { delegationEnabled: request.delegationEnabled }
+        : {}),
+      ...(request.collaborationEnabled !== undefined
+        ? { collaborationEnabled: request.collaborationEnabled }
+        : {}),
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
       ...(request.frozenDeferredToolNames
         ? { frozenDeferredToolNames: request.frozenDeferredToolNames }
@@ -148,7 +166,12 @@ export async function executeHarnessRun(
       label: definition.sdkName,
       description:
         typeof definition.description === 'string' ? definition.description : definition.sdkName,
-      load: () => adaptToolDefinition(definition, { executor: options.toolExecutor, request }),
+      load: () =>
+        adaptToolDefinition(definition, {
+          executor: options.toolExecutor,
+          request,
+          callbacks: lifecycle,
+        }),
     })),
   )
   const harness = new AgentHarness({
@@ -368,6 +391,18 @@ export async function executeHarnessRun(
       ],
     }
   })
+  if (options.contextDecisions?.forget) {
+    const forget = options.contextDecisions.forget
+    harness.on('context', async (event) => {
+      try {
+        const items = await forget(request.threadID, event.messages)
+        return items === event.messages ? undefined : { messages: items as typeof event.messages }
+      } catch {
+        // SAFETY: a broken context screen must never block the provider request.
+        return undefined
+      }
+    })
+  }
   harness.on('before_provider_payload', (event) => {
     const policy = inferPromptCacheRuntimePolicy(event.model, bundle.cacheKey)
     const applied = applyPromptCacheRuntimePolicy(event.payload, policy, bundle.stableContextText)
@@ -403,25 +438,25 @@ export async function executeHarnessRun(
   if (options.lifecycle?.finalizeResult && request.exposedTools.includes('finalize_result')) {
     singleToolCallReasons.set(
       'finalize_result',
-      'finalize_result 必须是该条回复中唯一的工具调用；先完成并验证其他工作，然后在单独一条回复中提交。',
+      'finalize_result must be the only tool call in its response. Finish and verify other work first, then submit separately.',
     )
   }
   if (options.lifecycle?.submitPlan) {
     singleToolCallReasons.set(
       'submit_plan',
-      'submit_plan 必须是该条回复中唯一的工具调用；先完成调查，然后在单独一条回复中提交方案。',
+      'submit_plan must be the only tool call in its response. Complete investigation, then submit the plan separately.',
     )
   }
   if (options.lifecycle?.submitSchedulePlan) {
     singleToolCallReasons.set(
       'submit_schedule_plan',
-      'submit_schedule_plan 必须是该条回复中唯一的工具调用；先完成调查与澄清，然后在单独一条回复中提交草案。',
+      'submit_schedule_plan must be the only tool call in its response. Complete investigation and clarification, then submit the draft separately.',
     )
   }
   if (options.lifecycle?.submitTaskSchedule)
     singleToolCallReasons.set(
       'submit_task_schedule',
-      '时间安排草案必须在调查和澄清完成后单独提交。',
+      'Submit timing drafts separately after investigation and clarification.',
     )
   if (singleToolCallReasons.size > 0 || options.beforeToolCall || options.goalBudget)
     harness.on('tool_call', async (event) => {
@@ -434,7 +469,7 @@ export async function executeHarnessRun(
         return {
           block: true,
           reason:
-            '预算已变更。请先读取下一请求中的新预算通知，检查是否已交付并调整剩余计划及子任务，再执行工具。',
+            'The budget changed. Read the updated budget notice in the next request, check delivered work and revise remaining plans and child assignments before further tool use.',
         }
       if (wrapupStatus) return { block: true, reason: '目标预算收尾仅允许文本，工具已关闭。' }
       const singleCallReason = singleToolCallReasons.get(event.toolName)
@@ -470,7 +505,34 @@ export async function executeHarnessRun(
       }),
     },
   )
-  const unsubscribe = harness.subscribe((event) => adapter.handle(event))
+  const startedAt = Date.now()
+  let latestAssistantText = ''
+  let toolUseCount = 0
+  let totalTokens = 0
+  const unsubscribe = harness.subscribe((event) => {
+    if (event.type === 'tool_execution_end') {
+      toolUseCount += 1
+    } else if (event.type === 'message_end' && event.message.role === 'assistant') {
+      const stepText = adapter.outputText(event.message.content)
+      if (stepText.trim().length > 0) latestAssistantText = stepText
+      const usage = event.message.usage as unknown as Record<string, unknown> | undefined
+      if (usage && typeof usage === 'object') {
+        const stepTotal =
+          typeof usage.totalTokens === 'number' && Number.isFinite(usage.totalTokens)
+            ? usage.totalTokens
+            : ['input', 'output', 'cacheRead', 'cacheWrite'].reduce(
+                (sum, key) =>
+                  sum +
+                  (typeof usage[key] === 'number' && Number.isFinite(usage[key] as number)
+                    ? (usage[key] as number)
+                    : 0),
+                0,
+              )
+        totalTokens += stepTotal
+      }
+    }
+    return adapter.handle(event)
+  })
   // These hooks are not broadcast by subscribe; forward metadata through the same event sink.
   for (const type of [
     'before_agent_start',
@@ -511,17 +573,25 @@ export async function executeHarnessRun(
         ...restored.filter((name) => deferredToolCatalog.has(name)),
       ]),
     ])
-    const images = promptImages(request)
+    const isResumed = typeof request.resumedContent === 'string'
+    const images = isResumed ? [] : promptImages(request)
     let message: AssistantMessage = await harness.prompt(
       promptContext(request, bundle.contextItems),
       {
         images,
-        media:
-          request.attachments?.flatMap((attachment) =>
-            attachment.kind === 'audio' || attachment.kind === 'video'
-              ? [{ kind: attachment.kind, data: attachment.base64, mimeType: attachment.mediaType }]
-              : [],
-          ) ?? [],
+        media: isResumed
+          ? []
+          : (request.attachments?.flatMap((attachment) =>
+              attachment.kind === 'audio' || attachment.kind === 'video'
+                ? [
+                    {
+                      kind: attachment.kind,
+                      data: attachment.base64,
+                      mimeType: attachment.mediaType,
+                    },
+                  ]
+                : [],
+            ) ?? []),
       },
     )
     if (message.stopReason === 'error' && isProviderContextOverflow(message.errorMessage)) {
@@ -557,10 +627,17 @@ export async function executeHarnessRun(
     if (message.stopReason === 'aborted' || request.signal.aborted)
       throw new AgentError('RUN_ABORTED', '任务已停止', 499)
     const output = adapter.outputText(message.content)
-    // The delivery candidate is bound to its tool call: only when the final
-    // assistant message is the one that carried the successful submission is
-    // it the delivery result of this runtime. Later steering or continued
-    // execution must never reuse a candidate from an earlier round.
+    // INVARIANT: If the final step only emitted tool calls with empty text, fall back to the latest non-empty assistant text from this run.
+    const resolvedOutput = output.trim().length > 0 ? output : latestAssistantText || output
+    const stats =
+      request.profile && request.profile !== 'main'
+        ? {
+            durationMs: Math.max(0, Date.now() - startedAt),
+            toolUseCount,
+            ...(totalTokens > 0 ? { totalTokens } : {}),
+          }
+        : undefined
+    // INVARIANT: Delivery is bound to its toolCallID on the final assistant message; later steering must never reuse an earlier candidate.
     const delivered =
       delivery !== undefined &&
       message.content.some((part) => part.type === 'toolCall' && part.id === delivery!.toolCallID)
@@ -576,11 +653,14 @@ export async function executeHarnessRun(
     ) {
       return {
         status: 'completed',
-        output: output || '已达到目标 Token 预算限制，子任务已安全结束当前回合。',
+        output: resolvedOutput || '已达到目标 Token 预算限制，子任务已安全结束当前回合。',
+        ...(stats ? { stats } : {}),
         result: {
           outcome: 'partial',
           summary:
             '已达到目标 Token 预算限制，子任务已安全结束当前回合。已完成进展已汇总，待预算恢复后可继续推进。',
+          ...(resolvedOutput.trim() ? { reportText: resolvedOutput.trim() } : {}),
+          ...(stats ? { stats } : {}),
           findings: [],
           changedFiles: [],
           validation: [],
@@ -591,7 +671,8 @@ export async function executeHarnessRun(
     }
     return {
       status: 'completed',
-      output: delivered ? formatStructuredResult(delivered.result) : output,
+      output: delivered ? formatStructuredResult(delivered.result) : resolvedOutput,
+      ...(stats ? { stats } : {}),
       ...(delivered ? { result: delivered.result } : {}),
     }
   } catch (error) {

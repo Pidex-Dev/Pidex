@@ -1,4 +1,3 @@
-import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cx } from '../../../utils/Cx.js'
@@ -131,6 +130,7 @@ export function CollapsibleUserMarkdown({
             <ConversationMarkdownErrorBoundary contentKey={text}>
               <MarkdownMessage
                 presentation="conversation"
+                inlineLinkTokens
                 canCopyFileReferenceContents={canCopyFileReferenceContents}
                 cwd={cwd}
                 onCopyFileReferenceContents={onCopyFileReferenceContents}
@@ -150,7 +150,7 @@ export function CollapsibleUserMarkdown({
         <button
           aria-controls={contentId}
           aria-expanded={collapseState === 'expanded'}
-          className="user-message-markdown__toggle tw:mt-2 tw:inline-flex tw:cursor-pointer tw:self-start tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:type-caption tw:outline-none tw:hover:text-app-text tw:focus-visible:rounded-md tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+          className="user-message-markdown__toggle tw:mt-2 tw:inline-flex tw:cursor-pointer tw:self-start tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:type-1 tw:outline-none tw:hover:text-app-text tw:focus-visible:rounded-3 tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
           onClick={() => {
             setExpandedText((current) => (current === text ? null : text))
           }}

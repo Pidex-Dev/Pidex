@@ -15,6 +15,7 @@ import {
   DEFAULT_CHROME_THEMES,
   desktopThemeFontFaceMatchesFamily,
   normalizeDesktopAccentPreset,
+  normalizeDesktopUiDensity,
   resolveSharedFontsFromVariants,
 } from '@pidex/shared/desktop-theme'
 import { writeJsonAtomically } from '../windows/DebouncedAtomicJsonWriter.js'
@@ -29,9 +30,6 @@ export { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_CHROME_THEMES } from '@pidex/share
 import { isRecord } from '@pidex/shared/guards'
 
 type HexColor = DesktopHexColor
-type AppearanceVariant = DesktopThemeVariant
-
-type RecordValue = Record<string, unknown>
 const CURRENT_APPEARANCE_SETTINGS_VERSION = 8
 const MIGRATION_RECORD_VERSION = 1
 const MIGRATION_ID = 'ui-design-visual-theme'
@@ -193,6 +191,7 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
       ui: numberInRange(fontSizes.ui, 14, 11, 16),
       code: numberInRange(fontSizes.code, 12, 8, 24),
     },
+    uiDensity: normalizeDesktopUiDensity(source.uiDensity),
   }
 }
 

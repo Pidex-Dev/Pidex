@@ -159,7 +159,6 @@ export function TerminalPanel({
 
     let disposed = false
     displayPathCallbackRef.current?.(null)
-    let snapshotReady = false
     let snapshotGeneration = 0
     const queuedEvents: DesktopTerminalEvent[] = []
 
@@ -168,7 +167,6 @@ export function TerminalPanel({
       snapshotRef.current = snapshot
       displayPathCallbackRef.current?.(snapshotDisplayPath(snapshot))
       applyUpdate(consumeTerminalSnapshot(createTerminalOutputState(), snapshot))
-      snapshotReady = true
       for (const event of queuedEvents.splice(0)) consumeEvent(event)
       setError(null)
     }
@@ -306,12 +304,10 @@ export function TerminalPanel({
         displayPathCallbackRef.current?.(snapshotDisplayPath(snapshot))
         const update = consumeTerminalSnapshot(createTerminalOutputState(), snapshot)
         applyUpdate(update)
-        snapshotReady = true
         for (const event of queuedEvents.splice(0)) consumeEvent(event)
         fitAndResize()
         terminal.focus()
       } catch (reason) {
-        snapshotReady = true
         if (!disposed) {
           setStatus('failed')
           setError(errorMessage(reason))
@@ -371,7 +367,7 @@ export function TerminalPanel({
     >
       {truncated ? (
         <div
-          className="integrated-terminal__notice tw:flex tw:min-h-7 tw:items-center tw:gap-1 tw:border-b tw:border-app-border tw:bg-app-panel tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta"
+          className="integrated-terminal__notice tw:flex tw:min-h-6 tw:items-center tw:gap-1 tw:border-b tw:border-app-border tw:bg-app-panel tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-meta"
           role="status"
         >
           输出已截断，更早内容不可用。
@@ -379,7 +375,7 @@ export function TerminalPanel({
       ) : null}
       {status === 'exited' || status === 'failed' ? (
         <div
-          className="integrated-terminal__lifecycle tw:flex tw:min-h-10 tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border tw:bg-app-panel tw:px-2 tw:py-1 tw:type-caption tw:text-app-danger tw:shadow-none"
+          className="integrated-terminal__lifecycle tw:flex tw:min-h-7 tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border tw:bg-app-panel tw:px-2 tw:py-1 tw:type-1 tw:text-app-danger tw:shadow-none"
           role="status"
         >
           <span>{error || terminalStatusLabel(status, exitCode)}</span>

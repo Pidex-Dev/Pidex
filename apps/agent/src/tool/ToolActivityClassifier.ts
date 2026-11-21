@@ -92,7 +92,7 @@ const shellWords = (command: string): string[] => {
       continue
     }
     const next = source[index + 1]
-    if (character === '\\' && quote !== "'" && next && /[\s\\'\"]/.test(next)) {
+    if (character === '\\' && quote !== "'" && next && /[\s\\'"]/.test(next)) {
       escaped = true
       continue
     }
@@ -397,7 +397,7 @@ export const classifyToolActivity = ({
   ) {
     return { type: 'web_search' }
   }
-  if (leaf === 'read') {
+  if (leaf === 'read' || leaf === 'view_image') {
     const skillName = textOf(recordOf(recordOf(details).skill), 'name')
     if (skillName) return { type: 'read', subject: 'skill', target: { displayLabel: skillName } }
     return {
@@ -431,10 +431,12 @@ export const classifyToolActivity = ({
       ? { type: 'tool', mode: 'load', name: selected }
       : { type: 'tool', mode: 'search', name: textOf(record, 'query') }
   }
-  const rawCommand = command?.trim() || textOf(record, 'command')
+  const rawCommand = command?.trim() || textOf(record, 'command', 'cmd')
   if (
     rawCommand &&
-    (leaf === 'bash' ||
+    (leaf === 'exec_command' ||
+      normalized === 'exec_command' ||
+      leaf === 'bash' ||
       leaf === 'powershell' ||
       normalized === 'bash' ||
       normalized === 'powershell')

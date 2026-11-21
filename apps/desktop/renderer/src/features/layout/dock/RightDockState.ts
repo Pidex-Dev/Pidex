@@ -1,3 +1,4 @@
+import type { SubagentRole } from '@pidex/shared/thread'
 import type { FileEditorViewState } from '../../editor/FileEditor.js'
 
 export type WorkbenchPanelTarget = 'right' | 'bottom' | 'sidebar'
@@ -38,7 +39,7 @@ export type UserAttachmentPreviewTab = {
   kind: 'attachment-preview'
   attachment: {
     id: string
-    kind: 'image' | 'text' | 'binary' | 'directory'
+    kind: 'image' | 'text' | 'video' | 'audio' | 'binary' | 'directory'
     name: string
     mediaType: string
     sizeBytes: number
@@ -59,6 +60,8 @@ export type SkillPreviewTab = {
 
 export type WorkbenchTabKind =
   | 'provider-management'
+  | 'provider-model'
+  | 'provider-sync'
   | 'review'
   | 'browser'
   | 'file-browser'
@@ -67,14 +70,19 @@ export type WorkbenchTabKind =
   | 'skill-preview'
   | 'plan'
   | 'goal'
+  | 'judge'
+  | 'prompt-preview'
   | 'side-chat'
   | 'subagent-directory'
+  | 'subagent-thread'
   | 'terminal'
 
 export type WorkbenchTabDescriptor =
   | ProviderManagementTab
   | { id: 'review'; kind: 'review' }
   | { id: 'goal'; kind: 'goal'; threadId?: string }
+  | { id: 'judge'; kind: 'judge'; threadId?: string }
+  | { id: 'prompt-preview'; kind: 'prompt-preview' }
   | {
       id: `browser:${string}`
       kind: 'browser'
@@ -137,16 +145,27 @@ export type WorkbenchTabDescriptor =
       threadId: string
       selectedTaskId?: string
     }
+  | {
+      id: `subagent-thread:${string}`
+      kind: 'subagent-thread'
+      taskId: string
+      parentThreadId: string
+      title: string
+      role?: SubagentRole
+    }
 
 export type WorkbenchTabId = WorkbenchTabDescriptor['id']
 
-export type ProviderManagementSection = 'credentials' | 'request'
-export type ProviderManagementTab = {
-  id: 'provider-management'
-  kind: 'provider-management'
-  providerId: string
-  section: ProviderManagementSection
-}
+export type ProviderManagementSection = 'credentials' | 'request' | 'model' | 'sync'
+export type ProviderManagementTab =
+  | {
+      id: 'provider-management'
+      kind: 'provider-management'
+      providerId: string
+      section: 'credentials' | 'request'
+    }
+  | { id: 'provider-model'; kind: 'provider-model'; providerId: string; section: 'model' }
+  | { id: 'provider-sync'; kind: 'provider-sync'; providerId: string; section: 'sync' }
 
 export function createSkillPreviewTab(input: {
   name: string

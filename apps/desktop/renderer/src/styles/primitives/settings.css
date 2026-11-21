@@ -3,41 +3,28 @@
  * Tailwind utilities cannot express.
  *
  * Kept here on purpose:
- * - The `.settings-management-*` list/row/dialog contract. Its markup lives in
- *   other migration groups (`models/ProviderCatalog.tsx`,
- *   `models/ApiKeyEditorDialog.tsx`, `models/provider-management/*`,
- *   `plugins/PluginDetailsDialog.tsx`, `settings/plugins/*`), and
- *   `features/model-center.scss` still overrides individual dialog rows
- *   (`.provider-editor-field` / `.provider-editor-switch-card`) from the
- *   features layer. Keeping the shared geometry in one place preserves the
- *   original cascade for every consumer instead of baking values into only
- *   some of them. Dialog width and max-height are the exception: they are
- *   utilities owned by `features/settings/SettingsManagementDialogSizing.ts`,
- *   so this file must not reintroduce a default size.
- * - The `.settings-row` sibling dividers and the card/appearance padding
- *   overrides: `+`-sibling `::before` hairlines and subtree overrides that must
- *   reach every descendant row regardless of the class each row carries.
- *   `SettingsRow` keeps its own layout as utilities; only the dividers and the
- *   container-driven padding stay here (they touch `padding-inline`, which the
- *   utilities never set, so the two never compete).
- * - `button.settings-management-row-main { font: inherit }`: the typography
- *   contract forbids `font-[inherit]`, and the button would otherwise fall back
- *   to the UA control font.
- * - The theme-picker dropdown panel height. Radix portals the dropdown content
- *   out of the settings subtree, and the `data-variant='theme'` attribute lives
- *   on the content element, so no utility on the portalled scroll viewport can
- *   select it.
+ * - The `.settings-management-row` `@container (max-width: 42rem)` layout,
+ *   `button.settings-management-row-main { font: inherit }` (the typography
+ *   contract forbids `font-[inherit]`), and `::before` 0.5px dividers on
+ *   `.settings-row`, `.settings-management-row`, and
+ *   `.settings-management-dialog-row`.
+ * - The `.settings-dropdown-content` `--popover-max-height` / `--popover-overflow-y`
+ *   custom property defaults consumed by `styles/popover.css`.
  * - The appearance mode thumbnails: fixed light/dark palettes that must stay
  *   independent of the active theme (`#f3f3f3`, `#5d5d5d`, `#9f9f9f`), the
  *   absolute black/white and hue stops of the custom colour picker, the
  *   `rgb(0 0 0 / 40%)` handle ring, the `::before`-pinned mode-card state ring
- *   and the `--appearance-*` runtime variables the picker reads back. These are
- *   theme-data-driven surfaces with no utility or semantic colour equivalent.
+ *   and the `--appearance-*` runtime variables the picker reads back.
  * - The custom colour picker's clipped saturation/brightness square and vendor
  *   slider thumb pseudo-elements (`::-webkit-slider-thumb`).
- *
- * Colours stay on --cpx-sys-* / --cpx-comp-* tokens; only the appearance
- * preview and picker palettes keep their theme-independent literals.
+ * - Environment form/tree/preview rules targeting bare HTML descendants
+ *   (`<input>`/`<textarea>`/`<small>`/`<pre>`/`<img>`) and `@container (max-width: 720px)`.
+ * - Profile contribution heatmap `color-mix()` levels, avatar SVG `stroke-width: 1.75`,
+ *   popover close button reset, and responsive loading stat strip.
+ * - Usage & billing chart residue: `--usage-chart-*` variables, `color-mix()`
+ *   heatmap cell fills/notice borders, SVG child rules, `.usage-badge` status
+ *   colors/line-height, and `.provider-quota-bar-fill` `--usage-ratio` width.
+ * - Keyboard shortcut search `<input>` descendant chrome.
  */
 @layer primitives {
   /* --- Settings row dividers --- */
@@ -57,50 +44,17 @@
     pointer-events: none;
   }
 
-  .settings-card > .settings-row {
-    padding-inline: var(--cpx-sys-space-4);
-  }
-
   .settings-card > .settings-row + .settings-row::before {
-    right: var(--cpx-sys-space-4);
-    left: var(--cpx-sys-space-4);
+    right: var(--cpx-sys-space-3);
+    left: var(--cpx-sys-space-3);
     background: var(--cpx-sys-color-border-subtle);
   }
 
-  /* --- Management list / row / dialog contract (shared with other groups) --- */
-  .settings-management-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--cpx-sys-space-4);
-    min-width: 0;
-    margin-bottom: var(--cpx-sys-space-3);
-  }
-
-  .settings-management-toolbar-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--cpx-sys-space-2);
-    min-width: 0;
-  }
-
-  .settings-management-list {
-    display: grid;
-    min-width: 0;
-    overflow: hidden;
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-container);
-    background: var(--cpx-sys-color-surface-panel);
-  }
-
+  /* --- Management row dividers & @container responsive layout --- */
   .settings-management-row {
     position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    min-width: 0;
-    color: var(--cpx-sys-color-fg-primary);
   }
 
   .settings-management-row + .settings-management-row::before {
@@ -114,35 +68,13 @@
     pointer-events: none;
   }
 
-  .settings-management-row[data-dimmed='true'] {
-    opacity: 0.6;
-  }
-
-  .settings-management-row[data-current='true'] {
-    background: var(--cpx-sys-color-selected);
-  }
-
-  .settings-management-row:hover {
-    background: var(--cpx-sys-color-hover);
-  }
-
   .settings-management-row-main {
     display: grid;
-    grid-template-columns: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-1)) minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--cpx-sys-space-3);
-    min-width: 0;
-    min-height: calc(var(--cpx-sys-space-8) * 2 + var(--cpx-sys-space-1));
-    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
-    border: 0;
-    background: transparent;
-    color: inherit;
-    text-align: left;
+    grid-template-columns: var(--cpx-sys-space-6) minmax(0, 1fr) auto;
   }
 
   button.settings-management-row-main {
     font: inherit;
-    cursor: pointer;
   }
 
   button.settings-management-row-main:focus-visible {
@@ -150,157 +82,18 @@
     outline-offset: -2px;
   }
 
-  .settings-management-row-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-1));
-    height: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-1));
-    overflow: hidden;
-    border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-sys-color-surface-editor);
-    color: var(--cpx-sys-color-fg-secondary);
-  }
-
-  .settings-management-row-copy {
-    display: grid;
-    gap: var(--cpx-sys-space-1);
-    min-width: 0;
-  }
-
-  .settings-management-row-title {
-    min-width: 0;
-    margin: 0;
-    overflow: hidden;
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-row-title);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .settings-management-row-description,
-  .settings-management-row-meta {
-    min-width: 0;
-    color: var(--cpx-sys-color-fg-secondary);
-  }
-
-  .settings-management-row-description {
-    overflow: hidden;
-    font: var(--cpx-sys-type-body-sm);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .settings-management-row-meta {
     max-width: 20rem;
-    font: var(--cpx-sys-type-caption);
     text-align: right;
   }
 
   .settings-management-row-actions {
-    display: flex;
-    align-items: center;
     justify-content: flex-end;
-    gap: var(--cpx-sys-space-2);
-    padding-right: var(--cpx-sys-space-4);
-  }
-
-  .settings-management-loading {
-    display: grid;
-  }
-
-  .settings-management-loading-row {
-    height: calc(var(--cpx-sys-space-8) * 2 + var(--cpx-sys-space-1));
-    background: var(--cpx-sys-color-surface-editor);
-  }
-
-  .settings-management-loading-row + .settings-management-loading-row {
-    border-top: 1px solid var(--cpx-sys-color-border-subtle);
-  }
-
-  .settings-management-empty {
-    display: grid;
-    min-height: 12rem;
-    place-items: center;
-    padding: var(--cpx-sys-space-6);
-    color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
-    text-align: center;
-  }
-
-  .settings-management-dialog {
-    display: flex;
-    min-width: 0;
-    flex-direction: column;
-    overflow: hidden;
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
-  .settings-management-dialog-header {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--cpx-sys-space-3);
-    padding: var(--cpx-sys-space-5);
-    border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  }
-
-  .settings-management-dialog-heading {
-    display: grid;
-    gap: var(--cpx-sys-space-1);
-    min-width: 0;
-    flex: 1;
-  }
-
-  .settings-management-dialog-heading h2,
-  .settings-management-dialog-heading p {
-    margin: 0;
-  }
-
-  .settings-management-dialog-heading h2 {
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-heading-sm);
-  }
-
-  .settings-management-dialog-heading p {
-    color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
-  }
-
-  .settings-management-dialog-body {
-    display: grid;
-    gap: var(--cpx-sys-space-4);
-    min-height: 0;
-    flex: 1 1 auto;
-    overflow: auto;
-    padding: var(--cpx-sys-space-5);
-  }
-
-  .settings-management-dialog-footer {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--cpx-sys-space-2);
-    padding: var(--cpx-sys-space-4) var(--cpx-sys-space-5);
-    border-top: 1px solid var(--cpx-sys-color-border-subtle);
-  }
-
-  .settings-management-dialog-card {
-    display: grid;
-    min-width: 0;
-    overflow: hidden;
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-container);
-    background: var(--cpx-sys-color-surface-panel);
+    padding-right: var(--cpx-sys-space-3);
   }
 
   .settings-management-dialog-row {
     position: relative;
-    display: grid;
-    grid-template-columns: minmax(9rem, 0.4fr) minmax(0, 1fr);
-    align-items: start;
-    gap: var(--cpx-sys-space-4);
-    min-width: 0;
-    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   }
 
   .settings-management-dialog-row + .settings-management-dialog-row::before {
@@ -311,43 +104,16 @@
     height: 0.5px;
     background: var(--cpx-sys-color-border-subtle);
     content: '';
-  }
-
-  .settings-management-dialog-row-label {
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-control);
-  }
-
-  .settings-management-dialog-row-control {
-    display: grid;
-    gap: var(--cpx-sys-space-2);
-    min-width: 0;
-  }
-
-  @media (max-width: 640px) {
-    .settings-management-dialog-row {
-      grid-template-columns: minmax(0, 1fr);
-      gap: var(--cpx-sys-space-2);
-    }
+    pointer-events: none;
   }
 
   @container (max-width: 42rem) {
-    .settings-management-toolbar {
-      align-items: stretch;
-      flex-direction: column;
-    }
-
-    .settings-management-toolbar-actions {
-      width: 100%;
-      justify-content: flex-start;
-    }
-
     .settings-management-row {
       grid-template-columns: minmax(0, 1fr);
     }
 
     .settings-management-row-main {
-      grid-template-columns: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-1)) minmax(0, 1fr);
+      grid-template-columns: var(--cpx-sys-space-6) minmax(0, 1fr);
     }
 
     .settings-management-row-meta {
@@ -359,10 +125,7 @@
     .settings-management-row-actions {
       justify-content: flex-start;
       padding: 0 var(--cpx-sys-space-4) var(--cpx-sys-space-3)
-        calc(
-          var(--cpx-sys-space-4) + var(--cpx-sys-space-8) + var(--cpx-sys-space-1) +
-            var(--cpx-sys-space-3)
-        );
+        calc(var(--cpx-sys-space-4) + var(--cpx-sys-space-6) + var(--cpx-sys-space-3));
     }
   }
 
@@ -370,20 +133,12 @@
    * Dropdown panel variables. The live values are set from `Select.tsx` as
    * arbitrary Tailwind properties (`tw:[--popover-max-height:…]`), which the
    * custom-property scan cannot see, so the declared defaults stay here next to
-   * the shared popover rules that read them.
+   * the shared popover rules that read them. Menu width is owned by the menu
+   * sizing contract in `styles/popover.css`.
    */
   .settings-dropdown-content {
     --popover-max-height: min(320px, calc(100vh - 96px));
-    --popover-max-width: min(360px, calc(100vw - 16px));
     --popover-overflow-y: hidden;
-  }
-
-  /*
-   * Theme-picker dropdown: the theme variant keeps the measured 320px panel
-   * (the shared scroll area otherwise resolves to `… - 12px`).
-   */
-  .settings-dropdown-content[data-variant='theme'] .settings-dropdown-scroll-area {
-    max-height: 320px;
   }
 
   /*
@@ -413,22 +168,15 @@
     gap: var(--cpx-sys-space-2);
   }
 
-  .appearance-theme-badge {
-    font-size: 10px;
-  }
-
   .appearance-color-swatch {
-    position: relative;
-    border-radius: var(--cpx-sys-radius-pill);
     background: var(--appearance-color-swatch-background);
-    cursor: pointer;
     box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
   }
 
   .appearance-color-palette-square {
     position: relative;
     overflow: hidden;
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
     background:
       linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent),
       var(--appearance-picker-hue);
@@ -512,36 +260,9 @@
   .appearance-contrast-control output {
     width: 36px;
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-1);
     font-variant-numeric: tabular-nums;
     text-align: right;
-  }
-
-  @container (max-width: 760px) {
-    .appearance-mode-gallery {
-      gap: var(--cpx-sys-space-2);
-    }
-  }
-
-  /*
-   * Theme font picker: the row's two dropdowns size to their content and must
-   * beat the shared 48vw trigger ceiling, which lives on the trigger element
-   * itself (`SettingsDropdown`). The `Select` internals are owned by another
-   * migration group, so the override stays a descendant rule.
-   */
-  .appearance-theme-font-row .settings-dropdown.settings-dropdown-trigger {
-    width: max-content;
-    max-width: none;
-    height: 28px;
-    min-height: 28px;
-    border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-sys-color-surface-control);
-  }
-
-  .appearance-theme-font-row .settings-dropdown-value {
-    flex: 0 0 auto;
-    overflow: visible;
-    text-overflow: clip;
   }
 
   /* --- Appearance editor residue --- */
@@ -585,7 +306,11 @@
 
   .environment-field > span {
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-control);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   .environment-field input,
@@ -593,7 +318,7 @@
     min-width: 0;
     width: 100%;
     border: 1px solid var(--cpx-sys-color-border-default);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
     background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;
@@ -614,7 +339,7 @@
   .environment-field textarea {
     resize: vertical;
     padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-    line-height: var(--cpx-sys-line-height-tight);
+    line-height: var(--cpx-sys-line-height-1);
   }
 
   .environment-field-textarea {
@@ -624,7 +349,7 @@
   .environment-field-textarea > small {
     grid-column: 1;
     color: var(--cpx-sys-color-fg-secondary);
-    line-height: var(--cpx-sys-line-height-tight);
+    line-height: var(--cpx-sys-line-height-1);
   }
 
   .environment-field-textarea > textarea {
@@ -645,7 +370,7 @@
     min-height: 34px;
     padding: var(--cpx-sys-space-2);
     border: 1px solid var(--cpx-sys-color-border-default);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
     background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-primary);
   }
@@ -677,7 +402,7 @@
     height: 30px;
     place-items: center;
     border: 0;
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
     background: transparent;
     color: var(--cpx-sys-color-fg-secondary);
     cursor: pointer;
@@ -697,7 +422,11 @@
 
   .environment-source-row > div strong {
     overflow: hidden;
-    font: var(--cpx-sys-type-row-title);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-2);
+    letter-spacing: var(--cpx-sys-letter-spacing-2);
+    font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -705,7 +434,10 @@
   .environment-source-row > div span {
     overflow: hidden;
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -714,7 +446,7 @@
     margin: 0 var(--cpx-sys-space-4) var(--cpx-sys-space-4);
     padding: var(--cpx-sys-space-3);
     border: 1px solid var(--cpx-sys-color-border-default);
-    border-radius: var(--cpx-sys-radius-lg);
+    border-radius: var(--cpx-sys-radius-4);
     background: var(--cpx-sys-color-surface-panel);
     box-shadow: none;
   }
@@ -852,7 +584,7 @@
     display: flex;
     min-height: 60px;
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-lg);
+    border-radius: var(--cpx-sys-radius-4);
     background: var(--cpx-sys-color-surface-panel);
     overflow: hidden;
   }
@@ -895,22 +627,15 @@
   }
 
   /*
-   * Usage & billing chart surface (Shared with `settings/usage/*`).
+   * Usage & billing chart residue (shared with `settings/usage/*` and
+   * `models/provider-management/ProviderConnectionSection.tsx`).
    *
-   * This block stays one unit because it is a single chart system rather than a
-   * set of independent surfaces:
-   * - the `--usage-chart-*` palette drives `color-mix()` heatmap and notice
-   *   blends (`color-mix` surfaces have no palette entry);
-   * - the heatmap cells, donut, svg bar chart, quota bars and legend dots are
-   *   data-driven (`[data-intensity]`, `[data-status]`, `[data-state]`,
-   *   `--usage-ratio`) including `:hover`/`:focus` svg opacity and the
-   *   `@container` breakpoint matrix that collapses four grids at once;
-   * - several rules are child/attribute selectors on markup the three usage
-   *   panels render inline (`li > span:first-of-type`, `dt`/`dd`,
-   *   `.provider-series svg`).
+   * Keeps only what Tailwind utilities cannot express cleanly:
+   * - `--usage-chart-*` palette tokens;
+   * - `color-mix()` heatmap fills and notice/badge borders;
+   * - SVG child rules and focus-visible outlines;
+   * - `.provider-quota-bar-fill` `--usage-ratio` width & micro transition.
    */
-
-  /* --- Usage and billing --- */
   .usage-billing-settings {
     --usage-chart-1: var(--cpx-sys-color-success);
     --usage-chart-2: var(--cpx-sys-color-border-focus);
@@ -919,115 +644,10 @@
     --usage-chart-5: var(--cpx-sys-color-accent);
     --usage-chart-other: var(--cpx-sys-color-fg-tertiary);
   }
-  .usage-page-header,
-  .usage-panel-toolbar,
-  .provider-usage-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--cpx-sys-space-4);
-  }
-
-  .usage-page-description,
-  .usage-panel-toolbar p,
-  .provider-usage-header p,
-  .usage-visual-card header p {
-    margin: var(--cpx-sys-space-1) 0 0;
-    color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
-  }
-
-  .usage-panel {
-    display: grid;
-    gap: var(--cpx-sys-space-4);
-  }
-
-  .usage-panel-toolbar {
-    align-items: center;
-  }
-
-  .usage-panel-toolbar h3,
-  .usage-visual-card h3,
-  .usage-unavailable-sources h3 {
-    margin: 0;
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-heading-sm);
-  }
-
-  .usage-toolbar-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--cpx-sys-space-2);
-    flex-wrap: wrap;
-  }
-
-  .usage-metric-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--cpx-sys-space-3);
-  }
-
-  .usage-metric-card,
-  .usage-visual-card,
-  .provider-usage-card,
-  .usage-unavailable-sources {
-    min-width: 0;
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-lg);
-    background: var(--cpx-sys-color-surface-panel);
-    box-shadow: none;
-  }
-
-  .usage-metric-card {
-    display: grid;
-    gap: var(--cpx-sys-space-1);
-    padding: var(--cpx-sys-space-4);
-  }
-
-  .usage-metric-card span,
-  .usage-metric-card small {
-    color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-caption);
-  }
-
-  .usage-metric-card strong {
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-metric);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .usage-visual-card {
-    display: grid;
-    gap: var(--cpx-sys-space-3);
-    padding: var(--cpx-sys-space-4);
-  }
-
-  .usage-visual-card header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--cpx-sys-space-3);
-  }
-
-  .usage-visual-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
-    gap: var(--cpx-sys-space-4);
-  }
-
-  .usage-heatmap {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(13px, 1fr));
-    gap: var(--cpx-sys-space-1);
-  }
 
   .usage-heatmap-cell {
-    min-width: 10px;
-    aspect-ratio: 1;
     border: 1px solid
       color-mix(in srgb, var(--usage-chart-1) 10%, var(--cpx-sys-color-border-subtle));
-    border-radius: var(--cpx-sys-radius-compact);
     background: color-mix(in srgb, var(--usage-chart-1) 8%, var(--cpx-sys-color-surface-canvas));
   }
 
@@ -1049,18 +669,6 @@
     outline-offset: 2px;
   }
 
-  .usage-chart-scroll {
-    min-width: 0;
-    overflow-x: auto;
-  }
-
-  .usage-token-chart {
-    display: block;
-    width: 100%;
-    min-width: 560px;
-    height: 220px;
-  }
-
   .usage-token-chart rect {
     opacity: 0.82;
   }
@@ -1075,281 +683,14 @@
     stroke-width: 1;
   }
 
-  .usage-chart-detail,
-  .usage-chart-legend {
-    display: flex;
-    align-items: center;
-    min-height: 24px;
-    gap: var(--cpx-sys-space-3);
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-    flex-wrap: wrap;
-  }
-
-  .usage-chart-detail strong {
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
-  .usage-chart-detail span,
-  .usage-chart-legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--cpx-sys-space-1);
-  }
-
-  .usage-chart-detail i,
-  .usage-chart-legend i,
-  .usage-model-ranking i {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: var(--cpx-sys-radius-indicator);
-    flex-shrink: 0;
-  }
-
-  .usage-distribution {
-    display: grid;
-    place-items: center;
-    gap: var(--cpx-sys-space-4);
-  }
-
-  .usage-donut {
-    display: grid;
-    width: 150px;
-    aspect-ratio: 1;
-    border-radius: var(--cpx-sys-radius-pill);
-    place-items: center;
-  }
-
-  .usage-donut > span {
-    display: grid;
-    width: 72%;
-    aspect-ratio: 1;
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-pill);
-    background: var(--cpx-sys-color-surface-raised);
-    place-content: center;
-    text-align: center;
-  }
-
-  .usage-donut strong {
-    color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-xl);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .usage-donut small {
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-  }
-
-  .usage-model-ranking,
-  .provider-breakdown {
-    display: grid;
-    width: 100%;
-    gap: 0;
-    padding: 0;
-    margin: 0;
-    list-style: none;
-  }
-
-  .usage-model-ranking li,
-  .provider-breakdown li {
-    display: flex;
-    align-items: center;
-    gap: var(--cpx-sys-space-2);
-    padding: var(--cpx-sys-space-2) 0;
-    border-top: 1px solid var(--cpx-sys-color-border-subtle);
-  }
-
-  .usage-model-ranking li > span:first-of-type,
-  .provider-breakdown li > span:first-child {
-    display: grid;
-    min-width: 0;
-    margin-right: auto;
-  }
-
-  .usage-model-ranking li > span:last-child,
-  .provider-breakdown li > span:last-child {
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-  }
-
-  .usage-model-ranking strong,
-  .provider-breakdown strong {
-    overflow: hidden;
-    color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-sm);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .usage-model-ranking small,
-  .provider-breakdown small {
-    display: block;
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-  }
-
-  .usage-empty-state,
-  .usage-inline-error,
-  .usage-source-error,
-  .usage-cost-notice,
-  .usage-experimental-note {
-    padding: var(--cpx-sys-space-4);
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-lg);
-    background: var(--cpx-sys-color-surface-raised);
-    box-shadow: none;
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
-  }
-
-  .usage-empty-state h3 {
-    margin: 0 0 var(--cpx-sys-space-1);
-    color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
-  }
-
-  .usage-empty-state p {
-    margin: 0 0 var(--cpx-sys-space-3);
-  }
-
-  .usage-text-link,
-  .provider-usage-title a,
-  .usage-unavailable-actions a {
-    width: fit-content;
-    color: var(--cpx-sys-color-accent-fg);
-    font-size: var(--cpx-sys-font-size-sm);
-    text-decoration: none;
-  }
-
-  .usage-text-link:hover,
-  .provider-usage-title a:hover,
-  .usage-unavailable-actions a:hover {
-    text-decoration: underline;
-  }
-
-  .usage-text-link:focus-visible,
-  .provider-usage-title a:focus-visible,
-  .usage-unavailable-actions a:focus-visible {
-    border-radius: var(--cpx-sys-radius-md);
-    outline: 2px solid var(--cpx-sys-color-border-focus);
-    outline-offset: 2px;
-  }
-
-  .usage-inline-error,
-  .usage-source-error {
-    color: var(--cpx-sys-color-danger);
-  }
-
   .usage-cost-notice {
-    border-color: color-mix(in srgb, var(--usage-chart-3) 30%, var(--cpx-sys-color-border-subtle));
-  }
-
-  .usage-experimental-note {
-    padding-block: var(--cpx-sys-space-3);
-  }
-
-  .provider-usage-list {
-    display: grid;
-    gap: var(--cpx-sys-space-4);
-  }
-
-  .usage-active-filter {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--cpx-sys-space-3);
-    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-lg);
-    background: var(--cpx-sys-color-surface-raised);
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
-  }
-
-  .usage-account-summary {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--cpx-sys-space-3);
-    margin: 0;
-  }
-
-  .usage-account-summary > div {
-    display: grid;
-    gap: var(--cpx-sys-space-1);
-    min-width: 0;
-    padding: var(--cpx-sys-space-3);
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-lg);
-    background: var(--cpx-sys-color-surface-raised);
-  }
-
-  .usage-account-summary dt {
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-  }
-
-  .usage-account-summary dd {
-    margin: 0;
-    color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-xl);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .provider-usage-card {
-    display: grid;
-    gap: var(--cpx-sys-space-3);
-    padding: var(--cpx-sys-space-4);
-  }
-
-  .provider-usage-card[data-status='exhausted'] {
-    border-color: var(--cpx-sys-color-danger-subtle-border);
-  }
-
-  /*
-   * 供应商连接页的用量来源：不再包一层来源卡片，只保留标题行与实际的余额卡片，
-   * 避免同一份余额在卡片里再嵌一张卡片。
-   */
-  .provider-usage-source {
-    padding-top: var(--cpx-sys-space-1);
-  }
-
-  .provider-usage-source-title h4 {
-    margin: 0;
-  }
-
-  .provider-usage-title {
-    display: flex;
-    align-items: center;
-    gap: var(--cpx-sys-space-2);
-    flex-wrap: wrap;
-  }
-
-  .provider-usage-title h3 {
-    margin: 0;
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-heading-sm);
-  }
-
-  .provider-usage-title h3 a {
-    color: inherit;
-    font-size: inherit;
+    border: 1px solid
+      color-mix(in srgb, var(--usage-chart-3) 30%, var(--cpx-sys-color-border-subtle));
   }
 
   .usage-badge {
-    display: inline-flex;
-    align-items: center;
-    min-height: 20px;
-    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-full);
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-    line-height: var(--cpx-sys-line-height-none);
   }
 
   .usage-badge[data-status='available'] {
@@ -1361,309 +702,13 @@
     border-style: dashed;
   }
 
-  .usage-source-error {
-    display: grid;
-    gap: var(--cpx-sys-space-1);
-  }
-
-  .provider-usage-groups {
-    display: grid;
-    gap: var(--cpx-sys-space-3);
-  }
-
-  .provider-usage-group {
-    display: grid;
-    gap: var(--cpx-sys-space-3);
-    padding-top: var(--cpx-sys-space-3);
-    border-top: 1px solid var(--cpx-sys-color-border-subtle);
-  }
-
-  .provider-usage-group > h4 {
-    margin: 0;
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-row-title);
-  }
-
-  .provider-balances {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: var(--cpx-sys-space-3);
-  }
-
-  .provider-balance-card {
-    display: grid;
-    gap: var(--cpx-sys-space-2);
-    min-width: 0;
-    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-sys-color-surface-raised);
-  }
-
-  .provider-balance-header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--cpx-sys-space-2);
-  }
-
-  .provider-balance-label {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-lg);
-    font-weight: var(--cpx-sys-font-weight-medium);
-    line-height: var(--cpx-sys-line-height-body);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .provider-balance-total {
-    color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-lg);
-    font-weight: var(--cpx-sys-font-weight-bold);
-    line-height: var(--cpx-sys-line-height-body);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  .provider-balance-components {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-    padding-top: var(--cpx-sys-space-2);
-    border-top: 1px solid var(--cpx-sys-color-border-subtle);
-  }
-
-  .provider-balance-component {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--cpx-sys-space-1);
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .provider-balance-component-label {
-    color: var(--cpx-sys-color-fg-tertiary);
-  }
-
-  .provider-balance-component-amount {
-    color: var(--cpx-sys-color-fg-primary);
-    font-weight: var(--cpx-sys-font-weight-medium);
-  }
-
-  .provider-quotas {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: var(--cpx-sys-space-3);
-  }
-
-  .provider-quota-card {
-    display: grid;
-    gap: var(--cpx-sys-space-2);
-    min-width: 0;
-    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-sys-color-surface-raised);
-
-    &[data-state='exhausted'] {
-      border-color: var(--cpx-sys-color-danger-subtle-border);
-
-      .provider-quota-value {
-        color: var(--cpx-sys-color-danger);
-      }
-    }
-  }
-
-  .provider-quota-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--cpx-sys-space-2);
-  }
-
-  .provider-quota-label {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-control);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .provider-quota-reset {
-    flex-shrink: 0;
-    color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-xs);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  .provider-quota-progress {
-    min-width: 0;
-  }
-
-  .provider-quota-bar-track {
-    width: 100%;
-    height: 4px;
-    border-radius: var(--cpx-sys-radius-full);
-    background: var(--cpx-sys-color-border-subtle);
-    overflow: hidden;
-  }
-
   .provider-quota-bar-fill {
     width: calc(var(--usage-ratio, 0) * 100%);
-    height: 100%;
-    border-radius: var(--cpx-sys-radius-full);
     background: var(--usage-chart-1);
     transition: width var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out);
 
     .provider-quota-card[data-state='exhausted'] & {
       background: var(--cpx-sys-color-danger);
-    }
-  }
-
-  .provider-quota-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--cpx-sys-space-2);
-  }
-
-  .provider-quota-value {
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .provider-totals {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--cpx-sys-space-3);
-    margin: 0;
-  }
-
-  .provider-totals > div {
-    display: grid;
-    gap: var(--cpx-sys-space-1);
-    min-width: 0;
-    padding: var(--cpx-sys-space-3);
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-sys-color-surface-raised);
-  }
-
-  .provider-totals dt {
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-  }
-
-  .provider-totals dd {
-    margin: 0;
-    color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .provider-series {
-    min-width: 0;
-    overflow-x: auto;
-  }
-
-  .provider-series svg {
-    display: block;
-    width: 100%;
-    min-width: 240px;
-    height: 64px;
-  }
-
-  .provider-usage-card-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--cpx-sys-space-2);
-    flex-shrink: 0;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  .usage-chart-empty {
-    margin: 0;
-    padding: var(--cpx-sys-space-4) 0;
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
-    text-align: center;
-  }
-
-  .usage-loading {
-    display: grid;
-    gap: var(--cpx-sys-space-3);
-  }
-
-  .usage-loading-metric,
-  .usage-loading-chart,
-  .usage-loading-provider {
-    border-radius: var(--cpx-sys-radius-lg);
-  }
-
-  .usage-loading-toolbar {
-    width: 100%;
-    height: 44px;
-    border-radius: var(--cpx-sys-radius-md);
-  }
-
-  .usage-loading-metric {
-    height: 96px;
-  }
-
-  .usage-loading-chart {
-    width: 100%;
-    height: 260px;
-  }
-
-  .usage-loading-provider {
-    width: 100%;
-    height: 180px;
-  }
-
-  @container (max-width: 1100px) {
-    .usage-visual-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .provider-totals,
-    .usage-account-summary {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @container (max-width: 900px) {
-    .usage-page-header,
-    .usage-panel-toolbar,
-    .provider-usage-header {
-      align-items: stretch;
-      flex-direction: column;
-    }
-
-    .usage-toolbar-actions,
-    .usage-active-filter {
-      justify-content: flex-start;
-    }
-
-    .usage-metric-grid,
-    .provider-balances,
-    .provider-quotas,
-    .provider-totals,
-    .usage-account-summary {
-      grid-template-columns: 1fr;
-    }
-
-    .usage-active-filter {
-      align-items: stretch;
-      flex-direction: column;
     }
   }
 
@@ -1676,11 +721,11 @@
     padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4) var(--cpx-sys-space-2)
       calc(var(--cpx-sys-space-1) * 10);
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3);
     background: var(--cpx-sys-color-surface-raised);
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--cpx-sys-line-height-tight);
+    font-size: var(--cpx-sys-font-size-2);
+    line-height: var(--cpx-sys-line-height-1);
   }
 
   .keyboard-shortcuts-search input::placeholder {
@@ -1690,171 +735,5 @@
   .keyboard-shortcuts-search input:focus {
     border-color: var(--cpx-sys-color-border-default);
     background: var(--cpx-sys-color-surface-canvas);
-  }
-
-  /* ===== Settings Form Controls ===== */
-  .settings-input,
-  .settings-textarea,
-  .settings-input-number {
-    border-color: var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-comp-input-radius);
-    background: var(--cpx-sys-color-surface-canvas);
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
-  .settings-dropdown {
-    border-radius: var(--cpx-comp-button-radius-md);
-  }
-
-  /* --- Dropdown (Select) Controls --- */
-  .settings-dropdown.settings-dropdown-trigger {
-    display: inline-flex;
-    width: auto;
-    max-width: 100%;
-    min-width: 0;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--cpx-comp-input-gap);
-    border: 1px solid var(--cpx-sys-color-border-default);
-  }
-
-  .settings-dropdown *,
-  .settings-dropdown-content,
-  .settings-dropdown-content * {
-    outline: none;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
-  .settings-dropdown-value {
-    display: flex;
-    align-items: center;
-    flex: 1 1 auto;
-    gap: var(--cpx-comp-input-gap);
-    min-width: 0;
-    font: var(--cpx-sys-type-control);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .settings-dropdown-icon {
-    width: var(--inline-icon-size, 1em);
-    height: var(--inline-icon-size, 1em);
-    color: var(--cpx-comp-input-placeholder-fg);
-    flex-shrink: 0;
-  }
-
-  /* --- Text Inputs --- */
-  .settings-input {
-    border: 1px solid var(--cpx-sys-color-border-default);
-    border-radius: var(--cpx-comp-input-radius);
-    corner-shape: var(--cpx-sys-corner-shape);
-    background: var(--cpx-sys-color-surface-recessed);
-    color: var(--cpx-sys-color-fg-primary);
-    padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);
-    font: var(--cpx-sys-type-control);
-    outline: none;
-    transition:
-      background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
-      border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
-      color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
-      opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
-  }
-
-  .settings-input-narrow {
-    min-width: 0;
-    width: 200px;
-    max-width: 100%;
-    padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);
-  }
-
-  .settings-input-compact {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--cpx-comp-input-gap);
-    min-width: 0;
-    width: auto;
-    padding: var(--cpx-sys-space-1) var(--cpx-comp-input-padding-inline);
-  }
-
-  .settings-input-number {
-    width: 40px;
-    border: none;
-    background: transparent;
-    text-align: right;
-    padding: 0;
-    font: var(--cpx-sys-type-control);
-    color: inherit;
-  }
-  .settings-input-number:focus {
-    outline: none;
-  }
-  .settings-input-number::-webkit-inner-spin-button,
-  .settings-input-number::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  .settings-textarea {
-    width: min(360px, 48vw);
-    resize: vertical;
-    border: 1px solid var(--cpx-sys-color-border-default);
-    border-radius: var(--cpx-comp-input-radius);
-    background: var(--cpx-sys-color-surface-recessed);
-    color: var(--cpx-sys-color-fg-primary);
-    padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);
-    font: var(--cpx-sys-type-control);
-    outline: none;
-    transition:
-      background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
-      border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
-      color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
-      opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
-  }
-
-  .settings-code-textarea {
-    font: var(--cpx-sys-type-code);
-  }
-
-  .settings-input-unit {
-    color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
-  }
-
-  /* --- Input Interaction States --- */
-  .settings-input:hover:not(:disabled),
-  .settings-textarea:hover:not(:disabled) {
-    border-color: var(--cpx-sys-color-border-strong);
-  }
-
-  .settings-input:focus-visible,
-  .settings-textarea:focus-visible {
-    border-color: var(--cpx-sys-color-border-focus);
-    outline: 2px solid var(--cpx-sys-color-border-focus);
-    outline-offset: 1px;
-  }
-
-  .settings-input:disabled,
-  .settings-textarea:disabled {
-    border-color: var(--cpx-sys-color-border-subtle);
-    background: var(--cpx-comp-surface-panel);
-    color: var(--cpx-sys-color-fg-disabled);
-    outline: none;
-    cursor: default;
-    opacity: 0.55;
-  }
-
-  /*
-   * Narrow settings viewport: every form control drops to full width.
-   */
-  @media (max-width: 900px) {
-    .settings-input,
-    .settings-textarea,
-    .settings-dropdown.settings-dropdown-trigger,
-    .settings-input-number {
-      width: 100%;
-      max-width: none;
-    }
   }
 }

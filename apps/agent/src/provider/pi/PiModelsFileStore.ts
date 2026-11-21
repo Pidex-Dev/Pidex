@@ -1,3 +1,4 @@
+import { isRecord as isObject } from '@pidex/shared/guards'
 import type { AnyModel, ModelsStore, ModelsStoreEntry } from '@earendil-works/pi-ai'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
@@ -11,9 +12,6 @@ interface StoreDocument {
   readonly formatVersion: typeof FORMAT_VERSION
   readonly providers: Readonly<Record<string, ModelsStoreEntry>>
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const validModel = (value: unknown): value is AnyModel =>
   isObject(value) &&

@@ -16,7 +16,7 @@ const PENDING_CONTENT_CLASS =
   'pending-submission-content tw:mx-auto tw:flex tw:min-w-0 tw:flex-col tw:gap-2'
 
 const PENDING_STATUS_CLASS =
-  'pending-submission-status tw:flex tw:items-center tw:justify-center tw:gap-2 tw:py-3 tw:text-app-text-soft tw:type-body-sm'
+  'pending-submission-status tw:flex tw:items-center tw:justify-center tw:gap-2 tw:py-3 tw:text-app-text-soft tw:type-1'
 
 /**
  * 提交快照里的附件在发送前已生成，附件行需要的消息级字段在 pending 阶段
@@ -69,7 +69,8 @@ export function PendingSubmissionMessages({
           </article>
           <p className={PENDING_STATUS_CLASS} role="status" aria-live="polite">
             <Spinner />
-            <span>正在开启会话…</span>
+            {/* 会话已建立、只等首条消息进入投影：这时 Agent 已经在思考。 */}
+            <span>{submission.stage === 'sending' ? '正在思考' : '正在开启会话…'}</span>
           </p>
         </div>
       </div>

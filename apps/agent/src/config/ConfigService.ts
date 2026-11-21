@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { isRecord as isObject } from '@pidex/shared/guards'
 import { watch, type FSWatcher } from 'node:fs'
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import {
@@ -154,6 +155,7 @@ const KNOWN_CONFIG_ROOTS = new Set([
   'agent',
   'model_catalog',
   'auto_review',
+  'decision',
   'telemetry',
   'logging',
   'migration',
@@ -209,9 +211,6 @@ const isStaticMcpSecretHeaderPath = (path: readonly string[]) =>
   path[2] === 'transport' &&
   path[3] === 'headers' &&
   STATIC_SECRET_HEADERS.has(path[4]!.toLowerCase())
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const asConfigObject = (value: TomlTable): ConfigObject => value as unknown as ConfigObject
 

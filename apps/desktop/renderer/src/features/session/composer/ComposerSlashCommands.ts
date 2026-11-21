@@ -3,7 +3,6 @@ import type { DesktopInstalledSkill } from '../../../../shared/Types.js'
 
 export type ComposerSlashCommandId =
   | SharedSlashCommandId
-  | 'approve'
   | 'model'
   | 'reasoning'
   | 'goal'

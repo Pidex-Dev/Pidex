@@ -89,6 +89,11 @@ test('sidebar approval replaces the spinner until the session resumes running', 
   expect(permission).toContain('tw:bg-app-chart-green/20')
   expect(permission).not.toContain('需要用户输入')
   expect(render('running', true, 'waiting-question')).toContain('等待批准')
+  const waitingSubagents = render('waiting', false, 'waiting-subagents')
+  expect(waitingSubagents).toContain('sidebar-session-spinner')
+  expect(waitingSubagents).not.toContain('sidebar-session-approval')
+  expect(waitingSubagents).not.toContain('等待批准')
+  expect(render('waiting', true, 'waiting-subagents')).toContain('等待批准')
 })
 
 test('canonical completion clears a stale running indicator', () => {

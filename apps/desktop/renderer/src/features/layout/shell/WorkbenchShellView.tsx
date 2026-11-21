@@ -19,6 +19,11 @@ export interface WorkbenchShellViewProps {
   bottomPanelVisible: boolean
   workspaceLayout: WorkspaceLayout
   resizeActive: boolean
+  /**
+   * 右侧工作区内的任意用户操作（点击、键盘、滚动）都会触发该回调，用于清除
+   * 当前会话的未读标记。仅作用于工作区，不包含左侧会话侧栏。
+   */
+  onWorkspaceInteraction?: () => void
 }
 
 /**
@@ -41,6 +46,7 @@ export function WorkbenchShellView({
   bottomPanelVisible,
   workspaceLayout,
   resizeActive,
+  onWorkspaceInteraction,
 }: WorkbenchShellViewProps): React.ReactNode {
   return (
     <div
@@ -50,6 +56,7 @@ export function WorkbenchShellView({
       data-bottom-panel-visible={bottomPanelVisible}
       data-resize-active={resizeActive}
       data-workspace-layout={workspaceLayout}
+      style={workspaceStyle}
     >
       <div className="desktop-menubar tw:h-chrome tw:shrink-0 tw:bg-app-titlebar">{menuBar}</div>
       <div
@@ -74,6 +81,9 @@ export function WorkbenchShellView({
                 className="desktop-workspace tw:@container/desktop-workspace tw:relative tw:flex tw:h-full tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-col tw:overflow-hidden tw:bg-app-main"
                 ref={workspaceRef}
                 style={workspaceStyle}
+                onPointerDownCapture={onWorkspaceInteraction}
+                onKeyDownCapture={onWorkspaceInteraction}
+                onWheelCapture={onWorkspaceInteraction}
               >
                 {workspaceHeader}
                 <div className="desktop-workspace__upper tw:relative tw:flex tw:h-0 tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-stretch">

@@ -1,10 +1,7 @@
 import type { ScheduledTask, ScheduledTaskStatus } from '@pidex/shared/scheduled-task'
 import { AgentError } from '../Domain'
 import type { ScheduledTaskRepository } from '../storage/repositories/ScheduledTaskRepository'
-import type {
-  AutomationExecutionBinding,
-  AutomationRunExecutor,
-} from '../automation/AutomationRunCoordinator'
+import type { AutomationRunExecutor } from '../automation/AutomationRunCoordinator'
 
 type TerminalStatus = Extract<ScheduledTaskStatus, 'completed' | 'failed' | 'interrupted'>
 type RecoverableTurnStatus = 'queued' | 'running' | 'waiting' | TerminalStatus

@@ -1,6 +1,7 @@
+import { JsonValueSchema, ProviderErrorDetailsSchema } from '@pidex/agent-protocol'
+import { ProviderRequestError } from '../../provider/ProviderError'
 import type { ComputerUseService } from '../../computer/ComputerUseService'
 import {
-  PermissionConfigSchema,
   ThreadSettingsPatchSchema,
   ThreadSettingsSchema,
   type PermissionConfig,
@@ -44,7 +45,7 @@ import type { LocalContextPathService } from '../../local-context/LocalContextPa
 import type { ProjectSourceService } from '../../project/ProjectSourceService'
 import { WorkspaceService } from '../../workspace/WorkspaceService'
 import { InvalidThreadHistoryCursorError, ThreadProjection } from '../ThreadProjection'
-import { projectMemoryKey, type MemoryService } from '../../memory/MemoryService'
+import type { MemoryService } from '../../memory/MemoryService'
 import type { HookService } from '../../hooks/HookService'
 import type { GitReviewService } from '../../review/GitReviewService'
 import type { GithubService } from '../../github/GithubService'
@@ -56,10 +57,13 @@ import type { PetService } from '../../pet/PetService'
 import type { ReleaseNotesService } from '../../release-notes/ReleaseNotesService'
 import type { SkillManagementService } from '../../prompt/SkillManagementService'
 import type { PluginManagementService } from '../../plugin/PluginManagementService'
+import type { AppManagementService } from '../../plugin/AppManagementService'
 import type { McpRuntimeService } from '../../mcp/McpRuntimeService'
 import type { TaskSuggestionService } from '../../suggestion/TaskSuggestionService'
+import type { ComposerPredictionService } from '../../suggestion/ComposerPredictionService'
 import type { UsageService } from '../../usage/UsageService'
 import type { ConfigService } from '../../config/ConfigService'
+import { DecisionService } from '../../decision/DecisionService'
 import type { TurnPatchService } from '../../patch/TurnPatchService'
 import type { TerminalContextService } from '../../terminal/TerminalContextService'
 import type { TerminalOutputMirror } from '../../terminal/TerminalOutputMirror'
@@ -137,6 +141,7 @@ export type RpcRouterDependencies = {
   computer?: ComputerUseService
   browser?: BrowserService
   config: ConfigService
+  decisions?: DecisionService
   db: AgentDatabase
   hub: EventHub
   threads: ThreadService
@@ -160,6 +165,8 @@ export type RpcRouterDependencies = {
   authSessions: PiAuthSessionService
   memory: MemoryService
   hooks: HookService
+  /** Optional: unset when Hook management is not wired for this runtime. */
+  hooksManagement?: import('../../hooks/HooksManagement').HooksManagementService
   review: GitReviewService
   github: GithubService
   git: GitWorkspaceService
@@ -168,8 +175,10 @@ export type RpcRouterDependencies = {
   releaseNotes: ReleaseNotesService
   skills?: SkillManagementService
   plugins?: PluginManagementService
+  apps?: AppManagementService
   mcp?: McpRuntimeService
   suggestions?: TaskSuggestionService
+  composerPredictions?: ComposerPredictionService
   usage: UsageService
   turnPatches: TurnPatchService
   terminalContext: TerminalContextService
@@ -229,7 +238,6 @@ export const decodeQueueInput = Schema.decodeUnknownSync(QueueInputParamsSchema)
 export const decodeQueueResume = Schema.decodeUnknownSync(QueueResumeParamsSchema)
 export const decodeThreadSettings = Schema.decodeUnknownSync(ThreadSettingsSchema)
 export const decodeThreadSettingsPatch = Schema.decodeUnknownSync(ThreadSettingsPatchSchema)
-export const decodePermissionConfig = Schema.decodeUnknownSync(PermissionConfigSchema)
 export const decodeSandboxUninstall = Schema.decodeUnknownSync(SandboxUninstallParamsSchema)
 export const decodeReviewSummary = Schema.decodeUnknownSync(ReviewSummaryParamsSchema)
 export const decodeReviewFileDiff = Schema.decodeUnknownSync(ReviewFileDiffParamsSchema)
@@ -247,62 +255,6 @@ export const decodeReviewCommentID = Schema.decodeUnknownSync(ReviewCommentIDPar
 // The shared schema is the compatibility boundary. Do not collapse the Codex
 // permission matrix back into a handful of renderer presets here.
 export const supportedPermissionConfig = (value: PermissionConfig) => value
-
-export const resolveMemoryProjectKey = async (
-  db: AgentDatabase,
-  params: Record<string, unknown>,
-) => {
-  if (params.workspacePath !== undefined)
-    throw new AgentError(
-      'INVALID_REQUEST',
-      '项目记忆 RPC 不接受 workspacePath，请使用 projectId 或 threadId',
-      400,
-    )
-  const explicitProjectID =
-    typeof params.projectId === 'string' && params.projectId.trim() ? params.projectId : undefined
-  const threadID =
-    typeof params.threadId === 'string' && params.threadId.trim() ? params.threadId : undefined
-  if (!explicitProjectID && !threadID)
-    throw new AgentError('INVALID_REQUEST', '项目记忆 RPC 缺少 projectId 或 threadId', 400)
-  const threadProjectID = threadID ? db.threadProjectID(threadID) : undefined
-  if (threadID && !threadProjectID)
-    throw new AgentError('PROJECT_NOT_FOUND', 'Thread 未绑定已注册项目', 404)
-  if (explicitProjectID && threadProjectID && explicitProjectID !== threadProjectID)
-    throw new AgentError('PROJECT_SCOPE_MISMATCH', 'projectId 与 threadId 不属于同一项目', 409)
-  const projectID = explicitProjectID ?? threadProjectID!
-  const project = db.getProject(projectID)
-  if (!project) throw new AgentError('PROJECT_NOT_FOUND', '项目不存在', 404)
-  return projectMemoryKey(projectID)
-}
-
-export const resolveMemoryProjectID = (db: AgentDatabase, params: Record<string, unknown>) => {
-  if (typeof params.projectId === 'string' && params.projectId) return params.projectId
-  if (typeof params.threadId === 'string' && params.threadId) {
-    const projectId = db.threadProjectID(params.threadId)
-    if (projectId) return projectId
-  }
-  throw new AgentError('PROJECT_NOT_FOUND', '项目记忆缺少已注册项目', 404)
-}
-
-export const memoryEntryView = (
-  entry: {
-    id: string
-    scope: 'user' | 'project'
-    content: string
-    sourceThreadID: string | null
-    createdAt: number
-    updatedAt: number
-  },
-  projectId: string | null,
-) => ({
-  id: entry.id,
-  scope: entry.scope,
-  projectId,
-  content: entry.content,
-  sourceThreadId: entry.sourceThreadID,
-  createdAt: entry.createdAt,
-  updatedAt: entry.updatedAt,
-})
 
 export const resolveProjectWorkspace = async (db: AgentDatabase, projectId: string) => {
   const project = db.getProject(projectId)
@@ -324,6 +276,7 @@ export const submitMessage = (raw: unknown): SubmitMessage => {
 
 export class RpcRouter {
   readonly projection: ThreadProjection
+  readonly decisions: DecisionService
   readonly subscriptions: EventSubscriptionRegistry
   private readonly interactions: InteractionService
   readonly planApprovals: PlanApprovalService
@@ -365,6 +318,9 @@ export class RpcRouter {
     this.connectionLeaseMs = options.connectionLeaseMs ?? 60_000
     this.now = options.now ?? Date.now
     this.projection = new ThreadProjection(dependencies.db)
+    this.decisions =
+      dependencies.decisions ??
+      new DecisionService(dependencies.db, dependencies.config, dependencies.hub)
     this.planApprovals =
       dependencies.planApprovals ??
       new PlanApprovalService(dependencies.db, dependencies.hub, dependencies.threads)
@@ -422,6 +378,7 @@ export class RpcRouter {
   private applicationError(method: RpcMethod, cause: unknown) {
     if (cause instanceof RpcApplicationError) return cause
     if (!(cause instanceof AgentError)) {
+      console.error(`[agent] rpc ${method} threw unexpected error:`, cause)
       return new RpcApplicationError('INTERNAL_ERROR', 'Agent 内部错误', false)
     }
     const declared = RpcMethods[method].errors as readonly string[]
@@ -436,12 +393,17 @@ export class RpcRouter {
             ? 'PERMISSION_DENIED'
             : 'INTERNAL_ERROR'
     const code = exact ?? mapped ?? fallback
+    if (code === 'INTERNAL_ERROR' && !(cause instanceof RpcApplicationError)) {
+      console.error(`[agent] rpc ${method} failed:`, cause)
+    }
     const exposeMessage = exact !== null || mapped !== null || code !== 'INTERNAL_ERROR'
     return new RpcApplicationError(
       code,
       exposeMessage ? cause.message : 'Agent 内部错误',
-      cause.status === 429 || cause.status >= 500,
-      safeErrorDetails(code, cause.details),
+      cause instanceof ProviderRequestError
+        ? cause.retryable
+        : cause.status === 429 || cause.status >= 500,
+      safeErrorDetails(code, cause.details, cause instanceof ProviderRequestError),
     )
   }
 
@@ -954,14 +916,6 @@ export const modelRef = (value: Record<string, unknown>) => {
 export const modelRefOrNull = (value: unknown) =>
   value == null ? null : modelRef(record(value, 'model'))
 
-export const parseJsonRecord = (value: string) => {
-  try {
-    return record(JSON.parse(value))
-  } catch {
-    return {}
-  }
-}
-
 export const encodeOffsetCursor = (offset: number) => `offset:${offset}`
 export const decodeOffsetCursor = (value: unknown) => {
   if (value === undefined) return 0
@@ -971,7 +925,20 @@ export const decodeOffsetCursor = (value: unknown) => {
   return Number(value.slice('offset:'.length))
 }
 
-const safeErrorDetails = (code: ApplicationErrorCode, value: unknown): JsonValue | undefined => {
+const safeErrorDetails = (
+  code: ApplicationErrorCode,
+  value: unknown,
+  providerError = false,
+): JsonValue | undefined => {
+  if (providerError) {
+    try {
+      return Schema.decodeUnknownSync(JsonValueSchema)(
+        Schema.decodeUnknownSync(ProviderErrorDetailsSchema)(value),
+      )
+    } catch {
+      return undefined
+    }
+  }
   if (code === 'REVIEW_SNAPSHOT_EXPIRED') {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
     const details = value as Record<string, unknown>

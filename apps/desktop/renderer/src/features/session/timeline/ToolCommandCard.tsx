@@ -1,5 +1,6 @@
 import React from 'react'
 import { Check, ChevronDown, CircleAlert, CircleStop, LoaderCircle, WrapText } from 'lucide-react'
+import { stripTerminalControlSequences } from '@pidex/shared'
 import type { Item } from '@pidex/shared/thread'
 import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { useScrollEdgeState } from '../../../hooks/UseScrollEdgeState.js'
@@ -91,50 +92,21 @@ export function commandOutputFollowing(
   return expanded && !wasExpanded ? active : following
 }
 
-export function ToolCommandCard({
-  item,
+export function CanonicalCommandBlock({
   command,
-  output,
-  statusLabel,
-  expanded = true,
-  grouped = false,
-  children,
+  showPrompt = true,
+  ariaLabel = '执行内容',
+  codeClassName,
 }: {
-  item: ToolItem
   command: string
-  output: string | null
-  statusLabel: string
-  expanded?: boolean
-  grouped?: boolean
-  children?: React.ReactNode
+  showPrompt?: boolean
+  ariaLabel?: string
+  codeClassName?: string
 }): React.ReactNode {
-  const active =
-    item.state === 'pending' || item.state === 'waiting-permission' || item.state === 'running'
-  const [wrapped, setWrapped] = useCodeWrapPreference()
-  const scrollerRef = React.useRef<HTMLDivElement | null>(null)
-  const contentRef = React.useRef<HTMLPreElement | null>(null)
   const commandRef = React.useRef<HTMLPreElement | null>(null)
   const commandContentId = React.useId()
   const [commandExpanded, setCommandExpanded] = React.useState(false)
   const [commandOverflowing, setCommandOverflowing] = React.useState(false)
-  const followingRef = React.useRef(active)
-  const pinRef = React.useRef<HTMLDivElement | null>(null)
-  const wasExpandedRef = React.useRef(false)
-  const prevWrappedRef = React.useRef(wrapped)
-  const edge = useScrollEdgeState(scrollerRef, { contentRef, version: output })
-  const exitCode = readCommandExitCode(item.output)
-  const outputChunks = React.useMemo(
-    () => commandOutputChunks(output ?? (active ? '等待输出' : '无输出')),
-    [output, active],
-  )
-  const StatusIcon =
-    item.state === 'interrupted'
-      ? CircleStop
-      : item.state === 'error'
-        ? CircleAlert
-        : active
-          ? LoaderCircle
-          : Check
 
   React.useLayoutEffect(() => {
     // 收起态先限高再实测换行结果；窗口变窄或字号变化会改写换行，所以用 ResizeObserver 持续重测。
@@ -143,14 +115,103 @@ export function ToolCommandCard({
     if (!element || commandExpanded) return
     const measure = (): void =>
       setCommandOverflowing(element.scrollHeight > element.clientHeight + 1)
-    measure()
+    if (typeof ResizeObserver === 'undefined') {
+      measure()
+      return
+    }
+    // INVARIANT: ResizeObserver runs an initial post-layout observation before paint, avoiding forced synchronous layout reads during React commit.
     const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
   }, [command, commandExpanded])
 
+  return (
+    <>
+      <div className="canonical-command-card__command">
+        <div className="canonical-command-card__command-viewport">
+          <pre
+            ref={commandRef}
+            id={commandContentId}
+            className={codeClassName}
+            aria-label={ariaLabel}
+            aria-expanded={commandExpanded}
+            data-expanded={commandExpanded}
+          >
+            {showPrompt ? (
+              <>
+                <span className="canonical-command-shell__prompt" aria-hidden="true">
+                  $
+                </span>{' '}
+              </>
+            ) : null}
+            {command}
+          </pre>
+        </div>
+        <CopyButton
+          ariaLabel="复制执行内容"
+          text={command}
+          className="canonical-command-card__copy"
+        />
+      </div>
+      {commandOverflowing || commandExpanded ? (
+        <button
+          aria-controls={commandContentId}
+          aria-expanded={commandExpanded}
+          className="canonical-command-card__command-toggle"
+          data-prompt={showPrompt}
+          type="button"
+          onClick={() => {
+            // 展开后从头开始读，而不是停在收起态的旧滚动位置。
+            if (commandRef.current) commandRef.current.scrollTop = 0
+            setCommandExpanded((current) => !current)
+          }}
+        >
+          {commandExpanded ? (showPrompt ? '收起命令' : '收起') : showPrompt ? '展开命令' : '展开'}
+          <ChevronDown
+            aria-hidden="true"
+            className={`tw:size-icon-sm canonical-command-card__chevron${commandExpanded ? ' is-expanded' : ''}`}
+            size={APP_ICON_SIZES.sm}
+          />
+        </button>
+      ) : null}
+    </>
+  )
+}
+
+export function ToolCardOutputViewport({
+  active,
+  ariaLabel = '返回结果',
+  copyLabel = '复制返回结果',
+  emptyPlaceholder,
+  expanded = true,
+  output,
+}: {
+  active: boolean
+  ariaLabel?: string
+  copyLabel?: string
+  emptyPlaceholder?: string
+  expanded?: boolean
+  output: string | null
+}): React.ReactNode {
+  const [wrapped, setWrapped] = useCodeWrapPreference()
+  const sanitizedOutput = React.useMemo(
+    () => (output === null ? null : stripTerminalControlSequences(output)),
+    [output],
+  )
+  const scrollerRef = React.useRef<HTMLDivElement | null>(null)
+  const contentRef = React.useRef<HTMLPreElement | null>(null)
+  const followingRef = React.useRef(active)
+  const pinRef = React.useRef<HTMLDivElement | null>(null)
+  const wasExpandedRef = React.useRef(false)
+  const prevWrappedRef = React.useRef(wrapped)
+  const edge = useScrollEdgeState(scrollerRef, { contentRef, version: sanitizedOutput })
+  const placeholder = emptyPlaceholder ?? (active ? '等待输出' : '无输出')
+  const outputChunks = React.useMemo(
+    () => commandOutputChunks(sanitizedOutput ?? placeholder),
+    [placeholder, sanitizedOutput],
+  )
+
   React.useLayoutEffect(() => {
-    // 手动上滚只停止吸底，不冻结数据；重新展开运行中的工具恢复跟随。
     followingRef.current = commandOutputFollowing(
       active,
       expanded,
@@ -173,122 +234,141 @@ export function ToolCommandCard({
     if (justExpanded || wrappedChanged || needsBreakZero) {
       scroller.scrollTop = commandOutputScrollTop(scroller, active, followingRef.current)
     }
-  }, [active, expanded, output, wrapped])
+  }, [active, expanded, sanitizedOutput, wrapped])
+
+  return (
+    <div className="canonical-command-card__output">
+      <div
+        className="canonical-command-shell__edge-fade"
+        data-at-start={edge.atStart}
+        data-at-end={edge.atEnd}
+        data-scrollable={edge.scrollable}
+      >
+        <div
+          className="canonical-command-shell__scroller"
+          ref={scrollerRef}
+          tabIndex={0}
+          aria-label={ariaLabel}
+          onScroll={(event) => {
+            const atBottom = isCommandOutputAtBottom(event.currentTarget)
+            followingRef.current = atBottom
+            if (pinRef.current) {
+              pinRef.current.dataset.following = String(active && atBottom)
+            }
+          }}
+        >
+          <pre
+            ref={contentRef}
+            className="canonical-command-card__output-text"
+            data-wrapped={wrapped}
+          >
+            {outputChunks.map((chunk, index) => (
+              <span
+                key={index}
+                className="canonical-command-card__output-chunk"
+                style={{ containIntrinsicBlockSize: `auto ${chunk.lineCount}lh` }}
+              >
+                {chunk.text}
+              </span>
+            ))}
+          </pre>
+          <div
+            ref={pinRef}
+            className="canonical-command-card__output-pin"
+            data-following={active && followingRef.current}
+          />
+        </div>
+      </div>
+      <div className="canonical-command-card__actions">
+        <button
+          className="md-code-wrap tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+          type="button"
+          aria-label="输出自动换行"
+          title="输出自动换行"
+          aria-pressed={wrapped}
+          onClick={() => setWrapped(!wrapped)}
+        >
+          <WrapText className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
+        </button>
+        {sanitizedOutput !== null ? (
+          <CopyButton ariaLabel={copyLabel} text={sanitizedOutput} />
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+export function ToolCardFooter({
+  exitCode = null,
+  state,
+  statusLabel,
+}: {
+  exitCode?: number | null
+  state: ToolItem['state']
+  statusLabel: string
+}): React.ReactNode {
+  const active = state === 'pending' || state === 'waiting-permission' || state === 'running'
+  const StatusIcon =
+    state === 'interrupted'
+      ? CircleStop
+      : state === 'error'
+        ? CircleAlert
+        : active
+          ? LoaderCircle
+          : Check
+
+  return (
+    <footer className="canonical-command-shell__footer tw:flex tw:justify-end tw:p-2 tw:pt-0">
+      <span className="canonical-command-shell__status">
+        <StatusIcon
+          size={APP_ICON_SIZES.sm}
+          aria-hidden="true"
+          className={active ? 'canonical-spin' : undefined}
+        />
+        {statusLabel}
+        {!active && exitCode !== null ? ` · 退出码 ${exitCode}` : ''}
+      </span>
+    </footer>
+  )
+}
+
+export function ToolCommandCard({
+  item,
+  command,
+  output,
+  shellTag,
+  statusLabel,
+  expanded = true,
+  grouped = false,
+  children,
+}: {
+  item: ToolItem
+  command: string
+  output: string | null
+  shellTag?: string | null
+  statusLabel: string
+  expanded?: boolean
+  grouped?: boolean
+  children?: React.ReactNode
+}): React.ReactNode {
+  const active =
+    item.state === 'pending' || item.state === 'waiting-permission' || item.state === 'running'
+  const exitCode = readCommandExitCode(item.output)
 
   return (
     <article
       className={`canonical-command-shell canonical-command-card${grouped ? ' canonical-command-shell--embedded' : ''}`}
       data-state={item.state}
     >
-      <div className="canonical-command-card__command">
-        <div className="canonical-command-card__command-viewport">
-          <pre
-            ref={commandRef}
-            id={commandContentId}
-            aria-label="执行内容"
-            aria-expanded={commandExpanded}
-            data-expanded={commandExpanded}
-          >
-            <span className="canonical-command-shell__prompt" aria-hidden="true">
-              $
-            </span>{' '}
-            {command}
-          </pre>
+      {shellTag ? (
+        <div className="canonical-command-card__header">
+          <span className="canonical-command-card__header-tag">{shellTag}</span>
         </div>
-        <CopyButton
-          ariaLabel="复制执行内容"
-          text={command}
-          className="canonical-command-card__copy"
-        />
-      </div>
-      {commandOverflowing || commandExpanded ? (
-        <button
-          aria-controls={commandContentId}
-          aria-expanded={commandExpanded}
-          className="canonical-command-card__command-toggle"
-          type="button"
-          onClick={() => {
-            // 展开后从头开始读，而不是停在收起态的旧滚动位置。
-            if (commandRef.current) commandRef.current.scrollTop = 0
-            setCommandExpanded((current) => !current)
-          }}
-        >
-          {commandExpanded ? '收起命令' : '展开命令'}
-          <ChevronDown
-            aria-hidden="true"
-            className={`canonical-command-card__chevron${commandExpanded ? ' is-expanded' : ''}`}
-            size={APP_ICON_SIZES.sm}
-          />
-        </button>
       ) : null}
-      <div className="canonical-command-card__output">
-        <div
-          className="canonical-command-shell__edge-fade"
-          data-at-start={edge.atStart}
-          data-at-end={edge.atEnd}
-          data-scrollable={edge.scrollable}
-        >
-          <div
-            className="canonical-command-shell__scroller"
-            ref={scrollerRef}
-            tabIndex={0}
-            aria-label="返回结果"
-            onScroll={(event) => {
-              const atBottom = isCommandOutputAtBottom(event.currentTarget)
-              followingRef.current = atBottom
-              if (pinRef.current) {
-                pinRef.current.dataset.following = String(active && atBottom)
-              }
-            }}
-          >
-            <pre
-              ref={contentRef}
-              className="canonical-command-card__output-text"
-              data-wrapped={wrapped}
-            >
-              {outputChunks.map((chunk, index) => (
-                <span
-                  key={index}
-                  className="canonical-command-card__output-chunk"
-                  style={{ containIntrinsicBlockSize: `auto ${chunk.lineCount}lh` }}
-                >
-                  {chunk.text}
-                </span>
-              ))}
-            </pre>
-            <div
-              ref={pinRef}
-              className="canonical-command-card__output-pin"
-              data-following={active && followingRef.current}
-            />
-          </div>
-        </div>
-        <div className="canonical-command-card__actions">
-          <button
-            className="md-code-wrap tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:text-app-text-soft tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
-            type="button"
-            aria-label="输出自动换行"
-            title="输出自动换行"
-            aria-pressed={wrapped}
-            onClick={() => setWrapped(!wrapped)}
-          >
-            <WrapText size={APP_ICON_SIZES.sm} aria-hidden="true" />
-          </button>
-          {output !== null ? <CopyButton ariaLabel="复制返回结果" text={output} /> : null}
-        </div>
-      </div>
+      <CanonicalCommandBlock command={command} />
+      <ToolCardOutputViewport active={active} expanded={expanded} output={output} />
       {children}
-      <footer className="canonical-command-shell__footer">
-        <span className="canonical-command-shell__status">
-          <StatusIcon
-            size={APP_ICON_SIZES.sm}
-            aria-hidden="true"
-            className={active ? 'canonical-spin' : undefined}
-          />
-          {statusLabel}
-          {!active && exitCode !== null ? ` · 退出码 ${exitCode}` : ''}
-        </span>
-      </footer>
+      <ToolCardFooter exitCode={exitCode} state={item.state} statusLabel={statusLabel} />
     </article>
   )
 }

@@ -1,8 +1,8 @@
 import type React from 'react'
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Box, Plug } from 'lucide-react'
-import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
+import { Lightbulb, Plug } from 'lucide-react'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { SearchHeading } from '../../../components/ui/SearchHeading.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
@@ -88,9 +88,11 @@ export function SidebarPluginsPane({
 
   return (
     <div className="sidebar-plugins-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
-      <header className="sidebar-pane-heading tw:flex tw:min-h-9 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
+      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
         <SearchHeading
-          title={<h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{t('自定义')}</h2>}
+          title={
+            <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('自定义')}</h2>
+          }
           search={
             <SearchInput
               variant="outlined"
@@ -113,9 +115,9 @@ export function SidebarPluginsPane({
             layout="flex"
             leading={
               option.value === 'plugins' ? (
-                <Plug size={APP_ICON_SIZE} />
+                <Plug className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
               ) : (
-                <Box size={APP_ICON_SIZE} />
+                <Lightbulb className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
               )
             }
           >
@@ -133,20 +135,17 @@ export function SidebarPluginsPane({
           </SidebarRow>
         ))}
       </div>
-      <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:shrink-0 tw:items-center tw:px-4 tw:text-app-text-meta tw:type-body">
+      <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:shrink-0 tw:items-center tw:px-4 tw:text-app-text-meta tw:type-2">
         {t('已安装')}
       </h3>
       <ScrollArea
-        className="sidebar-scheduled-scroll tw:min-h-0 tw:flex-1 tw:px-2 tw:pb-2 tw:pt-0"
+        className="sidebar-scheduled-scroll tw:min-h-0 tw:flex-1 tw:px-1 tw:pb-2 tw:pt-0"
         contentClassName="tw:flex tw:flex-col tw:sidebar-row-gap"
       >
         {loading ? (
           <SidebarEmptyRow role="status">{t('正在加载插件…')}</SidebarEmptyRow>
         ) : error && visibleItems.length === 0 ? (
-          <div
-            className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-body-sm"
-            role="status"
-          >
+          <div className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-1" role="status">
             {error}
             <Button color="secondary" size="toolbar" onClick={refresh}>
               {t('重试')}
@@ -161,7 +160,7 @@ export function SidebarPluginsPane({
             <div key={item.id}>
               <SidebarRow
                 active={searchParams.get('plugin') === item.id}
-                className="sidebar-nav-link tw:group tw:type-row-title"
+                className="sidebar-nav-link tw:group tw:type-2 tw:weight-medium"
                 labelClassName="sidebar-item-label tw:min-w-0"
                 layout="flex"
                 leading={
@@ -220,7 +219,7 @@ export function SidebarPluginsPane({
                 </span>
               </SidebarRow>
               {actionErrors[item.id] ? (
-                <p role="status" className="tw:m-0 tw:px-2 tw:text-app-danger tw:type-body-sm">
+                <p role="status" className="tw:m-0 tw:px-2 tw:text-app-danger tw:type-1">
                   {actionErrors[item.id]}
                 </p>
               ) : null}

@@ -19,8 +19,58 @@ type SettingsDatabase = {
 }
 
 const SETTINGS_KEY = 'plugins.runtime.v1'
+const APP_SETTINGS_KEY = 'apps.runtime.v1'
 const MAX_OPERATIONS = 100
 const pluginIdPattern = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/
+
+export type AppRuntimeState = {
+  version: 1
+  disabledAppIds: string[]
+  generation: number
+  updatedAt: number
+  operations: Array<{
+    operationId: string
+    appId: string
+    enabled: boolean
+    generation: number
+    updatedAt: number
+  }>
+}
+
+const defaultAppState = (): AppRuntimeState => ({
+  version: 1,
+  disabledAppIds: [],
+  generation: 1,
+  updatedAt: 0,
+  operations: [],
+})
+
+const normalizeAppState = (value: AppRuntimeState | null): AppRuntimeState => {
+  if (!value || value.version !== 1) return defaultAppState()
+  return {
+    version: 1,
+    disabledAppIds: [
+      ...new Set(value.disabledAppIds.filter((appId) => pluginIdPattern.test(appId))),
+    ].sort(),
+    generation:
+      Number.isSafeInteger(value.generation) && value.generation >= 1 ? value.generation : 1,
+    updatedAt: Number.isFinite(value.updatedAt) && value.updatedAt >= 0 ? value.updatedAt : 0,
+    operations: Array.isArray(value.operations)
+      ? value.operations
+          .filter(
+            (operation) =>
+              typeof operation.operationId === 'string' &&
+              pluginIdPattern.test(operation.appId) &&
+              typeof operation.enabled === 'boolean' &&
+              Number.isSafeInteger(operation.generation) &&
+              operation.generation >= 1 &&
+              Number.isFinite(operation.updatedAt) &&
+              operation.updatedAt >= 0,
+          )
+          .slice(-MAX_OPERATIONS)
+      : [],
+  }
+}
 
 const defaultState = (): PluginRuntimeState => ({
   version: 1,
@@ -181,6 +231,56 @@ export class PluginSettingsRepository {
       ].slice(-MAX_OPERATIONS),
     }
     this.database.setSetting(SETTINGS_KEY, next)
+    return { state: next, changed }
+  }
+
+  appState() {
+    return normalizeAppState(this.database.getSetting<AppRuntimeState>(APP_SETTINGS_KEY))
+  }
+
+  setAppEnabled(input: { appId: string; enabled: boolean; operationId: string }) {
+    const state = this.appState()
+    const existing = state.operations.find(
+      (operation) => operation.operationId === input.operationId,
+    )
+    if (existing) {
+      if (existing.appId !== input.appId || existing.enabled !== input.enabled) {
+        throw new PluginSettingsConflictError('operationId 已用于其他应用设置请求')
+      }
+      return {
+        state: {
+          ...state,
+          generation: existing.generation,
+          updatedAt: existing.updatedAt,
+        },
+        changed: false,
+      }
+    }
+
+    const disabled = new Set(state.disabledAppIds)
+    const wasEnabled = !disabled.has(input.appId)
+    if (input.enabled) disabled.delete(input.appId)
+    else disabled.add(input.appId)
+    const changed = wasEnabled !== input.enabled
+    const updatedAt = changed ? Date.now() : state.updatedAt
+    const generation = changed ? state.generation + 1 : state.generation
+    const next: AppRuntimeState = {
+      version: 1,
+      disabledAppIds: [...disabled].sort(),
+      generation,
+      updatedAt,
+      operations: [
+        ...state.operations,
+        {
+          operationId: input.operationId,
+          appId: input.appId,
+          enabled: input.enabled,
+          generation,
+          updatedAt,
+        },
+      ].slice(-MAX_OPERATIONS),
+    }
+    this.database.setSetting(APP_SETTINGS_KEY, next)
     return { state: next, changed }
   }
 }

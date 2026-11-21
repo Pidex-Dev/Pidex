@@ -2,15 +2,7 @@ import { useShallow } from 'zustand/react/shallow'
 import type React from 'react'
 import type { DesktopGithubRepository } from '../../../shared/Types.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  CheckCircle2,
-  GitBranch,
-  GitFork,
-  Lock,
-  RefreshCw,
-  SquareArrowOutUpRight,
-  Unlock,
-} from 'lucide-react'
+import { CheckCircle2, GitBranch, GitFork, Lock, SquareArrowOutUpRight, Unlock } from 'lucide-react'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { errorMessageOf } from '@pidex/shared/errors'
 import { notifyProjectCatalogChanged } from '../projects/ProjectCatalogEvents.js'
@@ -156,7 +148,7 @@ export function GitBoardGithubView({
   }, [])
 
   const loginState = (
-    <div className="tw:mx-auto tw:w-full tw:max-w-[32rem] tw:pt-6">
+    <div className="tw:mx-auto tw:w-full tw:max-w-[32rem] tw:pt-5">
       <GithubLoginPanel
         controller={githubLogin}
         description={t('登录后可列出并克隆你有权限访问的 GitHub 仓库。')}
@@ -168,7 +160,7 @@ export function GitBoardGithubView({
   return (
     <div className="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-3">
       {/* 搜索框位于页头（与宠物页一致），这里只报告匹配数量。 */}
-      <span role="status" className="tw:shrink-0 tw:self-end tw:type-caption tw:text-app-text-meta">
+      <span role="status" className="tw:shrink-0 tw:self-end tw:type-1 tw:text-app-text-meta">
         {list.status === 'ready'
           ? searching
             ? `${t('匹配')} ${visible.length} / ${repositories.length} ${t('个仓库')}`
@@ -178,9 +170,10 @@ export function GitBoardGithubView({
       {notice && (
         <p
           role="status"
-          className="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:rounded-md tw:border tw:border-app-success-border tw:bg-app-success-subtle tw:px-3 tw:py-2 tw:text-app-success-fg tw:type-body-sm"
+          className="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:rounded-3 tw:border tw:border-app-success-border tw:bg-app-success-subtle tw:px-3 tw:py-2 tw:text-app-success-fg tw:type-1"
         >
           <CheckCircle2
+            className="tw:size-icon-md"
             aria-hidden="true"
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -193,7 +186,7 @@ export function GitBoardGithubView({
       {error && (
         <p
           role="alert"
-          className="tw:m-0 tw:rounded-md tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-body-sm"
+          className="tw:m-0 tw:rounded-3 tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-1"
         >
           {error}
         </p>
@@ -204,17 +197,17 @@ export function GitBoardGithubView({
         ) : list.status === 'loading' || list.status === 'idle' ? (
           <div
             role="status"
-            className="tw:flex tw:items-center tw:justify-center tw:gap-2 tw:py-16 tw:text-app-text-soft tw:type-body-sm"
+            className="tw:flex tw:items-center tw:justify-center tw:gap-2 tw:py-9 tw:text-app-text-soft tw:type-1"
           >
             <Spinner size="small" />
             {t('正在加载仓库…')}
           </div>
         ) : list.status === 'error' ? (
-          <div className="tw:mx-auto tw:grid tw:max-w-[28rem] tw:justify-items-center tw:gap-3 tw:py-16 tw:text-center">
-            <p role="alert" className="tw:m-0 tw:text-app-text tw:type-body">
+          <div className="tw:mx-auto tw:grid tw:max-w-[28rem] tw:justify-items-center tw:gap-3 tw:py-9 tw:text-center">
+            <p role="alert" className="tw:m-0 tw:text-app-text tw:type-2">
               {t('仓库列表加载失败')}
             </p>
-            <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">{list.error}</p>
+            <p className="tw:m-0 tw:text-app-text-soft tw:type-1">{list.error}</p>
             <Button variant="secondary" onClick={() => void loadRepositories()}>
               {t('重试')}
             </Button>
@@ -222,13 +215,13 @@ export function GitBoardGithubView({
         ) : !repositories.length ? (
           <p
             role="status"
-            className="tw:m-0 tw:py-16 tw:text-center tw:text-app-text-soft tw:type-body-sm"
+            className="tw:m-0 tw:py-9 tw:text-center tw:text-app-text-soft tw:type-1"
           >
             {t('没有可访问的 GitHub 仓库')}
           </p>
         ) : !visible.length ? (
-          <div className="tw:mx-auto tw:grid tw:max-w-[28rem] tw:justify-items-center tw:gap-2 tw:py-16 tw:text-center">
-            <p role="status" className="tw:m-0 tw:text-app-text tw:type-body">
+          <div className="tw:mx-auto tw:grid tw:max-w-[28rem] tw:justify-items-center tw:gap-2 tw:py-9 tw:text-center">
+            <p role="status" className="tw:m-0 tw:text-app-text tw:type-2">
               {`${t('没有匹配')} “${search.trim()}” ${t('的仓库')}`}
             </p>
             <Button variant="ghost" onClick={() => onSearchChange('')}>
@@ -270,19 +263,27 @@ function RepositoryRow({
   const { t, formatDate } = useLocale()
   const pushedAt = formatGithubPushedAt(repository.pushedAt, formatDate)
   return (
-    <li className="tw:flex tw:min-w-0 tw:items-center tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3">
+    <li className="tw:flex tw:min-w-0 tw:items-center tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3">
       <div className="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1">
         <div className="tw:flex tw:min-w-0 tw:items-center tw:gap-2">
           <Tooltip content={t(repository.private ? '私有仓库' : '公开仓库')}>
             <span aria-hidden="true" className="tw:inline-flex tw:shrink-0 tw:text-app-text-meta">
               {repository.private ? (
-                <Lock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Lock
+                  className="tw:size-icon-md"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               ) : (
-                <Unlock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <Unlock
+                  className="tw:size-icon-md"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
               )}
             </span>
           </Tooltip>
-          <span className="tw:min-w-0 tw:truncate tw:text-app-text tw:type-row-title">
+          <span className="tw:min-w-0 tw:truncate tw:text-app-text tw:type-2 tw:weight-medium">
             {repository.fullName}
           </span>
           <MetaChip>{t(repository.private ? '私有' : '公开')}</MetaChip>
@@ -299,16 +300,16 @@ function RepositoryRow({
           )}
           {repository.archived && <MetaChip>{t('已归档')}</MetaChip>}
         </div>
-        <p className="tw:m-0 tw:min-w-0 tw:truncate tw:text-app-text-soft tw:type-body-sm">
+        <p className="tw:m-0 tw:min-w-0 tw:truncate tw:text-app-text-soft tw:type-1">
           {repository.description ?? t('无描述')}
         </p>
-        <div className="tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-x-3 tw:gap-y-1 tw:text-app-text-meta tw:type-caption">
+        <div className="tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-x-3 tw:gap-y-1 tw:text-app-text-meta tw:type-1">
           <span className="tw:inline-flex tw:items-center tw:gap-1">
             <GitBranch
               aria-hidden="true"
               size={APP_ICON_SIZE}
               strokeWidth={APP_ICON_STROKE_WIDTH}
-              className="tw:size-3"
+              className="tw:size-icon-md"
             />
             {repository.defaultBranch}
           </span>
@@ -318,6 +319,7 @@ function RepositoryRow({
       <span className="tw:flex tw:shrink-0 tw:items-center tw:gap-2">
         <Button variant="secondary" size="md" onClick={onOpen}>
           <SquareArrowOutUpRight
+            className="tw:size-icon-md"
             aria-hidden="true"
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -334,7 +336,7 @@ function RepositoryRow({
 
 function MetaChip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border-subtle tw:px-2 tw:text-app-text-soft tw:type-caption">
+    <span className="tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border-subtle tw:px-2 tw:text-app-text-soft tw:type-1">
       {children}
     </span>
   )

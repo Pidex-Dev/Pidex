@@ -21,6 +21,28 @@ const workspace = {
 describe('ToolActivityClassifier', () => {
   test('maps built-in file exploration and mutation tools', () => {
     expect(
+      classifyToolActivity({ tool: 'view_image', input: { path: 'src/a.png' }, workspace }),
+    ).toEqual({
+      type: 'read',
+      subject: 'file',
+      target: { displayLabel: 'src/a.png', workspacePath: 'src/a.png' },
+    })
+    expect(
+      classifyToolActivity({
+        tool: 'exec_command',
+        input: { command: 'rg --files src | head -20' },
+        command: 'rg --files src | head -20',
+        workspace,
+      }),
+    ).toMatchObject({ type: 'list_files' })
+    expect(
+      classifyToolActivity({ tool: 'write_stdin', input: { session_id: 1, chars: 'x' } }),
+    ).toEqual({
+      type: 'tool',
+      mode: 'call',
+      name: 'write_stdin',
+    })
+    expect(
       classifyToolActivity({ tool: 'Read', input: { file_path: 'src/a.ts' }, workspace }),
     ).toEqual({
       type: 'read',

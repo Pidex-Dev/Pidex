@@ -17,19 +17,18 @@ describe('工作区工具', () => {
     const plan = executor.exposurePlan({
       taskMode: 'plan',
       sandboxMode: 'danger-full-access',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
 
       profile: 'main',
     })
-    expect(plan.exposed).toContain('PowerShell')
-    expect(plan.exposed).toContain('Bash')
+    expect(plan.exposed).toContain('exec_command')
+    expect(plan.exposed).toContain('write_stdin')
     expect(plan.exposed).toContain('Read')
-    expect(plan.exposed).toContain('Glob')
-    expect(plan.exposed).toContain('Grep')
     expect(plan.exposed).toContain('request_user_input')
     expect(plan.exposed).not.toContain('Write')
     expect(plan.exposed).not.toContain('Edit')
     expect(plan.exposed).not.toContain('apply_patch')
+    expect(plan.exposed).not.toContain('view_image')
     expect(plan.exposed).not.toContain('request_permissions')
     expect(plan.exposed).not.toContain('update_plan')
     expect(plan.exposed).not.toContain('finalize_plan')
@@ -40,15 +39,17 @@ describe('工作区工具', () => {
       approvalPolicy: 'never',
       profile: 'main',
     })
-    expect(grill.exposed).toContain('PowerShell')
-    expect(grill.exposed).toContain('Grep')
+    expect(grill.exposed).toContain('exec_command')
+    expect(grill.exposed).toContain('Read')
     expect(grill.exposed).not.toContain('Write')
     expect(grill.exposed).not.toContain('Edit')
+    expect(grill.exposed).not.toContain('apply_patch')
+    expect(grill.exposed).not.toContain('view_image')
 
     const chat = executor.exposurePlan({
       taskMode: 'chat',
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
+      approvalPolicy: 'auto_review',
 
       profile: 'main',
     })
@@ -58,7 +59,7 @@ describe('工作区工具', () => {
       executor.exposurePlan({
         taskMode: 'chat',
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
 
         profile: 'main',
         defaultModeRequestUserInput: true,
@@ -68,7 +69,7 @@ describe('工作区工具', () => {
       executor.exposurePlan({
         taskMode: 'chat',
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
 
         profile: 'worker',
       }).exposed,
@@ -77,7 +78,7 @@ describe('工作区工具', () => {
       executor.exposurePlan({
         taskMode: 'chat',
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
 
         profile: 'worker',
         defaultModeRequestUserInput: true,
@@ -101,7 +102,6 @@ describe('工作区工具', () => {
       workspace,
     }
 
-    await executor.execute('Read', { file_path: 'source.txt' }, context)
     const patch = await executor.execute(
       'Edit',
       {
@@ -119,7 +119,7 @@ describe('工作区工具', () => {
         permissionConfig: {
           sandboxMode: 'danger-full-access' as const,
           approvalPolicy: 'never' as const,
-          approvalsReviewer: 'user' as const,
+          approvalsReviewer: 'auto_review' as const,
         },
       }
       await expect(
@@ -155,15 +155,18 @@ describe('工作区工具', () => {
     expect(await workspace.read('utf8.txt')).toBe('中文 UTF-8')
   })
 
-  test('ToolCatalog 传递 workspace.read offset/limit', async () => {
+  test('ToolRegistry 直接注册 Read 并同时读取文本与图片路径，同时拒绝损坏图片', async () => {
     const root = await mkdtemp(join(tmpdir(), 'pidex-workspace-'))
     paths.push(root)
-    await Bun.write(join(root, 'lines.txt'), 'zero\none\ntwo\nthree')
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    await writeFile(join(root, 'preview.png'), png)
+    await writeFile(join(root, 'notes.txt'), 'plain text', 'utf8')
+    await writeFile(join(root, 'broken.png'), 'not-a-png', 'utf8')
     const workspace = await WorkspaceService.open(root)
     const executor = new ToolExecutor(new ToolRegistry())
-    const result = await executor.execute<{ content: string }>(
-      'workspace.read',
-      { file_path: 'lines.txt', offset: 1, limit: 2 },
+    const image = await executor.execute<{ kind: string; mimeType: string }>(
+      'Read',
+      { path: 'preview.png' },
       {
         threadID: 'thread',
         turnID: 'turn',
@@ -172,13 +175,39 @@ describe('工作区工具', () => {
         workspace,
       },
     )
-    expect(result.content).toBe('one\ntwo')
+    expect(image).toMatchObject({ kind: 'image', mimeType: 'image/png' })
+    const text = await executor.execute<{ content: string }>(
+      'Read',
+      { path: 'notes.txt' },
+      {
+        threadID: 'thread',
+        turnID: 'turn',
+        taskMode: 'chat',
+        signal: new AbortController().signal,
+        workspace,
+      },
+    )
+    expect(text.content).toBe('plain text')
+    await expect(
+      executor.execute(
+        'Read',
+        { path: 'broken.png' },
+        {
+          threadID: 'thread',
+          turnID: 'turn',
+          taskMode: 'chat',
+          signal: new AbortController().signal,
+          workspace,
+        },
+      ),
+    ).rejects.toMatchObject({ code: 'WORKSPACE_FILE_UNREADABLE' })
   })
 
   test('Skill allowedTools 在执行器最终边界只能收紧工具', async () => {
     const root = await mkdtemp(join(tmpdir(), 'pidex-skill-tools-'))
     paths.push(root)
-    await Bun.write(join(root, 'file.txt'), 'ok')
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    await writeFile(join(root, 'thumb.png'), png)
     const workspace = await WorkspaceService.open(root)
     const executor = new ToolExecutor(new ToolRegistry())
     const context = {
@@ -190,12 +219,10 @@ describe('工作区工具', () => {
       allowedTools: ['Read'],
     }
     await expect(
-      executor
-        .execute<{ content: string }>('workspace.read', { file_path: 'file.txt' }, context)
-        .then((result) => result.content),
-    ).resolves.toBe('ok')
+      executor.execute<{ kind: string }>('Read', { path: 'thumb.png' }, context),
+    ).resolves.toMatchObject({ kind: 'image' })
     await expect(
-      executor.execute('workspace.grep', { pattern: 'ok' }, context),
+      executor.execute('exec_command', { command: 'Get-Location' }, context),
     ).rejects.toMatchObject({ code: 'SKILL_TOOL_NOT_ALLOWED' })
   })
 
@@ -214,7 +241,7 @@ describe('工作区工具', () => {
     })
   })
 
-  test('统一执行器最低层拒绝 read-only apply_patch', async () => {
+  test('统一执行器最低层拒绝 read-only Write', async () => {
     const root = await mkdtemp(join(tmpdir(), 'pidex-workspace-'))
     paths.push(root)
     const workspace = await WorkspaceService.open(root)
@@ -233,7 +260,7 @@ describe('工作区工具', () => {
           permissionConfig: {
             sandboxMode: 'read-only',
             approvalPolicy: 'never',
-            approvalsReviewer: 'user',
+            approvalsReviewer: 'auto_review',
           },
         },
       ),
@@ -248,10 +275,13 @@ describe('工作区工具', () => {
     const explorerTools = registry
       .list('chat', 'workspace-write', 'explorer')
       .map((tool) => tool.sdkName)
-    expect(explorerTools).toContain('PowerShell')
-    expect(explorerTools).toContain('Grep')
+    expect(explorerTools).toContain('exec_command')
+    expect(explorerTools).toContain('write_stdin')
+    expect(explorerTools).toContain('Read')
     expect(explorerTools).not.toContain('Write')
     expect(explorerTools).not.toContain('Edit')
+    expect(explorerTools).not.toContain('apply_patch')
+    expect(explorerTools).not.toContain('view_image')
     const explorerPlan = createToolExposurePlan(registry, {
       taskMode: 'chat',
       sandboxMode: 'read-only',
@@ -259,7 +289,9 @@ describe('工作区工具', () => {
       profile: 'explorer',
     })
     expect(explorerPlan.allows('request_permissions')).toBe(false)
-    expect(explorerPlan.allows('spawn_agents')).toBe(true)
+    expect(explorerPlan.allows('Agent')).toBe(false)
+    expect(explorerPlan.allows('Glob')).toBe(true)
+    expect(explorerPlan.allows('Grep')).toBe(true)
     const runs: string[] = []
     const executor = new ToolExecutor(registry, {
       dataDir: join(root, '.agent-data'),
@@ -286,13 +318,86 @@ describe('工作区工具', () => {
       permissionConfig: {
         sandboxMode: 'read-only' as const,
         approvalPolicy: 'never' as const,
-        approvalsReviewer: 'user' as const,
+        approvalsReviewer: 'auto_review' as const,
       },
     }
-    await executor.execute('PowerShell', { command: 'Get-ChildItem' }, context)
+    await executor.execute('exec_command', { command: 'Get-ChildItem' }, context)
     expect(runs).toHaveLength(1)
     await expect(
       executor.execute('Write', { file_path: 'blocked.txt', content: 'blocked' }, context),
     ).rejects.toMatchObject({ code: 'TOOL_NOT_ALLOWED_FOR_PROFILE' })
+  })
+
+  test('read-only 下 Shell 重定向写入被拒绝，已知安全只读命令放行，workspace-write 不受影响', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'pidex-readonly-shell-'))
+    paths.push(root)
+    const workspace = await WorkspaceService.open(root)
+    const runs: string[] = []
+    const approvals: string[] = []
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, '.agent-data'),
+      authorizeShell: async (invocation) => {
+        approvals.push(String(invocation.input.command))
+        return { decision: 'allow', risk: 'low', reason: '允许' }
+      },
+      runHost: async (command) => {
+        runs.push(command)
+        return {
+          exitCode: 0,
+          signal: null,
+          stdout: 'ok',
+          stderr: '',
+          timedOut: false,
+          truncated: false,
+        }
+      },
+    })
+    const context = {
+      threadID: 'thread',
+      turnID: 'turn',
+      profile: 'explorer' as const,
+      taskMode: 'chat' as const,
+      signal: new AbortController().signal,
+      workspace,
+      permissionConfig: {
+        sandboxMode: 'read-only' as const,
+        approvalPolicy: 'never' as const,
+        approvalsReviewer: 'auto_review' as const,
+      },
+    }
+
+    await expect(
+      executor.execute('exec_command', { command: 'echo hi > probe.txt' }, context),
+    ).rejects.toMatchObject({
+      code: 'TOOL_PERMISSION_DENIED',
+      message: '只读文件访问范围仅允许宿主确认的只读 Shell 命令',
+    })
+    expect(runs).toHaveLength(0)
+    expect(approvals).toHaveLength(0)
+    expect(await Bun.file(join(root, 'probe.txt')).exists()).toBe(false)
+
+    await expect(
+      executor.execute('write_stdin', { session_id: 1, chars: 'echo hi > probe.txt\n' }, context),
+    ).rejects.toMatchObject({ code: 'TOOL_PERMISSION_DENIED' })
+    expect(runs).toHaveLength(0)
+
+    await executor.execute('exec_command', { command: 'git status' }, context)
+    expect(runs).toHaveLength(1)
+
+    const workspaceWriteContext = {
+      ...context,
+      permissionConfig: {
+        sandboxMode: 'workspace-write' as const,
+        approvalPolicy: 'auto_review' as const,
+        approvalsReviewer: 'auto_review' as const,
+      },
+    }
+    await executor.execute(
+      'exec_command',
+      { command: 'echo hi > probe.txt' },
+      workspaceWriteContext,
+    )
+    expect(runs).toHaveLength(2)
+    expect(approvals.at(-1)).toBe('echo hi > probe.txt')
   })
 })

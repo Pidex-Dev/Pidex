@@ -1,20 +1,11 @@
 import React from 'react'
+import { AlertCircle, Check, LoaderCircle, RotateCcw, X } from 'lucide-react'
 import {
-  AlertCircle,
-  ArrowLeft,
-  Check,
-  Circle,
-  LoaderCircle,
-  RotateCcw,
-  Square,
-  X,
-} from 'lucide-react'
-import type {
-  ApprovalRequest,
-  Item,
-  SubagentRun,
-  SubagentTask,
-  ThreadSnapshot,
+  resolveSubagentDisplayParts,
+  type Item,
+  type SubagentRun,
+  type SubagentTask,
+  type ThreadSnapshot,
 } from '@pidex/shared/thread'
 import {
   createCanonicalThreadState,
@@ -22,15 +13,10 @@ import {
   selectRenderTurnEntries,
 } from '@pidex/session-view'
 import type { VirtualizerHandle } from 'virtua'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-  APP_ICON_SIZES,
-} from '../../../components/ui/IconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { approvalToRequest } from '../../../services/AgentThreadAdapter.js'
 import {
   InlineApprovalCard,
   type InlineApprovalCardProps,
@@ -43,9 +29,6 @@ import {
 } from '../timeline/CanonicalThreadView.js'
 import { SessionTimelineView } from '../timeline/SessionTimelineView.js'
 import { normalizePatchActionError } from '../timeline/PatchActionError.js'
-import { subagentStatusLabel } from './SubagentStatusLabel.js'
-import { resolveSubagentRole } from './SubagentRole.js'
-import { SubagentAvatar } from './SubagentAvatar.js'
 import {
   ConversationItemContext,
   useOptionalConversationItemContext,
@@ -53,7 +36,7 @@ import {
 
 export interface SubagentThreadCapabilities {
   canStop: boolean
-  canRetry: boolean
+  canRetry?: boolean
   canRespondToApprovals: boolean
   canRespondToQuestions: boolean
   canRespondToPlan?: boolean
@@ -65,7 +48,6 @@ export interface SubagentThreadCapabilities {
 export interface SubagentThreadCallbacks {
   onPatchApplied?: () => Promise<void>
   onStop?: (task: SubagentTask, run: SubagentRun) => void
-  onRetry?: (task: SubagentTask, run: SubagentRun) => void
   onApplyWorktree?: (task: SubagentTask, run: SubagentRun) => void
   onDiscardWorktree?: (task: SubagentTask, run: SubagentRun) => void
   onRestoreWorkspace?: (task: SubagentTask, run: SubagentRun) => void
@@ -81,7 +63,6 @@ export interface SubagentThreadPanelProps {
   snapshot: ThreadSnapshot
   capabilities: SubagentThreadCapabilities
   callbacks: SubagentThreadCallbacks
-  onBackToParent?: () => void
 }
 
 export function SubagentThreadPanel({
@@ -90,8 +71,16 @@ export function SubagentThreadPanel({
   snapshot,
   capabilities,
   callbacks,
-  onBackToParent,
 }: SubagentThreadPanelProps): React.ReactNode {
+  const { agentName, taskTitle } = resolveSubagentDisplayParts({
+    displayName: task.displayName,
+    title: task.title,
+    profile: task.profile,
+    role: task.role,
+    task: task.task,
+  })
+  const identityLabel =
+    taskTitle && taskTitle !== agentName ? `${agentName} · ${taskTitle}` : agentName
   const itemContext = useOptionalConversationItemContext()
   const readOnlyItemContext = React.useMemo(
     () => ({
@@ -127,7 +116,14 @@ export function SubagentThreadPanel({
   const viewBlocked = pendingRequests.length > 0
   const blocked = isBlockedRun(run) || viewBlocked
   const canStop = capabilities.canStop && Boolean(callbacks.onStop) && isActiveRun(run)
-  const canRetry = capabilities.canRetry && Boolean(callbacks.onRetry) && isTerminalRun(run)
+  const hasWorkspaceActions =
+    (capabilities.canApplyWorktree && Boolean(callbacks.onApplyWorktree)) ||
+    (capabilities.canDiscardWorktree && Boolean(callbacks.onDiscardWorktree)) ||
+    (capabilities.canRestoreWorkspace && Boolean(callbacks.onRestoreWorkspace))
+  const statusNotices = [
+    task.waitingForDescendants ? '等待后代结算' : null,
+    task.queuedFollowups ? `${task.queuedFollowups} 条后续任务已接纳` : null,
+  ].filter((notice): notice is string => notice !== null)
   const scrollStorageKey = `pidex.subagent.scroll.${task.childThreadId}`
   const initialScrollOffset = React.useMemo(() => {
     try {
@@ -155,7 +151,6 @@ export function SubagentThreadPanel({
         key={turn.id}
       >
         <CanonicalConversationTurn
-          isSubagent
           disclosureState={disclosureState}
           entry={turn}
           onApplyPatch={async (itemId, action, expectedVersion) => {
@@ -191,123 +186,82 @@ export function SubagentThreadPanel({
 
   return (
     <section
-      aria-label={`${task.displayName} 子智能体线程`}
-      className="subagent-thread-panel tw:grid tw:w-full tw:h-full tw:min-h-0 tw:min-w-0 tw:grid-rows-[auto_minmax(0,1fr)] tw:bg-app-panel tw:text-app-text tw:[container-type:inline-size]"
+      aria-label={`${identityLabel} 子智能体线程`}
+      className="subagent-thread-panel tw:grid tw:w-full tw:h-full tw:min-h-0 tw:min-w-0 tw:grid-rows-[minmax(0,1fr)] tw:bg-app-canvas tw:text-app-text tw:[container-type:inline-size]"
       data-blocked={blocked || undefined}
       data-status={run.status}
     >
-      <header className="subagent-thread-panel__header tw:flex tw:min-h-[58px] tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3">
-        <div className="subagent-thread-panel__identity tw:flex tw:min-w-0 tw:items-center tw:gap-3">
-          {onBackToParent ? (
-            <Button
-              isIconOnly
-              className="subagent-thread-panel__back tw:flex-none"
-              color="ghostSecondary"
-              size="toolbar"
-              title="返回父对话"
-              onClick={onBackToParent}
-            >
-              <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </Button>
-          ) : null}
-          <SubagentAvatar
-            className="subagent-thread-panel__avatar"
-            role={resolveSubagentRole({
-              role: task.role,
-              displayName: task.displayName,
-              task: task.task,
-            })}
-            size="lg"
-          />
-          <div className="subagent-thread-panel__title-block tw:min-w-0">
-            <h2 className="tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-row-title tw:tracking-normal">
-              {task.displayName}
-            </h2>
-          </div>
-        </div>
-        <div className="subagent-thread-panel__run-actions tw:flex tw:items-center tw:gap-1">
-          <StatusBadge status={run.status} />
-          {capabilities.canApplyWorktree && callbacks.onApplyWorktree ? (
-            <Button
-              isIconOnly
-              aria-label="应用子智能体变更"
-              color="ghostSecondary"
-              size="toolbar"
-              title="应用子智能体变更"
-              onClick={() => callbacks.onApplyWorktree?.(task, run)}
-            >
-              <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </Button>
-          ) : null}
-          {capabilities.canDiscardWorktree && callbacks.onDiscardWorktree ? (
-            <Button
-              isIconOnly
-              aria-label="丢弃子智能体工作树"
-              color="danger"
-              size="toolbar"
-              title="丢弃子智能体工作树"
-              onClick={() => callbacks.onDiscardWorktree?.(task, run)}
-            >
-              <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </Button>
-          ) : null}
-          {capabilities.canRestoreWorkspace && callbacks.onRestoreWorkspace ? (
-            <Button
-              isIconOnly
-              aria-label="恢复子智能体共享变更"
-              color="ghostSecondary"
-              size="toolbar"
-              title="恢复共享变更"
-              onClick={() => callbacks.onRestoreWorkspace?.(task, run)}
-            >
-              <RotateCcw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </Button>
-          ) : null}
-          {canRetry ? (
-            <Button
-              isIconOnly
-              aria-label="重试子智能体"
-              color="ghostSecondary"
-              size="toolbar"
-              title="重试"
-              onClick={() => callbacks.onRetry?.(task, run)}
-            >
-              <RotateCcw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </Button>
-          ) : null}
-          {canStop ? (
-            <Button
-              isIconOnly
-              aria-label="停止子智能体"
-              color="danger"
-              size="toolbar"
-              title="停止此子智能体及全部后代"
-              onClick={() => callbacks.onStop?.(task, run)}
-            >
-              <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </Button>
-          ) : null}
-        </div>
-      </header>
-
       <div
         ref={scrollRef}
         className="subagent-thread-panel__scroll-region thread-scroll-layout tw:min-h-0 tw:overflow-auto tw:[scrollbar-gutter:stable]"
       >
-        <div className="subagent-thread-panel__transcript tw:mx-auto tw:grid tw:w-[min(760px,calc(100%-28px))] tw:min-w-0 tw:gap-4 tw:px-0 tw:pt-5 tw:pb-7">
-          <div
-            className="tw:text-app-text-meta tw:type-caption tw:[overflow-anchor:none]"
-            role="status"
-          >
-            第 {task.depth ?? 1} 层{task.waitingForDescendants ? ' · 等待后代结算' : ''}
-            {task.queuedFollowups ? ` · ${task.queuedFollowups} 条后续任务已接纳` : ''}
-          </div>
-          {run.queueReason ? (
+        <div className="subagent-thread-panel__transcript tw:mx-auto tw:grid tw:w-[min(760px,calc(100%-28px))] tw:min-w-0 tw:gap-4 tw:px-0 tw:pt-5 tw:pb-6">
+          {hasWorkspaceActions ? (
+            <div className="subagent-thread-panel__workspace-actions tw:flex tw:items-center tw:justify-end tw:gap-1 tw:[overflow-anchor:none]">
+              {capabilities.canApplyWorktree && callbacks.onApplyWorktree ? (
+                <Button
+                  isIconOnly
+                  aria-label="应用子智能体变更"
+                  color="ghostSecondary"
+                  size="toolbar"
+                  title="应用子智能体变更"
+                  onClick={() => callbacks.onApplyWorktree?.(task, run)}
+                >
+                  <Check
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                </Button>
+              ) : null}
+              {capabilities.canDiscardWorktree && callbacks.onDiscardWorktree ? (
+                <Button
+                  isIconOnly
+                  aria-label="丢弃子智能体工作树"
+                  color="danger"
+                  size="toolbar"
+                  title="丢弃子智能体工作树"
+                  onClick={() => callbacks.onDiscardWorktree?.(task, run)}
+                >
+                  <X
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                </Button>
+              ) : null}
+              {capabilities.canRestoreWorkspace && callbacks.onRestoreWorkspace ? (
+                <Button
+                  isIconOnly
+                  aria-label="恢复子智能体共享变更"
+                  color="ghostSecondary"
+                  size="toolbar"
+                  title="恢复共享变更"
+                  onClick={() => callbacks.onRestoreWorkspace?.(task, run)}
+                >
+                  <RotateCcw
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+          {statusNotices.length > 0 ? (
             <div
-              className="subagent-thread-panel__notice tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:px-3 tw:py-2 tw:bg-app-editor tw:text-app-text-meta tw:type-body-sm tw:[overflow-anchor:none]"
+              className="tw:text-app-text-meta tw:type-1 tw:[overflow-anchor:none]"
               role="status"
             >
-              <LoaderCircle className="tw:animate-spin" size={APP_ICON_SIZE} />
+              {statusNotices.join(' · ')}
+            </div>
+          ) : null}
+          {run.queueReason ? (
+            <div
+              className="subagent-thread-panel__notice tw:flex tw:items-center tw:gap-2 tw:rounded-4 tw:px-3 tw:py-2 tw:bg-app-editor tw:text-app-text-meta tw:type-1 tw:[overflow-anchor:none]"
+              role="status"
+            >
+              <LoaderCircle className="tw:size-icon-md tw:animate-spin" size={APP_ICON_SIZE} />
               {queueReasonLabel(run.queueReason)}
             </div>
           ) : null}
@@ -334,7 +288,7 @@ export function SubagentThreadPanel({
             </ConversationItemContext.Provider>
           ) : (
             <div
-              className="subagent-thread-panel__empty tw:py-7 tw:text-center tw:text-app-text-meta tw:type-body tw:[overflow-anchor:none]"
+              className="subagent-thread-panel__empty tw:py-6 tw:text-center tw:text-app-text-meta tw:type-2 tw:[overflow-anchor:none]"
               role="status"
             >
               {run.status === 'queued' || run.status === 'preparing'
@@ -348,7 +302,8 @@ export function SubagentThreadPanel({
               <InlineApprovalCard
                 key={pendingRequest.requestId}
                 request={pendingRequest}
-                identity={task.displayName}
+                identity={identityLabel}
+                workspacePath={task.workspace.rootPath}
                 disabledReason={
                   canRespond ? undefined : '此子智能体当前不可操作，请通过父任务继续。'
                 }
@@ -363,7 +318,7 @@ export function SubagentThreadPanel({
             <div className="tw:[overflow-anchor:none]">
               <PlanApprovalCard
                 approval={snapshot.pendingPlanApproval}
-                identity={task.displayName}
+                identity={identityLabel}
                 disabledReason="此子智能体没有计划续跑入口，请返回父任务处理。"
                 onRespond={() => Promise.reject(new Error('此子智能体不支持计划操作。'))}
               />
@@ -377,7 +332,7 @@ export function SubagentThreadPanel({
           ) : null}
           {run.error ? (
             <div
-              className="subagent-thread-panel__error tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-body-sm tw:[overflow-anchor:none]"
+              className="subagent-thread-panel__error tw:flex tw:items-center tw:gap-2 tw:rounded-4 tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-1 tw:[overflow-anchor:none]"
               role="alert"
             >
               <AlertCircle size="var(--inline-icon-size, 1em)" />
@@ -407,32 +362,12 @@ function BlockedNotice({
           : '此子智能体已阻塞'
   return (
     <div
-      className="subagent-thread-panel__blocked tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:px-3 tw:py-2 tw:text-app-warning-fg tw:type-body-sm"
+      className="subagent-thread-panel__blocked tw:flex tw:items-center tw:gap-2 tw:rounded-4 tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:px-3 tw:py-2 tw:text-app-warning-fg tw:type-1"
       role="status"
     >
       <AlertCircle size="var(--inline-icon-size, 1em)" />
       <span>{label}</span>
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: SubagentRun['status'] }): React.ReactNode {
-  return (
-    <span
-      className="subagent-thread-panel__status-badge tw:flex tw:flex-none tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-caption tw:data-[status=completed]:border-app-success-border tw:data-[status=completed]:bg-app-success-subtle tw:data-[status=completed]:text-app-success-fg tw:data-[status=failed]:border-app-danger-border tw:data-[status=failed]:bg-app-danger-subtle tw:data-[status=failed]:text-app-danger-fg tw:data-[status=interrupted]:border-app-danger-border tw:data-[status=interrupted]:bg-app-danger-subtle tw:data-[status=interrupted]:text-app-danger-fg"
-      data-status={status}
-    >
-      {isActiveRunStatus(status) ? (
-        <LoaderCircle className="tw:animate-spin" size={APP_ICON_SIZES.sm} />
-      ) : status === 'completed' ? (
-        <Check size={APP_ICON_SIZES.sm} />
-      ) : status === 'failed' ? (
-        <X size={APP_ICON_SIZES.sm} />
-      ) : (
-        <Circle size={APP_ICON_SIZES.sm} />
-      )}
-      {subagentStatusLabel(status)}
-    </span>
   )
 }
 
@@ -461,14 +396,5 @@ function isActiveRun(run: SubagentRun): boolean {
 function isActiveRunStatus(status: SubagentRun['status']): boolean {
   return (
     status === 'queued' || status === 'preparing' || status === 'running' || status === 'steering'
-  )
-}
-
-function isTerminalRun(run: SubagentRun): boolean {
-  return (
-    run.status === 'completed' ||
-    run.status === 'failed' ||
-    run.status === 'stopped' ||
-    run.status === 'interrupted'
   )
 }

@@ -9,27 +9,22 @@
    * Right dock panels residue.
    *
    * The dock's own panels — file browser, file preview chrome, editor layout,
-   * editor file tree, workspace file tree, plan/skill scroll areas and their
-   * resize handles — now live as Tailwind utilities in
-   * `src/features/layout/dock/RightDockPanels.tsx`,
-   * `src/features/layout/WorkspaceFileTree.tsx` and
-   * `src/features/layout/panels/FileBreadcrumbToolbar.tsx`.
+   * editor file tree, workspace file tree, plan/skill scroll areas, breadcrumb
+   * toolbar, empty states, side-chat shell/empty states, main stage/route and
+   * resize handles — now live as Tailwind utilities in their TSX components.
    *
-   * What stays here is shared with other feature owners:
+   * What stays here is container queries, runtime geometry/state rules, and
+   * elements owned by other features (`UserAttachmentPreviewPanel.tsx`):
    *
-   * - `.right-dock-file-preview`, `.right-dock-empty-state`,
-   *   `.right-dock-file-preview-scroll-area` and `.attachment-directory-entry`
-   *   are rendered by `src/features/session/attachments/UserAttachmentPreviewPanel.tsx`.
-   * - The `.file-breadcrumb-toolbar*` family is reused by the same attachment
-   *   preview panel (toolbar, `__path`, `__actions`, `__view-mode`), so the whole
-   *   family keeps one owner here.
-   * - `.right-dock-side-chat*` is owned by
-   *   `src/features/session/conversation/SideChatThreadPanel.tsx`.
-   * - `.desktop-main-stage` / `.desktop-main-route` belong to the app shell.
-   *
-   * `src/styles/primitives/right-dock.css` keeps what utilities cannot express:
-   * the editor-tree `::after` resize decoration and the imperative
-   * `document.body` `file-tree-is-resizing` cursor state.
+   * - `.right-dock-file-preview`, `.right-dock-file-preview-scroll-area`, and
+   *   `.attachment-directory-entry` are rendered by
+   *   `src/features/session/attachments/UserAttachmentPreviewPanel.tsx`.
+   * - `.file-breadcrumb-toolbar` interior segments (`__root`, `__segment`,
+   *   `__separator`, `__directory`, `__filename`, `__actions small`,
+   *   `__open-group`, `__open`, `__open-menu`, `.file-breadcrumb-open-target-icon`)
+   *   and `@container (max-width: 440px)` visibility rules stay here.
+   * - `.right-dock-side-chat__timeline .session-timeline-container` targets
+   *   timeline layout inside `ThreadScrollLayout`.
    */
   .right-dock-file-preview {
     container-type: inline-size;
@@ -42,68 +37,14 @@
     overflow: hidden;
   }
 
-  .right-dock-empty-state {
-    --right-dock-empty-state-gap: clamp(var(--cpx-sys-space-2), 2vh, var(--cpx-sys-space-5));
-    --right-dock-empty-state-padding: clamp(var(--cpx-sys-space-3), 4vh, var(--cpx-sys-space-6));
-    display: grid;
-    align-content: center;
-    justify-items: center;
-    gap: var(--right-dock-empty-state-gap);
-    width: 100%;
-    min-width: 0;
-    min-height: 0;
-    height: 100%;
-    padding: var(--right-dock-empty-state-padding);
-    color: var(--cpx-sys-color-fg-tertiary);
-    text-align: center;
-  }
-  .right-dock-empty-state strong {
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-heading-sm);
-  }
-  .right-dock-empty-state span {
-    color: var(--cpx-sys-color-fg-secondary);
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    font: var(--cpx-sys-type-body-sm);
-  }
-  .right-dock-empty-state svg {
-    width: var(--cpx-sys-icon-size-lg);
-    height: var(--cpx-sys-icon-size-lg);
-  }
-
-  .file-breadcrumb-toolbar {
-    display: flex;
-    height: 40px;
-    min-height: 40px;
-    min-width: 0;
-    flex: 0 0 40px;
-    align-items: center;
-    gap: var(--cpx-sys-space-2);
-    padding: 0 var(--cpx-sys-space-2);
-    border-bottom: 0;
-    background: var(--cpx-sys-color-workbench-panel-bg);
-    color: var(--cpx-sys-color-fg-secondary);
-  }
-
-  .file-breadcrumb-toolbar__path {
-    display: flex;
-    min-width: 0;
-    flex: 1 1 auto;
-    align-items: center;
-    overflow: hidden;
-    font: var(--cpx-sys-type-caption);
-    white-space: nowrap;
-  }
-
-  .file-breadcrumb-toolbar--empty .file-breadcrumb-toolbar__path {
-    justify-content: flex-start;
-  }
-
   .file-breadcrumb-toolbar__root {
     padding-inline: var(--cpx-sys-space-1);
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-label);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   .file-breadcrumb-toolbar__segment {
@@ -139,7 +80,10 @@
     overflow: hidden;
     color: inherit;
     cursor: default;
-    font: var(--cpx-sys-type-caption);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -155,30 +99,21 @@
   .file-breadcrumb-toolbar__filename strong {
     min-width: 0;
     overflow: hidden;
-    font: var(--cpx-sys-type-label);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
+    font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .file-breadcrumb-toolbar__actions {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: var(--cpx-sys-space-1);
-  }
   .file-breadcrumb-toolbar__actions small {
     color: var(--cpx-sys-color-fg-tertiary);
-    font: var(--cpx-sys-type-caption);
-  }
-
-  .file-breadcrumb-toolbar__action {
-    width: var(--cpx-sys-space-6);
-    padding: 0;
-    transition:
-      background var(--cpx-sys-motion-state) var(--cpx-sys-ease-out),
-      color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out),
-      border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out),
-      box-shadow var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
+    font-family: var(--cpx-sys-font-family-sans);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
+    letter-spacing: var(--cpx-sys-letter-spacing-1);
   }
 
   .file-breadcrumb-toolbar__view-mode {
@@ -193,13 +128,13 @@
   }
 
   .file-breadcrumb-toolbar__open {
-    border-radius: var(--cpx-sys-radius-md) 0 0 var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-3) 0 0 var(--cpx-sys-radius-3);
   }
 
   .file-breadcrumb-toolbar__open-menu {
     --file-open-target-seam: -1px;
     margin-left: var(--file-open-target-seam);
-    border-radius: 0 var(--cpx-sys-radius-md) var(--cpx-sys-radius-md) 0;
+    border-radius: 0 var(--cpx-sys-radius-3) var(--cpx-sys-radius-3) 0;
   }
 
   .file-breadcrumb-open-target-icon {
@@ -239,31 +174,14 @@
   }
 
   @container (max-width: 440px) {
-    .file-breadcrumb-toolbar {
-      gap: var(--cpx-sys-space-1);
-      padding-inline: var(--cpx-sys-space-1);
-    }
     .file-breadcrumb-toolbar__directory,
     .file-breadcrumb-toolbar__actions small {
       display: none;
     }
-    .file-breadcrumb-toolbar__actions {
-      gap: 0;
-    }
-  }
-  .right-dock-side-chat {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-    min-width: 0;
-    min-height: 0;
-    background: var(--cpx-sys-color-workbench-panel-bg);
-    overflow: hidden;
   }
 
   .right-dock-side-chat__timeline .session-timeline-container {
-    width: min(100%, var(--composer-width));
+    --session-timeline-width: min(100%, var(--composer-width));
     padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4) var(--cpx-sys-space-5);
   }
 
@@ -274,49 +192,5 @@
       outline: 2px solid Highlight;
       outline-offset: -2px;
     }
-  }
-  .right-dock-side-chat__empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100%;
-    padding: var(--cpx-sys-space-8) var(--cpx-sys-space-6);
-    color: var(--cpx-sys-color-fg-tertiary);
-    text-align: center;
-  }
-  .right-dock-side-chat__empty > strong {
-    margin-top: var(--cpx-sys-space-4);
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-heading-sm);
-  }
-  .right-dock-side-chat__empty > span:not(.right-dock-side-chat__empty-icon) {
-    margin-top: var(--cpx-sys-space-2);
-    font: var(--cpx-sys-type-body-sm);
-  }
-  .right-dock-side-chat__empty > button {
-    margin-top: var(--cpx-sys-space-4);
-  }
-
-  .right-dock-side-chat__empty-icon {
-    display: grid;
-    width: 42px;
-    height: 42px;
-    place-items: center;
-    border-radius: var(--cpx-sys-radius-full);
-    background: var(--cpx-sys-color-surface-recessed);
-  }
-  .right-dock-side-chat__empty-icon > svg {
-    width: var(--cpx-sys-icon-size-lg);
-    height: var(--cpx-sys-icon-size-lg);
-  }
-
-  .desktop-main-stage,
-  .desktop-main-route {
-    width: 100%;
-  }
-
-  .desktop-main-route {
-    min-width: 0;
   }
 }

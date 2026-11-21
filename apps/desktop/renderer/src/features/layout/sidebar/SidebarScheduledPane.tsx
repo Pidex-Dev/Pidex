@@ -11,7 +11,7 @@ import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { Button } from '../../../components/ui/Button.js'
-import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { SidebarEmptyRow, SidebarRow } from '../../../components/ui/SidebarRow.js'
 import { useLocale } from '../../i18n/LocaleProvider.js'
 
@@ -77,9 +77,11 @@ export function SidebarScheduledPane(): ReactNode {
 
   return (
     <div className="sidebar-scheduled-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
-      <header className="sidebar-pane-heading tw:flex tw:min-h-9 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
+      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
         <SearchHeading
-          title={<h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{t('已安排')}</h2>}
+          title={
+            <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('已安排')}</h2>
+          }
           search={
             <SearchInput
               variant="outlined"
@@ -99,7 +101,7 @@ export function SidebarScheduledPane(): ReactNode {
           title={t('新建任务')}
         >
           <Link onClick={controller.cancelDraft} to="/automations?automationMode=create">
-            <Plus aria-hidden size={APP_ICON_SIZE} />
+            <Plus className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
           </Link>
         </Button>
       </header>
@@ -113,7 +115,7 @@ export function SidebarScheduledPane(): ReactNode {
               asChild
               key={option.value}
               layout="flex"
-              leading={<Icon aria-hidden size={APP_ICON_SIZE} />}
+              leading={<Icon aria-hidden size={APP_ICON_SIZES.sm} />}
             >
               <button
                 type="button"
@@ -126,7 +128,7 @@ export function SidebarScheduledPane(): ReactNode {
           )
         })}
       </div>
-      <div className="sidebar-pane-filters tw:flex tw:flex-col tw:gap-2 tw:px-2 tw:pb-2">
+      <div className="sidebar-pane-filters tw:flex tw:flex-col tw:gap-2 tw:px-1 tw:pb-2">
         <SegmentedControl
           ariaLabel={t('任务状态')}
           options={[
@@ -139,7 +141,7 @@ export function SidebarScheduledPane(): ReactNode {
         />
       </div>
       <ScrollArea
-        className="sidebar-scheduled-scroll tw:min-h-0 tw:flex-1 tw:p-2"
+        className="sidebar-scheduled-scroll tw:min-h-0 tw:flex-1 tw:px-1 tw:py-2"
         contentClassName="tw:flex tw:flex-col tw:sidebar-row-gap"
       >
         {controller.supported === false ? (
@@ -147,10 +149,7 @@ export function SidebarScheduledPane(): ReactNode {
         ) : controller.loading ? (
           <SidebarEmptyRow role="status">{t('正在加载任务…')}</SidebarEmptyRow>
         ) : controller.error ? (
-          <div
-            className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-body-sm"
-            role="alert"
-          >
+          <div className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-1" role="alert">
             <p>{controller.error}</p>
             <Button size="compact" onClick={() => void controller.refresh()}>
               {t('重试')}
@@ -186,9 +185,9 @@ export function SidebarScheduledPane(): ReactNode {
                     }
                   >
                     {open ? (
-                      <ChevronDown size={APP_ICON_SIZE} />
+                      <ChevronDown className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                     ) : (
-                      <ChevronRight size={APP_ICON_SIZE} />
+                      <ChevronRight className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                     )}
                   </Button>
                   <SidebarRow
@@ -207,7 +206,7 @@ export function SidebarScheduledPane(): ReactNode {
                   </SidebarRow>
                 </div>
                 {open ? (
-                  <div className="sidebar-scheduled-runs tw:flex tw:flex-col tw:sidebar-row-gap tw:pl-6">
+                  <div className="sidebar-scheduled-runs tw:flex tw:flex-col tw:sidebar-row-gap tw:pl-5">
                     {runs.length === 0 ? (
                       <SidebarEmptyRow>{t('暂无执行记录')}</SidebarEmptyRow>
                     ) : (

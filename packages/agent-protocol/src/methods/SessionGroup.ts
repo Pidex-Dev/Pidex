@@ -18,7 +18,6 @@ import {
   NonEmptyStringSchema,
   NonNegativeIntSchema,
   OpaqueIDSchema,
-  OkResultSchema,
   OperationParamsSchema,
   TimestampSchema,
 } from '../wire/Primitives'

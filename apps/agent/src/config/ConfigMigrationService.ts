@@ -1,3 +1,4 @@
+import { isRecord as isObject } from '@pidex/shared/guards'
 import {
   specializedModelMigrationEdits,
   type ConfigEdit,
@@ -72,9 +73,6 @@ const isSecretMaterialKey = (key: string) => {
     'privatekey',
   ].some((part) => normalized === part || normalized.endsWith(part))
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const atPath = (value: ConfigObject, path: readonly string[]) => {
   let cursor: unknown = value

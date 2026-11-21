@@ -1,21 +1,15 @@
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-  APP_ICON_SIZES,
-} from '../../components/ui/IconTokens.js'
-import { desktopClient, desktopClipboard } from '../../services/desktop-client/index.js'
-import { isExecutableDesktopProvider } from '../../services/desktop-client/ProviderAdapters.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import { desktopClipboard } from '../../services/desktop-client/index.js'
 import React, { useEffect, useMemo, useState } from 'react'
 import type {
   DesktopApiKeySummary,
   DesktopProviderCredential,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
-  DesktopProviderDefinition,
   ModelProviderID,
 } from '../../../shared/Types.js'
 import { useDesktopSettingsField } from '../settings/UseDesktopSettings.js'
-import { fullErrorMessage, toUserErrorMessage } from '../../utils/Errors.js'
+import { toUserErrorMessage } from '../../utils/Errors.js'
 import { ChevronRight, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { useDesktopLayoutOutletContext } from '../layout/shell/DesktopLayoutOutletContext.js'
@@ -36,13 +30,12 @@ import {
   updateModelCenterSearchParams,
 } from './ModelCenterState.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
-import { ProviderEditorForm } from './provider-management/ProviderEditorForm.js'
+import {
+  NEW_PROVIDER_PANEL_ID,
+  ProviderEditorForm,
+} from './provider-management/ProviderEditorForm.js'
 import { ProviderConnectionSection } from './provider-management/ProviderConnectionSection.js'
 import { ProviderModelsSection } from './provider-management/ProviderModelsSection.js'
-import {
-  deepSeekManagedProvider,
-  deepSeekProtocolOf,
-} from './provider-management/DeepseekProtocol.js'
 import { type ApiKeyEditorValue } from './ApiKeyEditorDialog.js'
 import {
   providerManagementStore,
@@ -65,21 +58,6 @@ export function getProviderSelectionState(provider: DesktopModelProviderSummary 
   }
 }
 
-export function getProviderConnectionState({
-  provider,
-  model,
-  providerModels,
-}: {
-  provider: DesktopModelProviderSummary | undefined
-  model: string
-  providerModels: string[]
-}): { model: string } {
-  const defaultSelection = getProviderSelectionState(provider)
-  return {
-    model: providerModels.includes(model) ? model : defaultSelection.model,
-  }
-}
-
 export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactNode {
   const subscribedProviderID = useDesktopSettingsField((state) => state.providerID)
   const subscribedModel = useDesktopSettingsField((state) => state.model)
@@ -93,7 +71,6 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
   const [model, setModel] = useState(settings.model)
   const [busyKeyId, setBusyKeyId] = useState<string | null>(null)
   const [providerQuery, setProviderQuery] = useState('')
-  const [deepSeekProtocolSupported, setDeepSeekProtocolSupported] = useState(false)
   const [connectionDraftDirty, setConnectionDraftDirty] = useState(false)
   const [deleteKey, setDeleteKey] = useState<DesktopApiKeySummary | null>(null)
   const [orphanToDelete, setOrphanToDelete] = useState<DesktopProviderCredential | null>(null)
@@ -374,7 +351,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
         `API Key 已复制到剪贴板，将在 ${Math.round(result.clearAfterMs / 1000)} 秒后自动清理。`,
       )
     } catch (error) {
-      onError(fullErrorMessage(error))
+      onError(toUserErrorMessage(error))
     } finally {
       setBusyKeyId(null)
     }
@@ -397,7 +374,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
   }
 
   function showOperationError(error: unknown): void {
-    const message = fullErrorMessage(error)
+    const message = toUserErrorMessage(error)
     onError(message)
   }
 
@@ -430,11 +407,16 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
 
   useEffect(() => {
     providerPanel?.claimProvider(
-      showingProviderDetail && !showingCustomEditor ? (selectedProvider?.providerID ?? null) : null,
+      creatingCustomProvider
+        ? NEW_PROVIDER_PANEL_ID
+        : showingProviderDetail && !showingCustomEditor
+          ? (selectedProvider?.providerID ?? null)
+          : null,
     )
     return () => providerPanel?.claimProvider(null)
   }, [
     providerPanel?.claimProvider,
+    creatingCustomProvider,
     showingProviderDetail,
     showingCustomEditor,
     selectedProvider?.providerID,
@@ -521,7 +503,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
             void saveProviderDefinition(
               { ...selectedProvider.config!, enabled },
               selectedProvider.providerID,
-            ).catch((error) => onError(fullErrorMessage(error)))
+            ).catch((error) => onError(toUserErrorMessage(error)))
           }}
         />
       ) : null}
@@ -543,7 +525,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
         >
           <RefreshCw
             aria-hidden="true"
-            className={refreshingProviderData ? 'tw:animate-spin' : undefined}
+            className={`tw:size-icon-md ${refreshingProviderData ? 'tw:animate-spin' : undefined}`}
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
@@ -554,7 +536,12 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
           shape="pill"
           size="md"
         >
-          <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus
+            className="tw:size-icon-md"
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
           <span>新增自定义 Provider</span>
         </Button>
       </div>
@@ -584,7 +571,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
           {showInitialSkeleton ? (
             <ModelCenterInitialSkeleton view="catalog" />
           ) : providerQuery.trim() && marketProviders.length === 0 ? (
-            <p className="tw:py-8 tw:text-center tw:text-app-text-meta tw:type-body-sm">
+            <p className="tw:py-6 tw:text-center tw:text-app-text-meta tw:type-1">
               没有匹配的供应商
             </p>
           ) : (
@@ -596,9 +583,9 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
             />
           )}
           {orphanCredentials.length > 0 ? (
-            <section aria-label="遗留供应商凭据" className="tw:mt-6 tw:grid tw:gap-3">
-              <h2 className="tw:type-title-sm tw:text-app-text">遗留供应商凭据</h2>
-              <p className="tw:type-body-sm tw:text-app-text-meta">
+            <section aria-label="遗留供应商凭据" className="tw:mt-5 tw:grid tw:gap-3">
+              <h2 className="tw:type-4 tw:weight-bold tw:text-app-text">遗留供应商凭据</h2>
+              <p className="tw:type-1 tw:text-app-text-meta">
                 这些凭据所属的供应商已不存在，可单独删除，历史聊天仍保留。
               </p>
               {orphanCredentials.map((credential) => (
@@ -620,43 +607,27 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
         </PrimaryPageLayout>
       ) : (
         <div className="model-center-shell tw:@container tw:h-full tw:w-full tw:min-w-0 tw:overflow-x-hidden tw:overflow-y-auto tw:p-5">
-          <div className="tw:mx-auto tw:min-w-0 tw:w-full tw:max-w-[var(--page-content-max-width)] tw:pb-8">
-            {showingCustomEditor ? (
-              <>
-                <div className="plugins-detail-breadcrumb model-center-detail-breadcrumb tw:mb-4 tw:inline-flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
-                  <Button
-                    color="ghostSecondary"
-                    onClick={
-                      showingCustomEditor && !creatingCustomProvider
-                        ? showProviderDetail
-                        : showProviderCatalog
-                    }
-                    size="toolbar"
-                    title={
-                      showingCustomEditor && !creatingCustomProvider
-                        ? '返回供应商详情'
-                        : '返回供应商列表'
-                    }
-                  >
-                    {showingCustomEditor && !creatingCustomProvider
-                      ? selectedProvider?.displayName
-                      : '供应商'}
-                  </Button>
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="model-center-breadcrumb-separator tw:shrink-0 tw:text-app-text-meta tw:opacity-60"
-                    size="var(--inline-icon-size, 1em)"
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
-                  <span className="model-center-breadcrumb-current tw:overflow-hidden tw:text-app-text tw:text-ellipsis tw:whitespace-nowrap">
-                    {creatingCustomProvider
-                      ? '新供应商'
-                      : showingCustomEditor
-                        ? '编辑配置'
-                        : selectedProvider?.displayName}
-                  </span>
-                </div>
-              </>
+          <div className="tw:mx-auto tw:min-w-0 tw:w-full tw:max-w-[var(--page-content-max-width)] tw:pb-6">
+            {showingCustomEditor && !creatingCustomProvider ? (
+              <div className="plugins-detail-breadcrumb model-center-detail-breadcrumb tw:mb-4 tw:inline-flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-1">
+                <Button
+                  color="ghostSecondary"
+                  onClick={showProviderDetail}
+                  size="toolbar"
+                  title="返回供应商详情"
+                >
+                  {selectedProvider?.displayName}
+                </Button>
+                <ChevronRight
+                  aria-hidden="true"
+                  className="model-center-breadcrumb-separator tw:shrink-0 tw:text-app-text-meta tw:opacity-60"
+                  size="var(--inline-icon-size, 1em)"
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+                <span className="model-center-breadcrumb-current tw:overflow-hidden tw:text-app-text tw:text-ellipsis tw:whitespace-nowrap">
+                  编辑配置
+                </span>
+              </div>
             ) : null}
             {showInitialSkeleton ? (
               <ModelCenterInitialSkeleton view="detail" />
@@ -672,6 +643,13 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
                 onDelete={deleteCustomProvider}
                 onOpenChange={showProviderDetail}
                 onSaveDefinition={saveProviderDefinition}
+                onSaveInitialApiKey={async (providerId, key) => {
+                  await providerManagementStore.createApiKey({
+                    providerId,
+                    label: 'API Key 1',
+                    key,
+                  })
+                }}
                 onSaved={saveCustomProvider}
               />
             ) : showingProviderDetail && selectedProvider ? (

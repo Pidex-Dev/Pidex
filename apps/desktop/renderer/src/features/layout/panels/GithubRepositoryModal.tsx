@@ -160,9 +160,17 @@ export function GithubRepositoryModal({
                             )}
                           >
                             {repository.private ? (
-                              <Lock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                              <Lock
+                                className="tw:size-icon-md"
+                                size={APP_ICON_SIZE}
+                                strokeWidth={APP_ICON_STROKE_WIDTH}
+                              />
                             ) : (
-                              <Unlock size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                              <Unlock
+                                className="tw:size-icon-md"
+                                size={APP_ICON_SIZE}
+                                strokeWidth={APP_ICON_STROKE_WIDTH}
+                              />
                             )}
                             <strong>{repository.fullName}</strong>
                             {repository.fork ? <span>Fork</span> : null}
@@ -216,7 +224,7 @@ export function GithubRepositoryModal({
                 {t('刷新')}
               </Button>
             ) : (
-              <span className="tw:inline-flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption">
+              <span className="tw:inline-flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-1">
                 <GitFork aria-hidden="true" size="var(--inline-icon-size, 1em)" />
                 {t('也可以在看板的 GitHub 仓库页浏览和克隆')}
               </span>

@@ -28,7 +28,7 @@ const STACK_LINE_REGEX = /(?:^|\r?\n)\s*(?:at\s+|Traceback\b|Error:\s*\n)/i
 const AT_OBJECT_REGEX = /\bat Object\./
 const STACK_CALL_SITE_REGEX = /\b[A-Za-z0-9_$.]+@[A-Za-z0-9_./:-]+/
 const STACK_LOCATION_REGEX = /\b\w+\.[jt]sx?:\d+:\d+\b/
-// 上面的正则对超长点号串有回溯风险；先按行长度快速排除，绝大多数错误消息远小于此。
+// SAFETY: Reject oversized strings before regex scanning to prevent catastrophic backtracking.
 const MAX_ERROR_MESSAGE_SCAN_LENGTH = 20_000
 
 const SENSITIVE_TOKEN_REGEX =
@@ -59,7 +59,7 @@ export function safeTurnError(error: unknown): string | null {
   if (error == null) return null
   const message = errorMessageOf(error).trim()
   if (!message) return null
-  // 超长消息直接拒绝：既能挡住回溯风险，也避免把大段内容当成可展示错误。
+  // SAFETY: Oversized messages are never safe user-facing errors and bypass regex scanning.
   if (message.length > MAX_ERROR_MESSAGE_SCAN_LENGTH) return null
 
   if (

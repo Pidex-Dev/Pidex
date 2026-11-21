@@ -28,6 +28,7 @@ import { RuntimeCompositionRepository } from '../repositories/RuntimeComposition
 import { SessionGroupRepository } from '../repositories/SessionGroupRepository'
 import { ThreadGoalRepository } from '../repositories/ThreadGoalRepository'
 import { ThreadGoalLedgerRepository } from '../repositories/ThreadGoalLedgerRepository'
+import { DecisionLedgerRepository } from '../repositories/DecisionLedgerRepository'
 import { ThreadGoalContinuationRepository } from '../repositories/ThreadGoalContinuationRepository'
 import { ThreadGoalControlRepository } from '../repositories/ThreadGoalControlRepository'
 import { ThreadBookmarkRepository } from '../repositories/ThreadBookmarkRepository'
@@ -107,6 +108,7 @@ export class AgentDatabase extends RepositoryDatabase {
       taskSchedules: new TaskScheduleRepository(this),
       permissionRules: new PermissionRuleRepository(this),
       modelRuntimePreferences: new ModelRuntimePreferenceRepository(this),
+      decisionLedger: new DecisionLedgerRepository(this),
     }
     this.artifacts = new ArtifactRepository(sqlite)
     this.repositories.planApprovals.recover()

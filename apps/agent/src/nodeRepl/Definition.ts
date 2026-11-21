@@ -1,13 +1,23 @@
-import type { ComputerResult } from '@pidex/agent-protocol'
+import type { ComputerResult, McpServerDeclaration } from '@pidex/agent-protocol'
 import { z } from 'zod'
+import { createHash } from 'node:crypto'
 import { AgentError } from '../Domain'
 import type { ComputerUseService } from '../computer/ComputerUseService'
 import type { PluginManagementService } from '../plugin/PluginManagementService'
 import type { ToolContext, ToolDefinition, ToolStructuredResult } from '../tool/ToolRegistry'
 import type { ToolExecutionContext, ToolExecutor } from '../tool/ToolExecutor'
-import { NODE_REPL_PLUGIN_ID, NODE_REPL_SERVER_NAME, NODE_REPL_TOOL_NAME } from './Association'
+import {
+  NODE_REPL_PLUGIN_ID,
+  NODE_REPL_RESET_TOOL_NAME,
+  NODE_REPL_SERVER_NAME,
+  NODE_REPL_TOOL_NAME,
+} from './Association'
 import type { ComputerOperationRecovery, NodeReplOperationRequest } from './Protocol'
-import type { NodeReplOperationOutcome, NodeReplService } from './NodeReplService'
+import {
+  isBuiltinNodeReplServer,
+  type NodeReplOperationOutcome,
+  type NodeReplService,
+} from './NodeReplService'
 
 const INTERNAL_TOOL_BY_METHOD = {
   apps: 'ComputerApps',
@@ -23,7 +33,10 @@ const jsSchema = z
   })
   .strict()
 
+const resetSchema = z.object({}).strict()
+
 export type NodeReplJsInput = z.infer<typeof jsSchema>
+export type NodeReplResetInput = z.infer<typeof resetSchema>
 
 type NodeReplOutput = {
   text: string
@@ -31,6 +44,42 @@ type NodeReplOutput = {
   /** Stop the agent loop after a pause; the checkpoint owns the resume. */
   terminated: boolean
 }
+
+type NodeReplDefinitionDeps = {
+  plugins: PluginManagementService
+  computer: ComputerUseService
+  service: NodeReplService
+  executor: ToolExecutor
+  server?: McpServerDeclaration
+  validateConfiguration?: () => Promise<void>
+}
+
+/** MCP provenance for one raw tool of the node_repl server. */
+const mcpOrigin = (deps: NodeReplDefinitionDeps, rawToolName: string) => ({
+  kind: 'mcp' as const,
+  serverName: NODE_REPL_SERVER_NAME,
+  rawToolName,
+  generation: 0,
+  ...(deps.server
+    ? {
+        configurationHash: createHash('sha256').update(JSON.stringify(deps.server)).digest('hex'),
+      }
+    : {}),
+})
+
+const isExternalServer = (deps: NodeReplDefinitionDeps) =>
+  Boolean(deps.server && !isBuiltinNodeReplServer(deps.server))
+
+/** A built-in server needs no review; an external one keeps its configured policy. */
+const approvalStrategyFor = (
+  external: boolean,
+  approvalMode: string | undefined,
+): ToolDefinition['approvalStrategy'] =>
+  approvalMode === 'prompt' || approvalMode === 'writes'
+    ? 'always-review'
+    : approvalMode === 'approve' || !external
+      ? 'never-review'
+      : 'policy'
 
 const requireHostIdentity = (context: ToolContext) => {
   if (!context.invocation || (context.profile && context.profile !== 'main'))
@@ -45,16 +94,25 @@ const asComputerResult = (value: unknown): ComputerResult => {
 }
 
 /**
- * `mcp__node_repl__js` is the only model-visible computer-control entry. The
- * three built-in computer tools stay registered as internal operations, so
- * every call still passes host inspection, hooks, decisions and approval.
+ * `mcp__node_repl__js` is the only model-visible computer-control entry, and
+ * `mcp__node_repl__js_reset` only discards its context. The three built-in
+ * computer tools stay registered as internal operations, so every call still
+ * passes host inspection, hooks, decisions and approval.
  */
-export function nodeReplToolDefinition(deps: {
-  plugins: PluginManagementService
-  computer: ComputerUseService
-  service: NodeReplService
-  executor: ToolExecutor
-}): ToolDefinition<NodeReplJsInput, NodeReplOutput> {
+export function nodeReplToolDefinition(
+  deps: NodeReplDefinitionDeps,
+): ToolDefinition<NodeReplJsInput, NodeReplOutput> {
+  const external = isExternalServer(deps)
+  const approvalMode = deps.server?.tools?.js?.approvalMode ?? deps.server?.defaultToolsApprovalMode
+  const capabilities = {
+    filesystem: 'none' as const,
+    network: 'none' as const,
+    process: external,
+    externalState: external,
+    userInteraction: false,
+  }
+  const approvalStrategy = approvalStrategyFor(external, approvalMode)
+  const origin = (rawToolName: string) => mcpOrigin(deps, rawToolName)
   const nestedContext = (context: ToolContext, toolCallID: string): ToolExecutionContext => ({
     threadID: context.invocation!.threadID,
     turnID: context.invocation!.turnID,
@@ -75,6 +133,7 @@ export function nodeReplToolDefinition(deps: {
     toolCallID: string,
     resumed: boolean,
   ): Promise<NodeReplOperationOutcome> => {
+    await deps.validateConfiguration?.()
     const name = INTERNAL_TOOL_BY_METHOD[method]
     // Audit identity stays distinct from the js call. It is deterministic so a
     // resumed execution is idempotent instead of writing a second row.
@@ -135,26 +194,16 @@ export function nodeReplToolDefinition(deps: {
   return {
     sdkName: NODE_REPL_TOOL_NAME,
     name: NODE_REPL_TOOL_NAME,
-    description:
-      '电脑控制：在独立进程中执行一段 JavaScript，通过 computer API 发现 Windows 应用（computer.apps）、读取窗口界面与截图（computer.read）、执行操作（computer.action）。每次调用都是全新进程，globals 与绑定不跨调用保留；只提供 computer 与 nodeRepl，没有 import、Shell、文件或网络。仅主 Agent、聊天模式可用；每次电脑操作仍走统一权限与审批链。',
+    description: external
+      ? 'Execute JavaScript through the configured stdio MCP node_repl service. Computer bridge operations still pass through Pidex authorization. Available external runtime APIs are defined by that service.'
+      : 'Execute JavaScript in the chat-specific process using computer.apps, computer.read and computer.action. Cells in the same chat retain bindings and object identity; separate chats are isolated. Use js_reset to clear this chat context. Only computer and nodeRepl are available: no imports, shell, file or network access. Main agent in Chat mode only. Every computer action passes host authorization and approval.',
     schema: jsSchema,
     inputSchema: z.toJSONSchema(jsSchema),
-    origin: {
-      kind: 'mcp',
-      serverName: NODE_REPL_SERVER_NAME,
-      rawToolName: 'js',
-      generation: 0,
-    },
-    capabilities: {
-      filesystem: 'none',
-      network: 'none',
-      process: false,
-      externalState: false,
-      userInteraction: false,
-    },
+    origin: origin('js'),
+    capabilities,
     allowedModes: ['chat'],
     allowedProfiles: ['main'],
-    approvalStrategy: 'never-review',
+    approvalStrategy,
     visibility: 'deferred',
     executionMode: 'sequential',
     available: () => deps.plugins.isEnabled(NODE_REPL_PLUGIN_ID) && deps.computer.available(),
@@ -178,6 +227,7 @@ export function nodeReplToolDefinition(deps: {
       const invocation = requireHostIdentity(context)
       if (!deps.plugins.isEnabled(NODE_REPL_PLUGIN_ID))
         throw new AgentError('PLUGIN_DISABLED', 'Computer Use 插件未启用，无法使用 node_repl', 403)
+      await deps.validateConfiguration?.()
       const recovery = context.computerRecovery
       if (recovery) {
         // Resume executes only the saved operation; the original script never runs again.
@@ -199,12 +249,20 @@ export function nodeReplToolDefinition(deps: {
         }
       }
       const result = await deps.service.execute({
+        ...(deps.server ? { server: deps.server } : {}),
+        title: input.title,
         threadID: invocation.threadID,
         code: input.code,
         timeoutMs: input.timeout_ms,
         signal: context.signal,
-        runOperation: (request: NodeReplOperationRequest) =>
-          runInternal(request.method, request.args, context, invocation.toolCallID, false),
+        runOperation: (request: NodeReplOperationRequest, signal) =>
+          runInternal(
+            request.method,
+            request.args,
+            { ...context, signal },
+            invocation.toolCallID,
+            false,
+          ),
       })
       return result.paused
         ? { text: '已暂停等待应用授权，请批准后重新观察。', images: [], terminated: true }
@@ -223,6 +281,59 @@ export function nodeReplToolDefinition(deps: {
           }
         : {}),
       ...(output.terminated ? { terminate: true } : {}),
+    }),
+  }
+}
+
+/**
+ * `mcp__node_repl__js_reset` clears the chat's evaluation context. It runs no
+ * script and needs no computer operation, so it declares no process or
+ * external-state capability; it still resolves through the same host path and
+ * configuration fingerprint as `js` so it can never outlive a config change.
+ */
+export function nodeReplResetToolDefinition(
+  deps: NodeReplDefinitionDeps,
+): ToolDefinition<NodeReplResetInput, NodeReplOutput> {
+  // An external server may still ask for review of the reset itself.
+  const approvalMode =
+    deps.server?.tools?.js_reset?.approvalMode ?? deps.server?.defaultToolsApprovalMode
+  // 内置服务无需审批；外部服务只按它自己对本工具的审批模式判断。
+  const approvalStrategy: ToolDefinition['approvalStrategy'] = isExternalServer(deps)
+    ? approvalStrategyFor(true, approvalMode)
+    : 'never-review'
+  return {
+    sdkName: NODE_REPL_RESET_TOOL_NAME,
+    name: NODE_REPL_RESET_TOOL_NAME,
+    description:
+      'Reset the node_repl JavaScript context of this chat, discarding variables, functions, objects and globals. The next js call starts clean. Other chats are unaffected.',
+    schema: resetSchema,
+    inputSchema: z.toJSONSchema(resetSchema),
+    origin: mcpOrigin(deps, 'js_reset'),
+    // No elevation: it neither spawns a process nor touches external state.
+    capabilities: {
+      filesystem: 'none',
+      network: 'none',
+      process: false,
+      externalState: false,
+      userInteraction: false,
+    },
+    allowedModes: ['chat'],
+    allowedProfiles: ['main'],
+    approvalStrategy,
+    visibility: 'deferred',
+    executionMode: 'sequential',
+    available: () => deps.plugins.isEnabled(NODE_REPL_PLUGIN_ID) && deps.computer.available(),
+    execute: async (_input, context) => {
+      const invocation = requireHostIdentity(context)
+      if (!deps.plugins.isEnabled(NODE_REPL_PLUGIN_ID))
+        throw new AgentError('PLUGIN_DISABLED', 'Computer Use 插件未启用，无法使用 node_repl', 403)
+      await deps.validateConfiguration?.()
+      await deps.service.reset(invocation.threadID)
+      return { text: '已重置当前 chat 的 JavaScript 上下文', images: [], terminated: false }
+    },
+    formatResult: (output): ToolStructuredResult => ({
+      content: output.text,
+      details: { text: output.text },
     }),
   }
 }

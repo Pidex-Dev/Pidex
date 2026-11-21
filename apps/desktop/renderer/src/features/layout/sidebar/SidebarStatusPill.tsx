@@ -15,7 +15,7 @@ export function SidebarStatusPill({ kind, progress, onSnooze }: Props): ReactNod
   const label = kind === 'input' ? '需要用户输入' : '等待批准'
   const interactive = onSnooze !== undefined
   const className = cx(
-    'sidebar-status-pill tw:relative tw:inline-grid tw:max-w-[150px] tw:shrink-0 tw:items-center tw:overflow-hidden tw:rounded-full tw:py-0.5 tw:ps-2 tw:pe-2.5 tw:type-body-sm',
+    'sidebar-status-pill tw:relative tw:inline-grid tw:max-w-[150px] tw:shrink-0 tw:items-center tw:overflow-hidden tw:rounded-full tw:py-1 tw:ps-2 tw:pe-2 tw:type-1',
     kind === 'input'
       ? 'sidebar-session-input tw:bg-app-chart-blue/15 tw:text-app-chart-blue'
       : 'sidebar-session-approval tw:bg-app-chart-green/20 tw:text-app-chart-green',

@@ -41,15 +41,25 @@ export function createStartupShell(splash: HTMLElement) {
       console.info('desktop.startup-surface-committed')
     })
   }
+  const syncStatusText = (text: string) => {
+    splash.setAttribute('aria-label', text)
+    if (!label) return
+    if (label.parentElement?.hidden) {
+      if (label.textContent !== text) label.textContent = text
+      return
+    }
+    swapStatusText(label, text)
+  }
   return {
     active: () => !finished,
     label(text: string) {
-      if (!finished && label) swapStatusText(label, text)
+      if (!finished) syncStatusText(text)
     },
     fail(text: string) {
       if (finished) return
       window.clearTimeout(stalled)
-      if (label) swapStatusText(label, text)
+      if (label?.parentElement) label.parentElement.hidden = false
+      syncStatusText(text)
       splash.setAttribute('role', 'alert')
       if (actions) actions.hidden = false
     },
@@ -60,7 +70,7 @@ export function createStartupShell(splash: HTMLElement) {
     loading(text: string) {
       const token = Symbol()
       loading.add(token)
-      if (!finished && label) swapStatusText(label, text)
+      if (!finished) syncStatusText(text)
       return () => {
         loading.delete(token)
         finishIfReady()

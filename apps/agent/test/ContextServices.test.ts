@@ -13,7 +13,7 @@ import {
   type AgentInputItem,
 } from '../src/context/ContextManager'
 import { HookService } from '../src/hooks/HookService'
-import { MemoryService, projectMemoryKey } from '../src/memory/MemoryService'
+import { MemoryService } from '../src/memory/MemoryService'
 import { AgentDatabase, SCHEMA_VERSION } from '../src/storage/database/AgentDatabase'
 import {
   SqlitePiSessionRepo,
@@ -35,26 +35,33 @@ const fixture = async () => {
 }
 
 describe('v8 上下文存储', () => {
-  test('创建新表并持久化 granular approval JSON', async () => {
+  test('兼容读取历史 granular approval JSON 并归一化为 auto_review', async () => {
     const { db } = await fixture()
-    const policy = {
-      type: 'granular' as const,
+    const thread = db.createThread('auto-review', undefined, {
+      taskMode: 'chat',
+      permissionConfig: {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
+      },
+    })
+    const legacyGranular = JSON.stringify({
+      type: 'granular',
       sandboxApproval: true,
       rules: false,
       skillApproval: true,
       requestPermissions: false,
       mcpTools: true,
       mcpElicitations: true,
-    }
-    const thread = db.createThread('granular', undefined, {
-      taskMode: 'chat',
-      permissionConfig: {
-        sandboxMode: 'workspace-write',
-        approvalPolicy: policy,
-        approvalsReviewer: 'user',
-      },
     })
-    expect(db.getThreadSettings(thread.id)?.permissionConfig.approvalPolicy).toEqual(policy)
+    db.sqlite
+      .query('UPDATE threads SET approval_policy = ?, approvals_reviewer = ? WHERE id = ?')
+      .run(legacyGranular, 'user', thread.id)
+    expect(db.getThreadSettings(thread.id)?.permissionConfig).toEqual({
+      sandboxMode: 'workspace-write',
+      approvalPolicy: 'auto_review',
+      approvalsReviewer: 'auto_review',
+    })
     expect(db.sqlite.query('PRAGMA user_version').get()).toEqual({ user_version: SCHEMA_VERSION })
     const tables = new Set(
       (
@@ -419,8 +426,8 @@ describe('Hooks 与记忆', () => {
       model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        approvalsReviewer: 'user',
+        approvalPolicy: 'auto_review',
+        approvalsReviewer: 'auto_review',
       },
       strategy: 'queue',
       taskMode: 'chat',
@@ -627,56 +634,78 @@ describe('Hooks 与记忆', () => {
   })
 
   test('记忆严格 opt-in，项目隔离并过滤凭据', async () => {
-    const { db } = await fixture()
-    const disabled = new MemoryService(db, { enabled: false })
-    expect(disabled.remember({ scope: 'user', content: '偏好简洁回答' })).toBeNull()
-    const memory = new MemoryService(db, { enabled: true })
-    const projectKey = projectMemoryKey('F:\\repo')
-    expect(
-      memory.remember({ scope: 'project', projectKey, content: '项目使用 Bun' })?.content,
-    ).toBe('项目使用 Bun')
-    expect(memory.remember({ scope: 'user', content: 'api_key=super-secret-value' })).toBeNull()
-    expect(memory.recall({ query: 'Bun', projectKey })).toHaveLength(1)
-    expect(memory.recall({ query: 'Bun', projectKey: projectMemoryKey('F:\\other') })).toHaveLength(
-      0,
-    )
+    const { root, db } = await fixture()
+    const disabled = new MemoryService(db, {
+      enabled: false,
+      rootDirectory: join(root, 'memories'),
+    })
+    await expect(
+      disabled.write({ namespace: { kind: 'user' }, path: 'a.md', content: '偏好简洁回答' }),
+    ).rejects.toThrow()
+    const memory = new MemoryService(db, {
+      enabled: true,
+      rootDirectory: join(root, 'memories'),
+    })
+    await memory.write({
+      namespace: { kind: 'project', projectId: 'project-a' },
+      path: 'bun.md',
+      content: [
+        '---',
+        'name: bun',
+        'description: 构建工具',
+        'type: project',
+        '---',
+        '',
+        '项目使用 Bun',
+        '',
+      ].join(String.fromCharCode(10)),
+    })
+    await expect(
+      memory.write({
+        namespace: { kind: 'user' },
+        path: 'secret.md',
+        content: 'api_key=super-secret-value',
+      }),
+    ).rejects.toThrow('凭据')
+    const scoped = await memory.list({ kind: 'project', projectId: 'project-a' })
+    expect(scoped.files.map((file) => file.path)).toEqual(['bun.md'])
+    expect((await memory.list({ kind: 'project', projectId: 'project-b' })).files).toHaveLength(0)
     db.close()
   })
 
-  test('记忆单 worker 排空队列且业务失败不无限重试', async () => {
-    const { db } = await fixture()
+  test('记忆单 worker 串行处理队列，且同命名空间任务合并', async () => {
+    const { root, db } = await fixture()
     let calls = 0
     let active = 0
     let maxActive = 0
     const memory = new MemoryService(db, {
       enabled: true,
-      extractor: {
-        extract: async () => {
-          calls += 1
-          active += 1
-          maxActive = Math.max(maxActive, active)
-          try {
-            if (calls === 1) throw new Error('business failure')
-            return [{ scope: 'user', content: '记住第二项' }]
-          } finally {
-            active -= 1
-          }
-        },
-      },
+      rootDirectory: join(root, 'memories'),
     })
-    memory.enqueue({ transcript: 'first' })
-    memory.enqueue({ transcript: 'second' })
+    memory.attachModelResolver(async () => 'provider:test/model')
+    memory.attachRunner(async () => {
+      calls += 1
+      active += 1
+      maxActive = Math.max(maxActive, active)
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      active -= 1
+      return calls === 1 ? { status: 'failed', detail: 'business failure' } : { status: 'empty' }
+    })
+    // Same namespace collapses into one queued task; a different namespace is
+    // processed strictly after it so a single worker never overlaps.
+    memory.enqueueOrganize({ namespace: { kind: 'user' } })
+    memory.enqueueOrganize({ namespace: { kind: 'user' } })
+    memory.enqueueOrganize({ namespace: { kind: 'project', projectId: 'project-a' } })
+    expect(memory.tasks()).toHaveLength(2)
     await memory.drain()
     expect(calls).toBe(2)
     expect(maxActive).toBe(1)
     expect(
-      db.sqlite
-        .query('SELECT status, COUNT(*) AS count FROM memory_jobs GROUP BY status ORDER BY status')
-        .all(),
-    ).toEqual([
-      { status: 'completed', count: 1 },
-      { status: 'failed', count: 1 },
-    ])
+      memory
+        .tasks()
+        .map((task) => task.status)
+        .sort(),
+    ).toEqual(['completed', 'failed'])
     db.close()
   })
 })
@@ -689,9 +718,10 @@ describe('手动上下文压缩', () => {
       const service = {
         get: () => undefined,
         db: { activeTurn: () => null },
-        promptPreview: async () => null,
+        promptPreviewInternal: async () => ({ instructions: 'internal prompt content' }),
         orchestrator: {
-          compact: async () => {
+          compact: async (_threadID: string, _instructions?: string, prompt?: string) => {
+            expect(prompt).toBe('internal prompt content')
             throw failure
           },
         },

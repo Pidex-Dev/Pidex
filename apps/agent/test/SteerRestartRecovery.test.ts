@@ -18,7 +18,7 @@ for (const scenario of ['pending-only', 'mixed', 'consumed'] as const) {
       }),
       permissionConfig: {
         sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
+        approvalPolicy: 'auto_review',
         approvalsReviewer: 'auto_review',
       },
       strategy: 'start',

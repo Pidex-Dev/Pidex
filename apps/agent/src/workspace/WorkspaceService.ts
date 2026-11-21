@@ -5,15 +5,17 @@ import {
   link,
   lstat,
   mkdir,
+  open,
   readdir,
   readFile,
   realpath,
   rename,
+  rmdir,
   stat,
   unlink,
   writeFile,
 } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
+import { basename, dirname, extname, isAbsolute, relative, resolve } from 'node:path'
 import { AgentError } from '../Domain'
 import { pathContains } from '../permission/PathPermissions'
 import type { RequestedPermissions } from '../permission/PermissionDecisionEngine'
@@ -31,14 +33,52 @@ const IGNORED_DIRECTORIES = new Set([
 const MAX_FILE_BYTES = 1_000_000
 const EDITOR_READ_MAX_BYTES = 20 * 1024 * 1024
 const EDITOR_WRITE_MAX_BYTES = 10 * 1024 * 1024
-const SEARCH_LIMIT = 200
+const IMAGE_READ_MAX_BYTES = 10 * 1024 * 1024
+const BINARY_READ_MAX_BYTES = 20 * 1024 * 1024
+const BINARY_HEAD_SLICE_BYTES = 1024 * 1024
 const LIST_LIMIT = 2_000
-const SEARCH_MAX_FILES = 10_000
-const SEARCH_MAX_BYTES = 50 * 1024 * 1024
-const SEARCH_TIMEOUT_MS = 10_000
 const WINDOWS_REPLACE_BLOCKED_CODES = new Set(['EPERM', 'EACCES', 'EBUSY'])
 const decoder = new TextDecoder('utf-8', { fatal: true })
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf])
+
+export type SupportedImageMimeType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
+
+const IMAGE_EXTENSION_MIME_TYPES: Readonly<Record<string, SupportedImageMimeType>> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+}
+
+/** Detects a supported raster image MIME type from file header magic bytes. */
+export const detectImageMimeType = (data: Uint8Array): SupportedImageMimeType | null => {
+  if (
+    data.length >= 8 &&
+    [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => data[index] === byte)
+  ) {
+    return 'image/png'
+  }
+  if (data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) {
+    return 'image/jpeg'
+  }
+  if (data.length >= 6) {
+    const header = new TextDecoder().decode(data.subarray(0, 6))
+    if (header === 'GIF87a' || header === 'GIF89a') return 'image/gif'
+  }
+  if (
+    data.length >= 12 &&
+    new TextDecoder().decode(data.subarray(0, 4)) === 'RIFF' &&
+    new TextDecoder().decode(data.subarray(8, 12)) === 'WEBP'
+  ) {
+    return 'image/webp'
+  }
+  return null
+}
+
+/** Reports whether the file extension identifies a supported local image format. */
+export const isSupportedImagePath = (path: string): boolean =>
+  Object.hasOwn(IMAGE_EXTENSION_MIME_TYPES, extname(path).toLowerCase())
 const isWindowsReplaceBlocked = (cause: unknown) =>
   process.platform === 'win32' &&
   typeof cause === 'object' &&
@@ -69,6 +109,124 @@ export interface WorkspaceSearchResult {
   path: string
   line?: number
   preview?: string
+}
+
+export interface WorkspaceImageFile {
+  path: string
+  mimeType: SupportedImageMimeType
+  base64: string
+  sizeBytes: number
+}
+
+export type WorkspaceToolFile =
+  | {
+      kind: 'text'
+      path: string
+      content: string
+      sizeBytes: number
+      revision: WorkspaceFileRevision
+    }
+  | {
+      kind: 'image'
+      path: string
+      mimeType: SupportedImageMimeType
+      base64: string
+      sizeBytes: number
+    }
+  | {
+      kind: 'pdf' | 'audio' | 'video' | 'binary'
+      path: string
+      mimeType: string
+      base64: string
+      sizeBytes: number
+      sha256: string
+      encoding: 'base64'
+      truncated: boolean
+      pageCount?: number
+    }
+
+const AUDIO_EXTENSION_MIME_TYPES: Readonly<Record<string, string>> = {
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.oga': 'audio/ogg',
+  '.opus': 'audio/opus',
+  '.flac': 'audio/flac',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.wma': 'audio/x-ms-wma',
+  '.weba': 'audio/webm',
+}
+
+const VIDEO_EXTENSION_MIME_TYPES: Readonly<Record<string, string>> = {
+  '.mp4': 'video/mp4',
+  '.m4v': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.webm': 'video/webm',
+  '.mkv': 'video/x-matroska',
+  '.avi': 'video/x-msvideo',
+  '.wmv': 'video/x-ms-wmv',
+  '.flv': 'video/x-flv',
+}
+
+const OTHER_BINARY_MIME_TYPES: Readonly<Record<string, string>> = {
+  '.pdf': 'application/pdf',
+  '.zip': 'application/zip',
+  '.gz': 'application/gzip',
+  '.tar': 'application/x-tar',
+  '.7z': 'application/x-7z-compressed',
+  '.rar': 'application/vnd.rar',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.bmp': 'image/bmp',
+  '.ico': 'image/x-icon',
+  '.avif': 'image/avif',
+  '.tiff': 'image/tiff',
+  '.tif': 'image/tiff',
+  '.wasm': 'application/wasm',
+  '.sqlite': 'application/vnd.sqlite3',
+  '.db': 'application/vnd.sqlite3',
+}
+
+const isPdfBytes = (data: Uint8Array): boolean =>
+  data.length >= 5 && new TextDecoder().decode(data.subarray(0, 5)) === '%PDF-'
+
+const estimatePdfPageCount = (data: Uint8Array): number | undefined => {
+  const text = new TextDecoder('latin1').decode(data)
+  const matches = text.match(/\/Type\s*\/Page\b(?!s)/g)
+  return matches && matches.length > 0 ? matches.length : undefined
+}
+
+const detectNonTextFileKind = (
+  filePath: string,
+  data: Uint8Array,
+): { kind: 'pdf' | 'audio' | 'video' | 'binary'; mimeType: string } | null => {
+  const ext = extname(filePath).toLowerCase()
+  if (ext === '.pdf' || isPdfBytes(data)) {
+    return { kind: 'pdf', mimeType: 'application/pdf' }
+  }
+  const audioMime = AUDIO_EXTENSION_MIME_TYPES[ext]
+  if (audioMime) return { kind: 'audio', mimeType: audioMime }
+  const videoMime = VIDEO_EXTENSION_MIME_TYPES[ext]
+  if (videoMime) return { kind: 'video', mimeType: videoMime }
+  const knownBinaryMime = OTHER_BINARY_MIME_TYPES[ext]
+  if (knownBinaryMime) return { kind: 'binary', mimeType: knownBinaryMime }
+  if (data.length >= 4) {
+    const head4 = new TextDecoder('latin1').decode(data.subarray(0, 4))
+    if (head4 === 'fLaC') return { kind: 'audio', mimeType: 'audio/flac' }
+    if (head4 === 'OggS') return { kind: 'audio', mimeType: 'audio/ogg' }
+    if (head4 === 'RIFF' && data.length >= 12) {
+      const sub4 = new TextDecoder('latin1').decode(data.subarray(8, 12))
+      if (sub4 === 'WAVE') return { kind: 'audio', mimeType: 'audio/wav' }
+      if (sub4 === 'AVI ') return { kind: 'video', mimeType: 'video/x-msvideo' }
+    }
+    if (head4.startsWith('ID3')) return { kind: 'audio', mimeType: 'audio/mpeg' }
+    if (data.length >= 12 && new TextDecoder('latin1').decode(data.subarray(4, 8)) === 'ftyp') {
+      return { kind: 'video', mimeType: 'video/mp4' }
+    }
+  }
+  return null
 }
 
 export type WorkspaceReadOnlyPath = {
@@ -138,6 +296,7 @@ export interface EditorMutationCommitResult {
 type InternalMutationPathInspection =
   | (Extract<WorkspaceMutationPathInspection, { expectation: 'new-file' }> & {
       key: string
+      missingDirs: readonly string[]
     })
   | (Extract<WorkspaceMutationPathInspection, { expectation: 'existing-file' }> & {
       key: string
@@ -538,71 +697,12 @@ export class WorkspaceService {
     return canonical
   }
 
-  private async createPath(path: string) {
-    const requested = this.requestedPath(path)
-    const alias = this.aliasTarget(path)
-    if (!alias && path.replaceAll('\\', '/').toLowerCase() === '.pidex/config.json') {
-      await mkdir(dirname(requested), { recursive: true })
-    }
-    const parent = await realpath(dirname(requested)).catch(() => {
-      throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
-    })
-    if (alias) {
-      if (parent !== dirname(alias))
-        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名父目录无效', 403)
-    } else {
-      this.ensureWithinRoot(resolve(parent, basename(requested)))
-    }
-    const metadata = await stat(parent)
-    if (!metadata.isDirectory())
-      throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
-    const canonical = resolve(parent, basename(requested))
-    if (alias) {
-      if (canonical !== alias)
-        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名目标无效', 403)
-    } else {
-      this.ensureWithinRoot(canonical)
-    }
-    try {
-      await lstat(canonical)
-      throw new AgentError('WORKSPACE_PATH_EXISTS', '目标文件已存在', 409)
-    } catch (error) {
-      if (error instanceof AgentError) throw error
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw new AgentError('WORKSPACE_PATH_UNREADABLE', '目标文件状态无法确认', 400)
-      }
-    }
-    return canonical
-  }
-
   private mutationKey(path: string) {
     const normalized = resolve(path)
     return process.platform === 'win32' ? normalized.toLowerCase() : normalized
   }
 
-  private async inspectNewFilePath(path: string) {
-    const requested = this.requestedPath(path)
-    const alias = this.aliasTarget(path)
-    const parent = await realpath(dirname(requested)).catch(() => {
-      throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
-    })
-    if (alias) {
-      if (parent !== dirname(alias))
-        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名父目录无效', 403)
-    } else {
-      this.ensureWithinRoot(resolve(parent, basename(requested)))
-    }
-    const metadata = await stat(parent)
-    if (!metadata.isDirectory())
-      throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
-    const canonical = resolve(parent, basename(requested))
-    if (alias) {
-      if (canonical !== alias)
-        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名目标无效', 403)
-    } else {
-      this.ensureWithinRoot(canonical)
-    }
-    this.ensureWritable(canonical)
+  private async ensureNewTargetAbsent(canonical: string) {
     try {
       await lstat(canonical)
       throw new AgentError('WORKSPACE_PATH_EXISTS', '目标文件已存在', 409)
@@ -612,7 +712,101 @@ export class WorkspaceService {
         throw new AgentError('WORKSPACE_PATH_UNREADABLE', '目标文件状态无法确认', 400)
       }
     }
-    return canonical
+  }
+
+  /** Resolves a new-file target and its missing parent directories without mutating the filesystem. */
+  private async resolveNewFileTarget(path: string): Promise<{
+    canonicalPath: string
+    missingDirs: readonly string[]
+  }> {
+    const requested = this.requestedPath(path)
+    const alias = this.aliasTarget(path)
+    if (alias) {
+      const parent = await realpath(dirname(requested)).catch(() => {
+        throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
+      })
+      if (parent !== dirname(alias))
+        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名父目录无效', 403)
+      const metadata = await stat(parent)
+      if (!metadata.isDirectory())
+        throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
+      const canonicalPath = resolve(parent, basename(requested))
+      if (canonicalPath !== alias)
+        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名目标无效', 403)
+      this.ensureWritable(canonicalPath)
+      await this.ensureNewTargetAbsent(canonicalPath)
+      return { canonicalPath, missingDirs: [] }
+    }
+
+    const missingSegments: string[] = []
+    let probe = dirname(requested)
+    let existingAncestor: string | null = null
+    while (existingAncestor === null) {
+      try {
+        await lstat(probe)
+        existingAncestor = await realpath(probe).catch(() => {
+          throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
+        })
+      } catch (cause) {
+        if (cause instanceof AgentError) throw cause
+        const code = (cause as NodeJS.ErrnoException).code
+        if (code === 'ENOTDIR') {
+          throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
+        }
+        if (code !== 'ENOENT') {
+          throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
+        }
+        const parentProbe = dirname(probe)
+        if (parentProbe === probe) {
+          throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
+        }
+        missingSegments.unshift(basename(probe))
+        probe = parentProbe
+      }
+    }
+
+    const metadata = await stat(existingAncestor).catch(() => {
+      throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
+    })
+    if (!metadata.isDirectory()) {
+      throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
+    }
+
+    const missingDirs: string[] = []
+    let currentDir = existingAncestor
+    for (const segment of missingSegments) {
+      currentDir = resolve(currentDir, segment)
+      missingDirs.push(currentDir)
+    }
+    const canonicalPath = resolve(currentDir, basename(requested))
+    this.ensureWithinRoot(canonicalPath)
+    this.ensureWritable(canonicalPath)
+    await this.ensureNewTargetAbsent(canonicalPath)
+    return { canonicalPath, missingDirs }
+  }
+
+  private async rollbackDirectories(directories: readonly string[]) {
+    for (let index = directories.length - 1; index >= 0; index -= 1) {
+      await rmdir(directories[index]!).catch(() => undefined)
+    }
+  }
+
+  private async ensureMissingDirectories(directories: readonly string[], created: string[] = []) {
+    for (const dir of directories) {
+      try {
+        await mkdir(dir)
+        created.push(dir)
+      } catch (cause) {
+        if ((cause as NodeJS.ErrnoException).code === 'EEXIST') {
+          const info = await lstat(dir).catch(() => null)
+          if (info?.isDirectory() && !info.isSymbolicLink()) continue
+        }
+        await this.rollbackDirectories(created)
+        created.length = 0
+        throw new AgentError('WORKSPACE_WRITE_FAILED', '无法创建目标文件的父目录', 500)
+      }
+    }
+    return created
   }
 
   private async readMutationFileState(canonical: string) {
@@ -660,12 +854,13 @@ export class WorkspaceService {
     expectation: WorkspaceMutationExpectation,
   ): Promise<InternalMutationPathInspection> {
     if (expectation === 'new-file') {
-      const canonicalPath = await this.inspectNewFilePath(path)
+      const target = await this.resolveNewFileTarget(path)
       return {
         expectation,
-        path: this.displayPath(canonicalPath),
-        canonicalPath,
-        key: this.mutationKey(canonicalPath),
+        path: this.displayPath(target.canonicalPath),
+        canonicalPath: target.canonicalPath,
+        key: this.mutationKey(target.canonicalPath),
+        missingDirs: target.missingDirs,
       }
     }
     const canonicalPath = await this.existingPath(path)
@@ -886,6 +1081,123 @@ export class WorkspaceService {
     }
   }
 
+  /** Reads and validates a local image file within workspace or granted read scope. */
+  async readImageFile(path: string): Promise<WorkspaceImageFile> {
+    const canonical = await this.existingPath(path)
+    const metadata = await stat(canonical)
+    if (!metadata.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是图片文件', 400)
+    if (metadata.size > IMAGE_READ_MAX_BYTES) {
+      throw new AgentError(
+        'WORKSPACE_FILE_TOO_LARGE',
+        `图片超过 ${IMAGE_READ_MAX_BYTES} 字节读取上限`,
+        413,
+        {
+          sizeBytes: metadata.size,
+          maxBytes: IMAGE_READ_MAX_BYTES,
+        },
+      )
+    }
+    const bytes = await readFile(canonical)
+    const mimeType = detectImageMimeType(bytes)
+    if (!mimeType) {
+      throw new AgentError('WORKSPACE_FILE_UNREADABLE', '图片文件格式无效或已损坏', 400)
+    }
+    return {
+      path: this.displayPath(canonical),
+      mimeType,
+      base64: bytes.toString('base64'),
+      sizeBytes: bytes.byteLength,
+    }
+  }
+
+  /** Reads any file format (UTF-8 text, image, PDF, audio, video, or binary) within authorized scope. */
+  async readToolFile(path: string): Promise<WorkspaceToolFile> {
+    if (isSupportedImagePath(path)) {
+      const image = await this.readImageFile(path)
+      return { kind: 'image', ...image }
+    }
+    const canonical = await this.existingPath(path)
+    const metadata = await stat(canonical)
+    if (!metadata.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是文件', 400)
+    const displayPath = this.displayPath(canonical)
+    const oversized = metadata.size > BINARY_READ_MAX_BYTES
+    let bytes: Buffer
+    if (oversized) {
+      const handle = await open(canonical, 'r')
+      try {
+        const buffer = Buffer.alloc(BINARY_HEAD_SLICE_BYTES)
+        const { bytesRead } = await handle.read(buffer, 0, BINARY_HEAD_SLICE_BYTES, 0)
+        bytes = buffer.subarray(0, bytesRead)
+      } finally {
+        await handle.close()
+      }
+    } else {
+      bytes = await readFile(canonical)
+    }
+
+    if (!oversized && metadata.size <= IMAGE_READ_MAX_BYTES) {
+      const detectedImage = detectImageMimeType(bytes)
+      if (detectedImage) {
+        return {
+          kind: 'image',
+          path: displayPath,
+          mimeType: detectedImage,
+          base64: bytes.toString('base64'),
+          sizeBytes: bytes.byteLength,
+        }
+      }
+    }
+
+    const detectedMedia = detectNonTextFileKind(canonical, bytes)
+    if (detectedMedia) {
+      return {
+        kind: detectedMedia.kind,
+        path: displayPath,
+        mimeType: detectedMedia.mimeType,
+        base64: bytes.toString('base64'),
+        sizeBytes: metadata.size,
+        sha256: sha256Bytes(bytes),
+        encoding: 'base64',
+        truncated: oversized,
+        ...(detectedMedia.kind === 'pdf'
+          ? (() => {
+              const pageCount = estimatePdfPageCount(bytes)
+              return pageCount !== undefined ? { pageCount } : {}
+            })()
+          : {}),
+      }
+    }
+
+    if (!oversized && !bytes.includes(0)) {
+      try {
+        const content = decoder.decode(bytes)
+        return {
+          kind: 'text',
+          path: displayPath,
+          content,
+          sizeBytes: Buffer.byteLength(content, 'utf8'),
+          revision: {
+            mtimeMs: metadata.mtimeMs,
+            sha256: sha256(content),
+            rawSha256: sha256Bytes(bytes),
+            utf8Bom: hasUtf8Bom(bytes),
+          },
+        }
+      } catch {}
+    }
+
+    return {
+      kind: 'binary',
+      path: displayPath,
+      mimeType: 'application/octet-stream',
+      base64: bytes.toString('base64'),
+      sizeBytes: metadata.size,
+      sha256: sha256Bytes(bytes),
+      encoding: 'base64',
+      truncated: oversized,
+    }
+  }
+
   async watchEditorFile(path: string, onChange: (path: string) => void) {
     const canonical = await this.existingPath(path)
     const metadata = await stat(canonical)
@@ -918,7 +1230,9 @@ export class WorkspaceService {
   /**
    * Preflights and stages every mutation before writing. Each target commit is
    * atomic, but a cross-file commit can still fail partway and reports that
-   * state with PATCH_PARTIAL_COMMIT.
+   * state with PATCH_PARTIAL_COMMIT. Mutations are staged in the caller's order;
+   * deletes commit last so a create/delete pair (a move) can never remove its
+   * source before the target exists.
    */
   async commitEditorMutations(
     mutations: readonly EditorMutation[],
@@ -982,6 +1296,7 @@ export class WorkspaceService {
       const results: Array<EditorMutationResult | undefined> = Array.from({
         length: mutations.length,
       })
+      const createdDirs: string[] = []
       const committed = new Set<number>()
       try {
         for (let index = 0; index < mutations.length; index += 1) {
@@ -1037,6 +1352,15 @@ export class WorkspaceService {
         }
 
         for (const item of staged) {
+          if (
+            item.inspection.expectation === 'new-file' &&
+            item.inspection.missingDirs.length > 0
+          ) {
+            await this.ensureMissingDirectories(item.inspection.missingDirs, createdDirs)
+          }
+        }
+
+        for (const item of staged) {
           if (item.temporaryPath && item.bytes) {
             await writeFile(item.temporaryPath, item.bytes, { flag: 'wx' })
             if (item.inspection.expectation === 'existing-file') {
@@ -1069,7 +1393,15 @@ export class WorkspaceService {
           }
         }
 
-        const commitOrder = [...staged].sort((left, right) => left.key.localeCompare(right.key))
+        // Deletes always commit last: a failed create must never leave its source
+        // removed (move/rename), and creating a target is what makes the pair
+        // safe to order. Remaining ties stay deterministic by key.
+        const commitRank = (mutation: EditorMutation) => (mutation.operation === 'delete' ? 1 : 0)
+        const commitOrder = [...staged].sort(
+          (left, right) =>
+            commitRank(left.mutation) - commitRank(right.mutation) ||
+            left.key.localeCompare(right.key),
+        )
         for (const item of commitOrder) {
           const current = await this.inspectMutationPathInternal(
             item.mutation.path,
@@ -1146,6 +1478,9 @@ export class WorkspaceService {
               : Promise.resolve(),
           ),
         )
+        if (committed.size === 0 && createdDirs.length > 0) {
+          await this.rollbackDirectories(createdDirs)
+        }
         if (committed.size > 0) {
           throw new AgentError(
             'PATCH_PARTIAL_COMMIT',
@@ -1204,78 +1539,6 @@ export class WorkspaceService {
     }
   }
 
-  async search(
-    path: string,
-    query: string,
-    signal: AbortSignal,
-    limit = SEARCH_LIMIT,
-  ): Promise<WorkspaceSearchResult[]> {
-    if (!query.trim()) throw new AgentError('INVALID_TOOL_INPUT', 'query 必须是非空字符串', 400)
-    const root = await this.directory(path)
-    const found: WorkspaceSearchResult[] = []
-    const needle = query.toLowerCase()
-    const deadline = Date.now() + SEARCH_TIMEOUT_MS
-    let visitedFiles = 0
-    let readBytes = 0
-    const visit = async (directory: string): Promise<void> => {
-      if (
-        signal.aborted ||
-        found.length >= limit ||
-        visitedFiles >= SEARCH_MAX_FILES ||
-        readBytes >= SEARCH_MAX_BYTES ||
-        Date.now() >= deadline
-      )
-        return
-      const entries = await readdir(directory, { withFileTypes: true })
-      for (const entry of entries) {
-        if (
-          signal.aborted ||
-          found.length >= limit ||
-          visitedFiles >= SEARCH_MAX_FILES ||
-          readBytes >= SEARCH_MAX_BYTES ||
-          Date.now() >= deadline
-        )
-          return
-        if (IGNORED_DIRECTORIES.has(entry.name) || entry.isSymbolicLink()) continue
-        const candidate = resolve(directory, entry.name)
-        if (entry.isDirectory()) {
-          await visit(candidate)
-          continue
-        }
-        if (!entry.isFile()) continue
-        visitedFiles += 1
-        const display = this.displayPath(candidate)
-        if (entry.name.toLowerCase().includes(needle)) {
-          found.push({ path: display })
-          continue
-        }
-        try {
-          const size = (await stat(candidate)).size
-          if (size > MAX_FILE_BYTES || readBytes + size > SEARCH_MAX_BYTES) continue
-          readBytes += size
-          const text = decodeUtf8(await readFile(candidate))
-          const lines = text.split(/\r?\n/)
-          const index = lines.findIndex((line) => line.toLowerCase().includes(needle))
-          if (index >= 0) {
-            const preview = lines[index]?.trim()
-            found.push({
-              path: display,
-              line: index + 1,
-              ...(preview === undefined ? {} : { preview }),
-            })
-          }
-        } catch {
-          // Binary and unreadable files are deliberately skipped.
-        }
-      }
-    }
-    await visit(root)
-    if (signal.aborted) throw new AgentError('RUN_ABORTED', '任务已停止', 499)
-    if (Date.now() >= deadline)
-      throw new AgentError('WORKSPACE_SEARCH_TIMEOUT', '工作区搜索超过 10 秒预算', 408)
-    return found
-  }
-
   async applyPatch(input: ApplyPatchInput): Promise<ApplyPatchResult> {
     if (input.operation === 'create') {
       if (Buffer.byteLength(input.content, 'utf8') > MAX_FILE_BYTES)
@@ -1284,8 +1547,14 @@ export class WorkspaceService {
           `最终文件超过 ${MAX_FILE_BYTES} 字节上限`,
           413,
         )
-      const canonical = await this.createPath(input.path)
-      await this.replaceAtomically(canonical, input.content)
+      const { canonicalPath: canonical, missingDirs } = await this.resolveNewFileTarget(input.path)
+      const createdDirs = await this.ensureMissingDirectories(missingDirs)
+      try {
+        await this.replaceAtomically(canonical, input.content)
+      } catch (cause) {
+        await this.rollbackDirectories(createdDirs)
+        throw cause
+      }
       const path = this.displayPath(canonical)
       return {
         operation: input.operation,

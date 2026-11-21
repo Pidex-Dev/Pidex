@@ -40,24 +40,51 @@ function mirroredDeliveryText(card: ResultCard): string | null {
   return lines.join('\n')
 }
 
+function escapeMarkdownLinkLabel(value: string): string {
+  return value.replace(/([\\[\]])/gu, '\\$1')
+}
+
 function referenceMarkdown(reference: ResultCardReference, workspacePath?: string | null): string {
   const target =
     reference.kind === 'url'
       ? safeCitationUrl(reference.value)
       : reference.kind === 'file'
         ? resultCardFilePath(reference.value, workspacePath)
+          ? reference.value.trim()
+          : null
         : null
-  const label = (reference.label ?? reference.value).replace(/([\\\[\]])/gu, '\\$1')
+  const label = escapeMarkdownLinkLabel(reference.label ?? reference.value)
   return target
-    ? `- [${label}](<${target.replace(/>/gu, '%3E')}>)${reference.label ? `：${reference.value}` : ''}`
+    ? `- [${label}](<${target.replace(/>/gu, '%3E')}>)`
     : `- ${reference.label ? `${reference.label}：` : ''}${reference.value}`
+}
+
+function changedFileMarkdown(
+  item: SubagentResult['changedFiles'][number],
+  workspacePath?: string | null,
+): string {
+  const summary = item.summary ? `：${item.summary}` : ''
+  if (!resultCardFilePath(item.path, workspacePath)) {
+    return `- ${item.path}${summary}`
+  }
+  const label = escapeMarkdownLinkLabel(item.path)
+  const target = item.path.trim().replace(/>/gu, '%3E')
+  return `- [${label}](<${target}>)${summary}`
 }
 
 export function subagentResultMarkdown(
   result: SubagentResult,
   workspacePath?: string | null,
 ): string {
-  const lines = [`${outcomeLabel[result.outcome]}\n\n${result.summary}`]
+  const body = result.reportText?.trim() || result.summary
+  const lines = [`${outcomeLabel[result.outcome]}\n\n${body}`]
+  const statsParts: string[] = []
+  if (typeof result.stats?.durationMs === 'number')
+    statsParts.push(`耗时 ${(result.stats.durationMs / 1000).toFixed(1)}s`)
+  if (typeof result.stats?.toolUseCount === 'number')
+    statsParts.push(`工具调用 ${result.stats.toolUseCount} 次`)
+  if (typeof result.stats?.totalTokens === 'number' && result.stats.totalTokens > 0)
+    statsParts.push(`Tokens ${result.stats.totalTokens}`)
   const sections = [
     [
       '关键结论',
@@ -66,7 +93,7 @@ export function subagentResultMarkdown(
           `- ${item.title}${item.severity === 'info' ? '' : item.severity === 'warning' ? '（需关注）' : '（错误）'}：${item.detail}`,
       ),
     ],
-    ['改动文件', result.changedFiles.map((item) => `- ${item.path}：${item.summary}`)],
+    ['改动文件', result.changedFiles.map((item) => changedFileMarkdown(item, workspacePath))],
     [
       '验证',
       result.validation.map(
@@ -76,6 +103,7 @@ export function subagentResultMarkdown(
     ],
     ['风险与未决事项', result.risks.map((risk) => `- ${risk}`)],
     ['引用', result.references.map((reference) => referenceMarkdown(reference, workspacePath))],
+    ['执行统计', statsParts.length ? [statsParts.join(' · ')] : []],
   ] as const
   for (const [title, items] of sections) {
     if (items.length) lines.push(`### ${title}\n\n${items.join('\n')}`)
@@ -146,7 +174,7 @@ export function historicalDeliveryText(
 export function StructuredDeliveryText({ text }: { text: string }): React.ReactNode {
   const context = React.useContext(ConversationItemContext)
   return (
-    <article className="canonical-text-item canonical-text-item--result tw:min-w-0 tw:w-full tw:bg-transparent tw:text-app-text tw:shadow-none tw:type-reading">
+    <article className="canonical-text-item canonical-text-item--result tw:min-w-0 tw:w-full tw:bg-transparent tw:text-app-text tw:shadow-none tw:type-2">
       <ConversationMarkdownErrorBoundary contentKey={text}>
         <MarkdownMessage
           presentation="conversation"
@@ -157,7 +185,7 @@ export function StructuredDeliveryText({ text }: { text: string }): React.ReactN
           text={text}
         />
       </ConversationMarkdownErrorBoundary>
-      <div className="canonical-message-actions canonical-message-actions--assistant">
+      <div className="canonical-message-actions canonical-message-actions--assistant tw:mt-1 tw:flex tw:min-h-[26px] tw:items-center tw:justify-start tw:gap-1">
         <CopyButton text={text} />
       </div>
     </article>

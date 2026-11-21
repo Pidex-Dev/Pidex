@@ -1,8 +1,4 @@
-import type {
-  DesktopStoredSettings,
-  DesktopSystemFontsResult,
-  DesktopThemeSettings,
-} from '../shared/Types.js'
+import type { DesktopStoredSettings, DesktopThemeSettings } from '../shared/Types.js'
 import type { DesktopPetOverlayBridge } from '@pidex/shared/desktop-pet-overlay'
 import type { DesktopDataLocationIpcBridge } from '@pidex/shared/desktop-data-location-ipc'
 import type { DesktopEditIpcBridge } from '@pidex/shared/desktop-edit-ipc'
@@ -25,7 +21,6 @@ declare global {
 
   interface Window {
     DesktopBridge?: {
-      listSystemFonts(): Promise<DesktopSystemFontsResult>
       getDesktopSettings(): Promise<DesktopStoredSettings>
       saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
       onDesktopSettingsChange?(

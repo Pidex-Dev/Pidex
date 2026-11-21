@@ -40,7 +40,7 @@ export function BranchOptionRow({
           >
             {branch}
           </span>
-          <small className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-soft tw:type-caption">
+          <small className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-soft tw:type-1">
             {detail}
           </small>
         </span>
@@ -51,7 +51,7 @@ export function BranchOptionRow({
   )
   const leading = (
     <span className="popover-item-icon">
-      <GitBranch size={APP_ICON_SIZE} />
+      <GitBranch className="tw:size-icon-md" size={APP_ICON_SIZE} />
     </span>
   )
   const trailing = selected ? (
@@ -142,7 +142,7 @@ export function BranchSelectPopover({
       emptyLabel="无匹配分支"
       footer={
         <SearchablePopoverAction
-          icon={<Plus size={APP_ICON_SIZE} />}
+          icon={<Plus className="tw:size-icon-md" size={APP_ICON_SIZE} />}
           onClick={() => {
             onCreateBranch()
             onOpenChange(false)

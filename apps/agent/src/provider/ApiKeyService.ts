@@ -44,7 +44,11 @@ export class ApiKeyService {
     if (providerID) await this.requiredProviderID(providerID)
     return this.credentials
       .listApiKeys(providerID)
-      .filter((summary) => !summary.integrationID.startsWith('usage.'))
+      .filter(
+        (summary) =>
+          !summary.integrationID.startsWith('usage.') &&
+          !summary.integrationID.startsWith('decision.'),
+      )
       .map((summary) => this.publicSummary(summary, Provider.ID.make(summary.integrationID)))
   }
 
@@ -179,7 +183,12 @@ export class ApiKeyService {
   private latestCredential(providerID: Provider.ID, credentialID: string): PublicApiKeySummary {
     const summary = this.credentials
       .listApiKeys()
-      .find((item) => item.id === credentialID && !item.integrationID.startsWith('usage.'))
+      .find(
+        (item) =>
+          item.id === credentialID &&
+          !item.integrationID.startsWith('usage.') &&
+          !item.integrationID.startsWith('decision.'),
+      )
     if (!summary) throw new AgentError('CREDENTIAL_NOT_FOUND', '未找到 API Key', 404)
     return this.publicSummary(summary, providerID)
   }
@@ -187,7 +196,12 @@ export class ApiKeyService {
   private requiredSummary(credentialID: string) {
     const summary = this.credentials
       .listApiKeys()
-      .find((item) => item.id === credentialID && !item.integrationID.startsWith('usage.'))
+      .find(
+        (item) =>
+          item.id === credentialID &&
+          !item.integrationID.startsWith('usage.') &&
+          !item.integrationID.startsWith('decision.'),
+      )
     if (!summary) throw new AgentError('CREDENTIAL_NOT_FOUND', '未找到 API Key', 404)
     return summary
   }

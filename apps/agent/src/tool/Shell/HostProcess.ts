@@ -1,14 +1,15 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawn, spawnSync, type ChildProcessByStdio } from 'node:child_process'
-import type { Readable } from 'node:stream'
+import type { Readable, Writable } from 'node:stream'
+import { TerminalControlStripper } from '@pidex/shared'
 import { AgentError } from '../../Domain'
 
 const MAX_OUTPUT_BYTES = 1024 * 1024
 const DEFAULT_TIMEOUT_MS = 120_000
 const MAX_TIMEOUT_MS = 600_000
 
-export type CapturedChild = ChildProcessByStdio<null, Readable, Readable>
+export type CapturedChild = ChildProcessByStdio<Writable | null, Readable, Readable>
 
 export interface ProcessResult {
   exitCode: number | null
@@ -64,10 +65,6 @@ export function preferredShell(): CommandShell {
   return systemWindowsPowerShell()
 }
 
-export function preferredSandboxShell(): CommandShell {
-  return process.platform === 'win32' ? systemWindowsPowerShell() : preferredShell()
-}
-
 export function killProcessTree(child: {
   pid?: number | undefined
   kill(signal?: NodeJS.Signals): boolean
@@ -103,6 +100,8 @@ export async function collectProcess(
   let stderr = ''
   let stdoutBytes = 0
   let stderrBytes = 0
+  const stdoutStripper = new TerminalControlStripper()
+  const stderrStripper = new TerminalControlStripper()
   let truncated = false
   let timedOut = false
   let terminating = false
@@ -118,8 +117,9 @@ export async function collectProcess(
     if (target === 'stdout') stdoutBytes += accepted.byteLength
     else stderrBytes += accepted.byteLength
     if (accepted.byteLength < chunk.byteLength) truncated = true
-    if (target === 'stdout') stdout += accepted.toString('utf8')
-    else stderr += accepted.toString('utf8')
+    const decoded = accepted.toString('utf8')
+    if (target === 'stdout') stdout += stdoutStripper.write(decoded)
+    else stderr += stderrStripper.write(decoded)
   }
 
   child.stdout.on('data', (chunk: Buffer) => append('stdout', chunk))
@@ -157,14 +157,29 @@ export async function runHostCommand(
   timeoutMs?: number,
   signal?: AbortSignal,
   env?: NodeJS.ProcessEnv,
+  stdin?: string,
 ): Promise<ProcessResult> {
   const shell = preferredShell()
-  const child = spawn(shell.exe, [...shell.args, command], {
+  const sharedOptions = {
     cwd,
     env: mergeProcessEnvironment(process.env, env),
     shell: false,
     windowsHide: true,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
+  } as const
+  const child =
+    stdin !== undefined
+      ? spawn(shell.exe, [...shell.args, command], {
+          ...sharedOptions,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        })
+      : spawn(shell.exe, [...shell.args, command], {
+          ...sharedOptions,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+  if (stdin !== undefined && child.stdin) {
+    // Ignore EPIPE when a short-lived hook exits without reading stdin.
+    child.stdin.on('error', () => undefined)
+    child.stdin.end(stdin, 'utf8')
+  }
   return collectProcess(child, boundedTimeout(timeoutMs), signal)
 }

@@ -20,6 +20,7 @@ import {
 } from '@pidex/shared/desktop-settings-ipc'
 import { DESKTOP_UPDATE_IPC_CHANNELS } from '@pidex/shared/desktop-update-ipc'
 import { registerAppearanceIpc } from './ipc/RegisterAppearanceIpc.js'
+import { ExternalFontService } from './settings/ExternalFontService.js'
 import { registerDataLocationIpc } from './ipc/RegisterDataLocationIpc.js'
 import { registerDesktopIpc } from './ipc/RegisterDesktopIpc.js'
 import { registerTerminalIpc } from './ipc/RegisterTerminalIpc.js'
@@ -42,7 +43,7 @@ import { resolveRendererApplicationOrigin } from './security/RendererApplication
 import { readStartupAppearanceConfig } from './settings/StartupAppearanceConfig.js'
 import { AppearanceSettingsStore } from './settings/AppearanceSettingsStore.js'
 import { DataLocationStore, type DataLocationLaunch } from './settings/DataLocationStore.js'
-import { SidecarSupervisor } from './sidecar/Supervisor.js'
+import { DEFAULT_MAX_CONNECT_ATTEMPTS, SidecarSupervisor } from './sidecar/Supervisor.js'
 import { LocalBackgroundRuntime } from './sidecar/BackgroundRuntime.js'
 import { DesktopAgentConnectionCoordinator } from './sidecar/ConnectionCoordinator.js'
 import { orchestrateDesktopQuit } from './sidecar/DesktopQuitOrchestrator.js'
@@ -73,7 +74,8 @@ import {
 } from '@pidex/shared/desktop-deep-link-ipc'
 import { DesktopBrowserController } from './browser/BrowserController.js'
 import { DesktopComputerController } from './computer/DesktopComputerController.js'
-import { resolveCpxCuaExecutable } from './computer/CpxCuaRuntime.js'
+import { fetchCuaArtifact } from './computer/CuaArtifactNetwork.js'
+import { hasCachedCuaRuntime, prepareCuaRuntime } from './computer/CuaRuntimeArtifact.js'
 import {
   registerMicrophoneIpc,
   WINDOWS_MICROPHONE_PRIVACY_SETTINGS_URL,
@@ -265,10 +267,18 @@ async function startDesktop(): Promise<void> {
   })
   const updater = new DesktopAutoUpdater({
     beforeInstall: async () => {
-      if (supervisor?.ownsBackend) {
-        await supervisor.shutdown()
-        stopBackendOnQuit = true
-      }
+      browserController?.dispose()
+      computerController?.dispose()
+      await stopTerminalsBeforeSupervisor({
+        manager: terminalManager,
+        stopSupervisor: async () => {
+          terminalHost?.invalidate()
+          if (supervisor?.ownsBackend) {
+            await supervisor.shutdown()
+            stopBackendOnQuit = true
+          }
+        },
+      })
     },
     packaged: app.isPackaged,
     version: app.getVersion(),
@@ -301,12 +311,9 @@ async function startDesktop(): Promise<void> {
   })
   computerController = new DesktopComputerController({
     getSupervisor: () => supervisor,
-    resolveExecutable: () =>
-      resolveCpxCuaExecutable({
-        packaged: app.isPackaged,
-        resourcesPath: process.resourcesPath,
-        moduleDirectory,
-      }),
+    isRuntimeInstalled: () => hasCachedCuaRuntime(app.getPath('userData')),
+    resolveExecutable: (signal, onDownloading) =>
+      prepareCuaRuntime(app.getPath('userData'), signal, onDownloading, fetchCuaArtifact),
     logger,
   })
 
@@ -320,6 +327,11 @@ async function startDesktop(): Promise<void> {
     timer: createDesktopClipboardTimer(),
   })
 
+  const externalFonts = new ExternalFontService({
+    rootDirectory: join(app.getPath('userData'), 'fonts'),
+    logger,
+  })
+
   registerDesktopIpc({
     windows,
     logger,
@@ -328,6 +340,7 @@ async function startDesktop(): Promise<void> {
     attachmentDownloads,
     composerPathGrants,
     clipboardService,
+    externalFonts,
     getSupervisor: () => supervisor,
     getLogDirectory: () => logger?.directory ?? logDirectory,
     quitDuringStartup: () => app.quit(),
@@ -376,6 +389,7 @@ async function startDesktop(): Promise<void> {
     appearance,
     new AppearanceSettingsStore(app.getPath('userData'), logger),
     (sender) => windows?.isApplicationSender(sender) === true,
+    externalFonts,
   )
   registerDataLocationIpc({
     store: dataLocationStore,
@@ -494,6 +508,7 @@ async function startDesktop(): Promise<void> {
     },
     isRelocating: () => Boolean(dataLocationLaunch?.relocation),
     onTerminalFailure: (error, kind) => {
+      const generation = connectionCoordinator?.generation
       if (kind === 'installation') {
         activeLogger.error('desktop.startup-failed', {
           code: 'SIDECAR_INSTALLATION_INCOMPLETE',
@@ -502,6 +517,7 @@ async function startDesktop(): Promise<void> {
           '安装不完整，请重新安装',
           'Pidex Agent 文件缺失',
           'terminal-error',
+          generation,
         )
         return
       }
@@ -513,6 +529,7 @@ async function startDesktop(): Promise<void> {
           '用户数据迁移失败',
           '可以重试迁移，或恢复原数据位置后重新启动。',
           'terminal-error',
+          generation,
         )
         return
       }
@@ -524,11 +541,17 @@ async function startDesktop(): Promise<void> {
           '残留 Agent 未退出',
           '请结束残留 Agent 进程后重新启动 Pidex。',
           'terminal-error',
+          generation,
         )
         return
       }
       activeLogger.error('desktop.connection-cycle-failed', { error })
-      activeWindows.showStartupStatus('Agent 连接失败，请重试或查看日志', '', 'terminal-error')
+      activeWindows.showStartupStatus(
+        'Agent 连接失败，请重试或查看日志',
+        '',
+        'terminal-error',
+        generation,
+      )
     },
   })
   connectionCoordinator.onStateChange((status) => {
@@ -544,12 +567,13 @@ async function startDesktop(): Promise<void> {
       status.lifecycle === 'connected'
     )
       return
-    windows?.showStartupStatus(
-      status.phase === 'reconnecting' ? 'Agent 连接中断，正在重试' : '正在连接 Agent',
-      '',
-      'progress',
-      connectionCoordinator!.generation,
-    )
+    const label =
+      status.phase === 'reconnecting'
+        ? status.attempt > 0
+          ? `Agent 连接中断，正在重试（${status.attempt}/${DEFAULT_MAX_CONNECT_ATTEMPTS}）`
+          : 'Agent 连接中断，正在重试'
+        : '正在连接 Agent'
+    windows?.showStartupStatus(label, '', 'progress', connectionCoordinator!.generation)
   })
   await connectionCoordinator.start()
 }

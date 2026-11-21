@@ -43,6 +43,7 @@ export function PluginActionsMenu({
             aria-label={`管理 ${item.name}`}
           >
             <MoreHorizontal
+              className="tw:size-icon-md"
               aria-hidden="true"
               size={APP_ICON_SIZE}
               strokeWidth={APP_ICON_STROKE_WIDTH}

@@ -162,8 +162,7 @@ export const enUS: Record<string, string> = {
   '账户身份、头像和个人信息': 'Account identity, avatar, and personal details',
   '主题、颜色、字体、动效和差异标记': 'Themes, colors, fonts, motion, and diff markers',
   让桌面伙伴管理任务并提醒需要你处理的事项: 'Manage tasks and reminders with a desktop companion',
-  '智能体默认设置、诊断、专用模型与数据设置':
-    'Agent defaults, diagnostics, specialized models, and data',
+  '智能体默认设置、诊断与专用模型': 'Agent defaults, diagnostics, and specialized models',
   回复个性和自定义指令: 'Response personality and custom instructions',
   '自动记忆、当前工作区和召回时间线': 'Automatic memory, current workspace, and recall timeline',
   '查看应用、聊天、导航和面板快捷键': 'View app, chat, navigation, and panel shortcuts',
@@ -176,8 +175,7 @@ export const enUS: Record<string, string> = {
   '管理项目上下文、指令和共享来源': 'Manage project context, instructions, and shared sources',
   '管理 setup、cleanup、Actions 与脚本执行信任': 'Manage setup, cleanup, Actions, and script trust',
   '创建、恢复、保留和清理 Pidex 工作树': 'Create, restore, retain, and clean up Pidex worktrees',
-  '管理 Node.js、Python、Git Bash 和 ripgrep 运行环境':
-    'Manage Node.js, Python, Git Bash, and ripgrep runtimes',
+  '管理 Node.js 和 Python 运行环境': 'Manage Node.js and Python runtimes',
   '分支、拉取请求、工作树和 GitHub 账户': 'Branches, pull requests, worktrees, and GitHub accounts',
   '查看、恢复或管理已归档的对话': 'View, restore, or manage archived conversations',
   权限: 'Permissions',

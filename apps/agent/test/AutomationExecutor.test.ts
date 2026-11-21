@@ -23,7 +23,7 @@ const base: Automation = {
   permissionConfig: {
     sandboxMode: 'workspace-write',
     approvalPolicy: 'never',
-    approvalsReviewer: 'user',
+    approvalsReviewer: 'auto_review',
   },
   schedule: { mode: 'daily', time: '09:00' },
   canonicalRrule: 'FREQ=DAILY',
