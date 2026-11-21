@@ -28,7 +28,6 @@
   - `apps/auth-broker/`：OAuth 与认证中继服务。
   - `apps/desktop/electron/`：Electron 主进程、preload、窗口、Agent sidecar、Windows 打包与真实 OS 集成。
   - `apps/desktop/renderer/`：React + Vite 桌面交互层。
-  - `apps/website/`：产品站点与对外静态页面。
   - `packages/`：共享领域契约、RPC 协议、view projection、模型 schema、Provider 适配与 runtime 基础能力。
 - 依赖与调用方向：Agent 业务模块不得依赖 Renderer 或 Electron；共享包不得依赖 Electron、DOM、React、终端渲染库或具体 CLI 参数解析器。系统能力必须沿 `renderer -> typed bridge/Agent client -> Electron/Agent service -> repository` 单向流动。
 - 多客户端共享与定位：
