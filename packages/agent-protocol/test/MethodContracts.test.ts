@@ -6501,6 +6501,139 @@ const fixtures = {
       reclaimedBytes: 2048,
     },
   ),
+  'decision/getConfig': methodFixture(
+    'decision/getConfig',
+    { cwd: 'F:\\workspace\\project' },
+    {
+      config: {
+        tiers: ['fast', 'deep'],
+        judges: {
+          fast: { type: 'classifier', model: 'typesafe-system-one' },
+          deep: { type: 'openai', model: 'gpt-6-luna', credentialId: 'credential:1' },
+        },
+        modes: { 'tool.risk': 'shadow' },
+        routes: { 'tool.approval': ['fast', 'deep'] },
+        features: {},
+        recordState: false,
+      },
+      manifest: [
+        {
+          id: 'tool.risk',
+          group: 'safety',
+          title: 'Tool risk',
+          titleZh: '工具风险',
+          summary: 'Judge whether a risky command was explicitly requested.',
+          summaryZh: '判断风险命令是否由用户明确请求。',
+          defaultMode: 'shadow',
+          feature: 'tool.risk',
+        },
+      ],
+      effectiveProviders: [
+        { name: 'fast', type: 'classifier', providerId: 'classifier', modelId: 'typesafe-system-one' },
+        {
+          name: 'deep',
+          type: 'openai',
+          providerId: 'openai',
+          modelId: 'gpt-6-luna',
+          apiKeyMasked: '••••1234',
+        },
+      ],
+    },
+  ),
+  'decision/updateConfig': methodFixture(
+    'decision/updateConfig',
+    {
+      scope: 'user',
+      patch: [{ keyPath: ['modes', 'tool.risk'], value: 'active' }],
+      operationId: 'operation:decision-update-config',
+    },
+    {
+      config: {
+        tiers: [],
+        judges: {},
+        modes: { 'tool.risk': 'active' },
+        routes: {},
+        features: {},
+        recordState: false,
+      },
+      version: 'a'.repeat(64),
+    },
+  ),
+  'decision/setJudgeApiKey': methodFixture(
+    'decision/setJudgeApiKey',
+    {
+      judgeName: 'deep',
+      apiKey: 'sk-decision-fixture',
+      operationId: 'operation:decision-set-judge-api-key',
+    },
+    {
+      judgeName: 'deep',
+      credentialId: 'credential:1',
+      apiKeyMasked: '••••ture',
+    },
+  ),
+  'decision/probe': methodFixture(
+    'decision/probe',
+    { judgeName: 'fast' },
+    { ok: true, providerId: 'classifier', modelId: 'typesafe-system-one', latencyMs: 120 },
+  ),
+  'decision/listLedger': methodFixture(
+    'decision/listLedger',
+    { threadId: 'thread:1', limit: 20 },
+    {
+      records: [
+        {
+          id: 'decision:1',
+          threadId: 'thread:1',
+          specId: 'tool.risk',
+          specVersion: 1,
+          mode: 'shadow',
+          providerId: 'classifier',
+          outcome: 'confirm',
+          source: 'fallback',
+          reason: 'shadow',
+          judged: 'allow',
+          answers: { requested: { type: 'boolean', probability: 0.92 } },
+          latencyMs: 80,
+          usage: { inputTokens: 120, outputTokens: 8 },
+          stateDigest: 'b'.repeat(64),
+          createdAt: 1,
+        },
+      ],
+      outcomes: [
+        {
+          id: 'decision-outcome:1',
+          ledgerId: 'decision:1',
+          threadId: 'thread:1',
+          kind: 'mark',
+          verdict: 'correct',
+          createdAt: 2,
+        },
+      ],
+      nextCursor: 'decision:0',
+    },
+  ),
+  'decision/markOutcome': methodFixture(
+    'decision/markOutcome',
+    {
+      ledgerId: 'decision:1',
+      threadId: 'thread:1',
+      verdict: 'wrong',
+      note: '命令并非用户请求',
+      operationId: 'operation:decision-mark-outcome',
+    },
+    {
+      outcome: {
+        id: 'decision-outcome:2',
+        ledgerId: 'decision:1',
+        threadId: 'thread:1',
+        kind: 'mark',
+        verdict: 'wrong',
+        note: '命令并非用户请求',
+        createdAt: 3,
+      },
+    },
+  ),
 } satisfies MethodFixtures
 
 describe('RPC method schema contracts', () => {
@@ -6623,7 +6756,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(369)
+    expect(methods).toHaveLength(375)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -6991,7 +7124,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(348)
+    expect(Object.keys(RpcMethods)).toHaveLength(354)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })

@@ -2172,3 +2172,75 @@ test('projects only follow-up steer inputs inline in stable time order', () => {
   expect(entry.userItems).toEqual([opener])
   expect(entry.inlineInputs).toEqual([consumed, waiting])
 })
+
+test('reconcileLatestThreadPage preserves projected decisions across turn completion and drops them on history revision change', () => {
+  const active = turn('decision-turn')
+  const basePage = page([
+    { turn: active, inputs: [], messages: [], agents: [], items: [], approvals: [] },
+  ])
+  let state = createCanonicalThreadState(basePage)
+  state = applyThreadEnvelopes(state, [
+    durable(11, 'decision/recorded', {
+      threadId: state.thread.id,
+      record: {
+        id: 'ledger-thread-level',
+        threadId: state.thread.id,
+        specId: 'input.preflight',
+        specVersion: 1,
+        mode: 'shadow',
+        providerId: 'systemone',
+        outcome: { action: 'pass' },
+        source: 'judge',
+        stateDigest: 'digest-1',
+        createdAt: 100,
+      },
+    }),
+    durable(12, 'decision/recorded', {
+      threadId: state.thread.id,
+      record: {
+        id: 'ledger-turn-level',
+        threadId: state.thread.id,
+        turnId: active.id,
+        specId: 'tool.approval',
+        specVersion: 1,
+        mode: 'shadow',
+        providerId: 'systemone',
+        outcome: 'approve',
+        source: 'judge',
+        stateDigest: 'digest-2',
+        createdAt: 200,
+      },
+    }),
+    durable(13, 'decision/notice', {
+      threadId: state.thread.id,
+      notice: {
+        id: 'notice-1',
+        threadId: state.thread.id,
+        turnId: active.id,
+        specId: 'tool.injection',
+        code: 'injection.withheld',
+        params: { source: 'web', passages: 1 },
+        message: '已拦截 1 段疑似提示词注入内容。',
+        createdAt: 210,
+      },
+    }),
+  ])
+
+  const reconciled = reconcileLatestThreadPage(state, {
+    ...basePage,
+    streamPosition: { ...basePage.streamPosition, sequence: 14 },
+  })
+  expect([...reconciled.decisions.ledgerById.keys()]).toEqual([
+    'ledger-thread-level',
+    'ledger-turn-level',
+  ])
+  expect([...reconciled.decisions.noticesById.keys()]).toEqual(['notice-1'])
+
+  const rewound = reconcileLatestThreadPage(reconciled, {
+    ...basePage,
+    historyRevision: 1,
+    streamPosition: { ...basePage.streamPosition, sequence: 15 },
+  })
+  expect(rewound.decisions.ledgerById.size).toBe(0)
+  expect(rewound.decisions.noticesById.size).toBe(0)
+})
