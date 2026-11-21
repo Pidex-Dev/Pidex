@@ -881,27 +881,10 @@ export class ThreadProjection {
         )
         .all(threadId) as Array<Record<string, string | number | null>>
     ).map((row) => this.approval(row))
-    for (const payload of this.db.repositories.interactions.pendingMcpElicitations(threadId)) {
-      approvals.push({
-        id: String(payload.interactionId),
-        threadId,
-        turnId: String(payload.turnId),
-        agentId: String(payload.agentId),
-        toolCallID: String(payload.toolCallId),
-        tool: 'McpElicitation',
-        command: null,
-        cwd: null,
-        paths: [],
-        requestedPermissions: {},
-        review: null,
-        risk: 'medium',
-        reason: String((payload.request as Record<string, unknown>).message ?? 'MCP 请求输入'),
-        status: 'pending',
-        createdAt: Number(payload.createdAt),
-        input: { serverName: payload.server, request: payload.request },
-        toolIdentity: { server: String(payload.server), tool: String(payload.tool) },
-      })
+    for (const row of this.db.repositories.interactions.listMcpElicitationsByThread(threadId)) {
+      approvals.push(this.mcpElicitation(threadId, row))
     }
+    approvals.sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
     const inactive = new Set(
       (hasThreadEditStorage(this.db)
         ? (this.db.sqlite
@@ -1153,7 +1136,12 @@ export class ThreadProjection {
           )
           .all(...selectedTurnIDs) as Array<Record<string, string | number | null>>)
       : []
-    const approvals = approvalRows.map((row) => this.approval(row))
+    const approvals = [
+      ...approvalRows.map((row) => this.approval(row)),
+      ...this.db.repositories.interactions
+        .listMcpElicitationsByTurns(selectedTurnIDs)
+        .map((row) => this.mcpElicitation(threadId, row)),
+    ].sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
 
     const turns = selectedTurnRows.map(mapTurn)
     this.appendContextCompactions(threadId, turns, agents, items)
@@ -1763,6 +1751,49 @@ export class ThreadProjection {
       ...(request.reviewSummary
         ? { reviewSummary: request.reviewSummary as ApprovalRequest['reviewSummary'] }
         : {}),
+    }
+  }
+
+  private mcpElicitation(
+    threadId: string,
+    row: {
+      payload: Record<string, unknown>
+      status: string
+      response: Record<string, unknown> | null
+    },
+  ): ApprovalRequest {
+    const payload = row.payload
+    const request =
+      payload.request && typeof payload.request === 'object' && !Array.isArray(payload.request)
+        ? (payload.request as Record<string, unknown>)
+        : {}
+    const action = row.response?.action
+    const status: ApprovalRequest['status'] =
+      row.status === 'pending'
+        ? 'pending'
+        : action === 'accept'
+          ? 'allowed'
+          : action === 'cancel'
+            ? 'cancelled'
+            : 'denied'
+    return {
+      id: String(payload.interactionId),
+      threadId,
+      turnId: String(payload.turnId),
+      agentId: String(payload.agentId),
+      toolCallID: String(payload.toolCallId),
+      tool: 'McpElicitation',
+      command: null,
+      cwd: null,
+      paths: [],
+      requestedPermissions: {},
+      review: null,
+      risk: 'medium',
+      reason: String(request.message ?? 'MCP 请求输入'),
+      status,
+      createdAt: Number(payload.createdAt),
+      input: { serverName: payload.server, request },
+      toolIdentity: { server: String(payload.server), tool: String(payload.tool) },
     }
   }
 

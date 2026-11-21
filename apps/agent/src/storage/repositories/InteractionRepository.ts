@@ -647,6 +647,41 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
       .all(threadID ?? null, threadID ?? null) as Array<{ payload: string }>
     return rows.map((row) => JSON.parse(row.payload) as Record<string, unknown>)
   }
+  listMcpElicitationsByThread(threadID: string): Array<{
+    payload: Record<string, unknown>
+    status: string
+    response: Record<string, unknown> | null
+  }> {
+    if (!this.interactionTableAvailable('mcp_elicitations')) return []
+    const rows = this.sqlite
+      .query(
+        'SELECT payload, status, response FROM mcp_elicitations WHERE thread_id = ? ORDER BY created_at, id',
+      )
+      .all(threadID) as Array<{ payload: string; status: string; response: string | null }>
+    return rows.map((row) => ({
+      payload: JSON.parse(row.payload) as Record<string, unknown>,
+      status: row.status,
+      response: row.response ? (JSON.parse(row.response) as Record<string, unknown>) : null,
+    }))
+  }
+  listMcpElicitationsByTurns(turnIDs: readonly string[]): Array<{
+    payload: Record<string, unknown>
+    status: string
+    response: Record<string, unknown> | null
+  }> {
+    if (!this.interactionTableAvailable('mcp_elicitations') || turnIDs.length === 0) return []
+    const placeholders = turnIDs.map(() => '?').join(', ')
+    const rows = this.sqlite
+      .query(
+        `SELECT payload, status, response FROM mcp_elicitations WHERE turn_id IN (${placeholders}) ORDER BY created_at, id`,
+      )
+      .all(...turnIDs) as Array<{ payload: string; status: string; response: string | null }>
+    return rows.map((row) => ({
+      payload: JSON.parse(row.payload) as Record<string, unknown>,
+      status: row.status,
+      response: row.response ? (JSON.parse(row.response) as Record<string, unknown>) : null,
+    }))
+  }
   recordApprovalReview(
     invocation: ToolInvocation,
     fingerprint: string,

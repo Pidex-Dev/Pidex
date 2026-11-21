@@ -10,9 +10,10 @@ import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { VisualizationView } from '../../visualization/VisualizationView.js'
 import { ChevronRight, CircleAlert, LoaderCircle, RotateCcw, type LucideIcon } from 'lucide-react'
-import type { RenderBlocker, RenderTurnEntry } from '@pidex/session-view'
+import type { RenderTurnEntry } from '@pidex/session-view'
 import {
   resolveSubagentDisplayParts,
+  type ApprovalRequest,
   type Input,
   type Item,
   type ThreadForkOrigin,
@@ -74,14 +75,18 @@ import {
 import type { OpenPlanInDockRequest } from '../workflow/WorkflowPlanCard.js'
 import type { RegisterConversationTurnRow } from '../conversation/UseConversationTurnRowVisibility.js'
 import { questionTimelineItems } from './QuestionItemView.js'
+import { ApprovalTimelineItemView } from './ApprovalTimelineItemView.js'
+import { DecisionNoticeItem } from './DecisionNoticeItem.js'
 
 export type ProcessActivityProjection =
   { kind: 'groupable'; item: Item } | { kind: 'standalone'; item: Item } | { kind: 'hidden' }
 
 type ProcessUserUnit = { kind: 'user'; key: string; input: Input }
+type ProcessApprovalUnit = { kind: 'approval'; key: string; approval: ApprovalRequest }
 
 export type ProcessUnit =
   | ProcessUserUnit
+  | ProcessApprovalUnit
   | { kind: 'group'; key: string; items: Item[] }
   | { kind: 'activity'; key: string; item: Item }
   | { kind: 'standalone'; key: string; item: Item }
@@ -94,6 +99,7 @@ export type ProcessActivityModel = {
 
 type RawProcessUnit =
   | ProcessUserUnit
+  | ProcessApprovalUnit
   | { kind: 'group'; key: string; items: Item[] }
   | { kind: 'standalone'; key: string; item: Item }
 
@@ -359,7 +365,11 @@ function isSubagentLifecycleTool(item: Item): boolean {
   return SUBAGENT_LIFECYCLE_TOOLS.has(leaf)
 }
 
-function groupProcessItems(items: readonly Item[], inputs: readonly Input[]): RawProcessUnit[] {
+function groupProcessItems(
+  items: readonly Item[],
+  inputs: readonly Input[],
+  approvals: readonly ApprovalRequest[],
+): RawProcessUnit[] {
   const units: RawProcessUnit[] = []
   let pendingItems: Item[] = []
   const isSubagentGroup = (): boolean => pendingItems[0]?.type === 'subagent'
@@ -377,16 +387,78 @@ function groupProcessItems(items: readonly Item[], inputs: readonly Input[]): Ra
     pendingItems = []
   }
 
+  const orderedApprovals =
+    approvals.length > 1
+      ? [...approvals].sort(
+          (left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id),
+        )
+      : approvals
+  const visibleToolCallIds = new Set<string>()
+  for (const item of items) {
+    if (absorbsLifecycleRows && isSubagentLifecycleTool(item)) continue
+    if (item.type === 'tool' && item.callID && projectProcessItem(item).kind !== 'hidden') {
+      visibleToolCallIds.add(item.callID)
+    }
+  }
+  const anchoredApprovalsByCallId = new Map<string, ApprovalRequest[]>()
+  const unanchoredApprovals: ApprovalRequest[] = []
+  for (const approval of orderedApprovals) {
+    if (approval.toolCallID && visibleToolCallIds.has(approval.toolCallID)) {
+      const bucket = anchoredApprovalsByCallId.get(approval.toolCallID)
+      if (bucket) bucket.push(approval)
+      else anchoredApprovalsByCallId.set(approval.toolCallID, [approval])
+    } else {
+      unanchoredApprovals.push(approval)
+    }
+  }
+
   let nextInput = 0
+  let nextApproval = 0
+  const emittedApprovalIds = new Set<string>()
   const appendInput = (input: Input): void => {
     flush()
     units.push({ kind: 'user', key: `process-user:${input.id}`, input })
   }
-  for (const item of items) {
-    while (nextInput < inputs.length && inputs[nextInput]!.createdAt < item.createdAt) {
-      appendInput(inputs[nextInput++]!)
+  const appendApproval = (approval: ApprovalRequest): void => {
+    if (emittedApprovalIds.has(approval.id)) return
+    emittedApprovalIds.add(approval.id)
+    flush()
+    units.push({ kind: 'approval', key: `process-approval:${approval.id}`, approval })
+  }
+  const emitChronologicalBefore = (limitCreatedAt: number): void => {
+    while (true) {
+      const candidateInput =
+        nextInput < inputs.length && inputs[nextInput]!.createdAt < limitCreatedAt
+          ? inputs[nextInput]!
+          : null
+      const candidateApproval =
+        nextApproval < unanchoredApprovals.length &&
+        unanchoredApprovals[nextApproval]!.createdAt < limitCreatedAt
+          ? unanchoredApprovals[nextApproval]!
+          : null
+      if (!candidateInput && !candidateApproval) break
+      if (
+        candidateInput &&
+        (!candidateApproval || candidateInput.createdAt <= candidateApproval.createdAt)
+      ) {
+        appendInput(candidateInput)
+        nextInput += 1
+      } else if (candidateApproval) {
+        appendApproval(candidateApproval)
+        nextApproval += 1
+      }
     }
+  }
+
+  for (const item of items) {
+    emitChronologicalBefore(item.createdAt)
     if (absorbsLifecycleRows && isSubagentLifecycleTool(item)) continue
+    if (item.type === 'tool' && item.callID) {
+      const anchored = anchoredApprovalsByCallId.get(item.callID)
+      if (anchored) {
+        for (const approval of anchored) appendApproval(approval)
+      }
+    }
     const projection = projectProcessItem(item)
     switch (projection.kind) {
       case 'groupable':
@@ -411,7 +483,8 @@ function groupProcessItems(items: readonly Item[], inputs: readonly Input[]): Ra
         break
     }
   }
-  for (const input of inputs.slice(nextInput)) appendInput(input)
+  emitChronologicalBefore(Number.POSITIVE_INFINITY)
+  for (const approval of orderedApprovals) appendApproval(approval)
   flush()
   return units
 }
@@ -428,8 +501,9 @@ export function buildProcessActivityModel(
     turnActive: boolean
   },
   inlineInputs: readonly Input[] = [],
+  approvals: readonly ApprovalRequest[] = [],
 ): ProcessActivityModel {
-  const rawUnits = groupProcessItems(items, inlineInputs)
+  const rawUnits = groupProcessItems(items, inlineInputs, approvals)
   const lastUnitIndex = rawUnits.length - 1
   const sliceActive = turnActive && !activitySliceClosed
   let activeGroupKey: string | null = null
@@ -457,6 +531,7 @@ export function buildProcessActivityModel(
     !hasBlockingRequest &&
     (!lastUnit ||
       lastUnit.kind === 'user' ||
+      lastUnit.kind === 'approval' ||
       (lastUnit.kind === 'activity' && !isProcessItemActive(lastUnit.item)) ||
       (lastUnit.kind === 'standalone' &&
         (lastUnit.item.type === 'reasoning' || !isProcessItemActive(lastUnit.item))))
@@ -1027,9 +1102,17 @@ function CanonicalConversationTurnComponent({
       turnActive: active,
     },
     entry.inlineInputs,
+    entry.approvals,
   )
+  const questionBlockers = entry.blockers.filter(
+    (blocker): blocker is Extract<RenderTurnEntry['blockers'][number], { kind: 'question' }> =>
+      blocker.kind === 'question',
+  )
+  const decisionNotices = entry.decisionNotices ?? []
   const hasVisibleActivityContent =
-    processActivity.units.length > 0 || processActivity.showThinkingFallback
+    processActivity.units.length > 0 ||
+    processActivity.showThinkingFallback ||
+    decisionNotices.length > 0
   const lastProcessUnit = processActivity.units.at(-1)
   const turnActivityDisclosureId = `turn-activity:${entry.turn.id}`
   const compactionOnly =
@@ -1059,6 +1142,9 @@ function CanonicalConversationTurnComponent({
     <section className="canonical-turn__process" aria-label="处理过程">
       {processActivity.units.map((unit) => {
         if (unit.kind === 'user') return renderUserInput(unit.input, true)
+        if (unit.kind === 'approval') {
+          return <ApprovalTimelineItemView approval={unit.approval} key={unit.key} />
+        }
         if (unit.kind === 'activity') {
           const singleStore = getSingleActivityDisclosureStore(
             disclosureState,
@@ -1172,6 +1258,9 @@ function CanonicalConversationTurnComponent({
           </CanonicalProcessGroup>
         )
       })}
+      {decisionNotices.map((notice) => (
+        <DecisionNoticeItem key={`decision-notice:${notice.id}`} notice={notice} />
+      ))}
       {processActivity.showThinkingFallback ? (
         <ReasoningWaitingIndicator
           item={lastProcessUnit?.kind === 'standalone' ? lastProcessUnit.item : undefined}
@@ -1194,17 +1283,20 @@ function CanonicalConversationTurnComponent({
         forceExpanded={entry.forceExpandActivity}
         disclosureId={turnActivityDisclosureId}
         hasWork={
-          entry.turn.startedAt != null || entry.processItems.length > 0 || hasAssistantResult
+          entry.turn.startedAt != null ||
+          entry.processItems.length > 0 ||
+          entry.approvals.length > 0 ||
+          hasAssistantResult
         }
         store={disclosureState}
         turn={entry.turn}
       >
         {activityContent}
       </CanonicalTurnActivityController>
-      {entry.blockers.length ? (
+      {questionBlockers.length ? (
         <section className="canonical-turn__blockers" aria-label="等待处理">
-          {entry.blockers.map((blocker) => (
-            <CanonicalBlocker blocker={blocker} key={blocker.id} renderItem={renderItem} />
+          {questionBlockers.map((blocker) => (
+            <React.Fragment key={blocker.id}>{renderItem(blocker.question)}</React.Fragment>
           ))}
         </section>
       ) : null}
@@ -1257,32 +1349,6 @@ function CanonicalConversationTurnComponent({
 }
 
 export const CanonicalConversationTurn = React.memo(CanonicalConversationTurnComponent)
-
-function CanonicalBlocker({
-  blocker,
-  renderItem,
-}: {
-  blocker: RenderBlocker
-  renderItem: (item: RenderTurnEntry['items'][number]) => React.ReactNode
-}): React.ReactNode {
-  if (blocker.kind === 'question') return renderItem(blocker.question)
-  return (
-    <article
-      className="canonical-blocker-card tw:grid tw:gap-3 tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-3 tw:shadow-none"
-      data-state={blocker.approval.status}
-    >
-      <header className="tw:flex tw:items-start tw:gap-2">
-        <CircleAlert
-          className="tw:size-icon-lg tw:flex-none tw:text-app-accent-fg"
-          size={APP_ICON_SIZES.lg}
-          aria-hidden="true"
-        />
-        <strong>{blocker.approval.tool} 需要授权</strong>
-      </header>
-      <p className="tw:m-0 tw:text-app-text-soft">{blocker.approval.reason}</p>
-    </article>
-  )
-}
 
 function isActiveTurn(status: RenderTurnEntry['turn']['status']): boolean {
   return (
