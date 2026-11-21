@@ -77,18 +77,27 @@ function ReasoningPreview({ line }: { line: ReasoningLine }): React.ReactNode {
     [],
   )
 
+  // INVARIANT: Streaming follow scroll is computed from ResizeObserver entry width snapshots to avoid per-frame scrollWidth forced layout.
+  const followWidthsRef = React.useRef({ viewport: 0, content: 0 })
   React.useLayoutEffect(() => {
     const element = viewport.current
     if (!element) return
-    const follow = (): void => {
-      element.scrollLeft = element.scrollWidth
+    const followFromCache = (): void => {
+      const widths = followWidthsRef.current
+      if (widths.content <= widths.viewport) return
+      element.scrollLeft = widths.content - widths.viewport
     }
-    follow()
-    const observer = new ResizeObserver(follow)
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === element) followWidthsRef.current.viewport = entry.contentRect.width
+        else followWidthsRef.current.content = entry.contentRect.width
+      }
+      followFromCache()
+    })
     observer.observe(element)
     if (content.current) observer.observe(content.current)
     return () => observer.disconnect()
-  }, [displayed.text])
+  }, [])
 
   const visible = reducedMotion ? line : displayed
   return (
@@ -138,6 +147,12 @@ export function ReasoningItemView({
   const hasText = Boolean(fullText.trim())
   const edge = useScrollEdgeState(scroller, { contentRef: content, version: expanded && hasText })
 
+  // INVARIANT: Streaming follow geometry is driven by post-layout ResizeObserver entry snapshots so per-chunk text growth never writes scrollTop during React commit on a dirty layout tree.
+  const followMetricsRef = React.useRef({
+    viewportH: 0,
+    contentH: 0,
+    scrollTop: 0,
+  })
   React.useLayoutEffect(() => {
     following.current = commandOutputFollowing(
       active,
@@ -146,14 +161,36 @@ export function ReasoningItemView({
       following.current,
     )
     wasExpanded.current = expanded
-    if (expanded && scroller.current) {
-      scroller.current.scrollTop = commandOutputScrollTop(
-        scroller.current,
+    const element = scroller.current
+    if (!expanded || !element) return
+    if (typeof ResizeObserver === 'undefined') {
+      element.scrollTop = commandOutputScrollTop(element, active, following.current)
+      return
+    }
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === element) followMetricsRef.current.viewportH = entry.contentRect.height
+        else followMetricsRef.current.contentH = entry.contentRect.height
+      }
+      const metrics = followMetricsRef.current
+      const nextTop = commandOutputScrollTop(
+        {
+          scrollTop: metrics.scrollTop,
+          scrollHeight: metrics.contentH,
+          clientHeight: metrics.viewportH,
+        },
         active,
         following.current,
       )
-    }
-  }, [active, expanded, fullText])
+      if (nextTop !== metrics.scrollTop) {
+        element.scrollTop = nextTop
+        metrics.scrollTop = nextTop
+      }
+    })
+    observer.observe(element)
+    if (content.current) observer.observe(content.current)
+    return () => observer.disconnect()
+  }, [active, expanded])
 
   if (!hasText) return null
   const line = active && !expanded ? reasoningLatestLine(fullText) : null
@@ -239,7 +276,12 @@ export function ReasoningItemView({
               role="region"
               aria-label="思考文本"
               onScroll={(event) => {
-                following.current = isCommandOutputAtBottom(event.currentTarget)
+                followMetricsRef.current.scrollTop = event.currentTarget.scrollTop
+                following.current = isCommandOutputAtBottom({
+                  scrollTop: event.currentTarget.scrollTop,
+                  scrollHeight: followMetricsRef.current.contentH,
+                  clientHeight: followMetricsRef.current.viewportH,
+                })
               }}
             >
               <div ref={content} className="reasoning-node__text">

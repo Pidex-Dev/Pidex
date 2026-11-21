@@ -50,14 +50,8 @@ export function preserveTimelineAnchorPosition(
   const turnRow = anchor.closest<HTMLElement>(TIMELINE_TURN_SELECTOR)
   let observer: ResizeObserver | null = null
   if (turnRow && typeof ResizeObserver !== 'undefined') {
-    observer = new ResizeObserver(() => {
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId)
-        frameId = null
-      }
-      adjust()
-      scheduleAdjust()
-    })
+    // INVARIANT: Route anchor adjustment through the rAF queue so ResizeObserver callbacks never force synchronous layout during disclosure transitions.
+    observer = new ResizeObserver(() => scheduleAdjust())
     observer.observe(turnRow)
   }
 

@@ -211,6 +211,12 @@ export function ToolCardOutputViewport({
     [placeholder, sanitizedOutput],
   )
 
+  // INVARIANT: Streaming follow geometry is driven by post-layout ResizeObserver entry snapshots so per-chunk output growth never reads or writes scrollTop on a dirty layout tree.
+  const followMetricsRef = React.useRef({
+    viewportH: 0,
+    contentH: 0,
+    scrollTop: 0,
+  })
   React.useLayoutEffect(() => {
     followingRef.current = commandOutputFollowing(
       active,
@@ -227,14 +233,44 @@ export function ToolCardOutputViewport({
     prevWrappedRef.current = wrapped
     wasExpandedRef.current = expanded
 
-    const scroller = scrollerRef.current
-    if (!expanded || !scroller) return
-    const needsBreakZero =
-      following && scroller.scrollTop === 0 && scroller.scrollHeight > scroller.clientHeight
-    if (justExpanded || wrappedChanged || needsBreakZero) {
-      scroller.scrollTop = commandOutputScrollTop(scroller, active, followingRef.current)
+    const element = scrollerRef.current
+    if (!expanded || !element) return
+    let pendingForceFollow = justExpanded || wrappedChanged
+    const applyFollow = (): void => {
+      const metrics = followMetricsRef.current
+      const needsBreakZero =
+        active && followingRef.current && metrics.scrollTop === 0 && metrics.contentH > metrics.viewportH
+      if (!pendingForceFollow && !needsBreakZero && !(active && followingRef.current)) return
+      pendingForceFollow = false
+      const nextTop = commandOutputScrollTop(
+        {
+          scrollTop: metrics.scrollTop,
+          scrollHeight: metrics.contentH,
+          clientHeight: metrics.viewportH,
+        },
+        active,
+        followingRef.current,
+      )
+      if (nextTop !== metrics.scrollTop) {
+        element.scrollTop = nextTop
+        metrics.scrollTop = nextTop
+      }
     }
-  }, [active, expanded, sanitizedOutput, wrapped])
+    if (typeof ResizeObserver === 'undefined') {
+      element.scrollTop = commandOutputScrollTop(element, active, followingRef.current)
+      return
+    }
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === element) followMetricsRef.current.viewportH = entry.contentRect.height
+        else followMetricsRef.current.contentH = entry.contentRect.height
+      }
+      applyFollow()
+    })
+    observer.observe(element)
+    if (contentRef.current) observer.observe(contentRef.current)
+    return () => observer.disconnect()
+  }, [active, expanded, wrapped])
 
   return (
     <div className="canonical-command-card__output">
@@ -250,7 +286,12 @@ export function ToolCardOutputViewport({
           tabIndex={0}
           aria-label={ariaLabel}
           onScroll={(event) => {
-            const atBottom = isCommandOutputAtBottom(event.currentTarget)
+            followMetricsRef.current.scrollTop = event.currentTarget.scrollTop
+            const atBottom = isCommandOutputAtBottom({
+              scrollTop: event.currentTarget.scrollTop,
+              scrollHeight: followMetricsRef.current.contentH,
+              clientHeight: followMetricsRef.current.viewportH,
+            })
             followingRef.current = atBottom
             if (pinRef.current) {
               pinRef.current.dataset.following = String(active && atBottom)

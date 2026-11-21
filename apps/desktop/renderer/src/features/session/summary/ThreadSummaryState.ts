@@ -221,21 +221,50 @@ export function useThreadSummaryController(
     const container = containerRef.current
     if (!container) return
     const footer = footerRef?.current ?? null
+    // INVARIANT: Placement values come from post-layout ResizeObserver entry snapshots and skip unchanged CSS variable writes so observer iterations never dirty or force layout.
+    let lastClearance: number | null = null
+    let containerWidth = 0
+    let footerHeight = 0
     const update = (): void => {
-      setDisplayMode(resolveThreadSummaryDisplayMode(container.getBoundingClientRect().width))
-      const footerHeight = footer ? Math.ceil(footer.getBoundingClientRect().height) : 0
+      React.startTransition(() => {
+        setDisplayMode(resolveThreadSummaryDisplayMode(containerWidth))
+      })
       const clearance =
         footerHeight > 0
           ? footerHeight + THREAD_SUMMARY_FOOTER_GAP_PX
           : THREAD_SUMMARY_DEFAULT_BOTTOM_INSET_PX
-      container.style.setProperty('--thread-summary-footer-clearance', `${clearance}px`)
+      if (clearance !== lastClearance) {
+        lastClearance = clearance
+        container.style.setProperty('--thread-summary-footer-clearance', `${clearance}px`)
+      }
     }
-    update()
-    if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(update)
+    let frameId: number | null = null
+    const scheduleUpdate = (): void => {
+      if (frameId !== null) return
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null
+        update()
+      })
+    }
+    if (typeof ResizeObserver === 'undefined') {
+      containerWidth = container.getBoundingClientRect().width
+      footerHeight = footer ? Math.ceil(footer.getBoundingClientRect().height) : 0
+      update()
+      return
+    }
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === container) containerWidth = entry.contentRect.width
+        else footerHeight = Math.ceil(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height)
+      }
+      scheduleUpdate()
+    })
     observer.observe(container)
     if (footer) observer.observe(footer)
-    return () => observer.disconnect()
+    return () => {
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+      observer.disconnect()
+    }
   }, [containerRef, footerRef, hasFooter])
 
   return {

@@ -131,8 +131,9 @@
   /* ── Turn shell ── */
 
   /*
-   * The turn owns the conversation container query and the reading rhythm that
-   * every narrative block inherits from. It intentionally does not opt into
+   * The turn owns the conversation container query (used by `100cqi` wide-block
+   * outdenting inside lists in markdown.css) and the reading rhythm that every
+   * narrative block inherits from. It intentionally does not opt into
    * `content-visibility`: the virtualizer already bounds the mounted row range,
    * and browser placeholder measurement stacked on top of virtua's dynamic
    * measurement produced large gaps and scroll jumping.

@@ -60,14 +60,22 @@ export function CollapsibleUserMarkdown({
   React.useLayoutEffect(() => {
     if (!measurementElement) return
 
+    // INVARIANT: Rely on post-layout ResizeObserver entry height snapshots and short-circuit getComputedStyle for short messages to avoid forced layout on mount and resize.
+    let cachedCollapsedHeightPx: number | null = null
     const updateMeasurement = (contentHeightPx: number): void => {
+      const roundedContentHeightPx = Math.ceil(contentHeightPx)
+      const minCollapsibleFloorPx = collapsedLineCount * FALLBACK_FONT_SIZE_PX
+      const collapsedHeightPx =
+        roundedContentHeightPx <= minCollapsibleFloorPx
+          ? Math.ceil(minCollapsibleFloorPx * FALLBACK_LINE_HEIGHT_RATIO)
+          : (cachedCollapsedHeightPx ??= measureCollapsedTextHeight(
+              measurementElement,
+              collapsedLineCount,
+              FALLBACK_FONT_SIZE_PX,
+            ))
       const next = {
-        collapsedHeightPx: measureCollapsedTextHeight(
-          measurementElement,
-          collapsedLineCount,
-          FALLBACK_FONT_SIZE_PX,
-        ),
-        contentHeightPx: Math.ceil(contentHeightPx),
+        collapsedHeightPx,
+        contentHeightPx: roundedContentHeightPx,
       }
       setMeasurement((current) =>
         isTextMeasurementCollapsible(current) === isTextMeasurementCollapsible(next)
@@ -76,8 +84,10 @@ export function CollapsibleUserMarkdown({
       )
     }
 
-    updateMeasurement(measurementElement.scrollHeight)
-    if (typeof ResizeObserver === 'undefined') return
+    if (typeof ResizeObserver === 'undefined') {
+      updateMeasurement(measurementElement.scrollHeight)
+      return
+    }
 
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return
