@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { createHash, randomBytes, randomUUID, scryptSync } from 'node:crypto'
+import { randomBytes, randomUUID, scryptSync } from 'node:crypto'
 import {
   DecisionConfigSchema,
   type DecisionConfig,
@@ -119,8 +119,6 @@ const DECISION_CREDENTIAL_PREFIX = 'decision.'
 
 const decisionCredentialIntegrationID = (judgeName: string): string =>
   `${DECISION_CREDENTIAL_PREFIX}${judgeName}`
-
-const sha256Hex = (value: string): string => createHash('sha256').update(value).digest('hex')
 
 /**
  * Decision configuration, ledger access and presentation notices. The judge
@@ -299,12 +297,7 @@ export class DecisionService {
       trimmedKey === null
         ? null
         : scryptSync(trimmedKey, this.credentialFingerprintSalt, 32).toString('hex')
-    const fingerprint = sha256Hex(
-      JSON.stringify({
-        judgeName,
-        keyDigest,
-      }),
-    )
+    const fingerprint = `${judgeName}:${keyDigest ?? 'null'}`
     const existingOp = this.credentialOperations.get(input.operationId)
     if (existingOp) {
       if (existingOp.fingerprint !== fingerprint) {
