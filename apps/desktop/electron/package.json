@@ -30,7 +30,7 @@
     "productName": "Pidex Desktop",
     "publish": {
       "provider": "github",
-      "owner": "codepilotx-dev",
+      "owner": "Pidex-Dev",
       "repo": "Pidex"
     },
     "asar": true,

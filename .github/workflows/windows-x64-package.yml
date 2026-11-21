@@ -184,7 +184,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REPOSITORY" = "codepilotx-dev/Pidex"
+          test "$GITHUB_REPOSITORY" = "Pidex-Dev/Pidex"
           bun run version:check -- --tag "$GITHUB_REF_NAME"
       - name: Build Windows x64 installer
         shell: bash

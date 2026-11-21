@@ -4,11 +4,11 @@
 
 _Open-source, Windows-first desktop workspace for AI-assisted coding._
 
-[![GitHub Release](https://img.shields.io/github/v/release/codepilotx-dev/Pidex?include_prereleases&label=release)](https://github.com/codepilotx-dev/Pidex/releases)
-[![License](https://img.shields.io/github/license/codepilotx-dev/Pidex)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/Pidex-Dev/Pidex?include_prereleases&label=release)](https://github.com/Pidex-Dev/Pidex/releases)
+[![License](https://img.shields.io/github/license/Pidex-Dev/Pidex)](LICENSE)
 
 > [!IMPORTANT]
-> Pidex 当前处于 Windows x64 公测阶段，在 [GitHub Releases](https://github.com/codepilotx-dev/Pidex/releases) 提供预构建安装程序与 SHA-256 校验和；未签名版本首次运行时可能触发 Windows SmartScreen 提示，运行前建议核对校验和。
+> Pidex 当前处于 Windows x64 公测阶段，在 [GitHub Releases](https://github.com/Pidex-Dev/Pidex/releases) 提供预构建安装程序与 SHA-256 校验和；未签名版本首次运行时可能触发 Windows SmartScreen 提示，运行前建议核对校验和。
 
 ## 界面预览
 
@@ -39,7 +39,7 @@ _Open-source, Windows-first desktop workspace for AI-assisted coding._
 
 ## 下载与安装
 
-前往 [GitHub Releases](https://github.com/codepilotx-dev/Pidex/releases) 下载对应版本的 `Pidex-Desktop-<版本>-x64.exe` 安装程序（同时提供 `SHA256SUMS.txt` 校验和与应用内自动更新元数据）。运行安装程序完成安装后，打开或导入本地 Git 项目并配置 Provider 即可开始使用。
+前往 [GitHub Releases](https://github.com/Pidex-Dev/Pidex/releases) 下载对应版本的 `Pidex-Desktop-<版本>-x64.exe` 安装程序（同时提供 `SHA256SUMS.txt` 校验和与应用内自动更新元数据）。运行安装程序完成安装后，打开或导入本地 Git 项目并配置 Provider 即可开始使用。
 
 如需从源码自行构建 Windows x64 安装程序：
 

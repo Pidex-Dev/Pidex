@@ -112,7 +112,7 @@ async function assertUpdaterConfiguration(path: string, expectedChannel: string)
   const configuration = await readFile(path, 'utf8')
   for (const [key, expected] of [
     ['provider', 'github'],
-    ['owner', 'codepilotx-dev'],
+    ['owner', 'Pidex-Dev'],
     ['repo', 'Pidex'],
     ['channel', expectedChannel],
   ] as const) {
