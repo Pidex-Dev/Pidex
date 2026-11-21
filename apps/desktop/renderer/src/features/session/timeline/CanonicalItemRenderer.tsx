@@ -556,7 +556,7 @@ function CanonicalItemRendererContentComponent({
   onApplyPatch,
   onOpenPatchReview,
   onOpenPlanInRightDock,
-  onOpenSubagent,
+  onOpenSubagent: _onOpenSubagent,
   readThreadPatchDiff,
   dockedPlanItemId,
   latestPlanItemId = null,

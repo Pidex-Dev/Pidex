@@ -211,7 +211,8 @@ export function agentThreadSnapshotToDesktop(
     threadGoal: snapshot.goal,
     lastMessageAt: iso(snapshot.thread.updatedAt),
     lastUserMessageAt: isoOrNull(
-      [...snapshot.messages].reverse().find((message) => message.role === 'user')?.createdAt,
+      [...(snapshot.messages ?? [])].reverse().find((message) => message.role === 'user')
+        ?.createdAt,
     ),
     createdAt: iso(snapshot.thread.createdAt),
   }

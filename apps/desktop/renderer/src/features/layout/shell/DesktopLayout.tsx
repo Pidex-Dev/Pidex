@@ -1274,13 +1274,13 @@ export function DesktopLayout(): React.ReactNode {
     openRightDockTab({ id: 'goal', kind: 'goal', ...(sessionId ? { threadId: sessionId } : {}) })
   }, [openRightDockTab, sessionId])
   const handledJudgeDeepLinkRef = useRef<string | null>(null)
+  const closePreviewForJudge = sidebarShell.closePreview
   const handleOpenJudgePanel = useCallback((): void => {
-    sidebarShell.closePreview()
+    closePreviewForJudge()
     const targetPath = resolveJudgePanelTargetPath(getSettingsReturnPath(), sessionId)
     navigate(appendPanelQuery(targetPath, 'judge'))
-  }, [getSettingsReturnPath, navigate, sessionId, sidebarShell.closePreview])
-  const judgePanelRequested =
-    new URLSearchParams(location.search).get('panel') === 'judge'
+  }, [closePreviewForJudge, getSettingsReturnPath, navigate, sessionId])
+  const judgePanelRequested = new URLSearchParams(location.search).get('panel') === 'judge'
   const judgeDeepLink = useCallback(() => {
     if (!judgePanelRequested) {
       handledJudgeDeepLinkRef.current = null
@@ -1291,7 +1291,11 @@ export function DesktopLayout(): React.ReactNode {
     if (handledJudgeDeepLinkRef.current === requestKey) return
     handledJudgeDeepLinkRef.current = requestKey
     if (desktopClient.supportsDecisionEngine()) {
-      openRightDockTab({ id: 'judge', kind: 'judge', ...(sessionId ? { threadId: sessionId } : {}) })
+      openRightDockTab({
+        id: 'judge',
+        kind: 'judge',
+        ...(sessionId ? { threadId: sessionId } : {}),
+      })
     }
     const params = new URLSearchParams(location.search)
     params.delete('panel')

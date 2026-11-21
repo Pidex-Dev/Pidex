@@ -789,10 +789,9 @@ export function MenuBar({
         </div>
 
         {sessionTabs.length > 0 ? (
-          <div
+          <nav
             aria-label="会话标签页"
             className="menubar-session-tabs tw:flex tw:h-chrome tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:mr-7"
-            role="tablist"
           >
             <div
               className="menubar-session-tabs-track tw:flex tw:h-full tw:w-full tw:items-center tw:gap-1 tw:overflow-x-auto tw:px-1"
@@ -819,7 +818,7 @@ export function MenuBar({
                     }
                   >
                     <button
-                      aria-selected={active}
+                      aria-current={active ? 'page' : undefined}
                       className="tw:flex tw:h-full tw:min-w-0 tw:flex-1 tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:outline-none tw:type-2 tw:weight-medium"
                       onBlur={() =>
                         setActiveScrollTabId((current) => (current === tab.id ? null : current))
@@ -861,7 +860,6 @@ export function MenuBar({
                         if (element) tabButtonRefs.current.set(tab.id, element)
                         else tabButtonRefs.current.delete(tab.id)
                       }}
-                      role="tab"
                       tabIndex={active ? 0 : -1}
                       title={fullTooltip}
                       type="button"
@@ -926,7 +924,7 @@ export function MenuBar({
                 )
               })}
             </div>
-          </div>
+          </nav>
         ) : null}
 
         <WindowControls

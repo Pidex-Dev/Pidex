@@ -627,8 +627,7 @@ export async function executeHarnessRun(
     if (message.stopReason === 'aborted' || request.signal.aborted)
       throw new AgentError('RUN_ABORTED', '任务已停止', 499)
     const output = adapter.outputText(message.content)
-    // ZCode-style fallback: if the final step only contained tool calls with empty
-    // text, recover the latest non-empty assistant step text from this run.
+    // INVARIANT: If the final step only emitted tool calls with empty text, fall back to the latest non-empty assistant text from this run.
     const resolvedOutput = output.trim().length > 0 ? output : latestAssistantText || output
     const stats =
       request.profile && request.profile !== 'main'
@@ -638,10 +637,7 @@ export async function executeHarnessRun(
             ...(totalTokens > 0 ? { totalTokens } : {}),
           }
         : undefined
-    // The delivery candidate is bound to its tool call: only when the final
-    // assistant message is the one that carried the successful submission is
-    // it the delivery result of this runtime. Later steering or continued
-    // execution must never reuse a candidate from an earlier round.
+    // INVARIANT: Delivery is bound to its toolCallID on the final assistant message; later steering must never reuse an earlier candidate.
     const delivered =
       delivery !== undefined &&
       message.content.some((part) => part.type === 'toolCall' && part.id === delivery!.toolCallID)

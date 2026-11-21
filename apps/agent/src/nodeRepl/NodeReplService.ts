@@ -132,6 +132,7 @@ type NodeReplConnection = {
 export class NodeReplService {
   private readonly locks = new Map<string, Promise<unknown>>()
   private readonly connections = new Map<string, NodeReplConnection>()
+  private readonly activeStopHandlers = new Set<() => void>()
   /**
    * One permanent stop subscription closes idle connections when the plugin is
    * disabled; each cell still subscribes for its own 403 mapping.
@@ -139,7 +140,10 @@ export class NodeReplService {
   private readonly unsubscribeStop: (() => void) | undefined
 
   constructor(private readonly subscribeStop?: (stop: () => void) => () => void) {
-    this.unsubscribeStop = subscribeStop?.(() => void this.closeAll())
+    this.unsubscribeStop = subscribeStop?.(() => {
+      for (const onStop of this.activeStopHandlers) onStop()
+      void this.closeAll()
+    })
   }
 
   /** Serializes cells of one chat; separate chats keep their own process. */
@@ -219,10 +223,12 @@ export class NodeReplService {
         : this.evict(input.threadID))
     }
     input.signal.addEventListener('abort', stop, { once: true })
-    const unsubscribe = this.subscribeStop?.(() => {
+    const markUnavailable = () => {
       unavailable = true
       stop()
-    })
+    }
+    this.activeStopHandlers.add(markUnavailable)
+    const unsubscribe = this.subscribeStop?.(markUnavailable)
     const timer = setTimeout(stop, timeoutMs)
     let releaseHandler: (() => void) | undefined
     try {
@@ -296,6 +302,7 @@ export class NodeReplService {
       await this.evict(input.threadID)
       throw new AgentError('NODE_REPL_FAILED', 'node_repl MCP 启动或调用失败，请检查配置', 500)
     } finally {
+      this.activeStopHandlers.delete(markUnavailable)
       unsubscribe?.()
       clearTimeout(timer)
       releaseHandler?.()

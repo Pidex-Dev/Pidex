@@ -107,7 +107,7 @@ const COMMAND_HINT_MAX_LENGTH = 56
 
 export function InlineApprovalCard({
   request,
-  currentPermissionMode,
+  currentPermissionMode: _currentPermissionMode,
   taskMode,
   onDecide,
   onInterrupt,
@@ -233,9 +233,7 @@ export function InlineApprovalCard({
           id: 'computer-chat',
           label: '允许此对话',
           run: () =>
-            void act(() =>
-              onDecide(request, 'allow', false, undefined, { computerGrant: 'chat' }),
-            ),
+            void act(() => onDecide(request, 'allow', false, undefined, { computerGrant: 'chat' })),
         },
         ...(request.computerApp.allowPersistentApproval
           ? [
@@ -320,11 +318,7 @@ export function InlineApprovalCard({
 
   function handleOptionsKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
     if (disabled) return
-    if (
-      event.nativeEvent.isComposing ||
-      event.nativeEvent.keyCode === 229 ||
-      event.repeat
-    ) {
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || event.repeat) {
       return
     }
     if (event.target instanceof HTMLTextAreaElement) return
@@ -336,10 +330,7 @@ export function InlineApprovalCard({
       }
       return
     }
-    if (
-      (event.key === 'ArrowUp' || event.key === 'ArrowDown') &&
-      approvalOptions.length > 1
-    ) {
+    if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && approvalOptions.length > 1) {
       event.preventDefault()
       const currentIndex = Math.max(
         0,
@@ -382,10 +373,7 @@ export function InlineApprovalCard({
               className={cx('ask-user-question-option-row', selected && 'is-selected')}
               onClick={() => handleOptionClick(option)}
             >
-              <span
-                className="request-card-marker ask-user-question-option-num"
-                aria-hidden="true"
-              >
+              <span className="request-card-marker ask-user-question-option-num" aria-hidden="true">
                 {index + 1}
               </span>
               <span className="ask-user-question-option-inline tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1">
@@ -720,7 +708,9 @@ function inlineApprovalTitle(
     const externalPaths = extractExternalCommandPaths(rawCommand, workspacePath, cwd)
     const externalDir = externalPaths[0] ? externalDirectoryLabel(externalPaths[0]) : null
     const baseScope = workspacePath?.trim() || null
-    const cwdOutside = Boolean(cwd && (baseScope ? !isPathInsideBase(cwd, baseScope) : !externalDir))
+    const cwdOutside = Boolean(
+      cwd && (baseScope ? !isPathInsideBase(cwd, baseScope) : !externalDir),
+    )
 
     if (externalDir) {
       const cmdLabel = summarizeCommandForTitle(rawCommand, externalDir)
@@ -877,7 +867,11 @@ function summarizeCommandForTitle(
   if (!command) return null
   const trimmed = command.trim()
   if (!trimmed) return null
-  if (!trimmed.includes('\n') && trimmed.length <= 40 && !(embeddedPath && trimmed.includes(embeddedPath))) {
+  if (
+    !trimmed.includes('\n') &&
+    trimmed.length <= 40 &&
+    !(embeddedPath && trimmed.includes(embeddedPath))
+  ) {
     return trimmed
   }
   const headMatch = /^(?:&\s*)?(?:"([^"]+)"|'([^']+)'|([^\s|;&]+))/.exec(trimmed)
