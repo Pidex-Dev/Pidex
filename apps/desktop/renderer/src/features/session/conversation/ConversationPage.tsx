@@ -1593,10 +1593,11 @@ function ThreadSummaryPresence({
   reducedMotion: boolean
 }): React.ReactNode {
   const isPresent = useIsPresent()
+  // INVARIANT: 悬浮摘要面板宽度与最大高度直接消费 `.conversation-page` 的同源几何变量，保证与 `.workflow-main-scroll-area--with-summary` 的右侧避让区严格同步。
   const baseClassName =
     displayMode === 'overlay'
-      ? 'thread-summary-inline thread-summary-floating tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:rounded-floating tw:p-1'
-      : 'thread-summary-inline tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:max-h-[calc(100%-32px)] tw:rounded-floating tw:bg-app-raised tw:p-1'
+      ? 'thread-summary-inline thread-summary-floating tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[var(--conversation-summary-panel-width)] tw:min-h-0 tw:flex-col tw:rounded-floating tw:p-1'
+      : 'thread-summary-inline tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[var(--conversation-summary-panel-width)] tw:min-h-0 tw:flex-col tw:max-h-[calc(100%-var(--conversation-summary-panel-top)*2)] tw:rounded-floating tw:bg-app-raised tw:p-1'
 
   return (
     <motion.div

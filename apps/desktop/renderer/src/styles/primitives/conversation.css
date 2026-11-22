@@ -47,6 +47,18 @@
     --conversation-item-gap: var(--cpx-sys-space-4);
     --conversation-grouped-item-gap: 4px;
     --thread-resource-row-padding-x: 12px;
+
+    /* INVARIANT: 右侧悬浮摘要卡片（`ThreadSummaryPresence`）的宽度、距顶/距右偏移与正文避让间隙在父级 `.conversation-page` 同源声明；
+     * `.workflow-main-scroll-area--with-summary` 的右侧避让量由面板宽度 + 右侧偏移 + 安全间距推导，避免跨文件硬编码 `17.25rem` 失配。 */
+    --conversation-summary-panel-width: 16.25rem;
+    --conversation-summary-panel-top: var(--cpx-sys-space-4);
+    --conversation-summary-panel-end: var(--cpx-sys-space-2);
+    --conversation-summary-panel-gap: var(--cpx-sys-space-2);
+    --conversation-summary-clearance: calc(
+      var(--conversation-summary-panel-width) +
+        var(--conversation-summary-panel-end) +
+        var(--conversation-summary-panel-gap)
+    );
   }
 
   .conversation-page .workflow-page__composer-inner {
@@ -2016,7 +2028,7 @@
   }
 
   .workflow-main-scroll-area--with-summary {
-    padding-inline-end: 17.25rem;
+    padding-inline-end: var(--conversation-summary-clearance);
   }
 
   @media (prefers-reduced-motion: reduce) {
