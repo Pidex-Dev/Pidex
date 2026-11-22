@@ -3,8 +3,10 @@ import { useLocale as useI18n } from '../../../features/i18n/LocaleProvider.js'
 import React, {
   createContext,
   forwardRef,
+  useCallback,
   useContext,
   useEffect,
+  useEffectEvent,
   useId,
   useLayoutEffect,
   useRef,
@@ -45,6 +47,7 @@ interface PopoverContextValue {
   setOpen: (open: boolean) => void
   triggerRef: React.MutableRefObject<HTMLElement | null>
   anchorRef: React.MutableRefObject<FloatingAnchor | null>
+  setVirtualAnchor: (node: FloatingAnchor | null) => void
   contentId: string
 }
 const PopoverContext = createContext<PopoverContextValue | null>(null)
@@ -64,6 +67,9 @@ function PopoverRoot({ children, open, defaultOpen = false, onOpenChange }: Popo
   const [present, setPresent] = useState(activeOpen)
   const triggerRef = useRef<HTMLElement | null>(null)
   const anchorRef = useRef<FloatingAnchor | null>(null)
+  const setVirtualAnchor = useCallback((node: FloatingAnchor | null): void => {
+    anchorRef.current = node
+  }, [])
   const contentId = useId()
   return (
     <PopoverContext.Provider
@@ -74,6 +80,7 @@ function PopoverRoot({ children, open, defaultOpen = false, onOpenChange }: Popo
         setOpen,
         triggerRef,
         anchorRef,
+        setVirtualAnchor,
         contentId,
       }}
     >
@@ -115,22 +122,23 @@ export interface PopoverAnchorProps extends HTMLAttributes<HTMLDivElement> {
 const PopoverAnchor = forwardRef<HTMLElement, PopoverAnchorProps>(
   ({ asChild = false, virtualRef, ...props }, ref) => {
     const context = usePopoverContext()
+    const setVirtualAnchor = context.setVirtualAnchor
     useLayoutEffect(() => {
-      if (virtualRef) context.anchorRef.current = virtualRef.current
+      if (!virtualRef) return
+      setVirtualAnchor(virtualRef.current)
       return () => {
-        if (virtualRef) context.anchorRef.current = null
+        setVirtualAnchor(null)
       }
-    }, [virtualRef, context.anchorRef])
+    }, [virtualRef, setVirtualAnchor])
     if (virtualRef) return null
     const Component = asChild ? Slot : 'div'
     return (
       <Component
         {...props}
         ref={
-          mergeRefs(
-            ref,
-            context.anchorRef as React.MutableRefObject<HTMLElement | null>,
-          ) as React.Ref<HTMLDivElement>
+          mergeRefs(ref, (node: HTMLElement | null) => {
+            setVirtualAnchor(node)
+          }) as React.Ref<HTMLDivElement>
         }
       />
     )
@@ -188,10 +196,9 @@ const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
     }, [present, context])
     const popover = useTopLayer(contentRef, present)
     const positionRef = useRef<FloatingAnchor | null>(null)
-    positionRef.current = context.anchorRef.current ?? context.triggerRef.current
     useLayoutEffect(() => {
       positionRef.current = context.anchorRef.current ?? context.triggerRef.current
-    })
+    }, [context.anchorRef, context.triggerRef, context.open, present])
     const portal = usePortal()
     const { coords, floatingStyle } = useFloatingPosition({
       anchor: anchor ?? positionRef,
@@ -204,11 +211,13 @@ const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
       portal,
     })
     const dismissAnchorRef = useRef<HTMLElement | null>(null)
-    const externalAnchor =
-      anchor && 'current' in anchor ? anchor.current : (anchor as HTMLElement | null | undefined)
-    const anchorElement = externalAnchor ?? positionRef.current
-    dismissAnchorRef.current =
-      anchorElement instanceof HTMLElement ? anchorElement : context.triggerRef.current
+    useLayoutEffect(() => {
+      const externalAnchor =
+        anchor && 'current' in anchor ? anchor.current : (anchor as HTMLElement | null | undefined)
+      const anchorElement = externalAnchor ?? positionRef.current
+      dismissAnchorRef.current =
+        anchorElement instanceof HTMLElement ? anchorElement : context.triggerRef.current
+    }, [anchor, context.triggerRef, context.open, present])
     useDismissableLayer({
       open: context.open,
       contentRef,
@@ -220,6 +229,9 @@ const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
       onEscapeKeyDown,
     })
     useFocusReturn(context.open, contentRef, dismissAnchorRef, onCloseAutoFocus)
+    const handleOpenAutoFocus = useEffectEvent((event: Event): void => {
+      onOpenAutoFocus?.(event)
+    })
     // 打开后将焦点移入内容（Portal 挂在 body 末尾，无初始焦点时键盘用户无法到达浮层）
     useEffect(() => {
       if (!context.open) return
@@ -227,7 +239,7 @@ const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
         const el = contentRef.current
         if (!el) return
         const event = new Event('floating.openAutoFocus', { cancelable: true })
-        onOpenAutoFocus?.(event)
+        handleOpenAutoFocus(event)
         if (event.defaultPrevented) return
         const firstFocusable = el.querySelector<HTMLElement>(
           'button:not([disabled]), input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])',
@@ -236,20 +248,33 @@ const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
       })
       return () => cancelAnimationFrame(timer)
     }, [context.open])
+    useLayoutEffect(() => {
+      const el = contentRef.current
+      if (!el) return
+      const externalAnchor =
+        anchor && 'current' in anchor ? anchor.current : (anchor as HTMLElement | null | undefined)
+      const anchorElement = externalAnchor ?? positionRef.current
+      const anchorRect = anchorElement?.getBoundingClientRect()
+      if (!coords || !anchorRect) {
+        el.style.removeProperty('--popover-arrow-x')
+        el.style.removeProperty('--popover-arrow-y')
+        return
+      }
+      el.style.setProperty(
+        '--popover-arrow-x',
+        `${Math.max(12, Math.min((el.offsetWidth ?? 280) - 12, anchorRect.left + anchorRect.width / 2 - coords.left))}px`,
+      )
+      el.style.setProperty(
+        '--popover-arrow-y',
+        `${Math.max(12, Math.min((el.offsetHeight ?? 180) - 12, anchorRect.top + anchorRect.height / 2 - coords.top))}px`,
+      )
+    }, [coords, anchor, present, context.open])
     if (!present) return null
     const Component = asChild ? Slot : 'div'
     const isUnstyled = variant === 'unstyled'
     const [actualSide, actualAlign = align] = (coords?.actualPlacement ?? `${side}-${align}`).split(
       '-',
     )
-    const anchorRect = anchorElement?.getBoundingClientRect()
-    const arrowStyle =
-      coords && anchorRect
-        ? {
-            '--popover-arrow-x': `${Math.max(12, Math.min((contentRef.current?.offsetWidth ?? 280) - 12, anchorRect.left + anchorRect.width / 2 - coords.left))}px`,
-            '--popover-arrow-y': `${Math.max(12, Math.min((contentRef.current?.offsetHeight ?? 180) - 12, anchorRect.top + anchorRect.height / 2 - coords.top))}px`,
-          }
-        : {}
     return (
       <Component
         {...props}
@@ -264,7 +289,7 @@ const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
         data-variant={variant}
         data-side={actualSide}
         data-align={actualAlign}
-        style={{ ...floatingStyle, ...arrowStyle, ...style }}
+        style={{ ...floatingStyle, ...style }}
         className={
           isUnstyled
             ? className

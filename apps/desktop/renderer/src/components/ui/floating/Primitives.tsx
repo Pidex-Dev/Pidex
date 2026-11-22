@@ -7,7 +7,6 @@ import React, {
   useContext,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type HTMLAttributes,
@@ -24,29 +23,68 @@ export function useControllableState<T>(
 ) {
   const [internalValue, setInternalValue] = useState(defaultValue)
   const current = value === undefined ? internalValue : value
-  const currentRef = useRef(current)
-  currentRef.current = current
+  const lastRequestedRef = useRef({ base: current, value: current })
+  useLayoutEffect(() => {
+    lastRequestedRef.current = { base: current, value: current }
+  })
   const setValue = useCallback(
     (next: T) => {
-      if (Object.is(currentRef.current, next)) return
-      currentRef.current = next
+      const effective = Object.is(lastRequestedRef.current.base, current)
+        ? lastRequestedRef.current.value
+        : current
+      if (Object.is(effective, next)) return
+      lastRequestedRef.current = { base: current, value: next }
       if (value === undefined) {
         setInternalValue(next)
       }
       onChange?.(next)
     },
-    [value, onChange],
+    [current, value, onChange],
   )
   return [current, setValue] as const
+}
+
+function assignSlotRef<T>(target: Ref<T> | undefined, node: T | null): void {
+  if (typeof target === 'function') target(node)
+  else if (target) (target as React.MutableRefObject<T | null>).current = node
 }
 
 export function mergeRefs<T>(...refs: Array<Ref<T> | undefined>) {
   return (node: T | null) => {
     refs.forEach((ref) => {
-      if (typeof ref === 'function') ref(node)
-      else if (ref) (ref as React.MutableRefObject<T | null>).current = node
+      assignSlotRef(ref, node)
     })
   }
+}
+
+function createSlotRefCoordinator() {
+  let currentRef: Ref<HTMLElement> | undefined
+  let currentChildRef: Ref<HTMLElement> | undefined
+  let currentNode: HTMLElement | null = null
+
+  const refCallback = (node: HTMLElement | null): void => {
+    currentNode = node
+    assignSlotRef(currentRef, node)
+    assignSlotRef(currentChildRef, node)
+  }
+
+  const sync = (
+    nextRef: Ref<HTMLElement> | undefined,
+    nextChildRef: Ref<HTMLElement> | undefined,
+  ): void => {
+    if (nextRef !== currentRef) {
+      if (currentNode !== null) assignSlotRef(currentRef, null)
+      currentRef = nextRef
+      if (currentNode !== null) assignSlotRef(currentRef, currentNode)
+    }
+    if (nextChildRef !== currentChildRef) {
+      if (currentNode !== null) assignSlotRef(currentChildRef, null)
+      currentChildRef = nextChildRef
+      if (currentNode !== null) assignSlotRef(currentChildRef, currentNode)
+    }
+  }
+
+  return { refCallback, sync }
 }
 
 interface SlotProps extends HTMLAttributes<HTMLElement> {
@@ -59,7 +97,10 @@ interface SlotProps extends HTMLAttributes<HTMLElement> {
 export const Slot = forwardRef<HTMLElement, SlotProps>(({ children, ...props }, ref) => {
   const child = Children.only(children) as React.ReactElement<Record<string, any>>
   const childRef = child.props.ref as Ref<HTMLElement> | undefined
-  const composedRef = useMemo(() => mergeRefs(ref, childRef), [ref, childRef])
+  const [slotRef] = useState(createSlotRefCoordinator)
+  useLayoutEffect(() => {
+    slotRef.sync(ref, childRef)
+  }, [slotRef, ref, childRef])
   const merged: Record<string, any> = { ...props, ...child.props }
   for (const name of Object.keys(props)) {
     const parentValue = (props as Record<string, any>)[name]
@@ -73,7 +114,7 @@ export const Slot = forwardRef<HTMLElement, SlotProps>(({ children, ...props }, 
   }
   merged.className = [props.className, child.props.className].filter(Boolean).join(' ')
   merged.style = { ...props.style, ...child.props.style }
-  merged.ref = composedRef
+  merged.ref = slotRef.refCallback
   // State and accessibility attributes belong to the primitive.
   for (const name of Object.keys(props)) {
     if (name.startsWith('aria-') || name.startsWith('data-') || name === 'disabled')
@@ -131,20 +172,26 @@ export function useTopLayer(ref: RefObject<HTMLElement | null>, open: boolean) {
 }
 
 export function useExitPresence(open: boolean, contentRef: RefObject<HTMLElement | null>): boolean {
-  const [present, setPresent] = useState(open)
+  const [prevOpen, setPrevOpen] = useState(open)
+  const [exiting, setExiting] = useState(false)
+
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    setExiting(!open)
+  }
 
   useLayoutEffect(() => {
-    if (open) {
-      setPresent(true)
-      return
-    }
+    if (open || !exiting) return
 
-    if (!present) return
-
+    let cancelled = false
     const el = contentRef.current
     if (typeof window === 'undefined' || !el) {
-      setPresent(false)
-      return
+      queueMicrotask(() => {
+        if (!cancelled) setExiting(false)
+      })
+      return () => {
+        cancelled = true
+      }
     }
 
     const reducedMotion =
@@ -152,15 +199,19 @@ export function useExitPresence(open: boolean, contentRef: RefObject<HTMLElement
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     if (reducedMotion) {
-      setPresent(false)
-      return
+      queueMicrotask(() => {
+        if (!cancelled) setExiting(false)
+      })
+      return () => {
+        cancelled = true
+      }
     }
 
     let finished = false
     const finish = () => {
       if (finished) return
       finished = true
-      setPresent(false)
+      setExiting(false)
     }
 
     const onTransitionEnd = (e: TransitionEvent) => {
@@ -176,13 +227,14 @@ export function useExitPresence(open: boolean, contentRef: RefObject<HTMLElement
     const timer = setTimeout(finish, 250)
 
     return () => {
+      cancelled = true
       el.removeEventListener('transitionend', onTransitionEnd)
       el.removeEventListener('animationend', onAnimationEnd)
       clearTimeout(timer)
     }
-  }, [open, present, contentRef])
+  }, [open, exiting, contentRef])
 
-  return present
+  return open || exiting
 }
 
 export interface DismissEvents {
@@ -218,14 +270,16 @@ export function useDismissableLayer({
     onEscapeKeyDown,
     additionalRefs,
   })
-  handlers.current = {
-    onDismiss,
-    onPointerDownOutside,
-    onFocusOutside,
-    onInteractOutside,
-    onEscapeKeyDown,
-    additionalRefs,
-  }
+  useLayoutEffect(() => {
+    handlers.current = {
+      onDismiss,
+      onPointerDownOutside,
+      onFocusOutside,
+      onInteractOutside,
+      onEscapeKeyDown,
+      additionalRefs,
+    }
+  })
   useEffect(() => {
     if (!open) return
     const layer = Symbol()
@@ -304,7 +358,9 @@ export function useFocusReturn(
   onCloseAutoFocus?: (event: Event) => void,
 ) {
   const closeHandler = useRef(onCloseAutoFocus)
-  closeHandler.current = onCloseAutoFocus
+  useLayoutEffect(() => {
+    closeHandler.current = onCloseAutoFocus
+  })
   // StrictMode 探针会在首次挂载后立即清理再重挂副作用。关闭回调一旦同步执行，
   // 恢复的焦点会落在浮层外，把刚打开的菜单当成外部焦点关掉；因此把恢复推迟到
   // 微任务，并允许紧随其后的重挂载取消它。
@@ -315,6 +371,7 @@ export function useFocusReturn(
     cancelPendingRestore.current = null
     const previous = document.activeElement as HTMLElement | null
     const content = contentRef.current
+    const anchorAtOpen = targetRef?.current ?? null
     return () => {
       const restore =
         document.activeElement === document.body ||
@@ -329,7 +386,7 @@ export function useFocusReturn(
         const event = new Event('floating.closeAutoFocus', { cancelable: true })
         closeHandler.current?.(event)
         if (event.defaultPrevented || !restore) return
-        const anchor = targetRef?.current
+        const anchor = anchorAtOpen
         const target =
           anchor && (anchor.tabIndex >= 0 || anchor.hasAttribute('tabindex')) ? anchor : previous
         if (target?.isConnected) target.focus()

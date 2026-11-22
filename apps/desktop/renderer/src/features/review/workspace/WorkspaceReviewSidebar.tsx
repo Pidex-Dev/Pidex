@@ -116,8 +116,14 @@ import {
 import { hideImportOnlyHunks } from '../diff/ReviewDiffAdapter.js'
 import { cx } from '../../../utils/Cx.js'
 import { containsRelatedTarget } from '../../../utils/DomTargets.js'
+import { useMountEffect } from '../../../hooks/UseMountEffect.js'
+import { useWindowEvent } from '../../../hooks/UseExternalSubscription.js'
 
 const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH = REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 + 260
+const EMPTY_REVIEW_FILES: DesktopReviewDiffResult['files'] = []
+const EMPTY_REVIEW_COMMENTS: DesktopReviewComment[] = []
+const EMPTY_REVIEW_BRANCHES: ReviewBranch[] = []
+const EMPTY_REVIEW_COMMITS: ReviewCommit[] = []
 
 /*
  * Complete static class lists for the sidebar shell. The semantic class names
@@ -225,7 +231,7 @@ function WorkspaceReviewSidebarImpl({
   onToggleReviewView,
 }: WorkspaceReviewSidebarProps): React.ReactNode {
   const [reviewCapabilities, setReviewCapabilities] = React.useState<readonly string[]>([])
-  React.useEffect(() => {
+  useMountEffect(() => {
     let active = true
     void desktopClient
       .getRuntimeCapabilities()
@@ -236,18 +242,21 @@ function WorkspaceReviewSidebarImpl({
     return () => {
       active = false
     }
-  }, [])
+  })
   const source = reviewTabState.source
   const summaryIdentity = createReviewSummaryIdentity(projectId, workspacePath, source)
   const commentIdentity = createReviewCommentIdentity(summaryIdentity, activeSessionId)
   const scope: DesktopReviewScope = source.kind === 'staged' ? 'staged' : 'unstaged'
+  const [prevSummaryIdentity, setPrevSummaryIdentity] = React.useState(summaryIdentity)
   const [reviewDiffState, setReviewDiff] = React.useState<Awaited<
     ReturnType<typeof desktopClient.getWorkspaceReviewDiff>
   > | null>(null)
   const [summaryState, setSummary] = React.useState<ReviewSummarySnapshot | null>(null)
-  const summaryStateIdentityRef = React.useRef(summaryIdentity)
-  const summary = summaryStateIdentityRef.current === summaryIdentity ? summaryState : null
-  const reviewDiff = summaryStateIdentityRef.current === summaryIdentity ? reviewDiffState : null
+  const [summaryCacheState, setSummaryCacheState] = React.useState<'fresh' | 'stale' | null>(null)
+  const isCurrentSummaryIdentity = prevSummaryIdentity === summaryIdentity
+  const summary = isCurrentSummaryIdentity ? summaryState : null
+  const reviewDiff = isCurrentSummaryIdentity ? reviewDiffState : null
+  const currentSummaryCacheState = isCurrentSummaryIdentity ? summaryCacheState : null
   React.useEffect(() => {
     onReviewSummaryChange?.(summary)
   }, [summary, onReviewSummaryChange])
@@ -256,15 +265,16 @@ function WorkspaceReviewSidebarImpl({
     ReadonlyMap<string, ReviewFileLoadState>
   >(() => new Map())
   const [batchLargeModeKey, setBatchLargeModeKey] = React.useState<string | null>(null)
-  const [branches, setBranches] = React.useState<ReviewBranch[]>([])
-  const [commits, setCommits] = React.useState<ReviewCommit[]>([])
-  const [sourceOptionsState, setSourceOptionsState] = React.useState<
-    'idle' | 'loading' | 'ready' | 'error'
-  >('idle')
+  const [sourceOptionsResult, setSourceOptionsResult] = React.useState<{
+    requestKey: string
+    status: 'ready' | 'error'
+    branches: ReviewBranch[]
+    commits: ReviewCommit[]
+  } | null>(null)
   const [sourceOptionsRetry, setSourceOptionsRetry] = React.useState(0)
+  const [prevCommentIdentity, setPrevCommentIdentity] = React.useState(commentIdentity)
   const [commentsState, setComments] = React.useState<DesktopReviewComment[]>([])
-  const commentsStateIdentityRef = React.useRef(commentIdentity)
-  const comments = commentsStateIdentityRef.current === commentIdentity ? commentsState : []
+  const comments = prevCommentIdentity === commentIdentity ? commentsState : EMPTY_REVIEW_COMMENTS
   const selectedPath = reviewTabState.selectedFile
   const setSelectedPath = React.useCallback(
     (value: string | null | ((current: string | null) => string | null)) => {
@@ -320,6 +330,26 @@ function WorkspaceReviewSidebarImpl({
   const [prPopoverOpen, setPrPopoverOpen] = React.useState(false)
   const [currentPullRequestUrl, setCurrentPullRequestUrl] = React.useState<string | null>(null)
   const [moreMenuOpen, setMoreMenuOpen] = React.useState(false)
+
+  if (prevSummaryIdentity !== summaryIdentity) {
+    setPrevSummaryIdentity(summaryIdentity)
+    setSummary(null)
+    setLoadedDiffs(new Map())
+    setFileLoadStates(new Map())
+    setBatchLargeModeKey(null)
+    setReviewDiff(null)
+    setSummaryCacheState(null)
+    setLoadState('loading')
+    setError(null)
+    setPending(false)
+    setCurrentPullRequestUrl(null)
+  }
+
+  if (prevCommentIdentity !== commentIdentity) {
+    setPrevCommentIdentity(commentIdentity)
+    setComments([])
+    setDraft(null)
+  }
   const wordWrap = reviewTabState.wrapLines
   const richDiffPreview = reviewTabState.richPreview
   const textDiff = reviewTabState.showWordDiff
@@ -360,28 +390,50 @@ function WorkspaceReviewSidebarImpl({
     [onReviewTabStateChange],
   )
 
+  const sourceOptionsRequestKey =
+    (scopeMenuOpen || branchPickerOpen) && workspacePath
+      ? `${projectId ?? ''}\0${workspacePath}\0${sourceOptionsRetry}`
+      : null
+  const matchedSourceOptions =
+    sourceOptionsRequestKey !== null && sourceOptionsResult?.requestKey === sourceOptionsRequestKey
+      ? sourceOptionsResult
+      : null
+  const sourceOptionsState: 'idle' | 'loading' | 'ready' | 'error' =
+    sourceOptionsRequestKey === null ? 'idle' : (matchedSourceOptions?.status ?? 'loading')
+  const branches = matchedSourceOptions?.branches ?? EMPTY_REVIEW_BRANCHES
+  const commits = matchedSourceOptions?.commits ?? EMPTY_REVIEW_COMMITS
+
   React.useEffect(() => {
-    if ((!scopeMenuOpen && !branchPickerOpen) || !workspacePath) return
+    if (sourceOptionsRequestKey === null || !workspacePath) return
     let active = true
-    setSourceOptionsState('loading')
+    const requestKey = sourceOptionsRequestKey
     void Promise.all([
       reviewAgentClient.branches(workspacePath, projectId ?? undefined),
       reviewAgentClient.commits(workspacePath, projectId ?? undefined),
     ]).then(
       ([nextBranches, nextCommits]) => {
         if (!active) return
-        setBranches(nextBranches)
-        setCommits(nextCommits)
-        setSourceOptionsState('ready')
+        setSourceOptionsResult({
+          requestKey,
+          status: 'ready',
+          branches: nextBranches,
+          commits: nextCommits,
+        })
       },
       () => {
-        if (active) setSourceOptionsState('error')
+        if (!active) return
+        setSourceOptionsResult((previous) => ({
+          requestKey,
+          status: 'error',
+          branches: previous?.branches ?? EMPTY_REVIEW_BRANCHES,
+          commits: previous?.commits ?? EMPTY_REVIEW_COMMITS,
+        }))
       },
     )
     return () => {
       active = false
     }
-  }, [branchPickerOpen, scopeMenuOpen, sourceOptionsRetry, projectId, workspacePath])
+  }, [projectId, sourceOptionsRequestKey, workspacePath])
 
   const moreButtonRef = React.useRef<HTMLButtonElement | null>(null)
   const wideActionsFocusRef = React.useRef(false)
@@ -438,20 +490,19 @@ function WorkspaceReviewSidebarImpl({
     }>(),
   )
   const refreshLifecycleGenerationRef = React.useRef(0)
-  React.useEffect(() => {
+  useMountEffect(() => {
     const coordinator = refreshCoordinatorRef.current
+    const autoRefresh = autoRefreshRef.current
     coordinator.activate()
-    autoRefreshRef.current.activate()
+    autoRefresh.activate()
     return () => {
       refreshLifecycleGenerationRef.current += 1
       coordinator.dispose()
-      autoRefreshRef.current.dispose()
+      autoRefresh.dispose()
     }
-  }, [])
+  })
   const activeSummaryIdentityRef = React.useRef(summaryIdentity)
   const activeCommentIdentityRef = React.useRef(commentIdentity)
-  activeSummaryIdentityRef.current = summaryIdentity
-  activeCommentIdentityRef.current = commentIdentity
   const diffScrollViewportRef = React.useRef<HTMLDivElement | null>(null)
   const diffFileSectionRefs = React.useRef(new Map<string, HTMLElement>())
   const fileSearchInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -462,7 +513,6 @@ function WorkspaceReviewSidebarImpl({
   const pendingScrollIdentityRef = React.useRef<string | null>(null)
   const scrollPersistTimerRef = React.useRef<number | null>(null)
   const onReviewTabStateChangeRef = React.useRef(onReviewTabStateChange)
-  onReviewTabStateChangeRef.current = onReviewTabStateChange
   const flushReviewScroll = React.useCallback(
     (identity: string): void => {
       if (scrollPersistTimerRef.current !== null) {
@@ -501,10 +551,14 @@ function WorkspaceReviewSidebarImpl({
     [flushReviewScroll, summaryIdentity],
   )
   const flushReviewScrollRef = React.useRef(flushReviewScroll)
-  flushReviewScrollRef.current = flushReviewScroll
-
   const autoRefreshRef = React.useRef(new ReviewAutoRefreshScheduler())
   const autoRefreshTargetRef = React.useRef<() => void>(() => {})
+  React.useLayoutEffect(() => {
+    activeSummaryIdentityRef.current = summaryIdentity
+    activeCommentIdentityRef.current = commentIdentity
+    onReviewTabStateChangeRef.current = onReviewTabStateChange
+    flushReviewScrollRef.current = flushReviewScroll
+  }, [commentIdentity, flushReviewScroll, onReviewTabStateChange, summaryIdentity])
   const scheduleAutoRefresh = React.useCallback((): void => {
     autoRefreshRef.current.schedule(() => autoRefreshTargetRef.current())
   }, [])
@@ -528,7 +582,10 @@ function WorkspaceReviewSidebarImpl({
         if (!isCurrentRequest()) return
         const busy = shouldDeferReviewRefresh(reason, refreshError)
         reportReviewDiagnostic(busy ? 'warning' : 'error', event, context, refreshError)
-        if (summaryRef.current !== null) summaryCacheStateRef.current = 'stale'
+        if (summaryRef.current !== null) {
+          summaryCacheStateRef.current = 'stale'
+          setSummaryCacheState('stale')
+        }
         setFileLoadStates((current) => {
           const next = new Map(current)
           for (const [path, state] of next) {
@@ -558,7 +615,6 @@ function WorkspaceReviewSidebarImpl({
           const startedAt = performance.now()
           if (!workspacePath) {
             if (!isCurrentRequest()) return null
-            summaryStateIdentityRef.current = identity
             summaryRef.current = null
             summaryCacheStateRef.current = null
             loadedDiffsRef.current = new Map()
@@ -566,6 +622,7 @@ function WorkspaceReviewSidebarImpl({
             setLoadedDiffs(new Map())
             setFileLoadStates(new Map())
             setReviewDiff(null)
+            setSummaryCacheState(null)
             setLoadState('not-repository')
             return null
           }
@@ -610,7 +667,6 @@ function WorkspaceReviewSidebarImpl({
             }
             summaryRef.current = nextSummary
             loadedDiffsRef.current = retainedDiffs
-            summaryStateIdentityRef.current = identity
             const expiredPaths =
               result.cacheState === 'fresh'
                 ? new Set(expiredFilePathsRef.current)
@@ -673,6 +729,7 @@ function WorkspaceReviewSidebarImpl({
                 return next
               })
               setReviewDiff(nextReviewDiff)
+              setSummaryCacheState(result.cacheState)
               setLoadState(nextLoadState)
             })
             return result
@@ -709,14 +766,16 @@ function WorkspaceReviewSidebarImpl({
     ],
   )
 
-  autoRefreshTargetRef.current = (): void => {
-    const root = reviewRootRef.current
-    if (root === null || root.offsetParent === null) {
-      staleGitChangeRef.current = true
-      return
+  React.useLayoutEffect(() => {
+    autoRefreshTargetRef.current = (): void => {
+      const root = reviewRootRef.current
+      if (root === null || root.offsetParent === null) {
+        staleGitChangeRef.current = true
+        return
+      }
+      void refreshReviewDiff(true, 'auto')
     }
-    void refreshReviewDiff(true, 'auto')
-  }
+  }, [refreshReviewDiff])
 
   const recoverExpiredReview = React.useCallback(
     async (
@@ -740,7 +799,7 @@ function WorkspaceReviewSidebarImpl({
     [refreshReviewDiff],
   )
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     refreshCoordinatorRef.current.invalidate()
     autoRefreshRef.current.cancel()
     fileRequestCoordinatorRef.current = new ReviewFileRequestCoordinator(2)
@@ -752,26 +811,13 @@ function WorkspaceReviewSidebarImpl({
     activeFileDiffBatchRef.current = null
     expiredFilePathsRef.current.clear()
     mutationRequestTokenRef.current += 1
-    summaryStateIdentityRef.current = summaryIdentity
-    setSummary(null)
-    setLoadedDiffs(new Map())
-    setFileLoadStates(new Map())
-    setBatchLargeModeKey(null)
-    setReviewDiff(null)
-    setLoadState('loading')
-    setError(null)
-    setPending(false)
-    setCurrentPullRequestUrl(null)
     if (errorTimerRef.current !== null) {
       window.clearTimeout(errorTimerRef.current)
       errorTimerRef.current = null
     }
   }, [summaryIdentity])
 
-  React.useEffect(() => {
-    commentsStateIdentityRef.current = commentIdentity
-    setComments([])
-    setDraft(null)
+  React.useLayoutEffect(() => {
     publishedGithubCommentIdsRef.current.clear()
   }, [commentIdentity])
 
@@ -1011,7 +1057,6 @@ function WorkspaceReviewSidebarImpl({
     },
     [
       beginDiagnosticTimer,
-      onReviewTabStateChange,
       projectId,
       recoverExpiredReview,
       reviewTabState.hideWhitespace,
@@ -1236,7 +1281,6 @@ function WorkspaceReviewSidebarImpl({
 
     await runBatch(initialSummary, true)
   }, [
-    onReviewTabStateChange,
     beginDiagnosticTimer,
     loadFileDiff,
     projectId,
@@ -1248,34 +1292,6 @@ function WorkspaceReviewSidebarImpl({
     workspacePath,
   ])
 
-  const refreshComments = React.useCallback(async () => {
-    const identity = commentIdentity
-    if (!activeSessionId) {
-      if (activeCommentIdentityRef.current === identity) setComments([])
-      return
-    }
-    try {
-      if (!workspacePath) {
-        if (activeCommentIdentityRef.current === identity) setComments([])
-        return
-      }
-      const nextComments = await reviewAgentClient.listComments(
-        workspacePath,
-        activeSessionId,
-        source,
-        projectId ?? undefined,
-      )
-      if (activeCommentIdentityRef.current === identity) {
-        commentsStateIdentityRef.current = identity
-        setComments(nextComments)
-      }
-    } catch (refreshError) {
-      if (activeCommentIdentityRef.current === identity) {
-        setError(errorMessageOf(refreshError))
-      }
-    }
-  }, [activeSessionId, commentIdentity, projectId, source, workspacePath])
-
   React.useEffect(() => {
     if (reviewRootRef.current === null || reviewRootRef.current.offsetParent === null) {
       staleGitChangeRef.current = true
@@ -1284,8 +1300,10 @@ function WorkspaceReviewSidebarImpl({
     void refreshReviewDiff()
   }, [refreshReviewDiff, isRefreshing])
 
-  React.useEffect(() => {
-    const handleGitChange = (event: Event): void => {
+  useWindowEvent(
+    typeof window !== 'undefined' ? window : null,
+    WORKSPACE_GIT_CHANGED_EVENT,
+    (event: Event) => {
       const detail = event instanceof CustomEvent ? event.detail : null
       if (!reviewGitChangeMatchesProject(detail, projectId)) return
       if (reviewRootRef.current !== null && reviewRootRef.current.offsetParent === null) {
@@ -1295,10 +1313,8 @@ function WorkspaceReviewSidebarImpl({
       // Restart the quiet-window countdown; the scan itself waits for the
       // workspace to stop changing instead of joining every write.
       scheduleAutoRefresh()
-    }
-    window.addEventListener(WORKSPACE_GIT_CHANGED_EVENT, handleGitChange)
-    return () => window.removeEventListener(WORKSPACE_GIT_CHANGED_EVENT, handleGitChange)
-  }, [projectId, scheduleAutoRefresh])
+    },
+  )
 
   React.useEffect(() => {
     const root = reviewRootRef.current
@@ -1314,11 +1330,30 @@ function WorkspaceReviewSidebarImpl({
   }, [refreshReviewDiff])
 
   React.useEffect(() => {
-    void refreshComments()
-  }, [refreshComments])
+    if (!activeSessionId || !workspacePath) return
+    let active = true
+    const identity = commentIdentity
+    void reviewAgentClient
+      .listComments(workspacePath, activeSessionId, source, projectId ?? undefined)
+      .then(
+        (nextComments) => {
+          if (active && activeCommentIdentityRef.current === identity) {
+            setComments(nextComments)
+          }
+        },
+        (refreshError) => {
+          if (active && activeCommentIdentityRef.current === identity) {
+            setError(errorMessageOf(refreshError))
+          }
+        },
+      )
+    return () => {
+      active = false
+    }
+  }, [activeSessionId, commentIdentity, projectId, source, workspacePath])
 
   React.useEffect(() => {
-    const files = reviewDiff?.files ?? []
+    const files = reviewDiff?.files ?? EMPTY_REVIEW_FILES
     if (files.length === 0) {
       setSelectedPath(null)
       return
@@ -1326,8 +1361,9 @@ function WorkspaceReviewSidebarImpl({
     setSelectedPath((current) =>
       current && files.some((file) => file.path === current) ? current : (files[0]?.path ?? null),
     )
-  }, [reviewDiff])
+  }, [reviewDiff, setSelectedPath])
 
+  const summaryGeneration = summary?.generation ?? null
   const largeWorkspaceMode =
     summary?.largeDiffMode === true ||
     (summary !== null &&
@@ -1337,15 +1373,56 @@ function WorkspaceReviewSidebarImpl({
         ))
   const fileDiffLoadMode = reviewFileDiffLoadMode({
     hasSummary: summary !== null,
-    cacheState: summaryCacheStateRef.current,
+    cacheState: currentSummaryCacheState,
     summaryLoadState: loadState,
     largeWorkspaceMode,
     selectedPath,
   })
 
-  React.useEffect(() => {
+  const [prevDiffContext, setPrevDiffContext] = React.useState({
+    generation: summaryGeneration,
+    hideWhitespace: reviewTabState.hideWhitespace,
+    loadFullFiles: reviewTabState.loadFullFiles,
+  })
+  if (
+    prevDiffContext.generation !== summaryGeneration ||
+    prevDiffContext.hideWhitespace !== reviewTabState.hideWhitespace ||
+    prevDiffContext.loadFullFiles !== reviewTabState.loadFullFiles
+  ) {
+    const optionsChanged =
+      prevDiffContext.hideWhitespace !== reviewTabState.hideWhitespace ||
+      prevDiffContext.loadFullFiles !== reviewTabState.loadFullFiles
+    setPrevDiffContext({
+      generation: summaryGeneration,
+      hideWhitespace: reviewTabState.hideWhitespace,
+      loadFullFiles: reviewTabState.loadFullFiles,
+    })
+    setBatchLargeModeKey(null)
+    if (optionsChanged && summary) {
+      setLoadedDiffs(new Map())
+      setFileLoadStates(new Map())
+      setReviewDiff((current) =>
+        current
+          ? {
+              ...current,
+              files: summary.files.map((file) => summaryFileToDesktop(file)),
+            }
+          : current,
+      )
+    } else {
+      setFileLoadStates((current) => {
+        const next = new Map(current)
+        for (const [path, state] of next) {
+          if (state.status === 'loading') next.delete(path)
+        }
+        return next
+      })
+    }
+  }
+
+  React.useLayoutEffect(() => {
     const nextContext = {
-      generation: summary?.generation ?? null,
+      generation: summaryGeneration,
       hideWhitespace: reviewTabState.hideWhitespace,
       loadFullFiles: reviewTabState.loadFullFiles,
     }
@@ -1361,33 +1438,15 @@ function WorkspaceReviewSidebarImpl({
     activeFileDiffBatchRef.current = null
     activeFileRequestRef.current.clear()
     fileRequestCoordinatorRef.current = new ReviewFileRequestCoordinator(2)
-    setBatchLargeModeKey(null)
-    setFileLoadStates((current) => {
-      const next = new Map(current)
-      for (const [path, state] of next) {
-        if (state.status === 'loading') next.delete(path)
-      }
-      return next
-    })
     if (
       (previousContext.hideWhitespace !== nextContext.hideWhitespace ||
         previousContext.loadFullFiles !== nextContext.loadFullFiles) &&
-      summary
+      summaryRef.current
     ) {
       loadedDiffsRef.current = new Map()
       loadedDiffOptionsRef.current.clear()
-      setLoadedDiffs(new Map())
-      setFileLoadStates(new Map())
-      setReviewDiff((current) =>
-        current
-          ? {
-              ...current,
-              files: summary.files.map((file) => summaryFileToDesktop(file)),
-            }
-          : current,
-      )
     }
-  }, [reviewTabState.hideWhitespace, reviewTabState.loadFullFiles, summary?.generation])
+  }, [reviewTabState.hideWhitespace, reviewTabState.loadFullFiles, summaryGeneration])
 
   React.useEffect(() => {
     if (fileDiffLoadMode === 'selected' && selectedPath) {
@@ -1397,18 +1456,19 @@ function WorkspaceReviewSidebarImpl({
 
   React.useEffect(() => {
     if (fileDiffLoadMode === 'batch') void loadSmallWorkspaceDiffs()
-  }, [fileDiffLoadMode, loadSmallWorkspaceDiffs, summary?.generation])
+  }, [fileDiffLoadMode, loadSmallWorkspaceDiffs, summaryGeneration])
 
+  const restoreReviewScrollTop = React.useEffectEvent((): number => reviewTabState.scrollTop)
   React.useEffect(() => {
-    if (!summary) return
+    if (summaryGeneration === null) return
     const frame = window.requestAnimationFrame(() => {
       const viewport = diffScrollViewportRef.current
-      if (viewport) viewport.scrollTop = reviewTabState.scrollTop
+      if (viewport) viewport.scrollTop = restoreReviewScrollTop()
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [summary?.generation])
+  }, [summaryGeneration])
 
-  React.useEffect(() => {
+  useMountEffect(() => {
     const main = reviewMainRef.current
     if (!main || typeof ResizeObserver === 'undefined') return
     const updateAutoHide = (width: number): void => {
@@ -1427,14 +1487,14 @@ function WorkspaceReviewSidebarImpl({
     })
     observer.observe(main)
     return () => observer.disconnect()
-  }, [])
+  })
 
   React.useEffect(() => {
     const identity = summaryIdentity
     return () => flushReviewScroll(identity)
   }, [flushReviewScroll, summaryIdentity])
 
-  React.useEffect(() => {
+  useMountEffect(() => {
     return () => {
       flushReviewScrollRef.current(activeSummaryIdentityRef.current)
       if (errorTimerRef.current !== null) {
@@ -1446,7 +1506,7 @@ function WorkspaceReviewSidebarImpl({
         scrollPersistTimerRef.current = null
       }
     }
-  }, [])
+  })
 
   function flashError(message: string): void {
     setError(message)
@@ -1472,11 +1532,13 @@ function WorkspaceReviewSidebarImpl({
     )
   }
 
-  const files = reviewDiff?.files ?? []
-  const reviewMutationPending = pending || summaryCacheStateRef.current !== 'fresh'
+  const files = reviewDiff?.files ?? EMPTY_REVIEW_FILES
+  const reviewMutationPending = pending || currentSummaryCacheState !== 'fresh'
   const allFilePaths = React.useMemo(() => files.map((file) => file.path), [files])
   const allFilePathsRef = React.useRef(allFilePaths)
-  allFilePathsRef.current = allFilePaths
+  React.useLayoutEffect(() => {
+    allFilePathsRef.current = allFilePaths
+  }, [allFilePaths])
   const diffExpansionStore = React.useMemo(
     () =>
       createKeyedDisclosureStore({
@@ -1522,7 +1584,7 @@ function WorkspaceReviewSidebarImpl({
       return
     }
     setSelectedPath(visibleFiles[0]?.path ?? null)
-  }, [selectedPath, summary, visibleFiles])
+  }, [selectedPath, setSelectedPath, summary, visibleFiles])
 
   const reviewTree = React.useMemo(() => buildReviewFileTree(visibleFiles), [visibleFiles])
 
@@ -1570,7 +1632,10 @@ function WorkspaceReviewSidebarImpl({
     () => attachComments(files, comments),
     [comments, files],
   )
-  const openComments = comments.filter((comment) => comment.status === 'open')
+  const openComments = React.useMemo(
+    () => comments.filter((comment) => comment.status === 'open'),
+    [comments],
+  )
   const commentCountsByPath = React.useMemo(
     () => buildCommentCountsByPath(openComments),
     [openComments],

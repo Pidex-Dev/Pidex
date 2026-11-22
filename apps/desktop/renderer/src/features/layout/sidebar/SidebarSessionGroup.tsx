@@ -5,6 +5,7 @@ import React, {
   memo,
   Suspense,
   useCallback,
+  useLayoutEffect,
   useMemo,
   useId,
   useRef,
@@ -185,9 +186,11 @@ function SidebarSessionGroupComponent({
   const [renaming, setRenaming] = useState(false)
   const drag = useOptionalSidebarDragController()
   const dragRef = useRef(drag)
-  dragRef.current = drag
   const sessionFallbackTitlesRef = useRef(sessionFallbackTitles)
-  sessionFallbackTitlesRef.current = sessionFallbackTitles
+  useLayoutEffect(() => {
+    dragRef.current = drag
+    sessionFallbackTitlesRef.current = sessionFallbackTitles
+  })
   const instanceId = useId()
   // 行回调保持稳定引用：折叠等无关重渲染时，未变化的会话行按 props 浅比较直接跳出。
   const getDraggingSession = useCallback(() => dragRef.current?.getSession() ?? null, [])
@@ -195,15 +198,15 @@ function SidebarSessionGroupComponent({
     setRenameSession(session)
     setRenameValue(sessionEditableTitle(session, sessionFallbackTitlesRef.current[session.id]))
   }, [])
+  const [linkSessionId, setLinkSessionId] = useState<string | null>(null)
+  const [linkValue, setLinkValue] = useState('')
+  const [linkError, setLinkError] = useState<string | null>(null)
+  const [linking, setLinking] = useState(false)
   const requestPullRequestLink = useCallback((sessionId: string) => {
     setLinkValue('')
     setLinkError(null)
     setLinkSessionId(sessionId)
   }, [])
-  const [linkSessionId, setLinkSessionId] = useState<string | null>(null)
-  const [linkValue, setLinkValue] = useState('')
-  const [linkError, setLinkError] = useState<string | null>(null)
-  const [linking, setLinking] = useState(false)
   const reducedMotion = usePrefersReducedMotion()
   const needsInputSessionIds = pendingPermissionSessionIds
   const unreadSessionIds = useMemo(
@@ -252,8 +255,10 @@ function SidebarSessionGroupComponent({
       ),
     [orderKeys, sortedSessions],
   )
-  const { baseSessions, canCollapse, canShowMore, extraSessions, hasOverflow } =
-    getSidebarSessionDisplayGroups(orderedSessions, visibleLimit, initialLimit)
+  const { baseSessions, canCollapse, canShowMore, extraSessions, hasOverflow } = useMemo(
+    () => getSidebarSessionDisplayGroups(orderedSessions, visibleLimit, initialLimit),
+    [orderedSessions, visibleLimit, initialLimit],
+  )
   const extraSessionIds = useMemo(
     () => new Set(extraSessions.map((session) => session.id)),
     [extraSessions],
@@ -549,7 +554,7 @@ function SidebarSessionGroupComponent({
     />
   ))
   const visibleSessionKey = visibleSessions.map((session) => session.id).join('\u0000')
-  const heightTransition = useHeightTransition(
+  const { ref: heightTransitionRef, style: heightTransitionStyle } = useHeightTransition(
     [visibleSessionKey, hasOverflow, canShowMore, canCollapse],
     disclosureExpanded,
   )
@@ -558,8 +563,8 @@ function SidebarSessionGroupComponent({
   return (
     <div
       className="sidebar-session-group tw:min-w-0 tw:transition-[height] tw:duration-disclosure tw:ease-disclosure"
-      ref={heightTransition.ref}
-      style={heightTransition.style}
+      ref={heightTransitionRef}
+      style={heightTransitionStyle}
     >
       {onManualOrderChange && drag ? (
         <SidebarDropList

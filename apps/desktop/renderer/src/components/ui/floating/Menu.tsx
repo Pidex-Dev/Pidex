@@ -2,6 +2,7 @@
 import React, {
   createContext,
   forwardRef,
+  useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
@@ -34,6 +35,7 @@ import {
   MENU_SUBMENU_CLOSE_DELAY_MS,
 } from './MenuGeometry.js'
 import { LevelCoordinator } from './MenuLevelCoordinator.js'
+import { useMountEffect } from '../../../hooks/UseMountEffect.js'
 
 export {
   MENU_OPEN_DELAY_MS,
@@ -80,7 +82,7 @@ export function MenuRoot({ children, open, defaultOpen = false, onOpenChange }: 
   const [activeOpen, setOpen] = useControllableState(open, defaultOpen, onOpenChange)
   const [present, setPresent] = useState(activeOpen)
   const triggerRef = useRef<HTMLElement | null>(null)
-  const submenuRefs = useRef<React.RefObject<HTMLElement | null>[]>([])
+  const submenuRefList = useMemo<React.RefObject<HTMLElement | null>[]>(() => [], [])
   const [point, setPoint] = useState({ x: 0, y: 0 })
   const rootCoordinator = useMemo(() => new LevelCoordinator(0), [])
 
@@ -103,7 +105,7 @@ export function MenuRoot({ children, open, defaultOpen = false, onOpenChange }: 
         setPresent,
         setOpen,
         triggerRef,
-        submenuRefs: submenuRefs.current,
+        submenuRefs: submenuRefList,
         point,
         setPoint,
       }}
@@ -379,9 +381,10 @@ const SubContext = createContext<{
   open: boolean
   setOpen: (open: boolean) => void
   triggerRef: React.MutableRefObject<HTMLElement | null>
-  contentRef: React.MutableRefObject<HTMLElement | null>
+  setContentNode: (node: HTMLDivElement | null) => void
   branchId: string
-  pointerOpened: React.MutableRefObject<boolean>
+  isPointerOpened: () => boolean
+  setPointerOpened: (value: boolean) => void
   hoverOpen: () => void
   hoverClose: () => void
 } | null>(null)
@@ -394,6 +397,13 @@ export function MenuSub({ children, open, defaultOpen = false, onOpenChange }: M
   const triggerRef = useRef<HTMLElement | null>(null)
   const contentRef = useRef<HTMLElement | null>(null)
   const pointerOpened = useRef(false)
+  const setPointerOpened = useCallback((value: boolean): void => {
+    pointerOpened.current = value
+  }, [])
+  const isPointerOpened = useCallback((): boolean => pointerOpened.current, [])
+  const setContentNode = useCallback((node: HTMLDivElement | null): void => {
+    contentRef.current = node
+  }, [])
 
   // Sync with parent coordinator
   useLayoutEffect(() => {
@@ -418,9 +428,10 @@ export function MenuSub({ children, open, defaultOpen = false, onOpenChange }: M
         open: activeOpen,
         setOpen,
         triggerRef,
-        contentRef,
+        setContentNode,
         branchId,
-        pointerOpened,
+        isPointerOpened,
+        setPointerOpened,
         hoverOpen: () => {
           pointerOpened.current = true
           setOpen(true)
@@ -488,7 +499,7 @@ export const MenuSubTrigger = forwardRef<HTMLDivElement, ItemProps>(
         onPointerEnter={(event) => {
           onPointerEnter?.(event as React.PointerEvent<HTMLDivElement>)
           if (!disabled) {
-            sub.pointerOpened.current = true
+            sub.setPointerOpened(true)
             parentCoord.pointerEnterRow(sub.branchId, 'sub', sub.triggerRef.current, () => {
               sub.setOpen(true)
             })
@@ -510,7 +521,7 @@ export const MenuSubTrigger = forwardRef<HTMLDivElement, ItemProps>(
           if (disabled) return
           onClick?.(event as React.MouseEvent<HTMLDivElement>)
           if (!disabled && !event.defaultPrevented) {
-            sub.pointerOpened.current = false
+            sub.setPointerOpened(false)
             parentCoord.onSubTriggerClick(sub.branchId, sub.open, () => sub.setOpen(!sub.open))
           }
         }}
@@ -525,7 +536,7 @@ export const MenuSubTrigger = forwardRef<HTMLDivElement, ItemProps>(
             ['ArrowRight', 'Enter', ' '].includes(event.key)
           ) {
             event.preventDefault()
-            sub.pointerOpened.current = false
+            sub.setPointerOpened(false)
             parentCoord.clearCandidate()
             sub.setOpen(true)
           }
@@ -573,7 +584,7 @@ export function MenuSubContent({
   const side = (rawSide === 'left' ? 'left' : 'right') as 'left' | 'right'
 
   useLayoutEffect(() => {
-    sub.contentRef.current = contentRef.current
+    sub.setContentNode(contentRef.current)
   })
 
   useLayoutEffect(() => {
@@ -582,13 +593,12 @@ export function MenuSubContent({
     }
   }, [root.open, sub.open, sub.branchId, parentCoord, side])
 
-  const childCoord = useMemo(() => {
-    const next = new LevelCoordinator(parentCoord.level + 1, parentCoord)
-    parentCoord.child = next
-    return next
-  }, [parentCoord])
+  const childCoord = useMemo(
+    () => new LevelCoordinator(parentCoord.level + 1, parentCoord),
+    [parentCoord],
+  )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     childCoord.mount()
     return () => childCoord.destroy()
   }, [childCoord])
@@ -619,12 +629,13 @@ export function MenuSubContent({
     },
   })
 
+  const { isPointerOpened } = sub
   useLayoutEffect(() => {
-    if (root.open && sub.open && !sub.pointerOpened.current)
+    if (root.open && sub.open && !isPointerOpened())
       contentRef.current
         ?.querySelector<HTMLElement>('[role^="menuitem"]:not([aria-disabled="true"])')
         ?.focus()
-  }, [root.open, sub.open, sub.pointerOpened])
+  }, [root.open, sub.open, isPointerOpened])
 
   if (!present) return null
 
@@ -686,7 +697,7 @@ export const ContextTrigger = forwardRef<
       touchTimer.current = null
     }
   }
-  useEffect(() => cancelTouch, [])
+  useMountEffect(() => cancelTouch)
   return (
     <Component
       {...props}

@@ -44,16 +44,14 @@ export function ProviderModelPanel({
   const [error, setError] = useState<string | null>(null)
   const allowNavigation = useRef(false)
   const requestLeave = useRef<(() => Promise<boolean>) | null>(null)
+  const { registerBeforeChange } = panel
   useEffect(() => {
     const beforeChange = () =>
       allowNavigation.current
         ? Promise.resolve(true)
         : (requestLeave.current?.() ?? Promise.resolve(true))
-    panel.beforeChange.current = beforeChange
-    return () => {
-      if (panel.beforeChange.current === beforeChange) panel.beforeChange.current = null
-    }
-  }, [panel.beforeChange])
+    return registerBeforeChange(beforeChange)
+  }, [registerBeforeChange])
   const close = onClose
   async function save(): Promise<boolean> {
     if (busy) return false

@@ -43,6 +43,8 @@ import {
   type WorkbenchTabDescriptor,
   type WorkbenchTabId,
   type UserAttachmentPreviewTab,
+  type ProviderManagementTab,
+  type ProviderManagementSection,
 } from '../dock/RightDockState.js'
 import {
   createDefaultConversationUiState,
@@ -120,12 +122,15 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useMemo,
   memo,
   useRef,
   useState,
 } from 'react'
+import { useMountEffect } from '../../../hooks/UseMountEffect.js'
+import { useWindowEvent } from '../../../hooks/UseExternalSubscription.js'
 import {
   QUICK_CHAT_PATH,
   appendPanelQuery,
@@ -134,7 +139,6 @@ import {
   useWorkbenchRouteController,
 } from './UseWorkbenchRouteController.js'
 import type { DesktopLayoutOutletContextValue } from './DesktopLayoutOutletContext.js'
-import type { ProviderManagementTab, ProviderManagementSection } from '../dock/RightDockState.js'
 import {
   providerManagementRouteId,
   scopedProviderManagementTab,
@@ -295,38 +299,106 @@ const MemoSidebarPluginsPane = memo(SidebarPluginsPane)
 const MemoSidebarProvidersPane = memo(SidebarProvidersPane)
 const MemoSidebarPetsPane = memo(SidebarPetsPane)
 
+const EMPTY_PROVIDER_PANEL_TABS: Record<string, ProviderManagementTab> = {}
+
+type ProviderPanelUiState = {
+  routeId: string | null
+  tab: ProviderManagementTab | null
+  tabs: Record<string, ProviderManagementTab>
+  open: boolean
+}
+
 export function DesktopLayout(): React.ReactNode {
   const location = useLocation()
-  const [providerManagementTab, setProviderManagementTab] = useState<ProviderManagementTab | null>(
-    null,
-  )
-  const [providerPanelTabs, setProviderPanelTabs] = useState<Record<string, ProviderManagementTab>>(
-    {},
-  )
-  const [providerPanelOpen, setProviderPanelOpen] = useState(false)
   const [providerManagementHost, setProviderManagementHost] = useState<HTMLElement | null>(null)
   const [providerManagementOwner, setProviderManagementOwner] = useState<string | null>(null)
   const providerBeforeChange = useRef<(() => Promise<boolean>) | null>(null)
   const providerRouteId = providerManagementRouteId(location.pathname, location.search)
+  const [providerPanelUi, setProviderPanelUi] = useState<ProviderPanelUiState>({
+    routeId: providerRouteId,
+    tab: null,
+    tabs: EMPTY_PROVIDER_PANEL_TABS,
+    open: false,
+  })
+  if (providerPanelUi.routeId !== providerRouteId) {
+    setProviderPanelUi({
+      routeId: providerRouteId,
+      tab: null,
+      tabs: EMPTY_PROVIDER_PANEL_TABS,
+      open: false,
+    })
+  }
+  const providerPanelCurrent =
+    providerPanelUi.routeId === providerRouteId
+      ? providerPanelUi
+      : { routeId: providerRouteId, tab: null, tabs: EMPTY_PROVIDER_PANEL_TABS, open: false }
+  const providerManagementTab =
+    providerRouteId && providerManagementOwner ? providerPanelCurrent.tab : null
+  const providerPanelTabs = providerPanelCurrent.tabs
+  const providerPanelOpen = providerPanelCurrent.open
+  const setProviderManagementTab = useCallback(
+    (
+      update:
+        | ProviderManagementTab
+        | null
+        | ((current: ProviderManagementTab | null) => ProviderManagementTab | null),
+    ): void => {
+      setProviderPanelUi((current) => ({
+        ...current,
+        tab: typeof update === 'function' ? update(current.tab) : update,
+      }))
+    },
+    [],
+  )
+  const setProviderPanelTabs = useCallback(
+    (
+      update:
+        | Record<string, ProviderManagementTab>
+        | ((
+            current: Record<string, ProviderManagementTab>,
+          ) => Record<string, ProviderManagementTab>),
+    ): void => {
+      setProviderPanelUi((current) => ({
+        ...current,
+        tabs: typeof update === 'function' ? update(current.tabs) : update,
+      }))
+    },
+    [],
+  )
+  const setProviderPanelOpen = useCallback((open: boolean): void => {
+    setProviderPanelUi((current) => (current.open === open ? current : { ...current, open }))
+  }, [])
+  const registerBeforeChange = useCallback((fn: () => Promise<boolean>): (() => void) => {
+    providerBeforeChange.current = fn
+    return () => {
+      if (providerBeforeChange.current === fn) providerBeforeChange.current = null
+    }
+  }, [])
+  const confirmProviderBeforeChange = useCallback(
+    (): Promise<boolean> => providerBeforeChange.current?.() ?? Promise.resolve(true),
+    [],
+  )
   const isProviderDetailRoute =
     providerRouteId !== null && providerManagementOwner === providerRouteId
-  const visibleProviderTab =
-    providerManagementOwner === providerRouteId && providerPanelOpen
-      ? scopedProviderManagementTab(providerManagementTab, location.pathname, location.search)
-      : null
-  useEffect(() => {
-    if (!providerRouteId || !providerManagementOwner) setProviderManagementTab(null)
-  }, [providerRouteId, providerManagementOwner])
+  const visibleProviderTab = useMemo(
+    () =>
+      providerManagementOwner === providerRouteId && providerPanelOpen
+        ? scopedProviderManagementTab(providerManagementTab, location.pathname, location.search)
+        : null,
+    [
+      providerManagementOwner,
+      providerRouteId,
+      providerPanelOpen,
+      providerManagementTab,
+      location.pathname,
+      location.search,
+    ],
+  )
   const providerPanelVisible = isProviderDetailRoute && providerPanelOpen
-  useEffect(() => {
-    setProviderPanelTabs({})
-    setProviderManagementTab(null)
-    setProviderPanelOpen(false)
-  }, [providerRouteId])
   const openProviderManagement = useCallback(
     async (providerId: string, section: ProviderManagementSection) => {
       if (providerRouteId !== providerId || providerManagementOwner !== providerId) return false
-      const allowed = await (providerBeforeChange.current?.() ?? Promise.resolve(true))
+      const allowed = await confirmProviderBeforeChange()
       if (allowed) {
         const tab: ProviderManagementTab =
           section === 'model'
@@ -340,34 +412,54 @@ export function DesktopLayout(): React.ReactNode {
       }
       return allowed
     },
-    [providerRouteId, providerManagementOwner],
+    [
+      confirmProviderBeforeChange,
+      providerRouteId,
+      providerManagementOwner,
+      setProviderManagementTab,
+      setProviderPanelOpen,
+      setProviderPanelTabs,
+    ],
   )
-  const retainProviderTabs = async (ids: readonly string[]) => {
-    if (!(await (providerBeforeChange.current?.() ?? Promise.resolve(true)))) return
-    const tabs = Object.fromEntries(
-      Object.entries(providerPanelTabs).filter(([id]) => ids.includes(id)),
-    )
-    setProviderPanelTabs(tabs)
-    setProviderManagementTab((active) =>
-      active && tabs[active.id] ? active : (Object.values(tabs).at(-1) ?? null),
-    )
-    const launchers = providerRouteId
-      ? getWorkbenchRouteLaunchers({ page: 'providers', providerId: providerRouteId })
-      : []
-    if (Object.keys(tabs).length === 0 && launchers.length <= 1) {
-      setProviderPanelOpen(false)
-    }
-  }
-  const closeProviderManagement = (tabId?: string) => {
-    void retainProviderTabs(
-      Object.keys(providerPanelTabs).filter((id) => id !== (tabId ?? providerManagementTab?.id)),
-    )
-  }
-  const hideProviderManagement = () => {
-    void (providerBeforeChange.current?.() ?? Promise.resolve(true)).then((allowed) => {
+  const retainProviderTabs = useCallback(
+    async (ids: readonly string[]) => {
+      if (!(await confirmProviderBeforeChange())) return
+      const tabs = Object.fromEntries(
+        Object.entries(providerPanelTabs).filter(([id]) => ids.includes(id)),
+      )
+      setProviderPanelTabs(tabs)
+      setProviderManagementTab((active) =>
+        active && tabs[active.id] ? active : (Object.values(tabs).at(-1) ?? null),
+      )
+      const launchers = providerRouteId
+        ? getWorkbenchRouteLaunchers({ page: 'providers', providerId: providerRouteId })
+        : []
+      if (Object.keys(tabs).length === 0 && launchers.length <= 1) {
+        setProviderPanelOpen(false)
+      }
+    },
+    [
+      confirmProviderBeforeChange,
+      providerPanelTabs,
+      providerRouteId,
+      setProviderManagementTab,
+      setProviderPanelOpen,
+      setProviderPanelTabs,
+    ],
+  )
+  const closeProviderManagement = useCallback(
+    (tabId?: string) => {
+      void retainProviderTabs(
+        Object.keys(providerPanelTabs).filter((id) => id !== (tabId ?? providerManagementTab?.id)),
+      )
+    },
+    [retainProviderTabs, providerPanelTabs, providerManagementTab?.id],
+  )
+  const hideProviderManagement = useCallback(() => {
+    void confirmProviderBeforeChange().then((allowed) => {
       if (allowed) setProviderPanelOpen(false)
     })
-  }
+  }, [confirmProviderBeforeChange, setProviderPanelOpen])
   const currentPage = resolveAppPage(location.pathname)
   const routeLabel = pageTitle(currentPage)
   const settings = useDesktopLayoutSettings()
@@ -434,9 +526,11 @@ export function DesktopLayout(): React.ReactNode {
   const [titlebarSessionTabIds, setTitlebarSessionTabIds] = useState<string[]>(() =>
     initialTitlebarTabSnapshots.map((tab) => tab.id),
   )
-  const [titlebarTabSnapshotsById, setTitlebarTabSnapshotsById] = useState<
-    Record<string, StoredTitlebarSessionTabSnapshot>
-  >(() => Object.fromEntries(initialTitlebarTabSnapshots.map((tab) => [tab.id, tab])))
+  const [lastOpenedTitlebarRouteId, setLastOpenedTitlebarRouteId] = useState<string | null>(null)
+  const titlebarTabSnapshotsById = useMemo<Record<string, StoredTitlebarSessionTabSnapshot>>(
+    () => Object.fromEntries(initialTitlebarTabSnapshots.map((tab) => [tab.id, tab])),
+    [initialTitlebarTabSnapshots],
+  )
   const titlebarTabsSettingsHydratedRef = useRef(false)
   const browserState = useStore(desktopBrowserClient.tabsStore, (state) =>
     state.displayTabId ? (state.tabs.get(state.displayTabId) ?? null) : null,
@@ -636,6 +730,7 @@ export function DesktopLayout(): React.ReactNode {
     resetHomeComposerModes()
   }, [isQuickChatPage, location.pathname, resetHomeComposerModes])
 
+  const pendingSubmissions = useStore(pendingSubmissionStore.store, (state) => state.submissions)
   const session = useSessionState({
     permissionMode,
     permissionConfig: settings.values.permissionConfig,
@@ -711,6 +806,36 @@ export function DesktopLayout(): React.ReactNode {
     registerActivitySessions(sessions)
   }, [registerActivitySessions, sessions])
 
+  const catalogReadyForTitlebarPrune = sessionsHydrated && catalogStatus.state === 'ready'
+  const titlebarPruneValidIds = useMemo(
+    () =>
+      catalogReadyForTitlebarPrune
+        ? new Set(sessions.filter((item) => !item.archivedAt).map((item) => item.id))
+        : null,
+    [catalogReadyForTitlebarPrune, sessions],
+  )
+  const shouldOpenRoutedTitlebarTab =
+    routedSessionId !== null && routedSessionId !== lastOpenedTitlebarRouteId
+  // INVARIANT: Route-open and catalog-prune derive during render so a session switch never commits a stale titlebar tab list one effect pass later.
+  const effectiveTitlebarSessionTabIds = useMemo(() => {
+    let next = shouldOpenRoutedTitlebarTab
+      ? openTitlebarSessionTab(titlebarSessionTabIds, routedSessionId)
+      : titlebarSessionTabIds
+    if (titlebarPruneValidIds) {
+      next = pruneTitlebarSessionTabs(next, titlebarPruneValidIds, routedSessionId)
+    }
+    return next.length === titlebarSessionTabIds.length &&
+      next.every((id, index) => id === titlebarSessionTabIds[index])
+      ? titlebarSessionTabIds
+      : next
+  }, [routedSessionId, shouldOpenRoutedTitlebarTab, titlebarPruneValidIds, titlebarSessionTabIds])
+  if (routedSessionId !== lastOpenedTitlebarRouteId) {
+    setLastOpenedTitlebarRouteId(routedSessionId)
+  }
+  if (effectiveTitlebarSessionTabIds !== titlebarSessionTabIds) {
+    setTitlebarSessionTabIds(effectiveTitlebarSessionTabIds)
+  }
+
   const lastSyncedSettingsTabIdsRef = useRef<readonly string[]>(storedTitlebarSessionTabIds)
 
   // 从 DesktopSettings (L2 后端) 水合或同步外部变更的顶部会话标签列表
@@ -760,25 +885,12 @@ export function DesktopLayout(): React.ReactNode {
     if (!settingsLoaded || !titlebarTabsSettingsHydratedRef.current) return
     const prevSettings = lastSyncedSettingsTabIdsRef.current
     const changed =
-      titlebarSessionTabIds.length !== prevSettings.length ||
-      titlebarSessionTabIds.some((id, index) => id !== prevSettings[index])
+      effectiveTitlebarSessionTabIds.length !== prevSettings.length ||
+      effectiveTitlebarSessionTabIds.some((id, index) => id !== prevSettings[index])
     if (!changed) return
-    lastSyncedSettingsTabIdsRef.current = titlebarSessionTabIds
-    persistTitlebarSessionTabIds(titlebarSessionTabIds)
-  }, [persistTitlebarSessionTabIds, settingsLoaded, titlebarSessionTabIds])
-
-  // 当处于会话路由时，自动将其加入顶部会话标签
-  useEffect(() => {
-    if (!routedSessionId) return
-    setTitlebarSessionTabIds((current) => openTitlebarSessionTab(current, routedSessionId))
-  }, [routedSessionId])
-
-  // 当会话列表加载完毕且目录就绪后，清理已被归档或不存在的会话 ID（保护当前路由）
-  useEffect(() => {
-    if (!sessionsHydrated || catalogStatus.state !== 'ready') return
-    const valid = new Set(sessions.filter((item) => !item.archivedAt).map((item) => item.id))
-    setTitlebarSessionTabIds((current) => pruneTitlebarSessionTabs(current, valid, routedSessionId))
-  }, [catalogStatus.state, routedSessionId, sessions, sessionsHydrated])
+    lastSyncedSettingsTabIdsRef.current = effectiveTitlebarSessionTabIds
+    persistTitlebarSessionTabIds(effectiveTitlebarSessionTabIds)
+  }, [persistTitlebarSessionTabIds, settingsLoaded, effectiveTitlebarSessionTabIds])
 
   const effectiveRightDockVisible =
     (isHomeOrConversationRoute && rightDockVisible) || providerPanelVisible
@@ -793,14 +905,15 @@ export function DesktopLayout(): React.ReactNode {
       togglePanel,
       enabled: isHomeOrConversationRoute,
     })
+  const { pin: pinSidebarShell } = sidebarShell
   const toggleSidebarCollapsed = useCallback((): void => {
     if (activeSidebarPane === null) {
       navigate(QUICK_CHAT_PATH)
-      sidebarShell.pin()
+      pinSidebarShell()
       return
     }
     toggleSidebarPanel()
-  }, [activeSidebarPane, navigate, sidebarShell.pin, toggleSidebarPanel])
+  }, [activeSidebarPane, navigate, pinSidebarShell, toggleSidebarPanel])
   useEffect(() => {
     const bridge = window.DesktopBridge
     if (!bridge) return
@@ -857,18 +970,13 @@ export function DesktopLayout(): React.ReactNode {
       unsubscribe()
     }
   }, [navigate])
-  useEffect(() => {
-    const handleMarkdownThreadNavigation = (event: Event): void => {
-      const detail = (event as CustomEvent<{ threadId?: unknown }>).detail
-      if (!detail || typeof detail !== 'object') return
-      const threadId = (detail as { threadId?: unknown }).threadId
-      if (typeof threadId !== 'string' || threadId.trim() === '') return
-      navigate(sessionPath(threadId))
-    }
-    window.addEventListener(MARKDOWN_THREAD_NAVIGATION_EVENT, handleMarkdownThreadNavigation)
-    return () =>
-      window.removeEventListener(MARKDOWN_THREAD_NAVIGATION_EVENT, handleMarkdownThreadNavigation)
-  }, [navigate])
+  useWindowEvent(window, MARKDOWN_THREAD_NAVIGATION_EVENT, (event: Event) => {
+    const detail = (event as CustomEvent<{ threadId?: unknown }>).detail
+    if (!detail || typeof detail !== 'object') return
+    const threadId = (detail as { threadId?: unknown }).threadId
+    if (typeof threadId !== 'string' || threadId.trim() === '') return
+    navigate(sessionPath(threadId))
+  })
   const mainComposerDraftKey: ComposerDraftKey = routedSessionId
     ? `session:${routedSessionId}`
     : 'home'
@@ -878,15 +986,12 @@ export function DesktopLayout(): React.ReactNode {
     id: string
     timer: ReturnType<typeof setTimeout>
   } | null>(null)
-  useEffect(
-    () => () => {
-      const pending = unknownRoutedSessionRef.current
-      if (!pending) return
-      clearTimeout(pending.timer)
-      unknownRoutedSessionRef.current = null
-    },
-    [],
-  )
+  useMountEffect(() => () => {
+    const pending = unknownRoutedSessionRef.current
+    if (!pending) return
+    clearTimeout(pending.timer)
+    unknownRoutedSessionRef.current = null
+  })
   const conversationSwitchTargetRef = useRef<string | null>(null)
   const beginConversationSwitch = useCallback((targetSessionId: string) => {
     if (conversationSwitchTargetRef.current === targetSessionId) return
@@ -897,7 +1002,13 @@ export function DesktopLayout(): React.ReactNode {
     if (!settingsLoaded) return
     setRemovedWorkspaces(settings.values.removedWorkspaces)
     setLastActiveWorkspacePath(settings.values.lastActiveWorkspacePath)
-  }, [settings.values.lastActiveWorkspacePath, settings.values.removedWorkspaces, settingsLoaded])
+  }, [
+    settings.values.lastActiveWorkspacePath,
+    settings.values.removedWorkspaces,
+    settingsLoaded,
+    setLastActiveWorkspacePath,
+    setRemovedWorkspaces,
+  ])
 
   useEffect(() => {
     setActiveSessionId(sessionId)
@@ -986,6 +1097,7 @@ export function DesktopLayout(): React.ReactNode {
     sessionId,
     sessions,
     sessionsHydrated,
+    pendingSubmissions,
     setDiffState,
     setSelectedFile,
     setWorkspaceState,
@@ -1008,6 +1120,7 @@ export function DesktopLayout(): React.ReactNode {
     clearWorkspaceRemoved,
     navigate,
     refreshWorkspace,
+    setLastActiveWorkspacePath,
     setWorkspaceState,
     settings,
   ])
@@ -1032,6 +1145,7 @@ export function DesktopLayout(): React.ReactNode {
       navigate,
       openRecentWorkspace,
       refreshWorkspace,
+      setLastActiveWorkspacePath,
       setWorkspaceState,
       unavailableWorkspacePaths,
       settings,
@@ -1052,6 +1166,7 @@ export function DesktopLayout(): React.ReactNode {
     inputBinding,
     navigate,
     resetHomeComposerModes,
+    setComposerAttachments,
     setDiffState,
     setSelectedFile,
     setWorkspaceState,
@@ -1066,7 +1181,7 @@ export function DesktopLayout(): React.ReactNode {
       settings.syncExternalSettingsPatch({ lastActiveWorkspacePath: selected.path })
       void refreshWorkspace(selected, { force: true })
     },
-    [navigate, refreshWorkspace, setWorkspaceState, settings],
+    [navigate, refreshWorkspace, setLastActiveWorkspacePath, setWorkspaceState, settings],
   )
 
   useEffect(() => {
@@ -1126,6 +1241,7 @@ export function DesktopLayout(): React.ReactNode {
       inputBinding,
       navigate,
       resetHomeComposerModes,
+      setComposerAttachments,
       setDiffState,
       setSelectedFile,
       setWorkspaceState,
@@ -1212,7 +1328,7 @@ export function DesktopLayout(): React.ReactNode {
         })
       })
       .catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error)))
-  }, [browserAvailability, openRightDockTab, sessionId])
+  }, [browserAvailability, openRightDockTab, setBrowserState, sessionId])
 
   const handleOpenFilesDock = useCallback((): void => {
     openRightDockTab({ id: 'file-browser', kind: 'file-browser' })
@@ -1397,13 +1513,16 @@ export function DesktopLayout(): React.ReactNode {
     openRightDockTab({ id: 'review', kind: 'review' })
   }, [bottomPanelState.tabIds, movePanelTab, openRightDockTab])
 
+  const [reviewTabState, setReviewTabState] = useState<ReviewTabUiState>(
+    createDefaultReviewTabUiState,
+  )
   const handleOpenPatchReview = useCallback(
     (path?: string): void => {
       setReviewTabState((current) => openPatchReviewTabState(current, path))
       handleOpenReview()
       handleRefreshDiff()
     },
-    [handleOpenReview, handleRefreshDiff],
+    [handleOpenReview, handleRefreshDiff, setReviewTabState],
   )
 
   const handleStartAiReview = useCallback(
@@ -1443,7 +1562,7 @@ export function DesktopLayout(): React.ReactNode {
         setErrorMessage(error instanceof Error ? error.message : String(error))
       }
     },
-    [navigate, openRightDockTab, sessionId],
+    [navigate, openRightDockTab, sessionId, setReviewTabState],
   )
 
   const handleReloadBrowser = useCallback((): void => {
@@ -1451,7 +1570,7 @@ export function DesktopLayout(): React.ReactNode {
       .reloadBrowser()
       .then(setBrowserState)
       .catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error)))
-  }, [])
+  }, [setBrowserState])
 
   const handleAppendComposerText = useCallback(
     (text: string): void => {
@@ -1659,17 +1778,20 @@ export function DesktopLayout(): React.ReactNode {
     [activeSessionItem],
   )
 
-  const handleAddComposerFiles = useCallback((filePaths: string[]): void => {
-    if (filePaths.length === 0) return
-    const targetDraftKey = mainComposerDraftKey
-    void desktopClient
-      .grantComposerFilePaths(filePaths)
-      .then((nextAttachments) => {
-        if (nextAttachments.length === 0) return
-        appendComposerAttachmentsForDraft(targetDraftKey, nextAttachments)
-      })
-      .catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error)))
-  }, [])
+  const handleAddComposerFiles = useCallback(
+    (filePaths: string[]): void => {
+      if (filePaths.length === 0) return
+      const targetDraftKey = mainComposerDraftKey
+      void desktopClient
+        .grantComposerFilePaths(filePaths)
+        .then((nextAttachments) => {
+          if (nextAttachments.length === 0) return
+          appendComposerAttachmentsForDraft(targetDraftKey, nextAttachments)
+        })
+        .catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error)))
+    },
+    [appendComposerAttachmentsForDraft, mainComposerDraftKey],
+  )
 
   const handleNewConversation = useCallback(async (): Promise<void> => {
     resetHomeComposerModes()
@@ -1735,14 +1857,7 @@ export function DesktopLayout(): React.ReactNode {
         setErrorMessage('无法读取技能信息，请稍后重试。')
       }
     },
-    [
-      currentWorkspace?.path,
-      handleOpenSkillPreview,
-      location.hash,
-      location.pathname,
-      location.search,
-      navigate,
-    ],
+    [currentWorkspace, handleOpenSkillPreview, location.hash, location.pathname, location.search],
   )
 
   const outletContext = useMemo<DesktopLayoutOutletContextValue>(
@@ -1756,7 +1871,8 @@ export function DesktopLayout(): React.ReactNode {
         host: providerManagementHost,
         open: openProviderManagement,
         close: closeProviderManagement,
-        beforeChange: providerBeforeChange,
+        registerBeforeChange,
+        confirmBeforeChange: confirmProviderBeforeChange,
         claimProvider: setProviderManagementOwner,
       },
     }),
@@ -1765,11 +1881,12 @@ export function DesktopLayout(): React.ReactNode {
       handleOpenJudgePanel,
       handleOpenSkillPreview,
       handleUseSkill,
-      visibleProviderTab?.providerId,
-      visibleProviderTab?.section,
+      visibleProviderTab,
       providerManagementHost,
       openProviderManagement,
       closeProviderManagement,
+      registerBeforeChange,
+      confirmProviderBeforeChange,
     ],
   )
 
@@ -1804,11 +1921,8 @@ export function DesktopLayout(): React.ReactNode {
     },
     [currentWorkspace?.path],
   )
-  const [reviewTabState, setReviewTabState] = useState<ReviewTabUiState>(
-    createDefaultReviewTabUiState,
-  )
-  const uiSnapshotRef = useRef<ConversationUiState>(createDefaultConversationUiState())
   const restoredConversationUiIdentityRef = useRef<string | null>(null)
+  const uiSnapshotRef = useRef<ConversationUiState>(createDefaultConversationUiState())
   /**
    * 正在交接首条消息的真实会话：布局沿用临时页的工作台状态，不按该会话
    * 自己的默认 UI 快照恢复。快照被正式投影接管后自动失效。
@@ -1823,64 +1937,27 @@ export function DesktopLayout(): React.ReactNode {
           : [currentWorkspace.path.replace(/\\/g, '/').toLowerCase()]),
       ].join('\u0000')
     : ''
+  useLayoutEffect(() => {
+    uiSnapshotRef.current = {
+      schemaVersion: 4,
+      workbench: workbenchPanelState,
+      mainScrollTop: uiSnapshotRef.current.mainScrollTop,
+      sideChatInput: '',
+      sideChatAttachments: [],
+      review: reviewTabState,
+    }
+  }, [workbenchPanelState, reviewTabState])
   const sideChatPanelTargetsRef = useRef(new Map<WorkbenchTabId, WorkbenchPanelTarget>())
-  uiSnapshotRef.current = {
-    schemaVersion: 4,
-    workbench: workbenchPanelState,
-    mainScrollTop: uiSnapshotRef.current.mainScrollTop,
-    sideChatInput: '',
-    sideChatAttachments: [],
-    review: reviewTabState,
-  }
   const currentAttachmentPreview = workbenchPanelState.tabsById['user-attachment-preview']
-  if (currentAttachmentPreview?.kind === 'attachment-preview') {
-    attachmentPreviewTabRef.current = currentAttachmentPreview
-  } else if (prevSessionIdRef.current === sessionId) {
-    attachmentPreviewTabRef.current = null
-  }
-
-  useEffect(() => {
-    const prevId = prevSessionIdRef.current
-    const currentId = sessionId
-    for (const target of ['right', 'bottom'] as const) {
-      for (const tabId of uiSnapshotRef.current.workbench[target].tabIds) {
-        if (uiSnapshotRef.current.workbench.tabsById[tabId]?.kind === 'side-chat') {
-          sideChatPanelTargetsRef.current.set(tabId, target)
-        }
-      }
+  useLayoutEffect(() => {
+    if (currentAttachmentPreview?.kind === 'attachment-preview') {
+      attachmentPreviewTabRef.current = currentAttachmentPreview
+    } else if (prevSessionIdRef.current === sessionId) {
+      attachmentPreviewTabRef.current = null
     }
+  }, [currentAttachmentPreview, sessionId])
 
-    const prevKey = prevId ?? '__home__'
-    const currentKey = currentId ?? '__home__'
-
-    if (hasInitializedSessionSwitchRef.current && prevKey !== currentKey) {
-      patchConversationUiState(prevKey, {
-        workbench: uiSnapshotRef.current.workbench,
-        sideChatInput: '',
-        sideChatAttachments: [],
-        review: uiSnapshotRef.current.review,
-      })
-    }
-    hasInitializedSessionSwitchRef.current = true
-
-    if (
-      currentId &&
-      activeSessionItem &&
-      (!currentWorkspace ||
-        (activeSessionItem.projectId && currentWorkspace.projectId !== activeSessionItem.projectId))
-    ) {
-      return
-    }
-    const restoreIdentity = `${currentId ?? ''}\u0000${currentWorkspaceUiIdentity}`
-    if (restoredConversationUiIdentityRef.current === restoreIdentity) return
-    restoredConversationUiIdentityRef.current = restoreIdentity
-
-    prevSessionIdRef.current = currentId
-
-    // 首条消息建立会话时沿用当前工作台布局：路由没有变化，右栏与输入区
-    // 不应该在这个瞬间跳回该会话的默认状态。快照移走后恢复正常切换逻辑。
-    if (currentId && pendingSubmissions[currentId]) return
-
+  const restoreConversationUi = useEffectEvent((currentKey: string): void => {
     const restoreAttachmentPreview = (
       restored: ReturnType<typeof createDefaultWorkbenchTabsState>,
     ) => {
@@ -1928,7 +2005,71 @@ export function DesktopLayout(): React.ReactNode {
       setWorkbenchPanelState(restoreAttachmentPreview(createDefaultWorkbenchTabsState()))
       setReviewTabState(createDefaultReviewTabUiState())
     }
-  }, [activeSessionItem, currentWorkspace, currentWorkspaceUiIdentity, sessionId])
+  })
+
+  const isMountedRef = useRef(true)
+  useMountEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  })
+
+  useLayoutEffect(() => {
+    const prevId = prevSessionIdRef.current
+    const currentId = sessionId
+    for (const target of ['right', 'bottom'] as const) {
+      for (const tabId of uiSnapshotRef.current.workbench[target].tabIds) {
+        if (uiSnapshotRef.current.workbench.tabsById[tabId]?.kind === 'side-chat') {
+          sideChatPanelTargetsRef.current.set(tabId, target)
+        }
+      }
+    }
+
+    const prevKey = prevId ?? '__home__'
+    const currentKey = currentId ?? '__home__'
+
+    if (hasInitializedSessionSwitchRef.current && prevKey !== currentKey) {
+      patchConversationUiState(prevKey, {
+        workbench: uiSnapshotRef.current.workbench,
+        sideChatInput: '',
+        sideChatAttachments: [],
+        review: uiSnapshotRef.current.review,
+      })
+    }
+    hasInitializedSessionSwitchRef.current = true
+
+    if (
+      currentId &&
+      activeSessionItem &&
+      (!currentWorkspace ||
+        (activeSessionItem.projectId && currentWorkspace.projectId !== activeSessionItem.projectId))
+    ) {
+      return
+    }
+    const restoreIdentity = `${currentId ?? ''}\u0000${currentWorkspaceUiIdentity}`
+    if (restoredConversationUiIdentityRef.current === restoreIdentity) return
+    restoredConversationUiIdentityRef.current = restoreIdentity
+
+    prevSessionIdRef.current = currentId
+
+    // 首条消息建立会话时沿用当前工作台布局：路由没有变化，右栏与输入区
+    // 不应该在这个瞬间跳回该会话的默认状态。快照移走后恢复正常切换逻辑。
+    if (currentId && pendingSubmissions[currentId]) return
+
+    queueMicrotask(() => {
+      if (!isMountedRef.current || restoredConversationUiIdentityRef.current !== restoreIdentity) {
+        return
+      }
+      restoreConversationUi(currentKey)
+    })
+  }, [
+    activeSessionItem,
+    currentWorkspace,
+    currentWorkspaceUiIdentity,
+    pendingSubmissions,
+    sessionId,
+  ])
 
   useEffect(() => {
     desktopBrowserClient.setContext(sessionId)
@@ -1959,7 +2100,7 @@ export function DesktopLayout(): React.ReactNode {
       }
       return next
     })
-  }, [sessionId, sideChatTabsForSource])
+  }, [sessionId, setWorkbenchPanelState, sideChatTabsForSource])
 
   // INVARIANT: Runs after the per-session workbench restore effect so ?panel=judge is never overwritten on thread switch.
   useEffect(() => {
@@ -1973,23 +2114,19 @@ export function DesktopLayout(): React.ReactNode {
     }
   }, [activeSessionItem?.threadGoal, closePanelTab, judgeDeepLink, rightDockState.tabIds])
 
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
-      const currentSessionId = sessionId ?? '__home__'
-      patchConversationUiState(currentSessionId, {
-        workbench: uiSnapshotRef.current.workbench,
-        sideChatInput: '',
-        sideChatAttachments: [],
-        review: uiSnapshotRef.current.review,
-      })
-      if (hasDirtyFileDocuments()) {
-        void saveAllFileDocuments()
-        event.preventDefault()
-      }
+  useWindowEvent(window, 'beforeunload', (event: BeforeUnloadEvent) => {
+    const currentSessionId = sessionId ?? '__home__'
+    patchConversationUiState(currentSessionId, {
+      workbench: uiSnapshotRef.current.workbench,
+      sideChatInput: '',
+      sideChatAttachments: [],
+      review: uiSnapshotRef.current.review,
+    })
+    if (hasDirtyFileDocuments()) {
+      void saveAllFileDocuments()
+      event.preventDefault()
     }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [sessionId])
+  })
 
   useDesktopGlobalShortcuts({
     currentPage,
@@ -2149,6 +2286,7 @@ export function DesktopLayout(): React.ReactNode {
     },
     [beginConversationSwitch, navigate],
   )
+  const { updateSessionMetadata } = session
   const handleArchiveSessions = useCallback(
     async (targetSessionIds: readonly string[]) => {
       const capturedAssignments = captureSidebarAssignments(
@@ -2173,7 +2311,7 @@ export function DesktopLayout(): React.ReactNode {
           const results = await Promise.all(
             archivedIdsForUndo.map(async (id) => ({
               id,
-              result: await session.updateSessionMetadata(id, { archivedAt: null }),
+              result: await updateSessionMetadata(id, { archivedAt: null }),
             })),
           )
           const restoredIds = results
@@ -2229,7 +2367,7 @@ export function DesktopLayout(): React.ReactNode {
     },
     [
       archiveSessions,
-      session.updateSessionMetadata,
+      updateSessionMetadata,
       settings,
       sidebarSessionPins,
       navigate,
@@ -2246,7 +2384,6 @@ export function DesktopLayout(): React.ReactNode {
     isConversationRoute &&
     (!sessionsHydrated || sessionId !== routedSessionId || gitDetection === 'loading')
   // 首条消息在会话建立前就已经在这条路由上，输入区要全程保持可用。
-  const pendingSubmissions = useStore(pendingSubmissionStore.store, (state) => state.submissions)
   const hasPendingSubmission = Boolean(routedSessionId && pendingSubmissions[routedSessionId])
   const branchName = getDesktopComposerBranchName(currentWorkspace)
   const composerContextTasks = useMemo(
@@ -2263,7 +2400,7 @@ export function DesktopLayout(): React.ReactNode {
   const composerBrowserContext = useMemo(() => {
     if (!browserState?.open || !/^https?:\/\//u.test(browserState.url)) return null
     return { title: browserState.title, url: browserState.url }
-  }, [browserState?.open, browserState?.title, browserState?.url])
+  }, [browserState])
 
   const activeSessionFallbackTitle = useMemo(() => {
     const workflowTitleEvents = deriveWorkflowSessionState(workflowEvents, sessionId).events
@@ -2341,11 +2478,14 @@ export function DesktopLayout(): React.ReactNode {
     },
     [
       currentWorkspace?.path,
+      currentWorkspace?.projectId,
       isConversationRoute,
       navigate,
       setDiffState,
       setRecentWorkspaces,
+      setRemovedWorkspaces,
       setSelectedFile,
+      setUnavailableWorkspacePaths,
       setWorkspaceState,
       settings,
     ],
@@ -2381,7 +2521,7 @@ export function DesktopLayout(): React.ReactNode {
     [setProjectPinnedAt],
   )
 
-  useEffect(() => {
+  useMountEffect(() => {
     let mounted = true
     void desktopClient
       .isWindowMaximized()
@@ -2398,25 +2538,25 @@ export function DesktopLayout(): React.ReactNode {
     return () => {
       mounted = false
     }
-  }, [])
+  })
 
   const handleCloseTitlebarSessionTab = useCallback(
     (targetSessionId: string): void => {
-      let nextActive: string | null | undefined
-      setTitlebarSessionTabIds((current) => {
-        const result = closeTitlebarSessionTab(current, targetSessionId, routedSessionId)
-        nextActive = result.nextActiveSessionId
-        return result.nextTabIds
-      })
-      if (nextActive !== undefined) {
-        if (nextActive === null) {
+      const result = closeTitlebarSessionTab(
+        effectiveTitlebarSessionTabIds,
+        targetSessionId,
+        routedSessionId,
+      )
+      setTitlebarSessionTabIds(result.nextTabIds)
+      if (result.nextActiveSessionId !== undefined) {
+        if (result.nextActiveSessionId === null) {
           navigate(QUICK_CHAT_PATH)
         } else {
-          navigate(sessionPath(nextActive))
+          navigate(sessionPath(result.nextActiveSessionId))
         }
       }
     },
-    [navigate, routedSessionId],
+    [effectiveTitlebarSessionTabIds, navigate, routedSessionId],
   )
 
   const titlebarSessionTabs = useMemo<TitlebarSessionTabItem[]>(() => {
@@ -2424,7 +2564,7 @@ export function DesktopLayout(): React.ReactNode {
 
     // 统计当前打开标签中涉及的工作区集合（以 workspacePath 为标识）
     const workspacesInTabs = new Set<string>()
-    for (const id of titlebarSessionTabIds) {
+    for (const id of effectiveTitlebarSessionTabIds) {
       const item = sessionMap.get(id)
       if (item?.workspacePath) {
         workspacesInTabs.add(item.workspacePath)
@@ -2434,7 +2574,7 @@ export function DesktopLayout(): React.ReactNode {
     }
     const hasMultipleWorkspaces = workspacesInTabs.size > 1
 
-    return titlebarSessionTabIds.map((id) => {
+    return effectiveTitlebarSessionTabIds.map((id) => {
       const item = sessionMap.get(id)
       const cached = titlebarTabSnapshotsById[id]
       let title = cached?.title || id
@@ -2464,14 +2604,13 @@ export function DesktopLayout(): React.ReactNode {
     })
   }, [
     activeSessionFallbackTitle,
-    currentWorkspace?.name,
-    currentWorkspace?.path,
+    currentWorkspace,
+    effectiveTitlebarSessionTabIds,
     quickChatSessionTitle,
     routedSessionId,
     sessionId,
     sessionFallbackTitles,
     sessions,
-    titlebarSessionTabIds,
     titlebarTabSnapshotsById,
   ])
 
@@ -2486,19 +2625,6 @@ export function DesktopLayout(): React.ReactNode {
       }
     })
     writeStoredTitlebarSessionTabSnapshots(nextSnapshots)
-
-    setTitlebarTabSnapshotsById((current) => {
-      const nextMap: Record<string, StoredTitlebarSessionTabSnapshot> = {}
-      let changed = Object.keys(current).length !== nextSnapshots.length
-      for (const snap of nextSnapshots) {
-        nextMap[snap.id] = snap
-        const prev = current[snap.id]
-        if (!prev || prev.title !== snap.title || prev.subtitle !== snap.subtitle) {
-          changed = true
-        }
-      }
-      return changed ? nextMap : current
-    })
   }, [titlebarSessionTabs])
 
   const menuBar = useMemo(
@@ -2585,177 +2711,220 @@ export function DesktopLayout(): React.ReactNode {
     }
   }, [sessionId])
 
-  const renderSideChatComposer = (
-    tab: Extract<import('../dock/RightDockState.js').WorkbenchTabDescriptor, { kind: 'side-chat' }>,
-    sideChatContext: import('../../session/conversation/SideChatThreadPanel.js').SideChatComposerRenderContext,
-  ): React.ReactNode => {
-    if (!isQuickChatPage && !isConversationRoute) return null
-    const sideSettings = getSideChatSettings(tab.id)
-    const sideProviderOption = providerModelOptions.find(
-      (option) => option.providerID === sideSettings.providerID,
-    )
-    const sideModelPresets = sideProviderOption?.modelPresets ?? modelPresets
-    const sideSelectedModelPreset =
-      resolveModelPresetId(
-        sideSettings.model,
-        sideSettings.selectedModelPreset,
-        sideModelPresets,
-      ) ||
-      sideSettings.model ||
-      sideSettings.selectedModelPreset ||
-      ''
-    const sideProviderSummary =
-      modelProviders.find((provider) => provider.providerID === sideSettings.providerID) ??
-      (providerState?.provider.providerID === sideSettings.providerID
-        ? providerState.provider
-        : undefined)
-    const sideModelMetadata =
-      sideProviderSummary?.modelMetadata?.[sideSettings.model] ??
-      (providerState?.selectedProviderID === sideSettings.providerID
-        ? providerState.modelMetadata?.[sideSettings.model]
-        : undefined)
-    const sideDeepSeekThinkingControls = isDeepSeekThinkingModel({
-      providerID: sideSettings.providerID,
-      model: sideSettings.model,
-      metadata: sideModelMetadata,
-    })
-    const sideModelConfigured = Boolean(
-      sideSettings.model &&
-      sideProviderSummary?.apiKeyConfigured &&
-      sideModelPresets.some((preset) => preset.value === sideSettings.model),
-    )
-    const sideModelError =
-      getSideChatModelError(tab.id) ??
-      (!isSideChatModelLoading(tab.id) &&
-      !modelCatalogLoading &&
-      sideSettings.model &&
-      !sideModelConfigured
-        ? `当前会话模型不可用：${sideSettings.providerID}/${sideSettings.model}，请检查提供商配置`
-        : null)
-    const sideShowThinkingOptions =
-      sideDeepSeekThinkingControls ||
-      sideProviderSummary?.kind === 'anthropic' ||
-      sideModelMetadata?.reasoning === true ||
-      Boolean(sideModelMetadata?.variants?.length) ||
-      (Boolean(sideSettings.thinkingMode) && sideSettings.thinkingMode !== 'default')
-    return (
-      <DesktopComposer
-        input={sideChatInput}
-        messages={[]}
-        hasConversationMessages={sideChatContext.hasVisibleMessages}
-        placement="thread"
-        draftKey={tab.id}
-        routedSessionId={tab.threadId}
-        sessionStatus={sideChatContext.status}
-        permissionMode={sideSettings.permissionMode}
-        planModeActive={sideChatContext.planModeActive ?? sideSettings.planModeActive}
-        codingModel={codingModel}
-        modelSelectionError={sideModelError}
-        onError={handleErrorMessage}
-        onRetryModelSelection={() => {
-          reloadSideChatModel(tab.id)
-          void refreshProviderState()
-        }}
-        modelVariant={sideSettings.variant ?? 'default'}
-        modelVariantOptions={buildVariantOptions(sideModelMetadata?.variants)}
-        onModelVariantChange={(variant) =>
-          updateSideChatSettings(tab.id, {
-            variant: variant === 'default' ? undefined : variant,
-            thinkingMode:
-              variant === 'enabled' || variant === 'adaptive' || variant === 'disabled'
-                ? variant
-                : 'default',
-          })
-        }
-        thinkingMode={sideSettings.thinkingMode}
-        selectedProviderID={sideSettings.providerID}
-        selectedModelPreset={sideSelectedModelPreset}
-        modelConfigured={sideModelConfigured}
-        modelCatalogLoading={modelCatalogLoading || isSideChatModelLoading(tab.id)}
-        selectedModelMetadata={sideModelMetadata}
-        showThinkingOptions={sideShowThinkingOptions}
-        deepSeekThinkingControls={sideDeepSeekThinkingControls}
-        showContextUsage={false}
-        contextUsage={null}
-        modelPresets={sideModelPresets}
-        providerOptions={providerModelOptions}
-        recentWorkspaces={recentWorkspaces}
-        contextTasks={composerContextTasks}
-        browserContext={composerBrowserContext}
-        workspace={currentWorkspace}
-        attachments={sideChatAttachments}
-        onAttachmentsChange={setSideChatAttachments}
-        onAppendAttachmentsForDraft={appendSideComposerAttachmentsForDraft}
-        onRemoveAttachmentForDraft={removeSideComposerAttachmentForDraft}
-        onOpenAttachment={handleOpenDraftAttachment}
-        onDraftAccepted={clearSideComposerDraftIfUnchanged}
-        onChooseWorkspace={handleChooseWorkspace}
-        onInputChange={setSideChatInput}
-        onInterrupt={() => desktopClient.interruptSession(tab.threadId)}
-        onProviderModelChange={(nextProviderID, nextPresetId) => {
-          const providerOption = providerModelOptions.find(
-            (option) => option.providerID === nextProviderID,
-          )
-          const preset = providerOption?.modelPresets.find(
-            (candidate) => candidate.id === nextPresetId,
-          )
-          if (!providerOption || !preset) return
-          if (nextProviderID === sideSettings.providerID && preset.value === sideSettings.model)
-            return
-          const metadata =
-            (providerState?.selectedProviderID === nextProviderID
-              ? providerState.modelMetadata?.[preset.value]
-              : undefined) ??
-            modelProviders.find((provider) => provider.providerID === nextProviderID)
-              ?.modelMetadata?.[preset.value]
-          const variant =
-            sideSettings.variant ??
-            (sideSettings.thinkingMode !== 'default' ? sideSettings.thinkingMode : undefined)
-          const preserveThinking = Boolean(variant && metadata?.variants?.includes(variant))
-          updateSideChatSettings(tab.id, {
-            providerID: nextProviderID,
-            providerBaseURL: providerOption.baseURL ?? '',
-            model: preset.value,
-            selectedModelPreset: nextPresetId,
-            variant: preserveThinking ? variant : undefined,
-            thinkingMode: preserveThinking ? sideSettings.thinkingMode : 'default',
-          })
-        }}
-        onProviderOpen={handleProviderOpen}
-        onProviderSearch={handleProviderSearch}
-        onOpenWorkspace={handleOpenRecentWorkspace}
-        onCloneGithub={() => setGithubRepositoryModalOpen(true)}
-        onClearWorkspace={handleClearWorkspace}
-        onOpenMcpSettings={() => openSettingsDialog('/settings/plugins?tab=mcps')}
-        onOpenModelSettings={() => navigate('/providers')}
-        onSkillTokenActivate={(invocation) => {
-          void handleActivateComposerSkill(invocation)
-        }}
-        capabilities={{ goals: false, review: false, status: false }}
-        onPermissionChange={async (value) => {
-          try {
-            await desktopClient.setSessionPermissionMode(tab.threadId, value)
-            updateSideChatSettings(tab.id, { permissionMode: value })
-          } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : String(error))
-            throw error
+  const renderSideChatComposer = useCallback(
+    (
+      tab: Extract<
+        import('../dock/RightDockState.js').WorkbenchTabDescriptor,
+        { kind: 'side-chat' }
+      >,
+      sideChatContext: import('../../session/conversation/SideChatThreadPanel.js').SideChatComposerRenderContext,
+    ): React.ReactNode => {
+      if (!isQuickChatPage && !isConversationRoute) return null
+      const sideSettings = getSideChatSettings(tab.id)
+      const sideProviderOption = providerModelOptions.find(
+        (option) => option.providerID === sideSettings.providerID,
+      )
+      const sideModelPresets = sideProviderOption?.modelPresets ?? modelPresets
+      const sideSelectedModelPreset =
+        resolveModelPresetId(
+          sideSettings.model,
+          sideSettings.selectedModelPreset,
+          sideModelPresets,
+        ) ||
+        sideSettings.model ||
+        sideSettings.selectedModelPreset ||
+        ''
+      const sideProviderSummary =
+        modelProviders.find((provider) => provider.providerID === sideSettings.providerID) ??
+        (providerState?.provider.providerID === sideSettings.providerID
+          ? providerState.provider
+          : undefined)
+      const sideModelMetadata =
+        sideProviderSummary?.modelMetadata?.[sideSettings.model] ??
+        (providerState?.selectedProviderID === sideSettings.providerID
+          ? providerState.modelMetadata?.[sideSettings.model]
+          : undefined)
+      const sideDeepSeekThinkingControls = isDeepSeekThinkingModel({
+        providerID: sideSettings.providerID,
+        model: sideSettings.model,
+        metadata: sideModelMetadata,
+      })
+      const sideModelConfigured = Boolean(
+        sideSettings.model &&
+        sideProviderSummary?.apiKeyConfigured &&
+        sideModelPresets.some((preset) => preset.value === sideSettings.model),
+      )
+      const sideModelError =
+        getSideChatModelError(tab.id) ??
+        (!isSideChatModelLoading(tab.id) &&
+        !modelCatalogLoading &&
+        sideSettings.model &&
+        !sideModelConfigured
+          ? `当前会话模型不可用：${sideSettings.providerID}/${sideSettings.model}，请检查提供商配置`
+          : null)
+      const sideShowThinkingOptions =
+        sideDeepSeekThinkingControls ||
+        sideProviderSummary?.kind === 'anthropic' ||
+        sideModelMetadata?.reasoning === true ||
+        Boolean(sideModelMetadata?.variants?.length) ||
+        (Boolean(sideSettings.thinkingMode) && sideSettings.thinkingMode !== 'default')
+      return (
+        <DesktopComposer
+          input={sideChatInput}
+          messages={[]}
+          hasConversationMessages={sideChatContext.hasVisibleMessages}
+          placement="thread"
+          draftKey={tab.id}
+          routedSessionId={tab.threadId}
+          sessionStatus={sideChatContext.status}
+          permissionMode={sideSettings.permissionMode}
+          planModeActive={sideChatContext.planModeActive ?? sideSettings.planModeActive}
+          codingModel={codingModel}
+          modelSelectionError={sideModelError}
+          onError={handleErrorMessage}
+          onRetryModelSelection={() => {
+            reloadSideChatModel(tab.id)
+            void refreshProviderState()
+          }}
+          modelVariant={sideSettings.variant ?? 'default'}
+          modelVariantOptions={buildVariantOptions(sideModelMetadata?.variants)}
+          onModelVariantChange={(variant) =>
+            updateSideChatSettings(tab.id, {
+              variant: variant === 'default' ? undefined : variant,
+              thinkingMode:
+                variant === 'enabled' || variant === 'adaptive' || variant === 'disabled'
+                  ? variant
+                  : 'default',
+            })
           }
-        }}
-        onPlanModeChange={async (active) => {
-          await desktopClient.setSessionPlanModeActive(tab.threadId, active)
-          updateSideChatSettings(tab.id, { planModeActive: active })
-        }}
-        onThinkingChange={(value) => {
-          updateSideChatSettings(tab.id, {
-            thinkingMode: value,
-            variant: sideModelMetadata?.variants?.includes(value) ? value : undefined,
-          })
-        }}
-        createSessionForWorkspace={createSessionForWorkspace}
-        submitToSession={sideChatSubmitToSession}
-      />
-    )
-  }
+          thinkingMode={sideSettings.thinkingMode}
+          selectedProviderID={sideSettings.providerID}
+          selectedModelPreset={sideSelectedModelPreset}
+          modelConfigured={sideModelConfigured}
+          modelCatalogLoading={modelCatalogLoading || isSideChatModelLoading(tab.id)}
+          selectedModelMetadata={sideModelMetadata}
+          showThinkingOptions={sideShowThinkingOptions}
+          deepSeekThinkingControls={sideDeepSeekThinkingControls}
+          showContextUsage={false}
+          contextUsage={null}
+          modelPresets={sideModelPresets}
+          providerOptions={providerModelOptions}
+          recentWorkspaces={recentWorkspaces}
+          contextTasks={composerContextTasks}
+          browserContext={composerBrowserContext}
+          workspace={currentWorkspace}
+          attachments={sideChatAttachments}
+          onAttachmentsChange={setSideChatAttachments}
+          onAppendAttachmentsForDraft={appendSideComposerAttachmentsForDraft}
+          onRemoveAttachmentForDraft={removeSideComposerAttachmentForDraft}
+          onOpenAttachment={handleOpenDraftAttachment}
+          onDraftAccepted={clearSideComposerDraftIfUnchanged}
+          onChooseWorkspace={handleChooseWorkspace}
+          onInputChange={setSideChatInput}
+          onInterrupt={() => desktopClient.interruptSession(tab.threadId)}
+          onProviderModelChange={(nextProviderID, nextPresetId) => {
+            const providerOption = providerModelOptions.find(
+              (option) => option.providerID === nextProviderID,
+            )
+            const preset = providerOption?.modelPresets.find(
+              (candidate) => candidate.id === nextPresetId,
+            )
+            if (!providerOption || !preset) return
+            if (nextProviderID === sideSettings.providerID && preset.value === sideSettings.model)
+              return
+            const metadata =
+              (providerState?.selectedProviderID === nextProviderID
+                ? providerState.modelMetadata?.[preset.value]
+                : undefined) ??
+              modelProviders.find((provider) => provider.providerID === nextProviderID)
+                ?.modelMetadata?.[preset.value]
+            const variant =
+              sideSettings.variant ??
+              (sideSettings.thinkingMode !== 'default' ? sideSettings.thinkingMode : undefined)
+            const preserveThinking = Boolean(variant && metadata?.variants?.includes(variant))
+            updateSideChatSettings(tab.id, {
+              providerID: nextProviderID,
+              providerBaseURL: providerOption.baseURL ?? '',
+              model: preset.value,
+              selectedModelPreset: nextPresetId,
+              variant: preserveThinking ? variant : undefined,
+              thinkingMode: preserveThinking ? sideSettings.thinkingMode : 'default',
+            })
+          }}
+          onProviderOpen={handleProviderOpen}
+          onProviderSearch={handleProviderSearch}
+          onOpenWorkspace={handleOpenRecentWorkspace}
+          onCloneGithub={() => setGithubRepositoryModalOpen(true)}
+          onClearWorkspace={handleClearWorkspace}
+          onOpenMcpSettings={() => openSettingsDialog('/settings/plugins?tab=mcps')}
+          onOpenModelSettings={() => navigate('/providers')}
+          onSkillTokenActivate={(invocation) => {
+            void handleActivateComposerSkill(invocation)
+          }}
+          capabilities={{ goals: false, review: false, status: false }}
+          onPermissionChange={async (value) => {
+            try {
+              await desktopClient.setSessionPermissionMode(tab.threadId, value)
+              updateSideChatSettings(tab.id, { permissionMode: value })
+            } catch (error) {
+              setErrorMessage(error instanceof Error ? error.message : String(error))
+              throw error
+            }
+          }}
+          onPlanModeChange={async (active) => {
+            await desktopClient.setSessionPlanModeActive(tab.threadId, active)
+            updateSideChatSettings(tab.id, { planModeActive: active })
+          }}
+          onThinkingChange={(value) => {
+            updateSideChatSettings(tab.id, {
+              thinkingMode: value,
+              variant: sideModelMetadata?.variants?.includes(value) ? value : undefined,
+            })
+          }}
+          createSessionForWorkspace={createSessionForWorkspace}
+          submitToSession={sideChatSubmitToSession}
+        />
+      )
+    },
+    [
+      appendSideComposerAttachmentsForDraft,
+      clearSideComposerDraftIfUnchanged,
+      codingModel,
+      composerBrowserContext,
+      composerContextTasks,
+      createSessionForWorkspace,
+      currentWorkspace,
+      getSideChatModelError,
+      getSideChatSettings,
+      handleActivateComposerSkill,
+      handleChooseWorkspace,
+      handleClearWorkspace,
+      handleErrorMessage,
+      handleOpenDraftAttachment,
+      handleOpenRecentWorkspace,
+      handleProviderOpen,
+      handleProviderSearch,
+      isConversationRoute,
+      isQuickChatPage,
+      isSideChatModelLoading,
+      modelCatalogLoading,
+      modelPresets,
+      modelProviders,
+      navigate,
+      providerModelOptions,
+      providerState,
+      recentWorkspaces,
+      refreshProviderState,
+      reloadSideChatModel,
+      removeSideComposerAttachmentForDraft,
+      setSideChatAttachments,
+      setSideChatInput,
+      sideChatAttachments,
+      sideChatInput,
+      sideChatSubmitToSession,
+      updateSideChatSettings,
+    ],
+  )
   const planContentByEventId = useMemo(() => {
     const result: Record<string, string> = {}
     for (const event of events) {
@@ -2823,8 +2992,6 @@ export function DesktopLayout(): React.ReactNode {
       )
     },
     [
-      activeSessionItem?.threadGoal,
-      handleGoalEdit,
       handleFileLoadError,
       workbenchPanelState.tabsById,
       workbenchPanelState.right.tabIds,
@@ -3110,6 +3277,229 @@ export function DesktopLayout(): React.ReactNode {
     })
   }, [openPanelTab, workbenchPanelState.bottom.tabIds, workbenchPanelState.tabsById])
 
+  const modelProviderNames = useMemo(
+    () =>
+      Object.fromEntries(
+        modelProviders.map((provider) => [provider.providerID, provider.displayName]),
+      ),
+    [modelProviders],
+  )
+  const supportsMessageEditing = desktopClient.supportsMessageEditing?.() ?? false
+  const handleToggleReviewView = useCallback((): void => {
+    setReviewView(reviewView === 'inline' ? 'split' : 'inline')
+  }, [reviewView, setReviewView])
+  const handleRightDockFileLoadError = useCallback(
+    (
+      tab: Extract<WorkbenchTabDescriptor, { kind: 'file-preview' }>,
+      error: Error,
+      phase: import('../dock/RightDockPanels.js').FileDocumentLoadErrorPhase,
+    ): void => {
+      handleFileLoadError({ error, phase, tab, target: 'right' })
+    },
+    [handleFileLoadError],
+  )
+  const handleRecreateSideChat = useCallback((): void => {
+    void createSideChat()
+  }, [createSideChat])
+  const getSideChatModelSelection = useCallback(
+    (tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>) => getSideChatSettings(tab.id),
+    [getSideChatSettings],
+  )
+  const getSideChatPermissionMode = useCallback(
+    (tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>): DesktopPermissionMode =>
+      getSideChatSettings(tab.id).permissionMode,
+    [getSideChatSettings],
+  )
+  const activeThreadGoal = activeSessionItem?.threadGoal ?? null
+  const auxiliaryPanelContext = useMemo<WorkbenchTabRenderContext>(
+    () => ({
+      review: {
+        activeSessionId: sessionId,
+        defaultBranch: derivedDefaultBranch,
+        gitStatus,
+        isRefreshing: false,
+        projectId: currentWorkspace?.projectId ?? null,
+        diffMarkerStyle,
+        reviewView,
+        reviewTabState,
+        handleReviewSummaryChange,
+        handleOpenFileFromBrowser,
+        onReviewSummaryChange: handleReviewSummaryChange,
+        onOpenReviewFile: (path) =>
+          handleOpenFileFromBrowser('right', {
+            path,
+            name: path.split(/[\\/]/).pop() ?? path,
+            type: 'file',
+            depth: 0,
+          }),
+        sessionStatus,
+        workspacePath: currentWorkspace?.path ?? null,
+        onAppendComposerText: handleAppendComposerText,
+        onClose: () => undefined,
+        onCreateBranch: handleCreateBranch,
+        onOpenWorkspacePath: handleOpenWorkspacePath,
+        onRefreshDiff: handleRefreshDiff,
+        onReviewTabStateChange: setReviewTabState,
+        onToggleReviewView: handleToggleReviewView,
+      },
+      browser: {
+        availability: {
+          status: browserAvailability,
+          ...(browserAvailability === 'unavailable'
+            ? {
+                reason: '当前环境未连接桌面浏览器宿主。',
+              }
+            : {}),
+        },
+        state: browserState,
+        threadId: sessionId,
+        onNewTab: handleOpenBrowser,
+        draftKey: mainComposerDraftKey,
+        onAppendImage: handleBrowserImage,
+        onOpenSettings: () => openSettingsDialog('/settings/browser'),
+        onStateChange: setBrowserState,
+      },
+      files: {
+        files: workspaceFiles,
+        selectedFile,
+        workspace: currentWorkspace,
+        onOpenFileFromBrowser: (file) => handleOpenFileFromBrowser('right', file),
+        onPreviewFile: (file) => handleOpenFilePreview('right', file),
+        onAppendComposerText: handleAppendComposerText,
+        onAddComposerFiles: handleAddComposerFiles,
+        onPinFileTab: pinTab,
+        onSetFileMarkdownViewMode: setFileMarkdownViewMode,
+        onSetFileViewState: setFileViewState,
+        onAskInSideChat: sideChatSupported ? handleAppendSideChatText : undefined,
+        onLoadError: handleRightDockFileLoadError,
+      },
+      planContentByEventId,
+      goal: {
+        goal: activeThreadGoal,
+        onSaveGoal: handleGoalEdit,
+        onAppendBudget: handleGoalAppendBudget,
+        onRemoveBudgetLimit: handleGoalRemoveBudgetLimit,
+      },
+      plan: { onOpenPlan: handleOpenPlanDock },
+      sideChat: {
+        activeTabId: null,
+        available: sideChatSupported,
+        focusVersion: sideChatFocusVersion,
+        isCreating: isCreatingSideChat,
+        getPermissionMode: getSideChatPermissionMode,
+        getModelSelection: getSideChatModelSelection,
+        onInteractionError: setErrorMessage,
+        itemContext: (tab, status) => ({
+          modelProviderNames,
+          canCopyFileReferenceContents: canCopyMarkdownFileReferenceContents,
+          onCopyFileReferenceContents: handleCopyMarkdownFileReferenceContents,
+          onOpenFileReference: handleOpenMarkdownFileReference,
+          onOpenAttachment: handleOpenThreadAttachment,
+          onOpenLocalContext: handleOpenThreadLocalContext,
+          canEditUserMessage: supportsMessageEditing,
+          onSubmitEditedUserMessage: async (input, target) => {
+            if (!desktopClient.editUserMessage) throw new Error('当前会话不支持修改消息')
+            await desktopClient.editUserMessage(tab.threadId, target, input)
+          },
+          sessionStatus: status,
+          workspacePath: currentWorkspace?.path ?? null,
+        }),
+        onOpenPatchReview: handleOpenPatchReview,
+        onOpenPlan: handleOpenPlanDock,
+        onStateChange: reportSideChatState,
+        renderComposer: renderSideChatComposer,
+        onRecreate: handleRecreateSideChat,
+      },
+      subagentDirectory: {
+        availability: {
+          status: subagentsAvailability,
+          ...(subagentsAvailability === 'unavailable'
+            ? { reason: '当前 Agent 不支持子智能体工作台。' }
+            : {}),
+        },
+        onSelectTask: handleSelectSubagentTask,
+        onOpenTask: handleOpenSubagent,
+        onError: handleErrorMessage,
+        onOpenPatchReview: handleOpenPatchReview,
+        onRefreshDiff: handleRefreshDiff,
+      },
+      terminal: {
+        availability: terminalAvailable
+          ? { status: 'available' }
+          : sessionId
+            ? {
+                status: 'unavailable',
+                reason: '当前桌面运行环境没有提供集成终端桥接。',
+              }
+            : { status: 'available' },
+        threadId: sessionId,
+        cwd: currentWorkspace?.path ?? null,
+        onDisplayPathChange: () => undefined,
+      },
+    }),
+    [
+      browserAvailability,
+      browserState,
+      canCopyMarkdownFileReferenceContents,
+      currentWorkspace,
+      derivedDefaultBranch,
+      diffMarkerStyle,
+      gitStatus,
+      handleAddComposerFiles,
+      handleAppendComposerText,
+      handleAppendSideChatText,
+      mainComposerDraftKey,
+      handleBrowserImage,
+      handleOpenBrowser,
+      handleCopyMarkdownFileReferenceContents,
+      handleCreateBranch,
+      activeThreadGoal,
+      handleGoalAppendBudget,
+      handleGoalEdit,
+      handleGoalRemoveBudgetLimit,
+      handleRightDockFileLoadError,
+      handleOpenFileFromBrowser,
+      handleOpenFilePreview,
+      handleOpenMarkdownFileReference,
+      handleOpenPatchReview,
+      handleOpenPlanDock,
+      handleOpenThreadAttachment,
+      handleOpenThreadLocalContext,
+      handleOpenWorkspacePath,
+      handleRefreshDiff,
+      handleReviewSummaryChange,
+      getSideChatPermissionMode,
+      getSideChatModelSelection,
+      handleRecreateSideChat,
+      isCreatingSideChat,
+      modelProviderNames,
+      pinTab,
+      planContentByEventId,
+      renderSideChatComposer,
+      reportSideChatState,
+      reviewTabState,
+      reviewView,
+      selectedFile,
+      sessionId,
+      sessionStatus,
+      setBrowserState,
+      setErrorMessage,
+      setFileMarkdownViewMode,
+      setFileViewState,
+      setReviewTabState,
+      handleToggleReviewView,
+      supportsMessageEditing,
+      sideChatFocusVersion,
+      sideChatSupported,
+      subagentsAvailability,
+      handleSelectSubagentTask,
+      handleOpenSubagent,
+      handleErrorMessage,
+      terminalAvailable,
+      workspaceFiles,
+    ],
+  )
+
   const renderWorkbenchPanel = (target: WorkbenchPanelTarget): React.ReactNode => {
     const providerMode = target === 'right' && providerPanelVisible
     const state = providerMode
@@ -3307,195 +3697,6 @@ export function DesktopLayout(): React.ReactNode {
     )
   }
 
-  const auxiliaryPanelContext = useMemo<WorkbenchTabRenderContext>(
-    () => ({
-      review: {
-        activeSessionId: sessionId,
-        defaultBranch: derivedDefaultBranch,
-        gitStatus,
-        isRefreshing: false,
-        projectId: currentWorkspace?.projectId ?? null,
-        diffMarkerStyle,
-        reviewView,
-        reviewTabState,
-        handleReviewSummaryChange,
-        handleOpenFileFromBrowser,
-        onReviewSummaryChange: handleReviewSummaryChange,
-        onOpenReviewFile: (path) =>
-          handleOpenFileFromBrowser('right', {
-            path,
-            name: path.split(/[\\/]/).pop() ?? path,
-            type: 'file',
-            depth: 0,
-          }),
-        sessionStatus,
-        workspacePath: currentWorkspace?.path ?? null,
-        onAppendComposerText: handleAppendComposerText,
-        onClose: () => undefined,
-        onCreateBranch: handleCreateBranch,
-        onOpenWorkspacePath: handleOpenWorkspacePath,
-        onRefreshDiff: handleRefreshDiff,
-        onReviewTabStateChange: setReviewTabState,
-        onToggleReviewView: () => setReviewView(reviewView === 'inline' ? 'split' : 'inline'),
-      },
-      browser: {
-        availability: {
-          status: browserAvailability,
-          ...(browserAvailability === 'unavailable'
-            ? {
-                reason: '当前环境未连接桌面浏览器宿主。',
-              }
-            : {}),
-        },
-        state: browserState,
-        threadId: sessionId,
-        onNewTab: handleOpenBrowser,
-        draftKey: mainComposerDraftKey,
-        onAppendImage: handleBrowserImage,
-        onOpenSettings: () => openSettingsDialog('/settings/browser'),
-        onStateChange: setBrowserState,
-      },
-      files: {
-        files: workspaceFiles,
-        selectedFile,
-        workspace: currentWorkspace,
-        onOpenFileFromBrowser: (file) => handleOpenFileFromBrowser('right', file),
-        onPreviewFile: (file) => handleOpenFilePreview('right', file),
-        onAppendComposerText: handleAppendComposerText,
-        onAddComposerFiles: handleAddComposerFiles,
-        onPinFileTab: pinTab,
-        onSetFileMarkdownViewMode: setFileMarkdownViewMode,
-        onSetFileViewState: setFileViewState,
-        onAskInSideChat: sideChatSupported ? handleAppendSideChatText : undefined,
-        onLoadError: (tab, error, phase) =>
-          handleFileLoadError({ error, phase, tab, target: 'right' }),
-      },
-      planContentByEventId,
-      goal: {
-        goal: activeSessionItem?.threadGoal ?? null,
-        onSaveGoal: handleGoalEdit,
-        onAppendBudget: handleGoalAppendBudget,
-        onRemoveBudgetLimit: handleGoalRemoveBudgetLimit,
-      },
-      plan: { onOpenPlan: handleOpenPlanDock },
-      sideChat: {
-        activeTabId: null,
-        available: sideChatSupported,
-        focusVersion: sideChatFocusVersion,
-        isCreating: isCreatingSideChat,
-        getPermissionMode: (tab) => getSideChatSettings(tab.id).permissionMode,
-        getModelSelection: (tab) => getSideChatSettings(tab.id),
-        onInteractionError: (message) => setErrorMessage(message),
-        itemContext: (tab, status) => ({
-          modelProviderNames: Object.fromEntries(
-            modelProviders.map((provider) => [provider.providerID, provider.displayName]),
-          ),
-          canCopyFileReferenceContents: canCopyMarkdownFileReferenceContents,
-          onCopyFileReferenceContents: handleCopyMarkdownFileReferenceContents,
-          onOpenFileReference: handleOpenMarkdownFileReference,
-          onOpenAttachment: handleOpenThreadAttachment,
-          onOpenLocalContext: handleOpenThreadLocalContext,
-          canEditUserMessage: desktopClient.supportsMessageEditing?.() ?? false,
-          onSubmitEditedUserMessage: async (input, target) => {
-            if (!desktopClient.editUserMessage) throw new Error('当前会话不支持修改消息')
-            await desktopClient.editUserMessage(tab.threadId, target, input)
-          },
-          sessionStatus: status,
-          workspacePath: currentWorkspace?.path ?? null,
-        }),
-        onOpenPatchReview: handleOpenPatchReview,
-        onOpenPlan: handleOpenPlanDock,
-        onStateChange: reportSideChatState,
-        renderComposer: renderSideChatComposer,
-        onRecreate: () => void createSideChat(),
-      },
-      subagentDirectory: {
-        availability: {
-          status: subagentsAvailability,
-          ...(subagentsAvailability === 'unavailable'
-            ? { reason: '当前 Agent 不支持子智能体工作台。' }
-            : {}),
-        },
-        onSelectTask: handleSelectSubagentTask,
-        onOpenTask: handleOpenSubagent,
-        onError: handleErrorMessage,
-        onOpenPatchReview: handleOpenPatchReview,
-        onRefreshDiff: handleRefreshDiff,
-      },
-      terminal: {
-        availability: terminalAvailable
-          ? { status: 'available' }
-          : sessionId
-            ? {
-                status: 'unavailable',
-                reason: '当前桌面运行环境没有提供集成终端桥接。',
-              }
-            : { status: 'available' },
-        threadId: sessionId,
-        cwd: currentWorkspace?.path ?? null,
-        onDisplayPathChange: () => undefined,
-      },
-    }),
-    [
-      browserAvailability,
-      browserState,
-      canCopyMarkdownFileReferenceContents,
-      createSideChat,
-      currentWorkspace,
-      derivedDefaultBranch,
-      diffMarkerStyle,
-      gitStatus,
-      handleAddComposerFiles,
-      handleAppendComposerText,
-      handleAppendSideChatText,
-      mainComposerDraftKey,
-      handleBrowserImage,
-      handleOpenBrowser,
-      handleCopyMarkdownFileReferenceContents,
-      handleCreateBranch,
-      activeSessionItem?.threadGoal,
-      handleGoalAppendBudget,
-      handleGoalEdit,
-      handleGoalRemoveBudgetLimit,
-      handleFileLoadError,
-      handleOpenFileFromBrowser,
-      handleOpenFilePreview,
-      handleOpenMarkdownFileReference,
-      handleOpenPatchReview,
-      handleOpenPlanDock,
-      handleOpenThreadAttachment,
-      handleOpenThreadLocalContext,
-      handleOpenWorkspacePath,
-      handleRefreshDiff,
-      isCreatingSideChat,
-      modelProviders,
-      pinTab,
-      planContentByEventId,
-      renderSideChatComposer,
-      reportSideChatState,
-      reviewTabState,
-      reviewView,
-      selectedFile,
-      sessionId,
-      sessionStatus,
-      setBrowserState,
-      setErrorMessage,
-      setFileMarkdownViewMode,
-      setFileViewState,
-      setReviewTabState,
-      setReviewView,
-      sideChatFocusVersion,
-      sideChatSubmitToSession,
-      sideChatSupported,
-      subagentsAvailability,
-      handleSelectSubagentTask,
-      handleOpenSubagent,
-      handleErrorMessage,
-      terminalAvailable,
-      workspaceFiles,
-    ],
-  )
-
   const closeSidebarPreview = sidebarShell.closePreview
   // 保持元素身份，工作区布局更新无需重新遍历侧栏；侧栏自身订阅仍正常更新。
   const appSidebarContent = useMemo(
@@ -3580,6 +3781,7 @@ export function DesktopLayout(): React.ReactNode {
       popOutPanelTab,
       handleOpenFilePreview,
       handleAddComposerFiles,
+      resetHomeComposerModes,
     ],
   )
 
@@ -3656,6 +3858,13 @@ export function DesktopLayout(): React.ReactNode {
     return selectLatestCompletedTurnId(events, activeSessionItem?.latestTurnStatus ?? null)
   }, [activeSessionItem?.latestTurnStatus, composerPredictionsEnabled, events, routedSessionId])
 
+  const {
+    modelSelection: sessionModelSelection,
+    modelSelectionError: sessionModelSelectionError,
+    modelSelectionLoading: sessionModelSelectionLoading,
+    reloadModelSelection,
+  } = session
+  const pathname = location.pathname
   const composerProps = useMemo<SessionBoundComposerProps | null>(
     () =>
       isQuickChatPage || isConversationRoute
@@ -3676,13 +3885,13 @@ export function DesktopLayout(): React.ReactNode {
             planModeActive,
             grillModeActive,
             codingModel,
-            thinkingMode: session.modelSelection?.thinkingMode ?? 'default',
+            thinkingMode: sessionModelSelection?.thinkingMode ?? 'default',
             modelVariant: selectedVariant,
             modelVariantOptions: variantOptions,
             onModelVariantChange: handleVariantChange,
             maxContextTokens,
             onMaxContextTokensChange: handleMaxContextTokensChange,
-            modelSelectionError: session.modelSelectionError ?? selectedModelUnavailableMessage,
+            modelSelectionError: sessionModelSelectionError ?? selectedModelUnavailableMessage,
             threadGoal: activeSessionItem?.threadGoal ?? null,
             onOpenGoalPanel: handleOpenGoalDock,
             onGoalPause: handleGoalPause,
@@ -3690,13 +3899,13 @@ export function DesktopLayout(): React.ReactNode {
             onGoalComplete: handleGoalComplete,
             onGoalClear: handleGoalClear,
             onRetryModelSelection: () => {
-              session.reloadModelSelection()
+              reloadModelSelection()
               void refreshProviderState()
             },
             selectedProviderID,
             selectedModelPreset: resolvedSelectedModelPreset,
             modelConfigured: modelConfigured && (!routedSessionId || routedSessionId === sessionId),
-            modelCatalogLoading: modelCatalogLoading || session.modelSelectionLoading,
+            modelCatalogLoading: modelCatalogLoading || sessionModelSelectionLoading,
             selectedModelMetadata,
             showThinkingOptions,
             deepSeekThinkingControls,
@@ -3721,7 +3930,7 @@ export function DesktopLayout(): React.ReactNode {
             onChooseWorkspace: handleChooseWorkspace,
             onInputChange: inputBinding.replace,
             onInterrupt: interrupt,
-            readPathname: () => location.pathname,
+            readPathname: () => pathname,
             onProviderModelChange: handleProviderModelChange,
             onProviderOpen: handleProviderOpen,
             onProviderSearch: handleProviderSearch,
@@ -3765,11 +3974,15 @@ export function DesktopLayout(): React.ReactNode {
       planModeActive,
       grillModeActive,
       codingModel,
-      session.modelSelection?.thinkingMode,
+      sessionModelSelection?.thinkingMode,
+      sessionModelSelectionError,
+      sessionModelSelectionLoading,
+      reloadModelSelection,
+      maxContextTokens,
+      handleMaxContextTokensChange,
       selectedVariant,
       variantOptions,
       handleVariantChange,
-      session.modelSelectionError,
       selectedModelUnavailableMessage,
       activeSessionItem,
       handleGoalPause,
@@ -3777,14 +3990,12 @@ export function DesktopLayout(): React.ReactNode {
       handleGoalComplete,
       handleGoalClear,
       handleOpenGoalDock,
-      session.reloadModelSelection,
       refreshProviderState,
       selectedProviderID,
       resolvedSelectedModelPreset,
       modelConfigured,
       sessionId,
       modelCatalogLoading,
-      session.modelSelectionLoading,
       selectedModelMetadata,
       showThinkingOptions,
       deepSeekThinkingControls,
@@ -3807,7 +4018,7 @@ export function DesktopLayout(): React.ReactNode {
       restoreComposerDraftIfEmpty,
       handleChooseWorkspace,
       interrupt,
-      location,
+      pathname,
       handleProviderModelChange,
       handleProviderOpen,
       handleProviderSearch,
@@ -3818,8 +4029,6 @@ export function DesktopLayout(): React.ReactNode {
       sideChatSupported,
       handleOpenSideChat,
       handleActivateComposerSkill,
-      handleBranchSelect,
-      handleCreateBranch,
       handleStartAiReview,
       handlePermissionChange,
       handlePlanModeChange,
@@ -4412,6 +4621,7 @@ function ArchiveConversationNotice({
   const onCloseRef = useRef(onClose)
   const onUndoRef = useRef(onUndo)
   const onOpenSettingsRef = useRef(onOpenSettings)
+  const hasUndo = onUndo !== undefined
 
   useEffect(() => {
     onCloseRef.current = onClose
@@ -4435,7 +4645,7 @@ function ArchiveConversationNotice({
           onOpenSettingsRef.current()
         },
       },
-      secondaryAction: onUndo
+      secondaryAction: hasUndo
         ? {
             label: '撤销',
             disabled: undoing,
@@ -4453,7 +4663,7 @@ function ArchiveConversationNotice({
       active = false
       toastStore.dismiss(id)
     }
-  }, [onUndo !== undefined, undoing])
+  }, [hasUndo, undoing])
 
   return null
 }

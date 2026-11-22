@@ -103,6 +103,7 @@ function useGitBoardController() {
   const saveVersion = useRef(0)
   const [state, setState] = useFieldState(stateStore, 'state')
   const [storageError, setStorageError] = useFieldState(stateStore, 'storageError')
+  const [selectedReview, setSelectedReview] = useFieldState(stateStore, 'selectedReview')
   const stateRef = useRef(state)
   const saveState = useCallback(
     (next: GitBoardState) => {
@@ -117,7 +118,7 @@ function useGitBoardController() {
           if (version === saveVersion.current) setStorageError(true)
         })
     },
-    [draft.setValue, draft.saveFields],
+    [draft, setStorageError],
   )
   useEffect(() => {
     if (!settingsLoaded || hydrated.current) return
@@ -134,7 +135,7 @@ function useGitBoardController() {
     setState(next)
     setReady(true)
     if (stored == null && legacy !== null) saveState(next)
-  }, [settingsLoaded, gitBoardStateValue, saveState])
+  }, [settingsLoaded, gitBoardStateValue, saveState, setState, setReady])
   const update = useCallback(
     (change: (current: GitBoardState) => GitBoardState) => {
       if (!hydrated.current) return
@@ -143,7 +144,7 @@ function useGitBoardController() {
       setState(next)
       saveState(next)
     },
-    [saveState],
+    [saveState, setState],
   )
   const { projectCatalogState } = useSidebarProjectCatalog()
   const projects = useMemo(
@@ -154,18 +155,24 @@ function useGitBoardController() {
   const [selectedProjectId, setSelectedProjectId] = useFieldState(stateStore, 'selectedProjectId')
   const [remoteView, setRemoteView] = useFieldState(stateStore, 'remoteView')
   // 打开分组或选中项目时切回看板视图，不能与 GitHub 仓库页同时选中。
-  const openGroup = useCallback((groupId: string | null) => {
-    setActiveGroupId(groupId)
-    setSelectedProjectId(groupId)
-    setRemoteView('board')
-  }, [])
-  const selectProject = useCallback((projectId: string | null) => {
-    setSelectedProjectId(projectId)
-    setActiveGroupId(projectId)
-    setRemoteView('board')
-    setSelectedReview((current) => (current?.project.projectId === projectId ? current : null))
-  }, [])
-  const openRemoteView = useCallback(() => setRemoteView('github'), [])
+  const openGroup = useCallback(
+    (groupId: string | null) => {
+      setActiveGroupId(groupId)
+      setSelectedProjectId(groupId)
+      setRemoteView('board')
+    },
+    [setActiveGroupId, setSelectedProjectId, setRemoteView],
+  )
+  const selectProject = useCallback(
+    (projectId: string | null) => {
+      setSelectedProjectId(projectId)
+      setActiveGroupId(projectId)
+      setRemoteView('board')
+      setSelectedReview((current) => (current?.project.projectId === projectId ? current : null))
+    },
+    [setSelectedProjectId, setActiveGroupId, setRemoteView, setSelectedReview],
+  )
+  const openRemoteView = useCallback(() => setRemoteView('github'), [setRemoteView])
   const selectedProject = useMemo(
     () => projects.find((project) => project.projectId === selectedProjectId) ?? null,
     [projects, selectedProjectId],
@@ -190,7 +197,7 @@ function useGitBoardController() {
       if (!stateRef.current.quickProjectIds.includes(projectId)) openGroup(null)
       update((current) => toggleGitBoardQuickView(current, projectId))
     },
-    [update],
+    [update, openGroup],
   )
   const [selectedRefs, setSelectedRefs] = useFieldState(stateStore, 'selectedRefs')
   const selectedRefsRef = useRef(selectedRefs)
@@ -203,7 +210,6 @@ function useGitBoardController() {
     'commitLimitByProject',
   )
   const commitLimitByProjectRef = useRef(commitLimitByProject)
-  const [selectedReview, setSelectedReview] = useFieldState(stateStore, 'selectedReview')
   const [refreshing, setRefreshing] = useFieldState(stateStore, 'refreshing')
   /** 首次加载、自动刷新、手动刷新、切换分支与提交补拉共用的串行加载队列。 */
   const queueRef = useRef<GitBoardLoadQueue | null>(null)
@@ -283,7 +289,7 @@ function useGitBoardController() {
         })
     }
     return capabilitiesRequestRef.current
-  }, [])
+  }, [setCapabilities, setSupportsCommitRef])
   /** 按当前目录把仓库加入队列；projectIds 缺省表示全部项目。 */
   const requestProjects = useCallback(
     (projectIds: readonly string[] | undefined, manual: boolean): number => {
@@ -296,29 +302,37 @@ function useGitBoardController() {
     },
     [],
   )
-  const clearHistory = useCallback((projectId: string) => {
-    setRepositories((current) => {
-      const repository = current[projectId]
-      return repository
-        ? {
-            ...current,
-            [projectId]: { ...repository, commits: undefined, historyError: undefined },
-          }
-        : current
-    })
-    setSelectedReview((current) =>
-      current?.project.projectId === projectId && current.source.kind === 'commit' ? null : current,
-    )
-  }, [])
-  const reduceCommitLimit = useCallback((projectId: string) => {
-    setCommitLimitByProject((current) => {
-      if (current[projectId] === undefined) return current
-      const next = { ...current }
-      delete next[projectId]
-      commitLimitByProjectRef.current = next
-      return next
-    })
-  }, [])
+  const clearHistory = useCallback(
+    (projectId: string) => {
+      setRepositories((current) => {
+        const repository = current[projectId]
+        return repository
+          ? {
+              ...current,
+              [projectId]: { ...repository, commits: undefined, historyError: undefined },
+            }
+          : current
+      })
+      setSelectedReview((current) =>
+        current?.project.projectId === projectId && current.source.kind === 'commit'
+          ? null
+          : current,
+      )
+    },
+    [setRepositories, setSelectedReview],
+  )
+  const reduceCommitLimit = useCallback(
+    (projectId: string) => {
+      setCommitLimitByProject((current) => {
+        if (current[projectId] === undefined) return current
+        const next = { ...current }
+        delete next[projectId]
+        commitLimitByProjectRef.current = next
+        return next
+      })
+    },
+    [setCommitLimitByProject],
+  )
   const selectBranch = useCallback(
     (projectId: string, ref: string) => {
       const nextSelectedRefs = { ...selectedRefsRef.current, [projectId]: ref }
@@ -332,7 +346,7 @@ function useGitBoardController() {
       queue.request(projectId, 'full', { manual: true, invalidate: true })
       setRefreshing(true)
     },
-    [clearHistory, reduceCommitLimit],
+    [clearHistory, reduceCommitLimit, setSelectedRefs, setRefreshing],
   )
   /**
    * 只刷新指定仓库列；仅使该仓库的旧请求失效，不中断其他仓库加载。
@@ -356,7 +370,7 @@ function useGitBoardController() {
       })
       setRefreshing(true)
     },
-    [clearHistory, reduceCommitLimit],
+    [clearHistory, reduceCommitLimit, setSelectedRefs, setRefreshing],
   )
   /**
    * 侧栏补拉：只在已加载条数不足时按 10 条步进提高单仓库上限，并只补拉该仓库历史。
@@ -376,7 +390,7 @@ function useGitBoardController() {
       setCommitLimitByProject(next)
       queueRef.current?.request(projectId, 'history', { manual })
     },
-    [],
+    [setCommitLimitByProject],
   )
   /** 用户展开某个仓库的提交时，优先为该仓库加载后续提交。 */
   const expandCommitHistory = useCallback(
@@ -385,17 +399,20 @@ function useGitBoardController() {
     },
     [ensureCommitHistory],
   )
-  const selectReview = useCallback((selection: GitBoardReviewSelection) => {
-    setSelectedReview(selection)
-  }, [])
-  const clearReview = useCallback(() => setSelectedReview(null), [])
+  const selectReview = useCallback(
+    (selection: GitBoardReviewSelection) => {
+      setSelectedReview(selection)
+    },
+    [setSelectedReview],
+  )
+  const clearReview = useCallback(() => setSelectedReview(null), [setSelectedReview])
   const refresh = useCallback(() => {
     notifyProjectCatalogChanged()
     if (requestProjects(undefined, true) > 0) setRefreshing(true)
-  }, [requestProjects])
+  }, [requestProjects, setRefreshing])
   const refreshView = useCallback(() => {
     if (requestProjects(view.projectIds, true) > 0) setRefreshing(true)
-  }, [requestProjects, view.projectIds])
+  }, [requestProjects, view.projectIds, setRefreshing])
   /**
    * GitHub 仓库页的刷新入口：由页面标题栏按钮调用，经 Context 下发给视图组件，
    * 避免用全局 window 事件在父子组件之间隐式传值。注册方只在本视图挂载时登记。
@@ -471,7 +488,7 @@ function useGitBoardController() {
       capabilitiesRequestRef.current = null
       setRefreshing(false)
     }
-  }, [active, activityRank, ensureCapabilities])
+  }, [active, activityRank, ensureCapabilities, setRefreshing, setRepositories])
 
   // 目录重新读取但成员/路径未变时，不再强制重复扫描全部仓库。
   const projectTargetsKey = JSON.stringify(projects.map(({ projectId, path }) => [projectId, path]))

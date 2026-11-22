@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useMountEffect } from '../../../hooks/UseMountEffect.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { arrayBufferToBase64 } from '../../../utils/BinaryEncoding.js'
 import { useSpeechStatus } from '../../speech/UseSpeechStatus.js'
@@ -69,9 +70,12 @@ export function useComposerDictation({
   onTranscript,
 }: UseComposerDictationOptions) {
   const speech = useSpeechStatus()
+  const maxAudioBytes = speech.status?.maxAudioBytes
   const prefersReduced = usePrefersReducedMotion()
   const prefersReducedRef = useRef(prefersReduced)
-  prefersReducedRef.current = prefersReduced
+  useLayoutEffect(() => {
+    prefersReducedRef.current = prefersReduced
+  })
   const [state, setState] = useState<ComposerDictationState>({
     phase: 'idle',
     elapsedMs: 0,
@@ -98,7 +102,9 @@ export function useComposerDictation({
   const transcribeRecordingRef = useRef<(blob: Blob, generation: number) => Promise<void>>(
     async () => {},
   )
-  transcriptRef.current = onTranscript
+  useLayoutEffect(() => {
+    transcriptRef.current = onTranscript
+  })
 
   const clearTimers = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
@@ -135,6 +141,7 @@ export function useComposerDictation({
     recorderRef.current = null
   }, [clearTimers, stopWaveform])
 
+  const drawWaveformRef = useRef<() => void>(() => {})
   const drawWaveform = useCallback(() => {
     const canvas = canvasRef.current
     const analyser = analyserRef.current
@@ -193,23 +200,35 @@ export function useComposerDictation({
       clearTimeout(frameTimeoutRef.current)
       frameTimeoutRef.current = null
     }
-    frameTimeoutRef.current = setTimeout(() => {
-      frameTimeoutRef.current = null
-      if (typeof requestAnimationFrame === 'function') {
-        animationFrameRef.current = requestAnimationFrame(drawWaveform)
-      } else {
-        drawWaveform()
-      }
-    }, minInterval)
+    const scheduleNextFrame = (tick: () => void): void => {
+      frameTimeoutRef.current = setTimeout(() => {
+        frameTimeoutRef.current = null
+        if (typeof requestAnimationFrame === 'function') {
+          animationFrameRef.current = requestAnimationFrame(tick)
+        } else {
+          tick()
+        }
+      }, minInterval)
+    }
+    const tick = (): void => {
+      drawWaveformRef.current()
+    }
+    scheduleNextFrame(tick)
   }, [])
+  useLayoutEffect(() => {
+    drawWaveformRef.current = drawWaveform
+  })
 
   const startWaveformLoop = useCallback(() => {
     if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current)
     if (frameTimeoutRef.current !== null) clearTimeout(frameTimeoutRef.current)
-    if (typeof requestAnimationFrame === 'function') {
-      animationFrameRef.current = requestAnimationFrame(drawWaveform)
+    const tick = (): void => {
+      drawWaveformRef.current()
     }
-  }, [drawWaveform])
+    if (typeof requestAnimationFrame === 'function') {
+      animationFrameRef.current = requestAnimationFrame(tick)
+    }
+  }, [])
 
   const bindWaveformCanvas = useCallback(
     (canvas: HTMLCanvasElement | null) => {
@@ -388,7 +407,7 @@ export function useComposerDictation({
           contextRef.current = context
         })
         if (!generationRef.current.isCurrent(generation)) return
-        if (speech.status?.maxAudioBytes && wav.byteLength > speech.status.maxAudioBytes) {
+        if (maxAudioBytes && wav.byteLength > maxAudioBytes) {
           throw new Error('录音内容过长，请缩短后重试。')
         }
         const operationId = crypto.randomUUID()
@@ -443,9 +462,11 @@ export function useComposerDictation({
         })
       }
     },
-    [speech.status?.maxAudioBytes],
+    [maxAudioBytes],
   )
-  transcribeRecordingRef.current = transcribeRecording
+  useLayoutEffect(() => {
+    transcribeRecordingRef.current = transcribeRecording
+  })
 
   const retry = useCallback(async () => {
     if (!canStartDictation(state.phase)) {
@@ -483,25 +504,22 @@ export function useComposerDictation({
   }, [cancel, retry, start, state.phase, stop])
 
   const previousDraftKeyRef = useRef(draftKey)
-  useEffect(() => {
-    if (previousDraftKeyRef.current === draftKey) return
-    previousDraftKeyRef.current = draftKey
-    cancel()
-  }, [cancel, draftKey])
-
   const previousEnabledRef = useRef(enabled)
-  useEffect(() => {
-    if (previousEnabledRef.current === enabled) return
+  useLayoutEffect(() => {
+    const draftChanged = previousDraftKeyRef.current !== draftKey
+    const disabledNow = previousEnabledRef.current !== enabled && !enabled
+    previousDraftKeyRef.current = draftKey
     previousEnabledRef.current = enabled
-    if (!enabled) cancel()
-  }, [cancel, enabled])
+    if (draftChanged || disabledNow) cancel()
+  }, [cancel, draftKey, enabled])
 
-  useEffect(
-    () => () => {
-      cancel()
-    },
-    [cancel],
-  )
+  const cancelRef = useRef(cancel)
+  useLayoutEffect(() => {
+    cancelRef.current = cancel
+  })
+  useMountEffect(() => () => {
+    cancelRef.current()
+  })
 
   return {
     ...state,
