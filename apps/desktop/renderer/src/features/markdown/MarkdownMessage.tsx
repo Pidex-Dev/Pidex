@@ -695,9 +695,18 @@ function MarkdownTable({
     const scroll = scrollRef.current
     const content = tableRef.current
     if (!scroll || !content) return
-    const measure = (): void => setOverflowing(scroll.scrollWidth > scroll.clientWidth)
-    measure()
-    const observer = new ResizeObserver(measure)
+    // INVARIANT: Overflow state comes from post-layout ResizeObserver entry snapshots with a 4px hysteresis band to avoid forced layout and scrollbar oscillation loops.
+    const widths = new Map<Element, number>()
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) widths.set(entry.target, entry.contentRect.width)
+      const scrollWidth = widths.get(scroll)
+      const tableWidth = widths.get(content)
+      if (scrollWidth === undefined || tableWidth === undefined) return
+      setOverflowing((previous) => {
+        if (previous) return tableWidth > scrollWidth - 3
+        return tableWidth > scrollWidth + 1
+      })
+    })
     observer.observe(scroll)
     observer.observe(content)
     return () => observer.disconnect()

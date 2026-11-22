@@ -196,78 +196,37 @@
     }
   }
 
-  /* Radix supplies the measured content height and retains closing content until animation ends. */
-  .ui-collapsible-content[data-reduced-motion='false'] {
-    animation-duration: var(--cpx-sys-motion-disclosure);
-    animation-timing-function: var(--cpx-sys-ease-disclosure);
+  /* The lightweight collapsible keeps content mounted in both states and folds
+     with a pure CSS grid-template-rows transition; no JavaScript code reads
+     animationName or a measured height, so timeline remounts cannot storm the
+     layout with forced sync reflows. */
+  .ui-collapsible-content {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    opacity: 1;
+    transition:
+      grid-template-rows var(--cpx-sys-motion-disclosure) var(--cpx-sys-ease-disclosure),
+      opacity var(--cpx-sys-motion-disclosure) var(--cpx-sys-ease-disclosure);
 
-    &[data-state='open'] {
-      animation-name: ui-collapsible-open;
+    &[data-variant='slide'] {
+      transition-property: grid-template-rows, opacity, transform;
     }
 
     &[data-state='closed'] {
-      animation-name: ui-collapsible-close;
-    }
-
-    &[data-variant='slide'][data-state='open'] {
-      animation-name: ui-collapsible-slide-open;
+      grid-template-rows: minmax(0, 0fr);
+      opacity: 0;
     }
 
     &[data-variant='slide'][data-state='closed'] {
-      animation-duration: var(--cpx-sys-motion-state);
-      animation-name: ui-collapsible-slide-close;
-    }
-  }
-
-  @keyframes ui-collapsible-open {
-    from {
-      height: 0;
-      opacity: 0;
-    }
-
-    to {
-      height: var(--radix-collapsible-content-height);
-      opacity: 1;
-    }
-  }
-
-  @keyframes ui-collapsible-close {
-    from {
-      height: var(--radix-collapsible-content-height);
-      opacity: 1;
-    }
-
-    to {
-      height: 0;
-      opacity: 0;
-    }
-  }
-
-  @keyframes ui-collapsible-slide-open {
-    from {
-      height: 0;
-      opacity: 0;
       transform: translateY(-8px);
     }
-
-    to {
-      height: var(--radix-collapsible-content-height);
-      opacity: 1;
-      transform: translateY(0);
-    }
   }
 
-  @keyframes ui-collapsible-slide-close {
-    from {
-      height: var(--radix-collapsible-content-height);
-      opacity: 1;
-      transform: translateY(0);
-    }
+  .ui-collapsible-content > * {
+    min-height: 0;
+  }
 
-    to {
-      height: 0;
-      opacity: 0;
-      transform: translateY(-8px);
-    }
+  .ui-collapsible-content[data-reduced-motion='true'] {
+    transition: none;
   }
 }

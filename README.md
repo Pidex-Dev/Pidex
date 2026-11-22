@@ -87,8 +87,6 @@ bun run build:desktop
 ```powershell
 bun run --cwd apps/desktop/renderer dev
 bun run --cwd apps/desktop/electron dev
-bun run --cwd apps/website dev
-bun run --cwd apps/website build
 bun test scripts/performance/Metrics.test.ts
 bun run test:plan -- --rpc
 # 真实模型验收会联网并产生模型费用

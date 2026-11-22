@@ -948,4 +948,75 @@ describe('侧边栏展示轮次与错误投影', () => {
     expect(hist.turns[0]?.turn.permissionConfig.approvalsReviewer).toBe('auto_review')
     expect(hist.turns[0]?.inputs[0]?.permissionConfig.approvalsReviewer).toBe('auto_review')
   })
+
+  test('历史 approval_requests.review_payload 含 Guardian 内部扩展字段时在 thread/history/read 严格编码下正常投影', async () => {
+    const { db, projection } = await makeHistory()
+    const thread = db.createThread('审批 review 扩展字段兼容')
+    const turn = db.createTurn(thread.id, input('执行高风险命令'), 'running')
+    db.sqlite
+      .query(
+        `INSERT INTO approval_requests (
+          id, thread_id, turn_id, agent_id, tool_call_id, risk, reason, status, reply, request_payload, review_payload, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        'approval-ext-review',
+        thread.id,
+        turn.turnID,
+        turn.agentID,
+        'tool-call-1',
+        'high',
+        '需要确认命令',
+        'resolved',
+        'allow',
+        JSON.stringify({
+          version: 1,
+          tool: 'shell',
+          command: 'git push --force',
+          cwd: '/repo',
+          requestedPermissions: {},
+          guardian: {
+            status: 'completed',
+            source: 'model',
+            risk: 'high',
+            userAuthorization: 'medium',
+            confidence: 'high',
+            categories: ['destructive'],
+            rationale: '强制推送需确认',
+            reviewedAt: 1_700_000_000_000,
+            model: 'magpie/auto/glm-5.3-flash',
+            authorizationVersion: 'v1',
+            unexpectedInternalKey: 'should-be-stripped',
+          },
+        }),
+        JSON.stringify({
+          model: 'magpie/auto/glm-5.3-flash',
+          decision: 'ask',
+          risk: 'high',
+          confidence: 'high',
+          categories: ['destructive'],
+          requestedScopeValid: true,
+          userAuthorization: 'medium',
+          authorizationVersion: 'v1',
+          reason: '强制推送需确认',
+        }),
+        Date.now(),
+      )
+
+    const streamPosition = { streamId: 'global', sequence: 0 }
+    const hist = projection.historyPage(thread.id, { limit: 10 })!
+    const encodeExact = Schema.encodeUnknownSync(RpcMethods['thread/history/read'].result)
+    expect(() =>
+      encodeExact({ ...hist, streamPosition }, { onExcessProperty: 'error' }),
+    ).not.toThrow()
+    expect(hist.turns[0]?.approvals[0]?.review).toEqual({
+      decision: 'ask',
+      risk: 'high',
+      confidence: 'high',
+      categories: ['destructive'],
+      requestedScopeValid: true,
+      reason: '强制推送需确认',
+    })
+    expect(hist.turns[0]?.approvals[0]?.guardian?.model).toBe('magpie/auto/glm-5.3-flash')
+  })
 })

@@ -1,13 +1,12 @@
 {
   "name": "pidex",
   "private": true,
-  "version": "0.2.0-beta.8",
+  "version": "0.2.0-beta.9",
   "packageManager": "bun@1.4.4",
   "workspaces": [
     "apps/agent",
     "apps/auth-broker",
     "apps/desktop/*",
-    "apps/website",
     "packages/*"
   ],
   "trustedDependencies": [
@@ -32,7 +31,7 @@
     "security:audit": "bun scripts/security/SecurityAudit.ts",
     "format": "bun fmt .",
     "format:check": "bun fmt --check .",
-    "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd apps/auth-broker typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck && bun run --cwd apps/website typecheck",
+    "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd apps/auth-broker typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
     "build:renderer": "bun run --cwd apps/desktop/renderer build",
     "build:agent": "bun run --cwd apps/agent build",
     "build:desktop": "bun run --cwd apps/desktop/electron build",
@@ -71,10 +70,11 @@
     "undici": "8.12.3",
     "proxy-addr": "2.0.8",
     "source-map-js": "1.2.2",
-    "prosemirror-view": "1.42.6"
+    "prosemirror-view": "1.43.0"
   },
   "patchedDependencies": {
     "effect@4.0.0-beta.83": "patches/effect@4.0.0-beta.83.patch",
-    "gcp-metadata@8.1.2": "patches/gcp-metadata@8.1.2.patch"
+    "gcp-metadata@8.1.2": "patches/gcp-metadata@8.1.2.patch",
+    "virtua@0.55.0": "patches/virtua@0.55.0.patch"
   }
 }

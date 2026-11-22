@@ -85,7 +85,9 @@ export function useWorkbenchRouteController(): WorkbenchRouteController {
   const isQuickChatPage = location.pathname === QUICK_CHAT_PATH
   // 首条消息发送时就拿到会话 ID，因此会话路由只有一条，不再有临时 pending 路由。
   const isConversationRoute = routedSessionId !== null
-  const isSettingsRoute = location.pathname.startsWith('/settings/')
+  const isSettingsRoute =
+    (location.pathname === '/settings' || location.pathname.startsWith('/settings/')) &&
+    location.pathname !== '/settings/providers'
   const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
   const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
   const settingsActiveTab = /^\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? 'general'

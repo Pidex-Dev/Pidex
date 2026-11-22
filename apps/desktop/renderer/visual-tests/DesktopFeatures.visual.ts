@@ -100,8 +100,8 @@ test('@feature:models-catalog providers and setup routes render model management
     page.locator('.model-center-shell'),
   )
   await page.goto('/?visualCase=empty#/setup')
-  await expect(page.locator('.model-setup-main')).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByRole('heading', { name: '先连接一个模型供应商', level: 1 })).toBeVisible()
+  await expect(page).toHaveURL(/#\/providers$/u, { timeout: 15_000 })
+  await expect(page.locator('.model-center-shell')).toBeVisible({ timeout: 15_000 })
   expect(errors).toEqual([])
 })
 

@@ -1,14 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { desktopClient } from '../../services/desktop-client/index.js'
-import { withModelCatalogLoading } from '../../hooks/UseModelCatalogLoading.js'
-import type {
-  DesktopModelMetadata,
-  DesktopModelProviderSummary,
-  ModelProviderID,
-} from '../../../shared/Types.js'
-import { getModelDisplayLabel } from '../../ModelPresets.js'
-import { SettingsDropdown } from './SettingsDropdown.js'
-import { formatCompactNumber } from '../../utils/UsageFormatters.js'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
+import { ChevronDown, RotateCcw } from 'lucide-react'
+import { useMountEffect } from '../../hooks/UseMountEffect.js'
+import { useWindowEvent } from '../../hooks/UseExternalSubscription.js'
+import type { DesktopModelProviderSummary, ModelProviderID } from '../../../shared/Types.js'
+import { buildModelPresets, getModelDisplayLabel } from '../../ModelPresets.js'
+import { Button } from '../../components/ui/Button.js'
+import { APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
+import { useLocale } from '../i18n/LocaleProvider.js'
+import {
+  ModelPickerPopover,
+  type ProviderModelOption,
+} from '../session/composer/ModelPickerPopover.js'
+import {
+  loadSpecializedModelProviders,
+  refreshSpecializedProviderInList,
+} from './SpecializedModelProviders.js'
 
 function splitProviderModel(value: string): { providerID: string; id: string } | null {
   const slash = value.indexOf('/')
@@ -16,9 +22,8 @@ function splitProviderModel(value: string): { providerID: string; id: string } |
   return { providerID: value.slice(0, slash), id: value.slice(slash + 1) }
 }
 
-type ModelOption = { value: string; label: string; detail?: string }
-
-type SpecializedModelKey = 'generationModel' | 'organizationModel' | 'codingModel' | 'securityModel'
+export type SpecializedModelKey =
+  'generationModel' | 'organizationModel' | 'codingModel' | 'securityModel'
 
 const SPECIALIZED_MODEL_LABELS: Record<SpecializedModelKey, string> = {
   generationModel: '生成模型',
@@ -27,152 +32,167 @@ const SPECIALIZED_MODEL_LABELS: Record<SpecializedModelKey, string> = {
   securityModel: '安全模型（实验）',
 }
 
-function formatModelDetail(modelID: string, metadata?: DesktopModelMetadata): string {
-  if (!metadata) return ''
-  const parts: string[] = []
-  if (metadata.contextWindow) {
-    parts.push(`上下文 ${formatCompactNumber(metadata.contextWindow)}`)
-  }
-  if (metadata.outputTokens) {
-    parts.push(`输出 ${formatCompactNumber(metadata.outputTokens)}`)
-  }
-  if (metadata.reasoning) parts.push('推理')
-  if (metadata.toolCall) parts.push('工具调用')
-  if (metadata.vision) parts.push('视觉')
-  return parts.join(' / ')
-}
-
 export function SpecializedModelSelect({
   value,
-  mainModel,
   specializedModelKey,
   onChange,
   label: customLabel,
+  emptyLabel = '跟随会话主模型',
+  providers: providersProp,
+  onProviderOpen,
+  onOpenModelSettings,
 }: {
   label?: string
+  emptyLabel?: string
   value: string
-  mainModel: string
+  mainModel?: string
   specializedModelKey: SpecializedModelKey
+  providers?: readonly DesktopModelProviderSummary[]
+  onProviderOpen?: (providerID: ModelProviderID) => void
+  onOpenModelSettings?: () => void
   onChange: (newValue: string) => void
 }): React.ReactNode {
+  const { t } = useLocale()
   const label = customLabel ?? SPECIALIZED_MODEL_LABELS[specializedModelKey]
+  const [open, setOpen] = useState(false)
+  const [loadedProviders, setLoadedProviders] = useState<DesktopModelProviderSummary[]>([])
+  const mountedRef = useRef(true)
 
-  const [providers, setProviders] = useState<DesktopModelProviderSummary[]>([])
-  const [providerModels, setProviderModels] = useState<Record<string, string[]>>({})
-  const [providerMetadata, setProviderMetadata] = useState<
-    Record<string, Record<string, DesktopModelMetadata> | undefined>
-  >({})
-
-  // Load all providers
-  useEffect(() => {
-    let cancelled = false
-    desktopClient
-      .listModelProviders()
-      .then((provs) => {
-        if (!cancelled) setProviders(provs)
-      })
-      .catch(() => {
-        // ignore — dropdown will show empty options
-      })
-    return () => {
-      cancelled = true
+  const reloadOwnProviders = useCallback(async () => {
+    try {
+      const next = await loadSpecializedModelProviders()
+      if (mountedRef.current) setLoadedProviders(next)
+    } catch {
+      if (mountedRef.current) setLoadedProviders([])
     }
   }, [])
 
-  // Fetch catalogs for all apiKeyConfigured providers
-  useEffect(() => {
-    if (providers.length === 0) return
-    const configured = providers.filter((p) => p.apiKeyConfigured)
-    if (configured.length === 0) return
-
-    let cancelled = false
-
-    void (async () => {
-      const models: Record<string, string[]> = {}
-      const metadata: Record<string, Record<string, DesktopModelMetadata> | undefined> = {}
-      for (const provider of configured) {
-        try {
-          const result = await withModelCatalogLoading(() =>
-            desktopClient.fetchProviderModels({
-              providerID: provider.providerID as ModelProviderID,
-            }),
-          )
-          if (cancelled) return
-          models[provider.providerID] = result.models
-          metadata[provider.providerID] = result.modelMetadata
-        } catch {
-          // ignore — individual provider failures don't break the whole list
-        }
-      }
-      if (!cancelled) {
-        setProviderModels(models)
-        setProviderMetadata(metadata)
-      }
-    })()
-
-    return () => {
-      cancelled = true
+  useMountEffect(() => {
+    mountedRef.current = true
+    if (providersProp === undefined) {
+      void reloadOwnProviders()
     }
-  }, [providers])
+    return () => {
+      mountedRef.current = false
+    }
+  })
+
+  useWindowEvent(
+    typeof window === 'undefined' ? null : window,
+    'desktop:model-provider-changed',
+    () => {
+      if (providersProp === undefined) {
+        void reloadOwnProviders()
+      }
+    },
+  )
+
+  const effectiveProviders = providersProp ?? loadedProviders
+
+  const handleOwnProviderOpen = useCallback(
+    (providerID: ModelProviderID) => {
+      if (onProviderOpen) {
+        onProviderOpen(providerID)
+        return
+      }
+      if (providersProp !== undefined) return
+      void refreshSpecializedProviderInList(loadedProviders, providerID)
+        .then((next) => {
+          if (mountedRef.current && next) setLoadedProviders(next)
+        })
+        .catch(() => {})
+    },
+    [loadedProviders, onProviderOpen, providersProp],
+  )
+
+  const providerOptions = useMemo<ProviderModelOption[]>(
+    () =>
+      effectiveProviders
+        .filter((provider) => provider.apiKeyConfigured)
+        .map((provider) => ({
+          providerID: provider.providerID as ModelProviderID,
+          displayName: provider.displayName,
+          modelPresets: buildModelPresets(provider.defaultModels, provider.modelMetadata),
+          apiKeyConfigured: provider.apiKeyConfigured,
+          logoURL: provider.logoURL,
+          modelMetadata: provider.modelMetadata,
+        })),
+    [effectiveProviders],
+  )
 
   const parsedValue = useMemo(() => splitProviderModel(value), [value])
 
-  const options = useMemo<ModelOption[]>(() => {
-    const inheritedLabel = mainModel ? `使用主模型 (${mainModel})` : '使用主模型'
-    const opts: ModelOption[] = [{ value: '', label: inheritedLabel, detail: '继承会话主模型' }]
-
-    // Add options from fetched catalogs
-    for (const provider of providers) {
-      const models = providerModels[provider.providerID]
-      if (!models || models.length === 0) continue
-      for (const modelID of models) {
-        if (opts.length >= 100) break
-        const fullValue = `${provider.providerID}/${modelID}`
-        const meta = providerMetadata[provider.providerID]?.[modelID]
-        opts.push({
-          value: fullValue,
-          label: getModelDisplayLabel(modelID),
-          detail: `${provider.displayName}${meta ? ` · ${formatModelDetail(modelID, meta)}` : ''}`,
-        })
-      }
-      if (opts.length >= 100) break
-    }
-
-    // Append saved value if it doesn't exist in any catalog
-    if (
-      value &&
-      !opts.some((o) => o.value === value) &&
-      !opts.some((o) => o.value === parsedValue?.id)
-    ) {
-      opts.push({
-        value,
-        label: getModelDisplayLabel(parsedValue?.id ?? value),
-        detail: `当前保存${parsedValue?.providerID ? ` · ${parsedValue.providerID}` : ''}`,
-      })
-    }
-
-    return opts
-  }, [mainModel, providers, providerModels, providerMetadata, value, parsedValue])
-
-  const displayValue = useMemo(() => {
-    if (!value) return ''
-    return options.some((o) => o.value === value) ? value : ''
-  }, [value, options])
-
-  const handleChange = useCallback(
-    (newValue: string) => {
-      onChange(newValue)
-    },
-    [onChange],
-  )
+  const displayLabel = useMemo(() => {
+    if (!value) return t(emptyLabel)
+    if (!parsedValue) return value
+    const provider = effectiveProviders.find((item) => item.providerID === parsedValue.providerID)
+    const providerName = provider?.displayName ?? parsedValue.providerID
+    const modelName =
+      provider?.modelMetadata?.[parsedValue.id]?.name || getModelDisplayLabel(parsedValue.id)
+    return `${providerName} / ${modelName}`
+  }, [effectiveProviders, emptyLabel, parsedValue, t, value])
 
   return (
-    <SettingsDropdown
-      size="lg"
-      ariaLabel={label}
-      value={displayValue}
-      options={options}
-      onChange={handleChange}
-    />
+    <div className="tw:flex tw:min-w-0 tw:items-center tw:gap-1.5">
+      <ModelPickerPopover
+        open={open}
+        onOpenChange={setOpen}
+        selectedProviderID={parsedValue?.providerID as ModelProviderID | undefined}
+        selectedModelPreset={parsedValue?.id}
+        providerOptions={providerOptions}
+        allProviders={effectiveProviders}
+        onProviderModelChange={(providerID, modelID) => {
+          onChange(`${providerID}/${modelID}`)
+          setOpen(false)
+        }}
+        onProviderOpen={handleOwnProviderOpen}
+        onOpenModelSettings={onOpenModelSettings}
+        align="end"
+        side="bottom"
+        footerAction={
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            disabled={!value}
+            onClick={() => {
+              onChange('')
+              setOpen(false)
+            }}
+          >
+            {t('恢复跟随会话主模型')}
+          </Button>
+        }
+        trigger={
+          <button
+            type="button"
+            aria-label={t(label)}
+            data-theme-component="dropdown-trigger"
+            title={displayLabel}
+            className="ui-select-trigger settings-dropdown settings-dropdown-trigger tw:min-h-6 tw:min-w-0 tw:max-w-[min(360px,48vw)] tw:max-[900px]:w-full tw:max-[900px]:max-w-none tw:appearance-none tw:inline-flex tw:items-center tw:justify-between tw:gap-control-gap tw:border tw:rounded-control tw:px-row-inline tw:py-0 tw:text-left tw:type-2 tw:weight-medium tw:cursor-pointer tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-out"
+          >
+            <span className="ui-select-value tw:min-w-0 tw:truncate">{displayLabel}</span>
+            <ChevronDown
+              aria-hidden="true"
+              className="tw:shrink-0"
+              size="var(--inline-icon-size, 1em)"
+            />
+          </button>
+        }
+      />
+      {value ? (
+        <Button
+          isIconOnly
+          variant="ghost"
+          size="sm"
+          type="button"
+          aria-label={t('恢复默认（跟随会话主模型）')}
+          title={t('恢复默认（跟随会话主模型）')}
+          onClick={() => onChange('')}
+        >
+          <RotateCcw aria-hidden="true" className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
+        </Button>
+      ) : null}
+    </div>
   )
 }

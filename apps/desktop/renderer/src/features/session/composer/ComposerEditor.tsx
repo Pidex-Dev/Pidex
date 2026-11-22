@@ -277,9 +277,10 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       const mount = mountRef.current
       if (!mount) return
 
-      const initialDocument = composerDocumentToProseMirrorDocument(
-        document ?? { text: value, tokens: [] },
-      )
+      const initialDocSource = document ?? { text: value, tokens: [] }
+      const initialIsEmpty =
+        initialDocSource.text.length === 0 && initialDocSource.tokens.length === 0
+      const initialDocument = composerDocumentToProseMirrorDocument(initialDocSource)
       const state = EditorState.create({
         doc: initialDocument,
         selection: TextSelection.create(initialDocument, positionAtTextOffset(initialDocument, 0)),
@@ -297,16 +298,23 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
         ],
       })
 
-      const view = new EditorView(mount, {
+      // INVARIANT: Construct EditorView detached (place=null) so ProseMirror patchAttributes sets contenteditable before DOM insertion and avoids forcing synchronous document layout.
+      const view = new EditorView(null, {
         state,
         attributes: {
           'aria-label': '消息输入框',
           role: 'combobox',
           'aria-autocomplete': 'list',
+          'aria-expanded': String(ariaExpanded),
+          'aria-haspopup': 'menu',
+          'data-placeholder': placeholder,
           // ProseMirror 会把 undefined 写成字符串 "undefined"，只读属性必须整体省略。
           ...(readOnly ? { 'aria-readonly': 'true', 'data-composer-readonly': 'true' } : {}),
+          ...(ariaControls ? { 'aria-controls': ariaControls } : {}),
+          ...(ariaDescribedBy ? { 'aria-describedby': ariaDescribedBy } : {}),
+          ...(ariaActiveDescendant ? { 'aria-activedescendant': ariaActiveDescendant } : {}),
           spellcheck: 'true',
-          class: 'composer-editor-content',
+          class: initialIsEmpty ? 'composer-editor-content is-empty' : 'composer-editor-content',
         },
         dispatchTransaction(transaction) {
           const nextState = view.state.apply(transaction)
@@ -382,6 +390,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
         },
       })
 
+      mount.appendChild(view.dom)
       viewRef.current = view
       if (window.location.hash.split('?')[0] === '#/new' && view.editable) reportStartupReady()
       const unregisterEditTarget = registerTarget(view.dom, {
@@ -467,14 +476,14 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
     useEffect(() => {
       const dom = viewRef.current?.dom
       if (!dom) return
-      dom.setAttribute('data-placeholder', placeholder)
+      setOptionalAttribute(dom, 'data-placeholder', placeholder)
       const nextDocument = document ?? { text: value, tokens: [] }
-      dom.classList.toggle(
-        'is-empty',
-        nextDocument.text.length === 0 && nextDocument.tokens.length === 0,
-      )
-      dom.setAttribute('aria-expanded', String(ariaExpanded))
-      dom.setAttribute('aria-haspopup', 'menu')
+      const isEmpty = nextDocument.text.length === 0 && nextDocument.tokens.length === 0
+      if (dom.classList.contains('is-empty') !== isEmpty) {
+        dom.classList.toggle('is-empty', isEmpty)
+      }
+      setOptionalAttribute(dom, 'aria-expanded', String(ariaExpanded))
+      setOptionalAttribute(dom, 'aria-haspopup', 'menu')
       setOptionalAttribute(dom, 'aria-controls', ariaControls)
       setOptionalAttribute(dom, 'aria-describedby', ariaDescribedBy)
       setOptionalAttribute(dom, 'aria-activedescendant', ariaActiveDescendant)
@@ -642,6 +651,9 @@ function positionAtTextOffset(doc: EditorState['doc'], offset: number): number {
 }
 
 function setOptionalAttribute(element: HTMLElement, name: string, value: string | undefined): void {
-  if (value) element.setAttribute(name, value)
-  else element.removeAttribute(name)
+  if (value !== undefined && value !== '') {
+    if (element.getAttribute(name) !== value) element.setAttribute(name, value)
+  } else if (element.hasAttribute(name)) {
+    element.removeAttribute(name)
+  }
 }

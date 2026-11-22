@@ -11,8 +11,6 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import {
   useDesktopSettingsDraftActions,
   useDesktopSettingsDraftValue,
-  useDesktopSettingsDraftDirty,
-  useDesktopSettingsDraftSaving,
 } from './UseDesktopSettings.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import type {
@@ -20,7 +18,6 @@ import type {
   DesktopReviewDelivery,
   DesktopReviewView,
 } from '../../../shared/Types.js'
-import { Button } from '../../components/ui/Button.js'
 import type { DesktopTerminalProfile } from '@pidex/shared/desktop-terminal-ipc'
 import { useLocale } from '../i18n/LocaleProvider.js'
 
@@ -36,12 +33,6 @@ const LANGUAGE_OPTIONS = [
   { value: 'system', label: '跟随系统' },
   { value: 'zh-CN', label: '中文（中国）' },
   { value: 'en-US', label: 'English (US)' },
-]
-
-const SPEED_OPTIONS = [
-  { value: 'fast', label: '快' },
-  { value: 'standard', label: '标准' },
-  { value: 'thorough', label: '深入' },
 ]
 
 const REVIEW_OPTIONS: Array<{ value: DesktopReviewView; label: string }> = [
@@ -66,11 +57,7 @@ function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
   )
 }
 
-type GeneralSettingsProps = {
-  onNotice?: (message: string) => void
-}
-
-export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
+export function GeneralSettings() {
   const { t } = useLocale()
   const subscribedDraftActions = useDesktopSettingsDraftActions()
   const subscribedLanguage = useDesktopSettingsDraftValue('language')
@@ -81,17 +68,10 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
   const subscribedTerminalProfileId = useDesktopSettingsDraftValue('terminalProfileId')
   const subscribedReviewView = useDesktopSettingsDraftValue('reviewView')
   const subscribedReviewDelivery = useDesktopSettingsDraftValue('reviewDelivery')
-  const subscribedRustSearchAndDiffKernels = useDesktopSettingsDraftValue(
-    'rustSearchAndDiffKernels',
-  )
   const subscribedComposerPredictions = useDesktopSettingsDraftValue('desktop.composer_predictions')
-  const subscribedEnableParetoCodeRouter = useDesktopSettingsDraftValue('enableParetoCodeRouter')
-  const subscribedEnableFusionRouter = useDesktopSettingsDraftValue('enableFusionRouter')
   const subscribedDefaultModeRequestUserInput = useDesktopSettingsDraftValue(
     'defaultModeRequestUserInput',
   )
-  const subscribedDraftDirty = useDesktopSettingsDraftDirty()
-  const subscribedDraftSaving = useDesktopSettingsDraftSaving()
   const { draft } = useMemo(
     () => ({
       draft: {
@@ -104,14 +84,9 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
           terminalProfileId: subscribedTerminalProfileId,
           reviewView: subscribedReviewView,
           reviewDelivery: subscribedReviewDelivery,
-          rustSearchAndDiffKernels: subscribedRustSearchAndDiffKernels,
           'desktop.composer_predictions': subscribedComposerPredictions,
-          enableParetoCodeRouter: subscribedEnableParetoCodeRouter,
-          enableFusionRouter: subscribedEnableFusionRouter,
           defaultModeRequestUserInput: subscribedDefaultModeRequestUserInput,
         },
-        dirty: subscribedDraftDirty,
-        saving: subscribedDraftSaving,
       },
     }),
     [
@@ -123,13 +98,8 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
       subscribedTerminalProfileId,
       subscribedReviewView,
       subscribedReviewDelivery,
-      subscribedRustSearchAndDiffKernels,
       subscribedComposerPredictions,
-      subscribedEnableParetoCodeRouter,
-      subscribedEnableFusionRouter,
       subscribedDefaultModeRequestUserInput,
-      subscribedDraftDirty,
-      subscribedDraftSaving,
     ],
   )
   const {
@@ -138,7 +108,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
     terminalProfileId,
     reviewView,
     reviewDelivery,
-    rustSearchAndDiffKernels,
     'desktop.composer_predictions': composerPredictions,
     defaultModeRequestUserInput,
     notifications,
@@ -157,11 +126,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
     },
     [draft],
   )
-  const [longPromptShortcut, setLongPromptShortcut] = useState(false)
-  const [speed, setSpeed] = useState('standard')
-  const [suggestPrompts, setSuggestPrompts] = useState(true)
-  const [popupShortcut] = useState<string | null>(null)
-  const [popupNoProjectChat, setPopupNoProjectChat] = useState(false)
   const setCompletionNotification = useCallback(
     (value: 'always' | 'unfocused' | 'never') => {
       draft.setValue('notifications', {
@@ -233,13 +197,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
   const setReviewDelivery = useCallback(
     (value: DesktopReviewDelivery) => {
       draft.setValue('reviewDelivery', value)
-      draft.autoSave()
-    },
-    [draft],
-  )
-  const setRustSearchAndDiffKernels = useCallback(
-    (value: boolean) => {
-      draft.setValue('rustSearchAndDiffKernels', value)
       draft.autoSave()
     },
     [draft],
@@ -337,311 +294,204 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
   ]
   return (
     <SettingsContentArea className="">
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
-        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
-            常规
-          </h2>
-        </div>
-
-        <SettingsSection title="常规">
-          <SettingsRow
-            title="默认打开目标"
-            description="默认打开文件和文件夹的位置"
-            control={
-              <SettingsDropdown
-                size="sm"
-                value={defaultOpenTargetId}
-                options={openTargetOptions}
-                onChange={setDefaultOpenTargetId}
-                ariaLabel="默认打开目标"
-              />
-            }
-          />
-          <SettingsRow
-            title="集成终端 Shell"
-            description="选择要在集成终端中打开的 Shell。"
-            control={
-              <SettingsDropdown
-                size="sm"
-                value={terminalProfileId ?? 'auto'}
-                options={terminalProfileOptions}
-                onChange={setTerminalProfileId}
-                ariaLabel="集成终端 Shell"
-              />
-            }
-          />
-          <SettingsRow
-            title={t('语言')}
-            description={t('应用 UI 语言')}
-            control={
-              <SettingsDropdown
-                size="md"
-                value={language}
-                options={LANGUAGE_OPTIONS.map((option) => ({ ...option, label: t(option.label) }))}
-                onChange={setLanguage}
-                ariaLabel={t('语言')}
-                searchable
-                searchPlaceholder={t('搜索语言')}
-              />
-            }
-          />
-          <SettingsRow
-            title="需按 ^ + 回车键发送长文本提示"
-            description="启用后，长文本提示需按 ^ + 回车键发送。"
-            control={(aria) => (
-              <ToggleSwitch
-                checked={longPromptShortcut}
-                onChange={setLongPromptShortcut}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-          <SettingsRow
-            title="速度"
-            description="选择用于聊天、子智能体和压缩的推理层级"
-            control={
-              <SettingsDropdown
-                size="md"
-                value={speed}
-                options={SPEED_OPTIONS}
-                onChange={setSpeed}
-                ariaLabel="速度"
-              />
-            }
-          />
-          <SettingsRow
-            title="允许普通模式提问"
-            description="开启后，主 Agent 可在普通模式中通过结构化问题卡向你提问。计划模式始终允许。"
-            autoSave
-            control={(aria) => (
-              <ToggleSwitch
-                checked={defaultModeRequestUserInput}
-                onChange={setDefaultModeRequestUserInput}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-          <SettingsRow
-            title="代码审查"
-            description="审阅侧栏中 diff 的展示方式：行内视图（叠加显示）或分离视图（左右对照）"
-            autoSave
-            control={
-              <SegmentedControl
-                value={reviewView}
-                options={REVIEW_OPTIONS}
-                onChange={setReviewView}
-              />
-            }
-          />
-          <SettingsRow
-            title="AI 审查结果"
-            description="在当前任务继续审查，或为每次 AI Review 创建独立任务"
-            autoSave
-            control={
-              <SegmentedControl
-                value={reviewDelivery}
-                options={REVIEW_DELIVERY_OPTIONS}
-                onChange={setReviewDelivery}
-              />
-            }
-          />
-          <SettingsRow
-            title="建议提示"
-            description="搜索项目文件和已连接应用，建议下一步操作"
-            control={(aria) => (
-              <ToggleSwitch
-                checked={suggestPrompts}
-                onChange={setSuggestPrompts}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-          <SettingsRow
-            title="从其他 AI 应用导入工作内容"
-            description="导入您的设置、项目和最近聊天记录"
-            control={
-              <Button color="primary" type="button">
-                导入
-              </Button>
-            }
-          />
-          <SettingsRow
-            title="打开源许可证"
-            description="捆绑依赖项的第三方声明"
-            control={
-              <Button color="secondary" type="button">
-                查看
-              </Button>
-            }
-          />
-        </SettingsSection>
-
-        <SettingsSection
-          title="实现性"
-          description="这些底层能力通过 Rust sidecar 提供。Rust sidecar 已作为默认 agent 运行时。"
-        >
-          <SettingsRow
-            title="Rust Glob / Grep / Diff 内核"
-            description="启用后，Rust sidecar 将执行文件遍历、内容搜索和 diff 计算，不再回退到 TS 路径。"
-            autoSave
-            control={(aria) => (
-              <ToggleSwitch
-                checked={rustSearchAndDiffKernels}
-                onChange={(checked) => {
-                  setRustSearchAndDiffKernels(checked)
-                }}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-        </SettingsSection>
-
-        <SettingsSection
-          title="输入预测"
-          description="根据当前对话预测下一条消息，以灰色文字显示在输入框内。"
-        >
-          <SettingsRow
-            title="消息输入预测"
-            description="启用后，每次回复完成后会调用模型生成一条灰字建议，按 Tab 接受、Esc 忽略。该功能会产生额外的模型调用和费用。"
-            autoSave
-            control={(aria) => (
-              <ToggleSwitch
-                checked={composerPredictions}
-                onChange={(checked) => {
-                  setComposerPredictions(checked)
-                }}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-        </SettingsSection>
-
-        <SettingsSection title="弹出窗口">
-          <SettingsRow
-            title="弹出窗口快捷键"
-            description="为弹出窗口设置全局快捷键。留空则保持关闭。"
-            control={
-              <>
-                <span className="settings-row-status">
-                  {popupShortcut ? popupShortcut : '禁用'}
-                </span>
-                <Button color="secondary" type="button">
-                  设置
-                </Button>
-              </>
-            }
-          />
-          <SettingsRow
-            title="默认使用无项目聊天"
-            description="无需项目即可开始新聊天"
-            control={(aria) => (
-              <ToggleSwitch
-                checked={popupNoProjectChat}
-                onChange={setPopupNoProjectChat}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-        </SettingsSection>
-
-        <SettingsSection title="通知">
-          <SettingsRow
-            title="轮次完成通知"
-            description="设置 Pidex 完成任务时是否显示系统通知"
-            control={
-              <SettingsDropdown
-                size="md"
-                value={notifications.completion}
-                options={[
-                  { value: 'always', label: '总是' },
-                  { value: 'unfocused', label: '仅当应用失焦时' },
-                  { value: 'never', label: '从不' },
-                ]}
-                onChange={setCompletionNotification}
-                ariaLabel="轮次完成通知"
-              />
-            }
-          />
-          <SettingsRow
-            title="启用权限通知"
-            description="在需要额外权限时显示系统通知"
-            control={(aria) => (
-              <ToggleSwitch
-                checked={notifications.permissions}
-                onChange={setPermissionNotifications}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-          <SettingsRow
-            title="启用问题通知"
-            description="需要输入才能继续时显示系统通知"
-            control={(aria) => (
-              <ToggleSwitch
-                checked={notifications.questions}
-                onChange={setQuestionNotifications}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-          <SettingsRow
-            title="启用任务错误通知"
-            description="任务执行失败时显示系统通知"
-            control={(aria) => (
-              <ToggleSwitch
-                checked={notifications.errors}
-                onChange={setErrorNotifications}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-        </SettingsSection>
-
-        <SettingsSection title="对话框底部栏">
-          <SettingsRow
-            title="显示上下文窗口使用量"
-            description="在对话框底部栏显示上下文窗口使用量"
-            autoSave
-            control={(aria) => (
-              <ToggleSwitch
-                checked={showContextUsage}
-                onChange={setShowContextUsage}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-          <SettingsRow
-            title="上下文用量展示方式"
-            description="选择用量浮层中的图形样式"
-            autoSave
-            control={() => (
-              <SegmentedControl
-                value={contextUsageView}
-                ariaLabel="上下文用量展示方式"
-                options={[
-                  { value: 'bar', label: '分段条' },
-                  { value: 'field', label: '点阵' },
-                ]}
-                onChange={(value) => {
-                  draft.setValue('contextUsageView', value)
-                  draft.autoSave()
-                }}
-              />
-            )}
-          />
-        </SettingsSection>
+      <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
+        <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+          常规
+        </h2>
       </div>
+
+      <SettingsSection title="常规">
+        <SettingsRow
+          title="默认打开目标"
+          description="默认打开文件和文件夹的位置"
+          control={
+            <SettingsDropdown
+              size="sm"
+              value={defaultOpenTargetId}
+              options={openTargetOptions}
+              onChange={setDefaultOpenTargetId}
+              ariaLabel="默认打开目标"
+            />
+          }
+        />
+        <SettingsRow
+          title="集成终端 Shell"
+          description="选择要在集成终端中打开的 Shell。"
+          control={
+            <SettingsDropdown
+              size="sm"
+              value={terminalProfileId ?? 'auto'}
+              options={terminalProfileOptions}
+              onChange={setTerminalProfileId}
+              ariaLabel="集成终端 Shell"
+            />
+          }
+        />
+        <SettingsRow
+          title={t('语言')}
+          description={t('应用 UI 语言')}
+          control={
+            <SettingsDropdown
+              size="md"
+              value={language}
+              options={LANGUAGE_OPTIONS.map((option) => ({ ...option, label: t(option.label) }))}
+              onChange={setLanguage}
+              ariaLabel={t('语言')}
+              searchable
+              searchPlaceholder={t('搜索语言')}
+            />
+          }
+        />
+        <SettingsRow
+          title="允许普通模式提问"
+          description="开启后，主 Agent 可在普通模式中通过结构化问题卡向你提问。计划模式始终允许。"
+          autoSave
+          control={(aria) => (
+            <ToggleSwitch
+              checked={defaultModeRequestUserInput}
+              onChange={setDefaultModeRequestUserInput}
+              ariaLabelledby={aria.labelledby}
+              ariaDescribedby={aria.describedby}
+            />
+          )}
+        />
+        <SettingsRow
+          title="代码审查"
+          description="审阅侧栏中 diff 的展示方式：行内视图（叠加显示）或分离视图（左右对照）"
+          autoSave
+          control={
+            <SegmentedControl
+              value={reviewView}
+              options={REVIEW_OPTIONS}
+              onChange={setReviewView}
+            />
+          }
+        />
+        <SettingsRow
+          title="AI 审查结果"
+          description="在当前任务继续审查，或为每次 AI Review 创建独立任务"
+          autoSave
+          control={
+            <SegmentedControl
+              value={reviewDelivery}
+              options={REVIEW_DELIVERY_OPTIONS}
+              onChange={setReviewDelivery}
+            />
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title="输入预测"
+        description="根据当前对话预测下一条消息，以灰色文字显示在输入框内。"
+      >
+        <SettingsRow
+          title="消息输入预测"
+          description="启用后，每次回复完成后会调用模型生成一条灰字建议，按 Tab 接受、Esc 忽略。该功能会产生额外的模型调用和费用。"
+          autoSave
+          control={(aria) => (
+            <ToggleSwitch
+              checked={composerPredictions}
+              onChange={(checked) => {
+                setComposerPredictions(checked)
+              }}
+              ariaLabelledby={aria.labelledby}
+              ariaDescribedby={aria.describedby}
+            />
+          )}
+        />
+      </SettingsSection>
+
+      <SettingsSection title="通知">
+        <SettingsRow
+          title="轮次完成通知"
+          description="设置 Pidex 完成任务时是否显示系统通知"
+          control={
+            <SettingsDropdown
+              size="md"
+              value={notifications.completion}
+              options={[
+                { value: 'always', label: '总是' },
+                { value: 'unfocused', label: '仅当应用失焦时' },
+                { value: 'never', label: '从不' },
+              ]}
+              onChange={setCompletionNotification}
+              ariaLabel="轮次完成通知"
+            />
+          }
+        />
+        <SettingsRow
+          title="启用权限通知"
+          description="在需要额外权限时显示系统通知"
+          control={(aria) => (
+            <ToggleSwitch
+              checked={notifications.permissions}
+              onChange={setPermissionNotifications}
+              ariaLabelledby={aria.labelledby}
+              ariaDescribedby={aria.describedby}
+            />
+          )}
+        />
+        <SettingsRow
+          title="启用问题通知"
+          description="需要输入才能继续时显示系统通知"
+          control={(aria) => (
+            <ToggleSwitch
+              checked={notifications.questions}
+              onChange={setQuestionNotifications}
+              ariaLabelledby={aria.labelledby}
+              ariaDescribedby={aria.describedby}
+            />
+          )}
+        />
+        <SettingsRow
+          title="启用任务错误通知"
+          description="任务执行失败时显示系统通知"
+          control={(aria) => (
+            <ToggleSwitch
+              checked={notifications.errors}
+              onChange={setErrorNotifications}
+              ariaLabelledby={aria.labelledby}
+              ariaDescribedby={aria.describedby}
+            />
+          )}
+        />
+      </SettingsSection>
+
+      <SettingsSection title="对话框底部栏">
+        <SettingsRow
+          title="显示上下文窗口使用量"
+          description="在对话框底部栏显示上下文窗口使用量"
+          autoSave
+          control={(aria) => (
+            <ToggleSwitch
+              checked={showContextUsage}
+              onChange={setShowContextUsage}
+              ariaLabelledby={aria.labelledby}
+              ariaDescribedby={aria.describedby}
+            />
+          )}
+        />
+        <SettingsRow
+          title="上下文用量展示方式"
+          description="选择用量浮层中的图形样式"
+          autoSave
+          control={() => (
+            <SegmentedControl
+              value={contextUsageView}
+              ariaLabel="上下文用量展示方式"
+              options={[
+                { value: 'bar', label: '分段条' },
+                { value: 'field', label: '点阵' },
+              ]}
+              onChange={(value) => {
+                draft.setValue('contextUsageView', value)
+                draft.autoSave()
+              }}
+            />
+          )}
+        />
+      </SettingsSection>
     </SettingsContentArea>
   )
 }

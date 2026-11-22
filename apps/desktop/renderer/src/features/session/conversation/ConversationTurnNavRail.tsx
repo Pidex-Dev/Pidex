@@ -185,7 +185,6 @@ function PreviewCard({
               aria-hidden="true"
               className="tw:size-icon-sm tw:flex-none"
               fill={bookmarked ? 'currentColor' : 'none'}
-              strokeWidth={2}
             />
           </Button>
         ) : null}
@@ -352,12 +351,14 @@ export function ConversationTurnNavRail({
     [cancelPreviewClose, clearHoverTimer],
   )
 
+  const hasItems = items.length > 0
+
   React.useLayoutEffect(() => {
     const anchor = anchorRef.current
     const frame = anchor?.parentElement
     if (!frame) return
     const resolveContent = (): HTMLElement | null =>
-      frame.querySelector<HTMLElement>('.canonical-turn') ??
+      (hasItems ? frame.querySelector<HTMLElement>('.canonical-turn') : null) ??
       frame.querySelector<HTMLElement>('.canonical-turn-error') ??
       frame.querySelector<HTMLElement>('.workflow-page__composer-inner') ??
       frame.querySelector<HTMLElement>('.session-timeline-container')
@@ -365,13 +366,30 @@ export function ConversationTurnNavRail({
     let frameId: number | null = null
     let currentObservedContent: HTMLElement | null = null
     let disposed = false
+    let frameWidth: number | null = null
+    let contentWidth: number | null = null
 
-    const measureVisibility = (): void => {
-      if (disposed) return
+    // INVARIANT: Inline clearance is derived from post-layout ResizeObserver entry width snapshots with an 8px hysteresis band and transition scheduling to avoid forced layout and show/hide oscillation.
+    const applyGeometry = (): void => {
+      if (disposed || frameWidth === null || contentWidth === null) return
+      const inlineClearance = Math.max(0, (frameWidth - contentWidth) / 2)
+      React.startTransition(() => {
+        setHasInlineClearance((previous) => {
+          const threshold = previous
+            ? MIN_TURN_NAV_INLINE_CLEARANCE_PX - 8
+            : MIN_TURN_NAV_INLINE_CLEARANCE_PX
+          return inlineClearance >= threshold
+        })
+      })
+    }
+
+    const syncObservedContent = (): HTMLElement | null => {
+      if (disposed) return null
       if (currentObservedContent && !currentObservedContent.isConnected) {
         observer?.unobserve(currentObservedContent)
         currentObservedContent.removeEventListener('transitionend', scheduleVisibility)
         currentObservedContent = null
+        contentWidth = null
       }
       const content = currentObservedContent ?? resolveContent()
       if (content !== currentObservedContent) {
@@ -380,6 +398,7 @@ export function ConversationTurnNavRail({
           currentObservedContent.removeEventListener('transitionend', scheduleVisibility)
         }
         currentObservedContent = content
+        contentWidth = null
         if (content) {
           observer?.observe(content)
           content.addEventListener('transitionend', scheduleVisibility)
@@ -390,40 +409,56 @@ export function ConversationTurnNavRail({
           contentMountObserver.observe(frame, { childList: true, subtree: true })
           observingMount = true
         }
-        return
+        return null
       }
       if (observingMount) {
         contentMountObserver?.disconnect()
         observingMount = false
       }
-      const frameRect = frame.getBoundingClientRect()
-      const contentRect = content.getBoundingClientRect()
-      const scale = frame.offsetWidth > 0 ? frameRect.width / frame.offsetWidth : 1
-      const inlineClearance = (contentRect.left - frameRect.left) / (scale > 0 ? scale : 1)
-      setHasInlineClearance(inlineClearance >= MIN_TURN_NAV_INLINE_CLEARANCE_PX)
+      return content
     }
 
     const scheduleVisibility = (): void => {
       if (frameId !== null) return
       frameId = window.requestAnimationFrame(() => {
         frameId = null
-        measureVisibility()
+        syncObservedContent()
+        applyGeometry()
       })
     }
 
-    // INVARIANT: ResizeObserver runs after layout with clean geometry so reading rects directly avoids forced style/layout recalc inside rAF after motion writes.
     const observer =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => measureVisibility())
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver((entries) => {
+            syncObservedContent()
+            for (const entry of entries) {
+              const inlineSize = entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width
+              if (entry.target === frame) frameWidth = inlineSize
+              else if (entry.target === currentObservedContent) contentWidth = inlineSize
+            }
+            applyGeometry()
+          })
 
     // INVARIANT: Only watch subtree childList while content is not yet mounted and disconnect once ResizeObserver attaches.
     let observingMount = false
     const contentMountObserver =
       typeof MutationObserver === 'undefined'
         ? null
-        : new MutationObserver(() => scheduleVisibility())
+        : new MutationObserver(() => {
+            if (syncObservedContent() && !observer) applyGeometry()
+          })
 
     observer?.observe(frame)
-    measureVisibility()
+    const initialContent = syncObservedContent()
+    if (!observer && initialContent) {
+      const frameRect = frame.getBoundingClientRect()
+      const contentRect = initialContent.getBoundingClientRect()
+      const scale = frame.offsetWidth > 0 ? frameRect.width / frame.offsetWidth : 1
+      frameWidth = frameRect.width / (scale > 0 ? scale : 1)
+      contentWidth = contentRect.width / (scale > 0 ? scale : 1)
+      applyGeometry()
+    }
     window.addEventListener('resize', scheduleVisibility)
 
     return () => {
@@ -436,20 +471,25 @@ export function ConversationTurnNavRail({
       }
       window.removeEventListener('resize', scheduleVisibility)
     }
-  }, [items.length])
+  }, [hasItems])
 
   React.useEffect(() => {
     onInlineClearanceChange?.(hasInlineClearance)
   }, [hasInlineClearance, onInlineClearanceChange])
 
   React.useLayoutEffect(() => {
+    let scrollFrameId: number | null = null
+    // INVARIANT: Read virtualizer scrollOffset/viewportSize/scrollSize from in-memory store getters and guard aria-current writes so marker updates never force layout or start virtua microtask loops.
     const updateVisibleMarkers = (): void => {
       const nextVisibleIds = visibilityStore.getSnapshot()
       for (const [itemId, button] of buttonRefs.current) {
-        if (nextVisibleIds.has(itemId)) {
-          button.setAttribute('aria-current', 'true')
-        } else {
-          button.removeAttribute('aria-current')
+        const isCurrent = nextVisibleIds.has(itemId)
+        if ((button.getAttribute('aria-current') === 'true') !== isCurrent) {
+          if (isCurrent) {
+            button.setAttribute('aria-current', 'true')
+          } else {
+            button.removeAttribute('aria-current')
+          }
         }
       }
       const currentItemId =
@@ -458,24 +498,42 @@ export function ConversationTurnNavRail({
         null
       currentItemIdRef.current = currentItemId
       const list = listRef.current
+      const virtualizer = virtualizerRef.current
       const index = currentItemId ? indexes.get(currentItemId) : undefined
       if (
         !list ||
+        !virtualizer ||
         index === undefined ||
         pointerInsideRailRef.current ||
         focusedItemIdRef.current ||
         scrubSessionRef.current
       )
         return
+      const viewportSize = virtualizer.viewportSize
+      const scrollSize = virtualizer.scrollSize
+      if (viewportSize <= 0 || scrollSize <= viewportSize + 1) return
+      const scrollTop = virtualizer.scrollOffset
       const top = index * 10
-      if (top < list.scrollTop) {
-        virtualizerRef.current?.scrollToIndex(index, { align: 'start' })
-      } else if (top + 10 > list.scrollTop + list.clientHeight) {
-        virtualizerRef.current?.scrollToIndex(index, { align: 'end' })
+      let nextScrollTop: number | null = null
+      if (top < scrollTop) {
+        nextScrollTop = top
+      } else if (top + 10 > scrollTop + viewportSize) {
+        nextScrollTop = top + 10 - viewportSize
+      }
+      if (nextScrollTop !== null && scrollFrameId === null) {
+        const targetTop = nextScrollTop
+        scrollFrameId = window.requestAnimationFrame(() => {
+          scrollFrameId = null
+          list.scrollTop = targetTop
+        })
       }
     }
     updateVisibleMarkers()
-    return visibilityStore.subscribe(updateVisibleMarkers)
+    const unsubscribe = visibilityStore.subscribe(updateVisibleMarkers)
+    return () => {
+      if (scrollFrameId !== null) window.cancelAnimationFrame(scrollFrameId)
+      unsubscribe()
+    }
   }, [indexes, hasInlineClearance, visibilityStore])
 
   React.useEffect(() => {

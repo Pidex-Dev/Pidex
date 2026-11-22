@@ -161,7 +161,12 @@ import {
   saveAllFileDocuments,
   saveFileDocument,
 } from '../../workspace/FileDocumentStore.js'
-import { SettingsSidebarContent } from '../../settings/SettingsSidebarContent.js'
+import {
+  closeSettingsDialog,
+  openSettingsDialog,
+  toggleSettingsDialog,
+  useSettingsDialogState,
+} from '../../settings/SettingsDialogStore.js'
 import { WorkbenchPanel } from '../dock/RightDock.js'
 import { AuxiliaryWindowsHost } from '../auxiliary/AuxiliaryWindowsHost.js'
 import {
@@ -179,6 +184,12 @@ import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js
 import { MediaViewerHost } from '../../session/attachments/MediaViewer.js'
 import type { ThreadArtifactPreviewInput } from '../../session/attachments/AttachmentPreviewDescriptor.js'
 import { desktopBrowserClient } from '../../../services/desktop-client/DesktopBrowserClient.js'
+
+const SettingsDialog = lazy(() =>
+  import('../../settings/SettingsDialog.js').then((module) => ({
+    default: module.SettingsDialog,
+  })),
+)
 
 const GitWorkflowModal = lazy(() =>
   import('../panels/GitWorkflowModal.js').then((module) => ({ default: module.GitWorkflowModal })),
@@ -454,11 +465,31 @@ export function DesktopLayout(): React.ReactNode {
     isQuickChatPage,
     isConversationRoute,
     isSettingsRoute,
-    settingsActiveTab,
-    handleSettingsTabChange,
     handleSettingsBack,
     getSettingsReturnPath,
   } = useWorkbenchRouteController()
+  const settingsDialogState = useSettingsDialogState()
+  const effectiveSettingsDialogOpen = settingsDialogState.open || isSettingsRoute
+  const settingsDialogMounted = useEverOpened(effectiveSettingsDialogOpen)
+  const settingsDialogDestination = isSettingsRoute
+    ? `${location.pathname}${location.search}${location.hash}`
+    : settingsDialogState.destination
+  const handleCloseSettingsDialog = useCallback((): void => {
+    closeSettingsDialog()
+    if (isSettingsRoute) {
+      handleSettingsBack()
+    }
+  }, [handleSettingsBack, isSettingsRoute])
+  const handleOpenSettingsFromMenu = useCallback(
+    (path: string, options?: { toggle?: boolean }): void => {
+      if (options?.toggle && effectiveSettingsDialogOpen) {
+        handleCloseSettingsDialog()
+        return
+      }
+      openSettingsDialog(path)
+    },
+    [effectiveSettingsDialogOpen, handleCloseSettingsDialog],
+  )
   const isHomeOrConversationRoute = currentPage?.workspace ?? false
   const {
     sidebarCollapsed,
@@ -1276,6 +1307,7 @@ export function DesktopLayout(): React.ReactNode {
   const handledJudgeDeepLinkRef = useRef<string | null>(null)
   const closePreviewForJudge = sidebarShell.closePreview
   const handleOpenJudgePanel = useCallback((): void => {
+    closeSettingsDialog()
     closePreviewForJudge()
     const targetPath = resolveJudgePanelTargetPath(getSettingsReturnPath(), sessionId)
     navigate(appendPanelQuery(targetPath, 'judge'))
@@ -1649,6 +1681,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleUseSkill = useCallback(
     (skill: DesktopInstalledSkill): void => {
+      closeSettingsDialog()
       // 技能入口属于新建会话：先复位模式（不动技能），再设置所选技能。
       resetHomeComposerModes()
       activateSessionById(null)
@@ -1692,7 +1725,7 @@ export function DesktopLayout(): React.ReactNode {
         }
         if (isBuiltinSkill(skill)) {
           const source = `${location.pathname}${location.search}${location.hash}`
-          navigate(
+          openSettingsDialog(
             `/settings/plugins?tab=skills&skill=${encodeURIComponent(skill.path)}&from=${encodeURIComponent(source)}`,
           )
           return
@@ -1751,7 +1784,7 @@ export function DesktopLayout(): React.ReactNode {
       void refreshWorkspace(undefined, { force: true, refreshGitStatus: true })
     },
     onOpenSettings: () => {
-      navigate('/settings/general')
+      toggleSettingsDialog()
     },
     onLogOut: () => {
       setErrorMessage('已退出登录。本地桌面端暂无持久账号切换，请重启应用。')
@@ -1997,6 +2030,7 @@ export function DesktopLayout(): React.ReactNode {
         canNavigateBack,
         canNavigateForward,
         navigate,
+        openSettings: handleOpenSettingsFromMenu,
         newChat: handleCreateSession,
         openFolder: handleChooseWorkspace,
         toggleSidebar: toggleSidebarCollapsed,
@@ -2020,6 +2054,7 @@ export function DesktopLayout(): React.ReactNode {
         canNavigateBack,
         canNavigateForward,
         navigate,
+        handleOpenSettingsFromMenu,
         handleCreateSession,
         handleChooseWorkspace,
         toggleSidebarCollapsed,
@@ -2515,27 +2550,6 @@ export function DesktopLayout(): React.ReactNode {
   const providersSidebarMounted = useEverOpened(displayedSidebarPane === 'providers')
   const petsSidebarMounted = useEverOpened(displayedSidebarPane === 'pets')
 
-  const settingsSidebarContent = useMemo(
-    () => (
-      <SettingsSidebarContent
-        activeTab={settingsActiveTab}
-        workspacePath={currentWorkspace?.path ?? null}
-        onBack={handleSettingsBack}
-        onTabChange={(tab) => {
-          sidebarShell.closePreview()
-          handleSettingsTabChange(tab)
-        }}
-      />
-    ),
-    [
-      settingsActiveTab,
-      currentWorkspace?.path,
-      sidebarShell.closePreview,
-      handleSettingsTabChange,
-      handleSettingsBack,
-    ],
-  )
-
   const handleFollowUpEdit = useCallback(
     async (followUpId: string, value: DesktopUserMessageInput): Promise<void> => {
       if (!sessionId) return
@@ -2712,7 +2726,7 @@ export function DesktopLayout(): React.ReactNode {
         onOpenWorkspace={handleOpenRecentWorkspace}
         onCloneGithub={() => setGithubRepositoryModalOpen(true)}
         onClearWorkspace={handleClearWorkspace}
-        onOpenMcpSettings={() => navigate('/settings/plugins?tab=mcps')}
+        onOpenMcpSettings={() => openSettingsDialog('/settings/plugins?tab=mcps')}
         onOpenModelSettings={() => navigate('/providers')}
         onSkillTokenActivate={(invocation) => {
           void handleActivateComposerSkill(invocation)
@@ -3338,7 +3352,7 @@ export function DesktopLayout(): React.ReactNode {
         onNewTab: handleOpenBrowser,
         draftKey: mainComposerDraftKey,
         onAppendImage: handleBrowserImage,
-        onOpenSettings: () => navigate('/settings/browser'),
+        onOpenSettings: () => openSettingsDialog('/settings/browser'),
         onStateChange: setBrowserState,
       },
       files: {
@@ -3582,7 +3596,7 @@ export function DesktopLayout(): React.ReactNode {
   const sidebar = (
     <SidebarFrame
       collapsed={sidebarCollapsed}
-      contentKind={isSettingsRoute ? 'settings' : 'tasks'}
+      contentKind="tasks"
       defaultWidth={340}
       maxWidth={sidebarMaxWidth}
       minWidth={sidebarMinWidth}
@@ -3595,7 +3609,6 @@ export function DesktopLayout(): React.ReactNode {
         className="sidebar-panel-content"
         hidden={
           displayedSidebarPane === 'git' ||
-          displayedSidebarPane === 'settings' ||
           displayedSidebarPane === 'scheduled' ||
           displayedSidebarPane === 'plugins' ||
           displayedSidebarPane === 'providers' ||
@@ -3604,9 +3617,6 @@ export function DesktopLayout(): React.ReactNode {
         }
       >
         {appSidebarContent}
-      </div>
-      <div className="sidebar-panel-content" hidden={displayedSidebarPane !== 'settings'}>
-        {settingsSidebarContent}
       </div>
       {displayedSidebarPane === 'git' ? (
         <div className="sidebar-panel-content">
@@ -3718,10 +3728,10 @@ export function DesktopLayout(): React.ReactNode {
             onOpenWorkspace: handleOpenRecentWorkspace,
             onCloneGithub: () => setGithubRepositoryModalOpen(true),
             onClearWorkspace: handleClearWorkspace,
-            onOpenMcpSettings: () => navigate('/settings/plugins?tab=mcps'),
+            onOpenMcpSettings: () => openSettingsDialog('/settings/plugins?tab=mcps'),
             onOpenModelSettings: () => navigate('/providers'),
             onOpenEnvironmentSettings: (projectId) =>
-              navigate(
+              openSettingsDialog(
                 `/settings/worktrees?tab=environments&projectId=${encodeURIComponent(projectId)}`,
               ),
             onOpenSideChat: sideChatSupported ? handleOpenSideChat : undefined,
@@ -4113,6 +4123,21 @@ export function DesktopLayout(): React.ReactNode {
             />
           </Suspense>
         ) : null}
+        {settingsDialogMounted ? (
+          <Suspense fallback={null}>
+            <SettingsDialog
+              destination={settingsDialogDestination}
+              isRouteDeepLink={isSettingsRoute}
+              open={effectiveSettingsDialogOpen}
+              opener={settingsDialogState.opener}
+              workspacePath={currentWorkspace?.path ?? null}
+              onClose={handleCloseSettingsDialog}
+              onNavigateExternal={(to, options) => navigate(to, options)}
+              onOpenJudgePanel={handleOpenJudgePanel}
+              onUseSkill={handleUseSkill}
+            />
+          </Suspense>
+        ) : null}
         {whatsNewDialogMounted ? (
           <Suspense fallback={null}>
             <WhatsNewDialog
@@ -4168,7 +4193,7 @@ export function DesktopLayout(): React.ReactNode {
             onClose={() => setArchiveNoticeVisible(false)}
             onOpenSettings={() => {
               setArchiveNoticeVisible(false)
-              navigate('/settings/archived')
+              openSettingsDialog('/settings/archived')
             }}
           />
         ) : null}

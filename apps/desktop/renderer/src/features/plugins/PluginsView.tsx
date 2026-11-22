@@ -25,6 +25,7 @@ import { desktopClient } from '../../services/desktop-client/index.js'
 import type { DesktopSkillCatalogItem, DesktopSkillOwnerFilter } from '../../../shared/Types.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { useDesktopLayoutOutletContext } from '../layout/shell/DesktopLayoutOutletContext.js'
+import { openSettingsDialog } from '../settings/SettingsDialogStore.js'
 import { preparePluginPrompt } from './PluginPrompt.js'
 import { usePluginDetails } from './UsePluginDetails.js'
 import { usePluginInstallConfirmation, isPluginInstallConflict } from './PluginInstallDialog.js'
@@ -443,7 +444,7 @@ export function PluginsView(): React.ReactNode {
       </Button>
       <Button
         isIconOnly
-        onClick={() => navigate('/settings/plugins')}
+        onClick={() => openSettingsDialog('/settings/plugins')}
         shape="pill"
         size="md"
         title="管理插件设置"
@@ -486,7 +487,7 @@ export function PluginsView(): React.ReactNode {
             icon={<Server className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
             onClick={() => {
               setAddOpen(false)
-              navigate('/settings/plugins?tab=mcps&create=mcp')
+              openSettingsDialog('/settings/plugins?tab=mcps&create=mcp')
             }}
           >
             创建自定义 MCP 服务器

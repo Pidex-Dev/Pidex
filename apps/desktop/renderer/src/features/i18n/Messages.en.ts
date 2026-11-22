@@ -151,6 +151,12 @@ export const enUS: Record<string, string> = {
   已归档: 'Archived',
   已归档对话: 'Archived conversations',
   设置分类: 'Settings categories',
+  账户: 'Account',
+  应用: 'App',
+  数据与隐私: 'Data & Privacy',
+  关闭设置: 'Close settings',
+  '配置应用偏好、权限、集成与编码环境':
+    'Configure app preferences, permissions, integrations, and coding environments',
   返回应用: 'Back to app',
   搜索设置: 'Search settings',
   '搜索设置...': 'Search settings...',
@@ -163,6 +169,32 @@ export const enUS: Record<string, string> = {
   '主题、颜色、字体、动效和差异标记': 'Themes, colors, fonts, motion, and diff markers',
   让桌面伙伴管理任务并提醒需要你处理的事项: 'Manage tasks and reminders with a desktop companion',
   '智能体默认设置、诊断与专用模型': 'Agent defaults, diagnostics, and specialized models',
+  '专用模型、配置文件与提示词诊断': 'Specialized models, config files, and prompt diagnostics',
+  '配置文件与 Profile': 'Config files & Profiles',
+  '按用途为辅助能力指定专用模型；未指定时默认跟随当前会话模型。':
+    'Assign specialized models by purpose; defaults to the active conversation model when unset.',
+  专用模型: 'Specialized models',
+  生成模型: 'Generation model',
+  '用于任务建议、会话标题生成与更新、输入预测和 Git 提交信息。':
+    'Used for task suggestions, thread title generation/updates, input prediction, and Git commit messages.',
+  '用于任务建议、会话标题生成与更新、输入预测和 Git 提交信息':
+    'Used for task suggestions, thread title generation/updates, input prediction, and Git commit messages',
+  整理模型: 'Organization model',
+  '用于记忆提取和任务上下文整理。': 'Used for memory extraction and task context organization.',
+  用于记忆提取和任务上下文整理: 'Used for memory extraction and task context organization',
+  代码模型: 'Coding model',
+  '用于计划实施和 AI 代码审查。': 'Used for plan implementation and AI code review.',
+  '用于计划实施和 AI 代码审查': 'Used for plan implementation and AI code review',
+  '安全模型（实验）': 'Security model (experimental)',
+  '用于 Shell 和工具权限自动审核。': 'Used for automatic Shell and tool permission review.',
+  '用于 Shell 和工具权限自动审核': 'Used for automatic Shell and tool permission review',
+  按用途配置辅助能力使用的模型: 'Configure models for specialized tasks',
+  跟随会话主模型: 'Follow main session model',
+  恢复跟随会话主模型: 'Reset to main session model',
+  '恢复默认（跟随会话主模型）': 'Reset to default (follow main session model)',
+  默认聊天模型: 'Default chat model',
+  '权限预设、审批规则与 Shell 安全级别':
+    'Permission presets, approval rules, and Shell safety level',
   回复个性和自定义指令: 'Response personality and custom instructions',
   '自动记忆、当前工作区和召回时间线': 'Automatic memory, current workspace, and recall timeline',
   '查看应用、聊天、导航和面板快捷键': 'View app, chat, navigation, and panel shortcuts',
@@ -186,13 +218,6 @@ export const enUS: Record<string, string> = {
   默认打开文件和文件夹的位置: 'Where files and folders open by default',
   '集成终端 Shell': 'Integrated terminal shell',
   '选择要在集成终端中打开的 Shell。': 'Choose the shell for the integrated terminal.',
-  '需按 ^ + 回车键发送长文本提示': 'Require Ctrl + Enter to send long prompts',
-  '启用后，长文本提示需按 ^ + 回车键发送。':
-    'When enabled, long prompts require Ctrl + Enter to send.',
-  需按快捷键发送长文本提示: 'Require shortcut to send long prompts',
-  速度: 'Speed',
-  '选择用于聊天、子智能体和压缩的推理层级':
-    'Choose the reasoning level for chats, subagents, and compaction',
   允许普通模式提问: 'Allow questions in default mode',
   '开启后，主 Agent 可在普通模式中通过结构化问题卡向你提问。计划模式始终允许。':
     'Allow the main agent to ask structured questions in default mode. Plan mode always allows questions.',
@@ -202,25 +227,7 @@ export const enUS: Record<string, string> = {
   'AI 审查结果': 'AI review results',
   '在当前任务继续审查，或为每次 AI Review 创建独立任务':
     'Continue review in the current task or create a separate task',
-  建议提示: 'Suggested prompts',
-  '搜索项目文件和已连接应用，建议下一步操作':
-    'Suggest next steps from project files and connected apps',
-  '从其他 AI 应用导入工作内容': 'Import work from other AI apps',
-  '导入您的设置、项目和最近聊天记录': 'Import your settings, projects, and recent chats',
-  打开源许可证: 'Open source licenses',
-  捆绑依赖项的第三方声明: 'Third-party notices for bundled dependencies',
-  实现性: 'Implementation',
-  '这些底层能力通过 Rust sidecar 提供。Rust sidecar 已作为默认 agent 运行时。':
-    'These capabilities run in the Rust sidecar, the default agent runtime.',
-  'Rust Glob / Grep / Diff 内核': 'Rust Glob / Grep / Diff kernels',
-  '启用后，Rust sidecar 将执行文件遍历、内容搜索和 diff 计算，不再回退到 TS 路径。':
-    'Use the Rust sidecar for file traversal, search, and diff calculation.',
-  弹出窗口: 'Pop-up window',
-  弹出窗口快捷键: 'Pop-up shortcut',
-  '为弹出窗口设置全局快捷键。留空则保持关闭。':
-    'Set a global shortcut for the pop-up window. Leave blank to disable.',
-  默认使用无项目聊天: 'Default to projectless chat',
-  无需项目即可开始新聊天: 'Start a chat without a project',
+  实验性: 'Experimental',
   语音: 'Voice',
   '查看本地语音模型状态、选择麦克风并使用听写快捷键':
     'View the local speech model status, choose a microphone, and use dictation shortcuts',

@@ -250,40 +250,36 @@ function EnvironmentList({
 
   return (
     <EnvironmentFrame embedded={embedded}>
-      <div
-        className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
-      >
-        {!embedded ? (
-          <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
-            <div>
-              <h1 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
-                环境
-              </h1>
-              <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
-                管理项目的项目指令和共享来源。
-              </p>
-            </div>
-          </header>
-        ) : null}
+      {!embedded ? (
+        <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
+          <div>
+            <h1 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+              环境
+            </h1>
+            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
+              管理项目的项目指令和共享来源。
+            </p>
+          </div>
+        </header>
+      ) : null}
 
-        <SettingsSection
-          actions={
-            <Button color="primary" loading={adding} onClick={() => void addProject()}>
-              <Plus
-                className="tw:size-icon-md"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-              添加项目
-            </Button>
-          }
-          bare
-          title="选择项目"
-          description="最近打开的项目排在前面。"
-        >
-          {projectList}
-        </SettingsSection>
-      </div>
+      <SettingsSection
+        actions={
+          <Button color="primary" loading={adding} onClick={() => void addProject()}>
+            <Plus
+              className="tw:size-icon-md"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+            添加项目
+          </Button>
+        }
+        bare
+        title="选择项目"
+        description="最近打开的项目排在前面。"
+      >
+        {projectList}
+      </SettingsSection>
     </EnvironmentFrame>
   )
 }
@@ -468,11 +464,7 @@ function EnvironmentDetail({
   if (loading) {
     return (
       <EnvironmentFrame embedded={embedded}>
-        <div
-          className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
-        >
-          <EnvironmentEmpty>正在载入项目环境…</EnvironmentEmpty>
-        </div>
+        <EnvironmentEmpty>正在载入项目环境…</EnvironmentEmpty>
       </EnvironmentFrame>
     )
   }
@@ -480,19 +472,15 @@ function EnvironmentDetail({
   if (!project) {
     return (
       <EnvironmentFrame embedded={embedded}>
-        <div
-          className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
+        <button
+          className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
+          type="button"
+          onClick={() => navigate(routeBase)}
         >
-          <button
-            className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
-            type="button"
-            onClick={() => navigate(routeBase)}
-          >
-            <ArrowLeft size="var(--inline-icon-size, 1em)" />
-            返回环境
-          </button>
-          <EnvironmentEmpty>项目不存在、已移除或当前不可用。</EnvironmentEmpty>
-        </div>
+          <ArrowLeft size="var(--inline-icon-size, 1em)" />
+          返回环境
+        </button>
+        <EnvironmentEmpty>项目不存在、已移除或当前不可用。</EnvironmentEmpty>
       </EnvironmentFrame>
     )
   }
@@ -519,259 +507,255 @@ function EnvironmentDetail({
 
   return (
     <EnvironmentFrame embedded={embedded}>
-      <div
-        className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
+      <button
+        className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
+        type="button"
+        onClick={() => navigate(routeBase)}
       >
-        <button
-          className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
-          type="button"
-          onClick={() => navigate(routeBase)}
-        >
-          <ArrowLeft size="var(--inline-icon-size, 1em)" />
-          环境
-          <ChevronRight aria-hidden="true" size="var(--inline-icon-size, 1em)" />
-          <span>{project.name}</span>
-          <ChevronRight aria-hidden="true" size="var(--inline-icon-size, 1em)" />
-          <span>编辑</span>
-        </button>
+        <ArrowLeft size="var(--inline-icon-size, 1em)" />
+        环境
+        <ChevronRight aria-hidden="true" size="var(--inline-icon-size, 1em)" />
+        <span>{project.name}</span>
+        <ChevronRight aria-hidden="true" size="var(--inline-icon-size, 1em)" />
+        <span>编辑</span>
+      </button>
 
-        <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
-          <div>
-            <h1 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
-              项目环境
-            </h1>
-            <p
-              className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1"
-              title={project.path}
-            >
-              {project.path}
-            </p>
-          </div>
-          <Button color="primary" loading={busy === 'save'} onClick={() => void saveProject()}>
-            保存更改
-          </Button>
-        </header>
+      <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
+        <div>
+          <h1 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+            项目环境
+          </h1>
+          <p
+            className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1"
+            title={project.path}
+          >
+            {project.path}
+          </p>
+        </div>
+        <Button color="primary" loading={busy === 'save'} onClick={() => void saveProject()}>
+          保存更改
+        </Button>
+      </header>
 
-        <SettingsSection title="基本信息" description="名称与项目任务的共享指令一起保存。">
-          <label className="environment-field">
-            <span>项目名称</span>
+      <SettingsSection title="基本信息" description="名称与项目任务的共享指令一起保存。">
+        <label className="environment-field">
+          <span>项目名称</span>
+          <input
+            maxLength={120}
+            value={draftName}
+            onChange={(event) => setDraftName(event.target.value)}
+          />
+        </label>
+        <div className="environment-field">
+          <span>任务执行环境</span>
+          <small>仅影响该项目之后新建的任务；已有任务保持创建时的执行环境不变。</small>
+          <SettingsDropdown
+            ariaLabel="任务执行环境"
+            options={[
+              { value: 'auto', label: '自动（推荐）' },
+              { value: 'local', label: '本地目录' },
+            ]}
+            showSelectedIndicator
+            triggerClassName="environment-settings-dropdown tw:w-full tw:bg-app-canvas"
+            value={executionEnvironment}
+            size="md"
+            onChange={(value) => setExecutionEnvironment(value === 'local' ? 'local' : 'auto')}
+          />
+        </div>
+        <label className="environment-field environment-field-textarea">
+          <span>项目指令</span>
+          <small>应用于该项目的每个新轮次；AGENTS、Skills 与配置仍只从主目录发现。</small>
+          <textarea
+            rows={9}
+            value={instructions}
+            onChange={(event) => setInstructions(event.target.value)}
+          />
+        </label>
+      </SettingsSection>
+
+      <SettingsSection
+        title="共享来源"
+        description="来源操作立即生效，不需要点击页面顶部的保存。"
+        actions={
+          <>
             <input
-              maxLength={120}
-              value={draftName}
-              onChange={(event) => setDraftName(event.target.value)}
-            />
-          </label>
-          <div className="environment-field">
-            <span>任务执行环境</span>
-            <small>仅影响该项目之后新建的任务；已有任务保持创建时的执行环境不变。</small>
-            <SettingsDropdown
-              ariaLabel="任务执行环境"
-              options={[
-                { value: 'auto', label: '自动（推荐）' },
-                { value: 'local', label: '本地目录' },
-              ]}
-              showSelectedIndicator
-              triggerClassName="environment-settings-dropdown tw:w-full tw:bg-app-canvas"
-              value={executionEnvironment}
-              size="md"
-              onChange={(value) => setExecutionEnvironment(value === 'local' ? 'local' : 'auto')}
-            />
-          </div>
-          <label className="environment-field environment-field-textarea">
-            <span>项目指令</span>
-            <small>应用于该项目的每个新轮次；AGENTS、Skills 与配置仍只从主目录发现。</small>
-            <textarea
-              rows={9}
-              value={instructions}
-              onChange={(event) => setInstructions(event.target.value)}
-            />
-          </label>
-        </SettingsSection>
-
-        <SettingsSection
-          title="共享来源"
-          description="来源操作立即生效，不需要点击页面顶部的保存。"
-          actions={
-            <>
-              <input
-                hidden
-                multiple
-                ref={uploadRef}
-                type="file"
-                onChange={(event) => {
-                  void importFiles(event.currentTarget.files)
-                  event.currentTarget.value = ''
-                }}
-              />
-              <Button
-                color="primary"
-                loading={busy === 'upload'}
-                onClick={() => uploadRef.current?.click()}
-              >
-                <Upload className="tw:size-icon-md" size={APP_ICON_SIZE} />
-                上传来源
-              </Button>
-            </>
-          }
-        >
-          <div className="environment-source-file-tree">
-            <WorkspaceFileTree
-              files={[]}
-              searchable={false}
-              workspace={project}
-              onOpenFile={(file) => {
-                if (file.type !== 'file' || !file.folderId) return
-                setSourceFolderId(file.folderId)
-                setSourcePath(file.path)
+              hidden
+              multiple
+              ref={uploadRef}
+              type="file"
+              onChange={(event) => {
+                void importFiles(event.currentTarget.files)
+                event.currentTarget.value = ''
               }}
-            />
-          </div>
-          <div className="environment-source-reference">
-            <SettingsDropdown
-              ariaLabel="来源所属目录"
-
-              options={(project.folders ?? []).map((folder) => ({
-                value: folder.id,
-                label: `${folder.name}${folder.role === 'primary' ? '（主目录）' : ''}`,
-              }))}
-              showSelectedIndicator
-              triggerClassName="environment-settings-dropdown tw:w-full tw:bg-app-canvas"
-              value={sourceFolderId}
-              size="md"
-              onChange={setSourceFolderId}
-            />
-            <input
-              aria-label="工作区文件相对路径"
-              placeholder="docs/overview.md"
-              value={sourcePath}
-              onChange={(event) => setSourcePath(event.target.value)}
             />
             <Button
               color="primary"
-              disabled={busy !== null || !sourcePath.trim()}
-              onClick={() => void addReference()}
+              loading={busy === 'upload'}
+              onClick={() => uploadRef.current?.click()}
             >
-              <FilePlus2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
-              {relinkSourceId ? '重新关联' : '添加文件'}
+              <Upload className="tw:size-icon-md" size={APP_ICON_SIZE} />
+              上传来源
             </Button>
-            {relinkSourceId ? (
-              <Button
-                color="secondary"
-                disabled={busy !== null}
-                onClick={() => {
-                  setRelinkSourceId(null)
-                  setSourcePath('')
-                }}
-              >
-                取消
-              </Button>
-            ) : null}
-          </div>
+          </>
+        }
+      >
+        <div className="environment-source-file-tree">
+          <WorkspaceFileTree
+            files={[]}
+            searchable={false}
+            workspace={project}
+            onOpenFile={(file) => {
+              if (file.type !== 'file' || !file.folderId) return
+              setSourceFolderId(file.folderId)
+              setSourcePath(file.path)
+            }}
+          />
+        </div>
+        <div className="environment-source-reference">
+          <SettingsDropdown
+            ariaLabel="来源所属目录"
 
-          {sources.length === 0 ? (
-            <EnvironmentEmpty>暂无共享来源。</EnvironmentEmpty>
-          ) : (
-            <div className="environment-source-list tw:grid">
-              {sources.map((source) => (
-                <div className="environment-source-row" key={source.id}>
-                  <div>
-                    <strong>{source.name}</strong>
-                    <span>{source.storage === 'managed' ? '托管文件' : source.path}</span>
-                  </div>
-                  <span
-                    className="environment-source-status tw:whitespace-nowrap tw:text-app-text-soft tw:type-1 tw:[&:not([data-status=available])]:text-app-danger"
-                    data-status={source.status}
-                  >
-                    {sourceStatusLabel(source.status)}
-                  </span>
-                  <Button
-                    isIconOnly
-                    color="ghostSecondary"
-                    disabled={busy !== null || source.status !== 'available'}
-                    size="toolbar"
-                    title={`预览来源 ${source.name}`}
-                    type="button"
-                    onClick={() => void previewSource(source)}
-                  >
-                    <Eye className="tw:size-icon-md" size={APP_ICON_SIZE} />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    color="ghostSecondary"
-                    disabled={
-                      busy !== null ||
-                      source.storage !== 'workspace-file' ||
-                      source.status === 'available'
-                    }
-                    hidden={source.storage !== 'workspace-file' || source.status === 'available'}
-                    size="toolbar"
-                    title={`重新关联来源 ${source.name}`}
-                    type="button"
-                    onClick={() => {
-                      if (source.storage !== 'workspace-file') return
-                      setRelinkSourceId(source.id)
-                      setSourceFolderId(source.folderId)
-                      setSourcePath(source.path)
-                    }}
-                  >
-                    <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    color="ghostSecondary"
-                    disabled={busy !== null}
-                    size="toolbar"
-                    title={`移除来源 ${source.name}`}
-                    type="button"
-                    onClick={() =>
-                      void run(`remove:${source.id}`, async () => {
-                        if (await desktopClient.removeProjectSource(projectId, source.id)) {
-                          setSources((current) => current.filter((item) => item.id !== source.id))
-                          if (preview?.source.id === source.id) setPreview(null)
-                          onNotice?.('共享来源已移除。')
-                        }
-                      })
-                    }
-                  >
-                    <Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
-                  </Button>
+            options={(project.folders ?? []).map((folder) => ({
+              value: folder.id,
+              label: `${folder.name}${folder.role === 'primary' ? '（主目录）' : ''}`,
+            }))}
+            showSelectedIndicator
+            triggerClassName="environment-settings-dropdown tw:w-full tw:bg-app-canvas"
+            value={sourceFolderId}
+            size="md"
+            onChange={setSourceFolderId}
+          />
+          <input
+            aria-label="工作区文件相对路径"
+            placeholder="docs/overview.md"
+            value={sourcePath}
+            onChange={(event) => setSourcePath(event.target.value)}
+          />
+          <Button
+            color="primary"
+            disabled={busy !== null || !sourcePath.trim()}
+            onClick={() => void addReference()}
+          >
+            <FilePlus2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
+            {relinkSourceId ? '重新关联' : '添加文件'}
+          </Button>
+          {relinkSourceId ? (
+            <Button
+              color="secondary"
+              disabled={busy !== null}
+              onClick={() => {
+                setRelinkSourceId(null)
+                setSourcePath('')
+              }}
+            >
+              取消
+            </Button>
+          ) : null}
+        </div>
+
+        {sources.length === 0 ? (
+          <EnvironmentEmpty>暂无共享来源。</EnvironmentEmpty>
+        ) : (
+          <div className="environment-source-list tw:grid">
+            {sources.map((source) => (
+              <div className="environment-source-row" key={source.id}>
+                <div>
+                  <strong>{source.name}</strong>
+                  <span>{source.storage === 'managed' ? '托管文件' : source.path}</span>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {preview ? (
-            <div className="environment-source-preview">
-              <header>
-                <strong>{preview.source.name}</strong>
+                <span
+                  className="environment-source-status tw:whitespace-nowrap tw:text-app-text-soft tw:type-1 tw:[&:not([data-status=available])]:text-app-danger"
+                  data-status={source.status}
+                >
+                  {sourceStatusLabel(source.status)}
+                </span>
                 <Button
                   isIconOnly
                   color="ghostSecondary"
+                  disabled={busy !== null || source.status !== 'available'}
                   size="toolbar"
-                  title="关闭来源预览"
+                  title={`预览来源 ${source.name}`}
                   type="button"
-                  onClick={() => setPreview(null)}
+                  onClick={() => void previewSource(source)}
                 >
-                  <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
+                  <Eye className="tw:size-icon-md" size={APP_ICON_SIZE} />
                 </Button>
-              </header>
-              {preview.encoding === 'base64' ? (
-                <img
-                  alt={preview.source.name}
-                  src={`data:${sourceMediaType(preview.source)};base64,${preview.data}`}
-                />
-              ) : (
-                <pre>{preview.data}</pre>
-              )}
-              {preview.range.length < preview.range.total ? (
-                <small>
-                  仅预览前 {preview.range.length} / {preview.range.total} 字节
-                </small>
-              ) : null}
-            </div>
-          ) : null}
-        </SettingsSection>
-      </div>
+                <Button
+                  isIconOnly
+                  color="ghostSecondary"
+                  disabled={
+                    busy !== null ||
+                    source.storage !== 'workspace-file' ||
+                    source.status === 'available'
+                  }
+                  hidden={source.storage !== 'workspace-file' || source.status === 'available'}
+                  size="toolbar"
+                  title={`重新关联来源 ${source.name}`}
+                  type="button"
+                  onClick={() => {
+                    if (source.storage !== 'workspace-file') return
+                    setRelinkSourceId(source.id)
+                    setSourceFolderId(source.folderId)
+                    setSourcePath(source.path)
+                  }}
+                >
+                  <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
+                </Button>
+                <Button
+                  isIconOnly
+                  color="ghostSecondary"
+                  disabled={busy !== null}
+                  size="toolbar"
+                  title={`移除来源 ${source.name}`}
+                  type="button"
+                  onClick={() =>
+                    void run(`remove:${source.id}`, async () => {
+                      if (await desktopClient.removeProjectSource(projectId, source.id)) {
+                        setSources((current) => current.filter((item) => item.id !== source.id))
+                        if (preview?.source.id === source.id) setPreview(null)
+                        onNotice?.('共享来源已移除。')
+                      }
+                    })
+                  }
+                >
+                  <Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {preview ? (
+          <div className="environment-source-preview">
+            <header>
+              <strong>{preview.source.name}</strong>
+              <Button
+                isIconOnly
+                color="ghostSecondary"
+                size="toolbar"
+                title="关闭来源预览"
+                type="button"
+                onClick={() => setPreview(null)}
+              >
+                <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
+              </Button>
+            </header>
+            {preview.encoding === 'base64' ? (
+              <img
+                alt={preview.source.name}
+                src={`data:${sourceMediaType(preview.source)};base64,${preview.data}`}
+              />
+            ) : (
+              <pre>{preview.data}</pre>
+            )}
+            {preview.range.length < preview.range.total ? (
+              <small>
+                仅预览前 {preview.range.length} / {preview.range.total} 字节
+              </small>
+            ) : null}
+          </div>
+        ) : null}
+      </SettingsSection>
     </EnvironmentFrame>
   )
 }
@@ -812,5 +796,14 @@ function EnvironmentFrame({
   embedded?: boolean
   children: React.ReactNode
 }) {
-  return embedded ? <>{children}</> : <SettingsContentArea>{children}</SettingsContentArea>
+  const innerClassName = 'environment-settings tw:[&_.settings-section-content]:overflow-visible'
+  return embedded ? (
+    <div
+      className={`settings-content-inner ${innerClassName} tw:@container tw:w-full tw:min-w-0 tw:mx-auto`}
+    >
+      {children}
+    </div>
+  ) : (
+    <SettingsContentArea innerClassName={innerClassName}>{children}</SettingsContentArea>
+  )
 }

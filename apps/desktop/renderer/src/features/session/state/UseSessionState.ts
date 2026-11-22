@@ -1,8 +1,10 @@
 import {
+  isNoAvailableTaskModelError,
   sessionModelSelections,
   useSessionModelSelection,
   type SessionModelSelection,
 } from './SessionModelSelectionStore.js'
+import { useWindowEvent } from '../../../hooks/UseExternalSubscription.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { toUserErrorMessage } from '../../../utils/Errors.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -230,13 +232,28 @@ export function useSessionState(options: UseSessionStateOptions): UseSessionStat
   const setSessionId = displayStore.setSessionId
   const modelSelectionState = useSessionModelSelection(sessionId)
   const reloadModelSelection = useCallback(() => {
-    void sessionModelSelections
-      .load(sessionId)
-      .catch((error) => onErrorRef.current(toUserErrorMessage(error)))
+    void sessionModelSelections.load(sessionId).catch((error) => {
+      if (sessionId === null && isNoAvailableTaskModelError(error)) return
+      onErrorRef.current(toUserErrorMessage(error))
+    })
   }, [sessionId])
   useEffect(() => {
     reloadModelSelection()
   }, [reloadModelSelection])
+  useWindowEvent(
+    typeof window !== 'undefined' ? window : null,
+    'desktop:model-provider-changed',
+    () => {
+      if (sessionId === null) {
+        reloadModelSelection()
+        return
+      }
+      void sessionModelSelections.load(null).catch((error) => {
+        if (isNoAvailableTaskModelError(error)) return
+        onErrorRef.current(toUserErrorMessage(error))
+      })
+    },
+  )
   const setModelSelection = useCallback(
     (selection: SessionModelSelection) => {
       sessionModelSelections.set(sessionId, selection)

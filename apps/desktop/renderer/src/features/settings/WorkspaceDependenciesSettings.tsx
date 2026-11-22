@@ -217,41 +217,37 @@ export function WorkspaceDependenciesSettings({ onError, onNotice }: Props): Rea
   if (loading && statuses.length === 0) {
     return (
       <SettingsContentArea>
-        <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
-          <WorkspaceDependenciesHeader
-            disabled
-            refreshing={refreshing}
-            onRefresh={() => void rescan()}
-          />
-          <SettingsSection title="运行环境">
-            <SettingsRow title="正在读取依赖项状态…" />
-          </SettingsSection>
-        </div>
+        <WorkspaceDependenciesHeader
+          disabled
+          refreshing={refreshing}
+          onRefresh={() => void rescan()}
+        />
+        <SettingsSection title="运行环境">
+          <SettingsRow title="正在读取依赖项状态…" />
+        </SettingsSection>
       </SettingsContentArea>
     )
   }
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
-        <WorkspaceDependenciesHeader
-          disabled={refreshing || busyTools.size > 0}
-          refreshing={refreshing}
-          onRefresh={() => void rescan()}
-        />
-        {TOOL_IDS.map((id) => {
-          const status = statuses.find((item) => item.id === id)
-          return status ? (
-            <DependencySection
-              busy={busyTools.has(id) || refreshing}
-              key={id}
-              onInstall={() => void install(status)}
-              onPreferenceChange={(preference) => void changePreference(status, preference)}
-              status={status}
-            />
-          ) : null
-        })}
-      </div>
+      <WorkspaceDependenciesHeader
+        disabled={refreshing || busyTools.size > 0}
+        refreshing={refreshing}
+        onRefresh={() => void rescan()}
+      />
+      {TOOL_IDS.map((id) => {
+        const status = statuses.find((item) => item.id === id)
+        return status ? (
+          <DependencySection
+            busy={busyTools.has(id) || refreshing}
+            key={id}
+            onInstall={() => void install(status)}
+            onPreferenceChange={(preference) => void changePreference(status, preference)}
+            status={status}
+          />
+        ) : null
+      })}
     </SettingsContentArea>
   )
 }

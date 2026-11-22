@@ -17,12 +17,12 @@ describe('PermissionsSettings consolidation', () => {
 
     expect(html).toContain(`id="${createSettingsTargetId('permissions', '权限预设')}"`)
     expect(html).toContain(`id="${createSettingsTargetId('permissions', 'Shell 安全级别')}"`)
-    expect(html).toContain(`id="${createSettingsTargetId('permissions', '安全模型（实验）')}"`)
+    expect(html).toContain('Shell 安全')
     expect(html).toContain('权限预设')
     expect(html).toContain('权限说明')
     expect(html).toContain('Shell 安全级别')
-    expect(html).toContain('安全模型（实验）')
     expect(html).toContain('审批规则')
+    expect(html).not.toContain('安全模型（实验）')
   })
 
   test('does not render moved permission settings in GeneralSettings or ConfigSettings', () => {
@@ -44,6 +44,5 @@ describe('PermissionsSettings consolidation', () => {
     expect(configHtml).not.toContain('权限预设')
     expect(configHtml).not.toContain('管理审批规则')
     expect(configHtml).not.toContain('Shell 安全级别')
-    expect(configHtml).not.toContain('安全模型（实验）')
   })
 })

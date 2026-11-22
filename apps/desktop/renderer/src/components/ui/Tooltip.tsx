@@ -792,9 +792,15 @@ export const TooltipContent = forwardRef<HTMLDivElement, TooltipContentProps>(
       })
     }, [context.triggerRef, context.open, side, align, sideOffset, collisionPadding])
 
+    // INVARIANT: Content mounts with opacity 0 so deferring initial position measurement to rAF avoids forcing synchronous layout during React commit.
     useLayoutEffect(() => {
-      if (context.open) {
+      if (!context.open) return
+      let frame: number | null = requestAnimationFrame(() => {
+        frame = null
         updatePosition()
+      })
+      return () => {
+        if (frame !== null) cancelAnimationFrame(frame)
       }
     }, [context.open, updatePosition])
 

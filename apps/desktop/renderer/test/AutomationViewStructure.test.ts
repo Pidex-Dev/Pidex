@@ -61,7 +61,7 @@ describe('AutomationView primary page hierarchy', () => {
     expectSourceContains(viewSource, 'resolveRecentNewThreadModel()')
     expectSourceContains(viewSource, 'hasDraftModel')
     expectSourceContains(viewSource, 'if (!hasDraftModel) {')
-    expectSourceContains(viewSource, "navigate('/setup')")
+    expectSourceContains(viewSource, "navigate('/providers')")
     expectSourceNotContains(viewSource, 'getRecentNewThreadModel')
     expectSourceNotContains(
       viewSource,

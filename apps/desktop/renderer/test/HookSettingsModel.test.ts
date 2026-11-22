@@ -5,7 +5,11 @@ import {
   hookCountLabel,
   hookErrorCodeOf,
   hookErrorMessage,
+  hookTrustReason,
+  isHookPendingReview,
   isWorkspaceScopeError,
+  pendingHookCountLabel,
+  pendingReviewHooks,
   splitHookGroups,
 } from '../src/features/settings/hooks/HookSettingsModel.js'
 
@@ -81,5 +85,32 @@ describe('Hook 设置模型', () => {
       }),
     ).toBe(true)
     expect(isWorkspaceScopeError({ code: 'HOOK_INVALID', message: '工作区' })).toBe(false)
+  })
+
+  test('识别待审核与变更 Hook 状态并计算分组待审核标记', () => {
+    const trusted = makeHook({ trustStatus: 'trusted' })
+    const untrusted = makeHook({
+      identity: 'b'.repeat(64),
+      event: 'session_start',
+      trustStatus: 'untrusted',
+    })
+    const modified = makeHook({
+      identity: 'c'.repeat(64),
+      event: 'user_prompt_submit',
+      trustStatus: 'modified',
+    })
+
+    expect(isHookPendingReview(trusted)).toBe(false)
+    expect(isHookPendingReview(untrusted)).toBe(true)
+    expect(isHookPendingReview(modified)).toBe(true)
+    expect(pendingReviewHooks([trusted, untrusted, modified])).toEqual([untrusted, modified])
+    expect(pendingHookCountLabel(2)).toBe('2 项待审核')
+    expect(hookTrustReason(untrusted)).toBe('新 Hook')
+    expect(hookTrustReason(modified)).toBe('上次信任后已更改')
+
+    const sections = groupHooksByEvent([trusted, untrusted])
+    expect(sections[0]!.hasPendingReview).toBe(true)
+    const trustedSections = groupHooksByEvent([trusted])
+    expect(trustedSections[0]!.hasPendingReview).toBe(false)
   })
 })

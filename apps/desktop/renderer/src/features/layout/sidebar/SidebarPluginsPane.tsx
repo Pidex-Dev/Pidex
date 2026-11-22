@@ -88,7 +88,7 @@ export function SidebarPluginsPane({
 
   return (
     <div className="sidebar-plugins-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
-      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
+      <header className="sidebar-pane-heading tw:mx-1 tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:pr-1">
         <SearchHeading
           title={
             <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('自定义')}</h2>
@@ -104,7 +104,7 @@ export function SidebarPluginsPane({
           }
         />
       </header>
-      <div className="tw:flex tw:flex-col tw:sidebar-row-gap tw:p-2">
+      <div className="tw:flex tw:flex-col tw:sidebar-row-gap tw:px-1 tw:py-2">
         {CATALOG_TABS.map((option) => (
           <SidebarRow
             asChild
@@ -135,7 +135,7 @@ export function SidebarPluginsPane({
           </SidebarRow>
         ))}
       </div>
-      <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:shrink-0 tw:items-center tw:px-4 tw:text-app-text-meta tw:type-2">
+      <h3 className="sidebar-section-header tw:mx-1 tw:my-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:shrink-0 tw:items-center tw:pr-1 tw:text-app-text-meta tw:type-2">
         {t('已安装')}
       </h3>
       <ScrollArea

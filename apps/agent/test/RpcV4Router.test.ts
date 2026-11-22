@@ -2273,6 +2273,14 @@ describe('RPC v4 Router', () => {
           calls.push('setEnabled')
           throw new AgentError('CONFLICT', '版本冲突', 409)
         },
+        trustHooks: async (input: { hooks: Array<{ identity: string; contentHash: string }> }) => {
+          calls.push('trustHooks')
+          return {
+            trusted: input.hooks,
+            generation: 2,
+            updatedAt: 2,
+          }
+        },
         listRuns: async () => {
           calls.push('runs')
           return { runs: [], generation: 1 }
@@ -2294,6 +2302,21 @@ describe('RPC v4 Router', () => {
         })
       ).error,
     ).toMatchObject({ data: { code: 'CONFLICT' }, message: '版本冲突' })
+    expect(
+      (
+        await configured.call('hook/trust', {
+          hooks: [{ identity: 'a'.repeat(64), contentHash: 'b'.repeat(64) }],
+          operationId: 'op-trust-1',
+        })
+      ).result,
+    ).toEqual({
+      trusted: [{ identity: 'a'.repeat(64), contentHash: 'b'.repeat(64) }],
+      generation: 2,
+      updatedAt: 2,
+    })
+    expect((await configured.call('hook/trust', { hooks: [] })).error).toMatchObject({
+      code: -32602,
+    })
     // The wire schema rejects incomplete params before the handler runs.
     expect((await configured.call('hook/setEnabled', { enabled: false })).error).toMatchObject({
       code: -32602,
@@ -2302,7 +2325,7 @@ describe('RPC v4 Router', () => {
       runs: [],
       generation: 1,
     })
-    expect(calls).toEqual(['list', 'setEnabled', 'runs'])
+    expect(calls).toEqual(['list', 'setEnabled', 'trustHooks', 'runs'])
     configured.db.close()
   })
 

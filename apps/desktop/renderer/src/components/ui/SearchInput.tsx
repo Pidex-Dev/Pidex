@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useRef } from 'react'
+import { forwardRef, useCallback, useLayoutEffect, useRef } from 'react'
 import type React from 'react'
 import { Search, X } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from './IconTokens.js'
@@ -42,7 +42,14 @@ export type SearchInputProps = {
 
 /** Internal helper: strip discrimated-union fields not intended for <input> DOM. */
 function stripModeFields(props: Record<string, unknown>): Record<string, unknown> {
-  const { mode: _, controls: _c, expanded: _e, activeDescendant: _a, ...rest } = props
+  const {
+    mode: _,
+    controls: _c,
+    expanded: _e,
+    activeDescendant: _a,
+    autoFocus: _f,
+    ...rest
+  } = props
   return rest
 }
 
@@ -102,7 +109,25 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
   const inputRef = useRef<HTMLInputElement | null>(null)
   const isCombobox = rawRest.mode === 'combobox'
   const isFilter = rawRest.mode === undefined || rawRest.mode === 'filter'
+  const autoFocusRequested = rawRest.autoFocus === true
   const safeInputProps = stripModeFields(rawRest)
+
+  // INVARIANT: deferred autoFocus lands on the second post-layout rAF so mount-time focus never flushes a dirty layout tree in Chromium.
+  useLayoutEffect(() => {
+    if (!autoFocusRequested) return
+    let raf1 = 0
+    let raf2 = 0
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        raf2 = 0
+        inputRef.current?.focus({ preventScroll: true })
+      })
+    })
+    return () => {
+      if (raf1) cancelAnimationFrame(raf1)
+      if (raf2) cancelAnimationFrame(raf2)
+    }
+  }, [autoFocusRequested])
 
   const setRef = useCallback(
     (node: HTMLInputElement | null) => {

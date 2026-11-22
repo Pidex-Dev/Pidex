@@ -66,6 +66,7 @@ export function ThreadScrollLayout({
     }
     writtenInsetRef.current = null
 
+    // INVARIANT: Keep persistent ResizeObserver entry height snapshots so rAF updates never fall back to synchronous getBoundingClientRect or clientHeight reads.
     let measureFrame: number | null = null
     let observedFooterHeight: number | null = null
     let observedViewportHeight: number | null = null
@@ -78,8 +79,6 @@ export function ThreadScrollLayout({
         observedFooterHeight ?? footerElement.getBoundingClientRect().height,
       )
       const viewportHeight = Math.ceil(observedViewportHeight ?? scrollElement.clientHeight)
-      observedFooterHeight = null
-      observedViewportHeight = null
 
       if (appliedFooterHeight !== footerHeight) {
         appliedFooterHeight = footerHeight
@@ -98,17 +97,20 @@ export function ThreadScrollLayout({
       for (const entry of entries) {
         const blockSize = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height
         if (entry.target === footerElement) observedFooterHeight = blockSize
-        if (entry.target === scrollElement) observedViewportHeight = blockSize
+        if (entry.target === scrollElement) observedViewportHeight = entry.contentRect.height
       }
       if (measureFrame !== null) return
       measureFrame = requestAnimationFrame(measureLayout)
     }
 
-    measureLayout()
     const observer =
       typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleMeasure)
-    observer?.observe(footerElement)
-    observer?.observe(scrollElement)
+    if (observer) {
+      observer.observe(footerElement)
+      observer.observe(scrollElement)
+    } else {
+      measureLayout()
+    }
 
     return () => {
       observer?.disconnect()

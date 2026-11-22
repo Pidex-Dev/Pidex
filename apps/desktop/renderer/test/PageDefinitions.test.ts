@@ -56,7 +56,7 @@ describe('页面定义', () => {
     expect(sidebarPaneForRoute('/threads/task-1', false)).toBe('chats')
     expect(sidebarPaneForRoute('/projects/project-1', true)).toBe('activity')
     expect(sidebarPaneForRoute('/automations', false)).toBe('scheduled')
-    expect(sidebarPaneForRoute('/settings/appearance', false)).toBe('settings')
+    expect(sidebarPaneForRoute('/settings/appearance', false)).toBe('chats')
     expect(sidebarPaneForRoute('/plugins/detail', false)).toBe('plugins')
     expect(sidebarPaneForRoute('/providers/detail', false)).toBe('providers')
     expect(sidebarPaneForRoute('/git', false)).toBe('git')

@@ -32,6 +32,27 @@ type ShikiModule = typeof import('shiki')
 
 let shikiModulePromise: Promise<ShikiModule> | null = null
 let highlighterPromise: Promise<Highlighter> | null = null
+const contrastCache = new Map<string, string>()
+const TOKENIZE_TURN_BUDGET_MS = 12
+let tokenizeQueueTail: Promise<void> = Promise.resolve()
+let tokenizeTurnStartMs = 0
+
+// INVARIANT: Serialize heavy Shiki tokenization with a 12ms per-turn budget so concurrent code blocks resolving after language load do not coalesce into a >100ms RunMicrotasks long task. The turn clock resets only across the macro-task yield (setTimeout(0)) — resetting it inside queueMicrotask would re-arm it before the next continuation runs, so the budget would never be exhausted and the yield would never fire.
+function runWithTokenizeBudget<T>(work: () => T): Promise<T> {
+  const next = tokenizeQueueTail.then(async () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    if (now - tokenizeTurnStartMs >= TOKENIZE_TURN_BUDGET_MS) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      tokenizeTurnStartMs = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    }
+    return work()
+  })
+  tokenizeQueueTail = next.then(
+    () => undefined,
+    () => undefined,
+  )
+  return next
+}
 
 function loadShiki(): Promise<ShikiModule> {
   shikiModulePromise ??= import('shiki')
@@ -158,23 +179,25 @@ async function highlightCodeUncached({
         ? undefined
         : loadHighlightTheme(theme).then((registration) => highlighter.loadTheme(registration)),
     ])
-    const highlighted = highlighter.codeToTokens(code, {
-      lang: language,
-      theme,
-    })
+    return await runWithTokenizeBudget(() => {
+      const highlighted = highlighter.codeToTokens(code, {
+        lang: language,
+        theme,
+      })
 
-    return {
-      code,
-      foreground: highlighted.fg,
-      background: highlighted.bg,
-      language,
-      requestedLanguage,
-      requestedTheme,
-      theme: highlighted.themeName ?? theme,
-      tokens: highlighted.tokens.map((line) =>
-        line.map((token) => toSyntaxToken(token, highlighted.fg, highlighted.bg)),
-      ),
-    }
+      return {
+        code,
+        foreground: highlighted.fg,
+        background: highlighted.bg,
+        language,
+        requestedLanguage,
+        requestedTheme,
+        theme: highlighted.themeName ?? theme,
+        tokens: highlighted.tokens.map((line) =>
+          line.map((token) => toSyntaxToken(token, highlighted.fg, highlighted.bg)),
+        ),
+      }
+    })
   } catch {
     return plainTextResult({
       code,
@@ -219,6 +242,9 @@ function ensureSyntaxTokenContrast(
   background: string | undefined,
 ): string | undefined {
   if (!color || !background) return color
+  const cacheKey = `${color}|${foreground ?? ''}|${background}`
+  const cached = contrastCache.get(cacheKey)
+  if (cached !== undefined) return cached
   const tokenColor = parseHexColor(color)
   const backgroundColor = parseHexColor(background)
   if (!tokenColor || !backgroundColor) return color
@@ -227,7 +253,10 @@ function ensureSyntaxTokenContrast(
   // background and add a subtle diff tint, so dark themes need more margin
   // above the WCAG AA text threshold.
   const minimumRatio = colorLuminance(backgroundColor) < 0.18 ? 6.5 : 5
-  if (colorContrast(tokenColor, backgroundColor) >= minimumRatio) return color
+  if (colorContrast(tokenColor, backgroundColor) >= minimumRatio) {
+    contrastCache.set(cacheKey, color)
+    return color
+  }
 
   const fallback =
     (foreground && parseHexColor(foreground)) ?? pickHigherContrastMonochrome(backgroundColor)
@@ -241,7 +270,9 @@ function ensureSyntaxTokenContrast(
       low = amount
     }
   }
-  return colorToHex(mixColor(tokenColor, fallback, high))
+  const adjusted = colorToHex(mixColor(tokenColor, fallback, high))
+  contrastCache.set(cacheKey, adjusted)
+  return adjusted
 }
 
 type RgbColor = { red: number; green: number; blue: number }

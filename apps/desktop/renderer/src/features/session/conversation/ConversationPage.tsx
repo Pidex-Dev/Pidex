@@ -33,6 +33,7 @@ import {
   useDesktopSettingsDraftValue,
   useDesktopSettingsField,
 } from '../../settings/UseDesktopSettings.js'
+import { openSettingsDialog } from '../../settings/SettingsDialogStore.js'
 import { WorkspaceHeaderItem } from '../../layout/workspace-header/index.js'
 import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
 import {
@@ -1169,12 +1170,12 @@ export function ConversationPage(): React.ReactNode {
             onCreateOutput={() => onAppendComposerText('请帮我创建文件或站点：')}
             onGitOperation={onGitOperation}
             onAddEnvironmentAction={() =>
-              navigate(
+              openSettingsDialog(
                 `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}&mode=edit`,
               )
             }
             onOpenEnvironmentSettings={() =>
-              navigate(
+              openSettingsDialog(
                 `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}`,
               )
             }
@@ -1336,7 +1337,7 @@ export function ConversationPage(): React.ReactNode {
               />
             </ThreadComposerDock>
           </div>
-          <div className="workflow-page__composer-inner tw:pointer-events-none tw:z-composer tw:[container-type:inline-size] tw:[&_.inline-approval-card]:w-full tw:[&_.inline-approval-card]:max-w-none">
+          <div className="workflow-page__composer-inner tw:pointer-events-none tw:z-composer tw:[&_.inline-approval-card]:w-full tw:[&_.inline-approval-card]:max-w-none">
             <AnimatePresence initial={false}>
               {activePermissionRequest ? (
                 <ComposerFooterPresence
@@ -1476,12 +1477,12 @@ export function ConversationPage(): React.ReactNode {
             threadId={activeSessionId}
             workspacePath={workspacePath}
             onOpenEnvironmentSettings={() => {
-              navigate(
+              openSettingsDialog(
                 `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId)}`,
               )
             }}
             onOpenWorktreeSettings={(projectId) => {
-              navigate(`/settings/worktrees?projectId=${encodeURIComponent(projectId)}`)
+              openSettingsDialog(`/settings/worktrees?projectId=${encodeURIComponent(projectId)}`)
             }}
             onTransferAuxiliaryState={(targetThreadId) => {
               setSidebarSessionPins((current) => {
@@ -1592,10 +1593,11 @@ function ThreadSummaryPresence({
   reducedMotion: boolean
 }): React.ReactNode {
   const isPresent = useIsPresent()
+  // INVARIANT: 悬浮摘要面板宽度与最大高度直接消费 `.conversation-page` 的同源几何变量，保证与 `.workflow-main-scroll-area--with-summary` 的右侧避让区严格同步。
   const baseClassName =
     displayMode === 'overlay'
-      ? 'thread-summary-inline thread-summary-floating tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:rounded-floating tw:p-1'
-      : 'thread-summary-inline tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[16.25rem] tw:min-h-0 tw:flex-col tw:max-h-[calc(100%-32px)] tw:rounded-floating tw:bg-app-raised tw:p-1'
+      ? 'thread-summary-inline thread-summary-floating tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[var(--conversation-summary-panel-width)] tw:min-h-0 tw:flex-col tw:rounded-floating tw:p-1'
+      : 'thread-summary-inline tw:absolute tw:top-4 tw:end-2 tw:z-sticky tw:flex tw:w-[var(--conversation-summary-panel-width)] tw:min-h-0 tw:flex-col tw:max-h-[calc(100%-var(--conversation-summary-panel-top)*2)] tw:rounded-floating tw:bg-app-raised tw:p-1'
 
   return (
     <motion.div

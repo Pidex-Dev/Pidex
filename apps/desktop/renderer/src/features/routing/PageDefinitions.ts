@@ -19,7 +19,7 @@ import type { AppView } from '../../UiTypes.js'
  */
 
 export type SidebarPane =
-  'git' | 'chats' | 'activity' | 'scheduled' | 'plugins' | 'providers' | 'pets' | 'settings'
+  'git' | 'chats' | 'activity' | 'scheduled' | 'plugins' | 'providers' | 'pets'
 
 /** 导航轨目的地键：与 sidebarCustomization.destinationOrder 中的 id 一一对应。 */
 export type SidebarRailDestinationId =
@@ -202,10 +202,10 @@ export const APP_PAGES: readonly AppPage[] = [
   },
   {
     id: 'settings',
-    patterns: ['/settings/:tab', '/settings/environment/:projectId'],
+    patterns: ['/settings', '/settings/:tab', '/settings/environment/:projectId'],
     title: '设置',
     workspace: false,
-    sidebar: { kind: 'pane', pane: 'settings' },
+    sidebar: { kind: 'workspace' },
   },
 ]
 

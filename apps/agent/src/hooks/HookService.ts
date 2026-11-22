@@ -7,7 +7,7 @@ import type { ConfigService } from '../config/ConfigService'
 import { HookRunRepository } from '../storage/repositories/HookRunRepository'
 import type { HookSettingsRepository } from '../storage/repositories/HookSettingsRepository'
 import type { HookDecision, HookDefinition, HookEvent, HookResult } from './HookDefinitions'
-import { discoverHooks, type DiscoveredHookEntry, type PluginHookSource } from './HookDiscovery'
+import { discoverHooks, type PluginHookSource } from './HookDiscovery'
 import {
   hookFileExists,
   inlineHookDefinitions as readInlineHooks,
@@ -46,10 +46,17 @@ export type HookServiceDiscovery = {
   settings?: HookSettingsRepository
   pluginHookSources?: (workspaceRoot?: string) => Promise<readonly PluginHookSource[]>
 }
+type ManagedHookEntry = HookDefinition & {
+  identity?: string
+  contentHash?: string
+  kind?: 'config' | 'plugin'
+  scope?: 'user' | 'project'
+}
 type HookConfiguration = {
   hooks: readonly HookDefinition[]
-  userHooks: readonly HookDefinition[]
-  projectHooks: readonly HookDefinition[]
+  userConfigHooks: readonly ManagedHookEntry[]
+  pluginHooks: readonly ManagedHookEntry[]
+  projectConfigHooks: readonly ManagedHookEntry[]
   workspaceRoot: string | null
   configPath: string | null
   configHash: string | null
@@ -178,6 +185,7 @@ export class HookService {
     pluginHookSources?: readonly PluginHookSource[]
   }) {
     const disabled = this.discovery?.settings?.disabledIdentities() ?? new Set<string>()
+    const trustedHashes = this.discovery?.settings?.trustedHashes()
     const layers = this.config?.snapshotLayers(input.projectRoot) ?? []
     const userLayer = layers.find((layer) => layer.kind === 'user')
     const projectLayer = layers.find((layer) => layer.kind === 'project' && layer.trusted)
@@ -193,23 +201,13 @@ export class HookService {
       ...(input.pluginHookSources ? { pluginHookSources: input.pluginHookSources } : {}),
     })
 
-    const isEnabled = (entry: DiscoveredHookEntry) => !disabled.has(entry.identity)
-    const discoveredUserHooks = [
-      ...discovered.userHooks.filter(isEnabled),
-      ...discovered.pluginHooks.filter((hook) => hook.scope === 'user' && isEnabled(hook)),
-    ]
-    const discoveredProjectHooks = [
-      ...discovered.projectHooks.filter(isEnabled),
-      ...discovered.pluginHooks.filter((hook) => hook.scope === 'project' && isEnabled(hook)),
-    ]
-
     // Preserve compatibility with ConfigService layers whose filePath may sit outside dataRoot (e.g. test fixtures).
-    const seenUserFiles = new Set(discoveredUserHooks.map((hook) => hook.filePath))
+    const seenUserFiles = new Set(discovered.userHooks.map((hook) => hook.filePath))
     const extraUserHooks =
       userLayer && (!userLayer.filePath || !seenUserFiles.has(userLayer.filePath))
         ? readInlineHooks(userLayer.config, userLayer.filePath ?? '用户 config.json')
         : []
-    const seenProjectFiles = new Set(discoveredProjectHooks.map((hook) => hook.filePath))
+    const seenProjectFiles = new Set(discovered.projectHooks.map((hook) => hook.filePath))
     const extraProjectHooks =
       input.includeProjectHooks !== false &&
       projectLayer &&
@@ -217,8 +215,12 @@ export class HookService {
         ? readInlineHooks(projectLayer.config, projectLayer.filePath ?? '项目 config.json')
         : []
 
-    const userHooks: HookDefinition[] = [...discoveredUserHooks, ...extraUserHooks]
-    const projectHooks: HookDefinition[] = [...discoveredProjectHooks, ...extraProjectHooks]
+    const userConfigHooks: ManagedHookEntry[] = [...discovered.userHooks, ...extraUserHooks]
+    const pluginHooks: ManagedHookEntry[] = [...discovered.pluginHooks]
+    const projectConfigHooks: ManagedHookEntry[] = [
+      ...discovered.projectHooks,
+      ...extraProjectHooks,
+    ]
 
     let projectConfigHash = discovered.projectConfigHash
     let projectConfigPath = discovered.projectPrimaryConfigPath
@@ -236,7 +238,19 @@ export class HookService {
       }
     }
 
-    const hooks = Object.freeze([...userHooks, ...projectHooks])
+    const isSnapshotActive = (entry: ManagedHookEntry) => {
+      if (entry.identity && disabled.has(entry.identity)) return false
+      if (entry.kind === 'plugin' && trustedHashes) {
+        return (
+          Boolean(entry.identity && entry.contentHash) &&
+          trustedHashes.get(entry.identity!) === entry.contentHash
+        )
+      }
+      return true
+    }
+    const hooks = Object.freeze(
+      [...userConfigHooks, ...pluginHooks, ...projectConfigHooks].filter(isSnapshotActive),
+    )
     const key = input.projectRoot
       ? `workspace:${realpathSync(input.projectRoot)}`
       : input.userConfigPath && hookFileExists(input.userConfigPath)
@@ -244,8 +258,9 @@ export class HookService {
         : 'default'
     this.configurations.set(key, {
       hooks,
-      userHooks: Object.freeze([...userHooks]),
-      projectHooks: Object.freeze([...projectHooks]),
+      userConfigHooks: Object.freeze(userConfigHooks),
+      pluginHooks: Object.freeze(pluginHooks),
+      projectConfigHooks: Object.freeze(projectConfigHooks),
       workspaceRoot: input.projectRoot ? realpathSync(input.projectRoot) : null,
       configPath: projectConfigPath,
       configHash: projectConfigHash,
@@ -337,6 +352,14 @@ export class HookService {
         }
       }
     }
+    const disabled = this.discovery?.settings?.disabledIdentities() ?? new Set<string>()
+    const trustedHashes = this.discovery?.settings?.trustedHashes()
+    const isEnabled = (hook: ManagedHookEntry) =>
+      !hook.identity || !disabled.has(hook.identity.toLowerCase())
+    const isIndividuallyTrusted = (hook: ManagedHookEntry) => {
+      if (!trustedHashes || !hook.identity || !hook.contentHash) return false
+      return trustedHashes.get(hook.identity.toLowerCase()) === hook.contentHash.toLowerCase()
+    }
     const matchTarget = context.toolName ?? context.matcherValue
     const matches = (hook: HookDefinition) => {
       if (hook.event !== event) return false
@@ -347,9 +370,23 @@ export class HookService {
         .map((part) => part.trim())
         .includes(matchTarget)
     }
-    await execute(configuration.userHooks.filter(matches))
-    const projectHooks = configuration.projectHooks.filter(matches)
+
+    await execute(configuration.userConfigHooks.filter((hook) => isEnabled(hook) && matches(hook)))
+
+    const runnablePluginHooks = configuration.pluginHooks.filter(
+      (hook) => isEnabled(hook) && matches(hook) && (!trustedHashes || isIndividuallyTrusted(hook)),
+    )
+    await execute(runnablePluginHooks)
+
+    const projectHooks = configuration.projectConfigHooks.filter(
+      (hook) => isEnabled(hook) && matches(hook),
+    )
     if (!projectHooks.length) return results
+    const individuallyTrustedProjectHooks = projectHooks.filter(isIndividuallyTrusted)
+    const remainingProjectHooks = projectHooks.filter((hook) => !isIndividuallyTrusted(hook))
+    await execute(individuallyTrustedProjectHooks)
+    if (!remainingProjectHooks.length) return results
+
     if (configuration.workspaceRoot && configuration.configPath && configuration.configHash) {
       const trust = this.db.hookTrustDecision(configuration.workspaceRoot, configuration.configHash)
       if (trust === 'block') return results
@@ -358,7 +395,7 @@ export class HookService {
           cwd: configuration.workspaceRoot,
           configPath: configuration.configPath,
           configHash: configuration.configHash,
-          hooks: configuration.projectHooks.map((hook) => ({
+          hooks: remainingProjectHooks.map((hook) => ({
             id: hook.id,
             event: hook.event,
             command: this.scrub(hook.command).slice(0, 2_000),
@@ -381,7 +418,7 @@ export class HookService {
         )
       }
     }
-    await execute(projectHooks)
+    await execute(remainingProjectHooks)
     return results
   }
 }

@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import * as Menubar from '@radix-ui/react-menubar'
 import type { DesktopEditAction } from '@pidex/shared/desktop-edit-ipc'
 import {
@@ -235,13 +235,26 @@ export function MenuBar({
   const ignoreStaleCloseRef = useRef(false)
   const tabButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const tabsTrackRef = useRef<HTMLDivElement | null>(null)
+  // INVARIANT: Wheel events and active-tab scrollIntoView checks rely on a post-layout ResizeObserver scrollability cache instead of synchronous scrollWidth reads.
+  const tabsTrackScrollableRef = useRef(false)
   const reducedMotion = usePrefersReducedMotion()
   const [activeScrollTabId, setActiveScrollTabId] = useState<string | null>(null)
   const [openMenu, setOpenMenu] = useState<'app' | ''>('')
+  const activeTabId = sessionTabs.find((t) => t.active)?.id ?? null
+
+  useLayoutEffect(() => {
+    const track = tabsTrackRef.current
+    if (!track || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => {
+      tabsTrackScrollableRef.current = track.scrollWidth > track.clientWidth
+    })
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [sessionTabs.length])
 
   const handleTabsWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     const track = event.currentTarget
-    if (track.scrollWidth <= track.clientWidth) return
+    if (!tabsTrackScrollableRef.current) return
     if (Math.abs(event.deltaY) >= Math.abs(event.deltaX)) {
       track.scrollLeft += event.deltaY
       event.preventDefault()
@@ -249,14 +262,13 @@ export function MenuBar({
   }, [])
 
   useEffect(() => {
-    const activeTab = sessionTabs.find((t) => t.active)
-    if (!activeTab) return
-    tabButtonRefs.current.get(activeTab.id)?.scrollIntoView({
+    if (!activeTabId || !tabsTrackScrollableRef.current) return
+    tabButtonRefs.current.get(activeTabId)?.scrollIntoView({
       block: 'nearest',
       inline: 'nearest',
       behavior: reducedMotion ? 'auto' : 'smooth',
     })
-  }, [reducedMotion, sessionTabs])
+  }, [activeTabId, reducedMotion])
 
   function closeMenu(): void {
     ignoreStaleCloseRef.current = false

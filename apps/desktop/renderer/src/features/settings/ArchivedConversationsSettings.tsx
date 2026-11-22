@@ -122,116 +122,114 @@ export function ArchivedConversationsSettings(): ReactNode {
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
-        <header className="tw:mb-6 tw:flex tw:items-center tw:justify-between tw:gap-4">
-          <h2 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">已归档对话</h2>
-          <Button
-            color="danger"
-            disabled={busy || !sessions.length}
-            onClick={() => setDeleting(sessions)}
-          >
-            全部删除
-          </Button>
-        </header>
-        <div className="tw:mb-6 tw:flex tw:items-center tw:gap-2">
-          <Input
-            ref={searchRef}
-            aria-label="搜索已归档聊天"
-            placeholder="搜索已归档聊天"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className="tw:min-w-0 tw:flex-1"
-          />
-          <Select<ArchivedSort>
-            ariaLabel="排序方式"
-            value={sort}
-            onValueChange={setSort}
-            options={[
-              { value: 'updated', label: '更新时间' },
-              { value: 'created', label: '创建时间' },
-              { value: 'alphabetical', label: '字母顺序' },
-            ]}
-          />
-          <Select
-            ariaLabel="聊天类型"
-            value={type}
-            onValueChange={setType}
-            options={[
-              { value: 'all', label: '全部聊天' },
-              { value: 'local', label: '本地' },
-            ]}
-          />
-          <Select
-            ariaLabel="项目筛选"
-            value={project}
-            options={projectOptions}
-            onValueChange={setProject}
-          />
-        </div>
-        {error ? (
-          <p role="alert" className="tw:type-1 tw:text-app-danger">
-            {error}
-          </p>
-        ) : null}
-        {loading ? (
-          <p role="status">正在加载归档聊天…</p>
-        ) : !groups.length ? (
-          <p className="tw:type-1 tw:text-app-text-soft">
-            {sessions.length ? '没有匹配的聊天。' : '暂无已归档对话。'}
-          </p>
-        ) : (
-          groups.map((group) => (
-            <SettingsSection
-              key={group.id}
-              title={project === 'all' ? group.label : undefined}
-              description={`${group.sessions.length} 个聊天`}
-              actions={
-                <Button color="danger" disabled={busy} onClick={() => setDeleting(group.sessions)}>
-                  删除此组
-                </Button>
-              }
-            >
-              {group.sessions.map((session) => (
-                <article
-                  key={session.id}
-                  className="tw:flex tw:items-center tw:gap-4 tw:py-3 tw:[&+&]:border-t tw:[&+&]:border-app-border-subtle"
-                >
-                  <div className="tw:min-w-0 tw:flex-1">
-                    <h4 className="tw:m-0 tw:truncate tw:type-2 tw:weight-medium tw:text-app-text">
-                      {sessionDisplayTitle(session)}
-                    </h4>
-                    <p className="tw:m-0 tw:type-1 tw:text-app-text-meta">
-                      {new Date(session.lastMessageAt ?? session.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <Button color="danger" disabled={busy} onClick={() => setDeleting([session])}>
-                    删除
-                  </Button>
-                  <Button
-                    color="secondary"
-                    disabled={busy}
-                    onClick={() => void restoreSession(session)}
-                  >
-                    取消归档
-                  </Button>
-                </article>
-              ))}
-            </SettingsSection>
-          ))
-        )}
-        <ConfirmationDialog
-          open={deleting !== null}
-          title="删除归档聊天？"
-          description={`将永久删除 ${deleting?.length ?? 0} 个本地归档聊天。${deleting === sessions ? '全部删除不受搜索和项目筛选限制。' : '仅删除这次选择的聊天。'}`}
-          actionLabel="删除"
-          tone="danger"
-          actionDisabled={busy}
-          onCancel={() => {
-            if (!busy) setDeleting(null)
-          }}
-          onAction={() => void deleteSessions()}
+      <header className="tw:mb-6 tw:flex tw:items-center tw:justify-between tw:gap-4">
+        <h2 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">已归档对话</h2>
+        <Button
+          color="danger"
+          disabled={busy || !sessions.length}
+          onClick={() => setDeleting(sessions)}
+        >
+          全部删除
+        </Button>
+      </header>
+      <div className="tw:mb-6 tw:flex tw:items-center tw:gap-2">
+        <Input
+          ref={searchRef}
+          aria-label="搜索已归档聊天"
+          placeholder="搜索已归档聊天"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          className="tw:min-w-0 tw:flex-1"
+        />
+        <Select<ArchivedSort>
+          ariaLabel="排序方式"
+          value={sort}
+          onValueChange={setSort}
+          options={[
+            { value: 'updated', label: '更新时间' },
+            { value: 'created', label: '创建时间' },
+            { value: 'alphabetical', label: '字母顺序' },
+          ]}
+        />
+        <Select
+          ariaLabel="聊天类型"
+          value={type}
+          onValueChange={setType}
+          options={[
+            { value: 'all', label: '全部聊天' },
+            { value: 'local', label: '本地' },
+          ]}
+        />
+        <Select
+          ariaLabel="项目筛选"
+          value={project}
+          options={projectOptions}
+          onValueChange={setProject}
         />
       </div>
+      {error ? (
+        <p role="alert" className="tw:type-1 tw:text-app-danger">
+          {error}
+        </p>
+      ) : null}
+      {loading ? (
+        <p role="status">正在加载归档聊天…</p>
+      ) : !groups.length ? (
+        <p className="tw:type-1 tw:text-app-text-soft">
+          {sessions.length ? '没有匹配的聊天。' : '暂无已归档对话。'}
+        </p>
+      ) : (
+        groups.map((group) => (
+          <SettingsSection
+            key={group.id}
+            title={project === 'all' ? group.label : undefined}
+            description={`${group.sessions.length} 个聊天`}
+            actions={
+              <Button color="danger" disabled={busy} onClick={() => setDeleting(group.sessions)}>
+                删除此组
+              </Button>
+            }
+          >
+            {group.sessions.map((session) => (
+              <article
+                key={session.id}
+                className="tw:flex tw:items-center tw:gap-4 tw:py-3 tw:[&+&]:border-t tw:[&+&]:border-app-border-subtle"
+              >
+                <div className="tw:min-w-0 tw:flex-1">
+                  <h4 className="tw:m-0 tw:truncate tw:type-2 tw:weight-medium tw:text-app-text">
+                    {sessionDisplayTitle(session)}
+                  </h4>
+                  <p className="tw:m-0 tw:type-1 tw:text-app-text-meta">
+                    {new Date(session.lastMessageAt ?? session.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                <Button color="danger" disabled={busy} onClick={() => setDeleting([session])}>
+                  删除
+                </Button>
+                <Button
+                  color="secondary"
+                  disabled={busy}
+                  onClick={() => void restoreSession(session)}
+                >
+                  取消归档
+                </Button>
+              </article>
+            ))}
+          </SettingsSection>
+        ))
+      )}
+      <ConfirmationDialog
+        open={deleting !== null}
+        title="删除归档聊天？"
+        description={`将永久删除 ${deleting?.length ?? 0} 个本地归档聊天。${deleting === sessions ? '全部删除不受搜索和项目筛选限制。' : '仅删除这次选择的聊天。'}`}
+        actionLabel="删除"
+        tone="danger"
+        actionDisabled={busy}
+        onCancel={() => {
+          if (!busy) setDeleting(null)
+        }}
+        onAction={() => void deleteSessions()}
+      />
     </SettingsContentArea>
   )
 }

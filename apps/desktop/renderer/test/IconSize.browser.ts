@@ -23,6 +23,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_SIZES,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_STROKE_WIDTH_LG,
 } from '../src/components/ui/IconTokens.js'
 import { FileTypeIcon, FolderTypeIcon } from '../src/features/layout/FileTypeIcon.js'
 import { SidebarRow } from '../src/components/ui/SidebarRow.js'
@@ -227,6 +228,7 @@ try {
     <svg id="content-graphic" width="120" height="70" stroke-width="3"><rect width="120" height="70"/></svg>
     <aside class="desktop-sidebar" style="position:relative;width:64px;height:64px"><svg id="brand-graphic" width="64" height="64"><rect width="64" height="64"/></svg></aside>
     <span class="model-center-provider-identity-logo" id="provider-logo" style="display:inline-flex">${renderToString(h(Plus, { 'data-icon-kind': 'artwork', size: 14 }))}</span>
+    <span id="xl-icon" style="display:inline-flex">${renderToString(h(Plus, { 'data-icon-size': 'xl', size: 24 }))}</span>
     <div id="artwork">${renderToString(h(PluginIcon, { name: 'plugin' }))}${renderToString(h(ProviderLogo))}</div>
   </body></html>`)
   const checkIcons = async () => {
@@ -265,17 +267,31 @@ try {
       )
     }
     const strokes = await page.locator('.lucide').evaluateAll((elements) =>
-      elements.map((element) => ({
-        artwork: element.getAttribute('data-icon-kind') === 'artwork',
-        stroke: parseFloat(getComputedStyle(element).strokeWidth),
-      })),
+      elements.map((element) => {
+        const firstShape = element.querySelector(
+          'path, circle, rect, line, polyline, polygon, ellipse',
+        )
+        return {
+          artwork: element.getAttribute('data-icon-kind') === 'artwork',
+          xl: element.getAttribute('data-icon-size') === 'xl',
+          stroke: parseFloat(getComputedStyle(element).strokeWidth),
+          vectorEffect: firstShape ? getComputedStyle(firstShape).vectorEffect : null,
+        }
+      }),
     )
-    for (const { artwork, stroke } of strokes) {
+    for (const { artwork, xl, stroke, vectorEffect } of strokes) {
       assert.equal(
         stroke,
-        artwork ? 2 : APP_ICON_STROKE_WIDTH,
-        'Lucide stroke: artwork retains its original weight',
+        artwork ? 2 : xl ? APP_ICON_STROKE_WIDTH_LG : APP_ICON_STROKE_WIDTH,
+        'Lucide stroke: <24px uses 1.2px, >=24px (xl) uses 1.5px, artwork retains 2',
       )
+      if (!artwork && vectorEffect !== null) {
+        assert.equal(
+          vectorEffect,
+          'non-scaling-stroke',
+          'Non-artwork Lucide shapes enforce non-scaling-stroke',
+        )
+      }
     }
     assert.equal(
       await page
@@ -386,7 +402,7 @@ try {
     )
   }
   console.log(
-    '12/16/18px icons and 1.6 Lucide stroke verified: button variants/overrides/loading, send states, 1em sidebar navigation, menu leading/trailing, file fallback/lazy wrapper and empty state; artwork stroke, brand/content geometry and click target heights retained.',
+    '12/16/18px icons and 1.2px/1.5px non-scaling Lucide stroke verified: button variants/overrides/loading, send states, 1em sidebar navigation, menu leading/trailing, file fallback/lazy wrapper and empty state; artwork stroke, brand/content geometry and click target heights retained.',
   )
 } finally {
   await browser.close()

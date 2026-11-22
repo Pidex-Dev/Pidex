@@ -11,7 +11,7 @@ import { useLocale } from '../i18n/LocaleProvider.js'
 import { cx } from '../../utils/Cx.js'
 
 const SECTION_HEADER_CLASS =
-  'sidebar-section-header tw:grid tw:h-[var(--sidebar-row-height)] tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:grid-cols-[minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-3 tw:pr-2 tw:select-none tw:focus-within:outline-none tw:group'
+  'sidebar-section-header tw:grid tw:h-[var(--sidebar-row-height)] tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:grid-cols-[minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-3 tw:pr-1 tw:select-none tw:focus-within:outline-none tw:group'
 const SECTION_TITLE_CLASS =
   'sidebar-section-title tw:flex tw:min-w-0 tw:items-center tw:type-2 tw:normal-case tw:text-app-text-meta'
 const SECTION_TOGGLE_CLASS =

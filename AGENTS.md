@@ -6,7 +6,7 @@
   - [`apps/agent/AGENTS.md`](apps/agent/AGENTS.md)：Agent 运行时、SQLite 存储、RPC handler、工具与 Harness、能力发现与权限实现
   - [`apps/desktop/electron/AGENTS.md`](apps/desktop/electron/AGENTS.md)：Electron 主进程、preload/IPC 安全、Sidecar 生命周期、Windows 标题栏与打包
   - [`apps/desktop/renderer/AGENTS.md`](apps/desktop/renderer/AGENTS.md)：Renderer 工作区边界、跨进程客户端、本地存储代际、Windows 标题栏与验证
-  - [`apps/desktop/renderer/src/AGENTS.md`](apps/desktop/renderer/src/AGENTS.md)：Renderer 源码目录、React 状态边界、Button 及 CSS 样式契约
+  - [`apps/desktop/renderer/src/AGENTS.md`](apps/desktop/renderer/src/AGENTS.md)：Renderer 源码目录、React 状态边界、Button、父容器布局基准与对齐导线及 CSS 样式契约
   - [`packages/AGENTS.md`](packages/AGENTS.md)：共享包职责、公开导出、Provider 上游约束与跨端契约
 - 下级 `AGENTS.md` 补充对应目录的实现与验证要求；仅在明确声明替代关系时可覆盖根文件中的局部目录约定，且不得弱化本文件的工作区保护、凭据安全、数据兼容、协议唯一性和提交授权规则。
 - 规则分级与用户授权边界：规则中的“禁止 / 严禁 / 不得”按性质分为三层——（1）**安全、凭据、防删库与权限底线**（凭据脱敏、禁止删库或清空 `userData`/`localStorage.clear()` 恢复启动、统一判权链、进程隔离及禁止不受限外部动态代码加载）为绝对红线，任何情况下不得绕过；（2）**架构、协议、数据兼容与设计系统契约**（workspace 划分、依赖方向、RPC v4 与共享契约唯一性、Schema 向前兼容、目录分层及跨进程标题栏/`Button`/CSS 契约）未经明确决策严禁擅自突破，当用户需求与现行契约冲突时必须先指出影响并经用户确认，确认演进后同步更新相关契约与 `AGENTS.md`（已淘汰旧代际如 v3、旧 `codepilotx`、旧 UI epoch 维持不恢复）；（3）**日常工作流与防越界默认约束**（dirty worktree 保护、测试与快照范围、子代理派发、性能与效果取舍、构建/打包命令、变更日志范围与提交时机）旨在防止 Agent 擅自越界，在用户明确指示的范围内可直接按用户要求执行。
@@ -28,7 +28,6 @@
   - `apps/auth-broker/`：OAuth 与认证中继服务。
   - `apps/desktop/electron/`：Electron 主进程、preload、窗口、Agent sidecar、Windows 打包与真实 OS 集成。
   - `apps/desktop/renderer/`：React + Vite 桌面交互层。
-  - `apps/website/`：产品站点与对外静态页面。
   - `packages/`：共享领域契约、RPC 协议、view projection、模型 schema、Provider 适配与 runtime 基础能力。
 - 依赖与调用方向：Agent 业务模块不得依赖 Renderer 或 Electron；共享包不得依赖 Electron、DOM、React、终端渲染库或具体 CLI 参数解析器。系统能力必须沿 `renderer -> typed bridge/Agent client -> Electron/Agent service -> repository` 单向流动。
 - 多客户端共享与定位：

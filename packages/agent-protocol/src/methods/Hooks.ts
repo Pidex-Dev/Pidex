@@ -25,6 +25,7 @@ export const HookEventSchema = Schema.Literals([
 
 export const HookSourceKindSchema = Schema.Literals(['config', 'plugin'])
 export const HookScopeSchema = Schema.Literals(['user', 'project'])
+export const HookTrustStatusSchema = Schema.Literals(['trusted', 'untrusted', 'modified'])
 
 export const HookDiagnosticSchema = Schema.Struct({
   severity: Schema.Literals(['warning', 'error']),
@@ -43,6 +44,8 @@ export const DiscoveredHookSchema = Schema.Struct({
   /** Absolute path to the declaring file, disclosed for user inspection / opening. */
   filePath: NonEmptyStringSchema,
   enabled: Schema.Boolean,
+  contentHash: Schema.optional(Sha256Schema),
+  trustStatus: Schema.optional(HookTrustStatusSchema),
 })
 
 export const HookSourceGroupSchema = Schema.Struct({
@@ -76,6 +79,22 @@ export const HookSetEnabledParamsSchema = Schema.Struct({
 export const HookSetEnabledResultSchema = Schema.Struct({
   identity: Sha256Schema,
   enabled: Schema.Boolean,
+  generation: SequenceSchema,
+  updatedAt: TimestampSchema,
+})
+
+export const HookTrustItemSchema = Schema.Struct({
+  identity: Sha256Schema,
+  contentHash: Sha256Schema,
+})
+
+export const HookTrustParamsSchema = Schema.Struct({
+  hooks: Schema.Array(HookTrustItemSchema).check(Schema.isMinLength(1), Schema.isMaxLength(200)),
+  operationId: NonEmptyStringSchema,
+})
+
+export const HookTrustResultSchema = Schema.Struct({
+  trusted: Schema.Array(HookTrustItemSchema),
   generation: SequenceSchema,
   updatedAt: TimestampSchema,
 })
@@ -133,6 +152,15 @@ export const HookRpcMethods = {
     exactParams: true,
     exactResult: true,
   }),
+  'hook/trust': defineMethod({
+    params: HookTrustParamsSchema,
+    result: HookTrustResultSchema,
+    errors: HookErrors,
+    capability: 'hooks.management.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
   'hook/runs/list': defineMethod({
     params: HookRunsListParamsSchema,
     result: HookRunsListResultSchema,
@@ -147,10 +175,13 @@ export const HookRpcMethods = {
 export type HookEventName = typeof HookEventSchema.Type
 export type HookSourceKind = typeof HookSourceKindSchema.Type
 export type HookScope = typeof HookScopeSchema.Type
+export type HookTrustStatus = typeof HookTrustStatusSchema.Type
 export type DiscoveredHook = typeof DiscoveredHookSchema.Type
 export type HookDiagnostic = typeof HookDiagnosticSchema.Type
 export type HookSourceGroup = typeof HookSourceGroupSchema.Type
 export type HookRunSummary = typeof HookRunSummarySchema.Type
 export type HookListResult = typeof HookListResultSchema.Type
 export type HookSetEnabledResult = typeof HookSetEnabledResultSchema.Type
+export type HookTrustItem = typeof HookTrustItemSchema.Type
+export type HookTrustResult = typeof HookTrustResultSchema.Type
 export type HookRunsListResult = typeof HookRunsListResultSchema.Type

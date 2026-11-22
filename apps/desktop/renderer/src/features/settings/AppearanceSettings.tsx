@@ -124,6 +124,8 @@ function NumberInput({
           if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
+            event.preventDefault()
+            event.stopPropagation()
             setInputValue(String(value))
             event.currentTarget.blur()
           }
@@ -211,6 +213,8 @@ function ColorControl({
           if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
+            event.preventDefault()
+            event.stopPropagation()
             setDraft(normalizedValue)
             event.currentTarget.blur()
           }
@@ -1000,299 +1004,278 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
   }
 
   return (
-    <SettingsContentArea>
-      <div className="settings-content-inner appearance-settings tw:[&>.settings-section>.appearance-shared-fonts]:mt-4 tw:[&>.settings-section>.appearance-theme-editors]:mt-4 tw:[&>.settings-section]:grid tw:[&>.settings-section]:gap-4 tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
-            {t('外观')}
-          </h2>
+    <SettingsContentArea innerClassName="appearance-settings tw:[&>.settings-section>.appearance-shared-fonts]:mt-4 tw:[&>.settings-section>.appearance-theme-editors]:mt-4 tw:[&>.settings-section]:grid tw:[&>.settings-section]:gap-4">
+      <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
+        <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+          {t('外观')}
+        </h2>
+      </div>
+
+      <SettingsSection bare title="视觉样式">
+        <div className="settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:[&>.settings-row]:px-4">
+          <SettingsRow
+            title="模式"
+            control={
+              <div
+                aria-label="外观模式"
+                className="appearance-mode-gallery tw:grid tw:w-[17rem] tw:max-w-full tw:grid-cols-3 tw:gap-3 tw:@max-[760px]:gap-2"
+                role="radiogroup"
+                onKeyDown={(event) => {
+                  const keyOffsets: Partial<Record<string, number>> = {
+                    ArrowLeft: -1,
+                    ArrowUp: -1,
+                    ArrowRight: 1,
+                    ArrowDown: 1,
+                  }
+                  const currentIndex = THEME_MODE_OPTIONS.findIndex(
+                    (option) => option.value === settings.mode,
+                  )
+                  let nextIndex = currentIndex
+                  if (event.key === 'Home') nextIndex = 0
+                  else if (event.key === 'End') {
+                    nextIndex = THEME_MODE_OPTIONS.length - 1
+                  } else if (keyOffsets[event.key]) {
+                    nextIndex =
+                      (currentIndex + (keyOffsets[event.key] ?? 0) + THEME_MODE_OPTIONS.length) %
+                      THEME_MODE_OPTIONS.length
+                  } else {
+                    return
+                  }
+
+                  event.preventDefault()
+                  const nextMode = THEME_MODE_OPTIONS[nextIndex]?.value
+                  if (!nextMode) return
+                  const nextInput = event.currentTarget.querySelector<HTMLInputElement>(
+                    `input[value="${nextMode}"]`,
+                  )
+                  nextInput?.focus()
+                  nextInput?.click()
+                }}
+              >
+                {THEME_MODE_OPTIONS.map((option) => (
+                  <ThemeModeCard
+                    key={option.value}
+                    label={option.label}
+                    mode={option.value}
+                    selected={settings.mode === option.value}
+                    onSelect={() => {
+                      saveThemeSettings((current) => ({
+                        ...current,
+                        mode: option.value,
+                      }))
+                    }}
+                  />
+                ))}
+              </div>
+            }
+          />
+          <SharedFontPreview
+            markerStyle={desktopSettings.draft.values.diffMarkerStyle}
+            settings={settings}
+            variants={visibleVariants}
+          />
         </div>
-
-        <SettingsSection bare title="视觉样式">
-          <div className="settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:[&>.settings-row]:px-4">
-            <SettingsRow
-              title="模式"
-              control={
-                <div
-                  aria-label="外观模式"
-                  className="appearance-mode-gallery tw:grid tw:w-[17rem] tw:max-w-full tw:grid-cols-3 tw:gap-3 tw:@max-[760px]:gap-2"
-                  role="radiogroup"
-                  onKeyDown={(event) => {
-                    const keyOffsets: Partial<Record<string, number>> = {
-                      ArrowLeft: -1,
-                      ArrowUp: -1,
-                      ArrowRight: 1,
-                      ArrowDown: 1,
-                    }
-                    const currentIndex = THEME_MODE_OPTIONS.findIndex(
-                      (option) => option.value === settings.mode,
-                    )
-                    let nextIndex = currentIndex
-                    if (event.key === 'Home') nextIndex = 0
-                    else if (event.key === 'End') {
-                      nextIndex = THEME_MODE_OPTIONS.length - 1
-                    } else if (keyOffsets[event.key]) {
-                      nextIndex =
-                        (currentIndex + (keyOffsets[event.key] ?? 0) + THEME_MODE_OPTIONS.length) %
-                        THEME_MODE_OPTIONS.length
-                    } else {
-                      return
-                    }
-
-                    event.preventDefault()
-                    const nextMode = THEME_MODE_OPTIONS[nextIndex]?.value
-                    if (!nextMode) return
-                    const nextInput = event.currentTarget.querySelector<HTMLInputElement>(
-                      `input[value="${nextMode}"]`,
-                    )
-                    nextInput?.focus()
-                    nextInput?.click()
-                  }}
-                >
-                  {THEME_MODE_OPTIONS.map((option) => (
-                    <ThemeModeCard
-                      key={option.value}
-                      label={option.label}
-                      mode={option.value}
-                      selected={settings.mode === option.value}
-                      onSelect={() => {
-                        saveThemeSettings((current) => ({
-                          ...current,
-                          mode: option.value,
-                        }))
-                      }}
+        <div className="appearance-theme-editors tw:grid tw:gap-5">
+          {visibleVariants.map((variant, index) => (
+            <VariantThemeEditor
+              section="visual"
+              key={variant}
+              settings={settings}
+              variant={variant}
+              extraRows={
+                index === visibleVariants.length - 1 ? (
+                  <>
+                    <SharedFontRow
+                      ariaLabel={t('界面字体')}
+                      face={settings.fonts.uiFace ?? null}
+                      family={settings.fonts.ui}
+                      kind="ui"
+                      placeholder="ui-sans-serif, system-ui, sans-serif"
+                      title="UI 字体"
+                      onCommit={(ui, uiFace) =>
+                        saveThemeSettings((current) =>
+                          applySharedDesktopThemeFonts(current, { ui, uiFace }),
+                        )
+                      }
                     />
-                  ))}
-                </div>
+                    <SharedFontRow
+                      ariaLabel={t('代码字体')}
+                      face={settings.fonts.codeFace ?? null}
+                      family={settings.fonts.code}
+                      kind="code"
+                      placeholder="ui-monospace, SFMono-Regular, Consolas, monospace"
+                      title="代码字体"
+                      onCommit={(code, codeFace) =>
+                        saveThemeSettings((current) =>
+                          applySharedDesktopThemeFonts(current, { code, codeFace }),
+                        )
+                      }
+                    />
+                  </>
+                ) : undefined
+              }
+              onError={reportError}
+              onUpdate={saveThemeSettings}
+            />
+          ))}
+        </div>
+      </SettingsSection>
+
+      <SettingsSection bare>
+        <DisclosureController
+          contentClassName="appearance-advanced-content tw:flex tw:flex-col tw:gap-4"
+          renderTrigger={({ expanded, contentId, toggle }) => (
+            <SettingsSection.Header
+              keepActionsInline
+              title={
+                <button
+                  aria-controls={contentId}
+                  aria-expanded={expanded}
+                  className="appearance-advanced-trigger tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
+                  onClick={toggle}
+                  type="button"
+                >
+                  {t('高级')}
+                  {expanded ? (
+                    <ChevronDown size="var(--inline-icon-size, 1em)" />
+                  ) : (
+                    <ChevronRight size="var(--inline-icon-size, 1em)" />
+                  )}
+                </button>
+              }
+              actions={
+                hasAdvancedChanges || resetting || resetFailed ? (
+                  <Button
+                    color="ghostTertiary"
+                    disabled={resetting || theme.draft.saving || desktopSettings.draft.saving}
+                    loading={resetting}
+                    onClick={() => {
+                      void resetAdvancedSettings()
+                    }}
+                    size="compact"
+                  >
+                    {t('重置高级设置')}
+                  </Button>
+                ) : undefined
               }
             />
-            <SharedFontPreview
-              markerStyle={desktopSettings.draft.values.diffMarkerStyle}
-              settings={settings}
-              variants={visibleVariants}
+          )}
+        >
+          <div className="settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none">
+            <SettingsRow
+              title="界面字号"
+              description="界面字号调整文字；整体缩放同时调整文字、图标与布局。"
+              control={
+                <NumberInput
+                  ariaLabel="界面字号"
+                  max={16}
+                  min={11}
+                  value={settings.fontSizes.ui}
+                  onChange={(ui) =>
+                    saveThemeSettings((current) => ({
+                      ...current,
+                      fontSizes: { ...current.fontSizes, ui },
+                    }))
+                  }
+                />
+              }
+            />
+            <SettingsRow
+              title="代码字号"
+              control={
+                <NumberInput
+                  ariaLabel="代码字号"
+                  max={24}
+                  min={8}
+                  value={settings.fontSizes.code}
+                  onChange={(code) =>
+                    saveThemeSettings((current) => ({
+                      ...current,
+                      fontSizes: { ...current.fontSizes, code },
+                    }))
+                  }
+                />
+              }
             />
           </div>
           <div className="appearance-theme-editors tw:grid tw:gap-5">
-            {visibleVariants.map((variant, index) => (
+            {visibleVariants.map((variant) => (
               <VariantThemeEditor
-                section="visual"
+                section="advanced"
                 key={variant}
+                needsThemeSeeds={false}
                 settings={settings}
                 variant={variant}
-                extraRows={
-                  index === visibleVariants.length - 1 ? (
-                    <>
-                      <SharedFontRow
-                        ariaLabel={t('界面字体')}
-                        face={settings.fonts.uiFace ?? null}
-                        family={settings.fonts.ui}
-                        kind="ui"
-                        placeholder="ui-sans-serif, system-ui, sans-serif"
-                        title="UI 字体"
-                        onCommit={(ui, uiFace) =>
-                          saveThemeSettings((current) =>
-                            applySharedDesktopThemeFonts(current, { ui, uiFace }),
-                          )
-                        }
-                      />
-                      <SharedFontRow
-                        ariaLabel={t('代码字体')}
-                        face={settings.fonts.codeFace ?? null}
-                        family={settings.fonts.code}
-                        kind="code"
-                        placeholder="ui-monospace, SFMono-Regular, Consolas, monospace"
-                        title="代码字体"
-                        onCommit={(code, codeFace) =>
-                          saveThemeSettings((current) =>
-                            applySharedDesktopThemeFonts(current, { code, codeFace }),
-                          )
-                        }
-                      />
-                    </>
-                  ) : undefined
-                }
                 onError={reportError}
                 onUpdate={saveThemeSettings}
               />
             ))}
           </div>
-        </SettingsSection>
-
-        <SettingsSection bare>
-          <DisclosureController
-            contentClassName="appearance-advanced-content tw:flex tw:flex-col tw:gap-4"
-            renderTrigger={({ expanded, contentId, toggle }) => (
-              <SettingsSection.Header
-                keepActionsInline
-                title={
-                  <button
-                    aria-controls={contentId}
-                    aria-expanded={expanded}
-                    className="appearance-advanced-trigger tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
-                    onClick={toggle}
-                    type="button"
-                  >
-                    {t('高级')}
-                    {expanded ? (
-                      <ChevronDown size="var(--inline-icon-size, 1em)" />
-                    ) : (
-                      <ChevronRight size="var(--inline-icon-size, 1em)" />
-                    )}
-                  </button>
-                }
-                actions={
-                  hasAdvancedChanges || resetting || resetFailed ? (
-                    <Button
-                      color="ghostTertiary"
-                      disabled={resetting || theme.draft.saving || desktopSettings.draft.saving}
-                      loading={resetting}
-                      onClick={() => {
-                        void resetAdvancedSettings()
-                      }}
-                      size="compact"
-                    >
-                      {t('重置高级设置')}
-                    </Button>
-                  ) : undefined
-                }
-              />
-            )}
-          >
-            <div className="settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none">
-              <SettingsRow
-                title="界面字号"
-                description="界面字号调整文字；整体缩放同时调整文字、图标与布局。"
-                control={
-                  <NumberInput
-                    ariaLabel="界面字号"
-                    max={16}
-                    min={11}
-                    value={settings.fontSizes.ui}
-                    onChange={(ui) =>
-                      saveThemeSettings((current) => ({
-                        ...current,
-                        fontSizes: { ...current.fontSizes, ui },
-                      }))
-                    }
-                  />
-                }
-              />
-              <SettingsRow
-                autoSave
-                title="界面密度"
-                description="按 90%、100% 或 110% 整体缩放界面间距、圆角与字号。"
-                control={
-                  <SegmentedControl
-                    ariaLabel="界面密度选项"
-                    options={[
-                      { value: 'compact', label: '紧凑 90%' },
-                      { value: 'default', label: '默认 100%' },
-                      { value: 'spacious', label: '宽松 110%' },
-                    ]}
-                    value={settings.uiDensity ?? 'default'}
-                    onChange={(uiDensity) => updateThemeSettings({ uiDensity })}
-                  />
-                }
-              />
-              <SettingsRow
-                title="代码字号"
-                control={
-                  <NumberInput
-                    ariaLabel="代码字号"
-                    max={24}
-                    min={8}
-                    value={settings.fontSizes.code}
-                    onChange={(code) =>
-                      saveThemeSettings((current) => ({
-                        ...current,
-                        fontSizes: { ...current.fontSizes, code },
-                      }))
-                    }
-                  />
-                }
-              />
-            </div>
-            <div className="appearance-theme-editors tw:grid tw:gap-5">
-              {visibleVariants.map((variant) => (
-                <VariantThemeEditor
-                  section="advanced"
-                  key={variant}
-                  needsThemeSeeds={false}
-                  settings={settings}
-                  variant={variant}
-                  onError={reportError}
-                  onUpdate={saveThemeSettings}
+          <div className="settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none">
+            <SettingsRow
+              autoSave
+              title="减少动态效果"
+              description="跟随系统，或始终开启、关闭界面动画"
+              control={
+                <SegmentedControl
+                  ariaLabel="减少动态效果选项"
+                  options={[
+                    { value: 'system', label: '系统' },
+                    { value: 'on', label: '开启' },
+                    { value: 'off', label: '关闭' },
+                  ]}
+                  value={settings.reduceMotion}
+                  onChange={(reduceMotion) => updateThemeSettings({ reduceMotion })}
                 />
-              ))}
-            </div>
-            <div className="settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none">
+              }
+            />
+            <SettingsRow
+              autoSave
+              title="使用指针光标"
+              description="悬停按钮、菜单等交互元素时显示手形指针"
+              control={
+                <ToggleSwitch
+                  ariaLabel="使用指针光标"
+                  checked={settings.pointerCursorEnabled}
+                  onChange={(pointerCursorEnabled) => updateThemeSettings({ pointerCursorEnabled })}
+                />
+              }
+            />
+            <SettingsRow
+              autoSave
+              title="差异标记"
+              description="使用彩色背景，或在更改行显示 + / - 符号"
+              control={
+                <SegmentedControl
+                  ariaLabel="差异标记选项"
+                  options={[
+                    { value: 'color', label: '颜色' },
+                    { value: 'symbol', label: '+/-' },
+                  ]}
+                  value={desktopSettings.draft.values.diffMarkerStyle}
+                  onChange={updateDiffMarkerStyle}
+                />
+              }
+            />
+            {navigator.platform.toLowerCase().includes('mac') ? (
               <SettingsRow
                 autoSave
-                title="减少动态效果"
-                description="跟随系统，或始终开启、关闭界面动画"
-                control={
-                  <SegmentedControl
-                    ariaLabel="减少动态效果选项"
-                    options={[
-                      { value: 'system', label: '系统' },
-                      { value: 'on', label: '开启' },
-                      { value: 'off', label: '关闭' },
-                    ]}
-                    value={settings.reduceMotion}
-                    onChange={(reduceMotion) => updateThemeSettings({ reduceMotion })}
-                  />
-                }
-              />
-              <SettingsRow
-                autoSave
-                title="使用指针光标"
-                description="悬停按钮、菜单等交互元素时显示手形指针"
+                title="字体平滑"
+                description="在 macOS 上优化浅色文字边缘"
                 control={
                   <ToggleSwitch
-                    ariaLabel="使用指针光标"
-                    checked={settings.pointerCursorEnabled}
-                    onChange={(pointerCursorEnabled) =>
-                      updateThemeSettings({ pointerCursorEnabled })
+                    ariaLabel="字体平滑"
+                    checked={settings.fontSmoothingEnabled}
+                    onChange={(fontSmoothingEnabled) =>
+                      updateThemeSettings({ fontSmoothingEnabled })
                     }
                   />
                 }
               />
-              <SettingsRow
-                autoSave
-                title="差异标记"
-                description="使用彩色背景，或在更改行显示 + / - 符号"
-                control={
-                  <SegmentedControl
-                    ariaLabel="差异标记选项"
-                    options={[
-                      { value: 'color', label: '颜色' },
-                      { value: 'symbol', label: '+/-' },
-                    ]}
-                    value={desktopSettings.draft.values.diffMarkerStyle}
-                    onChange={updateDiffMarkerStyle}
-                  />
-                }
-              />
-              {navigator.platform.toLowerCase().includes('mac') ? (
-                <SettingsRow
-                  autoSave
-                  title="字体平滑"
-                  description="在 macOS 上优化浅色文字边缘"
-                  control={
-                    <ToggleSwitch
-                      ariaLabel="字体平滑"
-                      checked={settings.fontSmoothingEnabled}
-                      onChange={(fontSmoothingEnabled) =>
-                        updateThemeSettings({ fontSmoothingEnabled })
-                      }
-                    />
-                  }
-                />
-              ) : null}
-            </div>
-          </DisclosureController>
-        </SettingsSection>
-      </div>
+            ) : null}
+          </div>
+        </DisclosureController>
+      </SettingsSection>
     </SettingsContentArea>
   )
 }
