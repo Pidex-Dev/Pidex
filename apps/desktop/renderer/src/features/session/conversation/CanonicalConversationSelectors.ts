@@ -1,5 +1,10 @@
 import type { CanonicalThreadState } from '@pidex/session-view'
-import type { Item, Turn } from '@pidex/shared/thread'
+import {
+  isSubagentNotificationInput,
+  isUserAuthoredInput,
+  type Item,
+  type Turn,
+} from '@pidex/shared/thread'
 
 import type {
   DesktopContextUsage,
@@ -56,7 +61,7 @@ export function selectCanonicalLatestTurn(state: CanonicalThreadState | null): T
   const latestTurn = [...state.turnOrder]
     .reverse()
     .map((id) => state.turnsById.get(id))
-    .find((turn) => turn && !queueTurnIds.has(turn.id))
+    .find((turn) => turn && turn.status !== 'queued' && !queueTurnIds.has(turn.id))
   return latestTurn ?? null
 }
 
@@ -145,7 +150,7 @@ export function selectCanonicalConversationAuxiliaryState(
   const items = [...state.itemsById.values()].sort(compareCreatedAt)
   return {
     hasConversationMessages:
-      inputs.length > 0 ||
+      inputs.some(isUserAuthoredInput) ||
       items.some((item) => item.type === 'text' && item.text.trim().length > 0),
     pendingPermissions: selectPendingPermissions(state),
     contextUsage: contextStateUsage(state.context, latestItemContextUsage(items)),
@@ -153,7 +158,7 @@ export function selectCanonicalConversationAuxiliaryState(
     queuePauseReason: state.queue.pauseReason,
     sessionStatus: selectCanonicalSessionStatus(state),
     sourceLinks: extractCanonicalSourceLinks(items),
-    fallbackTitle: fallbackTitleFromInput(inputs[0]?.content),
+    fallbackTitle: fallbackTitleFromInput(inputs.find(isUserAuthoredInput)?.content),
   }
 }
 
@@ -173,7 +178,7 @@ function selectQueuedFollowUps(state: CanonicalThreadState): DesktopQueuedFollow
   }
   return orderedInputIds.flatMap((inputId) => {
     const input = state.inputsById.get(inputId)
-    if (!input || input.state !== 'queued') return []
+    if (!input || input.state !== 'queued' || isSubagentNotificationInput(input)) return []
     const turn = input.turnId ? state.turnsById.get(input.turnId) : undefined
     if (turn && turn.status !== 'queued') return []
     return [agentQueuedInputToDesktop(input)]
