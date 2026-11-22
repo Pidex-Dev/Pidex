@@ -31,6 +31,11 @@ export function createAgentHooksApi({
         ...input,
         operationId: nextOperationId(),
       }),
+    trustHooks: (input) =>
+      rpc.call('hook/trust', {
+        ...input,
+        operationId: nextOperationId(),
+      }),
     requireHookManagement: () => requireAgentCapability('hooks.management.v1'),
   }
 }

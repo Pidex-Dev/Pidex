@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import {
+  AlertCircle,
   AlertTriangle,
   ChevronDown,
   ChevronRight,
@@ -10,6 +11,7 @@ import {
   FishingHook,
   RefreshCw,
   Settings,
+  ShieldCheck,
   X,
 } from 'lucide-react'
 import type { DiscoveredHook, HookSourceGroup } from '@pidex/agent-protocol'
@@ -26,7 +28,11 @@ import {
   groupHooksByEvent,
   hookCountLabel,
   hookErrorMessage,
+  hookTrustReason,
+  isHookPendingReview,
   isWorkspaceScopeError,
+  pendingHookCountLabel,
+  pendingReviewHooks,
   splitHookGroups,
 } from './HookSettingsModel.js'
 
@@ -91,7 +97,7 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
   }, [loadGroups])
 
   const handleToggleHook = async (hook: DiscoveredHook, enabled: boolean) => {
-    if (busyIdentities.has(hook.identity)) return
+    if (isHookPendingReview(hook) || busyIdentities.has(hook.identity)) return
     setActionError('')
     setBusyIdentities((current) => new Set(current).add(hook.identity))
     setGroups(
@@ -128,6 +134,53 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
     }
   }
 
+  const handleTrustHooks = async (hooksToTrust: readonly DiscoveredHook[]) => {
+    const targets = hooksToTrust.filter(
+      (hook): hook is DiscoveredHook & { contentHash: string } =>
+        Boolean(hook.contentHash) && !busyIdentities.has(hook.identity),
+    )
+    if (targets.length === 0) return
+
+    const targetIds = new Set(targets.map((hook) => hook.identity))
+    setActionError('')
+    setBusyIdentities((current) => {
+      const next = new Set(current)
+      for (const id of targetIds) next.add(id)
+      return next
+    })
+    try {
+      await desktopClient.trustHooks({
+        hooks: targets.map((hook) => ({
+          identity: hook.identity,
+          contentHash: hook.contentHash,
+        })),
+      })
+      if (!mounted.current) return
+      setGroups(
+        (current) =>
+          current?.map((group) => ({
+            ...group,
+            hooks: group.hooks.map((item) =>
+              targetIds.has(item.identity)
+                ? { ...item, trustStatus: 'trusted', enabled: true }
+                : item,
+            ),
+          })) ?? null,
+      )
+    } catch (error) {
+      if (!mounted.current) return
+      setActionError(hookErrorMessage(error, '信任 Hook 失败。'))
+    } finally {
+      if (mounted.current) {
+        setBusyIdentities((current) => {
+          const next = new Set(current)
+          for (const id of targetIds) next.delete(id)
+          return next
+        })
+      }
+    }
+  }
+
   const toggleExpandHook = (identity: string) => {
     setExpandedHooks((current) => {
       const next = new Set(current)
@@ -140,17 +193,17 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
   if (!supported) {
     return (
       <SettingsContentArea innerClassName="tw:grid tw:gap-5">
-          <header className="tw:grid tw:gap-2">
-            <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">钩子</h1>
-            <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
-              当前 Agent 运行时未声明 hooks.management.v1，无法在桌面端管理 Hook。
-            </p>
-          </header>
-          <SettingsRow
-            title="Hook 管理不可用"
-            description="请升级 Agent 运行时，或检查配置目录下的钩子文件。"
-            control={<span className="settings-row-status">不支持的运行时</span>}
-          />
+        <header className="tw:grid tw:gap-2">
+          <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">钩子</h1>
+          <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
+            当前 Agent 运行时未声明 hooks.management.v1，无法在桌面端管理 Hook。
+          </p>
+        </header>
+        <SettingsRow
+          title="Hook 管理不可用"
+          description="请升级 Agent 运行时，或检查配置目录下的钩子文件。"
+          control={<span className="settings-row-status">不支持的运行时</span>}
+        />
       </SettingsContentArea>
     )
   }
@@ -194,107 +247,108 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
 
   return (
     <SettingsContentArea innerClassName="tw:grid tw:gap-5">
-        <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
-          <div className="tw:grid tw:gap-1">
-            <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">钩子</h1>
-            <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
-              通过配置和已启用的插件管理生命周期钩子。
-            </p>
+      <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
+        <div className="tw:grid tw:gap-1">
+          <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">钩子</h1>
+          <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
+            通过配置和已启用的插件管理生命周期钩子。
+          </p>
+        </div>
+        <Button
+          isIconOnly
+          color="ghostSecondary"
+          size="toolbar"
+          type="button"
+          disabled={loading}
+          title="刷新"
+          aria-label="刷新"
+          onClick={() => void loadGroups()}
+        >
+          <RefreshCw
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+            className={`tw:size-icon-md ${loading ? 'tw:animate-spin' : undefined}`}
+          />
+        </Button>
+      </header>
+
+      {loadError ? (
+        <div
+          className="tw:rounded-container tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:type-1 tw:text-app-danger"
+          role="alert"
+        >
+          {loadError}
+        </div>
+      ) : null}
+
+      {scopedNotice ? (
+        <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3 tw:type-1 tw:text-app-text-soft">
+          {scopedNotice}
+        </div>
+      ) : null}
+
+      {!groups && !loadError ? (
+        <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-4 tw:type-1 tw:text-app-text-soft">
+          正在扫描配置目录与已启用插件中的钩子…
+        </div>
+      ) : null}
+
+      {groups && groups.length === 0 && !loadError ? (
+        <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-5 tw:text-center tw:type-1 tw:text-app-text-soft">
+          暂未在配置目录（.pidex / .claude / .codex / .agents）或已启用插件中发现钩子。
+        </div>
+      ) : null}
+
+      {configGroups.length > 0 ? (
+        <section className="tw:grid tw:gap-2" aria-label="来自配置">
+          <h2 className="tw:m-0 tw:type-1 tw:text-app-text-soft">来自配置</h2>
+          <div className="tw:grid tw:gap-2">
+            {configGroups.map((group) => (
+              <HookGroupCard
+                key={group.id}
+                group={group}
+                icon={renderGroupIcon(group)}
+                onOpen={() => {
+                  setActionError('')
+                  setSelectedGroupId(group.id)
+                }}
+              />
+            ))}
           </div>
-          <Button
-            isIconOnly
-            color="ghostSecondary"
-            size="toolbar"
-            type="button"
-            disabled={loading}
-            title="刷新"
-            aria-label="刷新"
-            onClick={() => void loadGroups()}
-          >
-            <RefreshCw
-              aria-hidden="true"
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-              className={`tw:size-icon-md ${loading ? 'tw:animate-spin' : undefined}`}
-            />
-          </Button>
-        </header>
+        </section>
+      ) : null}
 
-        {loadError ? (
-          <div
-            className="tw:rounded-container tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:type-1 tw:text-app-danger"
-            role="alert"
-          >
-            {loadError}
+      {pluginGroups.length > 0 ? (
+        <section className="tw:grid tw:gap-2" aria-label="来自插件">
+          <h2 className="tw:m-0 tw:type-1 tw:text-app-text-soft">来自插件</h2>
+          <div className="tw:grid tw:gap-2">
+            {pluginGroups.map((group) => (
+              <HookGroupCard
+                key={group.id}
+                group={group}
+                icon={renderGroupIcon(group)}
+                onOpen={() => {
+                  setActionError('')
+                  setSelectedGroupId(group.id)
+                }}
+              />
+            ))}
           </div>
-        ) : null}
+        </section>
+      ) : null}
 
-        {scopedNotice ? (
-          <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3 tw:type-1 tw:text-app-text-soft">
-            {scopedNotice}
-          </div>
-        ) : null}
-
-        {!groups && !loadError ? (
-          <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-4 tw:type-1 tw:text-app-text-soft">
-            正在扫描配置目录与已启用插件中的钩子…
-          </div>
-        ) : null}
-
-        {groups && groups.length === 0 && !loadError ? (
-          <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-5 tw:text-center tw:type-1 tw:text-app-text-soft">
-            暂未在配置目录（.pidex / .claude / .codex / .agents）或已启用插件中发现钩子。
-          </div>
-        ) : null}
-
-        {configGroups.length > 0 ? (
-          <section className="tw:grid tw:gap-2" aria-label="来自配置">
-            <h2 className="tw:m-0 tw:type-1 tw:text-app-text-soft">来自配置</h2>
-            <div className="tw:grid tw:gap-2">
-              {configGroups.map((group) => (
-                <HookGroupCard
-                  key={group.id}
-                  group={group}
-                  icon={renderGroupIcon(group)}
-                  onOpen={() => {
-                    setActionError('')
-                    setSelectedGroupId(group.id)
-                  }}
-                />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {pluginGroups.length > 0 ? (
-          <section className="tw:grid tw:gap-2" aria-label="来自插件">
-            <h2 className="tw:m-0 tw:type-1 tw:text-app-text-soft">来自插件</h2>
-            <div className="tw:grid tw:gap-2">
-              {pluginGroups.map((group) => (
-                <HookGroupCard
-                  key={group.id}
-                  group={group}
-                  icon={renderGroupIcon(group)}
-                  onOpen={() => {
-                    setActionError('')
-                    setSelectedGroupId(group.id)
-                  }}
-                />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        <HookGroupDialog
-          group={selectedGroup}
-          icon={selectedGroup ? renderGroupIcon(selectedGroup) : null}
-          actionError={actionError}
-          expandedHooks={expandedHooks}
-          busyIdentities={busyIdentities}
-          onClose={() => setSelectedGroupId(null)}
-          onToggleExpand={toggleExpandHook}
-          onToggleEnabled={(hook, enabled) => void handleToggleHook(hook, enabled)}
-        />
+      <HookGroupDialog
+        group={selectedGroup}
+        icon={selectedGroup ? renderGroupIcon(selectedGroup) : null}
+        actionError={actionError}
+        expandedHooks={expandedHooks}
+        busyIdentities={busyIdentities}
+        onClose={() => setSelectedGroupId(null)}
+        onToggleExpand={toggleExpandHook}
+        onToggleEnabled={(hook, enabled) => void handleToggleHook(hook, enabled)}
+        onTrustHooks={(hooksToTrust) => void handleTrustHooks(hooksToTrust)}
+      />
     </SettingsContentArea>
   )
 }
@@ -308,6 +362,7 @@ function HookGroupCard({
   icon: React.ReactNode
   onOpen: () => void
 }): React.ReactNode {
+  const pendingCount = pendingReviewHooks(group.hooks).length
   return (
     <button
       type="button"
@@ -327,12 +382,25 @@ function HookGroupCard({
           </span>
         </div>
       </div>
-      <ChevronRight
-        aria-hidden="true"
-        size={APP_ICON_SIZE}
-        strokeWidth={APP_ICON_STROKE_WIDTH}
-        className="tw:size-icon-md tw:shrink-0 tw:text-app-text-soft"
-      />
+      <div className="tw:flex tw:shrink-0 tw:items-center tw:gap-2">
+        {pendingCount > 0 ? (
+          <span className="tw:inline-flex tw:items-center tw:gap-1 tw:type-1 tw:text-app-warning">
+            <AlertCircle
+              aria-hidden="true"
+              size={14}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+              className="tw:size-icon-sm tw:shrink-0"
+            />
+            <span>{pendingHookCountLabel(pendingCount)}</span>
+          </span>
+        ) : null}
+        <ChevronRight
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+          className="tw:size-icon-md tw:shrink-0 tw:text-app-text-soft"
+        />
+      </div>
     </button>
   )
 }
@@ -349,6 +417,7 @@ function HookGroupDialog({
   onClose,
   onToggleExpand,
   onToggleEnabled,
+  onTrustHooks,
 }: {
   group: HookSourceGroup | null
   icon: React.ReactNode
@@ -358,8 +427,11 @@ function HookGroupDialog({
   onClose: () => void
   onToggleExpand: (identity: string) => void
   onToggleEnabled: (hook: DiscoveredHook, enabled: boolean) => void
+  onTrustHooks: (hooks: readonly DiscoveredHook[]) => void
 }): React.ReactNode {
   const sections = useMemo(() => (group ? groupHooksByEvent(group.hooks) : []), [group])
+  const pendingHooks = useMemo(() => (group ? pendingReviewHooks(group.hooks) : []), [group])
+  const trustAllBusy = pendingHooks.some((hook) => busyIdentities.has(hook.identity))
 
   return (
     <Dialog.Root open={group !== null} onOpenChange={(open) => !open && onClose()}>
@@ -400,6 +472,34 @@ function HookGroupDialog({
                 </Dialog.Close>
               </div>
 
+              {pendingHooks.length > 0 ? (
+                <div
+                  role="status"
+                  className="tw:mt-4 tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:rounded-container tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:px-4 tw:py-3"
+                >
+                  <div className="tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+                    <AlertCircle
+                      aria-hidden="true"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                      className="tw:size-icon-md tw:shrink-0 tw:text-app-warning"
+                    />
+                    <span className="tw:type-1 tw:text-app-text">
+                      Hook 直接在宿主环境运行，可能存在安全风险
+                    </span>
+                  </div>
+                  <Button
+                    color="outline"
+                    size="sm"
+                    type="button"
+                    disabled={trustAllBusy}
+                    onClick={() => onTrustHooks(pendingHooks)}
+                  >
+                    全部信任
+                  </Button>
+                </div>
+              ) : null}
+
               {actionError ? (
                 <div
                   className="tw:mt-3 tw:rounded-4 tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:type-1 tw:text-app-danger"
@@ -435,32 +535,44 @@ function HookGroupDialog({
                 ) : (
                   sections.map((section) => (
                     <div key={section.event} className="tw:grid tw:min-w-0">
-                      <div className="tw:flex tw:min-w-0 tw:items-start tw:gap-2 tw:px-4 tw:py-3">
-                        <FishingHook
-                          aria-hidden="true"
-                          size={15}
-                          strokeWidth={APP_ICON_STROKE_WIDTH}
-                          className="tw:mt-1 tw:shrink-0 tw:text-app-text-soft"
-                        />
-                        <div className="tw:grid tw:min-w-0 tw:gap-1">
-                          <span className="tw:type-2 tw:weight-medium tw:text-app-text">
-                            {section.title}
-                          </span>
-                          <span className="tw:type-1 tw:text-app-text-soft">
-                            {section.subtitle}
-                          </span>
+                      <div className="tw:flex tw:min-w-0 tw:items-start tw:justify-between tw:gap-2 tw:px-4 tw:py-3">
+                        <div className="tw:flex tw:min-w-0 tw:items-start tw:gap-2">
+                          <FishingHook
+                            aria-hidden="true"
+                            size={15}
+                            strokeWidth={APP_ICON_STROKE_WIDTH}
+                            className="tw:mt-1 tw:shrink-0 tw:text-app-text-soft"
+                          />
+                          <div className="tw:grid tw:min-w-0 tw:gap-1">
+                            <span className="tw:type-2 tw:weight-medium tw:text-app-text">
+                              {section.title}
+                            </span>
+                            <span className="tw:type-1 tw:text-app-text-soft">
+                              {section.subtitle}
+                            </span>
+                          </div>
                         </div>
+                        {section.hasPendingReview ? (
+                          <AlertCircle
+                            aria-label="包含待审核钩子"
+                            size={14}
+                            strokeWidth={APP_ICON_STROKE_WIDTH}
+                            className="tw:mt-1 tw:size-icon-sm tw:shrink-0 tw:text-app-warning"
+                          />
+                        ) : null}
                       </div>
                       <div className="tw:grid tw:min-w-0 tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-4 tw:py-3 tw:pl-7">
                         {section.items.map(({ hook, displayLabel }) => {
                           const expanded = expandedHooks.has(hook.identity)
                           const busy = busyIdentities.has(hook.identity)
+                          const needsReview = isHookPendingReview(hook)
+                          const effectiveEnabled = !needsReview && hook.enabled
                           return (
                             <div key={hook.identity} className="tw:grid tw:min-w-0 tw:gap-2">
                               <div className="tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2">
                                 <span
                                   className={`tw:min-w-0 tw:truncate tw:type-1 ${
-                                    hook.enabled ? 'tw:text-app-text' : 'tw:text-app-text-soft'
+                                    effectiveEnabled ? 'tw:text-app-text' : 'tw:text-app-text-soft'
                                   }`}
                                   title={displayLabel}
                                 >
@@ -511,12 +623,39 @@ function HookGroupDialog({
                                       />
                                     )}
                                   </Button>
-                                  <ToggleSwitch
-                                    ariaLabel={`启用 ${hook.id}`}
-                                    checked={hook.enabled}
-                                    disabled={busy}
-                                    onChange={(checked) => onToggleEnabled(hook, checked)}
-                                  />
+                                  {needsReview ? (
+                                    <Button
+                                      color="outline"
+                                      size="composerSm"
+                                      type="button"
+                                      disabled={busy || !hook.contentHash}
+                                      title={hookTrustReason(hook)}
+                                      onClick={() => onTrustHooks([hook])}
+                                    >
+                                      <ShieldCheck
+                                        className="tw:size-icon-sm"
+                                        aria-hidden="true"
+                                        size={14}
+                                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                                      />
+                                      <span>信任</span>
+                                    </Button>
+                                  ) : null}
+                                  <span
+                                    className="tw:inline-flex"
+                                    title={needsReview ? '请先信任该 Hook 后再启用' : undefined}
+                                  >
+                                    <ToggleSwitch
+                                      ariaLabel={
+                                        needsReview
+                                          ? `需先信任 ${hook.id} 后才能启用`
+                                          : `启用 ${hook.id}`
+                                      }
+                                      checked={effectiveEnabled}
+                                      disabled={busy || needsReview}
+                                      onChange={(checked) => onToggleEnabled(hook, checked)}
+                                    />
+                                  </span>
                                 </div>
                               </div>
                               {expanded ? (

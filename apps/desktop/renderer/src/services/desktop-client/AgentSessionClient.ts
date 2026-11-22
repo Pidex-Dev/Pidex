@@ -2523,6 +2523,7 @@ export function createAgentSessionDesktopClient(
     requireHookManagement: () => requireAgentCapability('hooks.management.v1'),
     listHookGroups: (cwd) => loadAgentHooksApi().then((api) => api.listHookGroups(cwd)),
     setHookEnabled: (input) => loadAgentHooksApi().then((api) => api.setHookEnabled(input)),
+    trustHooks: (input) => loadAgentHooksApi().then((api) => api.trustHooks(input)),
     supportsDecisionEngine: () => agentCapabilities.has('decision.engine.v1'),
     getDecisionConfig: (cwd) => loadAgentDecisionApi().then((api) => api.getDecisionConfig(cwd)),
     updateDecisionConfig: (input) =>

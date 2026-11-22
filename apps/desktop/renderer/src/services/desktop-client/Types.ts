@@ -460,6 +460,7 @@ export type DesktopHooksApi = {
   setHookEnabled(
     input: Omit<RpcParams<'hook/setEnabled'>, 'operationId'>,
   ): Promise<RpcResult<'hook/setEnabled'>>
+  trustHooks(input: Omit<RpcParams<'hook/trust'>, 'operationId'>): Promise<RpcResult<'hook/trust'>>
   requireHookManagement(): void
 }
 
