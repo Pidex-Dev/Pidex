@@ -7,6 +7,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- [agent/desktop] 修复后台子代理通知误入输入框排队栏与时间线用户消息气泡的问题
+
 ## 0.2.0-beta.9 — 2026-11-22
 
 ### Added
