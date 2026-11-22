@@ -4,7 +4,6 @@ import {
   useDesktopSettingsDraftDirty,
   useDesktopSettingsDraftSaving,
   useDesktopSettingsDraftValue,
-  useDesktopSettingsField,
 } from './UseDesktopSettings.js'
 import {
   permissionConfigForSelection,
@@ -16,7 +15,6 @@ import { SettingsDropdown } from './SettingsDropdown.js'
 import { createSettingsTargetId } from './SettingsRegistry.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
-import { SpecializedModelSelect } from './SpecializedModelSelect.js'
 import { FullAccessConfirmationDialog } from '../session/approvals/FullAccessConfirmationDialog.js'
 import { ApprovalRulesPanel } from '../session/approvals/ApprovalManagement.js'
 
@@ -24,15 +22,13 @@ type PermissionsSettingsProps = {
   workspacePath?: string | null
 }
 
-/** Consolidated settings page for permission presets, shell safety, security model and approval rules. */
+/** Consolidated settings page for permission presets, shell safety and approval rules. */
 export function PermissionsSettings({
   workspacePath = null,
 }: PermissionsSettingsProps = {}): React.ReactNode {
-  const mainModel = useDesktopSettingsField((s) => s.model)
   const subscribedDraftActions = useDesktopSettingsDraftActions()
   const subscribedPermissionConfig = useDesktopSettingsDraftValue('permissionConfig')
   const subscribedShellSecurityLevel = useDesktopSettingsDraftValue('shellSecurityLevel')
-  const subscribedSecurityModel = useDesktopSettingsDraftValue('securityModel')
   const subscribedLastActiveWorkspacePath = useDesktopSettingsDraftValue('lastActiveWorkspacePath')
   const subscribedDraftDirty = useDesktopSettingsDraftDirty()
   const subscribedDraftSaving = useDesktopSettingsDraftSaving()
@@ -42,7 +38,6 @@ export function PermissionsSettings({
       values: {
         permissionConfig: subscribedPermissionConfig,
         shellSecurityLevel: subscribedShellSecurityLevel,
-        securityModel: subscribedSecurityModel,
         lastActiveWorkspacePath: subscribedLastActiveWorkspacePath,
       },
       dirty: subscribedDraftDirty,
@@ -52,7 +47,6 @@ export function PermissionsSettings({
       subscribedDraftActions,
       subscribedPermissionConfig,
       subscribedShellSecurityLevel,
-      subscribedSecurityModel,
       subscribedLastActiveWorkspacePath,
       subscribedDraftDirty,
       subscribedDraftSaving,
@@ -81,7 +75,7 @@ export function PermissionsSettings({
               权限
             </h2>
             <p className="settings-page-description tw:m-0 tw:text-app-text-soft tw:type-2">
-              统一管理权限预设、审批规则、Shell 安全级别与安全模型。
+              统一管理权限预设、审批规则与 Shell 安全级别。
             </p>
           </div>
 
@@ -129,7 +123,7 @@ export function PermissionsSettings({
             />
           </SettingsSection>
 
-          <SettingsSection title="Shell 与安全模型">
+          <SettingsSection title="Shell 安全">
             <SettingsRow
               id={createSettingsTargetId('permissions', 'Shell 安全级别')}
               title="Shell 安全级别"
@@ -158,22 +152,6 @@ export function PermissionsSettings({
                   ]}
                   onChange={(value) => {
                     draft.setValue('shellSecurityLevel', value as DesktopShellSecurityLevel)
-                    draft.autoSave()
-                  }}
-                />
-              }
-            />
-            <SettingsRow
-              id={createSettingsTargetId('permissions', '安全模型（实验）')}
-              title="安全模型（实验）"
-              description="用于 Shell 和工具权限自动审核；留空时使用会话主模型。"
-              control={
-                <SpecializedModelSelect
-                  value={draft.values.securityModel}
-                  mainModel={mainModel}
-                  specializedModelKey="securityModel"
-                  onChange={(v) => {
-                    draft.setValue('securityModel', v)
                     draft.autoSave()
                   }}
                 />

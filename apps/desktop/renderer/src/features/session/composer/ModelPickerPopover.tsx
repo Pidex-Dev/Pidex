@@ -201,6 +201,7 @@ export type ModelPickerPopoverProps = {
    * here; callers without this slot keep the original panel layout.
    */
   reasoningControl?: React.ReactNode
+  footerAction?: React.ReactNode
 }
 
 type HubProviderItem = {
@@ -229,6 +230,7 @@ export function ModelPickerPopover({
   side = 'top',
   sideOffset = 4,
   reasoningControl,
+  footerAction,
 }: ModelPickerPopoverProps): React.ReactNode {
   const [activeProviderID, setActiveProviderID] = useState<ModelProviderID>(
     selectedProviderID ?? providerOptions[0]?.providerID ?? 'openai',
@@ -824,6 +826,12 @@ export function ModelPickerPopover({
                       <div className="composer-model-reasoning-slot tw:mt-1.5 tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-1 tw:pt-1.5 tw:type-1 tw:text-app-text-meta">
                         <span>推理思考</span>
                         {reasoningControl}
+                      </div>
+                    ) : null}
+
+                    {footerAction ? (
+                      <div className="tw:mt-1.5 tw:flex tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-1 tw:pt-1.5">
+                        {footerAction}
                       </div>
                     ) : null}
                   </div>

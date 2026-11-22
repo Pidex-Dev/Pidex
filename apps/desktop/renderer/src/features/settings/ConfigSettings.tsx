@@ -1,63 +1,126 @@
-import { useMemo } from 'react'
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useState, useRef } from 'react'
+import { UNSAFE_NavigationContext } from 'react-router-dom'
 import { AlertTriangle, ExternalLink } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
+import { useWindowEvent } from '../../hooks/UseExternalSubscription.js'
+import { useMountEffect } from '../../hooks/UseMountEffect.js'
 import { CONFIG_UPDATED_EVENT, desktopClient } from '../../services/desktop-client/index.js'
 import {
-  useDesktopSettingsField,
   useDesktopSettingsDraftActions,
   useDesktopSettingsDraftValue,
-  useDesktopSettingsDraftDirty,
-  useDesktopSettingsDraftSaving,
 } from './UseDesktopSettings.js'
 import type {
   DesktopConfigReadResult,
   DesktopConfigProfileListResult,
+  DesktopModelProviderSummary,
+  ModelProviderID,
 } from '../../../shared/Types.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
-import { SpecializedModelSelect } from './SpecializedModelSelect.js'
+import { createSettingsTargetId } from './SettingsRegistry.js'
+import {
+  SpecializedModelSelect,
+  loadSpecializedModelProviders,
+  refreshSpecializedProviderInList,
+  type SpecializedModelKey,
+} from './SpecializedModelSelect.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { Button } from '../../components/ui/Button.js'
 
-export function ConfigSettings(): React.ReactNode {
-  const subscribedModel = useDesktopSettingsField((s) => s.model)
-  const settings = useMemo(() => ({ model: subscribedModel }), [subscribedModel])
-  const subscribedDraftActions = useDesktopSettingsDraftActions()
-  const subscribedLastActiveWorkspacePath = useDesktopSettingsDraftValue('lastActiveWorkspacePath')
-  const subscribedGenerationModel = useDesktopSettingsDraftValue('generationModel')
-  const subscribedOrganizationModel = useDesktopSettingsDraftValue('organizationModel')
-  const subscribedCodingModel = useDesktopSettingsDraftValue('codingModel')
-  const subscribedDraftDirty = useDesktopSettingsDraftDirty()
-  const subscribedDraftSaving = useDesktopSettingsDraftSaving()
-  const draft = useMemo(
-    () => ({
-      ...subscribedDraftActions,
-      values: {
-        lastActiveWorkspacePath: subscribedLastActiveWorkspacePath,
-        generationModel: subscribedGenerationModel,
-        organizationModel: subscribedOrganizationModel,
-        codingModel: subscribedCodingModel,
-      },
-      dirty: subscribedDraftDirty,
-      saving: subscribedDraftSaving,
-    }),
-    [
-      subscribedDraftActions,
-      subscribedLastActiveWorkspacePath,
-      subscribedGenerationModel,
-      subscribedOrganizationModel,
-      subscribedCodingModel,
-      subscribedDraftDirty,
-      subscribedDraftSaving,
-    ],
-  )
+const SPECIALIZED_MODEL_ROWS: ReadonlyArray<{
+  key: SpecializedModelKey
+  title: string
+  description: string
+}> = [
+  {
+    key: 'generationModel',
+    title: '生成模型',
+    description: '用于任务建议、会话标题生成与更新、输入预测和 Git 提交信息。',
+  },
+  {
+    key: 'organizationModel',
+    title: '整理模型',
+    description: '用于记忆提取和任务上下文整理。',
+  },
+  {
+    key: 'codingModel',
+    title: '代码模型',
+    description: '用于计划实施和 AI 代码审查。',
+  },
+  {
+    key: 'securityModel',
+    title: '安全模型（实验）',
+    description: '用于 Shell 和工具权限自动审核。',
+  },
+]
+
+type ConfigSettingsProps = {
+  onError?: (message: string) => void
+}
+
+export function ConfigSettings({ onError }: ConfigSettingsProps = {}): React.ReactNode {
+  const navigationContext = useContext(UNSAFE_NavigationContext)
+  const navigator = navigationContext?.navigator
+  const draftActions = useDesktopSettingsDraftActions()
+  const lastActiveWorkspacePath = useDesktopSettingsDraftValue('lastActiveWorkspacePath')
+  const generationModel = useDesktopSettingsDraftValue('generationModel')
+  const organizationModel = useDesktopSettingsDraftValue('organizationModel')
+  const codingModel = useDesktopSettingsDraftValue('codingModel')
+  const securityModel = useDesktopSettingsDraftValue('securityModel')
+  const specializedModelValues: Record<SpecializedModelKey, string> = {
+    generationModel,
+    organizationModel,
+    codingModel,
+    securityModel,
+  }
+
+  const [providers, setProviders] = useState<DesktopModelProviderSummary[]>([])
+  const mountedRef = useRef(true)
   const [promptPreview, setPromptPreview] = useState<string | null>(null)
   const [configRead, setConfigRead] = useState<DesktopConfigReadResult | null>(null)
   const [configLayer, setConfigLayer] = useState<'user' | 'profile' | 'project'>('user')
   const [configProfiles, setConfigProfiles] = useState<DesktopConfigProfileListResult | null>(null)
-  const configCwd = draft.values.lastActiveWorkspacePath || undefined
+  const configCwd = lastActiveWorkspacePath || undefined
+  const reportError = (error: unknown) => {
+    onError?.(error instanceof Error ? error.message : String(error))
+  }
+
+  const reloadProviders = useCallback(async () => {
+    try {
+      const next = await loadSpecializedModelProviders()
+      if (mountedRef.current) setProviders(next)
+    } catch {
+      if (mountedRef.current) setProviders([])
+    }
+  }, [])
+
+  useMountEffect(() => {
+    mountedRef.current = true
+    void reloadProviders()
+    return () => {
+      mountedRef.current = false
+    }
+  })
+
+  useWindowEvent(
+    typeof window === 'undefined' ? null : window,
+    'desktop:model-provider-changed',
+    () => {
+      void reloadProviders()
+    },
+  )
+
+  const handleProviderOpen = useCallback(
+    (providerID: ModelProviderID) => {
+      void refreshSpecializedProviderInList(providers, providerID)
+        .then((next) => {
+          if (mountedRef.current && next) setProviders(next)
+        })
+        .catch(() => {})
+    },
+    [providers],
+  )
 
   const readConfigState = async () => {
     const read = await desktopClient.readConfig({
@@ -110,20 +173,50 @@ export function ConfigSettings(): React.ReactNode {
   return (
     <>
       <SettingsContentArea className="">
-        <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+        <div
+          className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]"
+          id={createSettingsTargetId('config')}
+        >
           <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
             <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
               配置
             </h2>
             <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
-              配置审批策略和命令执行范围。
+              管理专用模型、配置 Profile、配置文件与提示词诊断。
             </p>
           </div>
 
+          <SettingsSection
+            title="专用模型"
+            description="按用途为辅助能力指定专用模型；未指定时默认跟随当前会话模型。"
+          >
+            {SPECIALIZED_MODEL_ROWS.map((item) => (
+              <SettingsRow
+                key={item.key}
+                id={createSettingsTargetId('config', item.title)}
+                title={item.title}
+                description={item.description}
+                control={
+                  <SpecializedModelSelect
+                    value={specializedModelValues[item.key]}
+                    specializedModelKey={item.key}
+                    providers={providers}
+                    onProviderOpen={handleProviderOpen}
+                    onOpenModelSettings={navigator ? () => navigator.push('/providers') : undefined}
+                    onChange={(nextValue) => {
+                      draftActions.setValue(item.key, nextValue)
+                      draftActions.autoSave()
+                    }}
+                  />
+                }
+              />
+            ))}
+          </SettingsSection>
+
           <SettingsSection>
             <SettingsSection.Header
-              title="智能体默认设置"
-              description="选择配置 Profile、配置层并打开对应的配置文件；权限设置已移至「权限」页。"
+              title="配置文件与 Profile"
+              description="选择配置 Profile、配置层并打开对应的配置文件。"
             />
             <div className="config-settings-source-toolbar tw:mb-3 tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-3 tw:max-[600px]:flex-col tw:max-[600px]:items-start">
               <div className="config-settings-source-controls tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:max-[600px]:w-full tw:max-[600px]:flex-wrap">
@@ -145,9 +238,7 @@ export function ConfigSettings(): React.ReactNode {
                     void desktopClient
                       .selectConfigProfile(value || null)
                       .then(() => reloadConfig())
-                      .catch((error) =>
-                        window.alert(error instanceof Error ? error.message : String(error)),
-                      )
+                      .catch(reportError)
                   }}
                 />
                 <SettingsDropdown
@@ -199,7 +290,7 @@ export function ConfigSettings(): React.ReactNode {
               <SettingsSection.Content>
                 <SettingsRow
                   title="Profile 等待重启"
-                  description="关闭所有 Pidex 桌面端和 CLI/TUI 后重新打开，新的 Profile 才会应用；当前任务不会被切换。"
+                  description="关闭并重新打开 Pidex 后，新的 Profile 才会生效；当前进行中的任务不会被切换。"
                   control={<span className="settings-row-status">待重启</span>}
                 />
               </SettingsSection.Content>
@@ -234,7 +325,7 @@ export function ConfigSettings(): React.ReactNode {
                         const preview = await desktopClient.getSessionPromptPreview(sessionId)
                         setPromptPreview(JSON.stringify(preview, null, 2))
                       } catch (error) {
-                        window.alert(error instanceof Error ? error.message : String(error))
+                        reportError(error)
                       }
                     })()
                   }
@@ -254,57 +345,6 @@ export function ConfigSettings(): React.ReactNode {
                 </pre>
               </div>
             ) : null}
-          </SettingsSection>
-
-          <SettingsSection
-            title="专用模型"
-            description="按用途为辅助能力选择模型；留空时使用上面的会话主模型。"
-          >
-            <SettingsRow
-              title="生成模型"
-              description="用于任务建议和会话标题生成与更新。"
-              control={
-                <SpecializedModelSelect
-                  value={draft.values.generationModel}
-                  mainModel={settings.model}
-                  specializedModelKey="generationModel"
-                  onChange={(v) => {
-                    draft.setValue('generationModel', v)
-                    draft.autoSave()
-                  }}
-                />
-              }
-            />
-            <SettingsRow
-              title="整理模型"
-              description="用于记忆提取和任务上下文整理。"
-              control={
-                <SpecializedModelSelect
-                  value={draft.values.organizationModel}
-                  mainModel={settings.model}
-                  specializedModelKey="organizationModel"
-                  onChange={(v) => {
-                    draft.setValue('organizationModel', v)
-                    draft.autoSave()
-                  }}
-                />
-              }
-            />
-            <SettingsRow
-              title="代码模型"
-              description="用于计划实施和 AI 代码审查。"
-              control={
-                <SpecializedModelSelect
-                  value={draft.values.codingModel}
-                  mainModel={settings.model}
-                  specializedModelKey="codingModel"
-                  onChange={(v) => {
-                    draft.setValue('codingModel', v)
-                    draft.autoSave()
-                  }}
-                />
-              }
-            />
           </SettingsSection>
         </div>
       </SettingsContentArea>
