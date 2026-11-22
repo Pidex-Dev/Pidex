@@ -15,6 +15,7 @@ import {
   useShallow,
 } from '../../provider-management/UseProviderManagementStore.js'
 import { useDesktopSettingsField } from '../../settings/UseDesktopSettings.js'
+import { useSettingsDialogOpen } from '../../settings/SettingsDialogStore.js'
 
 export type ModelSetupGateDecision = 'loading' | 'recovery' | 'setup' | 'workbench'
 
@@ -86,6 +87,7 @@ export function RequireConfiguredModel(): React.ReactNode {
   const [setupDialogDismissed, setSetupDialogDismissed] = useState(false)
   const onProvidersRoute =
     location.pathname === '/providers' || location.pathname.startsWith('/providers/')
+  const settingsDialogOpen = useSettingsDialogOpen()
 
   useEffect(() => {
     if (decision !== 'setup' && setupDialogDismissed) {
@@ -146,7 +148,7 @@ export function RequireConfiguredModel(): React.ReactNode {
   return (
     <>
       <Outlet />
-      {decision === 'setup' && !onProvidersRoute && !setupDialogDismissed ? (
+      {decision === 'setup' && !onProvidersRoute && !settingsDialogOpen && !setupDialogDismissed ? (
         <ModelSetupGuideDialog
           open
           onDismiss={handleDismissGuide}
