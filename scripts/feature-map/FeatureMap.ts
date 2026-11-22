@@ -488,7 +488,7 @@ export const FEATURE_MAP: readonly FeatureEntry[] = [
       'decision/markOutcome',
       'release-notes/list',
     ],
-    routes: ['settings/:tab'],
+    routes: ['settings', 'settings/:tab'],
     scenarios: [
       {
         id: 'config-memory-storage-read',
@@ -711,6 +711,7 @@ export const FEATURE_MAP: readonly FeatureEntry[] = [
       'mcp/oauth/logout',
       'hook/list',
       'hook/setEnabled',
+      'hook/trust',
       'hook/runs/list',
       'tooling/list',
       'tooling/refresh',
