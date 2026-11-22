@@ -9,7 +9,7 @@ import {
   Activity,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import type { UsageSourceDescriptor } from '@pidex/agent-protocol'
 import type {
   DesktopApiKeyHealthStatus,
@@ -188,7 +188,7 @@ export function ProviderConnectionSection({
   const customConfig = isCustom && provider.config?.kind === 'custom' ? provider.config : null
 
   const oauthAvailable = provider.authMethods?.includes('oauth') ?? group?.oauthAvailable ?? false
-  const timeZone = useMemo(localTimeZone, [])
+  const timeZone = useMemo(() => localTimeZone(), [])
   const currentProviderState = useProviderManagementStore(
     (state) => state.configuration.currentProviderState,
   )
@@ -250,8 +250,9 @@ export function ProviderConnectionSection({
     onDraftChange?.(dirty)
     return () => onDraftChange?.(false)
   }, [dirty, onDraftChange])
+  const registerBeforeChange = panel?.registerBeforeChange
   useEffect(() => {
-    if (!panel || (section !== 'credentials' && section !== 'request')) return
+    if (!registerBeforeChange || (section !== 'credentials' && section !== 'request')) return
     const beforeChange = async () => {
       setGuardRequested(true)
       try {
@@ -260,13 +261,10 @@ export function ProviderConnectionSection({
         setGuardRequested(false)
       }
     }
-    panel.beforeChange.current = beforeChange
-    return () => {
-      if (panel.beforeChange.current === beforeChange) panel.beforeChange.current = null
-    }
-  }, [panel?.beforeChange, section])
+    return registerBeforeChange(beforeChange)
+  }, [registerBeforeChange, section])
   async function changeKeyEditor(next: DesktopApiKeySummary | 'new' | null) {
-    if (await (panel?.beforeChange.current?.() ?? Promise.resolve(true))) setKeyEditor(next)
+    if (await (panel?.confirmBeforeChange() ?? Promise.resolve(true))) setKeyEditor(next)
   }
 
   const usageResultById = useMemo(() => new Map(Object.entries(usageResults ?? {})), [usageResults])
@@ -286,21 +284,23 @@ export function ProviderConnectionSection({
       (source) => usageResultById.get(source.sourceId)?.checkedAt ?? 0,
     ),
   )
-  const connectedQueryableSourceIdsRef = useRef<string[]>([])
-  connectedQueryableSourceIdsRef.current = connectedQueryableSourceIds
   const connectedQueryableSourceIdsKey = JSON.stringify(connectedQueryableSourceIds)
+  const readConnectedQueryableSourceIds = useEffectEvent(
+    (): string[] => connectedQueryableSourceIds,
+  )
+  const readCachedPollSourceIds = useEffectEvent((sourceIds: readonly string[]): string[] =>
+    sourceIds.filter((id) =>
+      group?.usageSources.some(
+        (source) => source.sourceId === id && source.queryPolicy === 'cached',
+      ),
+    ),
+  )
   useEffect(() => {
-    const sourceIds = connectedQueryableSourceIdsRef.current
+    const sourceIds = readConnectedQueryableSourceIds()
     if (!section || sourceIds.length === 0) return
     const refresh = (poll = false) => {
       if (document.visibilityState === 'hidden') return
-      const selected = poll
-        ? sourceIds.filter((id) =>
-            group?.usageSources.some(
-              (source) => source.sourceId === id && source.queryPolicy === 'cached',
-            ),
-          )
-        : sourceIds
+      const selected = poll ? readCachedPollSourceIds(sourceIds) : sourceIds
       if (selected.length === 0) return
       void providerManagementStore
         .querySources({ range: 'today', timeZone, sourceIds: selected })

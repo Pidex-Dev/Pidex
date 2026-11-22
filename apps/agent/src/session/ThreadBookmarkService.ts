@@ -1,4 +1,5 @@
 import { Effect } from 'effect'
+import { isUserAuthoredInput, type InputOrigin } from '@pidex/shared/thread'
 import type { EventEnvelope } from '../Domain'
 import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
@@ -41,8 +42,8 @@ export class ThreadBookmarkService {
     if (!row || row.thread_id !== threadId) {
       throw new AgentError('INPUT_NOT_FOUND', '书签目标输入不存在或不属于该会话', 404)
     }
-    if (row.origin === 'goal-continuation') {
-      throw new AgentError('INVALID_REQUEST', '系统续跑输入不支持书签', 400)
+    if (!isUserAuthoredInput({ id: inputId, origin: row.origin as InputOrigin | null })) {
+      throw new AgentError('INVALID_REQUEST', '系统输入不支持书签', 400)
     }
   }
 

@@ -1,16 +1,18 @@
-import type { ThreadContextState } from '@pidex/shared/thread'
-import { matchPermissionPreset, permissionConfigForPreset } from '@pidex/shared/thread'
-import type {
-  ApprovalRequest,
-  Input,
-  Item,
-  PermissionConfig,
-  Project,
-  QuestionItem,
-  ThreadListItem,
-  ThreadSnapshot,
-  ThreadWorkspace,
-  Turn,
+import {
+  isSubagentNotificationInput,
+  matchPermissionPreset,
+  permissionConfigForPreset,
+  type ApprovalRequest,
+  type Input,
+  type Item,
+  type PermissionConfig,
+  type Project,
+  type QuestionItem,
+  type ThreadContextState,
+  type ThreadListItem,
+  type ThreadSnapshot,
+  type ThreadWorkspace,
+  type Turn,
 } from '@pidex/shared/thread'
 import type { AgentNotification } from './AgentRpcClient.js'
 import { collaborationModeFromPlanModeActive } from '../shims/core/agent/SessionContract.js'
@@ -278,7 +280,7 @@ function latestDisplayTurn(turns: ThreadSnapshot['turns']): Turn | null {
 export function agentQueuedFollowUpsToDesktop(snapshot: ThreadSnapshot): DesktopQueuedFollowUp[] {
   const queuedInputs = new Map(
     snapshot.inputs
-      .filter((input) => input.state === 'queued')
+      .filter((input) => input.state === 'queued' && !isSubagentNotificationInput(input))
       .map((input) => [input.id, input] as const),
   )
   const orderedInputIds = snapshot.turns

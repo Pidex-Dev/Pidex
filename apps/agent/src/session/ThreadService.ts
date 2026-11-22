@@ -22,7 +22,7 @@ import { Effect } from 'effect'
 import type { PluginManagementService } from '../plugin/PluginManagementService'
 import { pluginReferenceData } from '../plugin/PluginReferences'
 import { Model } from '@pidex/model-schema'
-import { formatStructuredPlanMarkdown } from '@pidex/shared/thread'
+import { formatStructuredPlanMarkdown, isSubagentNotificationInput } from '@pidex/shared/thread'
 import type { Thread, ThreadSettings } from '@pidex/shared/thread'
 import { summarizeAcceptance } from '../calendar/SchedulePlanService'
 import type { AgentModelCatalog } from '../provider/AgentModelCatalog'
@@ -294,6 +294,7 @@ export class ThreadService {
           taskMode: previous.taskMode,
           permissionConfig: previous.permissionConfig,
           strategy: 'queue',
+          origin: 'subagent-notification',
         },
         inputID,
       )
@@ -1298,7 +1299,10 @@ export class ThreadService {
         return value
       })
       await this.publishCreatedTurn(created)
-      if (!this.sideChat(threadID))
+      if (
+        !this.sideChat(threadID) &&
+        !isSubagentNotificationInput({ id: inputID, origin: input.origin })
+      )
         void this.threadTitles?.generateForFirstMessage(threadID, input.content)
       const shouldStart = !active && !hadQueued && !this.db.queueStateMeta(threadID)?.pauseReason
       if (shouldStart) {
@@ -1712,11 +1716,9 @@ export class ThreadService {
           matcherValue: lifecycleEvent === 'session_resume' ? 'resume' : 'startup',
         },
       )
-      const promptHookResults = await this.hooks.run(
-        'user_prompt_submit',
-        { content },
-        { threadID, turnID },
-      )
+      const promptHookResults = isSubagentNotificationInput({ id: input.id, origin: input.origin })
+        ? []
+        : await this.hooks.run('user_prompt_submit', { content }, { threadID, turnID })
       const promptDenied = promptHookResults.find(({ result }) => result.decision === 'deny')
       if (promptDenied)
         throw new AgentError(

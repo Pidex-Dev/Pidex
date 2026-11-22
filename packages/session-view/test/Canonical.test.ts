@@ -2244,3 +2244,113 @@ test('reconcileLatestThreadPage preserves projected decisions across turn comple
   expect(rewound.decisions.ledgerById.size).toBe(0)
   expect(rewound.decisions.noticesById.size).toBe(0)
 })
+
+test('isolates subagent notifications from user queue and visible user message bubbles', () => {
+  const userTurn = turn('turn-user')
+  const userInput = input(userTurn.sourceInputID, userTurn.id, 1)
+  const notifyTurn = {
+    ...turn('turn-notify'),
+    sourceInputID: 'subagent-notify:turn-user:abc123',
+    status: 'queued' as const,
+    startedAt: null,
+  }
+  const legacyNotifyInput: Input = {
+    ...input(notifyTurn.sourceInputID, notifyTurn.id, 2),
+    content: '<task-notification taskId="task-1" status="completed">done</task-notification>',
+    delivery: 'follow-up',
+    state: 'queued',
+  }
+  const typedNotifyTurn = {
+    ...turn('turn-notify-typed'),
+    sourceInputID: 'internal-wake-1',
+    status: 'queued' as const,
+    startedAt: null,
+  }
+  const typedNotifyInput: Input = {
+    ...input(typedNotifyTurn.sourceInputID, typedNotifyTurn.id, 3),
+    content: '<task-notification taskId="task-2" status="completed">done</task-notification>',
+    delivery: 'follow-up',
+    origin: 'subagent-notification',
+    state: 'queued',
+  }
+  const userQueuedTurn = {
+    ...turn('turn-user-queued'),
+    sourceInputID: 'user-queued-input',
+    status: 'queued' as const,
+    startedAt: null,
+  }
+  const userQueuedInput: Input = {
+    ...input(userQueuedTurn.sourceInputID, userQueuedTurn.id, 4),
+    content: '用户真实排队消息',
+    delivery: 'follow-up',
+    state: 'queued',
+  }
+
+  let state = createCanonicalThreadState(
+    page([
+      { turn: userTurn, inputs: [userInput], messages: [], agents: [], items: [], approvals: [] },
+    ]),
+  )
+  state = applyThreadEnvelopes(state, [
+    durable(11, 'turn/queued', { turn: notifyTurn, input: legacyNotifyInput }),
+    durable(12, 'turn/queued', { turn: typedNotifyTurn, input: typedNotifyInput }),
+    durable(13, 'turn/queued', { turn: userQueuedTurn, input: userQueuedInput }),
+  ])
+
+  expect(state.queue.turnIds).toEqual([userQueuedTurn.id])
+  expect(state.inputsById.has(legacyNotifyInput.id)).toBe(false)
+  expect(state.inputsById.has(typedNotifyInput.id)).toBe(false)
+  expect(selectVisibleTurnEntries(state).map((entry) => entry.id)).toEqual([userTurn.id])
+
+  const startedNotifyTurn = { ...notifyTurn, status: 'running' as const, startedAt: 14 }
+  const assistantReply: Extract<Item, { type: 'text' }> = {
+    id: 'assistant-notify-1',
+    messageID: 'msg-notify-1',
+    turnId: notifyTurn.id,
+    agentId: notifyTurn.rootAgentId,
+    type: 'text',
+    placement: 'result',
+    text: '已汇总子代理结果。',
+    status: 'completed',
+    createdAt: 15,
+  }
+  state = applyThreadEnvelopes(state, [
+    durable(14, 'turn/started', {
+      turn: startedNotifyTurn,
+      input: { ...legacyNotifyInput, state: 'active' },
+    }),
+    durable(15, 'item/completed', { item: assistantReply }),
+    durable(16, 'turn/completed', { turn: { ...startedNotifyTurn, status: 'completed' } }),
+  ])
+
+  const renderEntries = selectRenderTurnEntries(state)
+  expect(renderEntries.map((entry) => entry.id)).toEqual([userTurn.id, notifyTurn.id])
+  const notifyEntry = renderEntries[1]!
+  expect(notifyEntry.userItems).toEqual([])
+  expect(notifyEntry.inlineInputs).toEqual([])
+  expect(notifyEntry.assistantResultItems.map((item) => item.text)).toEqual(['已汇总子代理结果。'])
+
+  const fromSnapshot = pageFromThreadSnapshot({
+    thread,
+    subagents: [],
+    turns: [userTurn, notifyTurn, userQueuedTurn],
+    inputs: [userInput, legacyNotifyInput, userQueuedInput],
+    messages: [],
+    agents: [],
+    items: [],
+    approvals: [],
+    context: null,
+    historyRevision: 0,
+    pendingPlanApproval: null,
+    queue: { version: 1, pauseReason: null },
+  })
+  expect(fromSnapshot.turns.map((bundle) => bundle.turn.id)).toEqual([
+    userTurn.id,
+    userQueuedTurn.id,
+  ])
+  expect(
+    selectVisibleTurnEntries(createCanonicalThreadState(fromSnapshot)).map((entry) => entry.id),
+  ).toEqual([userTurn.id])
+  expect(fromSnapshot.queue?.turns.map((entry) => entry.id)).toEqual([userQueuedTurn.id])
+  expect(fromSnapshot.queue?.inputs.map((entry) => entry.id)).toEqual([userQueuedInput.id])
+})

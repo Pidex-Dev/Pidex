@@ -4,6 +4,8 @@ import {
   decodeApprovalPolicy,
   decodeApprovalsReviewer,
   encodeApprovalPolicy,
+  isSubagentNotificationInput,
+  type InputOrigin,
 } from '@pidex/shared/thread'
 import { AgentError, decodeStoredTaskMode } from '../../Domain'
 import type {
@@ -237,6 +239,9 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
     const agentID = crypto.randomUUID()
     const inputID = ids.inputID ?? crypto.randomUUID()
     const timestamp = now()
+    const subagentNotification = isSubagentNotificationInput({ id: inputID, origin: input.origin })
+    // INVARIANT: SQLite inputs.origin CHECK constraint only permits NULL/'user'/'goal-continuation'; subagent-notification is persisted as NULL and restored via deterministic ID prefix on read.
+    const storedOrigin = input.origin === 'subagent-notification' ? null : (input.origin ?? null)
     return this.transaction(() => {
       if (ids.queueOperation) {
         const state = this.queueStateMeta(threadID)
@@ -261,7 +266,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
                 .get(threadID) as { position: number }
             ).position + 1
           : null
-      new PlanApprovalRepository(this).invalidate(threadID)
+      if (!subagentNotification) new PlanApprovalRepository(this).invalidate(threadID)
       const settingsUpdate = this.syncThreadSettings(threadID, {
         taskMode: input.taskMode,
         permissionConfig: input.permissionConfig,
@@ -317,16 +322,18 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           input.taskMode,
           status === 'queued' ? 'queued' : 'active',
           timestamp,
-          input.origin ?? null,
+          storedOrigin,
           input.skills ? stringify(input.skills) : null,
         )
-      this.appendUserMessage({
-        id: inputID,
-        threadID,
-        turnID,
-        content: input.content,
-        createdAt: timestamp,
-      })
+      if (!subagentNotification) {
+        this.appendUserMessage({
+          id: inputID,
+          threadID,
+          turnID,
+          content: input.content,
+          createdAt: timestamp,
+        })
+      }
       const method = status === 'queued' ? 'turn/queued' : 'turn/started'
       const event = this.insertEvent(threadID, turnID, method, {
         turnId: turnID,
@@ -335,7 +342,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         createdAt: timestamp,
       })
       let queueEvent: EventEnvelope | null = null
-      if (status === 'queued') {
+      if (status === 'queued' && !subagentNotification) {
         this.sqlite
           .query('UPDATE threads SET queue_version = queue_version + 1 WHERE id = ?')
           .run(threadID)
@@ -551,9 +558,11 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       this.sqlite
         .query("UPDATE inputs SET status = 'active' WHERE turn_id = ? AND status = 'queued'")
         .run(turnID)
-      this.sqlite
-        .query('UPDATE threads SET queue_version = queue_version + 1 WHERE id = ?')
-        .run(row.thread_id)
+      if (!isSubagentNotificationInput({ id: input.id, origin: input.origin })) {
+        this.sqlite
+          .query('UPDATE threads SET queue_version = queue_version + 1 WHERE id = ?')
+          .run(row.thread_id)
+      }
       const agent = this.getAgentExecution(row.root_agent_id)!
       this.goalLedger().openInterval({ threadId: row.thread_id, agentId: agent.id })
       const events = [
@@ -1102,7 +1111,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       .query(
         `
         SELECT i.id, i.thread_id, i.turn_id, i.content, i.model_ref, i.sandbox_mode, i.approval_policy,
-          i.approvals_reviewer, i.strategy, i.task_mode, t.queue_position
+          i.approvals_reviewer, i.strategy, i.task_mode, i.origin, t.queue_position
         FROM inputs AS i JOIN turns AS t ON t.id = i.turn_id
         WHERE i.id = ? AND i.status = 'queued' AND t.status = 'queued'
       `,
@@ -1116,10 +1125,16 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           model_ref: string
           strategy: StoredInputDelivery
           task_mode: string
+          origin: string | null
           queue_position: number | null
         } & PermissionColumns)
       | null
-    return row ? { ...row, task_mode: decodeStoredTaskMode(row.task_mode) } : null
+    if (
+      !row ||
+      isSubagentNotificationInput({ id: row.id, origin: row.origin as InputOrigin | null })
+    )
+      return null
+    return { ...row, task_mode: decodeStoredTaskMode(row.task_mode) }
   }
 
   private eventByID(id: number): EventEnvelope | null {
@@ -1325,7 +1340,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
   getTurnInput(turnID: string) {
     const row = this.sqlite
       .query(
-        'SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, skills FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1',
+        'SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, origin, skills FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1',
       )
       .get(turnID) as
       | ({
@@ -1334,10 +1349,19 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           model_ref: string
           strategy: StoredInputDelivery
           task_mode: string
+          origin: string | null
           skills: string | null
         } & PermissionColumns)
       | null
     if (!row) return null
+    const origin: InputOrigin | undefined = isSubagentNotificationInput({
+      id: row.id,
+      origin: row.origin as InputOrigin | null,
+    })
+      ? 'subagent-notification'
+      : row.origin
+        ? (row.origin as InputOrigin)
+        : undefined
     return {
       id: row.id,
       content: row.content,
@@ -1345,6 +1369,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       permissionConfig: permissionConfigFromRow(row),
       strategy: row.strategy,
       taskMode: decodeStoredTaskMode(row.task_mode),
+      ...(origin ? { origin } : {}),
       ...(row.skills ? { skills: parse(row.skills) } : {}),
     } as SubmitMessage & { id: string }
   }

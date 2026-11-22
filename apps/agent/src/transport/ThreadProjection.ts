@@ -10,31 +10,9 @@ import {
   ThreadEditRepository,
 } from '../storage/repositories/ThreadEditRepository'
 import { safeTurnError } from '@pidex/shared/errors'
-import { SubagentRoleSchema } from '@pidex/shared/thread'
-import { AgentError, decodeStoredTaskMode } from '../Domain'
-import type {
-  ApprovalRequest,
-  AgentExecution as WireAgentExecution,
-  Attachment,
-  ContextUsageBreakdownEntry,
-  LocalContextReference,
-  Input,
-  Item,
-  Message,
-  PermissionConfig,
-  SubagentProjection,
-  Thread,
-  ThreadExecutionEnvironment,
-  ThreadListItem,
-  ThreadSnapshot,
-  PlanApproval,
-  ThreadTurnBundle,
-  Turn,
-} from '@pidex/shared/thread'
-import { realpathSync } from 'node:fs'
-import { resolve } from 'node:path'
 import {
   ContextUsageBreakdownSourceSchema,
+  isSubagentNotificationInput,
   readMessagePhase,
   decodePermissionConfig,
   decodeStructuredPlan,
@@ -43,8 +21,30 @@ import {
   InteractionQuestionAnswerSchema,
   RiskCategorySchema,
   ShellReviewSchema,
+  SubagentRoleSchema,
   WorktreeStatusSchema,
+  type ApprovalRequest,
+  type AgentExecution as WireAgentExecution,
+  type Attachment,
+  type ContextUsageBreakdownEntry,
+  type LocalContextReference,
+  type Input,
+  type InputOrigin,
+  type Item,
+  type Message,
+  type PermissionConfig,
+  type SubagentProjection,
+  type Thread,
+  type ThreadExecutionEnvironment,
+  type ThreadListItem,
+  type ThreadSnapshot,
+  type PlanApproval,
+  type ThreadTurnBundle,
+  type Turn,
 } from '@pidex/shared/thread'
+import { AgentError, decodeStoredTaskMode } from '../Domain'
+import { realpathSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { Schema } from 'effect'
 import type { AgentExecution, EventEnvelope, Item as StoredItem } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
@@ -147,6 +147,14 @@ const inputState = (status: string): Input['state'] => {
 
 const inputDelivery = (strategy: string | number | null | undefined): Input['delivery'] =>
   strategy === 'guide' ? 'steer' : strategy === 'queue' ? 'follow-up' : 'start'
+
+const projectInputOrigin = (
+  id: string,
+  storedOrigin: string | number | null | undefined,
+): InputOrigin | undefined => {
+  const origin = storedOrigin ? (String(storedOrigin) as InputOrigin) : undefined
+  return isSubagentNotificationInput({ id, origin }) ? 'subagent-notification' : origin
+}
 
 const asText = (value: unknown) =>
   typeof value === 'string' ? value : value == null ? null : JSON.stringify(value, null, 2)
@@ -591,17 +599,19 @@ export class ThreadProjection {
         )
         .all(String(row.id)) as Array<{ id: string }>
     ).map(({ id }) => id)
+    const id = String(row.id)
+    const origin = projectInputOrigin(id, row.origin)
     return {
-      id: String(row.id),
+      id,
       threadId: String(row.thread_id),
       turnId: row.turn_id == null ? null : String(row.turn_id),
       content: String(row.content),
       ...(row.skills ? { skills: parse(String(row.skills)) } : {}),
-      ...(new QueuedGoalRepository(this.db).get(String(row.id))
-        ? { goal: new QueuedGoalRepository(this.db).get(String(row.id))! }
+      ...(new QueuedGoalRepository(this.db).get(id)
+        ? { goal: new QueuedGoalRepository(this.db).get(id)! }
         : {}),
       delivery: inputDelivery(row.strategy),
-      ...(row.origin ? { origin: String(row.origin) as Input['origin'] } : {}),
+      ...(origin ? { origin } : {}),
       mode: decodeStoredTaskMode(row.task_mode),
       model: parse(String(row.model_ref)),
       permissionConfig: projectPermissionConfig(row),
@@ -821,25 +831,29 @@ export class ThreadProjection {
           'SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at, origin, skills FROM inputs WHERE thread_id = ? ORDER BY created_at',
         )
         .all(threadId) as Array<Record<string, string | number | null>>
-    ).map((row): Input => ({
-      id: String(row.id),
-      threadId: String(row.thread_id),
-      turnId: row.turn_id ? String(row.turn_id) : null,
-      content: String(row.content),
-      ...(row.skills ? { skills: parse(String(row.skills)) } : {}),
-      ...(new QueuedGoalRepository(this.db).get(String(row.id))
-        ? { goal: new QueuedGoalRepository(this.db).get(String(row.id))! }
-        : {}),
-      delivery: inputDelivery(row.strategy),
-      ...(row.origin ? { origin: String(row.origin) as Input['origin'] } : {}),
-      mode: decodeStoredTaskMode(row.task_mode),
-      model: parse(String(row.model_ref)),
-      permissionConfig: projectPermissionConfig(row),
-      attachmentIds: attachmentIDsByInput.get(String(row.id)) ?? [],
-      contextReferenceIds: contextIDsByInput.get(String(row.id)) ?? [],
-      state: inputState(String(row.status)),
-      createdAt: Number(row.created_at),
-    }))
+    ).map((row): Input => {
+      const id = String(row.id)
+      const origin = projectInputOrigin(id, row.origin)
+      return {
+        id,
+        threadId: String(row.thread_id),
+        turnId: row.turn_id ? String(row.turn_id) : null,
+        content: String(row.content),
+        ...(row.skills ? { skills: parse(String(row.skills)) } : {}),
+        ...(new QueuedGoalRepository(this.db).get(id)
+          ? { goal: new QueuedGoalRepository(this.db).get(id)! }
+          : {}),
+        delivery: inputDelivery(row.strategy),
+        ...(origin ? { origin } : {}),
+        mode: decodeStoredTaskMode(row.task_mode),
+        model: parse(String(row.model_ref)),
+        permissionConfig: projectPermissionConfig(row),
+        attachmentIds: attachmentIDsByInput.get(id) ?? [],
+        contextReferenceIds: contextIDsByInput.get(id) ?? [],
+        state: inputState(String(row.status)),
+        createdAt: Number(row.created_at),
+      }
+    })
     const turns = (
       this.db.sqlite
         .query(
@@ -1075,25 +1089,29 @@ export class ThreadProjection {
         },
       ])
     }
-    const inputs = inputRows.map((row): Input => ({
-      id: String(row.id),
-      threadId: String(row.thread_id),
-      turnId: row.turn_id == null ? null : String(row.turn_id),
-      content: String(row.content),
-      ...(row.skills ? { skills: parse(String(row.skills)) } : {}),
-      ...(new QueuedGoalRepository(this.db).get(String(row.id))
-        ? { goal: new QueuedGoalRepository(this.db).get(String(row.id))! }
-        : {}),
-      delivery: inputDelivery(row.strategy),
-      ...(row.origin ? { origin: String(row.origin) as Input['origin'] } : {}),
-      mode: decodeStoredTaskMode(row.task_mode),
-      model: parse(String(row.model_ref)),
-      permissionConfig: projectPermissionConfig(row),
-      attachmentIds: attachmentIDsByInput.get(String(row.id)) ?? [],
-      contextReferenceIds: contextIDsByInput.get(String(row.id)) ?? [],
-      state: inputState(String(row.status)),
-      createdAt: Number(row.created_at),
-    }))
+    const inputs = inputRows.map((row): Input => {
+      const id = String(row.id)
+      const origin = projectInputOrigin(id, row.origin)
+      return {
+        id,
+        threadId: String(row.thread_id),
+        turnId: row.turn_id == null ? null : String(row.turn_id),
+        content: String(row.content),
+        ...(row.skills ? { skills: parse(String(row.skills)) } : {}),
+        ...(new QueuedGoalRepository(this.db).get(id)
+          ? { goal: new QueuedGoalRepository(this.db).get(id)! }
+          : {}),
+        delivery: inputDelivery(row.strategy),
+        ...(origin ? { origin } : {}),
+        mode: decodeStoredTaskMode(row.task_mode),
+        model: parse(String(row.model_ref)),
+        permissionConfig: projectPermissionConfig(row),
+        attachmentIds: attachmentIDsByInput.get(id) ?? [],
+        contextReferenceIds: contextIDsByInput.get(id) ?? [],
+        state: inputState(String(row.status)),
+        createdAt: Number(row.created_at),
+      }
+    })
     const inputsByTurn = new Map<string, Input[]>()
     for (const input of inputs) {
       if (!input.turnId) continue
@@ -1206,6 +1224,11 @@ export class ThreadProjection {
       })
     const oldest = selectedTurnRows.at(-1)
     const queueMetadata = this.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null }
+    const queueTurns = queueTurnRows.map(mapTurn).filter((turn) => {
+      const turnInputs = inputsByTurn.get(turn.id) ?? []
+      return !turnInputs.some(isSubagentNotificationInput)
+    })
+    const visibleQueueTurnIDs = new Set(queueTurns.map((turn) => turn.id))
     return {
       thread,
       subagents: this.subagents.projectionForThread(threadId, true),
@@ -1215,9 +1238,12 @@ export class ThreadProjection {
       pendingPlanApproval: this.db.repositories.planApprovals.pending(threadId),
       queue: {
         ...queueMetadata,
-        turns: queueTurnRows.map(mapTurn),
+        turns: queueTurns,
         inputs: inputs.filter(
-          (input) => input.turnId != null && queueTurnIDs.includes(input.turnId),
+          (input) =>
+            input.turnId != null &&
+            visibleQueueTurnIDs.has(input.turnId) &&
+            !isSubagentNotificationInput(input),
         ),
       },
       olderCursor:

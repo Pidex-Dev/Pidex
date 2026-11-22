@@ -12,6 +12,7 @@ import { VisualizationView } from '../../visualization/VisualizationView.js'
 import { ChevronRight, CircleAlert, LoaderCircle, RotateCcw, type LucideIcon } from 'lucide-react'
 import type { RenderTurnEntry } from '@pidex/session-view'
 import {
+  isUserAuthoredInput,
   resolveSubagentDisplayParts,
   type ApprovalRequest,
   type Input,
@@ -837,9 +838,7 @@ function CanonicalThreadViewComponent({
   readThreadPatchDiff,
 }: CanonicalThreadViewProps): React.ReactNode {
   const itemContext = React.useContext(ConversationItemContext)
-  const lastInput = turns
-    .flatMap((turn) => turn.userInputs)
-    .findLast((input) => input.origin !== 'goal-continuation')
+  const lastInput = turns.flatMap((turn) => turn.userInputs).findLast(isUserAuthoredInput)
   const editableInputId =
     lastInput && turns.find((turn) => turn.turn.id === lastInput.turnId)?.userInputs.length === 1
       ? lastInput.id

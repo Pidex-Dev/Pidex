@@ -6,7 +6,9 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useEffectEvent,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
 } from 'react'
@@ -61,7 +63,7 @@ export function SidebarHoverCardProvider({
 }: {
   children: React.ReactNode
 }): React.ReactNode {
-  const coordinator = useMemo(createSidebarHoverCardCoordinator, [])
+  const coordinator = useMemo(() => createSidebarHoverCardCoordinator(), [])
   const session = useSidebarDragSession()
   useEffect(() => {
     if (session) coordinator.closeAll()
@@ -91,8 +93,10 @@ export function SidebarHoverCard({
   const lockOpenRef = useRef(lockOpen)
   const onOpenChangeRef = useRef(onOpenChange)
   const childRef = children.props.ref
-  lockOpenRef.current = lockOpen
-  onOpenChangeRef.current = onOpenChange
+  useLayoutEffect(() => {
+    lockOpenRef.current = lockOpen
+    onOpenChangeRef.current = onOpenChange
+  })
   const setAnchorRef = useCallback(
     (node: HTMLElement | null): void => {
       anchorRef.current = node
@@ -100,6 +104,15 @@ export function SidebarHoverCard({
     },
     [childRef],
   )
+
+  const applyOpenChange = useEffectEvent((nextOpen: boolean): void => {
+    if (nextOpen && drag?.getSession()) return
+    if (lockOpenRef.current && !nextOpen && !drag?.getSession()) return
+    const restoreFocus =
+      !nextOpen && document.getElementById(contentId)?.contains(document.activeElement)
+    onOpenChangeRef.current(nextOpen)
+    if (restoreFocus) returnFocusToAnchor()
+  })
 
   useEffect(
     () =>
@@ -116,15 +129,6 @@ export function SidebarHoverCard({
 
   function requestOpenChange(nextOpen: boolean): void {
     coordinator.requestOpenChange(contentId, nextOpen)
-  }
-
-  function applyOpenChange(nextOpen: boolean): void {
-    if (nextOpen && drag?.getSession()) return
-    if (lockOpenRef.current && !nextOpen && !drag?.getSession()) return
-    const restoreFocus =
-      !nextOpen && document.getElementById(contentId)?.contains(document.activeElement)
-    onOpenChangeRef.current(nextOpen)
-    if (restoreFocus) returnFocusToAnchor()
   }
 
   function keepOpen(): void {
