@@ -9,6 +9,7 @@ import {
   selectCanonicalSessionStatus,
   selectCanonicalLatestPlanItemId,
 } from '../src/features/session/conversation/CanonicalConversationSelectors.js'
+import { agentQueuedFollowUpsToDesktop } from '../src/services/AgentThreadAdapter.js'
 import { canRegenerateConversationTitle } from '../src/features/session/conversation/ConversationTitleActions.js'
 
 const permissionConfig = {
@@ -791,4 +792,106 @@ test('canonical 实际队列保留模式与 Goal 意图，供显示和编辑使�
   expect(
     selectCanonicalConversationAuxiliaryState(state).queuedFollowUps.map((item) => item.id),
   ).toEqual(['input-2'])
+})
+
+test('excludes subagent notifications from queued follow-ups and fallback title', () => {
+  const threadId = 'subagent-notify-queue-thread'
+  const baseThread = {
+    id: threadId,
+    projectID: null,
+    title: null,
+    gitBranch: null,
+    workspace: {
+      kind: 'projectless' as const,
+      projectID: null,
+      folderID: null,
+      cwd: 'F:\\CodeProject\\guardian-lab',
+      outputDirectory: null,
+    },
+    settings: { taskMode: 'chat' as const, permissionConfig },
+    createdAt: 0,
+    updatedAt: 0,
+  }
+  const notifyPrefixInput = {
+    id: 'subagent-notify:turn-0:deadbeef',
+    threadId,
+    turnId: 'turn-notify-prefix',
+    content: '<task-notification taskId="task-1" status="completed">done</task-notification>',
+    delivery: 'follow-up' as const,
+    mode: 'chat' as const,
+    model,
+    permissionConfig,
+    state: 'queued' as const,
+    createdAt: 1,
+  }
+  const statusPrefixInput = {
+    id: 'subagent-status:task-1:run-1:stalled:123',
+    threadId,
+    turnId: 'turn-status-prefix',
+    content: '<task-notification taskId="task-1" status="running" event="stalled">',
+    delivery: 'follow-up' as const,
+    mode: 'chat' as const,
+    model,
+    permissionConfig,
+    state: 'queued' as const,
+    createdAt: 2,
+  }
+  const typedInput = {
+    id: 'internal-wake-1',
+    threadId,
+    turnId: 'turn-typed',
+    content: '<task-notification taskId="task-2" status="completed">',
+    delivery: 'follow-up' as const,
+    origin: 'subagent-notification' as const,
+    mode: 'chat' as const,
+    model,
+    permissionConfig,
+    state: 'queued' as const,
+    createdAt: 3,
+  }
+  const userInput = {
+    id: 'user-input-1',
+    threadId,
+    turnId: 'turn-user',
+    content: '真实用户排队需求',
+    delivery: 'follow-up' as const,
+    mode: 'chat' as const,
+    model,
+    permissionConfig,
+    state: 'queued' as const,
+    createdAt: 4,
+  }
+  const state = createCanonicalThreadState({
+    thread: baseThread,
+    subagents: [],
+    turns: [],
+    queue: {
+      version: 1,
+      pauseReason: null,
+      turns: [],
+      inputs: [notifyPrefixInput, statusPrefixInput, typedInput, userInput],
+    },
+    olderCursor: null,
+    hasOlder: false,
+    streamPosition: { streamId: threadId, sequence: 1 },
+  })
+  const auxiliary = selectCanonicalConversationAuxiliaryState(state)
+  expect(auxiliary.queuedFollowUps.map((item) => item.id)).toEqual(['user-input-1'])
+  expect(auxiliary.fallbackTitle).toBe('真实用户排队需求')
+
+  const adapted = agentQueuedFollowUpsToDesktop({
+    thread: baseThread,
+    subagents: [],
+    turns: [],
+    inputs: [notifyPrefixInput, statusPrefixInput, typedInput, userInput],
+    messages: [],
+    agents: [],
+    items: [],
+    approvals: [],
+    context: null,
+    historyRevision: 0,
+    pendingPlanApproval: null,
+    queue: { version: 1, pauseReason: null },
+  })
+  expect(adapted.map((item) => item.id)).toEqual(['user-input-1'])
 })

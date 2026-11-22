@@ -3,7 +3,8 @@ import {
   type DesktopReviewAgentSummary,
   type DesktopReviewAgentSummaryResult,
 } from '../../services/desktop-client/index.js'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useMountEffect } from '../../hooks/UseMountEffect.js'
 import type {
   DesktopAuthStatus,
   DesktopFileEntry,
@@ -252,16 +253,15 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
   const activeSessionIdRef = useRef<string | null>(null)
   const appliedWorkspaceIdentityRef = useRef<string | null>(null)
   const onErrorRef = useRef(options.onError)
-  onErrorRef.current = options.onError
   const onWorkspaceUnavailableRef = useRef(options.onWorkspaceUnavailable)
-  onWorkspaceUnavailableRef.current = options.onWorkspaceUnavailable
   const onRecentWorkspacesChangeRef = useRef(options.onRecentWorkspacesChange)
-  onRecentWorkspacesChangeRef.current = options.onRecentWorkspacesChange
-  const refreshCoordinatorRef = useRef<WorkspaceRefreshCoordinator<WorkspaceRefreshResult> | null>(
-    null,
-  )
-  if (!refreshCoordinatorRef.current) {
-    refreshCoordinatorRef.current = createWorkspaceRefreshCoordinator(async (target) => {
+  useLayoutEffect(() => {
+    onErrorRef.current = options.onError
+    onWorkspaceUnavailableRef.current = options.onWorkspaceUnavailable
+    onRecentWorkspacesChangeRef.current = options.onRecentWorkspacesChange
+  })
+  const [refreshCoordinator] = useState(() =>
+    createWorkspaceRefreshCoordinator<WorkspaceRefreshResult>(async (target) => {
       // 项目上下文与文件树是工作区的核心状态；Git/Review 失败不能阻止它们更新。
       const [nextContext, nextFiles] = await Promise.all([
         desktopClient.getWorkspaceContext(target.path, target.projectId),
@@ -276,8 +276,8 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
         context: nextContext,
         files: nextFiles,
       }
-    })
-  }
+    }),
+  )
 
   function setActiveSessionId(id: string | null): void {
     activeSessionIdRef.current = id
@@ -288,31 +288,34 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
     setSelectedFileState(preview)
   }, [])
 
-  const setWorkspace = useCallback((nextWorkspace: DesktopWorkspace | null): void => {
-    const identity = nextWorkspace ? workspaceIdentity(nextWorkspace) : null
-    if (identity !== appliedWorkspaceIdentityRef.current || !nextWorkspace) {
-      gitRequestSequenceRef.current += 1
-      workspaceRequestSequenceRef.current += 1
-      refreshCoordinatorRef.current?.reset()
-      setGitStatus(null)
-      setGitDetection(nextWorkspace ? 'loading' : 'non-git')
-    }
-    setWorkspaceState((previous) =>
-      nextWorkspace && previous && workspaceIdentity(previous) === identity
-        ? {
-            ...nextWorkspace,
-            isGitRepo: previous.isGitRepo,
-            branchName: previous.branchName,
-            branches: previous.branches,
-          }
-        : nextWorkspace,
-    )
-    appliedWorkspaceIdentityRef.current = identity
-    if (!nextWorkspace) {
-      refreshCoordinatorRef.current?.reset()
-      setGitStatus(null)
-    }
-  }, [])
+  const setWorkspace = useCallback(
+    (nextWorkspace: DesktopWorkspace | null): void => {
+      const identity = nextWorkspace ? workspaceIdentity(nextWorkspace) : null
+      if (identity !== appliedWorkspaceIdentityRef.current || !nextWorkspace) {
+        gitRequestSequenceRef.current += 1
+        workspaceRequestSequenceRef.current += 1
+        refreshCoordinator.reset()
+        setGitStatus(null)
+        setGitDetection(nextWorkspace ? 'loading' : 'non-git')
+      }
+      setWorkspaceState((previous) =>
+        nextWorkspace && previous && workspaceIdentity(previous) === identity
+          ? {
+              ...nextWorkspace,
+              isGitRepo: previous.isGitRepo,
+              branchName: previous.branchName,
+              branches: previous.branches,
+            }
+          : nextWorkspace,
+      )
+      appliedWorkspaceIdentityRef.current = identity
+      if (!nextWorkspace) {
+        refreshCoordinator.reset()
+        setGitStatus(null)
+      }
+    },
+    [refreshCoordinator],
+  )
 
   const refreshRuntimeStatus = useCallback(async (): Promise<void> => {
     try {
@@ -323,12 +326,12 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
     }
   }, [])
 
-  useEffect(() => {
+  useMountEffect(() => {
     void desktopClient
       .getAuthStatus()
       .then((status) => setAuthStatus(status))
       .catch((error: unknown) => onErrorRef.current(errorMessageOf(error)))
-  }, [])
+  })
 
   useEffect(() => {
     let mounted = true
@@ -346,6 +349,75 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
     }
   }, [refreshRuntimeStatus])
 
+  const refreshSelectedFilePreview = useCallback(
+    async (target: DesktopWorkspace, targetSessionId: string | null): Promise<void> => {
+      if (!targetSessionId || targetSessionId !== activeSessionIdRef.current) {
+        return
+      }
+      const currentSelectedFile = selectedFileRef.current
+      if (!currentSelectedFile) return
+      try {
+        const preview = await desktopClient.readWorkspaceFile(
+          target.path,
+          currentSelectedFile.path,
+          currentSelectedFile.folderId,
+          target.projectId,
+        )
+        setSelectedFile(preview)
+      } catch {
+        setSelectedFile(null)
+      }
+    },
+    [setSelectedFile],
+  )
+
+  const refreshWorkspaceGitProjection = useCallback(
+    async (target: DesktopWorkspace, refresh = false): Promise<void> => {
+      const identity = workspaceIdentity(target)
+      if (appliedWorkspaceIdentityRef.current !== identity) return
+      const sequence = ++gitRequestSequenceRef.current
+      setGitDetection((previous) => (previous === 'error' ? 'loading' : previous))
+      const applyProjection = ({
+        workspace: projected,
+        gitStatus: nextGitStatus,
+        detection,
+      }: WorkspaceGitProjectionResult) => {
+        if (
+          !shouldApplyWorkspaceGitProjection(
+            appliedWorkspaceIdentityRef.current,
+            gitRequestSequenceRef.current,
+            identity,
+            sequence,
+          )
+        )
+          return
+        setGitDetection(detection)
+        if (detection === 'error') return
+        setWorkspaceState(projected)
+        setGitStatus(nextGitStatus)
+        onRecentWorkspacesChangeRef.current((current) => upsertRecentWorkspace(current, projected))
+      }
+      const projection = await resolveWorkspaceGitProjection(
+        target,
+        {
+          loadGitStatus: () =>
+            desktopClient.getWorkspaceGitStatus(target.path, target.projectId, { refresh }),
+          loadBranches: () => desktopClient.getAgentReviewBranches(target.path, target.projectId),
+          loadReviewSummary: (source) =>
+            desktopClient.getAgentReviewSummary({
+              ...(target.projectId ? { projectId: target.projectId } : {}),
+              workspacePath: target.path,
+              source,
+              refresh: true,
+            }),
+        },
+        applyProjection,
+      )
+      applyProjection(projection)
+    },
+    [],
+  )
+
   const refreshWorkspace = useCallback(
     async (
       target: DesktopWorkspace | null = workspace,
@@ -362,7 +434,7 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
       }
       try {
         if (workspaceIdentity(target) !== appliedWorkspaceIdentityRef.current) setWorkspace(target)
-        const request = refreshCoordinatorRef.current?.load(target, {
+        const request = refreshCoordinator.load(target, {
           force: refreshOptions.force,
         })
         if (!request) return
@@ -386,7 +458,7 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
           upsertRecentWorkspace(current, result.context),
         )
         setFiles(result.files)
-        refreshCoordinatorRef.current?.markApplied(result.context)
+        refreshCoordinator.markApplied(result.context)
         if (refreshOptions.clearSelectedFile ?? true) {
           setSelectedFile(null)
         } else {
@@ -404,77 +476,15 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
         onErrorRef.current(errorMessageOf(error))
       }
     },
-    [setSelectedFile, workspace],
+    [
+      refreshCoordinator,
+      refreshSelectedFilePreview,
+      refreshWorkspaceGitProjection,
+      setSelectedFile,
+      setWorkspace,
+      workspace,
+    ],
   )
-
-  async function refreshSelectedFilePreview(
-    target: DesktopWorkspace,
-    targetSessionId: string | null,
-  ): Promise<void> {
-    if (!targetSessionId || targetSessionId !== activeSessionIdRef.current) {
-      return
-    }
-    const currentSelectedFile = selectedFileRef.current
-    if (!currentSelectedFile) return
-    try {
-      const preview = await desktopClient.readWorkspaceFile(
-        target.path,
-        currentSelectedFile.path,
-        currentSelectedFile.folderId,
-        target.projectId,
-      )
-      setSelectedFile(preview)
-    } catch {
-      setSelectedFile(null)
-    }
-  }
-
-  async function refreshWorkspaceGitProjection(
-    target: DesktopWorkspace,
-    refresh = false,
-  ): Promise<void> {
-    const identity = workspaceIdentity(target)
-    if (appliedWorkspaceIdentityRef.current !== identity) return
-    const sequence = ++gitRequestSequenceRef.current
-    setGitDetection((previous) => (previous === 'error' ? 'loading' : previous))
-    const applyProjection = ({
-      workspace: projected,
-      gitStatus: nextGitStatus,
-      detection,
-    }: WorkspaceGitProjectionResult) => {
-      if (
-        !shouldApplyWorkspaceGitProjection(
-          appliedWorkspaceIdentityRef.current,
-          gitRequestSequenceRef.current,
-          identity,
-          sequence,
-        )
-      )
-        return
-      setGitDetection(detection)
-      if (detection === 'error') return
-      setWorkspaceState(projected)
-      setGitStatus(nextGitStatus)
-      onRecentWorkspacesChangeRef.current((current) => upsertRecentWorkspace(current, projected))
-    }
-    const projection = await resolveWorkspaceGitProjection(
-      target,
-      {
-        loadGitStatus: () =>
-          desktopClient.getWorkspaceGitStatus(target.path, target.projectId, { refresh }),
-        loadBranches: () => desktopClient.getAgentReviewBranches(target.path, target.projectId),
-        loadReviewSummary: (source) =>
-          desktopClient.getAgentReviewSummary({
-            ...(target.projectId ? { projectId: target.projectId } : {}),
-            workspacePath: target.path,
-            source,
-            refresh: true,
-          }),
-      },
-      applyProjection,
-    )
-    applyProjection(projection)
-  }
 
   const chooseWorkspace = useCallback(async (): Promise<DesktopWorkspace | null> => {
     try {
@@ -520,7 +530,7 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
         onErrorRef.current(errorMessageOf(error))
       }
     },
-    [workspace],
+    [setSelectedFile, workspace],
   )
 
   return {

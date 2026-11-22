@@ -1,4 +1,5 @@
 import type { RenderTurnEntry } from '@pidex/session-view'
+import { isUserAuthoredInput } from '@pidex/shared/thread'
 import { normalizePathForComparison } from '../../../utils/PathUtils.js'
 import { desktopUserMessageInputToPreviewText } from '../../../../shared/DesktopUserMessage.js'
 
@@ -27,7 +28,7 @@ export function deriveConversationTurnNavItems(
       .join('\n')
       .trim()
 
-    const inputs = turn.userInputs.filter((input) => input.origin !== 'goal-continuation')
+    const inputs = turn.userInputs.filter(isUserAuthoredInput)
     const outputs = collectFileOutputs(turn)
     return inputs.map((input, index) => ({
       id: input.id,

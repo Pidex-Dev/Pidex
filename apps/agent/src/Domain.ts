@@ -1,4 +1,5 @@
 import type {
+  InputOrigin,
   PermissionConfig,
   ShellReview,
   TaskMode as SharedTaskMode,
@@ -35,7 +36,7 @@ export interface SubmitMessage {
   strategy: StoredInputDelivery
   taskMode: TaskMode
   /** Omitted historical inputs are user-authored. */
-  origin?: 'user' | 'goal-continuation'
+  origin?: InputOrigin
 }
 
 export type ItemType =

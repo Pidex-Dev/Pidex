@@ -14,6 +14,7 @@ import React, {
 } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Info } from 'lucide-react'
+import { useMountEffect } from '../../hooks/UseMountEffect.js'
 import {
   mergeRefs,
   Portal,
@@ -204,7 +205,7 @@ interface TooltipOwner extends TooltipOpenHandlers {
 interface TooltipProviderContextValue {
   delayDuration: number
   skipDelayDuration: number
-  readonly isWarm: boolean
+  isWarm: () => boolean
   claimOpen: (id: string, handlers: TooltipOpenHandlers) => number
   releaseOpen: (id: string, generation: number) => void
   registerExiting: (id: string, lastGeneration: number | null, abortExit: () => void) => () => void
@@ -213,7 +214,7 @@ interface TooltipProviderContextValue {
 const TooltipProviderContext = createContext<TooltipProviderContextValue>({
   delayDuration: 120,
   skipDelayDuration: 300,
-  isWarm: false,
+  isWarm: () => false,
   claimOpen: () => 0,
   releaseOpen: () => {},
   registerExiting: () => () => {},
@@ -306,29 +307,25 @@ export function TooltipProvider({
     [],
   )
 
-  useEffect(() => {
+  useMountEffect(() => {
     return () => {
       clearWarmTimer()
     }
-  }, [clearWarmTimer])
+  })
 
-  const value = useMemo<TooltipProviderContextValue>(() => {
-    const contextObj = {
+  const isWarm = useCallback(() => isWarmRef.current, [])
+
+  const value = useMemo<TooltipProviderContextValue>(
+    () => ({
       delayDuration,
       skipDelayDuration,
+      isWarm,
       claimOpen,
       releaseOpen,
       registerExiting,
-    }
-    Object.defineProperty(contextObj, 'isWarm', {
-      get() {
-        return isWarmRef.current
-      },
-      enumerable: true,
-      configurable: false,
-    })
-    return contextObj as TooltipProviderContextValue
-  }, [delayDuration, skipDelayDuration, claimOpen, releaseOpen, registerExiting])
+    }),
+    [delayDuration, skipDelayDuration, isWarm, claimOpen, releaseOpen, registerExiting],
+  )
 
   return <TooltipProviderContext.Provider value={value}>{children}</TooltipProviderContext.Provider>
 }
@@ -412,23 +409,33 @@ export function TooltipRoot({
   const triggerRef = useRef<HTMLElement | null>(null)
   const contentId = useId()
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [present, setPresentState] = useState(isOpen)
+  const [presentState, setPresentState] = useState(isOpen)
+  const present = presentState
   const isOpenRef = useRef(isOpen)
-  isOpenRef.current = isOpen
-  const previousOpenRef = useRef(isOpen)
-  const openSessionRef = useRef<TooltipOpenSession | null>(null)
+  useLayoutEffect(() => {
+    isOpenRef.current = isOpen
+  }, [isOpen])
+  const [openSnapshot, setOpenSnapshot] = useState<{
+    prevOpen: boolean
+    session: TooltipOpenSession | null
+  }>({ prevOpen: isOpen, session: null })
   const ownerGenerationRef = useRef(0)
 
-  // 在 closed -> open 的渲染期快照模式：此刻 Provider 的 isWarm 尚未被本次打开改写，
-  // StrictMode 重渲染与并发中断重渲染都不会把冷启动自我污染成预热。
-  if (isOpen && (!previousOpenRef.current || openSessionRef.current === null)) {
-    openSessionRef.current = { id: contentId, mode: provider.isWarm ? 'warm' : 'cold' }
-  } else if (!isOpen && !present && openSessionRef.current !== null) {
+  let openSession = openSnapshot.session
+  if (isOpen && (!openSnapshot.prevOpen || openSession === null)) {
+    // 在 closed -> open 的渲染期快照模式：此刻 Provider 的 isWarm 尚未被本次打开改写，
+    // StrictMode 重渲染与并发中断重渲染都不会把冷启动自我污染成预热。
+    openSession = { id: contentId, mode: provider.isWarm() ? 'warm' : 'cold' }
+    setOpenSnapshot({ prevOpen: isOpen, session: openSession })
+    if (!presentState) setPresentState(true)
+  } else if (!isOpen && !present && openSession !== null) {
     // 退场呈现结束前保留快照，避免退场途中改变呈现属性。
-    openSessionRef.current = null
+    openSession = null
+    setOpenSnapshot({ prevOpen: isOpen, session: null })
+  } else if (openSnapshot.prevOpen !== isOpen) {
+    setOpenSnapshot({ prevOpen: isOpen, session: openSession })
   }
-  previousOpenRef.current = isOpen
-  const openMode: TooltipOpenMode = openSessionRef.current?.mode ?? 'cold'
+  const openMode: TooltipOpenMode = openSession?.mode ?? 'cold'
 
   const setPresent = useCallback((next: boolean) => {
     // 旧浮层的退场回调可能晚于新浮层的重新打开，不能凭过期信号清空当前呈现。
@@ -449,7 +456,9 @@ export function TooltipRoot({
 
   // 打开所有权只在开合转换时申领；回调身份波动不应重新抢占。
   const ownerHandlersRef = useRef({ setOpen, cancelCloseTimer })
-  ownerHandlersRef.current = { setOpen, cancelCloseTimer }
+  useLayoutEffect(() => {
+    ownerHandlersRef.current = { setOpen, cancelCloseTimer }
+  }, [setOpen, cancelCloseTimer])
 
   const startCloseTimer = useCallback(() => {
     cancelCloseTimer()
@@ -462,15 +471,14 @@ export function TooltipRoot({
     }
   }, [cancelCloseTimer, isContentHoverDisabled, setOpen])
 
-  useEffect(() => {
+  useMountEffect(() => {
     return () => {
       cancelCloseTimer()
     }
-  }, [cancelCloseTimer])
+  })
 
   useLayoutEffect(() => {
     if (!isOpen) return
-    setPresentState(true)
     const generation = provider.claimOpen(contentId, {
       requestClose: () => {
         const handlers = ownerHandlersRef.current
@@ -587,7 +595,7 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(
       clearEnterTimer()
 
       // 只读预热态：预热窗口由 Provider 依据已提交的打开会话维护。
-      if (provider.isWarm) {
+      if (provider.isWarm()) {
         context.setOpen(true)
       } else {
         enterTimerRef.current = setTimeout(() => {
@@ -637,11 +645,11 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(
       }
     }
 
-    useEffect(() => {
+    useMountEffect(() => {
       return () => {
         clearEnterTimer()
       }
-    }, [clearEnterTimer])
+    })
 
     const triggerAriaDescribedBy = props['aria-describedby']
     const childAriaDescribedBy =

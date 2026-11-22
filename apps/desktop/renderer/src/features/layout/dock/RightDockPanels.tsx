@@ -1,4 +1,13 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { FileEditorViewState } from '../../editor/FileEditor.js'
 import type React from 'react'
 import { Check, Copy, Download, FolderOpen, ListChecks, Undo2 } from 'lucide-react'
@@ -107,38 +116,48 @@ function planTitleOf(item: { structured?: { title: string }; markdown: string })
 }
 
 export function RightDockSkillPreviewPanel({ tab }: { tab: SkillPreviewTab }): React.ReactNode {
-  const [content, setContent] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState<{
+    requestKey: string
+    content: string | null
+    error: string | null
+  } | null>(null)
   const [retryVersion, setRetryVersion] = useState(0)
+  const isBuiltin = tab.skill.path.startsWith('builtin://')
+  const requestKey = `${tab.skill.workspacePath ?? ''}\u0000${tab.skill.path}\u0000${retryVersion}`
 
   useEffect(() => {
-    if (tab.skill.path.startsWith('builtin://')) {
-      setContent(null)
-      setError('内置技能仅可在技能详情中查看。')
-      return
-    }
+    if (isBuiltin) return
     let cancelled = false
-    setContent(null)
-    setError(null)
     void readRuntimeSkill(tab.skill.workspacePath, tab.skill.path)
       .then((result) => {
-        if (!cancelled) setContent(result.content)
+        if (!cancelled) setLoaded({ requestKey, content: result.content, error: null })
       })
       .catch((cause) => {
         if (cancelled) return
-        setError(cause instanceof Error && cause.message ? cause.message : '技能内容读取失败。')
+        setLoaded({
+          requestKey,
+          content: null,
+          error: cause instanceof Error && cause.message ? cause.message : '技能内容读取失败。',
+        })
       })
     return () => {
       cancelled = true
     }
-  }, [retryVersion, tab.skill.path, tab.skill.workspacePath])
+  }, [isBuiltin, requestKey, tab.skill.path, tab.skill.workspacePath])
+
+  const error = isBuiltin
+    ? '内置技能仅可在技能详情中查看。'
+    : loaded?.requestKey === requestKey
+      ? loaded.error
+      : null
+  const content = !isBuiltin && loaded?.requestKey === requestKey ? loaded.content : null
 
   if (error) {
     return (
       <WorkbenchPanelError
         title="无法打开技能"
         message={error}
-        retryable={!tab.skill.path.startsWith('builtin://')}
+        retryable={!isBuiltin}
         onRetry={() => setRetryVersion((version) => version + 1)}
       />
     )
@@ -471,9 +490,9 @@ export function RightDockFilesPanel({
   onAddComposerFiles,
 }: FilesPanelProps): React.ReactNode {
   const workspacePath = workspace?.path ?? ''
-  const initialTreeState = useRef(readFileTreeViewState(workspacePath, true))
-  const [treeVisible, setTreeVisible] = useState(initialTreeState.current.visible)
-  const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
+  const [initialTreeState] = useState(() => readFileTreeViewState(workspacePath, true))
+  const [treeVisible, setTreeVisible] = useState(initialTreeState.visible)
+  const [treeWidth, setTreeWidth] = useState(initialTreeState.width)
   const [copied, setCopied] = useState(false)
   const layoutRef = useRef<HTMLDivElement | null>(null)
   const treeToggleRef = useRef<HTMLButtonElement | null>(null)
@@ -684,9 +703,9 @@ export function RightDockFilePreviewPanel({
   onLoadError?: (error: Error, phase: FileDocumentLoadErrorPhase) => void
 }): React.ReactNode {
   const [selectedText, setSelectedText] = useState('')
-  const initialTreeState = useRef(readFileTreeViewState(workspacePath))
-  const [treeVisible, setTreeVisible] = useState(initialTreeState.current.visible)
-  const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
+  const [initialTreeState] = useState(() => readFileTreeViewState(workspacePath))
+  const [treeVisible, setTreeVisible] = useState(initialTreeState.visible)
+  const [treeWidth, setTreeWidth] = useState(initialTreeState.width)
   const [switchingMarkdownMode, setSwitchingMarkdownMode] = useState(false)
   const layoutRef = useRef<HTMLDivElement | null>(null)
   const treeToggleRef = useRef<HTMLButtonElement | null>(null)
@@ -696,16 +715,20 @@ export function RightDockFilePreviewPanel({
     onCommitWidth: setTreeWidth,
   })
   const initialLoadKeyRef = useRef<string | null>(null)
+  const reportLoadError = useEffectEvent(
+    (error: Error, phase: FileDocumentLoadErrorPhase): void => {
+      onLoadError?.(error, phase)
+    },
+  )
   const onLoadErrorRef = useRef(onLoadError)
-  const documentScope = { projectId, folderId }
+  useLayoutEffect(() => {
+    onLoadErrorRef.current = onLoadError
+  }, [onLoadError])
+  const documentScope = useMemo(() => ({ projectId, folderId }), [projectId, folderId])
   const document = useFileDocument(workspacePath, expectedPath, documentScope)
   const language = resolveLanguageFromPath(expectedPath)
   const isMarkdown = isMarkdownFilePath(expectedPath)
   const resolvedMarkdownViewMode = isMarkdown ? (markdownViewMode ?? 'rich') : undefined
-
-  useEffect(() => {
-    onLoadErrorRef.current = onLoadError
-  }, [onLoadError])
 
   useEffect(() => {
     const loadKey = `${projectId ?? ''}\u0000${folderId ?? ''}\u0000${workspacePath}\u0000${expectedPath}`
@@ -713,9 +736,9 @@ export function RightDockFilePreviewPanel({
     initialLoadKeyRef.current = loadKey
     void prefetchFileDocument(workspacePath, expectedPath, documentScope).catch((error) => {
       if (initialLoadKeyRef.current !== loadKey) return
-      onLoadErrorRef.current?.(error instanceof Error ? error : new Error(String(error)), 'initial')
+      reportLoadError(error instanceof Error ? error : new Error(String(error)), 'initial')
     })
-  }, [expectedPath, folderId, projectId, workspacePath])
+  }, [documentScope, expectedPath, folderId, projectId, workspacePath])
 
   useEffect(() => {
     if (document.status !== 'ready') return
@@ -723,11 +746,11 @@ export function RightDockFilePreviewPanel({
       workspacePath,
       expectedPath,
       {
-        onLoadError: (error) => onLoadErrorRef.current?.(error, 'external-sync'),
+        onLoadError: (error) => reportLoadError(error, 'external-sync'),
       },
       documentScope,
     )
-  }, [document.status, expectedPath, folderId, projectId, workspacePath])
+  }, [document.status, documentScope, expectedPath, folderId, projectId, workspacePath])
 
   useEffect(() => {
     writeFileTreeViewState(workspacePath, {
@@ -1184,7 +1207,7 @@ function EditorFileTreePresence({
   visible: boolean
   width: number
 }): React.ReactNode {
-  const initiallyVisibleRef = useRef(visible)
+  const [initiallyVisible] = useState(visible)
 
   return (
     <AnimatePresence initial={false}>
@@ -1193,7 +1216,7 @@ function EditorFileTreePresence({
           key="editor-file-tree"
           focusReturnRef={focusReturnRef}
           liveWidth={liveWidth}
-          skipEnterAnimation={initiallyVisibleRef.current}
+          skipEnterAnimation={initiallyVisible}
           width={width}
         >
           {children}
@@ -1222,23 +1245,21 @@ function EditorFileTreePresenceItem({
   const [isPresent, safeToRemove] = usePresence()
   const shellRef = useRef<HTMLDivElement | null>(null)
   const [entryComplete, setEntryComplete] = useState(skipEnterAnimation)
+  if (!isPresent && entryComplete) {
+    setEntryComplete(false)
+  }
+  const effectiveEntryComplete = isPresent && (reducedMotion || entryComplete)
   const liveShellWidth = useTransform(liveWidth, (value) => value + 8)
   const visibleState = { opacity: 1, width: width + 8, x: 0 }
   const hiddenState = { opacity: 0, width: 0, x: 8 }
 
   useLayoutEffect(() => {
     if (isPresent) return
-    setEntryComplete(false)
     const activeElement = document.activeElement
     if (activeElement instanceof HTMLElement && shellRef.current?.contains(activeElement)) {
       focusReturnRef.current?.focus({ preventScroll: true })
     }
   }, [focusReturnRef, isPresent])
-
-  useEffect(() => {
-    if (!reducedMotion || !isPresent) return
-    setEntryComplete(true)
-  }, [isPresent, reducedMotion])
 
   useEffect(() => {
     if (isPresent || !safeToRemove) return
@@ -1279,9 +1300,12 @@ function EditorFileTreePresenceItem({
       style={{
         height: '100%',
         width: liveShellWidth,
-        minWidth: isPresent && entryComplete ? FILE_TREE_MIN_WIDTH + 8 : 0,
+        minWidth: effectiveEntryComplete ? FILE_TREE_MIN_WIDTH + 8 : 0,
       }}
-      transition={motionTransition(reducedMotion, entryComplete ? instantTween : layoutTween)}
+      transition={motionTransition(
+        reducedMotion,
+        effectiveEntryComplete ? instantTween : layoutTween,
+      )}
     >
       {children}
     </motion.div>

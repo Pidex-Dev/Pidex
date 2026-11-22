@@ -7,7 +7,7 @@ import {
 import { useWindowEvent } from '../../../hooks/UseExternalSubscription.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { toUserErrorMessage } from '../../../utils/Errors.js'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ThreadCreationSurface } from '@pidex/shared/thread'
 import type {
   DesktopComposerAttachment,
@@ -223,6 +223,13 @@ export function useSessionState(options: UseSessionStateOptions): UseSessionStat
     onOpenDrawerPermissions,
   } = options
 
+  const onErrorRef = useRef(onError)
+  const onOpenDrawerPermissionsRef = useRef(onOpenDrawerPermissions)
+  useLayoutEffect(() => {
+    onErrorRef.current = onError
+    onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
+  }, [onError, onOpenDrawerPermissions])
+
   /**
    * 会话展示状态进入按窗口实例创建的 Zustand Store：消费者可按字段订阅，
    * 跨会话的 per-session view 缓存仍留在 refs，只投影活动会话字段。
@@ -324,11 +331,6 @@ export function useSessionState(options: UseSessionStateOptions): UseSessionStat
       }
     >
   >({})
-  const onErrorRef = useRef(onError)
-  onErrorRef.current = onError
-  const onOpenDrawerPermissionsRef = useRef(onOpenDrawerPermissions)
-  onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
-
   const viewSetters = useMemo<SessionViewStateSetters>(
     () => ({
       setEvents: displayStore.setEvents,
@@ -748,6 +750,7 @@ export function useSessionState(options: UseSessionStateOptions): UseSessionStat
       effectivePermissionMode,
       permissionConfig,
       effectivePlanModeActive,
+      effectiveGrillModeActive,
       providerBaseURL,
       providerID,
       sessionName,

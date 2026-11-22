@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Bot, History } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import { animate, motion, useMotionValue, useMotionValueEvent } from 'motion/react'
@@ -60,6 +60,11 @@ export function SidebarFrame({
   const sidebarRef = useRef<HTMLElement>(null)
   const reducedMotion = usePrefersReducedMotion()
   const labels = getSidebarContentLabels(contentKind)
+  const docked = shell.dockedVisible
+  const dockedRef = useRef(docked)
+  useLayoutEffect(() => {
+    dockedRef.current = docked
+  }, [docked])
   const {
     liveSize: liveWidth,
     liveSizePixels: liveWidthPixels,
@@ -94,26 +99,21 @@ export function SidebarFrame({
 
   const floating = shell.mode === 'preview'
   const hidden = shell.mode === 'collapsed'
-  const docked = shell.dockedVisible
-  const previousModeRef = useRef(shell.mode)
-  const modeDurationRef = useRef(0.3)
-  if (previousModeRef.current !== shell.mode) {
-    const previousMode = previousModeRef.current
-    previousModeRef.current = shell.mode
-    if (shell.mode === 'preview') {
-      modeDurationRef.current = SIDEBAR_PREVIEW_ENTER_DURATION
-    } else if (previousMode === 'preview' && shell.mode === 'docked') {
-      modeDurationRef.current = SIDEBAR_PREVIEW_SETTLE_DURATION
-    } else if (previousMode === 'preview' && shell.mode === 'collapsed') {
-      modeDurationRef.current = SIDEBAR_PREVIEW_EXIT_DURATION
-    } else {
-      modeDurationRef.current = 0.3
-    }
+  const [modeTransition, setModeTransition] = useState({ mode: shell.mode, duration: 0.3 })
+  let duration = modeTransition.duration
+  if (modeTransition.mode !== shell.mode) {
+    const previousMode = modeTransition.mode
+    duration =
+      shell.mode === 'preview'
+        ? SIDEBAR_PREVIEW_ENTER_DURATION
+        : previousMode === 'preview' && shell.mode === 'docked'
+          ? SIDEBAR_PREVIEW_SETTLE_DURATION
+          : previousMode === 'preview' && shell.mode === 'collapsed'
+            ? SIDEBAR_PREVIEW_EXIT_DURATION
+            : 0.3
+    setModeTransition({ mode: shell.mode, duration })
   }
-  const duration = modeDurationRef.current
-  const transition = { ...layoutTween, duration }
-  const dockedRef = useRef(docked)
-  dockedRef.current = docked
+  const transition = useMemo(() => ({ ...layoutTween, duration }), [duration])
   const allocatedWidth = useMotionValue(docked ? width : railWidth)
   const allocatedWidthAnimationRef = useRef<ReturnType<typeof animate> | null>(null)
   const previousHiddenRef = useRef(hidden)
@@ -141,15 +141,16 @@ export function SidebarFrame({
         allocatedWidthAnimationRef.current = null
       }
     }
-  }, [allocatedWidth, docked, liveWidth, reducedMotion, duration, railWidth])
+  }, [allocatedWidth, docked, liveWidth, reducedMotion, transition, railWidth])
 
+  const { onFloatingResizeChange } = shell
   useEffect(() => {
     const active = floating && resizing
-    shell.onFloatingResizeChange(active)
+    onFloatingResizeChange(active)
     return () => {
-      if (active) shell.onFloatingResizeChange(false)
+      if (active) onFloatingResizeChange(false)
     }
-  }, [floating, resizing, shell.onFloatingResizeChange])
+  }, [floating, resizing, onFloatingResizeChange])
 
   useLayoutEffect(() => {
     const wasHidden = previousHiddenRef.current

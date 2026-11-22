@@ -29,13 +29,14 @@ import { Button } from '../../../components/ui/Button.js'
 import { SidebarRow } from '../../../components/ui/SidebarRow.js'
 import { useQuickChatContext } from '../QuickChatContext.js'
 import {
-  useDesktopSettingsDraftActions,
   useDesktopSettingsDraftValue,
   useDesktopSettingsField,
 } from '../../settings/UseDesktopSettings.js'
 import { openSettingsDialog } from '../../settings/SettingsDialogStore.js'
 import { WorkspaceHeaderItem } from '../../layout/workspace-header/index.js'
 import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
+import { useMountEffect } from '../../../hooks/UseMountEffect.js'
+import { useWindowEvent } from '../../../hooks/UseExternalSubscription.js'
 import {
   enterTween,
   exitTween,
@@ -197,7 +198,6 @@ export function ConversationPage(): React.ReactNode {
   const setSidebarSessionPins = useDesktopSettingsField(
     (settings) => settings.setSidebarSessionPins,
   )
-  const settingsDraft = useDesktopSettingsDraftActions()
   const terminalProfileId = useDesktopSettingsDraftValue('terminalProfileId')
   const canonicalConversation = useCanonicalThreadConversation(activeSessionId)
   // 只取出稳定的 reload 回调；canonicalConversation 每次渲染都是新对象，
@@ -319,6 +319,7 @@ export function ConversationPage(): React.ReactNode {
     sourceThreadId: activeSessionId,
     onNavigateTarget: navigateToForkTarget,
   })
+  const forkFromMessage = conversationFork.onForkFromMessage
   const pendingPermissions = canonicalAuxiliary.pendingPermissions
   const reduceMotion = usePrefersReducedMotion()
   const turnNavItems = React.useMemo<ConversationTurnNavItem[]>(
@@ -343,16 +344,21 @@ export function ConversationPage(): React.ReactNode {
   const editStartTimeRef = React.useRef(0)
   const inlineInputRef = React.useRef<HTMLInputElement | null>(null)
   const activeSessionIdRef = React.useRef(activeSessionId)
-  activeSessionIdRef.current = activeSessionId
+  React.useLayoutEffect(() => {
+    activeSessionIdRef.current = activeSessionId
+  }, [activeSessionId])
   // 创建阶段暂停编辑与发送，但不显示可用的停止按钮；成功后按正常会话解锁。
   const pendingCreationLocked = pendingSubmission?.stage === 'creating'
   const composerPropsForPage = composerProps
     ? { ...composerProps, creationPending: pendingCreationLocked }
     : null
-  React.useEffect(() => {
+  const [titleEditSessionId, setTitleEditSessionId] = React.useState<string | null>(activeSessionId)
+  if (titleEditSessionId !== activeSessionId) {
+    setTitleEditSessionId(activeSessionId)
     setIsInlineEditing(false)
-    skipNextBlurSaveRef.current = false
-  }, [activeSessionId])
+    setRenameDialogOpen(false)
+    setRenameValue('')
+  }
 
   const handleInlineInputRef = React.useCallback((node: HTMLInputElement | null) => {
     inlineInputRef.current = node
@@ -368,29 +374,29 @@ export function ConversationPage(): React.ReactNode {
   }, [])
 
   const [conversationSelectedText, setConversationSelectedText] = React.useState('')
-  React.useEffect(() => {
+  useMountEffect(() => {
     return () => {
       clearConversationSelectionHighlight()
     }
-  }, [])
+  })
   const timelineListRef = React.useRef<import('virtua').VirtualizerHandle | null>(null)
   const timelineNavigationRef = React.useRef<ThreadTimelineNavigationHandle | null>(null)
   const [hasRailInlineClearance, setHasRailInlineClearance] = React.useState(false)
   const directoryAttemptRef = React.useRef<string | null>(null)
+  const loadAllOlder = canonicalConversation.loadAllOlder
   const loadDirectoryPreservingAnchor = React.useCallback(
     () =>
-      canonicalConversation.loadAllOlder(
+      loadAllOlder(
         () => timelineNavigationRef.current?.captureHistoryAnchor() ?? (() => undefined),
       ),
-    [canonicalConversation.loadAllOlder],
+    [loadAllOlder],
   )
   const historyGeneration = canonicalConversation.state?.history.generation
+  const loadOlder = canonicalConversation.loadOlder
   const loadOlderPreservingAnchor = React.useCallback(
     () =>
-      canonicalConversation.loadOlder(
-        () => timelineNavigationRef.current?.captureHistoryAnchor() ?? (() => undefined),
-      ),
-    [canonicalConversation.loadOlder],
+      loadOlder(() => timelineNavigationRef.current?.captureHistoryAnchor() ?? (() => undefined)),
+    [loadOlder],
   )
   const historyCursor = canonicalConversation.state?.history.olderCursor
   React.useEffect(() => {
@@ -590,18 +596,25 @@ export function ConversationPage(): React.ReactNode {
     isRenaming: renamingSession,
   })
 
-  React.useEffect(() => {
-    if (isInlineEditing && !canInlineEdit && !renamingSession) {
-      setIsInlineEditing(false)
+  React.useLayoutEffect(() => {
+    skipNextBlurSaveRef.current = false
+  }, [activeSessionId])
+
+  React.useLayoutEffect(() => {
+    if (!canInlineEdit && !renamingSession) {
       skipNextBlurSaveRef.current = false
     }
-  }, [canInlineEdit, isInlineEditing, renamingSession])
+  }, [canInlineEdit, renamingSession])
+
+  if (isInlineEditing && !canInlineEdit && !renamingSession) {
+    setIsInlineEditing(false)
+  }
 
   const activePermissionRequest = pendingPermissions[0] ?? null
   const approvalVisible = Boolean(activePermissionRequest || pendingPlanApproval)
 
   const workflowPageRef = React.useRef<HTMLElement>(null)
-  React.useEffect(() => {
+  useMountEffect(() => {
     let hiddenRoot: HTMLElement | null = null
     let observer: MutationObserver | null = null
     let revealTimeout: number | null = null
@@ -652,10 +665,10 @@ export function ConversationPage(): React.ReactNode {
       window.removeEventListener('hashchange', hideUntilTimelineChanges)
       clearHiddenRoot()
     }
-  }, [])
-  function closeSessionMenu(): void {
+  })
+  const closeSessionMenu = React.useCallback((): void => {
     setSessionMenuOpen(false)
-  }
+  }, [])
 
   const sessionReferenceContext = React.useMemo<SessionReferenceContext>(
     () => ({
@@ -665,18 +678,14 @@ export function ConversationPage(): React.ReactNode {
     [activeSessionId, workspacePath],
   )
 
-  React.useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      const payload = resolveSessionReferenceShortcut(event, sessionReferenceContext)
-      if (!payload) return
-      const value = payload.kind === 'workspaceCwd' ? payload.workspaceCwd : payload.threadId
-      if (!value) return
-      event.preventDefault()
-      void copySessionReference(payload)
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [sessionReferenceContext])
+  useWindowEvent(typeof window !== 'undefined' ? window : null, 'keydown', (event) => {
+    const payload = resolveSessionReferenceShortcut(event, sessionReferenceContext)
+    if (!payload) return
+    const value = payload.kind === 'workspaceCwd' ? payload.workspaceCwd : payload.threadId
+    if (!value) return
+    event.preventDefault()
+    void copySessionReference(payload)
+  })
 
   const openRenameSessionDialog = React.useCallback((): void => {
     if (!hasActiveSession || renameDialogOpen || renamingSession) return
@@ -791,39 +800,45 @@ export function ConversationPage(): React.ReactNode {
     ],
   )
 
-  const handleInlineKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      skipNextBlurSaveRef.current = true
-      setIsInlineEditing(false)
-      setInlineTitleValue(editableSessionTitle ?? renderedSessionTitle)
-      return
-    }
-
-    if (event.key === 'Enter') {
-      if (
-        isComposingRef.current ||
-        (event.nativeEvent as KeyboardEvent).isComposing ||
-        event.keyCode === 229
-      ) {
+  const handleInlineKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>): void => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        skipNextBlurSaveRef.current = true
+        setIsInlineEditing(false)
+        setInlineTitleValue(editableSessionTitle ?? renderedSessionTitle)
         return
       }
-      event.preventDefault()
-      skipNextBlurSaveRef.current = true
-      void submitInlineRename()
-    }
-  }
 
-  const handleInlineBlur = (): void => {
+      if (event.key === 'Enter') {
+        if (
+          isComposingRef.current ||
+          (event.nativeEvent as KeyboardEvent).isComposing ||
+          event.keyCode === 229
+        ) {
+          return
+        }
+        event.preventDefault()
+        skipNextBlurSaveRef.current = true
+        void submitInlineRename()
+      }
+    },
+    [editableSessionTitle, renderedSessionTitle, submitInlineRename],
+  )
+
+  const handleInlineBlur = React.useCallback((): void => {
     void submitInlineRename({ fromBlur: true })
-  }
+  }, [submitInlineRename])
 
-  const handleTitleKeyDown = (event: React.KeyboardEvent<HTMLSpanElement>): void => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      startInlineEdit()
-    }
-  }
+  const handleTitleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLSpanElement>): void => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        startInlineEdit()
+      }
+    },
+    [startInlineEdit],
+  )
 
   const regenerateCurrentSessionTitle = React.useCallback(async (): Promise<void> => {
     if (!canRegenerateSessionTitle) return
@@ -848,49 +863,44 @@ export function ConversationPage(): React.ReactNode {
       })
   }, [activeSessionId])
 
-  React.useEffect(() => {
-    setRenameDialogOpen(false)
-    setRenameValue('')
-  }, [activeSessionId])
-
-  function copyWorkspaceReference(): void {
+  const copyWorkspaceReference = React.useCallback((): void => {
     closeSessionMenu()
     if (!workspacePath) return
     void copyWorkspaceCwd(workspacePath)
-  }
+  }, [closeSessionMenu, workspacePath])
 
-  function copyThreadReference(): void {
+  const copyThreadReference = React.useCallback((): void => {
     closeSessionMenu()
     if (!activeSessionId) return
     void copyThreadId(activeSessionId)
-  }
+  }, [closeSessionMenu, activeSessionId])
 
-  function copyThreadDeepLinkReference(): void {
+  const copyThreadDeepLinkReference = React.useCallback((): void => {
     closeSessionMenu()
     if (!activeSessionId) return
     void copyThreadDeepLink(activeSessionId)
-  }
+  }, [closeSessionMenu, activeSessionId])
 
-  function continueInNewConversation(): void {
+  const continueInNewConversation = React.useCallback((): void => {
     closeSessionMenu()
     if (!latestConversationForkPoint) return
-    conversationFork.onForkFromMessage?.(latestConversationForkPoint)
-  }
+    forkFromMessage?.(latestConversationForkPoint)
+  }, [closeSessionMenu, latestConversationForkPoint, forkFromMessage])
 
-  function openAutomationView(): void {
+  const openAutomationView = React.useCallback((): void => {
     closeSessionMenu()
     onOpenAutomation()
-  }
+  }, [closeSessionMenu, onOpenAutomation])
 
-  function toggleSessionPinned(): void {
+  const toggleSessionPinned = React.useCallback((): void => {
     closeSessionMenu()
     onToggleSessionPinned()
-  }
+  }, [closeSessionMenu, onToggleSessionPinned])
 
-  function archiveCurrentSession(): void {
+  const archiveCurrentSession = React.useCallback((): void => {
     closeSessionMenu()
     onArchiveSession()
-  }
+  }, [closeSessionMenu, onArchiveSession])
 
   const openBranchReview = React.useCallback((): void => {
     onOpenRightDock('review', { kind: 'branch', baseBranch: branchReviewState.source.baseBranch })
@@ -1122,9 +1132,16 @@ export function ConversationPage(): React.ReactNode {
     )
   }, [
     activeSessionId,
+    archiveCurrentSession,
     canInlineEdit,
     canRegenerateSessionTitle,
+    closeSessionMenu,
+    continueInNewConversation,
     conversationFork.onForkFromMessage,
+    copyThreadDeepLinkReference,
+    copyThreadReference,
+    copyWorkspaceReference,
+    effectiveSessionStatus,
     handleInlineBlur,
     handleInlineInputRef,
     handleInlineKeyDown,
@@ -1135,11 +1152,15 @@ export function ConversationPage(): React.ReactNode {
     isThreadLoading,
     isSessionPinned,
     latestConversationForkPoint,
+    onOpenSideChat,
+    openAutomationView,
     openRenameSessionDialog,
     openConversationInNewWindow,
     regenerateCurrentSessionTitle,
+    sideChatAvailable,
     startInlineEdit,
     titleRegenerating,
+    toggleSessionPinned,
     renamingSession,
     renderedSessionTitle,
     sessionMenuOpen,
@@ -1257,11 +1278,8 @@ export function ConversationPage(): React.ReactNode {
       onGitOperation,
       onOpenTerminal,
       gitStatus,
-      gitDetection,
       handoffAction,
       onAppendComposerText,
-      browserTabs,
-      threadGoal,
       onGoalPause,
       onGoalResume,
       onOpenArtifact,
@@ -1272,20 +1290,14 @@ export function ConversationPage(): React.ReactNode {
       onCommitOrPush,
       onCreateBranch,
       onCreatePullRequest,
-      onOpenPlanInRightDock,
       onOpenSubagent,
       onOpenSubagentDirectory,
       onOpenWorkspacePath,
-      navigate,
-      settingsDraft.setValue,
-      terminalProfileId,
-      setSidebarSessionPins,
       threadSummary,
       threadSummaryModel,
       launchActions,
       environmentChoices,
       selectedLaunchActionId,
-      workspacePath,
     ])
 
   const composerFooter =

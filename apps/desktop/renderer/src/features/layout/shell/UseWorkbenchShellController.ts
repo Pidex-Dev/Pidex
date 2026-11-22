@@ -1,6 +1,6 @@
 import type { FileEditorViewState } from '../../editor/FileEditor.js'
 import { desktopBrowserClient } from '../../../services/desktop-client/DesktopBrowserClient.js'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from 'zustand/react'
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { SIDEBAR_MAX_WIDTH, useDesktopLayout } from '../UseDesktopLayout.js'
@@ -251,14 +251,25 @@ export function useWorkbenchShellController({
   const settleFrameRef = useRef<number | null>(null)
   const resizeActivityCoordinator = getResizeActivityCoordinator()
 
-  rightDockRangeRatioRef.current = rightDockRangeRatio
-  bottomPanelHeightRatioRef.current = bottomPanelHeightRatio
-  workspaceLayoutRef.current = workspaceLayout
-  dragLayoutRef.current = dragWorkspaceLayout
-  rightDockVisibleRef.current = rightDockVisible
-  rightDockStateRef.current = rightDockState
-  rightPanelLiveResizeRef.current = rightPanelLiveResize
-  bottomPanelLiveResizeRef.current = bottomPanelLiveResize
+  useLayoutEffect(() => {
+    rightDockRangeRatioRef.current = rightDockRangeRatio
+    bottomPanelHeightRatioRef.current = bottomPanelHeightRatio
+    workspaceLayoutRef.current = workspaceLayout
+    dragLayoutRef.current = dragWorkspaceLayout
+    rightDockVisibleRef.current = rightDockVisible
+    rightDockStateRef.current = rightDockState
+    rightPanelLiveResizeRef.current = rightPanelLiveResize
+    bottomPanelLiveResizeRef.current = bottomPanelLiveResize
+  }, [
+    rightDockRangeRatio,
+    bottomPanelHeightRatio,
+    workspaceLayout,
+    dragWorkspaceLayout,
+    rightDockVisible,
+    rightDockState,
+    rightPanelLiveResize,
+    bottomPanelLiveResize,
+  ])
 
   const collapseSidebar = useCallback((): void => {
     setSidebarCollapsed(true)
@@ -370,7 +381,7 @@ export function useWorkbenchShellController({
         return next
       })
     },
-    [setWorkbenchPanelState, workbenchStore],
+    [setWorkbenchPanelState],
   )
 
   const closePanel = useCallback(
@@ -592,9 +603,10 @@ export function useWorkbenchShellController({
     [setSidebarWidthLegacy, dispatchLayoutAction],
   )
 
+  const { toggle: toggleSidebarShell } = sidebarShell
   const toggleSidebarCollapsed = useCallback((): void => {
-    sidebarShell.toggle()
-  }, [sidebarShell.toggle])
+    toggleSidebarShell()
+  }, [toggleSidebarShell])
 
   const toggleBottomPanelVisible = useCallback((): void => {
     togglePanel('bottom')
