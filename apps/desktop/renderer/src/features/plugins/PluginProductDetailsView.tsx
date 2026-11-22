@@ -18,7 +18,11 @@ import { usePluginSkills } from './UsePluginSkills.js'
 
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+  APP_ICON_STROKE_WIDTH_LG,
+} from '../../components/ui/IconTokens.js'
 import promptHeroPurple from '../../assets/plugin-backgrounds/prompt-hero-purple.png'
 import { PluginDetailsPrimaryAction, PluginDetailsMetadata } from './PluginDetailsContent.js'
 import { PluginIcon } from './PluginIcon.js'
@@ -267,7 +271,12 @@ export function PluginProductDetailsView({
                     )}
                     data-plugin-tone={item.tone}
                   >
-                    <Lightbulb aria-hidden="true" size={24} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Lightbulb
+                      aria-hidden="true"
+                      data-icon-size="xl"
+                      size={24}
+                      strokeWidth={APP_ICON_STROKE_WIDTH_LG}
+                    />
                   </span>
                   <div className="catalog-plugin-skill__copy tw:grid tw:min-w-0 tw:gap-1">
                     <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">
@@ -315,8 +324,9 @@ export function PluginProductDetailsView({
                   <Icon
                     aria-hidden="true"
                     className="tw:shrink-0 tw:text-app-text-soft"
+                    data-icon-size="xl"
                     size={24}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                    strokeWidth={APP_ICON_STROKE_WIDTH_LG}
                   />
                   <div className="tw:grid tw:min-w-0 tw:gap-1">
                     <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">

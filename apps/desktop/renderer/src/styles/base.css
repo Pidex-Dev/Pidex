@@ -86,6 +86,14 @@
     stroke-width: var(--cpx-sys-icon-stroke-width);
   }
 
+  .lucide:not([data-icon-kind='artwork']) * {
+    vector-effect: non-scaling-stroke;
+  }
+
+  .lucide:not([data-icon-kind='artwork'])[data-icon-size='xl'] {
+    --cpx-sys-icon-stroke-width: var(--cpx-sys-icon-stroke-width-lg);
+  }
+
   .lucide[data-icon-kind='artwork'] {
     --cpx-sys-icon-stroke-width: 2;
   }

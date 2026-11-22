@@ -314,7 +314,6 @@ export function PetCatalogSection({
                               aria-hidden="true"
                               className="tw:size-icon-md tw:text-app-text-meta tw:transition-transform tw:group-hover:translate-x-1"
                               size={16}
-                              strokeWidth={2.2}
                             />
                           </button>
                         ) : (

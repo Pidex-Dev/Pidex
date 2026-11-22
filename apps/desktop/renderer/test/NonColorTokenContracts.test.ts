@@ -222,7 +222,7 @@ describe('non-color design token contracts', () => {
     expect(conversation).toMatch(/font-size:\s*var\(--cpx-sys-font-size-1\);/)
   })
 
-  test('tokens.css defines the Radix 9-step spacing scale 1..9 = 4/8/12/16/24/32/40/48/64px and fixed icon size tokens', async () => {
+  test('tokens.css defines the Radix 9-step spacing scale 1..9 = 4/8/12/16/24/32/40/48/64px and fixed visual icon stroke tokens', async () => {
     const source = await read('../src/styles/design-system/tokens.css')
     const rootBlock = blockContent(source, /:root\s*\{/)
     expect(rootBlock, 'tokens.css must have a :root block').toBeDefined()
@@ -241,6 +241,8 @@ describe('non-color design token contracts', () => {
       '--cpx-sys-icon-size-sm': '14px',
       '--cpx-sys-icon-size-md': '16px',
       '--cpx-sys-icon-size-lg': '18px',
+      '--cpx-sys-icon-stroke-width': '1.2px',
+      '--cpx-sys-icon-stroke-width-lg': '1.5px',
       '--cpx-comp-menubar-height': '40px',
     }
     const mismatched = Object.entries(expected).filter(

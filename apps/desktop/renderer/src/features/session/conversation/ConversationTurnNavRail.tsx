@@ -185,7 +185,6 @@ function PreviewCard({
               aria-hidden="true"
               className="tw:size-icon-sm tw:flex-none"
               fill={bookmarked ? 'currentColor' : 'none'}
-              strokeWidth={2}
             />
           </Button>
         ) : null}

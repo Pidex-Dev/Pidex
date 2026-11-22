@@ -509,7 +509,6 @@ const DropdownItem = forwardRef<HTMLDivElement, DropdownItemProps>(
             {selected && (
               <Check
                 size="var(--inline-icon-size, 1em)"
-                strokeWidth={2.8}
                 className="menu-column-trailing tw:shrink-0"
               />
             )}

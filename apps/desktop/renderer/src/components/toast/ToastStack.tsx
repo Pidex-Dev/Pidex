@@ -271,11 +271,11 @@ function ToastCardWrapper({
   const icon =
     toast.icon === undefined ? (
       isError ? (
-        <CircleX size={18} strokeWidth={2} aria-hidden="true" />
+        <CircleX size={18} aria-hidden="true" />
       ) : isStatus ? (
-        <CircleCheck size={18} strokeWidth={2} aria-hidden="true" />
+        <CircleCheck size={18} aria-hidden="true" />
       ) : (
-        <Info size={18} strokeWidth={2} aria-hidden="true" />
+        <Info size={18} aria-hidden="true" />
       )
     ) : (
       toast.icon
@@ -385,7 +385,7 @@ function ToastCardWrapper({
                 onClick={onDismiss}
                 type="button"
               >
-                <X size={16} strokeWidth={2} aria-hidden="true" />
+                <X size={16} aria-hidden="true" />
               </button>
             ) : null}
           </div>

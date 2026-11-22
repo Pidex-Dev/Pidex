@@ -82,7 +82,6 @@ export function PetCatalogCard({
                   className="tw:size-icon-sm"
                   aria-hidden="true"
                   size={14}
-                  strokeWidth={2.2}
                 />
               </span>
             </Tooltip>
