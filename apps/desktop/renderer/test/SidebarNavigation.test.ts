@@ -557,7 +557,7 @@ describe('设置导航', () => {
     ).toBeFalse()
   })
 
-  test('权限相关设置已从常规与配置迁移到权限设置页', () => {
+  test('权限相关设置已从常规与配置迁移到权限设置页，专用模型统一收口到配置设置页', () => {
     const appGroup = SETTINGS_GROUPS.find((group) => group.id === 'app')
     const permissions = SETTINGS_ITEMS.find((item) => item.routeId === 'permissions')
     const general = SETTINGS_ITEMS.find((item) => item.routeId === 'general')
@@ -570,20 +570,26 @@ describe('设置导航', () => {
       'integrations',
       'coding',
     ])
+    expect(SETTINGS_ITEMS.some((item) => item.routeId === 'models')).toBeFalse()
     expect(appGroup?.items.some((item) => item.routeId === 'permissions')).toBeTrue()
     expect(permissions?.label).toBe('权限')
     expect(permissions?.rows.map((row) => row.title)).toEqual([
       '权限预设',
       '权限说明',
       'Shell 安全级别',
-      '安全模型（实验）',
       '审批规则',
     ])
     expect(general?.rows.some((row) => row.title === '当前权限')).toBeFalse()
     expect(config?.rows.some((row) => row.title === '权限预设')).toBeFalse()
     expect(config?.rows.some((row) => row.title === '审批规则')).toBeFalse()
     expect(config?.rows.some((row) => row.title === 'Shell 安全级别')).toBeFalse()
-    expect(config?.rows.some((row) => row.title === '安全模型（实验）')).toBeFalse()
+    expect(config?.rows.some((row) => row.title === '智能体默认设置')).toBeFalse()
+    expect(config?.rows.some((row) => row.title === '配置文件与 Profile')).toBeTrue()
+    expect(config?.rows.some((row) => row.title === '专用模型')).toBeTrue()
+    expect(config?.rows.some((row) => row.title === '生成模型')).toBeTrue()
+    expect(config?.rows.some((row) => row.title === '整理模型')).toBeTrue()
+    expect(config?.rows.some((row) => row.title === '代码模型')).toBeTrue()
+    expect(config?.rows.some((row) => row.title === '安全模型（实验）')).toBeTrue()
   })
 })
 
