@@ -32,8 +32,14 @@ async function preparePage(page: Page, route: string): Promise<void> {
   await page.setViewportSize(DESKTOP_VIEWPORT)
   await prepareVisualTheme(page, 'light')
   await page.goto(route)
-  if (!route.includes('pet-overlay') && !route.includes('route-that-does-not-exist'))
+  const expectsSetupGuide =
+    !route.includes('pet-overlay') &&
+    !route.includes('route-that-does-not-exist') &&
+    !route.includes('/settings/') &&
+    !route.includes('/providers')
+  if (expectsSetupGuide) {
     await page.getByRole('button', { name: '稍后', exact: true }).click()
+  }
   await waitForVisualPage(page, 'light', page.locator('body'))
   if (route.includes('/settings/appearance')) {
     const editors = page.locator('.appearance-theme-editor')
