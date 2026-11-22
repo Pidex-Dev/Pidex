@@ -15,6 +15,7 @@ import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
 import type { AgentRuntimeRequest } from '../src/orchestration/AgentRuntimeTypes'
 import { ContextCompactionService } from '../src/context/ContextCompactionService'
 import { createPromptSections } from '../src/prompt/Sections'
+import { ThreadBookmarkService } from '../src/session/ThreadBookmarkService'
 import { ThreadService } from '../src/session/ThreadService'
 import { SubagentService } from '../src/subagent/SubagentService'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
@@ -22,6 +23,7 @@ import { EventHub } from '../src/storage/events/EventHub'
 import { SqlitePiSessionRepo } from '../src/storage/pi-session/SqlitePiSession'
 import { ToolExecutor } from '../src/tool/ToolExecutor'
 import { ToolRegistry } from '../src/tool/ToolRegistry'
+import { ThreadProjection } from '../src/transport/ThreadProjection'
 import { WorkspaceService } from '../src/workspace/WorkspaceService'
 import type { AgentModelCatalog } from '../src/provider/AgentModelCatalog'
 
@@ -1353,5 +1355,55 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
           .get() as { count: number }
       ).count,
     ).toBe(1)
+
+    expect(
+      db.sqlite.query('SELECT id FROM messages WHERE id = ?').get(notificationInputID),
+    ).toBeNull()
+    expect(
+      db.sqlite
+        .query('SELECT preview, first_user_message, queue_version FROM threads WHERE id = ?')
+        .get(thread.id),
+    ).toEqual({
+      preview: 'Running main turn',
+      first_user_message: 'Running main turn',
+      queue_version: 2,
+    })
+    expect(
+      db.sqlite
+        .query(
+          "SELECT COUNT(*) AS count FROM events WHERE thread_id = ? AND method = 'queue/updated' AND turn_id <> ?",
+        )
+        .get(thread.id, sourceTurn.turnID),
+    ).toEqual({ count: 0 })
+
+    const projection = new ThreadProjection(db)
+    const history = projection.historyPage(thread.id)
+    expect(history?.queue.turns).toEqual([])
+    expect(history?.queue.inputs).toEqual([])
+    const snapshot = projection.snapshot(thread.id)
+    expect(snapshot?.inputs.find((entry) => entry.id === notificationInputID)?.origin).toBe(
+      'subagent-notification',
+    )
+
+    await expect(
+      threads.updateQueue(thread.id, notificationInputID, '篡改内容', undefined, undefined, {
+        operationID: 'op-update-notify',
+      }),
+    ).rejects.toMatchObject({ code: 'QUEUED_INPUT_NOT_FOUND' })
+    await expect(
+      threads.removeQueue(thread.id, notificationInputID, {
+        operationID: 'op-remove-notify',
+      }),
+    ).rejects.toMatchObject({ code: 'QUEUED_INPUT_NOT_FOUND' })
+    const bookmarks = new ThreadBookmarkService(db, hub)
+    await expect(
+      bookmarks.set({
+        threadId: thread.id,
+        inputId: notificationInputID,
+        bookmarked: true,
+        expectedVersion: 0,
+        operationId: 'op-bookmark-notify',
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
   })
 })

@@ -109,14 +109,22 @@ describe('canonical conversation navigation', () => {
     expect(navItems[1]!.outputs).toBe(navItems[0]!.outputs)
   })
 
-  test('excludes goal continuation and emphasizes only the last visible running input', () => {
-    const entry = navTurn({ id: 'running', userTexts: ['', '追加要求', '系统继续'] })
+  test('excludes goal continuation and subagent notifications from turn navigation items', () => {
+    const entry = navTurn({
+      id: 'running',
+      userTexts: ['', '追加要求', '系统继续', '<task-notification>'],
+    })
     entry.turn = { ...entry.turn, status: 'running' }
     entry.userInputs[0] = { ...entry.userInputs[0]!, attachmentIds: ['attachment-1'] }
     entry.userInputs[2] = { ...entry.userInputs[2]!, origin: 'goal-continuation' }
+    entry.userInputs[3] = {
+      ...entry.userInputs[3]!,
+      id: 'subagent-notify:running:abc',
+      origin: 'subagent-notification',
+    }
     entry.inlineInputs = [{ ...entry.userInputs[1]!, delivery: 'steer' }]
     entry.userInputs[1] = entry.inlineInputs[0]!
-    entry.userItems = [entry.userInputs[0]!, entry.userInputs[2]!]
+    entry.userItems = [entry.userInputs[0]!, entry.userInputs[2]!, entry.userInputs[3]!]
     expect(deriveConversationTurnNavItems([entry])).toMatchObject([
       { id: 'running-input-0', userText: '', isRunning: false },
       { id: 'running-input-1', userText: '追加要求', isRunning: true },
