@@ -1,19 +1,21 @@
-import type { ContextCompactionOperation, ThreadContextState } from '@pidex/shared/thread'
-import { contextCompactionItem, contextCompactionOperationItem } from '../ContextCompaction'
-import type {
-  AgentExecution,
-  ApprovalRequest,
-  Attachment,
-  LocalContextReference,
-  Input,
-  Item,
-  Message,
-  PlanApproval,
-  SubagentProjection,
-  Thread,
-  ThreadSnapshot,
-  Turn,
+import {
+  isSubagentNotificationInput,
+  type AgentExecution,
+  type ApprovalRequest,
+  type Attachment,
+  type ContextCompactionOperation,
+  type LocalContextReference,
+  type Input,
+  type Item,
+  type Message,
+  type PlanApproval,
+  type SubagentProjection,
+  type Thread,
+  type ThreadContextState,
+  type ThreadSnapshot,
+  type Turn,
 } from '@pidex/shared/thread'
+import { contextCompactionItem, contextCompactionOperationItem } from '../ContextCompaction'
 import type { EventEnvelope, RpcResult } from '@pidex/agent-protocol'
 import { VISUALIZATION_TOOL, visualizationFromBlocks } from '@pidex/shared/visualization'
 import {
@@ -165,32 +167,48 @@ export function pageFromThreadSnapshot(
   snapshot: ThreadSnapshot,
   streamPosition: ThreadStreamPosition = { streamId: 'snapshot', sequence: 0 },
 ): CanonicalThreadPage {
+  const subagentNotificationTurnIds = new Set(
+    snapshot.inputs
+      .filter((input) => input.turnId != null && isSubagentNotificationInput(input))
+      .map((input) => input.turnId!),
+  )
+  const isQueuedSubagentNotificationTurn = (turn: Turn): boolean =>
+    turn.status === 'queued' &&
+    (subagentNotificationTurnIds.has(turn.id) ||
+      isSubagentNotificationInput({ id: turn.sourceInputID }))
   return {
     thread: snapshot.thread,
     context: snapshot.context,
     historyRevision: snapshot.historyRevision,
     pendingPlanApproval: snapshot.pendingPlanApproval,
     subagents: [...snapshot.subagents],
-    turns: snapshot.turns.map((turn) => ({
-      turn,
-      inputs: snapshot.inputs.filter((input) => input.turnId === turn.id),
-      messages: snapshot.messages.filter((message) => message.turnId === turn.id),
-      agents: snapshot.agents.filter((agent) => agent.turnId === turn.id),
-      items: snapshot.items.filter((item) => item.turnId === turn.id),
-      approvals: snapshot.approvals.filter((approval) => approval.turnId === turn.id),
-      attachments: [],
-      contextReferences: (snapshot.contextReferences ?? []).filter((reference) =>
-        snapshot.inputs.some(
-          (input) => input.turnId === turn.id && input.contextReferenceIds?.includes(reference.id),
+    turns: snapshot.turns
+      .filter((turn) => !isQueuedSubagentNotificationTurn(turn))
+      .map((turn) => ({
+        turn,
+        inputs: snapshot.inputs.filter((input) => input.turnId === turn.id),
+        messages: snapshot.messages.filter((message) => message.turnId === turn.id),
+        agents: snapshot.agents.filter((agent) => agent.turnId === turn.id),
+        items: snapshot.items.filter((item) => item.turnId === turn.id),
+        approvals: snapshot.approvals.filter((approval) => approval.turnId === turn.id),
+        attachments: [],
+        contextReferences: (snapshot.contextReferences ?? []).filter((reference) =>
+          snapshot.inputs.some(
+            (input) =>
+              input.turnId === turn.id && input.contextReferenceIds?.includes(reference.id),
+          ),
         ),
-      ),
-    })),
+      })),
     queue: snapshot.queue
       ? {
           version: snapshot.queue.version,
           pauseReason: snapshot.queue.pauseReason,
-          turns: snapshot.turns.filter((turn) => turn.status === 'queued'),
-          inputs: snapshot.inputs.filter((input) => input.state === 'queued'),
+          turns: snapshot.turns.filter(
+            (turn) => turn.status === 'queued' && !isQueuedSubagentNotificationTurn(turn),
+          ),
+          inputs: snapshot.inputs.filter(
+            (input) => input.state === 'queued' && !isSubagentNotificationInput(input),
+          ),
         }
       : undefined,
     olderCursor: null,
@@ -461,6 +479,7 @@ export function selectVisibleTurnEntries(
     const turn = state.turnsById.get(turnId)
     if (
       !turn ||
+      turn.status === 'queued' ||
       (turn.status === 'cancelled' && turn.startedAt === null) ||
       queueTurnIds.has(turnId)
     )
@@ -690,8 +709,12 @@ export function buildRenderTurnEntry(entry: VisibleTurnEntry): RenderTurnEntry {
 
   return {
     ...entry,
-    userItems: entry.userInputs.filter((input) => !isInlineInput(input)),
-    inlineInputs: entry.userInputs.filter(isInlineInput).sort(compareCreated),
+    userItems: entry.userInputs.filter(
+      (input) => !isInlineInput(input) && !isSubagentNotificationInput(input),
+    ),
+    inlineInputs: entry.userInputs
+      .filter((input) => isInlineInput(input) && !isSubagentNotificationInput(input))
+      .sort(compareCreated),
     processItems,
     assistantResultItems,
     postAssistantItems,
@@ -839,6 +862,7 @@ function applyEnvelopePayload(
       if (envelope.payload.settings.taskMode !== 'plan') state.pendingPlanApproval = null
       return
     case 'turn/queued':
+      if (isSubagentNotificationInput(envelope.payload.input)) return
       state.pendingPlanApproval = null
       upsertTurn(state, envelope.payload.turn)
       state.inputsById.set(envelope.payload.input.id, envelope.payload.input)
@@ -1427,13 +1451,27 @@ function applyQueueUpdate(
     turnId?: string
   },
 ): void {
-  if (payload.turns) {
-    state.queue.turnIds = payload.turns.map((turn) => turn.id)
-    for (const turn of payload.turns) upsertTurn(state, turn)
-  }
+  const hiddenTurnIds = new Set(
+    (payload.inputs ?? [])
+      .filter((input) => isSubagentNotificationInput(input))
+      .map((input) => input.turnId)
+      .filter((turnId): turnId is string => Boolean(turnId)),
+  )
   if (payload.inputs) {
-    state.queue.inputIds = payload.inputs.map((input) => input.id)
-    for (const input of payload.inputs) state.inputsById.set(input.id, input)
+    const visibleInputs = payload.inputs.filter((input) => !isSubagentNotificationInput(input))
+    state.queue.inputIds = visibleInputs.map((input) => input.id)
+    for (const input of visibleInputs) state.inputsById.set(input.id, input)
+  }
+  if (payload.turns) {
+    const visibleTurns = payload.turns.filter((turn) => {
+      if (hiddenTurnIds.has(turn.id)) return false
+      const sourceInput = state.inputsById.get(turn.sourceInputID)
+      return sourceInput
+        ? !isSubagentNotificationInput(sourceInput)
+        : !isSubagentNotificationInput({ id: turn.sourceInputID })
+    })
+    state.queue.turnIds = visibleTurns.map((turn) => turn.id)
+    for (const turn of visibleTurns) upsertTurn(state, turn)
   }
   if (payload.version !== undefined) state.queue.version = payload.version
   if (payload.action === 'removed') {
@@ -1515,14 +1553,25 @@ function mergePageEntities(
   state.turnOrder =
     mode === 'replace' ? unique(pageTurnIds) : unique([...pageTurnIds, ...state.turnOrder])
   if (page.queue) {
+    const visibleInputs = page.queue.inputs.filter((input) => !isSubagentNotificationInput(input))
+    const hiddenTurnIds = new Set(
+      page.queue.inputs
+        .filter((input) => isSubagentNotificationInput(input))
+        .map((input) => input.turnId)
+        .filter((turnId): turnId is string => Boolean(turnId)),
+    )
+    const visibleTurns = page.queue.turns.filter(
+      (turn) =>
+        !hiddenTurnIds.has(turn.id) && !isSubagentNotificationInput({ id: turn.sourceInputID }),
+    )
     state.queue = {
       version: page.queue.version,
       pauseReason: page.queue.pauseReason,
-      turnIds: page.queue.turns.map((turn) => turn.id),
-      inputIds: page.queue.inputs.map((input) => input.id),
+      turnIds: visibleTurns.map((turn) => turn.id),
+      inputIds: visibleInputs.map((input) => input.id),
     }
-    for (const turn of page.queue.turns) state.turnsById.set(turn.id, turn)
-    for (const input of page.queue.inputs) state.inputsById.set(input.id, input)
+    for (const turn of visibleTurns) state.turnsById.set(turn.id, turn)
+    for (const input of visibleInputs) state.inputsById.set(input.id, input)
   }
 }
 
