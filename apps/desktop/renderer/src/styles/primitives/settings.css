@@ -27,6 +27,61 @@
  * - Keyboard shortcut search `<input>` descendant chrome.
  */
 @layer primitives {
+  /* --- Centered Settings Dialog --- */
+  .settings-dialog-backdrop {
+    backdrop-filter: blur(var(--cpx-sys-blur-sm, 4px));
+  }
+
+  .settings-dialog {
+    display: flex;
+    width: min(92vw, 1200px);
+    height: min(85vh, 784px);
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--cpx-sys-color-border-subtle);
+    background: var(--cpx-sys-color-surface-canvas);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
+  .settings-dialog-sidebar {
+    display: flex;
+    flex-direction: column;
+    width: min(30%, 248px);
+    min-width: 216px;
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: hidden;
+    border-inline-end: 1px solid var(--cpx-sys-color-border-subtle);
+    background-color: var(--cpx-sys-color-workbench-main-bg);
+  }
+
+  .settings-dialog-main {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--cpx-sys-color-surface-canvas);
+  }
+
+  .settings-dialog-close {
+    position: absolute;
+    top: var(--cpx-sys-space-3);
+    right: var(--cpx-sys-space-3);
+    z-index: var(--cpx-sys-z-local);
+  }
+
+  .settings-dialog-main .settings-content-scroll-content {
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3) var(--cpx-sys-space-3);
+  }
+
+  .settings-dialog-main .settings-page-header {
+    padding-right: var(--cpx-sys-space-8);
+  }
+
   /* --- Settings row dividers --- */
   .settings-row + .settings-row {
     position: relative;

@@ -15,7 +15,7 @@
  *   to outrank its `type-control` role from the utilities layer;
  * - rules whose consumers are owned by another migration group:
  *   `.sidebar-panel-content` (layout/shell/DesktopLayout.tsx),
- *   `.sidebar-layout` (settings/SettingsSidebarContent.tsx),
+ *   `.sidebar-layout` (layout/DesktopSidebar.tsx),
  *   `.settings-nav-*` (settings/SettingsNav.tsx),
  *   `.sidebar-session-list-extra` (anchor of the animation contract in
  *   scripts/CheckStyleContracts.ts).
@@ -73,7 +73,8 @@
    * row inset, 30px row height, 10px row radius, 24px leading slot, 16px section gap).
    * Consumed by TSX utilities through the `--sidebar-…` runtime geometry variables.
    */
-  .desktop-sidebar {
+  .desktop-sidebar,
+  .settings-nav {
     --inline-icon-size: var(--cpx-sys-icon-size-sm);
     --sidebar-inline-gutter: var(--cpx-sys-space-1);
     --popover-menu-row-inset: var(--cpx-sys-space-1);
