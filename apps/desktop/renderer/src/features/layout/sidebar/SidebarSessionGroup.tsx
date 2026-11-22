@@ -590,10 +590,10 @@ function SidebarSessionGroupComponent({
           {hasOverflow ? (
             <div
               className={cx(
-                'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-6 tw:items-center tw:gap-x-1 tw:rounded-3 tw:px-1 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
+                'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-6 tw:items-center tw:gap-x-1 tw:rounded-3 tw:pr-1 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
                 sessionIndent === 'gutter' && !showConversationIcon
-                  ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
-                  : 'tw:grid-cols-[var(--sidebar-row-columns)]',
+                  ? 'sidebar-row--no-leading tw:grid-cols-[minmax(0,1fr)_auto]'
+                  : 'tw:pl-1 tw:grid-cols-[var(--sidebar-row-columns)]',
               )}
             >
               {sessionIndent !== 'gutter' || showConversationIcon ? (
