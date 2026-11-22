@@ -64,7 +64,7 @@ export function GitBoardSidebar(_props?: {
       aria-busy={ready === false}
       className="sidebar-git-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2"
     >
-      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
+      <header className="sidebar-pane-heading tw:mx-1 tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:pr-1">
         <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('Git 看板')}</h2>
         <Tooltip content={t('刷新所有项目仓库')}>
           <Button
@@ -81,11 +81,11 @@ export function GitBoardSidebar(_props?: {
         </Tooltip>
       </header>
       {storageError && (
-        <p role="alert" className="tw:m-0 tw:px-3 tw:type-1">
+        <p role="alert" className="sidebar-section-header tw:mx-1 tw:my-0 tw:pr-1 tw:type-1">
           {t('看板保存失败，本次修改仅在当前窗口有效')}
         </p>
       )}
-      <div className="tw:flex tw:shrink-0 tw:flex-col tw:sidebar-row-gap tw:p-2">
+      <div className="tw:flex tw:shrink-0 tw:flex-col tw:sidebar-row-gap tw:px-1 tw:py-2">
         <SidebarRow
           active={githubViewActive}
           layout="flex"
@@ -102,7 +102,7 @@ export function GitBoardSidebar(_props?: {
         </SidebarRow>
       </div>
       <ScrollArea
-        className="tw:min-h-0 tw:flex-1 tw:px-2 tw:pb-2 tw:pt-0"
+        className="tw:min-h-0 tw:flex-1 tw:px-1 tw:pb-2 tw:pt-0"
         contentClassName="tw:flex tw:flex-col tw:gap-3"
       >
         <GitBoardSection

@@ -67,57 +67,55 @@ export function PersonalizationSettings({ onError, onNotice }: Props = {}): Reac
 
   return (
     <SettingsContentArea className="">
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
-        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
-            个性化
-          </h2>
-        </div>
-
-        <SettingsSection>
-          <SettingsRow
-            title="个性"
-            description="选择 Pidex 回复的默认语气"
-            autoSave
-            control={
-              <SettingsDropdown
-                size="md"
-                ariaLabel="个性"
-                value={draft.values.personality}
-                options={PERSONALITY_OPTIONS}
-                onChange={(value) => {
-                  draft.setValue('personality', value as DesktopPersonality)
-                  draft.autoSave()
-                }}
-              />
-            }
-          />
-        </SettingsSection>
-
-        <SettingsSection
-          title="自定义指令"
-          description={<>为此主机上的所有任务向 Pidex 提供额外说明和上下文。</>}
-        >
-          <div className="personalization-instructions-editor tw:grid tw:gap-3">
-            <textarea
-              className="personalization-textarea tw:min-h-[26.25rem] tw:w-full tw:resize-y tw:rounded-control tw:border tw:border-app-border tw:bg-app-underlay tw:px-control-inline tw:py-control-block tw:text-app-text tw:type-code tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard tw:hover:not-disabled:border-app-border-strong tw:focus-visible:border-app-focus tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:disabled:cursor-default tw:disabled:border-app-border-subtle tw:disabled:bg-app-panel tw:disabled:text-app-text-disabled tw:disabled:opacity-55"
-              onChange={(event) => draft.setValue('customInstructions', event.target.value)}
-              placeholder="1、用 utf-8 读取文件！&#10;2、不写测试"
-              value={draft.values.customInstructions}
-            />
-            <div className="personalization-actions tw:flex tw:justify-end">
-              <Button
-                color="primary"
-                disabled={draft.saving}
-                onClick={() => void saveCustomInstructions()}
-                type="button"
-              >
-                {draft.saving ? '保存中' : '保存'}
-              </Button>
-            </div>
-          </div>
-        </SettingsSection>
+      <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
+        <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+          个性化
+        </h2>
       </div>
+
+      <SettingsSection>
+        <SettingsRow
+          title="个性"
+          description="选择 Pidex 回复的默认语气"
+          autoSave
+          control={
+            <SettingsDropdown
+              size="md"
+              ariaLabel="个性"
+              value={draft.values.personality}
+              options={PERSONALITY_OPTIONS}
+              onChange={(value) => {
+                draft.setValue('personality', value as DesktopPersonality)
+                draft.autoSave()
+              }}
+            />
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title="自定义指令"
+        description={<>为此主机上的所有任务向 Pidex 提供额外说明和上下文。</>}
+      >
+        <div className="personalization-instructions-editor tw:grid tw:gap-3">
+          <textarea
+            className="personalization-textarea tw:min-h-[26.25rem] tw:w-full tw:resize-y tw:rounded-control tw:border tw:border-app-border tw:bg-app-underlay tw:px-control-inline tw:py-control-block tw:text-app-text tw:type-code tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard tw:hover:not-disabled:border-app-border-strong tw:focus-visible:border-app-focus tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:disabled:cursor-default tw:disabled:border-app-border-subtle tw:disabled:bg-app-panel tw:disabled:text-app-text-disabled tw:disabled:opacity-55"
+            onChange={(event) => draft.setValue('customInstructions', event.target.value)}
+            placeholder="1、用 utf-8 读取文件！&#10;2、不写测试"
+            value={draft.values.customInstructions}
+          />
+          <div className="personalization-actions tw:flex tw:justify-end">
+            <Button
+              color="primary"
+              disabled={draft.saving}
+              onClick={() => void saveCustomInstructions()}
+              type="button"
+            >
+              {draft.saving ? '保存中' : '保存'}
+            </Button>
+          </div>
+        </div>
+      </SettingsSection>
     </SettingsContentArea>
   )
 }

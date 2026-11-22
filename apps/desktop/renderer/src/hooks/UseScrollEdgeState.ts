@@ -64,18 +64,21 @@ export function useScrollEdgeState(
     let frameId: number | null = null
     let disposed = false
 
+    // INVARIANT: Scroll extent comes from post-layout ResizeObserver entry snapshots and passive scroll events so rAF measure callbacks never force layout via scrollHeight/clientHeight reads.
+    const extentRef = { viewport: 0, content: 0, offset: 0 }
+
     const measure = (): void => {
       const next = resolveScrollEdgeState(
         axis === 'x'
           ? {
-              scrollLeft: container.scrollLeft,
-              scrollWidth: container.scrollWidth,
-              clientWidth: container.clientWidth,
+              scrollLeft: extentRef.offset,
+              scrollWidth: extentRef.content,
+              clientWidth: extentRef.viewport,
             }
           : {
-              scrollTop: container.scrollTop,
-              scrollHeight: container.scrollHeight,
-              clientHeight: container.clientHeight,
+              scrollTop: extentRef.offset,
+              scrollHeight: extentRef.content,
+              clientHeight: extentRef.viewport,
             },
       )
       setState((current) =>
@@ -94,17 +97,33 @@ export function useScrollEdgeState(
       })
     }
 
-    measure()
-    const observer = new ResizeObserver(scheduleMeasure)
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const inlineSize = entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width
+        const blockSize = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height
+        if (entry.target === container) {
+          if (axis === 'x') extentRef.viewport = inlineSize
+          else extentRef.viewport = blockSize
+        } else {
+          if (axis === 'x') extentRef.content = inlineSize
+          else extentRef.content = blockSize
+        }
+      }
+      scheduleMeasure()
+    })
     observer.observe(container)
-    const content = contentRef?.current
+    const content = contentRef?.current ?? (container.firstElementChild as HTMLElement | null)
     if (content && content !== container) observer.observe(content)
-    container.addEventListener('scroll', scheduleMeasure, { passive: true })
+    const handleScroll = (): void => {
+      extentRef.offset = axis === 'x' ? container.scrollLeft : container.scrollTop
+      scheduleMeasure()
+    }
+    container.addEventListener('scroll', handleScroll, { passive: true })
     return () => {
       disposed = true
       if (frameId !== null) window.cancelAnimationFrame(frameId)
       observer.disconnect()
-      container.removeEventListener('scroll', scheduleMeasure)
+      container.removeEventListener('scroll', handleScroll)
     }
   }, [containerRef, contentRef, version, axis])
 

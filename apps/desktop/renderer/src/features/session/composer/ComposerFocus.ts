@@ -1,4 +1,21 @@
+// INVARIANT: the availability check reads dialog rects and Element.focus() flushes a dirty tree synchronously in Chromium, so both land on the second post-layout rAF; environments without rAF (tests) fall back to synchronous execution.
 export function focusComposerIfAvailable(
+  editor: HTMLElement,
+  focus: () => void,
+  returnFrom?: Element | null,
+): void {
+  if (typeof requestAnimationFrame !== 'function') {
+    focusWhenAvailable(editor, focus, returnFrom)
+    return
+  }
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      focusWhenAvailable(editor, focus, returnFrom)
+    })
+  })
+}
+
+function focusWhenAvailable(
   editor: HTMLElement,
   focus: () => void,
   returnFrom?: Element | null,

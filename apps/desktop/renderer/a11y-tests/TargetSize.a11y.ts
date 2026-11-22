@@ -47,7 +47,7 @@ for (const [name, route] of routes) {
 }
 
 test('target-size: opened command and model menus', async ({ page }) => {
-  await prepare(page, '/?visualCase=rich#/threads/visual-rich')
+  await prepare(page, '/?visualCase=rich&visualModelPicker=1#/threads/visual-rich')
   await page.keyboard.press('Control+K')
   await expect(page.getByRole('searchbox', { name: '搜索任务' })).toBeVisible()
   await checkTargets(page)

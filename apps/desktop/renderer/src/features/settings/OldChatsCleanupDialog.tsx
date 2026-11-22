@@ -286,7 +286,7 @@ export function OldChatsCleanupDialog({
                               : 'tw:inline-flex tw:size-4 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border-strong tw:bg-transparent'
                           }
                         >
-                          {checked ? <Check size={11} strokeWidth={2.5} /> : null}
+                          {checked ? <Check size={11} /> : null}
                         </span>
                       </span>
                     </button>

@@ -148,7 +148,7 @@ export function ModelDocumentEditor({
           <SpecializedModelSelect
             label="资料提取模型"
             value={extractor}
-            mainModel="默认聊天模型"
+            emptyLabel="默认聊天模型"
             specializedModelKey="generationModel"
             onChange={(value) => {
               cancel()

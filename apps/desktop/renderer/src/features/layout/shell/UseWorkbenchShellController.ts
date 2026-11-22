@@ -954,6 +954,13 @@ function clampRightDockWidth(width: number, workspaceWidth: number): number {
   return clampWorkbenchSize(width, RIGHT_DOCK_MIN_WIDTH, getRightDockMaxWidth(workspaceWidth))
 }
 
+// INVARIANT: focus lands on the second post-layout rAF; a single rAF still runs before style/layout and Element.focus() flushes a dirty tree synchronously in Chromium.
+function focusAfterLayout(focus: () => void): void {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(focus)
+  })
+}
+
 function focusPanelController(target: WorkbenchPanelTarget): void {
   let attempts = 0
   const focusWhenMounted = (): void => {
@@ -961,7 +968,7 @@ function focusPanelController(target: WorkbenchPanelTarget): void {
       `[data-app-shell-tab-panel-controller="${target}"]`,
     )
     if (controller) {
-      controller.focus({ preventScroll: true })
+      focusAfterLayout(() => controller.focus({ preventScroll: true }))
       return
     }
     if (attempts++ < 60) requestAnimationFrame(focusWhenMounted)
@@ -971,9 +978,12 @@ function focusPanelController(target: WorkbenchPanelTarget): void {
 
 /** 隐藏右侧内容后把焦点交还聊天输入框；输入框尚未挂载时退回聊天区域。 */
 function focusConversationComposer(): void {
-  const composer = document.querySelector<HTMLElement>(
-    '#desktop-main-content .composer-editor [contenteditable="true"]',
-  )
-  if (composer) composer.focus({ preventScroll: true })
-  else document.getElementById('desktop-main-content')?.focus({ preventScroll: true })
+  const focus = (): void => {
+    const composer = document.querySelector<HTMLElement>(
+      '#desktop-main-content .composer-editor [contenteditable="true"]',
+    )
+    if (composer) composer.focus({ preventScroll: true })
+    else document.getElementById('desktop-main-content')?.focus({ preventScroll: true })
+  }
+  focusAfterLayout(focus)
 }

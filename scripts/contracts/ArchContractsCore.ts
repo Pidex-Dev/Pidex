@@ -292,12 +292,7 @@ function resolveTargetZone(fromRelPath: string, specifier: string): TargetZone {
   if (specifier === '@pidex/renderer' || specifier.startsWith('@pidex/renderer/')) {
     return 'renderer-src'
   }
-  if (
-    specifier === '@pidex/auth-broker' ||
-    specifier === '@pidex/website' ||
-    specifier.startsWith('@pidex/auth-broker/') ||
-    specifier.startsWith('@pidex/website/')
-  ) {
+  if (specifier === '@pidex/auth-broker' || specifier.startsWith('@pidex/auth-broker/')) {
     return 'apps-other'
   }
   if (specifier.startsWith('apps/')) return classifyRepoTargetPath(specifier)

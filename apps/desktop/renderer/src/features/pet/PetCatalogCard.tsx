@@ -78,12 +78,7 @@ export function PetCatalogCard({
                 aria-label={`限制使用：${petLicenseLabel(pet.licenseKind)}`}
                 className="tw:inline-flex tw:shrink-0 tw:text-amber-500 dark:tw:text-amber-400"
               >
-                <AlertTriangle
-                  className="tw:size-icon-sm"
-                  aria-hidden="true"
-                  size={14}
-                  strokeWidth={2.2}
-                />
+                <AlertTriangle className="tw:size-icon-sm" aria-hidden="true" size={14} />
               </span>
             </Tooltip>
           ) : null}

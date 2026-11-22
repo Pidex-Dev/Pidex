@@ -32,10 +32,27 @@ export type HookEventSection = {
   event: HookEventName
   title: string
   subtitle: string
+  hasPendingReview: boolean
   items: Array<{
     hook: DiscoveredHook
     displayLabel: string
   }>
+}
+
+export function isHookPendingReview(hook: Pick<DiscoveredHook, 'trustStatus'>): boolean {
+  return hook.trustStatus === 'untrusted' || hook.trustStatus === 'modified'
+}
+
+export function pendingReviewHooks(hooks: readonly DiscoveredHook[]): DiscoveredHook[] {
+  return hooks.filter(isHookPendingReview)
+}
+
+export function pendingHookCountLabel(count: number): string {
+  return `${count} 项待审核`
+}
+
+export function hookTrustReason(hook: Pick<DiscoveredHook, 'trustStatus'>): string {
+  return hook.trustStatus === 'modified' ? '上次信任后已更改' : '新 Hook'
 }
 
 export function splitHookGroups(groups: readonly HookSourceGroup[]): {
@@ -67,6 +84,7 @@ export function groupHooksByEvent(hooks: readonly DiscoveredHook[]): HookEventSe
       event,
       title: meta.title,
       subtitle: meta.subtitle,
+      hasPendingReview: list.some(isHookPendingReview),
       items: list.map((hook, index) => ({
         hook,
         displayLabel: `${index + 1} - ${hook.statusMessage || hook.command}`,

@@ -2,6 +2,7 @@ import {
   HookListParamsSchema,
   HookRunsListParamsSchema,
   HookSetEnabledParamsSchema,
+  HookTrustParamsSchema,
   type RpcMethod,
 } from '@pidex/agent-protocol'
 import { Schema } from 'effect'
@@ -12,6 +13,7 @@ import type { RpcHandlerGroup } from './Types'
 
 const decodeList = Schema.decodeUnknownSync(HookListParamsSchema)
 const decodeSetEnabled = Schema.decodeUnknownSync(HookSetEnabledParamsSchema)
+const decodeTrust = Schema.decodeUnknownSync(HookTrustParamsSchema)
 const decodeRuns = Schema.decodeUnknownSync(HookRunsListParamsSchema)
 
 const requireKnownWorkspace = (runtime: RpcRouter, cwd: string | undefined) => {
@@ -35,7 +37,7 @@ const decodeParams = <T>(decode: (value: unknown) => T, raw: unknown, method: st
 
 export const hookHandlers = {
   name: 'hooks',
-  methods: ['hook/list', 'hook/setEnabled', 'hook/runs/list'],
+  methods: ['hook/list', 'hook/setEnabled', 'hook/trust', 'hook/runs/list'],
   async handle(
     runtime: RpcRouter,
     method: RpcMethod,
@@ -53,6 +55,10 @@ export const hookHandlers = {
       case 'hook/setEnabled': {
         const params = decodeParams(decodeSetEnabled, rawParams, method)
         return hooks.setEnabled(params)
+      }
+      case 'hook/trust': {
+        const params = decodeParams(decodeTrust, rawParams, method)
+        return hooks.trustHooks(params)
       }
       case 'hook/runs/list': {
         const params = decodeParams(decodeRuns, rawParams, method)

@@ -431,7 +431,7 @@ export const FEATURE_MAP: readonly FeatureEntry[] = [
       {
         id: 'desktop-models-catalog',
         mode: 'desktop',
-        description: '使用 Playwright 验证供应商中心（/providers）与首次模型配置向导（/setup）。',
+        description: '使用 Playwright 验证供应商市场（/providers）及兼容跳转入口（/setup）。',
         command:
           'bun run --cwd apps/desktop/renderer test:visual -- DesktopFeatures.visual.ts --grep=@feature:models-catalog',
       },
@@ -488,7 +488,7 @@ export const FEATURE_MAP: readonly FeatureEntry[] = [
       'decision/markOutcome',
       'release-notes/list',
     ],
-    routes: ['settings/:tab'],
+    routes: ['settings', 'settings/:tab'],
     scenarios: [
       {
         id: 'config-memory-storage-read',
@@ -711,6 +711,7 @@ export const FEATURE_MAP: readonly FeatureEntry[] = [
       'mcp/oauth/logout',
       'hook/list',
       'hook/setEnabled',
+      'hook/trust',
       'hook/runs/list',
       'tooling/list',
       'tooling/refresh',

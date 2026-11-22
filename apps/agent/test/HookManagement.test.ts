@@ -336,6 +336,33 @@ describe('Hook 主动发现与启停管理', () => {
     )
 
     await hooks.loadWithPlugins({ projectRoot: fixtureValue.projectRoot })
+    const listed = await new HooksManagement({
+      configService: fixtureValue.configService,
+      settings: fixtureValue.settings,
+      userHooksFile: fixtureValue.userHooksFile,
+      dataRoot: fixtureValue.dataRoot,
+      userHome: fixtureValue.userHome,
+      runs: hooks.runRepository,
+      projectRoots: () => [fixtureValue.projectRoot],
+      pluginHookSources: async () => [
+        {
+          pluginId: 'ponytail',
+          pluginName: 'Ponytail',
+          pluginRoot,
+          scope: 'user',
+          hooksPaths: [join(pluginRoot, 'hooks/claude-codex-hooks.json')],
+        },
+      ],
+    }).listSources(fixtureValue.projectRoot)
+    const pluginGroup = listed.groups.find((group) => group.id === 'plugin:ponytail')!
+    await fixtureValue.settings.trustHooks({
+      hooks: pluginGroup.hooks.map((hook) => ({
+        identity: hook.identity,
+        contentHash: hook.contentHash!,
+      })),
+      operationId: 'op-trust-plugin-1',
+    })
+
     const startResults = await hooks.run(
       'session_start',
       { workspace: fixtureValue.projectRoot },
@@ -429,6 +456,33 @@ describe('Hook 主动发现与启停管理', () => {
     )
 
     try {
+      const discovered = await new HooksManagement({
+        configService: fixtureValue.configService,
+        settings: fixtureValue.settings,
+        userHooksFile: fixtureValue.userHooksFile,
+        dataRoot: fixtureValue.dataRoot,
+        userHome: fixtureValue.userHome,
+        runs: hooks.runRepository,
+        projectRoots: () => [fixtureValue.projectRoot],
+        pluginHookSources: async () => [
+          {
+            pluginId: 'ponytail',
+            pluginName: 'Ponytail',
+            pluginRoot: outsidePluginRoot,
+            scope: 'user',
+            hooksPaths: [pluginHooksFile],
+          },
+        ],
+      }).listSources(fixtureValue.projectRoot)
+      const pluginGroup = discovered.groups.find((group) => group.id === 'plugin:ponytail')!
+      await fixtureValue.settings.trustHooks({
+        hooks: pluginGroup.hooks.map((hook) => ({
+          identity: hook.identity,
+          contentHash: hook.contentHash!,
+        })),
+        operationId: 'op-trust-plugin-host-1',
+      })
+
       await hooks.loadWithPlugins({ projectRoot: fixtureValue.projectRoot })
       const startResults = await hooks.run(
         'session_start',
@@ -474,5 +528,171 @@ describe('Hook 主动发现与启停管理', () => {
     } finally {
       await fixtureValue.dispose()
     }
+  })
+
+  test('插件与项目 Hook 需逐条信任：未信任/变更后跳过或待审，信任后立即生效并保留幂等与冲突校验', async () => {
+    const temp = await mkdtemp(join(tmpdir(), 'pidex-hook-trust-'))
+    roots.push(temp)
+    const pluginRoot = join(temp, 'ponytail')
+    await mkdir(join(pluginRoot, 'hooks'), { recursive: true })
+    const pluginHooksFile = join(pluginRoot, 'hooks', 'hooks.json')
+    const writePluginCommand = (command: string) =>
+      writeFile(
+        pluginHooksFile,
+        JSON.stringify({
+          hooks: {
+            SessionStart: [{ hooks: [{ type: 'command', command }] }],
+          },
+        }),
+        'utf8',
+      )
+    await writePluginCommand('echo ponytail-v1')
+
+    const fixtureValue = await fixture({
+      plugins: [
+        {
+          pluginId: 'ponytail',
+          pluginName: 'Ponytail',
+          pluginRoot,
+          scope: 'user',
+          hooksPaths: [pluginHooksFile],
+        },
+      ],
+    })
+    const { management, hooks, userHooksFile, projectRoot, executed } = fixtureValue
+
+    await writeFile(
+      userHooksFile,
+      JSON.stringify({ hooks: [{ id: 'u1', event: 'user_prompt_submit', command: 'echo u1' }] }),
+      'utf8',
+    )
+    await writeFile(
+      join(projectRoot, '.pidex', 'hooks.json'),
+      JSON.stringify({ hooks: [{ id: 'p1', event: 'pre_tool_use', command: 'echo p1' }] }),
+      'utf8',
+    )
+
+    const initial = await management.listSources(projectRoot)
+    const userHook = initial.groups.find((g) => g.id === 'config:user')!.hooks[0]!
+    const projectHook = initial.groups.find((g) => g.id === 'config:project')!.hooks[0]!
+    const pluginHook = initial.groups.find((g) => g.id === 'plugin:ponytail')!.hooks[0]!
+
+    expect(userHook.trustStatus).toBe('trusted')
+    expect(projectHook.trustStatus).toBe('untrusted')
+    expect(pluginHook.trustStatus).toBe('untrusted')
+    expect(pluginHook.contentHash).toMatch(/^[a-f0-9]{64}$/)
+
+    // Untrusted plugin hooks are silently skipped at runtime
+    await hooks.loadWithPlugins({ projectRoot })
+    await hooks.run('session_start', { workspace: projectRoot }, { workspaceRoot: projectRoot })
+    expect(executed).toEqual([])
+
+    // Disable first, then trust — trusting unlocks and enables it immediately
+    await management.setEnabled({
+      identity: pluginHook.identity,
+      enabled: false,
+      operationId: 'op-disable-before-trust',
+    })
+    const trustResult = await management.trustHooks({
+      hooks: [{ identity: pluginHook.identity, contentHash: pluginHook.contentHash! }],
+      operationId: 'op-trust-1',
+    })
+    expect(trustResult.trusted).toEqual([
+      { identity: pluginHook.identity, contentHash: pluginHook.contentHash! },
+    ])
+
+    // Idempotent replay with same operationId, conflict on mismatched payload
+    const replayed = await management.trustHooks({
+      hooks: [{ identity: pluginHook.identity, contentHash: pluginHook.contentHash! }],
+      operationId: 'op-trust-1',
+    })
+    expect(replayed.generation).toBe(trustResult.generation)
+    await expect(
+      management.trustHooks({
+        hooks: [{ identity: projectHook.identity, contentHash: projectHook.contentHash! }],
+        operationId: 'op-trust-1',
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+    await expect(
+      management.trustHooks({
+        hooks: [
+          { identity: pluginHook.identity, contentHash: 'a'.repeat(64) },
+          { identity: pluginHook.identity, contentHash: 'b'.repeat(64) },
+        ],
+        operationId: 'op-trust-dup-conflict',
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+
+    // Live execution succeeds without reloading HookService
+    await hooks.run('session_start', { workspace: projectRoot }, { workspaceRoot: projectRoot })
+    expect(executed).toEqual(['echo ponytail-v1'])
+
+    // Modifying plugin hook command switches status to `modified` and blocks execution until re-trusted
+    await writePluginCommand('echo ponytail-v2')
+    const afterModify = await management.listSources(projectRoot)
+    const modifiedPluginHook = afterModify.groups.find((g) => g.id === 'plugin:ponytail')!.hooks[0]!
+    expect(modifiedPluginHook.trustStatus).toBe('modified')
+    expect(modifiedPluginHook.contentHash).not.toBe(pluginHook.contentHash)
+
+    await hooks.loadWithPlugins({ projectRoot })
+    executed.length = 0
+    await hooks.run('session_start', { workspace: projectRoot }, { workspaceRoot: projectRoot })
+    expect(executed).toEqual([])
+
+    // Dual-channel project trust: trusting individual project hook bypasses HOOK_TRUST_REQUIRED
+    await management.trustHooks({
+      hooks: [{ identity: projectHook.identity, contentHash: projectHook.contentHash! }],
+      operationId: 'op-trust-project-hook',
+    })
+    await hooks.run('pre_tool_use', { workspace: projectRoot }, { workspaceRoot: projectRoot })
+    expect(executed).toEqual(['echo p1'])
+
+    await fixtureValue.dispose()
+  })
+
+  test('项目整文件通过 hookTrust 放行后，listSources 将对应项目配置 Hook 标记为 trusted', async () => {
+    const fixtureValue = await fixture({ trusted: false })
+    const { configService, db, hooks, projectRoot, root, userHome, dataRoot, userHooksFile } =
+      fixtureValue
+    await writeFile(
+      join(projectRoot, '.pidex', 'hooks.json'),
+      JSON.stringify({ hooks: [{ id: 'p1', event: 'pre_tool_use', command: 'echo p1' }] }),
+      'utf8',
+    )
+    const management = new HooksManagement({
+      configService,
+      settings: fixtureValue.settings,
+      userHooksFile,
+      dataRoot,
+      userHome,
+      runs: hooks.runRepository,
+      projectRoots: () => [projectRoot],
+      projectConfigTrustDecision: (workspaceRoot, configHash) =>
+        db.hookTrustDecision(workspaceRoot, configHash),
+    })
+
+    const before = await management.listSources(projectRoot)
+    expect(before.groups.find((g) => g.id === 'config:project')!.hooks[0]!.trustStatus).toBe(
+      'untrusted',
+    )
+
+    await hooks.loadWithPlugins({ projectRoot })
+    let trustRequestId = ''
+    try {
+      await hooks.run('pre_tool_use', { workspace: projectRoot }, { workspaceRoot: projectRoot })
+    } catch (error) {
+      const request = (error as { details?: { request?: { id?: string } } }).details?.request
+      trustRequestId = request?.id ?? ''
+    }
+    expect(trustRequestId).toBeTruthy()
+    db.resolveHookTrustRequest(trustRequestId, 'allow')
+
+    const after = await management.listSources(projectRoot)
+    expect(after.groups.find((g) => g.id === 'config:project')!.hooks[0]!.trustStatus).toBe(
+      'trusted',
+    )
+    expect(root).toBeTruthy()
+
+    await fixtureValue.dispose()
   })
 })

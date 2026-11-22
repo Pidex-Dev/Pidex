@@ -13,36 +13,31 @@ export function SettingsPanelFallback({ label }: Props = {}): React.ReactNode {
   const { t } = useLocale()
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
-        <SkeletonRegion
-          label={t('设置加载中')}
-          className="settings-panel-fallback tw:grid tw:gap-6"
-        >
-          {label == null ? null : (
-            <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-0 tw:grid tw:gap-2">
-              <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
-                {t(label)}
-              </h2>
-            </div>
-          )}
-          <section className="settings-section tw:min-w-0">
-            <div className="settings-section-content settings-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none">
-              {Array.from({ length: FALLBACK_ROW_COUNT }, (_, index) => (
-                <div
-                  className="settings-panel-fallback-row tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:px-4 tw:py-3"
-                  key={index}
-                >
-                  <div className="tw:grid tw:gap-2">
-                    <SkeletonBlock className="tw:h-4 tw:w-[9rem]" />
-                    <SkeletonBlock className="tw:h-3 tw:w-[16rem]" />
-                  </div>
-                  <SkeletonBlock className="tw:h-5 tw:w-7 tw:rounded-full" />
+      <SkeletonRegion label={t('设置加载中')} className="settings-panel-fallback tw:grid tw:gap-6">
+        {label == null ? null : (
+          <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-0 tw:grid tw:gap-2">
+            <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+              {t(label)}
+            </h2>
+          </div>
+        )}
+        <section className="settings-section tw:min-w-0">
+          <div className="settings-section-content settings-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none">
+            {Array.from({ length: FALLBACK_ROW_COUNT }, (_, index) => (
+              <div
+                className="settings-panel-fallback-row tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:px-4 tw:py-3"
+                key={index}
+              >
+                <div className="tw:grid tw:gap-2">
+                  <SkeletonBlock className="tw:h-4 tw:w-[9rem]" />
+                  <SkeletonBlock className="tw:h-3 tw:w-[16rem]" />
                 </div>
-              ))}
-            </div>
-          </section>
-        </SkeletonRegion>
-      </div>
+                <SkeletonBlock className="tw:h-5 tw:w-7 tw:rounded-full" />
+              </div>
+            ))}
+          </div>
+        </section>
+      </SkeletonRegion>
     </SettingsContentArea>
   )
 }

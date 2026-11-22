@@ -16,6 +16,27 @@ export type SessionModelSelection = {
   variant?: string
   maxContextTokens?: number | null
 }
+
+/** 标识当前环境尚无任何可用任务模型，属于正常空状态而非异常错误。 */
+export class NoAvailableTaskModelError extends Error {
+  readonly code = 'NO_AVAILABLE_TASK_MODEL'
+
+  constructor() {
+    super('没有可用于创建任务的模型，请先连接 Provider')
+    this.name = 'NoAvailableTaskModelError'
+  }
+}
+
+/** 判断异常是否为无可用任务模型的空状态信号。 */
+export function isNoAvailableTaskModelError(error: unknown): boolean {
+  return (
+    error instanceof NoAvailableTaskModelError ||
+    (typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'NO_AVAILABLE_TASK_MODEL')
+  )
+}
 export type SessionModelSelectionState = {
   selection: SessionModelSelection | null
   loading: boolean
@@ -99,7 +120,7 @@ async function loadRecentNewThreadSelection(
   }
   if (resolved) return selectionFromRecentModel(resolved)
   if (preferred && preferredCheckFailed) return { ...preferred }
-  throw new Error('没有可用于创建任务的模型，请先连接 Provider')
+  throw new NoAvailableTaskModelError()
 }
 
 export const sessionModelSelections = {
@@ -190,6 +211,17 @@ export const sessionModelSelections = {
       if (!selected) throw new Error('会话模型加载已取消')
       return { ...selected }
     } catch (error) {
+      if (id === null && isNoAvailableTaskModelError(error)) {
+        if (pending.get(id) === operation) {
+          pending.delete(id)
+          write(id, {
+            selection: null,
+            loading: false,
+            error: null,
+          })
+        }
+        throw error
+      }
       const selected = read(id).selection
       if (selected) return { ...selected }
       if (pending.get(id) === operation) {

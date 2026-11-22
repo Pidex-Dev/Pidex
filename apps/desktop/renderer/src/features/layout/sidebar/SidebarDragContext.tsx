@@ -364,12 +364,16 @@ export function SidebarDragOverlay({
 export function SidebarDragPreview({
   getModel,
   maxWidth,
+  viewportRef,
 }: {
   getModel: (session: SidebarDragSession | null) => SidebarDragOverlayModel | null
   maxWidth?: number
+  viewportRef?: React.RefObject<HTMLElement | null>
 }): ReactNode {
   const session = useSidebarDragSession()
-  return <SidebarDragOverlay model={getModel(session)} maxWidth={maxWidth} />
+  // INVARIANT: Only read viewport clientWidth when a drag session is active so non-dragging SidebarBody renders never force layout.
+  const resolvedMaxWidth = maxWidth ?? (session ? viewportRef?.current?.clientWidth : undefined)
+  return <SidebarDragOverlay model={getModel(session)} maxWidth={resolvedMaxWidth} />
 }
 
 export type SidebarDropIndicatorModel = {

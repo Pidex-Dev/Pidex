@@ -491,7 +491,11 @@ export function DesktopComposer({
         selectedModelMetadata={selectedModelMetadata}
         maxContextTokens={maxContextTokens}
         onMaxContextTokensChange={onMaxContextTokensChange}
-        submitDisabledReason={unsupportedAttachmentReason ?? modelSelectionError ?? undefined}
+        submitDisabledReason={
+          unsupportedAttachmentReason ??
+          modelSelectionError ??
+          (!modelConfigured && !modelCatalogLoading ? '请先配置模型' : undefined)
+        }
         showThinkingOptions={showThinkingOptions}
         deepSeekThinkingControls={deepSeekThinkingControls}
         showContextUsage={showContextUsage}

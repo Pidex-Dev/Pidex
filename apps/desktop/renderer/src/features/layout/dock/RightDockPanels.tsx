@@ -1029,6 +1029,23 @@ function useEditorFileTreeResize({
   const liveWidthPixels = useMotionTemplate`${liveWidth}px`
   const committedWidthRef = useRef(committedWidth)
   const activeResizeRef = useRef<ActiveFileTreeResize | null>(null)
+  const [maximumWidth, setMaximumWidth] = useState(FILE_TREE_FALLBACK_MAX_WIDTH)
+
+  // INVARIANT: the maximum width read lands on the second post-layout rAF; a mount-render getBoundingClientRect flushes a dirty tree synchronously in Chromium.
+  useLayoutEffect(() => {
+    let raf1 = 0
+    let raf2 = 0
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        raf2 = 0
+        setMaximumWidth(resolveFileTreeMaximumWidth(layoutRef.current))
+      })
+    })
+    return () => {
+      if (raf1) cancelAnimationFrame(raf1)
+      if (raf2) cancelAnimationFrame(raf2)
+    }
+  }, [layoutRef])
 
   useLayoutEffect(() => {
     committedWidthRef.current = committedWidth
@@ -1046,6 +1063,7 @@ function useEditorFileTreeResize({
 
   function commitWidth(width: number): void {
     const nextWidth = clampFileTreeWidth(width, layoutRef.current)
+    setMaximumWidth(resolveFileTreeMaximumWidth(layoutRef.current))
     committedWidthRef.current = nextWidth
     liveWidth.set(nextWidth)
     onCommitWidth(nextWidth)
@@ -1147,7 +1165,7 @@ function useEditorFileTreeResize({
       '--right-dock-editor-tree-width': liveWidthPixels,
     } as React.CSSProperties,
     liveWidth,
-    maximumWidth: resolveFileTreeMaximumWidth(layoutRef.current),
+    maximumWidth,
     resetWidth: () => commitWidth(FILE_TREE_DEFAULT_WIDTH),
     startResize,
   }

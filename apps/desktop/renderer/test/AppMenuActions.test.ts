@@ -291,4 +291,31 @@ describe('application menu actions', () => {
     }
     expect(calls).toEqual([])
   })
+
+  test('openSettings callback receives modal paths and Ctrl+, passes toggle flag', () => {
+    const settingsCalls: Array<[string, { toggle?: boolean } | undefined]> = []
+    const { actions, calls } = setup({
+      openSettings: (path, options) => {
+        settingsCalls.push([path, options])
+      },
+    })
+    actions.onFileMenuAction('openSettings')
+    actions.handleShortcut(key(','))
+    actions.onHelpMenuAction('localEnvironments')
+    actions.onHelpMenuAction('worktrees')
+    actions.onHelpMenuAction('skills')
+    actions.onHelpMenuAction('modelContextProtocol')
+    actions.onHelpMenuAction('keyboardShortcuts')
+
+    expect(calls).toEqual([])
+    expect(settingsCalls).toEqual([
+      ['/settings/general', undefined],
+      ['/settings/general', { toggle: true }],
+      ['/settings/environments', undefined],
+      ['/settings/worktrees', undefined],
+      ['/settings/plugins?tab=skills', undefined],
+      ['/settings/plugins?tab=mcps', undefined],
+      ['/settings/shortcuts', undefined],
+    ])
+  })
 })

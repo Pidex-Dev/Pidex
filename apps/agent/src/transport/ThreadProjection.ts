@@ -38,8 +38,11 @@ import {
   readMessagePhase,
   decodePermissionConfig,
   decodeStructuredPlan,
+  GuardianReviewSchema,
   InteractionQuestionSchema,
   InteractionQuestionAnswerSchema,
+  RiskCategorySchema,
+  ShellReviewSchema,
   WorktreeStatusSchema,
 } from '@pidex/shared/thread'
 import { Schema } from 'effect'
@@ -63,6 +66,45 @@ const projectPermissionConfig = (row: Record<string, string | number | null>): P
 const isQuestionGroup = Schema.is(Schema.Array(InteractionQuestionSchema))
 const isSubagentRoleValue = Schema.is(SubagentRoleSchema)
 const isQuestionAnswers = Schema.is(Schema.Array(InteractionQuestionAnswerSchema))
+const isRiskCategory = Schema.is(RiskCategorySchema)
+const isShellReview = Schema.is(ShellReviewSchema)
+const isGuardianReview = Schema.is(GuardianReviewSchema)
+
+const projectShellReview = (raw: unknown): ApprovalRequest['review'] => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const record = raw as Record<string, unknown>
+  const candidate = {
+    decision: record.decision,
+    risk: record.risk,
+    confidence: record.confidence,
+    categories: Array.isArray(record.categories) ? record.categories.filter(isRiskCategory) : [],
+    requestedScopeValid: record.requestedScopeValid,
+    reason: record.reason,
+  }
+  return isShellReview(candidate) ? candidate : null
+}
+
+const projectGuardianReview = (raw: unknown): ApprovalRequest['guardian'] => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const record = raw as Record<string, unknown>
+  const candidate = {
+    status: record.status,
+    source: record.source,
+    risk: record.risk,
+    userAuthorization: record.userAuthorization,
+    confidence: record.confidence,
+    categories: Array.isArray(record.categories) ? record.categories.filter(isRiskCategory) : [],
+    rationale: record.rationale,
+    reviewedAt: record.reviewedAt,
+    ...(typeof record.scoreLag === 'number' ? { scoreLag: record.scoreLag } : {}),
+    ...(typeof record.fallbackReason === 'string' ? { fallbackReason: record.fallbackReason } : {}),
+    ...(typeof record.model === 'string' ? { model: record.model } : {}),
+    ...(typeof record.authorizationVersion === 'string'
+      ? { authorizationVersion: record.authorizationVersion }
+      : {}),
+  }
+  return isGuardianReview(candidate) ? candidate : undefined
+}
 const localContextStatus = (path: string): LocalContextReference['status'] => {
   try {
     const canonical = realpathSync(resolve(path))
@@ -1702,8 +1744,9 @@ export class ThreadProjection {
         : undefined
     const review =
       typeof row.review_payload === 'string'
-        ? parse<ApprovalRequest['review']>(row.review_payload)
+        ? projectShellReview(parse<unknown>(row.review_payload))
         : null
+    const guardian = projectGuardianReview(request.guardian)
     return {
       id: String(row.id),
       threadId: String(row.thread_id),
@@ -1725,7 +1768,7 @@ export class ThreadProjection {
       review,
       risk: String(row.risk) as ApprovalRequest['risk'],
       reason: String(row.reason),
-      ...(request.guardian ? { guardian: request.guardian as ApprovalRequest['guardian'] } : {}),
+      ...(guardian ? { guardian } : {}),
       ...(typeof request.autoReviewFallbackReason === 'string'
         ? { autoReviewFallbackReason: request.autoReviewFallbackReason }
         : {}),

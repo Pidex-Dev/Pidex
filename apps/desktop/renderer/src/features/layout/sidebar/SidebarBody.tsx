@@ -119,6 +119,7 @@ const SECTION_CONTENT_CLASS =
 const SHOW_MORE_ACTIONS_CLASS =
   'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-1 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-3 tw:px-1 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard'
 const SHOW_MORE_ROW_CLASS = 'sidebar-row-main tw:gap-4'
+// INVARIANT: 展开/折叠按钮复用 Button[data-size="compact"]（自带 8px 水平内边距），首按钮用 -ml-2 抵消自身左内边距，使文字起点严格对齐第二列（sidebar-row-main）。
 const SHOW_MORE_BUTTON_CLASS =
   'tw:w-auto sidebar-show-more-button tw:first:-ml-2 tw:min-w-0 tw:border-0 tw:[font:inherit]'
 const SHOW_MORE_LABEL_CLASS = 'tw:block tw:overflow-hidden tw:whitespace-nowrap'
@@ -803,10 +804,7 @@ function SidebarBodyContent({
               moveFocusOnArrowKey(event, '.sidebar-session-button, .sidebar-project-button')
           }}
         >
-          <SidebarDragPreview
-            getModel={getDragOverlayModel}
-            maxWidth={scrollViewportRef.current?.clientWidth}
-          />
+          <SidebarDragPreview getModel={getDragOverlayModel} viewportRef={scrollViewportRef} />
           <SidebarDragFeedback select={selectDragItems} commit={applyDropOperation} />
           {timeline ? (
             <Timeline

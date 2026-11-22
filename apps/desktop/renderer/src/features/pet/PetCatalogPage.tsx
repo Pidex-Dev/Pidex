@@ -11,6 +11,7 @@ import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTo
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
+import { openSettingsDialog } from '../settings/SettingsDialogStore.js'
 import { PetCatalogSection } from './PetCatalogSection.js'
 import { usePetCatalogController } from './PetCatalogProvider.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
@@ -90,7 +91,7 @@ export function PetCatalogPage(): React.ReactNode {
       </Button>
       <Button
         isIconOnly
-        onClick={() => navigate('/settings/pets')}
+        onClick={() => openSettingsDialog('/settings/pets')}
         shape="pill"
         size="md"
         title={t('宠物设置')}

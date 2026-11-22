@@ -42,6 +42,7 @@ type Options = {
   canNavigateBack: boolean
   canNavigateForward: boolean
   navigate: (path: string) => void
+  openSettings?: (path: string, options?: { toggle?: boolean }) => void
   newChat: Action
   openFolder: Action
   toggleSidebar: Action
@@ -70,13 +71,14 @@ export function createAppMenuActions(options: Options) {
   // 不可用的动作直接留空：菜单据此禁用，快捷键也不会拦截该按键。
   const allowed = (command: AppCommandId, action: Action) =>
     canRunAppCommand(command, commandContext) ? action : undefined
+  const openSettings = options.openSettings ?? ((path: string) => options.navigate(path))
   const file: Record<FileMenuAction, Action | undefined> = {
     close: bridge?.close ? () => client.closeWindow() : undefined,
     newWindow: bridge?.openWindow ? () => client.newWindow() : undefined,
     newChat: options.newChat,
     quickChat: () => options.navigate('/new'),
     openFolder: options.openFolder,
-    openSettings: () => options.navigate('/settings/general'),
+    openSettings: () => openSettings('/settings/general'),
     logOut: undefined,
     exit: bridge?.quitDuringStartup ? () => client.exitApp() : undefined,
     stopBackendAndExit: bridge?.stopBackendAndExit ? () => bridge.stopBackendAndExit!() : undefined,
@@ -108,11 +110,11 @@ export function createAppMenuActions(options: Options) {
   const help: Record<HelpMenuAction, Action | undefined> = {
     whatsNew: () => options.openWhatsNew(null),
     automations: () => options.navigate('/automations'),
-    localEnvironments: () => options.navigate('/settings/environments'),
-    worktrees: () => options.navigate('/settings/worktrees'),
-    skills: () => options.navigate('/settings/plugins?tab=skills'),
-    modelContextProtocol: () => options.navigate('/settings/plugins?tab=mcps'),
-    keyboardShortcuts: () => options.navigate('/settings/shortcuts'),
+    localEnvironments: () => openSettings('/settings/environments'),
+    worktrees: () => openSettings('/settings/worktrees'),
+    skills: () => openSettings('/settings/plugins?tab=skills'),
+    modelContextProtocol: () => openSettings('/settings/plugins?tab=mcps'),
+    keyboardShortcuts: () => openSettings('/settings/shortcuts'),
     pidexDocumentation: undefined,
     troubleshooting: undefined,
     sendFeedback: undefined,
@@ -173,7 +175,7 @@ export function createAppMenuActions(options: Options) {
             action = file.close
             break
           case ',':
-            action = file.openSettings
+            action = () => openSettings('/settings/general', { toggle: true })
             break
           case 'm':
             action = windowActions.minimize
@@ -206,7 +208,22 @@ export function useAppMenuActions(options: Options) {
   const actions = useMemo(() => createAppMenuActions(options), [options])
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (document.querySelector('[role="dialog"], [role="alertdialog"], dialog[open]')) return
+      const openDialogs = document.querySelectorAll(
+        '[role="dialog"], [role="alertdialog"], dialog[open]',
+      )
+      const isToggleSettingsShortcut =
+        event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        !event.repeat &&
+        !event.defaultPrevented &&
+        !event.isComposing &&
+        event.keyCode !== 229 &&
+        event.key === ','
+      const onlySettingsDialogOpen =
+        openDialogs.length === 1 && openDialogs[0]?.classList.contains('settings-dialog')
+      if (openDialogs.length > 0 && !(isToggleSettingsShortcut && onlySettingsDialogOpen)) return
       if (
         event.target instanceof Element &&
         event.target.closest('[data-terminal-keyboard-capture]')

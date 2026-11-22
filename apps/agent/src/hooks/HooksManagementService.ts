@@ -7,6 +7,7 @@ import type {
   HookRunsListResult,
   HookSetEnabledResult,
   HookSourceGroup,
+  HookTrustResult,
   RpcParams,
 } from '@pidex/agent-protocol'
 import { AgentError } from '../Domain'
@@ -45,6 +46,11 @@ export type HooksManagementServiceInput = {
   projectRoots?: () => readonly string[]
   /** Enabled plugins contributing hooks. */
   pluginHookSources?: (workspaceRoot?: string) => Promise<readonly PluginHookSource[]>
+  /** Optional whole-file project hook trust lookup backed by database approvals. */
+  projectConfigTrustDecision?: (
+    workspaceRoot: string,
+    configHash: string,
+  ) => 'allow' | 'block' | null
 }
 
 const MAX_ERROR_SUMMARY = 400
@@ -132,8 +138,15 @@ export class HooksManagement implements HooksManagementService {
       })
       const state = this.input.settings.state()
       const disabled = new Set(state.disabledIdentities)
+      const trustedMap = new Map(Object.entries(state.trustedHashes))
       const projectUntrusted =
         workspaceRoot !== undefined && !this.input.configService.isProjectTrusted(workspaceRoot)
+      const projectConfigAllowed = Boolean(
+        workspaceRoot &&
+        discovered.projectConfigHash &&
+        this.input.projectConfigTrustDecision?.(workspaceRoot, discovered.projectConfigHash) ===
+          'allow',
+      )
 
       const groups: HookSourceGroup[] = discovered.groups.map((group) => {
         const isUntrustedProject = group.scope === 'project' && projectUntrusted
@@ -166,6 +179,11 @@ export class HooksManagement implements HooksManagementService {
             ...(hook.statusMessage !== undefined ? { statusMessage: hook.statusMessage } : {}),
             filePath: hook.filePath,
             enabled: !disabled.has(hook.identity),
+            contentHash: hook.contentHash,
+            trustStatus: this.input.settings.trustStatusFor(hook, {
+              projectConfigAllowed,
+              trustedMap,
+            }),
           })),
           diagnostics,
         }
@@ -191,6 +209,25 @@ export class HooksManagement implements HooksManagementService {
       return {
         identity: params.identity,
         enabled: params.enabled,
+        generation: result.state.generation,
+        updatedAt: result.state.updatedAt,
+      }
+    } catch (cause) {
+      return mapHookError(cause)
+    }
+  }
+
+  async trustHooks(params: RpcParams<'hook/trust'>): Promise<HookTrustResult> {
+    if (!params.hooks.length) {
+      throw new AgentError('HOOK_INVALID', '至少需要指定一条待信任 Hook', 400)
+    }
+    try {
+      const result = this.input.settings.trustHooks({
+        hooks: params.hooks,
+        operationId: params.operationId,
+      })
+      return {
+        trusted: result.trusted,
         generation: result.state.generation,
         updatedAt: result.state.updatedAt,
       }
@@ -340,7 +377,10 @@ export const createHooksManagement = (
   configService: ConfigService,
   settings: HookSettingsRepository,
   userHooksFile: string,
-  db: Pick<import('../storage/database/AgentDatabase').AgentDatabase, 'listProjects'>,
+  db: Pick<
+    import('../storage/database/AgentDatabase').AgentDatabase,
+    'listProjects' | 'hookTrustDecision'
+  >,
   options?: {
     dataRoot?: string
     userHome?: string
@@ -354,6 +394,8 @@ export const createHooksManagement = (
     userHooksFile,
     runs: hooks.runRepository,
     projectRoots: () => db.listProjects().map((project) => project.rootPath),
+    projectConfigTrustDecision: (workspaceRoot, configHash) =>
+      db.hookTrustDecision(workspaceRoot, configHash),
     ...(options?.dataRoot ? { dataRoot: options.dataRoot } : {}),
     ...(options?.userHome ? { userHome: options.userHome } : {}),
     ...(options?.pluginHookSources ? { pluginHookSources: options.pluginHookSources } : {}),

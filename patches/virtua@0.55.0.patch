@@ -1,0 +1,62 @@
+diff --git a/lib/index.cjs b/lib/index.cjs
+index 4da1d1364e30c9d2d23d6b34e027fcec98d4aac8..cdff5e10ad2f04ba9df9282843d5fda778e79d73 100644
+--- a/lib/index.cjs
++++ b/lib/index.cjs
+@@ -492,7 +492,7 @@ n), m = e => l(e.t(), e.o()), w = (e, t, o, n) => {
+     const i = /* @__PURE__ */ new Map, c = /* @__PURE__ */ new WeakMap, a = H(s => {
+         const l = [], f = [];
+         for (const {target: a, contentRect: {width: u, height: d}} of s) if (a === n) (u || d) && (r.D(), 
+-        e.h(4, o ? u : d)); else if (a.offsetParent) {
++        e.h(4, o ? u : d)); else if (a.isConnected && (u || d || a.offsetParent)) {
+             const e = i.get(a), n = c.get(a);
+             c.set(a, e);
+             const r = o ? u : d;
+@@ -537,7 +537,7 @@ n), m = e => l(e.t(), e.o()), w = (e, t, o, n) => {
+     const u = /* @__PURE__ */ new Map, d = /* @__PURE__ */ new WeakMap, h = H(s => {
+         const l = [], c = [];
+         for (const {target: e, contentRect: {width: f, height: a}} of s) if (e === n) r.D(), 
+-        i(); else if (e.offsetParent) {
++        i(); else if (e.isConnected && (f || a || e.offsetParent)) {
+             const n = u.get(e), r = d.get(e);
+             d.set(e, n);
+             const s = o ? f : a;
+@@ -584,7 +584,7 @@ n), m = e => l(e.t(), e.o()), w = (e, t, o, n) => {
+     const f = /* @__PURE__ */ new WeakMap, a = H(r => {
+         const c = [], a = [];
+         for (const {target: u, contentRect: {width: d, height: h}} of r) if (u === s) (d || h) && (l.D(), 
+-        i.D(), e.h(4, h), t.h(4, d)); else if (u.offsetParent) {
++        i.D(), e.h(4, h), t.h(4, d)); else if (u.isConnected && (d || h || u.offsetParent)) {
+             const e = f.get(u);
+             if (e) {
+                 const [t, r] = e;
+diff --git a/lib/index.js b/lib/index.js
+index 107e6871c670d58f40ded2b03cac928983b64102..a37e0291813c56c38ebc71a6310eb5e805fc21f3 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -492,7 +492,7 @@ a), x = e => h(e.t(), e.o()), I = (e, t, o, n) => {
+     const i = /* @__PURE__ */ new Map, c = /* @__PURE__ */ new WeakMap, f = J(s => {
+         const l = [], f = [];
+         for (const {target: a, contentRect: {width: u, height: d}} of s) if (a === n) (u || d) && (r.D(), 
+-        e.h(4, o ? u : d)); else if (a.offsetParent) {
++        e.h(4, o ? u : d)); else if (a.isConnected && (u || d || a.offsetParent)) {
+             const e = i.get(a), n = c.get(a);
+             c.set(a, e);
+             const r = o ? u : d;
+@@ -537,7 +537,7 @@ a), x = e => h(e.t(), e.o()), I = (e, t, o, n) => {
+     const a = /* @__PURE__ */ new Map, u = /* @__PURE__ */ new WeakMap, d = J(s => {
+         const l = [], c = [];
+         for (const {target: e, contentRect: {width: f, height: d}} of s) if (e === n) r.D(), 
+-        i(); else if (e.offsetParent) {
++        i(); else if (e.isConnected && (f || d || e.offsetParent)) {
+             const n = a.get(e), r = u.get(e);
+             u.set(e, n);
+             const s = o ? f : d;
+@@ -584,7 +584,7 @@ a), x = e => h(e.t(), e.o()), I = (e, t, o, n) => {
+     const c = /* @__PURE__ */ new WeakMap, f = J(i => {
+         const f = [], a = [];
+         for (const {target: u, contentRect: {width: d, height: h}} of i) if (u === r) (d || h) && (s.D(), 
+-        l.D(), e.h(4, h), t.h(4, d)); else if (u.offsetParent) {
++        l.D(), e.h(4, h), t.h(4, d)); else if (u.isConnected && (d || h || u.offsetParent)) {
+             const e = c.get(u);
+             if (e) {
+                 const [t, r] = e;

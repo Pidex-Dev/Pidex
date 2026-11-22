@@ -186,66 +186,63 @@ export function UsageBillingSettings(): React.ReactNode {
   }, [setSearchParams])
 
   return (
-    <SettingsContentArea>
-      <div
-        aria-busy={localLoading || configuration.loading || undefined}
-        className="settings-content-inner usage-billing-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]"
-      >
-        <div className="settings-page-header usage-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-4 tw:@max-[900px]:flex-col tw:@max-[900px]:items-stretch">
-          <div>
-            <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
-              用量与成本
-            </h2>
-            <p className="usage-page-description tw:mt-1 tw:mr-0 tw:mb-0 tw:ml-0 tw:text-app-text-soft tw:type-1">
-              查看 Pidex 本机模型消耗，以及已连接账户的远端用量和成本趋势。
-            </p>
-          </div>
-          <SegmentedControl<UsageTab>
-            ariaLabel="用量与成本页签"
-            getPanelId={(value) => `usage-${value}-panel`}
-            getTabId={(value) => `usage-${value}-tab`}
-            onChange={changeTab}
-            options={TAB_OPTIONS}
-            semantics="tabs"
-            value={tab}
-          />
+    <SettingsContentArea
+      innerClassName="usage-billing-settings"
+      innerProps={{ 'aria-busy': localLoading || configuration.loading || undefined }}
+    >
+      <div className="settings-page-header usage-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-4 tw:@max-[900px]:flex-col tw:@max-[900px]:items-stretch">
+        <div>
+          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+            用量与成本
+          </h2>
+          <p className="usage-page-description tw:mt-1 tw:mr-0 tw:mb-0 tw:ml-0 tw:text-app-text-soft tw:type-1">
+            查看 Pidex 本机模型消耗，以及已连接账户的远端用量和成本趋势。
+          </p>
         </div>
-
-        {tab === 'application' ? (
-          <ApplicationUsagePanel
-            data={localData}
-            error={localError}
-            loading={localLoading}
-            onRangeChange={setLocalRange}
-            onRefresh={() => void loadLocalUsage(localRange)}
-            range={localRange}
-          />
-        ) : (
-          <ProviderUsagePanel
-            descriptors={analyticsSources.map((source) => source.descriptor)}
-            error={usageError}
-            loading={configuration.loading || refreshingSourceIds.length > 0}
-            onClearFilter={clearProviderFilter}
-            onRefresh={(sourceIds, force, range) =>
-              void loadProviderUsage({
-                range: range ?? '7d',
-                sourceIds:
-                  sourceIds ?? analyticsSources.map((source) => source.descriptor.sourceId),
-                force,
-              })
-            }
-            partitions={{
-              today: partitions[providerUsagePartitionKey('today', timeZone)],
-              '7d': partitions[providerUsagePartitionKey('7d', timeZone)],
-              '30d': partitions[providerUsagePartitionKey('30d', timeZone)],
-            }}
-            providerNames={providerNames}
-            refreshingSourceIds={refreshingSourceIds}
-            selectedProviderId={selectedProviderId}
-            selectedSourceId={selectedSourceId}
-          />
-        )}
+        <SegmentedControl<UsageTab>
+          ariaLabel="用量与成本页签"
+          getPanelId={(value) => `usage-${value}-panel`}
+          getTabId={(value) => `usage-${value}-tab`}
+          onChange={changeTab}
+          options={TAB_OPTIONS}
+          semantics="tabs"
+          value={tab}
+        />
       </div>
+
+      {tab === 'application' ? (
+        <ApplicationUsagePanel
+          data={localData}
+          error={localError}
+          loading={localLoading}
+          onRangeChange={setLocalRange}
+          onRefresh={() => void loadLocalUsage(localRange)}
+          range={localRange}
+        />
+      ) : (
+        <ProviderUsagePanel
+          descriptors={analyticsSources.map((source) => source.descriptor)}
+          error={usageError}
+          loading={configuration.loading || refreshingSourceIds.length > 0}
+          onClearFilter={clearProviderFilter}
+          onRefresh={(sourceIds, force, range) =>
+            void loadProviderUsage({
+              range: range ?? '7d',
+              sourceIds: sourceIds ?? analyticsSources.map((source) => source.descriptor.sourceId),
+              force,
+            })
+          }
+          partitions={{
+            today: partitions[providerUsagePartitionKey('today', timeZone)],
+            '7d': partitions[providerUsagePartitionKey('7d', timeZone)],
+            '30d': partitions[providerUsagePartitionKey('30d', timeZone)],
+          }}
+          providerNames={providerNames}
+          refreshingSourceIds={refreshingSourceIds}
+          selectedProviderId={selectedProviderId}
+          selectedSourceId={selectedSourceId}
+        />
+      )}
     </SettingsContentArea>
   )
 }
