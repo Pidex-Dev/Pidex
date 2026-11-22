@@ -1,7 +1,6 @@
 import { useComputerSettings } from './UseComputerSettings.js'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
-import { ArrowLeft } from 'lucide-react'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import { SidebarRow } from '../../components/ui/SidebarRow.js'
@@ -20,11 +19,11 @@ import { moveFocusOnArrowKey } from '../../utils/ArrowListFocus.js'
 type Props = {
   activeTab: string
   workspacePath?: string | null
-  onBack: () => void
+  onBack?: () => void
   onTabChange: (tabId: string) => void
 }
 
-export function SettingsNav({ activeTab, workspacePath = null, onBack, onTabChange }: Props) {
+export function SettingsNav({ activeTab, workspacePath = null, onTabChange }: Props) {
   const { t, locale } = useLocale()
   const capabilityState = useSettingsCapabilityState()
   const { state: computerState } = useComputerSettings()
@@ -99,8 +98,9 @@ export function SettingsNav({ activeTab, workspacePath = null, onBack, onTabChan
 
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
     if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
       if (searchQuery) {
-        event.preventDefault()
         clearSearch()
       } else {
         searchInputRef.current?.blur()
@@ -124,22 +124,11 @@ export function SettingsNav({ activeTab, workspacePath = null, onBack, onTabChan
   }
 
   return (
-    <ScrollArea
-      aria-label={t('设置分类')}
-      className="settings-nav-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
-      contentClassName="settings-nav-scroll-content tw:flex tw:min-w-0 tw:flex-col tw:gap-2 tw:px-2"
-    >
-      <div className="settings-nav-header tw:grid tw:shrink-0 tw:gap-2">
-        <SidebarRow
-          asChild
-          className="settings-back-btn tw:gap-x-2 tw:px-1 tw:type-2 tw:weight-medium"
-          layout="grid"
-          leading={<ArrowLeft className="tw:size-icon-md" size={APP_ICON_SIZE} />}
-        >
-          <button onClick={onBack} type="button">
-            <span>{t('返回应用')}</span>
-          </button>
-        </SidebarRow>
+    <div className="settings-nav tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:overflow-hidden">
+      <div className="settings-nav-header tw:grid tw:shrink-0 tw:gap-2 tw:px-3 tw:pt-4 tw:pb-2">
+        <h2 className="settings-nav-title tw:m-0 tw:px-1 tw:text-app-text tw:type-4 tw:weight-medium">
+          {t('设置')}
+        </h2>
         <SearchInput
           ref={searchInputRef}
           aria-label={t('搜索设置')}
@@ -160,69 +149,75 @@ export function SettingsNav({ activeTab, workspacePath = null, onBack, onTabChan
           variant="standard"
         />
       </div>
-      <div
-        className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:gap-4"
-        onKeyDown={(event) => moveFocusOnArrowKey(event, '.settings-nav-item')}
+      <ScrollArea
+        aria-label={t('设置分类')}
+        className="settings-nav-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
+        contentClassName="settings-nav-scroll-content tw:flex tw:min-w-0 tw:flex-col tw:gap-2 tw:px-2 tw:pt-2 tw:pb-4"
       >
-        {normalizedQuery ? (
-          <SearchResults
-            t={t}
-            activeIndex={activeResultIndex}
-            onActivate={activateResult}
-            onActiveIndexChange={setActiveResultIndex}
-            results={searchResults}
-          />
-        ) : (
-          SETTINGS_GROUPS.map((group) => {
-            const visibleItems = group.items.filter(
-              (item) => itemVisibility.get(item.routeId)?.visible === true,
-            )
-            if (visibleItems.length === 0) return null
-            return (
-              <section className="settings-nav-group tw:grid" key={group.title}>
-                <div className="settings-nav-group-title-row tw:min-w-0 tw:px-2 tw:py-1">
-                  <h2 className="settings-nav-group-title tw:m-0 tw:text-app-text-meta tw:type-2 tw:normal-case">
-                    {t(group.title)}
-                  </h2>
-                </div>
-                <div className="settings-nav-group-items tw:grid">
-                  {visibleItems.map((item) => {
-                    const pending = itemVisibility.get(item.routeId)?.pending === true
-                    return (
-                      <SidebarRow
-                        active={activeTab === item.routeId}
-                        asChild
-                        className={
-                          pending
-                            ? 'settings-nav-item tw:gap-x-2 tw:px-1 tw:type-2 tw:weight-medium tw:whitespace-nowrap tw:opacity-50'
-                            : 'settings-nav-item tw:gap-x-2 tw:px-1 tw:type-2 tw:weight-medium tw:whitespace-nowrap'
-                        }
-                        key={item.id}
-                        layout="grid"
-                        leading={
-                          <item.icon
-                            size={APP_ICON_SIZE}
-                            className="settings-nav-icon tw:text-current"
-                          />
-                        }
-                      >
-                        <button
-                          disabled={pending}
-                          onClick={() => onTabChange(item.routeId)}
-                          type="button"
+        <div
+          className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:gap-4"
+          onKeyDown={(event) => moveFocusOnArrowKey(event, '.settings-nav-item')}
+        >
+          {normalizedQuery ? (
+            <SearchResults
+              t={t}
+              activeIndex={activeResultIndex}
+              onActivate={activateResult}
+              onActiveIndexChange={setActiveResultIndex}
+              results={searchResults}
+            />
+          ) : (
+            SETTINGS_GROUPS.map((group) => {
+              const visibleItems = group.items.filter(
+                (item) => itemVisibility.get(item.routeId)?.visible === true,
+              )
+              if (visibleItems.length === 0) return null
+              return (
+                <section className="settings-nav-group tw:grid" key={group.title}>
+                  <div className="settings-nav-group-title-row tw:min-w-0 tw:px-2 tw:py-1">
+                    <h2 className="settings-nav-group-title tw:m-0 tw:text-app-text-meta tw:type-2 tw:normal-case">
+                      {t(group.title)}
+                    </h2>
+                  </div>
+                  <div className="settings-nav-group-items tw:grid">
+                    {visibleItems.map((item) => {
+                      const pending = itemVisibility.get(item.routeId)?.pending === true
+                      return (
+                        <SidebarRow
+                          active={activeTab === item.routeId}
+                          asChild
+                          className={
+                            pending
+                              ? 'settings-nav-item tw:gap-x-2 tw:px-1 tw:type-2 tw:weight-medium tw:whitespace-nowrap tw:opacity-50'
+                              : 'settings-nav-item tw:gap-x-2 tw:px-1 tw:type-2 tw:weight-medium tw:whitespace-nowrap'
+                          }
+                          key={item.id}
+                          layout="grid"
+                          leading={
+                            <item.icon
+                              size={APP_ICON_SIZE}
+                              className="settings-nav-icon tw:text-current"
+                            />
+                          }
                         >
-                          <span>{t(item.label)}</span>
-                        </button>
-                      </SidebarRow>
-                    )
-                  })}
-                </div>
-              </section>
-            )
-          })
-        )}
-      </div>
-    </ScrollArea>
+                          <button
+                            disabled={pending}
+                            onClick={() => onTabChange(item.routeId)}
+                            type="button"
+                          >
+                            <span>{t(item.label)}</span>
+                          </button>
+                        </SidebarRow>
+                      )
+                    })}
+                  </div>
+                </section>
+              )
+            })
+          )}
+        </div>
+      </ScrollArea>
+    </div>
   )
 }
 
@@ -381,7 +376,9 @@ function scrollToSettingsTarget(result: SettingsSearchDocument): void {
         window.setTimeout(locate, 25)
       } else if (!result.rowTitle) {
         document
-          .querySelector<HTMLElement>('.settings-content-area')
+          .querySelector<HTMLElement>(
+            '.settings-dialog .settings-content-scroll-area, .settings-content-scroll-area, .settings-content-area',
+          )
           ?.scrollTo({ behavior: 'auto', top: 0 })
       }
       return

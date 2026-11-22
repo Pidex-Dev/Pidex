@@ -50,7 +50,7 @@ export type SettingsSectionDefinition = {
 }
 
 export type SettingsGroupDefinition = {
-  id: 'personal' | 'integrations' | 'coding' | 'archived'
+  id: 'account' | 'app' | 'data-privacy' | 'integrations' | 'coding'
   title: string
   items: readonly SettingsSectionDefinition[]
 }
@@ -65,8 +65,34 @@ const row = (title: string, description: string): SettingsSearchRow => ({
 
 export const SETTINGS_GROUPS = [
   {
-    id: 'personal',
-    title: '个人',
+    id: 'account',
+    title: '账户',
+    items: [
+      {
+        id: 'profile',
+        routeId: 'profile',
+        label: '个人资料',
+        description: '账户身份、头像和个人信息',
+        icon: User,
+        rows: [row('个人资料', '查看和管理当前 Pidex 账户信息')],
+      },
+      {
+        id: 'billing',
+        routeId: 'billing',
+        label: '用量与成本',
+        description: '本机模型消耗与已连接账户的历史用量、成本分析',
+        icon: CreditCard,
+        rows: [
+          row('应用用量', '查看本机 Token、任务、成本与模型趋势'),
+          row('账户用量与成本', '分析已连接厂商的远端 Token、请求和成本趋势'),
+          row('账户连接', '余额、套餐和计费凭据统一前往账户连接管理'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'app',
+    title: '应用',
     items: [
       {
         id: 'general',
@@ -106,32 +132,6 @@ export const SETTINGS_GROUPS = [
         ],
       },
       {
-        id: 'voice',
-        routeId: 'voice',
-        label: '语音',
-        description: '配置麦克风、识别语言、听写快捷键、最近录音与听写词典',
-        icon: Mic,
-        requires: { capabilities: ['speech.transcription.v1'] },
-        rows: [
-          row('麦克风', '用于语音聊天和听写'),
-          row('语言', '选择语音识别与听写使用的语言'),
-          row('始终显示实时转写文本', '听写过程中实时显示转写文本'),
-          row('听写快捷键', '按住即可进行听写，或连按两次启用免提模式'),
-          row('最近录音', '你最近的 20 段录音会保存在此设备上'),
-          row('听写词典', '听写应能识别的单词或短语'),
-          row('本地语音模型', '查看本地离线转写模型的状态与安装进度'),
-          row('麦克风隐私设置', '打开 Windows 麦克风权限页面，允许 Pidex 使用输入设备。'),
-        ],
-      },
-      {
-        id: 'profile',
-        routeId: 'profile',
-        label: '个人资料',
-        description: '账户身份、头像和个人信息',
-        icon: User,
-        rows: [row('个人资料', '查看和管理当前 Pidex 账户信息')],
-      },
-      {
         id: 'appearance',
         routeId: 'appearance',
         label: '外观',
@@ -154,18 +154,21 @@ export const SETTINGS_GROUPS = [
         ],
       },
       {
-        id: 'pets',
-        routeId: 'pets',
-        label: '宠物',
-        description: '让桌面伙伴管理任务并提醒需要你处理的事项',
-        icon: Egg,
+        id: 'voice',
+        routeId: 'voice',
+        label: '语音',
+        description: '配置麦克风、识别语言、听写快捷键、最近录音与听写词典',
+        icon: Mic,
+        requires: { capabilities: ['speech.transcription.v1'] },
         rows: [
-          row('唤醒宠物', '显示或收起桌面宠物'),
-          row('选择宠物', '选择已安装的自定义宠物'),
-          row('宠物大小', '在 80 到 224 像素之间调整显示大小'),
-          row('任务提醒', '显示完成、失败、权限、问题和计划提醒'),
-          row('宠物市场', '浏览社区宠物并一键安装和使用'),
-          row('从链接安装', '从 HTTPS 地址预览并安装自定义宠物包'),
+          row('麦克风', '用于语音聊天和听写'),
+          row('语言', '选择语音识别与听写使用的语言'),
+          row('始终显示实时转写文本', '听写过程中实时显示转写文本'),
+          row('听写快捷键', '按住即可进行听写，或连按两次启用免提模式'),
+          row('最近录音', '你最近的 20 段录音会保存在此设备上'),
+          row('听写词典', '听写应能识别的单词或短语'),
+          row('本地语音模型', '查看本地离线转写模型的状态与安装进度'),
+          row('麦克风隐私设置', '打开 Windows 麦克风权限页面，允许 Pidex 使用输入设备。'),
         ],
       },
       {
@@ -198,17 +201,18 @@ export const SETTINGS_GROUPS = [
         ],
       },
       {
-        id: 'memory',
-        routeId: 'memory',
-        label: '记忆',
-        description: '自动记忆、当前工作区和召回时间线',
-        icon: Brain,
+        id: 'pets',
+        routeId: 'pets',
+        label: '宠物',
+        description: '让桌面伙伴管理任务并提醒需要你处理的事项',
+        icon: Egg,
         rows: [
-          row('启用记忆', '允许新会话读取和写入自动记忆'),
-          row('工作区', '显示当前工作区，项目记忆按工作区隔离'),
-          row('记忆状态', '查看自动记忆运行状态'),
-          row('项目记忆', '浏览和管理项目记忆内容'),
-          row('召回时间线', '查看记忆在会话中的召回记录'),
+          row('唤醒宠物', '显示或收起桌面宠物'),
+          row('选择宠物', '选择已安装的自定义宠物'),
+          row('宠物大小', '在 80 到 224 像素之间调整显示大小'),
+          row('任务提醒', '显示完成、失败、权限、问题和计划提醒'),
+          row('宠物市场', '浏览社区宠物并一键安装和使用'),
+          row('从链接安装', '从 HTTPS 地址预览并安装自定义宠物包'),
         ],
       },
       {
@@ -223,16 +227,24 @@ export const SETTINGS_GROUPS = [
           row('面板快捷键', '显示侧栏、终端、浏览器和底部面板'),
         ],
       },
+    ],
+  },
+  {
+    id: 'data-privacy',
+    title: '数据与隐私',
+    items: [
       {
-        id: 'billing',
-        routeId: 'billing',
-        label: '用量与成本',
-        description: '本机模型消耗与已连接账户的历史用量、成本分析',
-        icon: CreditCard,
+        id: 'memory',
+        routeId: 'memory',
+        label: '记忆',
+        description: '自动记忆、当前工作区和召回时间线',
+        icon: Brain,
         rows: [
-          row('应用用量', '查看本机 Token、任务、成本与模型趋势'),
-          row('账户用量与成本', '分析已连接厂商的远端 Token、请求和成本趋势'),
-          row('账户连接', '余额、套餐和计费凭据统一前往账户连接管理'),
+          row('启用记忆', '允许新会话读取和写入自动记忆'),
+          row('工作区', '显示当前工作区，项目记忆按工作区隔离'),
+          row('记忆状态', '查看自动记忆运行状态'),
+          row('项目记忆', '浏览和管理项目记忆内容'),
+          row('召回时间线', '查看记忆在会话中的召回记录'),
         ],
       },
       {
@@ -251,6 +263,14 @@ export const SETTINGS_GROUPS = [
           row('已归档的聊天', '恢复或删除已归档的聊天记录'),
           row('已下载的资源', '管理离线语音模型、外部字体与内置运行时等已下载组件'),
         ],
+      },
+      {
+        id: 'archived',
+        routeId: 'archived',
+        label: '已归档对话',
+        description: '查看、恢复或管理已归档的对话',
+        icon: Archive,
+        rows: [row('归档列表', '恢复归档对话后会回到原来的分组')],
       },
     ],
   },
@@ -392,20 +412,6 @@ export const SETTINGS_GROUPS = [
           row('Node.js', '选择内置或本机版本并查看安装状态'),
           row('Python', '选择内置或本机版本并查看安装状态'),
         ],
-      },
-    ],
-  },
-  {
-    id: 'archived',
-    title: '已归档',
-    items: [
-      {
-        id: 'archived',
-        routeId: 'archived',
-        label: '已归档对话',
-        description: '查看、恢复或管理已归档的对话',
-        icon: Archive,
-        rows: [row('归档列表', '恢复归档对话后会回到原来的分组')],
       },
     ],
   },

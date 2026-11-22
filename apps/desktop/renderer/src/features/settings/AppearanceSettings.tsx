@@ -124,6 +124,8 @@ function NumberInput({
           if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
+            event.preventDefault()
+            event.stopPropagation()
             setInputValue(String(value))
             event.currentTarget.blur()
           }
@@ -211,6 +213,8 @@ function ColorControl({
           if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
+            event.preventDefault()
+            event.stopPropagation()
             setDraft(normalizedValue)
             event.currentTarget.blur()
           }

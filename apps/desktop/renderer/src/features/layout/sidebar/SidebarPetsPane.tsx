@@ -9,6 +9,7 @@ import { useLocale } from '../../i18n/LocaleProvider.js'
 import { usePetCatalogController } from '../../pet/PetCatalogProvider.js'
 import { PetSprite } from '../../pet/PetSprite.js'
 import { SidebarEmptyRow, SidebarRow } from '../../../components/ui/SidebarRow.js'
+import { openSettingsDialog } from '../../settings/SettingsDialogStore.js'
 
 export function SidebarPetsPane(): ReactNode {
   const { t } = useLocale()
@@ -30,7 +31,7 @@ export function SidebarPetsPane(): ReactNode {
           isIconOnly
           size="toolbar"
           title={t('宠物设置')}
-          onClick={() => navigate('/settings/pets')}
+          onClick={() => openSettingsDialog('/settings/pets')}
         >
           <Settings className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
         </Button>

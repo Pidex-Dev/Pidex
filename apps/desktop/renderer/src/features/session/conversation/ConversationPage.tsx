@@ -33,6 +33,7 @@ import {
   useDesktopSettingsDraftValue,
   useDesktopSettingsField,
 } from '../../settings/UseDesktopSettings.js'
+import { openSettingsDialog } from '../../settings/SettingsDialogStore.js'
 import { WorkspaceHeaderItem } from '../../layout/workspace-header/index.js'
 import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
 import {
@@ -1169,12 +1170,12 @@ export function ConversationPage(): React.ReactNode {
             onCreateOutput={() => onAppendComposerText('请帮我创建文件或站点：')}
             onGitOperation={onGitOperation}
             onAddEnvironmentAction={() =>
-              navigate(
+              openSettingsDialog(
                 `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}&mode=edit`,
               )
             }
             onOpenEnvironmentSettings={() =>
-              navigate(
+              openSettingsDialog(
                 `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}`,
               )
             }
@@ -1476,12 +1477,12 @@ export function ConversationPage(): React.ReactNode {
             threadId={activeSessionId}
             workspacePath={workspacePath}
             onOpenEnvironmentSettings={() => {
-              navigate(
+              openSettingsDialog(
                 `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId)}`,
               )
             }}
             onOpenWorktreeSettings={(projectId) => {
-              navigate(`/settings/worktrees?projectId=${encodeURIComponent(projectId)}`)
+              openSettingsDialog(`/settings/worktrees?projectId=${encodeURIComponent(projectId)}`)
             }}
             onTransferAuxiliaryState={(targetThreadId) => {
               setSidebarSessionPins((current) => {

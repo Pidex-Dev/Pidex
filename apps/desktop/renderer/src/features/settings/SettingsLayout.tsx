@@ -1,8 +1,9 @@
+import type { DesktopInstalledSkill } from '../../../shared/Types.js'
 import { useComputerSettings } from './UseComputerSettings.js'
 import { useMemo } from 'react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
-import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { SettingsPage } from './SettingsPage.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import { useDesktopTheme } from '../theme/ThemeContext.js'
@@ -18,10 +19,20 @@ import {
   useSettingsCapabilityState,
 } from './UseSettingsSectionVisibility.js'
 import { NotFoundPage } from '../routing/NotFoundPage.js'
-import { useDesktopLayoutOutletContext } from '../layout/shell/DesktopLayoutOutletContext.js'
+import type { DesktopLayoutOutletContextValue } from '../layout/shell/DesktopLayoutOutletContext.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 
-export function SettingsLayout(): React.ReactNode {
+type SettingsLayoutProps = {
+  workspacePath?: string | null
+  onUseSkill?: (skill: DesktopInstalledSkill) => void
+  onOpenJudgePanel?: () => void
+}
+
+export function SettingsLayout(props: SettingsLayoutProps = {}): React.ReactNode {
+  const outletContext = useOutletContext<DesktopLayoutOutletContextValue | undefined>()
+  const workspacePath = props.workspacePath ?? outletContext?.workspacePath ?? null
+  const useSkill = props.onUseSkill ?? outletContext?.useSkill ?? (() => {})
+  const openJudgePanel = props.onOpenJudgePanel ?? outletContext?.openJudgePanel
   const { tab, projectId } = useParams<{
     tab?: string
     projectId?: string
@@ -45,7 +56,6 @@ export function SettingsLayout(): React.ReactNode {
   )
   const { t } = useLocale()
   const theme = useDesktopTheme()
-  const { workspacePath, useSkill, openJudgePanel } = useDesktopLayoutOutletContext()
   const navigate = useNavigate()
   const location = useLocation()
   const capabilityState = useSettingsCapabilityState()

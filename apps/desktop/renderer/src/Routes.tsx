@@ -18,7 +18,6 @@ import { ConversationPage } from './features/session/conversation/ConversationPa
 import { PluginsView } from './features/plugins/PluginsView.js'
 import { ProjectsView } from './features/projects/ProjectsView.js'
 import { PullRequestsPlaceholder } from './features/pull-requests/PullRequestsPlaceholder.js'
-import { SettingsLayout } from './features/settings/SettingsLayout.js'
 import { PetCatalogPage } from './features/pet/PetCatalogPage.js'
 import { PetCatalogProvider } from './features/pet/PetCatalogProvider.js'
 import { SessionGroupsView } from './features/session-groups/SessionGroupsView.js'
@@ -138,10 +137,14 @@ const router = createHashRouter([
                 element: <LegacySettingsProvidersRedirect />,
               },
               {
-                path: 'settings/environment/:projectId',
-                element: <SettingsLayout />,
+                path: 'settings',
+                element: <QuickChatView />,
               },
-              { path: 'settings/:tab', element: <SettingsLayout /> },
+              {
+                path: 'settings/environment/:projectId',
+                element: <QuickChatView />,
+              },
+              { path: 'settings/:tab', element: <QuickChatView /> },
               { path: '*', element: <NotFoundPage /> },
             ],
           },

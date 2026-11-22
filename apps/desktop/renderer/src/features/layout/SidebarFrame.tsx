@@ -16,13 +16,13 @@ import {
 import { SIDEBAR_RAIL_WIDTH } from './sidebar/SidebarNavigation.js'
 import { cx } from '../../utils/Cx.js'
 
-export type SidebarContentKind = 'tasks' | 'settings'
+export type SidebarContentKind = 'tasks'
 
-export function getSidebarContentLabels(contentKind: SidebarContentKind): {
+export function getSidebarContentLabels(_contentKind: SidebarContentKind): {
   resize: string
   sidebar: string
 } {
-  const name = contentKind === 'settings' ? '设置侧栏' : '任务侧栏'
+  const name = '任务侧栏'
   return {
     resize: `调整${name}宽度`,
     sidebar: name,

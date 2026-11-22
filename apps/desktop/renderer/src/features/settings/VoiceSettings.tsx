@@ -575,6 +575,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                         handleAddDictionaryEntry()
                       } else if (event.key === 'Escape') {
                         event.preventDefault()
+                        event.stopPropagation()
                         setAddingEntry(false)
                         setNewEntryText('')
                       }

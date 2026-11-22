@@ -46,6 +46,7 @@ import {
   useDesktopSettingsDraftValue,
   useDesktopSettingsField,
 } from '../../settings/UseDesktopSettings.js'
+import { openSettingsDialog, useSettingsDialogOpen } from '../../settings/SettingsDialogStore.js'
 
 type PopoverUsageRow = {
   id: string
@@ -92,7 +93,8 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE)
   const githubAuth = useStore(desktopClient.githubAccountStore, (state) => state.auth)
   const [petToggleBusy, setPetToggleBusy] = useState(false)
-  const settingsActive = location.pathname.startsWith('/settings/')
+  const settingsDialogOpen = useSettingsDialogOpen()
+  const settingsActive = settingsDialogOpen || location.pathname.startsWith('/settings/')
   const usageAvailable = Boolean(configuredProviderID && model)
   const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus | null>(null)
   const updateIndicator = buildDesktopUpdateIndicatorModel(updateStatus)
@@ -206,7 +208,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   const openSettings = (path: string): void => {
     setMenuOpen(false)
     onNavigate?.()
-    navigate(path)
+    openSettingsDialog(path, { opener: accountMenuTriggerRef.current })
   }
 
   const accountAvatar = (

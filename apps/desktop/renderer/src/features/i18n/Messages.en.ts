@@ -151,6 +151,12 @@ export const enUS: Record<string, string> = {
   已归档: 'Archived',
   已归档对话: 'Archived conversations',
   设置分类: 'Settings categories',
+  账户: 'Account',
+  应用: 'App',
+  数据与隐私: 'Data & Privacy',
+  关闭设置: 'Close settings',
+  '配置应用偏好、权限、集成与编码环境':
+    'Configure app preferences, permissions, integrations, and coding environments',
   返回应用: 'Back to app',
   搜索设置: 'Search settings',
   '搜索设置...': 'Search settings...',

@@ -11,8 +11,8 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/ui/Button.js'
+import { openSettingsDialog } from '../settings/SettingsDialogStore.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { usePluginSkills } from './UsePluginSkills.js'
 
@@ -61,7 +61,6 @@ export function PluginProductDetailsView({
   detailsError,
   onRetryDetails,
 }: Props): React.ReactNode {
-  const navigate = useNavigate()
   const [moreOpen, setMoreOpen] = useState(false)
   const prompts = (details?.defaultPrompts ?? []).map((prompt) => prompt.trim()).filter(Boolean)
   const skills =
@@ -114,7 +113,9 @@ export function PluginProductDetailsView({
             {item.installed ? (
               <Button
                 color="secondary"
-                onClick={() => navigate(`/settings/plugins?plugin=${encodeURIComponent(item.id)}`)}
+                onClick={() =>
+                  openSettingsDialog(`/settings/plugins?plugin=${encodeURIComponent(item.id)}`)
+                }
                 title="前往设置管理此插件"
               >
                 管理

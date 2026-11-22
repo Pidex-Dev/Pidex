@@ -5,6 +5,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import { usePetSettingsController } from './UsePetSettingsController.js'
+import { useSettingsDialogActiveTab } from '../settings/SettingsDialogStore.js'
 
 const PetCatalogContext = createContext<StoreApi<
   ReturnType<typeof usePetSettingsController>
@@ -12,9 +13,13 @@ const PetCatalogContext = createContext<StoreApi<
 
 export function PetCatalogProvider({ children }: { children: ReactNode }): ReactNode {
   const location = useLocation()
+  const settingsDialogActiveTab = useSettingsDialogActiveTab()
   const [error, setError] = useState<string | null>(null)
   const controller = usePetSettingsController({
-    enabled: location.pathname === '/pets' || location.pathname === '/settings/pets',
+    enabled:
+      location.pathname === '/pets' ||
+      location.pathname === '/settings/pets' ||
+      settingsDialogActiveTab === 'pets',
     onError: setError,
   })
   const store = useControllerStore(controller)
