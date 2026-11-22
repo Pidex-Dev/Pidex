@@ -324,15 +324,12 @@ describe('Codex CPX design system token contract', () => {
   })
 
   test('keeps primary routes and workbench panels on their shared alignment axes', async () => {
-    const [automationView, pets, pullRequests, setup, review, browser, primaryPageCss] =
+    const [automationView, pets, pullRequests, review, browser, primaryPageCss] =
       await Promise.all([
         Bun.file(new URL('../src/features/automation/AutomationView.tsx', import.meta.url)).text(),
         Bun.file(new URL('../src/features/pet/PetCatalogPage.tsx', import.meta.url)).text(),
         Bun.file(
           new URL('../src/features/pull-requests/PullRequestsPlaceholder.tsx', import.meta.url),
-        ).text(),
-        Bun.file(
-          new URL('../src/features/models/setup/ModelSetupPage.tsx', import.meta.url),
         ).text(),
         Bun.file(
           new URL('../src/features/review/workspace/WorkspaceReviewSidebar.tsx', import.meta.url),
@@ -349,8 +346,6 @@ describe('Codex CPX design system token contract', () => {
     expectSourceContains(pets, '<PrimaryPageLayout')
     expectSourceContains(pullRequests, '<PrimaryPageLayout')
     expectSourceContains(primaryPageCss, 'padding-bottom: var(--cpx-sys-space-8);')
-    // 模型引导页的两行网格改由 TSX utility 承担（原 `_model-setup.scss` 规则）。
-    expectSourceContains(setup, 'tw:grid-rows-[40px_minmax(0,1fr)]')
     expectSourceContains(review, 'tw:px-4 tw:py-4 tw:type-2 tw:weight-medium')
     // 状态行保留语义类名与 alert 角色，迁移只在其上追加 utility。
     expect(browser).toMatch(/className="browser-status-row[^"]*"[\s\S]*?role="alert"/)

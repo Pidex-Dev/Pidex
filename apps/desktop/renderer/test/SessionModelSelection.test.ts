@@ -5,7 +5,11 @@ import {
   desktopPermissionModeToPermissionConfig,
 } from '../src/services/AgentThreadAdapter.js'
 import { desktopClient } from '../src/services/desktop-client/index.js'
-import { sessionModelSelections as store } from '../src/features/session/state/SessionModelSelectionStore.js'
+import {
+  isNoAvailableTaskModelError,
+  NoAvailableTaskModelError,
+  sessionModelSelections as store,
+} from '../src/features/session/state/SessionModelSelectionStore.js'
 import { persistRecentNewThreadModel } from '../src/features/models/RecentNewThreadModel.js'
 
 const ids = ['selection-a', 'selection-b', 'selection-empty', 'selection-error', 'selection-late']
@@ -304,6 +308,7 @@ test('new-task page reports an unsendable state when no model is available', asy
   const first = spyOn(desktopClient, 'resolveFirstAvailableModel').mockResolvedValue(null)
   spies.push(recent, first)
   await expect(store.load(null)).rejects.toThrow('没有可用于创建任务的模型')
+  expect(store.getSnapshot(null)).toEqual({ selection: null, loading: false, error: null })
 })
 
 test('new-task page picks and remembers the first available model when there is no record', async () => {
@@ -413,4 +418,34 @@ test('a superseded selection failure stays silent', async () => {
   await expect(first).resolves.toBeUndefined()
   await expect(second).resolves.toBeUndefined()
   expect(save.mock.calls.at(-1)?.[0]).toEqual({ providerID: 'openai', id: 'b' })
+})
+
+test('NoAvailableTaskModelError identifies the empty model state distinctly from general errors', () => {
+  const emptyError = new NoAvailableTaskModelError()
+  expect(isNoAvailableTaskModelError(emptyError)).toBe(true)
+  expect(isNoAvailableTaskModelError({ code: 'NO_AVAILABLE_TASK_MODEL' })).toBe(true)
+  expect(isNoAvailableTaskModelError(new Error('network failed'))).toBe(false)
+})
+
+test('new-task page clears stale selection without error when models vanish and recovers once configured', async () => {
+  const recent = spyOn(desktopClient, 'getRecentNewThreadModel').mockResolvedValue(null)
+  const providers = spyOn(desktopClient, 'listModelProviders').mockResolvedValue([])
+  const first = spyOn(desktopClient, 'resolveFirstAvailableModel').mockResolvedValue(null)
+  const save = spyOn(desktopClient, 'saveRecentNewThreadModel').mockResolvedValue(undefined)
+  spies.push(recent, providers, first, save)
+
+  store.set(null, { providerID: 'deepseek', model: 'deepseek-chat', thinkingMode: 'default' })
+  await expect(store.load(null)).rejects.toThrow('没有可用于创建任务的模型')
+  expect(store.getSnapshot(null)).toEqual({ selection: null, loading: false, error: null })
+
+  first.mockResolvedValue({ providerID: 'deepseek', id: 'deepseek-chat' } as never)
+  await expect(store.load(null)).resolves.toMatchObject({
+    providerID: 'deepseek',
+    model: 'deepseek-chat',
+  })
+  expect(store.getSnapshot(null)).toEqual({
+    selection: { providerID: 'deepseek', model: 'deepseek-chat', thinkingMode: 'default' },
+    loading: false,
+    error: null,
+  })
 })

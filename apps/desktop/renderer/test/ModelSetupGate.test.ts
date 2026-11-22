@@ -66,9 +66,9 @@ describe('first-use model setup gate', () => {
     ).toBe('recovery')
   })
 
-  test('explicit zero always opens the full setup guide', () => {
+  test('explicit zero opens setup only until a usable task model is configured', () => {
     expect(resolveModelSetupGate(providerSnapshot(false), settings(0))).toBe('setup')
-    expect(resolveModelSetupGate(providerSnapshot(true), settings(0))).toBe('setup')
+    expect(resolveModelSetupGate(providerSnapshot(true), settings(0))).toBe('workbench')
   })
 
   test('explicit one always opens the workbench', () => {
