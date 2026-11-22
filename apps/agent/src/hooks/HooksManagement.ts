@@ -2,6 +2,7 @@ import type {
   HookListResult,
   HookRunsListResult,
   HookSetEnabledResult,
+  HookTrustResult,
   RpcParams,
 } from '@pidex/agent-protocol'
 
@@ -12,5 +13,6 @@ import type {
 export interface HooksManagementService {
   listSources(cwd?: string): Promise<HookListResult>
   setEnabled(input: RpcParams<'hook/setEnabled'>): Promise<HookSetEnabledResult>
+  trustHooks(input: RpcParams<'hook/trust'>): Promise<HookTrustResult>
   listRuns(input: RpcParams<'hook/runs/list'>): Promise<HookRunsListResult>
 }

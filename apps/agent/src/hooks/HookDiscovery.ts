@@ -54,6 +54,7 @@ export type PluginHookSource = {
 
 export type DiscoveredHookEntry = HookDefinition & {
   identity: string
+  contentHash: string
   filePath: string
   kind: 'config' | 'plugin'
   scope: 'user' | 'project'
@@ -150,6 +151,17 @@ const hookIdentity = (input: {
       input.occurrence,
     ]),
   )
+
+/** Canonical fingerprint of the executable hook definition (excludes display-only `statusMessage`). */
+export const hookContentHash = (
+  def: Pick<HookDefinition, 'event' | 'command' | 'matcher' | 'timeoutMs'>,
+) => sha256Hex(JSON.stringify([def.event, def.command, def.matcher ?? '', def.timeoutMs ?? null]))
+
+/** User-global config hooks are trusted by default; plugins and project hooks require explicit trust. */
+export const hookRequiresTrust = (input: {
+  kind: 'config' | 'plugin'
+  scope: 'user' | 'project'
+}) => input.kind === 'plugin' || input.scope === 'project'
 
 const parseClaudeEventMap = (
   eventMap: Record<string, unknown>,
@@ -429,6 +441,7 @@ const scanGroupCandidates = (input: {
           id: def.id,
           occurrence,
         }),
+        contentHash: hookContentHash(def),
         filePath: loaded.canonicalPath,
         kind: input.kind,
         scope: input.scope,

@@ -646,14 +646,22 @@ export class ApprovalService {
   }
 
   persist(prepared: PreparedApprovalCheckpoint) {
+    const rawReview = prepared.review.review
     return this.db.persistApprovalCheckpoint({
       approvalID: prepared.approvalID,
       invocation: prepared.invocation,
       risk: prepared.review.risk,
       reason: prepared.review.reason,
       requestPayload: prepared.requestPayload,
-      reviewPayload: prepared.review.review
-        ? (secretScrubber.scrub(prepared.review.review) as unknown as Record<string, unknown>)
+      reviewPayload: rawReview
+        ? (secretScrubber.scrub({
+            decision: rawReview.decision,
+            risk: rawReview.risk,
+            confidence: rawReview.confidence,
+            categories: [...rawReview.categories],
+            requestedScopeValid: rawReview.requestedScopeValid,
+            reason: rawReview.reason,
+          }) as unknown as Record<string, unknown>)
         : null,
       checkpoint: prepared.checkpoint,
       version: prepared.version,
