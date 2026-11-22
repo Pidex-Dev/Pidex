@@ -80,7 +80,7 @@ export const providerManagementStore = {
 `
 
 const harness = `
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createMemoryRouter, RouterProvider, Link, Outlet, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { ProviderEditorForm } from ${source('features/models/provider-management/ProviderEditorForm.tsx')};
@@ -105,13 +105,18 @@ function PanelHarness() {
   const [tab, setTab] = useState(null);
   const [host, setHost] = useState(null);
   const beforeChange = useRef(null);
+  const registerBeforeChange = useCallback((fn) => {
+    beforeChange.current = fn;
+    return () => { if (beforeChange.current === fn) beforeChange.current = null; };
+  }, []);
+  const confirmBeforeChange = useCallback(() => beforeChange.current?.() ?? Promise.resolve(true), []);
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const providerId = location.pathname === '/providers' && !params.has('newProvider') && !params.has('edit') ? params.get('provider') : null;
   const visibleTab = providerId && tab ? {...tab, providerId} : null;
-  const panel = {tab: visibleTab, host, beforeChange, claimProvider: () => {},
-    open: async (id, section) => {const ok = await (beforeChange.current?.() ?? Promise.resolve(true)); if(ok) setTab(section === 'model' ? {id: 'provider-model', kind: 'provider-model', providerId: id, section} : {id: 'provider-management', kind: 'provider-management', providerId: id, section}); return ok;},
-    close: () => {void (beforeChange.current?.() ?? Promise.resolve(true)).then(ok => {if(ok) setTab(null);});}};
+  const panel = {tab: visibleTab, host, registerBeforeChange, confirmBeforeChange, claimProvider: () => {},
+    open: async (id, section) => {const ok = await confirmBeforeChange(); if(ok) setTab(section === 'model' ? {id: 'provider-model', kind: 'provider-model', providerId: id, section} : {id: 'provider-management', kind: 'provider-management', providerId: id, section}); return ok;},
+    close: () => {void confirmBeforeChange().then(ok => {if(ok) setTab(null);});}};
   return <WorkspaceHeaderProvider routeScope={location.pathname + location.search}><DesktopWorkspaceHeader rightDockOpen={!!visibleTab} shellControls={<button aria-label='显示右侧边栏' onClick={() => panel.open(providerId, 'credentials')}>显示右侧边栏</button>}/><Outlet context={{providerManagement: panel}}/>{visibleTab ? <aside aria-label='供应商设置'><button onClick={panel.close}>关闭供应商设置</button><div ref={setHost}/></aside> : null}</WorkspaceHeaderProvider>;
 }
 function Harness() {

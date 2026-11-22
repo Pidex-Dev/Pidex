@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
+import { act, useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Button, ButtonGroup } from '../src/components/ui/Button.js'
-import { useControllableState } from '../src/components/ui/floating/Primitives.js'
+import { Slot, useControllableState } from '../src/components/ui/floating/Primitives.js'
 import { cn } from '../src/utils/Cn.js'
 import { Spinner } from '../src/components/ui/Spinner.js'
 
@@ -422,5 +424,170 @@ describe('controlled interaction state', () => {
 
     expect(resetBlock).toContain('min-height: 24px;')
     expect(overridesBlock).not.toContain('min-height:')
+  })
+
+  function withDomRoot(run: (ctx: { root: Root }) => void): void {
+    const win = new EventTarget() as Window & { HTMLIFrameElement: () => void; document: Document }
+    win.HTMLIFrameElement = function HTMLIFrameElement() {}
+    const createNode = (tag: string, ownerDocument: Document): HTMLElement => {
+      const node = {
+        nodeType: 1,
+        tagName: tag.toUpperCase(),
+        nodeName: tag.toUpperCase(),
+        namespaceURI: 'http://www.w3.org/1999/xhtml',
+        ownerDocument,
+        parentNode: null as unknown,
+        childNodes: [] as unknown[],
+        style: {},
+        appendChild(child: { parentNode: unknown }) {
+          child.parentNode = node
+          node.childNodes.push(child)
+          return child
+        },
+        insertBefore(child: { parentNode: unknown }) {
+          child.parentNode = node
+          node.childNodes.push(child)
+          return child
+        },
+        removeChild(child: { parentNode: unknown }) {
+          node.childNodes = node.childNodes.filter((item) => item !== child)
+          child.parentNode = null
+          return child
+        },
+        setAttribute() {},
+        removeAttribute() {},
+        addEventListener() {},
+        removeEventListener() {},
+      }
+      return node as unknown as HTMLElement
+    }
+    const doc = {
+      nodeType: 9,
+      defaultView: win,
+      activeElement: null,
+      addEventListener() {},
+      removeEventListener() {},
+      createElement(tag: string) {
+        return createNode(tag, doc as unknown as Document)
+      },
+      createTextNode(text: string) {
+        return { nodeType: 3, nodeValue: text, data: text, ownerDocument: doc, parentNode: null }
+      },
+      createComment(text: string) {
+        return { nodeType: 8, nodeValue: text, data: text, ownerDocument: doc, parentNode: null }
+      },
+    } as unknown as Document
+    win.document = doc
+
+    const prevAct = (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT
+    const prevDoc = Object.getOwnPropertyDescriptor(globalThis, 'document')
+    const prevWin = Object.getOwnPropertyDescriptor(globalThis, 'window')
+    ;(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true
+    Object.defineProperty(globalThis, 'document', {
+      value: doc,
+      configurable: true,
+      writable: true,
+    })
+    Object.defineProperty(globalThis, 'window', { value: win, configurable: true, writable: true })
+
+    const container = doc.createElement('div')
+    const root = createRoot(container)
+    try {
+      run({ root })
+    } finally {
+      act(() => {
+        root.unmount()
+      })
+      if (prevAct === undefined) {
+        delete (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT
+      } else {
+        ;(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = prevAct
+      }
+      if (prevDoc) Object.defineProperty(globalThis, 'document', prevDoc)
+      else delete (globalThis as Record<string, unknown>).document
+      if (prevWin) Object.defineProperty(globalThis, 'window', prevWin)
+      else delete (globalThis as Record<string, unknown>).window
+    }
+  }
+
+  test('Slot keeps ref callback stable across re-renders without detaching unchanged refs', () => {
+    const events: Array<string | null> = []
+    const controls: { triggerRerender?: () => void } = {}
+
+    function Harness({ onReady }: { onReady: (rerender: () => void) => void }) {
+      const [count, setCount] = useState(0)
+      const parentRef = useRef<HTMLElement | null>(null)
+      const childRef = useCallback((node: HTMLElement | null) => {
+        events.push(node ? node.tagName : null)
+      }, [])
+      useLayoutEffect(() => {
+        onReady(() => setCount((n) => n + 1))
+      }, [onReady])
+      return (
+        <Slot ref={parentRef} data-count={count}>
+          <button ref={childRef}>点击</button>
+        </Slot>
+      )
+    }
+
+    withDomRoot(({ root }) => {
+      const handleReady = (rerender: () => void) => {
+        controls.triggerRerender = rerender
+      }
+      act(() => {
+        root.render(<Harness onReady={handleReady} />)
+      })
+      expect(events).toEqual(['BUTTON'])
+
+      act(() => {
+        controls.triggerRerender?.()
+      })
+      expect(events).toEqual(['BUTTON'])
+    })
+    expect(events).toEqual(['BUTTON', null])
+  })
+
+  test('useControllableState does not wedge onChange after a controlled rejection', () => {
+    const requests: boolean[] = []
+    const controls: { setOpen?: (next: boolean) => void; triggerRerender?: () => void } = {}
+
+    function Controlled({
+      onReady,
+    }: {
+      onReady: (api: { setOpen: (next: boolean) => void; triggerRerender: () => void }) => void
+    }) {
+      const [, setTick] = useState(0)
+      const [, update] = useControllableState(false, false, (next) => {
+        requests.push(next)
+      })
+      useLayoutEffect(() => {
+        onReady({
+          setOpen: update,
+          triggerRerender: () => setTick((n) => n + 1),
+        })
+      }, [onReady, update])
+      return null
+    }
+
+    withDomRoot(({ root }) => {
+      const handleReady = (api: {
+        setOpen: (next: boolean) => void
+        triggerRerender: () => void
+      }) => {
+        controls.setOpen = api.setOpen
+        controls.triggerRerender = api.triggerRerender
+      }
+      act(() => {
+        root.render(<Controlled onReady={handleReady} />)
+      })
+      act(() => {
+        controls.setOpen?.(true)
+        controls.triggerRerender?.()
+      })
+      act(() => {
+        controls.setOpen?.(true)
+      })
+      expect(requests).toEqual([true, true])
+    })
   })
 })
