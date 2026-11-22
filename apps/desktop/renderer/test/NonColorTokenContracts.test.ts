@@ -607,13 +607,13 @@ describe('non-color design token contracts', () => {
   })
 
   test('settings page content defaults to content max width', async () => {
-    const settingsPage = await read('../src/features/settings/GeneralSettings.tsx')
-    // 设置页内容宽度改由 TSX utility 承担：内容上限 + 两侧 space-6 内边距
-    // （原 `_settings-core.scss` 的 max-width 公式）。
+    const settingsContentArea = await read('../src/features/settings/SettingsContentArea.tsx')
+    const generalSettings = await read('../src/features/settings/GeneralSettings.tsx')
     expectSourceContains(
-      settingsPage,
-      'tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]',
+      settingsContentArea,
+      'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]',
     )
+    expectSourceContains(generalSettings, '<SettingsContentArea')
   })
 
   test('review diff preserves shared code rhythm with a 24px floor for line actions', async () => {
