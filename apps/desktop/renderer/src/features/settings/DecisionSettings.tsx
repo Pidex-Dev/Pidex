@@ -489,7 +489,7 @@ export function DecisionSettings({
                   { keyPath: ['tiers'], value: config.tiers.filter((tier) => tier !== name) },
                 ])
               }
-              onOpenModelSettings={() => navigate('/settings/models')}
+              onOpenModelSettings={() => navigate('/providers')}
             />
             <DecisionPointsSection
               config={config}

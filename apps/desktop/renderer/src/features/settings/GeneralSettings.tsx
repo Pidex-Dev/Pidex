@@ -11,8 +11,6 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import {
   useDesktopSettingsDraftActions,
   useDesktopSettingsDraftValue,
-  useDesktopSettingsDraftDirty,
-  useDesktopSettingsDraftSaving,
 } from './UseDesktopSettings.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import type {
@@ -20,7 +18,6 @@ import type {
   DesktopReviewDelivery,
   DesktopReviewView,
 } from '../../../shared/Types.js'
-import { Button } from '../../components/ui/Button.js'
 import type { DesktopTerminalProfile } from '@pidex/shared/desktop-terminal-ipc'
 import { useLocale } from '../i18n/LocaleProvider.js'
 
@@ -36,12 +33,6 @@ const LANGUAGE_OPTIONS = [
   { value: 'system', label: '跟随系统' },
   { value: 'zh-CN', label: '中文（中国）' },
   { value: 'en-US', label: 'English (US)' },
-]
-
-const SPEED_OPTIONS = [
-  { value: 'fast', label: '快' },
-  { value: 'standard', label: '标准' },
-  { value: 'thorough', label: '深入' },
 ]
 
 const REVIEW_OPTIONS: Array<{ value: DesktopReviewView; label: string }> = [
@@ -66,11 +57,7 @@ function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
   )
 }
 
-type GeneralSettingsProps = {
-  onNotice?: (message: string) => void
-}
-
-export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
+export function GeneralSettings() {
   const { t } = useLocale()
   const subscribedDraftActions = useDesktopSettingsDraftActions()
   const subscribedLanguage = useDesktopSettingsDraftValue('language')
@@ -81,17 +68,10 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
   const subscribedTerminalProfileId = useDesktopSettingsDraftValue('terminalProfileId')
   const subscribedReviewView = useDesktopSettingsDraftValue('reviewView')
   const subscribedReviewDelivery = useDesktopSettingsDraftValue('reviewDelivery')
-  const subscribedRustSearchAndDiffKernels = useDesktopSettingsDraftValue(
-    'rustSearchAndDiffKernels',
-  )
   const subscribedComposerPredictions = useDesktopSettingsDraftValue('desktop.composer_predictions')
-  const subscribedEnableParetoCodeRouter = useDesktopSettingsDraftValue('enableParetoCodeRouter')
-  const subscribedEnableFusionRouter = useDesktopSettingsDraftValue('enableFusionRouter')
   const subscribedDefaultModeRequestUserInput = useDesktopSettingsDraftValue(
     'defaultModeRequestUserInput',
   )
-  const subscribedDraftDirty = useDesktopSettingsDraftDirty()
-  const subscribedDraftSaving = useDesktopSettingsDraftSaving()
   const { draft } = useMemo(
     () => ({
       draft: {
@@ -104,14 +84,9 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
           terminalProfileId: subscribedTerminalProfileId,
           reviewView: subscribedReviewView,
           reviewDelivery: subscribedReviewDelivery,
-          rustSearchAndDiffKernels: subscribedRustSearchAndDiffKernels,
           'desktop.composer_predictions': subscribedComposerPredictions,
-          enableParetoCodeRouter: subscribedEnableParetoCodeRouter,
-          enableFusionRouter: subscribedEnableFusionRouter,
           defaultModeRequestUserInput: subscribedDefaultModeRequestUserInput,
         },
-        dirty: subscribedDraftDirty,
-        saving: subscribedDraftSaving,
       },
     }),
     [
@@ -123,13 +98,8 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
       subscribedTerminalProfileId,
       subscribedReviewView,
       subscribedReviewDelivery,
-      subscribedRustSearchAndDiffKernels,
       subscribedComposerPredictions,
-      subscribedEnableParetoCodeRouter,
-      subscribedEnableFusionRouter,
       subscribedDefaultModeRequestUserInput,
-      subscribedDraftDirty,
-      subscribedDraftSaving,
     ],
   )
   const {
@@ -138,7 +108,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
     terminalProfileId,
     reviewView,
     reviewDelivery,
-    rustSearchAndDiffKernels,
     'desktop.composer_predictions': composerPredictions,
     defaultModeRequestUserInput,
     notifications,
@@ -157,11 +126,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
     },
     [draft],
   )
-  const [longPromptShortcut, setLongPromptShortcut] = useState(false)
-  const [speed, setSpeed] = useState('standard')
-  const [suggestPrompts, setSuggestPrompts] = useState(true)
-  const [popupShortcut] = useState<string | null>(null)
-  const [popupNoProjectChat, setPopupNoProjectChat] = useState(false)
   const setCompletionNotification = useCallback(
     (value: 'always' | 'unfocused' | 'never') => {
       draft.setValue('notifications', {
@@ -233,13 +197,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
   const setReviewDelivery = useCallback(
     (value: DesktopReviewDelivery) => {
       draft.setValue('reviewDelivery', value)
-      draft.autoSave()
-    },
-    [draft],
-  )
-  const setRustSearchAndDiffKernels = useCallback(
-    (value: boolean) => {
-      draft.setValue('rustSearchAndDiffKernels', value)
       draft.autoSave()
     },
     [draft],
@@ -387,31 +344,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             }
           />
           <SettingsRow
-            title="需按 ^ + 回车键发送长文本提示"
-            description="启用后，长文本提示需按 ^ + 回车键发送。"
-            control={(aria) => (
-              <ToggleSwitch
-                checked={longPromptShortcut}
-                onChange={setLongPromptShortcut}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-          <SettingsRow
-            title="速度"
-            description="选择用于聊天、子智能体和压缩的推理层级"
-            control={
-              <SettingsDropdown
-                size="md"
-                value={speed}
-                options={SPEED_OPTIONS}
-                onChange={setSpeed}
-                ariaLabel="速度"
-              />
-            }
-          />
-          <SettingsRow
             title="允许普通模式提问"
             description="开启后，主 Agent 可在普通模式中通过结构化问题卡向你提问。计划模式始终允许。"
             autoSave
@@ -448,57 +380,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
               />
             }
           />
-          <SettingsRow
-            title="建议提示"
-            description="搜索项目文件和已连接应用，建议下一步操作"
-            control={(aria) => (
-              <ToggleSwitch
-                checked={suggestPrompts}
-                onChange={setSuggestPrompts}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-          <SettingsRow
-            title="从其他 AI 应用导入工作内容"
-            description="导入您的设置、项目和最近聊天记录"
-            control={
-              <Button color="primary" type="button">
-                导入
-              </Button>
-            }
-          />
-          <SettingsRow
-            title="打开源许可证"
-            description="捆绑依赖项的第三方声明"
-            control={
-              <Button color="secondary" type="button">
-                查看
-              </Button>
-            }
-          />
-        </SettingsSection>
-
-        <SettingsSection
-          title="实现性"
-          description="这些底层能力通过 Rust sidecar 提供。Rust sidecar 已作为默认 agent 运行时。"
-        >
-          <SettingsRow
-            title="Rust Glob / Grep / Diff 内核"
-            description="启用后，Rust sidecar 将执行文件遍历、内容搜索和 diff 计算，不再回退到 TS 路径。"
-            autoSave
-            control={(aria) => (
-              <ToggleSwitch
-                checked={rustSearchAndDiffKernels}
-                onChange={(checked) => {
-                  setRustSearchAndDiffKernels(checked)
-                }}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
         </SettingsSection>
 
         <SettingsSection
@@ -515,35 +396,6 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
                 onChange={(checked) => {
                   setComposerPredictions(checked)
                 }}
-                ariaLabelledby={aria.labelledby}
-                ariaDescribedby={aria.describedby}
-              />
-            )}
-          />
-        </SettingsSection>
-
-        <SettingsSection title="弹出窗口">
-          <SettingsRow
-            title="弹出窗口快捷键"
-            description="为弹出窗口设置全局快捷键。留空则保持关闭。"
-            control={
-              <>
-                <span className="settings-row-status">
-                  {popupShortcut ? popupShortcut : '禁用'}
-                </span>
-                <Button color="secondary" type="button">
-                  设置
-                </Button>
-              </>
-            }
-          />
-          <SettingsRow
-            title="默认使用无项目聊天"
-            description="无需项目即可开始新聊天"
-            control={(aria) => (
-              <ToggleSwitch
-                checked={popupNoProjectChat}
-                onChange={setPopupNoProjectChat}
                 ariaLabelledby={aria.labelledby}
                 ariaDescribedby={aria.describedby}
               />
