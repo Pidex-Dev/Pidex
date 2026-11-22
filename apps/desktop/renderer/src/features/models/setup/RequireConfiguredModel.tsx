@@ -1,8 +1,7 @@
-import { useMemo } from 'react'
 import { startupSurfaceReadyRef } from '../../../startup/StartupSplashHandoff.js'
 import type React from 'react'
-import { useEffect, useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Button } from '../../../components/ui/Button.js'
 import { FullScreenWhaleLoading } from '../../../components/ui/FullScreenWhaleLoading.js'
@@ -48,7 +47,6 @@ export function resolveModelSetupGate(
 ): ModelSetupGateDecision {
   if (!configuration.loaded || !settings.settingsLoaded) return 'loading'
   if (configuration.configurationError || !configuration.currentProviderState) return 'recovery'
-  if (settings.firstUseSetupCompleted === 0) return 'setup'
   if (settings.firstUseSetupCompleted === 1) return 'workbench'
   return hasUsableTaskModel(configuration.currentProviderState, configuration.providers)
     ? 'workbench'
@@ -56,6 +54,8 @@ export function resolveModelSetupGate(
 }
 
 export function RequireConfiguredModel(): React.ReactNode {
+  const location = useLocation()
+  const navigate = useNavigate()
   const configuration = useProviderManagementStore(
     useShallow((state) => ({
       loaded: state.configuration.loaded,
@@ -84,21 +84,32 @@ export function RequireConfiguredModel(): React.ReactNode {
   )
   const decision = resolveModelSetupGate(configuration, settings)
   const [setupDialogDismissed, setSetupDialogDismissed] = useState(false)
+  const onProvidersRoute =
+    location.pathname === '/providers' || location.pathname.startsWith('/providers/')
 
   useEffect(() => {
+    if (decision !== 'setup' && setupDialogDismissed) {
+      setSetupDialogDismissed(false)
+    }
     if (
       !settings.settingsLoaded ||
       !configuration.loaded ||
       configuration.configurationError ||
-      !configuration.currentProviderState ||
-      settings.firstUseSetupCompleted !== undefined
-    )
+      !configuration.currentProviderState
+    ) {
       return
-    const inferred = hasUsableTaskModel(configuration.currentProviderState, configuration.providers)
-      ? 1
-      : 0
-    void settings.saveFirstUseSetupCompleted(inferred).catch(() => undefined)
+    }
+    const usable = hasUsableTaskModel(configuration.currentProviderState, configuration.providers)
+    if (usable && settings.firstUseSetupCompleted !== 1) {
+      void Promise.resolve(settings.saveFirstUseSetupCompleted?.(1)).catch(() => undefined)
+      return
+    }
+    if (!usable && settings.firstUseSetupCompleted === undefined) {
+      void Promise.resolve(settings.saveFirstUseSetupCompleted?.(0)).catch(() => undefined)
+    }
   }, [
+    decision,
+    setupDialogDismissed,
     settings.firstUseSetupCompleted,
     settings.saveFirstUseSetupCompleted,
     settings.settingsLoaded,
@@ -108,11 +119,14 @@ export function RequireConfiguredModel(): React.ReactNode {
     configuration.loaded,
   ])
 
-  useEffect(() => {
-    if (decision !== 'setup' && setupDialogDismissed) {
-      setSetupDialogDismissed(false)
-    }
-  }, [decision, setupDialogDismissed])
+  const handleDismissGuide = useCallback(() => {
+    setSetupDialogDismissed(true)
+    void Promise.resolve(settings.saveFirstUseSetupCompleted?.(1)).catch(() => undefined)
+  }, [settings.saveFirstUseSetupCompleted])
+
+  const handleGoToProviders = useCallback(() => {
+    navigate('/providers')
+  }, [navigate])
 
   if (decision === 'loading') {
     return (
@@ -132,10 +146,11 @@ export function RequireConfiguredModel(): React.ReactNode {
   return (
     <>
       <Outlet />
-      {decision === 'setup' ? (
+      {decision === 'setup' && !onProvidersRoute && !setupDialogDismissed ? (
         <ModelSetupGuideDialog
-          open={!setupDialogDismissed}
-          onOpenChange={(open) => setSetupDialogDismissed(!open)}
+          open
+          onDismiss={handleDismissGuide}
+          onGoToProviders={handleGoToProviders}
         />
       ) : null}
     </>
@@ -144,16 +159,22 @@ export function RequireConfiguredModel(): React.ReactNode {
 
 function ModelSetupGuideDialog({
   open,
-  onOpenChange,
+  onDismiss,
+  onGoToProviders,
 }: {
   open: boolean
-  onOpenChange: (open: boolean) => void
+  onDismiss: () => void
+  onGoToProviders: () => void
 }): React.ReactNode {
-  const navigate = useNavigate()
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onDismiss()
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop" />
         <Dialog.Content
@@ -172,19 +193,12 @@ function ModelSetupGuideDialog({
           </header>
           <div className="tw:mt-2 tw:flex tw:items-center tw:justify-end tw:gap-3">
             <Dialog.Close asChild>
-              <Button size="md" color="secondary" onClick={() => onOpenChange(false)}>
+              <Button size="md" color="secondary">
                 稍后
               </Button>
             </Dialog.Close>
-            <Button
-              size="md"
-              color="primary"
-              onClick={() => {
-                onOpenChange(false)
-                navigate('/setup')
-              }}
-            >
-              前往模型设置
+            <Button size="md" color="primary" onClick={onGoToProviders}>
+              前往供应商市场
             </Button>
           </div>
         </Dialog.Content>

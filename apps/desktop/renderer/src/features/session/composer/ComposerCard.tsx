@@ -148,6 +148,7 @@ type ProviderModelOption = {
   providerID: ModelProviderID
   displayName: string
   modelPresets: ModelPreset[]
+  apiKeyConfigured?: boolean
 }
 
 type ComposerDropdown =
@@ -555,6 +556,22 @@ export function ComposerCard({
   const subagentMode = placement === 'side-task'
   const contextDropdownSide = contextDropdownSideOverride ?? 'top'
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(null)
+  const hasSelectableModelOption = providerOptions.some(
+    (option) => option.apiKeyConfigured !== false && option.modelPresets.length > 0,
+  )
+  const openModelPickerOrSettings = useCallback(() => {
+    if (
+      !modelConfigured &&
+      !modelCatalogLoading &&
+      !hasSelectableModelOption &&
+      onOpenModelSettings
+    ) {
+      setOpenDropdown(null)
+      onOpenModelSettings()
+      return
+    }
+    setOpenDropdown('model')
+  }, [hasSelectableModelOption, modelCatalogLoading, modelConfigured, onOpenModelSettings])
   const [statusPanelOpen, setStatusPanelOpen] = useState(false)
   const [contextPreviewOpen, setContextPreviewOpen] = useState(false)
   const contextPreviewRef = useRef<HTMLDivElement>(null)
@@ -819,8 +836,8 @@ export function ComposerCard({
     sessionBusy,
     queuedCompactionSupported,
     reasoningAvailable: showThinkingOptions,
-    onOpenModel: () => setOpenDropdown('model'),
-    onOpenReasoning: () => setOpenDropdown('model'),
+    onOpenModel: openModelPickerOrSettings,
+    onOpenReasoning: openModelPickerOrSettings,
     onOpenStatus: () => {
       setOpenDropdown(null)
       setStatusPanelOpen(true)
@@ -2236,7 +2253,8 @@ export function ComposerCard({
                 ) : undefined
               }
               onOpenChange={(open) => {
-                setOpenDropdown(open ? 'model' : null)
+                if (open) openModelPickerOrSettings()
+                else setOpenDropdown(null)
               }}
               onProviderModelChange={onProviderModelChange}
               onProviderOpen={onProviderOpen}

@@ -18,7 +18,6 @@ import { ConversationPage } from './features/session/conversation/ConversationPa
 import { PluginsView } from './features/plugins/PluginsView.js'
 import { ProjectsView } from './features/projects/ProjectsView.js'
 import { PullRequestsPlaceholder } from './features/pull-requests/PullRequestsPlaceholder.js'
-import { ModelSetupPage } from './features/models/setup/ModelSetupPage.js'
 import { SettingsLayout } from './features/settings/SettingsLayout.js'
 import { PetCatalogPage } from './features/pet/PetCatalogPage.js'
 import { PetCatalogProvider } from './features/pet/PetCatalogProvider.js'
@@ -84,11 +83,7 @@ const router = createHashRouter([
       {
         path: '/setup',
         errorElement: routeErrorElement,
-        element: (
-          <DesktopSettingsProvider access="read-write">
-            <ModelSetupPage />
-          </DesktopSettingsProvider>
-        ),
+        element: <Navigate replace to="/providers" />,
       },
       {
         path: '/',

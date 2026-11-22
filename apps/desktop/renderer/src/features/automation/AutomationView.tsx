@@ -324,8 +324,7 @@ function AutomationViewContent(): React.ReactNode {
   }
   function openCreate(template?: AutomationTemplateId): void {
     if (!hasDraftModel) {
-      // 没有可用模型时不允许硬编码兜底，先让用户完成模型选择。
-      navigate('/setup')
+      navigate('/providers')
       return
     }
     rememberFocus()
@@ -370,7 +369,7 @@ function AutomationViewContent(): React.ReactNode {
   }
   function openScheduledTask(targetDate?: string, trigger?: HTMLElement | null): void {
     if (!hasDraftModel) {
-      navigate('/setup')
+      navigate('/providers')
       return
     }
     rememberFocus()
