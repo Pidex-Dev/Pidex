@@ -13,9 +13,7 @@ import {
   DEFAULT_UI_FONT,
   getCodeThemeSelectionForVariant,
   normalizeDesktopThemeSettings,
-  resetAdvancedDesktopThemeSettings,
 } from '../shared/Theme.js'
-import { applyDesktopUiDensity } from '../src/features/theme/DesktopThemeProvider.js'
 import {
   deriveThemeVariables,
   ensureThemePreviewContrast,
@@ -664,64 +662,29 @@ describe('fixed Codex UI themes', () => {
     expect(customAccent['--cpx-sys-color-accent-subtle-bg']).not.toBe('var(--cpx-ref-blue-a3)')
   })
 
-  test('defaults uiDensity to default, preserves V6/V7 settings, and applies --cpx-sys-scaling', () => {
-    expect(DEFAULT_DESKTOP_THEME_SETTINGS.uiDensity).toBe('default')
+  test('preserves V6/V7 settings and ignores legacy uiDensity field when normalizing', () => {
+    expect('uiDensity' in DEFAULT_DESKTOP_THEME_SETTINGS).toBe(false)
 
-    const v6WithoutDensity = normalizeDesktopThemeSettings({
+    const v6Settings = normalizeDesktopThemeSettings({
       version: 6,
       mode: 'dark',
       fontSizes: { ui: 15, code: 13 },
       pointerCursorEnabled: true,
     })
-    expect(v6WithoutDensity.uiDensity).toBe('default')
-    expect(v6WithoutDensity.mode).toBe('dark')
-    expect(v6WithoutDensity.fontSizes).toEqual({ ui: 15, code: 13 })
-    expect(v6WithoutDensity.pointerCursorEnabled).toBe(true)
+    expect('uiDensity' in v6Settings).toBe(false)
+    expect(v6Settings.mode).toBe('dark')
+    expect(v6Settings.fontSizes).toEqual({ ui: 15, code: 13 })
+    expect(v6Settings.pointerCursorEnabled).toBe(true)
 
-    const v7WithInvalidDensity = normalizeDesktopThemeSettings({
-      version: 7,
-      mode: 'light',
-      uiDensity: 'ultra-dense',
-      fontSizes: { ui: 13, code: 11 },
-    })
-    expect(v7WithInvalidDensity.uiDensity).toBe('default')
-    expect(v7WithInvalidDensity.mode).toBe('light')
-    expect(v7WithInvalidDensity.fontSizes).toEqual({ ui: 13, code: 11 })
-
-    const compact = normalizeDesktopThemeSettings({
+    const v8WithLegacyDensity = normalizeDesktopThemeSettings({
       ...DEFAULT_DESKTOP_THEME_SETTINGS,
       uiDensity: 'compact',
+      mode: 'light',
+      fontSizes: { ui: 13, code: 11 },
     })
-    expect(compact.uiDensity).toBe('compact')
-    expect(resetAdvancedDesktopThemeSettings(compact).uiDensity).toBe('default')
-
-    const spacious = normalizeDesktopThemeSettings({
-      ...DEFAULT_DESKTOP_THEME_SETTINGS,
-      uiDensity: 'spacious',
-    })
-    expect(spacious.uiDensity).toBe('spacious')
-
-    const properties = new Map<string, string>()
-    const root = {
-      dataset: {} as DOMStringMap,
-      style: {
-        setProperty: (name: string, value: string) => {
-          properties.set(name, value)
-        },
-      },
-    } as unknown as HTMLElement
-
-    applyDesktopUiDensity(root, 'compact')
-    expect(root.dataset.uiDensity).toBe('compact')
-    expect(properties.get('--cpx-sys-scaling')).toBe('0.9')
-
-    applyDesktopUiDensity(root, 'spacious')
-    expect(root.dataset.uiDensity).toBe('spacious')
-    expect(properties.get('--cpx-sys-scaling')).toBe('1.1')
-
-    applyDesktopUiDensity(root, undefined)
-    expect(root.dataset.uiDensity).toBe('default')
-    expect(properties.get('--cpx-sys-scaling')).toBe('1')
+    expect('uiDensity' in v8WithLegacyDensity).toBe(false)
+    expect(v8WithLegacyDensity.mode).toBe('light')
+    expect(v8WithLegacyDensity.fontSizes).toEqual({ ui: 13, code: 11 })
   })
 })
 

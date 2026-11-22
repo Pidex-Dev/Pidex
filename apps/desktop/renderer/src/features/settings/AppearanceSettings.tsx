@@ -1181,23 +1181,6 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
                 }
               />
               <SettingsRow
-                autoSave
-                title="界面密度"
-                description="按 90%、100% 或 110% 整体缩放界面间距、圆角与字号。"
-                control={
-                  <SegmentedControl
-                    ariaLabel="界面密度选项"
-                    options={[
-                      { value: 'compact', label: '紧凑 90%' },
-                      { value: 'default', label: '默认 100%' },
-                      { value: 'spacious', label: '宽松 110%' },
-                    ]}
-                    value={settings.uiDensity ?? 'default'}
-                    onChange={(uiDensity) => updateThemeSettings({ uiDensity })}
-                  />
-                }
-              />
-              <SettingsRow
                 title="代码字号"
                 control={
                   <NumberInput

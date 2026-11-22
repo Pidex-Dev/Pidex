@@ -13,7 +13,6 @@ import {
   desktopThemeFontFaceMatchesFamily,
   isNewerDesktopThemeSettingsVersion,
   normalizeDesktopAccentPreset,
-  normalizeDesktopUiDensity,
   resolveSharedFontsFromVariants,
 } from '@pidex/shared/desktop-theme'
 import {
@@ -73,7 +72,6 @@ export function resetAdvancedDesktopThemeSettings(
     fonts,
     chromeThemes: { light: resetTheme('light'), dark: resetTheme('dark') },
     fontSizes: { ...defaults.fontSizes },
-    uiDensity: defaults.uiDensity ?? 'default',
     reduceMotion: defaults.reduceMotion,
     pointerCursorEnabled: defaults.pointerCursorEnabled,
     fontSmoothingEnabled: defaults.fontSmoothingEnabled,
@@ -147,7 +145,6 @@ export function normalizeDesktopThemeSettings(value: unknown): DesktopThemeSetti
         ? record.fontSmoothingEnabled
         : DEFAULT_DESKTOP_THEME_SETTINGS.fontSmoothingEnabled,
     fontSizes: normalizeFontSizes(record.fontSizes),
-    uiDensity: normalizeDesktopUiDensity(record.uiDensity),
   }
 }
 

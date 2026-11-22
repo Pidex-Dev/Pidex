@@ -222,15 +222,14 @@ describe('non-color design token contracts', () => {
     expect(conversation).toMatch(/font-size:\s*var\(--cpx-sys-font-size-1\);/)
   })
 
-  test('tokens.css defines the Radix 9-step spacing scale 1..9 = 4/8/12/16/24/32/40/48/64px with --cpx-sys-scaling', async () => {
+  test('tokens.css defines the Radix 9-step spacing scale 1..9 = 4/8/12/16/24/32/40/48/64px and fixed icon size tokens', async () => {
     const source = await read('../src/styles/design-system/tokens.css')
     const rootBlock = blockContent(source, /:root\s*\{/)
     expect(rootBlock, 'tokens.css must have a :root block').toBeDefined()
     const tokens = extractTokens(rootBlock!)
     const expected: Record<string, string> = {
-      '--cpx-sys-scaling': '1',
-      '--cpx-sys-space-1': 'calc(4px * var(--cpx-sys-scaling))',
-      '--cpx-sys-space-2': 'calc(8px * var(--cpx-sys-scaling))',
+      '--cpx-sys-space-1': '4px',
+      '--cpx-sys-space-2': '8px',
       '--cpx-sys-space-3': '12px',
       '--cpx-sys-space-4': '16px',
       '--cpx-sys-space-5': '24px',
@@ -238,6 +237,10 @@ describe('non-color design token contracts', () => {
       '--cpx-sys-space-7': '40px',
       '--cpx-sys-space-8': '48px',
       '--cpx-sys-space-9': '64px',
+      '--cpx-sys-icon-size-xs': '12px',
+      '--cpx-sys-icon-size-sm': '14px',
+      '--cpx-sys-icon-size-md': '16px',
+      '--cpx-sys-icon-size-lg': '18px',
       '--cpx-comp-menubar-height': '40px',
     }
     const mismatched = Object.entries(expected).filter(
@@ -249,11 +252,10 @@ describe('non-color design token contracts', () => {
 
     expect(
       details,
-      `tokens.css space scale must match Radix 9-step nonlinear scale: ${details || 'ok'}`,
+      `tokens.css space and icon scale must match expected tokens: ${details || 'ok'}`,
     ).toBe('')
-    expect(source).toMatch(/\[data-ui-density='compact'\]\s*\{\s*--cpx-sys-scaling:\s*0\.9;/)
-    expect(source).toMatch(/\[data-ui-density='default'\]\s*\{\s*--cpx-sys-scaling:\s*1;/)
-    expect(source).toMatch(/\[data-ui-density='spacious'\]\s*\{\s*--cpx-sys-scaling:\s*1\.1;/)
+    expect(tokens.has('--cpx-sys-scaling')).toBe(false)
+    expect(source).not.toMatch(/\[data-ui-density=/)
   })
 
   test('tokens.css defines semantic radius roles', async () => {

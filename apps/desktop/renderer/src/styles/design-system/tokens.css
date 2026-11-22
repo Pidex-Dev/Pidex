@@ -461,10 +461,9 @@
     --cpx-sys-font-weight-medium: 500;
     --cpx-sys-font-weight-bold: 700;
 
-    /* System Spacing (Radix 9-step nonlinear scale with global density scaling) */
-    --cpx-sys-scaling: 1;
-    --cpx-sys-space-1: calc(4px * var(--cpx-sys-scaling));
-    --cpx-sys-space-2: calc(8px * var(--cpx-sys-scaling));
+    /* System Spacing (Radix 9-step nonlinear scale) */
+    --cpx-sys-space-1: 4px;
+    --cpx-sys-space-2: 8px;
     --cpx-sys-space-3: 12px;
     --cpx-sys-space-4: 16px;
     --cpx-sys-space-5: 24px;
@@ -554,11 +553,11 @@
       color-mix(in srgb, var(--cpx-sys-color-border-focus) 18%, transparent);
     --cpx-sys-focus-ring-inset: inset 0 0 0 1px var(--cpx-sys-color-border-focus);
 
-    /* Button icon and action sizing (scaled by --cpx-sys-scaling) */
-    --cpx-sys-icon-size-xs: calc(12px * var(--cpx-sys-scaling));
-    --cpx-sys-icon-size-sm: calc(14px * var(--cpx-sys-scaling));
-    --cpx-sys-icon-size-md: calc(16px * var(--cpx-sys-scaling));
-    --cpx-sys-icon-size-lg: calc(18px * var(--cpx-sys-scaling));
+    /* Button icon and action sizing */
+    --cpx-sys-icon-size-xs: 12px;
+    --cpx-sys-icon-size-sm: 14px;
+    --cpx-sys-icon-size-md: 16px;
+    --cpx-sys-icon-size-lg: 18px;
     --cpx-sys-icon-stroke-width: 1.6;
     --cpx-sys-icon-size: var(--cpx-sys-icon-size-md);
     --button-icon-size-xs: var(--cpx-sys-icon-size-sm);
@@ -764,7 +763,7 @@
     --cpx-comp-workbench-tab-hover-bg: var(--cpx-sys-color-hover);
     --cpx-comp-workbench-tab-border: var(--cpx-sys-color-border-subtle);
 
-    /* 10. MenuBar Component (strictly locked to 40px, never multiplied by --cpx-sys-scaling) */
+    /* 10. MenuBar Component (strictly locked to 40px) */
     --cpx-comp-menubar-height: 40px;
     --cpx-comp-menubar-selection-bg: var(--cpx-sys-color-selected);
     --cpx-comp-menubar-selection-fg: var(--cpx-sys-color-fg-primary);
@@ -901,17 +900,5 @@
     --cpx-comp-card-padding: var(--cpx-sys-layout-card-padding);
     --cpx-comp-card-gap: var(--cpx-sys-layout-card-gap);
     --cpx-comp-card-radius: var(--cpx-sys-radius-container);
-  }
-
-  [data-ui-density='compact'] {
-    --cpx-sys-scaling: 0.9;
-  }
-
-  [data-ui-density='default'] {
-    --cpx-sys-scaling: 1;
-  }
-
-  [data-ui-density='spacious'] {
-    --cpx-sys-scaling: 1.1;
   }
 }

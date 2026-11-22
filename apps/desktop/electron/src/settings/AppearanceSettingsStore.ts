@@ -15,7 +15,6 @@ import {
   DEFAULT_CHROME_THEMES,
   desktopThemeFontFaceMatchesFamily,
   normalizeDesktopAccentPreset,
-  normalizeDesktopUiDensity,
   resolveSharedFontsFromVariants,
 } from '@pidex/shared/desktop-theme'
 import { writeJsonAtomically } from '../windows/DebouncedAtomicJsonWriter.js'
@@ -191,7 +190,6 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
       ui: numberInRange(fontSizes.ui, 14, 11, 16),
       code: numberInRange(fontSizes.code, 12, 8, 24),
     },
-    uiDensity: normalizeDesktopUiDensity(source.uiDensity),
   }
 }
 

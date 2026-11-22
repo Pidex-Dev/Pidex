@@ -16,7 +16,6 @@ import { deriveThemeVariables } from './ThemeVariables.js'
 import { applyThemeFontFaceStyles } from './ThemeFontFaces.js'
 import { ensureExternalFontLoaded } from './ThemeExternalFonts.js'
 import { findExternalFontByFamily } from '@pidex/shared/desktop-external-fonts'
-import { DESKTOP_UI_DENSITY_SCALING, normalizeDesktopUiDensity } from '@pidex/shared/desktop-theme'
 import {
   resolveStartupThemeSettings,
   withStartupThemeSeed,
@@ -32,7 +31,6 @@ const SETTINGS_THEME_VARIABLES = [
   '--cpx-sys-font-family-mono',
   '--cpx-sys-font-size-ui',
   '--cpx-sys-font-size-code',
-  '--cpx-sys-scaling',
   '--cpx-sys-font-size-1',
   '--cpx-sys-font-size-2',
   '--cpx-sys-font-size-3',
@@ -390,15 +388,6 @@ export function DesktopThemeProvider({ children }: { children: React.ReactNode }
   return <DesktopThemeContext.Provider value={value}>{children}</DesktopThemeContext.Provider>
 }
 
-export function applyDesktopUiDensity(
-  root: HTMLElement,
-  densityValue: DesktopThemeSettings['uiDensity'],
-): void {
-  const density = normalizeDesktopUiDensity(densityValue)
-  root.dataset.uiDensity = density
-  root.style.setProperty('--cpx-sys-scaling', String(DESKTOP_UI_DENSITY_SCALING[density]))
-}
-
 function applyDesktopTheme(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
@@ -424,8 +413,6 @@ function applyDesktopTheme(
   for (const variable of SETTINGS_THEME_VARIABLES) {
     root.style.removeProperty(variable)
   }
-
-  applyDesktopUiDensity(root, settings.uiDensity)
 
   const config = getDesktopThemeForSelection(settings, variant)
   root.dataset.codeThemeId = getCodeThemeSelectionForVariant(settings, variant)
