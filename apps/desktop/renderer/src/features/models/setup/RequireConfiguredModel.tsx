@@ -92,7 +92,7 @@ export function RequireConfiguredModel(): React.ReactNode {
       setSetupDialogDismissed(false)
     }
     if (
-      !settings.settingsLoaded ||
+      !subscribedSettingsLoaded ||
       !configuration.loaded ||
       configuration.configurationError ||
       !configuration.currentProviderState
@@ -100,19 +100,19 @@ export function RequireConfiguredModel(): React.ReactNode {
       return
     }
     const usable = hasUsableTaskModel(configuration.currentProviderState, configuration.providers)
-    if (usable && settings.firstUseSetupCompleted !== 1) {
-      void Promise.resolve(settings.saveFirstUseSetupCompleted?.(1)).catch(() => undefined)
+    if (usable && subscribedFirstUseSetupCompleted !== 1) {
+      void Promise.resolve(subscribedSaveFirstUseSetupCompleted?.(1)).catch(() => undefined)
       return
     }
-    if (!usable && settings.firstUseSetupCompleted === undefined) {
-      void Promise.resolve(settings.saveFirstUseSetupCompleted?.(0)).catch(() => undefined)
+    if (!usable && subscribedFirstUseSetupCompleted === undefined) {
+      void Promise.resolve(subscribedSaveFirstUseSetupCompleted?.(0)).catch(() => undefined)
     }
   }, [
     decision,
     setupDialogDismissed,
-    settings.firstUseSetupCompleted,
-    settings.saveFirstUseSetupCompleted,
-    settings.settingsLoaded,
+    subscribedFirstUseSetupCompleted,
+    subscribedSaveFirstUseSetupCompleted,
+    subscribedSettingsLoaded,
     configuration.configurationError,
     configuration.currentProviderState,
     configuration.providers,
@@ -121,8 +121,8 @@ export function RequireConfiguredModel(): React.ReactNode {
 
   const handleDismissGuide = useCallback(() => {
     setSetupDialogDismissed(true)
-    void Promise.resolve(settings.saveFirstUseSetupCompleted?.(1)).catch(() => undefined)
-  }, [settings.saveFirstUseSetupCompleted])
+    void Promise.resolve(subscribedSaveFirstUseSetupCompleted?.(1)).catch(() => undefined)
+  }, [subscribedSaveFirstUseSetupCompleted])
 
   const handleGoToProviders = useCallback(() => {
     navigate('/providers')
