@@ -1,3 +1,4 @@
+import { isUserAuthoredInput, type InputOrigin } from '@pidex/shared/thread'
 import { SqlitePiSessionRepo, SqlitePiSessionStorage } from '../pi-session/SqlitePiSession'
 import type { AgentDatabase } from '../database/AgentDatabase'
 import { AgentError } from '../../Domain'
@@ -69,7 +70,9 @@ export class ThreadEditRepository {
       )
       .all(threadId) as { id: string; input_id: string; origin: string | null }[]
     const target = rows.find((row) => row.input_id === inputId && row.id === turnId)
-    const realInputs = rows.filter((row) => row.origin === null || row.origin === 'user')
+    const realInputs = rows.filter((row) =>
+      isUserAuthoredInput({ id: row.input_id, origin: row.origin as InputOrigin | null }),
+    )
     if (
       !target ||
       realInputs.at(-1)?.input_id !== inputId ||
@@ -203,6 +206,7 @@ export class ThreadEditRepository {
       .query(
         'UPDATE threads SET first_user_message = (SELECT content FROM inputs JOIN turns ON turns.id = inputs.turn_id WHERE inputs.thread_id = ? AND ' +
           activeTurnSql('turns', this.db) +
+          " AND (inputs.origin IS NULL OR inputs.origin = 'user') AND inputs.id NOT LIKE 'subagent-notify:%' AND inputs.id NOT LIKE 'subagent-status:%'" +
           ' ORDER BY inputs.created_at, inputs.id LIMIT 1) WHERE id = ?',
       )
       .run(request.threadId, request.threadId)
