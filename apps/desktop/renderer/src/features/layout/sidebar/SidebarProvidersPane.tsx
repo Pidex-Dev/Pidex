@@ -68,7 +68,7 @@ export function SidebarProvidersPane(): React.ReactNode {
 
   return (
     <div className="sidebar-providers-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
-      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
+      <header className="sidebar-pane-heading tw:mx-1 tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:pr-1">
         <SearchHeading
           title={
             <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('供应商')}</h2>
@@ -84,7 +84,7 @@ export function SidebarProvidersPane(): React.ReactNode {
           }
         />
       </header>
-      <div className="tw:flex tw:shrink-0 tw:flex-col tw:sidebar-row-gap tw:p-2">
+      <div className="tw:flex tw:shrink-0 tw:flex-col tw:sidebar-row-gap tw:px-1 tw:py-2">
         <SidebarRow
           active={onMarketRoute}
           asChild
@@ -129,7 +129,7 @@ export function SidebarProvidersPane(): React.ReactNode {
         ) : (
           [true, false].map((configured) => (
             <div key={String(configured)} className="tw:flex tw:flex-col tw:sidebar-row-gap">
-              <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:items-center tw:px-1 tw:text-app-text-meta tw:type-2">
+              <h3 className="sidebar-section-header tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:items-center tw:pr-1 tw:text-app-text-meta tw:type-2">
                 {t(configured ? '已配置' : '未配置')}
               </h3>
               {items

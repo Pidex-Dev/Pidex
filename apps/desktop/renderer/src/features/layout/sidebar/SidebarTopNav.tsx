@@ -266,7 +266,7 @@ export function SidebarHeader({
           />
         </div>
         {showActions ? (
-          <div className="sidebar-header-actions tw:flex tw:min-w-0 tw:shrink-0 tw:items-center">
+          <div className="sidebar-header-actions tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:pr-1">
             <Popover.Root
               open={
                 !sidebarActivityCoachmarkDismissed &&

@@ -554,6 +554,7 @@ function SidebarSessionGroupComponent({
     disclosureExpanded,
   )
 
+  // INVARIANT: 展开/折叠按钮复用 Button[data-size="compact"]（自带 8px 水平内边距），首按钮用 -ml-2 抵消自身左内边距，使文字起点严格对齐第二列（sidebar-row-main）。
   return (
     <div
       className="sidebar-session-group tw:min-w-0 tw:transition-[height] tw:duration-disclosure tw:ease-disclosure"
@@ -589,7 +590,7 @@ function SidebarSessionGroupComponent({
           {hasOverflow ? (
             <div
               className={cx(
-                'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-6 tw:items-center tw:gap-x-1 tw:rounded-3 tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
+                'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-6 tw:items-center tw:gap-x-1 tw:rounded-3 tw:px-1 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-2 tw:weight-medium tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
                 sessionIndent === 'gutter' && !showConversationIcon
                   ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
                   : 'tw:grid-cols-[var(--sidebar-row-columns)]',

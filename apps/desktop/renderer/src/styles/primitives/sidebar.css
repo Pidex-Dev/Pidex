@@ -70,7 +70,7 @@
 
   /*
    * Sidebar density contract: outer gutter and row internals (4px gutter, 4px
-   * row inset, 30px row height, 10px row radius, 24px leading slot, 16px section gap).
+   * row inset, 30px row height, 6px row radius, 24px leading slot, 16px section gap).
    * Consumed by TSX utilities through the `--sidebar-…` runtime geometry variables.
    */
   .desktop-sidebar,
@@ -95,6 +95,8 @@
       2 * var(--sidebar-icon-button-size) + var(--sidebar-trailing-gap)
     );
     --sidebar-row-columns: var(--sidebar-leading-width) minmax(0, 1fr) auto;
+
+    /* INVARIANT: 无前置槽位的标题行（分组标题、面板顶栏、产品模式触发器）左起点必须对齐 `.sidebar-row` 内 24px 前置槽居中 14px 图标的左边缘（即 `row-inset + (leading-width - icon-size) / 2`）。 */
     --sidebar-section-padding-left: calc(
       var(--sidebar-inline-gutter) + (var(--sidebar-leading-width) - var(--sidebar-icon-size)) / 2
     );
@@ -113,7 +115,8 @@
     column-gap: var(--sidebar-trailing-gap);
   }
 
-  .sidebar-section-header {
+  .sidebar-section-header,
+  .sidebar-pane-heading {
     padding-inline-start: var(--sidebar-section-padding-left);
   }
 

@@ -77,7 +77,7 @@ export function SidebarScheduledPane(): ReactNode {
 
   return (
     <div className="sidebar-scheduled-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
-      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-3">
+      <header className="sidebar-pane-heading tw:mx-1 tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:pr-1">
         <SearchHeading
           title={
             <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('已安排')}</h2>
@@ -105,7 +105,7 @@ export function SidebarScheduledPane(): ReactNode {
           </Link>
         </Button>
       </header>
-      <div className="tw:flex tw:flex-col tw:sidebar-row-gap tw:p-2">
+      <div className="tw:flex tw:flex-col tw:sidebar-row-gap tw:px-1 tw:py-2">
         {TAB_OPTIONS.map((option) => {
           const Icon = TAB_ICONS[option.value]
           const active = onAutomationsRoute && tab === option.value && !hasDetailTarget

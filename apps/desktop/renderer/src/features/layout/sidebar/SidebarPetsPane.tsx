@@ -24,7 +24,7 @@ export function SidebarPetsPane(): ReactNode {
   )
   return (
     <div className="sidebar-pets-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
-      <header className="sidebar-pane-heading tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
+      <header className="sidebar-pane-heading tw:mx-1 tw:flex tw:min-h-6 tw:shrink-0 tw:items-center tw:justify-between tw:pr-1">
         <h2 className="tw:m-0 tw:text-app-text tw:type-4 tw:weight-bold">{t('宠物')}</h2>
         <Button
           color="ghostSecondary"
@@ -36,7 +36,7 @@ export function SidebarPetsPane(): ReactNode {
           <Settings className="tw:size-icon-sm" aria-hidden size={APP_ICON_SIZES.sm} />
         </Button>
       </header>
-      <h3 className="tw:m-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:shrink-0 tw:items-center tw:px-4 tw:text-app-text-meta tw:type-2">
+      <h3 className="sidebar-section-header tw:mx-1 tw:my-0 tw:flex tw:min-h-[var(--sidebar-row-height)] tw:shrink-0 tw:items-center tw:pr-1 tw:text-app-text-meta tw:type-2">
         {t('已安装')}
       </h3>
       <ScrollArea
