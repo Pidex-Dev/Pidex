@@ -946,7 +946,16 @@ export function useThreadScrollController({
       }
     })
     return () => cancelAnimationFrame(frame)
-  }, [active, itemCount, listRef, readCachedOrLiveMetrics, scrollRef, scrollToEnd, sessionKey, setMode])
+  }, [
+    active,
+    itemCount,
+    listRef,
+    readCachedOrLiveMetrics,
+    scrollRef,
+    scrollToEnd,
+    sessionKey,
+    setMode,
+  ])
 
   React.useEffect(() => {
     if (itemCount <= previousCountRef.current) {

@@ -239,7 +239,10 @@ export function ToolCardOutputViewport({
     const applyFollow = (): void => {
       const metrics = followMetricsRef.current
       const needsBreakZero =
-        active && followingRef.current && metrics.scrollTop === 0 && metrics.contentH > metrics.viewportH
+        active &&
+        followingRef.current &&
+        metrics.scrollTop === 0 &&
+        metrics.contentH > metrics.viewportH
       if (!pendingForceFollow && !needsBreakZero && !(active && followingRef.current)) return
       pendingForceFollow = false
       const nextTop = commandOutputScrollTop(

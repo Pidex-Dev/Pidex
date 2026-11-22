@@ -169,10 +169,10 @@ export function LocalEnvironmentSettings({
   if (!threadId && (!projectId || !environmentId))
     return (
       <SettingsContentArea>
-          <h2 className="tw:type-6 tw:weight-bold">本地环境</h2>
-          <React.Suspense fallback={<p>正在加载项目…</p>}>
-            <ProjectEnvironments onError={onError} onNotice={onNotice} />
-          </React.Suspense>
+        <h2 className="tw:type-6 tw:weight-bold">本地环境</h2>
+        <React.Suspense fallback={<p>正在加载项目…</p>}>
+          <ProjectEnvironments onError={onError} onNotice={onNotice} />
+        </React.Suspense>
       </SettingsContentArea>
     )
   if (!threadId && !projectId)

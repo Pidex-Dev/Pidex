@@ -133,10 +133,7 @@ export function useComposerFooterFit(
     let cachedRightGap: number | null = null
     const measure = (entries: ResizeObserverEntry[]): void => {
       for (const entry of entries) {
-        widths.set(
-          entry.target,
-          entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width,
-        )
+        widths.set(entry.target, entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width)
       }
       const footer = current.footer.current
       const left = current.left.current
@@ -144,8 +141,8 @@ export function useComposerFooterFit(
       if (!footer || !left || !right) return
       const widthOf = (element: HTMLElement | null): number =>
         element ? (widths.get(element) ?? 0) : 0
-      cachedToolbarGap ??= (parseFloat(getComputedStyle(footer).columnGap) || 0)
-      cachedRightGap ??= (parseFloat(getComputedStyle(right).columnGap) || 0)
+      cachedToolbarGap ??= parseFloat(getComputedStyle(footer).columnGap) || 0
+      cachedRightGap ??= parseFloat(getComputedStyle(right).columnGap) || 0
       const next: ComposerFooterMetrics = {
         footerWidth: widthOf(footer),
         leftWidth: widthOf(left),

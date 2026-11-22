@@ -208,7 +208,9 @@ export function useAppMenuActions(options: Options) {
   const actions = useMemo(() => createAppMenuActions(options), [options])
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      const openDialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]')
+      const openDialogs = document.querySelectorAll(
+        '[role="dialog"], [role="alertdialog"], dialog[open]',
+      )
       const isToggleSettingsShortcut =
         event.ctrlKey &&
         !event.metaKey &&

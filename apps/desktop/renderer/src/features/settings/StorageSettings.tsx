@@ -245,418 +245,416 @@ export function StorageSettings({ onError, onNotice }: Props): React.ReactNode {
 
   return (
     <SettingsContentArea innerProps={{ id: createSettingsTargetId('storage') }}>
-        <header className="tw:mb-6">
-          <h2 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">存储空间</h2>
-        </header>
+      <header className="tw:mb-6">
+        <h2 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">存储空间</h2>
+      </header>
 
-        <section className="tw:min-w-0 tw:mb-6" id={createSettingsTargetId('storage', '存储总览')}>
-          <SettingsSection.Header
-            title="此设备"
-            description="管理存储在此电脑上的聊天、工作树和本地数据"
-          />
+      <section className="tw:min-w-0 tw:mb-6" id={createSettingsTargetId('storage', '存储总览')}>
+        <SettingsSection.Header
+          title="此设备"
+          description="管理存储在此电脑上的聊天、工作树和本地数据"
+        />
 
-          <div className="tw:mb-3 tw:flex tw:items-center tw:justify-between tw:gap-4">
-            <span className="tw:text-app-text tw:type-3 tw:weight-semibold tw:tabular-nums">
-              {loading && !summary
-                ? '正在计算存储占用…'
-                : `Pidex 占用 ${formatStorageBytes(totalBytes)}`}
-            </span>
-            <Button
-              color="secondary"
-              disabled={refreshing}
-              leftIcon={
-                <RefreshCw size={14} className={refreshing ? 'tw:animate-spin' : undefined} />
-              }
-              size="sm"
-              onClick={() => void loadSummary(true)}
-            >
-              {refreshing ? '刷新中…' : '刷新'}
-            </Button>
-          </div>
-
-          <div
-            aria-label="存储空间分类占比"
-            className="tw:mb-3 tw:flex tw:w-full tw:overflow-hidden tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-surface-2"
-            role="img"
-            style={{ height: 14 }}
+        <div className="tw:mb-3 tw:flex tw:items-center tw:justify-between tw:gap-4">
+          <span className="tw:text-app-text tw:type-3 tw:weight-semibold tw:tabular-nums">
+            {loading && !summary
+              ? '正在计算存储占用…'
+              : `Pidex 占用 ${formatStorageBytes(totalBytes)}`}
+          </span>
+          <Button
+            color="secondary"
+            disabled={refreshing}
+            leftIcon={
+              <RefreshCw size={14} className={refreshing ? 'tw:animate-spin' : undefined} />
+            }
+            size="sm"
+            onClick={() => void loadSummary(true)}
           >
-            {totalBytes > 0 ? (
-              segments.map((segment) => {
-                if (segment.bytes <= 0) return null
-                const percent = (segment.bytes / totalBytes) * 100
-                return (
-                  <div
-                    key={segment.key}
-                    className="tw:h-full tw:transition-[width] tw:duration-300"
-                    style={{
-                      width: `${Math.max(percent, 0.8)}%`,
-                      backgroundColor: segment.color,
-                    }}
-                    title={`${segment.label}：${formatStorageBytes(segment.bytes)}`}
-                  />
-                )
-              })
-            ) : (
-              <div className="tw:h-full tw:w-full" />
-            )}
-          </div>
+            {refreshing ? '刷新中…' : '刷新'}
+          </Button>
+        </div>
 
-          <div className="tw:mb-3 tw:flex tw:flex-wrap tw:items-start tw:gap-x-6 tw:gap-y-2">
-            {segments.map((segment) => (
-              <div key={segment.key} className="tw:flex tw:flex-col tw:gap-0.5">
-                <div className="tw:flex tw:items-center tw:gap-1.5 tw:text-app-text-soft tw:type-1">
-                  <span
-                    aria-hidden="true"
-                    className="tw:inline-block tw:shrink-0 tw:rounded-full"
-                    style={{
-                      width: 8,
-                      height: 8,
-                      backgroundColor: segment.color,
-                    }}
-                  />
-                  <span>{segment.label}</span>
-                </div>
-                <span className="tw:pl-3.5 tw:text-app-text tw:type-2 tw:weight-medium tw:tabular-nums">
-                  {loading && !summary ? '—' : formatStorageBytes(segment.bytes)}
-                </span>
+        <div
+          aria-label="存储空间分类占比"
+          className="tw:mb-3 tw:flex tw:w-full tw:overflow-hidden tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-surface-2"
+          role="img"
+          style={{ height: 14 }}
+        >
+          {totalBytes > 0 ? (
+            segments.map((segment) => {
+              if (segment.bytes <= 0) return null
+              const percent = (segment.bytes / totalBytes) * 100
+              return (
+                <div
+                  key={segment.key}
+                  className="tw:h-full tw:transition-[width] tw:duration-300"
+                  style={{
+                    width: `${Math.max(percent, 0.8)}%`,
+                    backgroundColor: segment.color,
+                  }}
+                  title={`${segment.label}：${formatStorageBytes(segment.bytes)}`}
+                />
+              )
+            })
+          ) : (
+            <div className="tw:h-full tw:w-full" />
+          )}
+        </div>
+
+        <div className="tw:mb-3 tw:flex tw:flex-wrap tw:items-start tw:gap-x-6 tw:gap-y-2">
+          {segments.map((segment) => (
+            <div key={segment.key} className="tw:flex tw:flex-col tw:gap-0.5">
+              <div className="tw:flex tw:items-center tw:gap-1.5 tw:text-app-text-soft tw:type-1">
+                <span
+                  aria-hidden="true"
+                  className="tw:inline-block tw:shrink-0 tw:rounded-full"
+                  style={{
+                    width: 8,
+                    height: 8,
+                    backgroundColor: segment.color,
+                  }}
+                />
+                <span>{segment.label}</span>
               </div>
-            ))}
-          </div>
+              <span className="tw:pl-3.5 tw:text-app-text tw:type-2 tw:weight-medium tw:tabular-nums">
+                {loading && !summary ? '—' : formatStorageBytes(segment.bytes)}
+              </span>
+            </div>
+          ))}
+        </div>
 
-          <div className="tw:mt-2">
-            <button
-              aria-expanded={detailsExpanded}
-              className="tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1.5 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-1 tw:hover:text-app-text"
-              type="button"
-              onClick={() => setDetailsExpanded((prev) => !prev)}
-            >
-              {detailsExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              <span>聊天存储占用明细</span>
-            </button>
+        <div className="tw:mt-2">
+          <button
+            aria-expanded={detailsExpanded}
+            className="tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1.5 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-1 tw:hover:text-app-text"
+            type="button"
+            onClick={() => setDetailsExpanded((prev) => !prev)}
+          >
+            {detailsExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <span>聊天存储占用明细</span>
+          </button>
 
-            {detailsExpanded && summary ? (
-              <div className="tw:mt-2.5 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:divide-y tw:divide-app-border-subtle">
-                <SettingsRow
-                  size="compact"
-                  title="对话与消息记录（含子智能体）"
-                  control={
-                    <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
-                      {formatStorageBytes(summary.chatDetails.messagesBytes)}
-                    </span>
-                  }
-                />
-                <SettingsRow
-                  size="compact"
-                  title="附件与图片"
-                  control={
-                    <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
-                      {formatStorageBytes(summary.chatDetails.attachmentsBytes)}
-                    </span>
-                  }
-                />
-                <SettingsRow
-                  size="compact"
-                  title="已归档对话估算"
-                  control={
-                    <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
-                      {formatStorageBytes(summary.chatDetails.archivedBytes)}
-                    </span>
-                  }
-                />
-                <SettingsRow
-                  size="compact"
-                  title="SQLite 索引与 WAL 空间"
-                  control={
-                    <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
-                      {formatStorageBytes(summary.chatDetails.sqliteOverheadBytes)}
-                    </span>
-                  }
-                />
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-        <div className="tw:flex tw:flex-col tw:gap-4">
-          <div>
-            <SettingsSection title="各文件夹的存储用量">
-              <div className="tw:divide-y tw:divide-app-border-subtle">
-                <SettingsRow
-                  id={createSettingsTargetId('storage', '应用数据文件夹')}
-                  title="应用数据文件夹"
-                  description={summary?.dataDir ?? '加载中…'}
-                  control={
-                    <div className="tw:flex tw:items-center tw:gap-3">
-                      <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
-                        {summary ? formatStorageBytes(summary.folders.dataDirBytes) : '—'}
-                      </span>
-                      <Button
-                        color="secondary"
-                        disabled={!summary?.dataDir}
-                        size="sm"
-                        onClick={() =>
-                          summary?.dataDir && void handleBrowseDirectory(summary.dataDir)
-                        }
-                      >
-                        浏览
-                      </Button>
-                    </div>
-                  }
-                />
-                <SettingsRow
-                  id={createSettingsTargetId('storage', '应用缓存与运行时')}
-                  title="应用缓存与运行时"
-                  description={userDataSummary?.userDataDir ?? '加载中…'}
-                  control={
-                    <div className="tw:flex tw:items-center tw:gap-3">
-                      <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
-                        {userDataSummary ? formatStorageBytes(userDataSummary.totalBytes) : '—'}
-                      </span>
-                      <Button
-                        color="secondary"
-                        disabled={!userDataSummary?.userDataDir}
-                        size="sm"
-                        onClick={() =>
-                          userDataSummary?.userDataDir &&
-                          void handleBrowseDirectory(userDataSummary.userDataDir)
-                        }
-                      >
-                        浏览
-                      </Button>
-                    </div>
-                  }
-                />
-                {summary?.configuredWorktreeRoot &&
-                summary.folders.customWorktreeRootBytes !== null ? (
-                  <SettingsRow
-                    id={createSettingsTargetId('storage', '自定义工作树根目录')}
-                    title="自定义工作树根目录"
-                    description={summary.configuredWorktreeRoot}
-                    control={
-                      <div className="tw:flex tw:items-center tw:gap-3">
-                        <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
-                          {formatStorageBytes(summary.folders.customWorktreeRootBytes)}
-                        </span>
-                        <Button
-                          color="secondary"
-                          size="sm"
-                          onClick={() =>
-                            summary.configuredWorktreeRoot &&
-                            void handleBrowseDirectory(summary.configuredWorktreeRoot)
-                          }
-                        >
-                          浏览
-                        </Button>
-                      </div>
-                    }
-                  />
-                ) : null}
-              </div>
-            </SettingsSection>
-          </div>
-
-          <div id={createSettingsTargetId('storage', '数据位置')}>
-            <SettingsSection
-              title="数据位置"
-              description="Pidex 的全局配置、会话、宠物和托管工具存储位置。"
-            >
+          {detailsExpanded && summary ? (
+            <div className="tw:mt-2.5 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:divide-y tw:divide-app-border-subtle">
               <SettingsRow
-                title="当前数据目录"
-                description={dataLocation ? dataLocation.currentDataDir : '加载中…'}
+                size="compact"
+                title="对话与消息记录（含子智能体）"
                 control={
-                  <span className="settings-row-status">
-                    {dataLocation
-                      ? dataLocation.isEnvControlled
-                        ? '环境变量控制'
-                        : dataLocation.controlSource === 'bootstrap'
-                          ? '自定义位置'
-                          : '默认位置'
-                      : '—'}
+                  <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
+                    {formatStorageBytes(summary.chatDetails.messagesBytes)}
                   </span>
                 }
               />
               <SettingsRow
-                title="配置文件"
-                description={
-                  dataLocation
-                    ? appendDataFile(dataLocation.currentDataDir, 'config.json')
-                    : '加载中…'
+                size="compact"
+                title="附件与图片"
+                control={
+                  <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
+                    {formatStorageBytes(summary.chatDetails.attachmentsBytes)}
+                  </span>
                 }
-                control={<span className="settings-row-status">建议备份</span>}
               />
               <SettingsRow
-                title="Provider 凭据文件（可选）"
-                description={
-                  dataLocation
-                    ? appendDataFile(dataLocation.currentDataDir, 'auth.json')
-                    : '加载中…'
+                size="compact"
+                title="已归档对话估算"
+                control={
+                  <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
+                    {formatStorageBytes(summary.chatDetails.archivedBytes)}
+                  </span>
                 }
-                control={<span className="settings-row-status">使用 auth.json 仓库时</span>}
               />
               <SettingsRow
-                title="快速恢复"
-                description="手动复制 config.json，以及启用 auth.json 仓库时的 auth.json。Skill 内容不包含在这两个文件中，需另行处理。"
+                size="compact"
+                title="SQLite 索引与 WAL 空间"
+                control={
+                  <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
+                    {formatStorageBytes(summary.chatDetails.sqliteOverheadBytes)}
+                  </span>
+                }
               />
-              {dataLocation?.pendingDataDir ? (
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <div className="tw:flex tw:flex-col tw:gap-4">
+        <div>
+          <SettingsSection title="各文件夹的存储用量">
+            <div className="tw:divide-y tw:divide-app-border-subtle">
+              <SettingsRow
+                id={createSettingsTargetId('storage', '应用数据文件夹')}
+                title="应用数据文件夹"
+                description={summary?.dataDir ?? '加载中…'}
+                control={
+                  <div className="tw:flex tw:items-center tw:gap-3">
+                    <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
+                      {summary ? formatStorageBytes(summary.folders.dataDirBytes) : '—'}
+                    </span>
+                    <Button
+                      color="secondary"
+                      disabled={!summary?.dataDir}
+                      size="sm"
+                      onClick={() =>
+                        summary?.dataDir && void handleBrowseDirectory(summary.dataDir)
+                      }
+                    >
+                      浏览
+                    </Button>
+                  </div>
+                }
+              />
+              <SettingsRow
+                id={createSettingsTargetId('storage', '应用缓存与运行时')}
+                title="应用缓存与运行时"
+                description={userDataSummary?.userDataDir ?? '加载中…'}
+                control={
+                  <div className="tw:flex tw:items-center tw:gap-3">
+                    <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
+                      {userDataSummary ? formatStorageBytes(userDataSummary.totalBytes) : '—'}
+                    </span>
+                    <Button
+                      color="secondary"
+                      disabled={!userDataSummary?.userDataDir}
+                      size="sm"
+                      onClick={() =>
+                        userDataSummary?.userDataDir &&
+                        void handleBrowseDirectory(userDataSummary.userDataDir)
+                      }
+                    >
+                      浏览
+                    </Button>
+                  </div>
+                }
+              />
+              {summary?.configuredWorktreeRoot &&
+              summary.folders.customWorktreeRootBytes !== null ? (
                 <SettingsRow
-                  title="待生效目录"
-                  description={`重启后将使用：${dataLocation.pendingDataDir}`}
-                  control={<span className="settings-row-status">等待重启</span>}
+                  id={createSettingsTargetId('storage', '自定义工作树根目录')}
+                  title="自定义工作树根目录"
+                  description={summary.configuredWorktreeRoot}
+                  control={
+                    <div className="tw:flex tw:items-center tw:gap-3">
+                      <span className="tw:text-app-text-soft tw:type-1 tw:tabular-nums">
+                        {formatStorageBytes(summary.folders.customWorktreeRootBytes)}
+                      </span>
+                      <Button
+                        color="secondary"
+                        size="sm"
+                        onClick={() =>
+                          summary.configuredWorktreeRoot &&
+                          void handleBrowseDirectory(summary.configuredWorktreeRoot)
+                        }
+                      >
+                        浏览
+                      </Button>
+                    </div>
+                  }
                 />
               ) : null}
-              <SettingsRow
-                title="更改位置"
-                description={
-                  dataLocation?.isEnvControlled
-                    ? '当前由 PIDEX_DATA_DIR 控制；移除环境变量后才能通过桌面设置迁移。'
-                    : '选择父目录后会创建 .pidex，并立即重启完成安全迁移。旧目录不会删除。'
-                }
-                control={
-                  <Button
-                    color="primary"
-                    disabled={changingLocation || dataLocation?.isEnvControlled}
-                    size="sm"
-                    type="button"
-                    onClick={() => void handleChooseDataLocation()}
-                  >
-                    {changingLocation ? '处理中…' : '选择目录'}
-                  </Button>
-                }
-              />
-            </SettingsSection>
-          </div>
-
-          <div>
-            <SettingsSection>
-              <SettingsRow
-                id={createSettingsTargetId('storage', '清理旧聊天')}
-                title="清理旧聊天"
-                description="永久删除前，请先查看聊天及其子智能体"
-                control={
-                  <Button color="secondary" size="sm" onClick={() => setOldChatsOpen(true)}>
-                    查看
-                  </Button>
-                }
-              />
-            </SettingsSection>
-          </div>
-
-          <div>
-            <SettingsSection>
-              <div className="tw:divide-y tw:divide-app-border-subtle">
-                <SettingsRow
-                  id={createSettingsTargetId('storage', '管理工作树')}
-                  title="管理工作树"
-                  description="查看工作副本，并选择要保留的旧工作树数量"
-                  control={
-                    <Button
-                      color="secondary"
-                      size="sm"
-                      onClick={() => navigate('/settings/worktrees')}
-                    >
-                      管理
-                    </Button>
-                  }
-                />
-                <SettingsRow
-                  id={createSettingsTargetId('storage', '已归档的聊天')}
-                  title="已归档的聊天"
-                  description="恢复或删除单个已归档的聊天"
-                  control={
-                    <Button
-                      color="secondary"
-                      size="sm"
-                      onClick={() => navigate('/settings/archived')}
-                    >
-                      管理
-                    </Button>
-                  }
-                />
-              </div>
-            </SettingsSection>
-          </div>
-
-          <div>
-            <SettingsSection
-              title="已下载的资源"
-              description="管理离线语音模型、外部字体与内置运行时等已下载组件"
-            >
-              {loading && !summary ? (
-                <div className="tw:px-3 tw:py-4 tw:text-app-text-soft tw:type-1">
-                  正在扫描已下载的资源…
-                </div>
-              ) : resources.length === 0 ? (
-                <div className="tw:px-3 tw:py-4 tw:text-app-text-soft tw:type-1">
-                  暂无已下载的离线资源
-                </div>
-              ) : (
-                <div className="tw:divide-y tw:divide-app-border-subtle">
-                  {resources.map((resource) => (
-                    <SettingsRow
-                      key={resource.id}
-                      title={resource.name}
-                      description={
-                        <span className="tw:block tw:truncate" title={resource.path}>
-                          {resource.path}
-                        </span>
-                      }
-                      control={
-                        <div className="tw:flex tw:items-center tw:gap-2">
-                          <span className="tw:mr-1 tw:text-app-text-soft tw:type-1 tw:tabular-nums">
-                            {formatStorageBytes(resource.sizeBytes)}
-                          </span>
-                          <Button
-                            color="secondary"
-                            size="sm"
-                            onClick={() => void handleBrowseDirectory(resource.path)}
-                          >
-                            浏览
-                          </Button>
-                          <Button
-                            color="danger"
-                            size="sm"
-                            onClick={() => setDeletingResource(resource)}
-                          >
-                            删除
-                          </Button>
-                        </div>
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </SettingsSection>
-          </div>
+            </div>
+          </SettingsSection>
         </div>
 
-        <ConfirmationDialog
-          open={deletingResource !== null}
-          title="删除已下载的资源"
-          description={
-            deletingResource
-              ? `确定要删除「${deletingResource.name}」（约 ${formatStorageBytes(deletingResource.sizeBytes)}）吗？删除后如需使用可随时在对应设置页重新下载。`
-              : ''
-          }
-          actionLabel={deletingResourceBusy ? '删除中…' : '删除'}
-          actionDisabled={deletingResourceBusy}
-          tone="danger"
-          onCancel={() => {
-            if (!deletingResourceBusy) setDeletingResource(null)
-          }}
-          onAction={() => void handleConfirmDeleteResource()}
-        />
+        <div id={createSettingsTargetId('storage', '数据位置')}>
+          <SettingsSection
+            title="数据位置"
+            description="Pidex 的全局配置、会话、宠物和托管工具存储位置。"
+          >
+            <SettingsRow
+              title="当前数据目录"
+              description={dataLocation ? dataLocation.currentDataDir : '加载中…'}
+              control={
+                <span className="settings-row-status">
+                  {dataLocation
+                    ? dataLocation.isEnvControlled
+                      ? '环境变量控制'
+                      : dataLocation.controlSource === 'bootstrap'
+                        ? '自定义位置'
+                        : '默认位置'
+                    : '—'}
+                </span>
+              }
+            />
+            <SettingsRow
+              title="配置文件"
+              description={
+                dataLocation
+                  ? appendDataFile(dataLocation.currentDataDir, 'config.json')
+                  : '加载中…'
+              }
+              control={<span className="settings-row-status">建议备份</span>}
+            />
+            <SettingsRow
+              title="Provider 凭据文件（可选）"
+              description={
+                dataLocation ? appendDataFile(dataLocation.currentDataDir, 'auth.json') : '加载中…'
+              }
+              control={<span className="settings-row-status">使用 auth.json 仓库时</span>}
+            />
+            <SettingsRow
+              title="快速恢复"
+              description="手动复制 config.json，以及启用 auth.json 仓库时的 auth.json。Skill 内容不包含在这两个文件中，需另行处理。"
+            />
+            {dataLocation?.pendingDataDir ? (
+              <SettingsRow
+                title="待生效目录"
+                description={`重启后将使用：${dataLocation.pendingDataDir}`}
+                control={<span className="settings-row-status">等待重启</span>}
+              />
+            ) : null}
+            <SettingsRow
+              title="更改位置"
+              description={
+                dataLocation?.isEnvControlled
+                  ? '当前由 PIDEX_DATA_DIR 控制；移除环境变量后才能通过桌面设置迁移。'
+                  : '选择父目录后会创建 .pidex，并立即重启完成安全迁移。旧目录不会删除。'
+              }
+              control={
+                <Button
+                  color="primary"
+                  disabled={changingLocation || dataLocation?.isEnvControlled}
+                  size="sm"
+                  type="button"
+                  onClick={() => void handleChooseDataLocation()}
+                >
+                  {changingLocation ? '处理中…' : '选择目录'}
+                </Button>
+              }
+            />
+          </SettingsSection>
+        </div>
 
-        <OldChatsCleanupDialog
-          open={oldChatsOpen}
-          onClose={() => setOldChatsOpen(false)}
-          onDeleted={({ deletedCount, reclaimedBytes }) => {
-            const reclaimedText =
-              reclaimedBytes > 0 ? `，已回收 ${formatStorageBytes(reclaimedBytes)} 磁盘空间` : ''
-            onNotice?.(`已永久删除 ${deletedCount} 个旧聊天${reclaimedText}。`)
-            void loadSummary(true)
-          }}
-          onError={onError}
-        />
+        <div>
+          <SettingsSection>
+            <SettingsRow
+              id={createSettingsTargetId('storage', '清理旧聊天')}
+              title="清理旧聊天"
+              description="永久删除前，请先查看聊天及其子智能体"
+              control={
+                <Button color="secondary" size="sm" onClick={() => setOldChatsOpen(true)}>
+                  查看
+                </Button>
+              }
+            />
+          </SettingsSection>
+        </div>
+
+        <div>
+          <SettingsSection>
+            <div className="tw:divide-y tw:divide-app-border-subtle">
+              <SettingsRow
+                id={createSettingsTargetId('storage', '管理工作树')}
+                title="管理工作树"
+                description="查看工作副本，并选择要保留的旧工作树数量"
+                control={
+                  <Button
+                    color="secondary"
+                    size="sm"
+                    onClick={() => navigate('/settings/worktrees')}
+                  >
+                    管理
+                  </Button>
+                }
+              />
+              <SettingsRow
+                id={createSettingsTargetId('storage', '已归档的聊天')}
+                title="已归档的聊天"
+                description="恢复或删除单个已归档的聊天"
+                control={
+                  <Button
+                    color="secondary"
+                    size="sm"
+                    onClick={() => navigate('/settings/archived')}
+                  >
+                    管理
+                  </Button>
+                }
+              />
+            </div>
+          </SettingsSection>
+        </div>
+
+        <div>
+          <SettingsSection
+            title="已下载的资源"
+            description="管理离线语音模型、外部字体与内置运行时等已下载组件"
+          >
+            {loading && !summary ? (
+              <div className="tw:px-3 tw:py-4 tw:text-app-text-soft tw:type-1">
+                正在扫描已下载的资源…
+              </div>
+            ) : resources.length === 0 ? (
+              <div className="tw:px-3 tw:py-4 tw:text-app-text-soft tw:type-1">
+                暂无已下载的离线资源
+              </div>
+            ) : (
+              <div className="tw:divide-y tw:divide-app-border-subtle">
+                {resources.map((resource) => (
+                  <SettingsRow
+                    key={resource.id}
+                    title={resource.name}
+                    description={
+                      <span className="tw:block tw:truncate" title={resource.path}>
+                        {resource.path}
+                      </span>
+                    }
+                    control={
+                      <div className="tw:flex tw:items-center tw:gap-2">
+                        <span className="tw:mr-1 tw:text-app-text-soft tw:type-1 tw:tabular-nums">
+                          {formatStorageBytes(resource.sizeBytes)}
+                        </span>
+                        <Button
+                          color="secondary"
+                          size="sm"
+                          onClick={() => void handleBrowseDirectory(resource.path)}
+                        >
+                          浏览
+                        </Button>
+                        <Button
+                          color="danger"
+                          size="sm"
+                          onClick={() => setDeletingResource(resource)}
+                        >
+                          删除
+                        </Button>
+                      </div>
+                    }
+                  />
+                ))}
+              </div>
+            )}
+          </SettingsSection>
+        </div>
+      </div>
+
+      <ConfirmationDialog
+        open={deletingResource !== null}
+        title="删除已下载的资源"
+        description={
+          deletingResource
+            ? `确定要删除「${deletingResource.name}」（约 ${formatStorageBytes(deletingResource.sizeBytes)}）吗？删除后如需使用可随时在对应设置页重新下载。`
+            : ''
+        }
+        actionLabel={deletingResourceBusy ? '删除中…' : '删除'}
+        actionDisabled={deletingResourceBusy}
+        tone="danger"
+        onCancel={() => {
+          if (!deletingResourceBusy) setDeletingResource(null)
+        }}
+        onAction={() => void handleConfirmDeleteResource()}
+      />
+
+      <OldChatsCleanupDialog
+        open={oldChatsOpen}
+        onClose={() => setOldChatsOpen(false)}
+        onDeleted={({ deletedCount, reclaimedBytes }) => {
+          const reclaimedText =
+            reclaimedBytes > 0 ? `，已回收 ${formatStorageBytes(reclaimedBytes)} 磁盘空间` : ''
+          onNotice?.(`已永久删除 ${deletedCount} 个旧聊天${reclaimedText}。`)
+          void loadSummary(true)
+        }}
+        onError={onError}
+      />
     </SettingsContentArea>
   )
 }

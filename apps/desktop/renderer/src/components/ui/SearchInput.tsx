@@ -42,7 +42,14 @@ export type SearchInputProps = {
 
 /** Internal helper: strip discrimated-union fields not intended for <input> DOM. */
 function stripModeFields(props: Record<string, unknown>): Record<string, unknown> {
-  const { mode: _, controls: _c, expanded: _e, activeDescendant: _a, autoFocus: _f, ...rest } = props
+  const {
+    mode: _,
+    controls: _c,
+    expanded: _e,
+    activeDescendant: _a,
+    autoFocus: _f,
+    ...rest
+  } = props
   return rest
 }
 

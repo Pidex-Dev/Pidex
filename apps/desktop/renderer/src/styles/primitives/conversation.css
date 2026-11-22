@@ -55,8 +55,7 @@
     --conversation-summary-panel-end: var(--cpx-sys-space-2);
     --conversation-summary-panel-gap: var(--cpx-sys-space-2);
     --conversation-summary-clearance: calc(
-      var(--conversation-summary-panel-width) +
-        var(--conversation-summary-panel-end) +
+      var(--conversation-summary-panel-width) + var(--conversation-summary-panel-end) +
         var(--conversation-summary-panel-gap)
     );
   }

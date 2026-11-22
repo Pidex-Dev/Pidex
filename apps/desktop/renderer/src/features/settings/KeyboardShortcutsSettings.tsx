@@ -379,38 +379,38 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
 
   return (
     <SettingsContentArea innerClassName="keyboard-shortcuts-settings">
-        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
-            键盘快捷键
-          </h2>
+      <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
+        <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+          键盘快捷键
+        </h2>
+      </div>
+      <SearchInput
+        aria-label="搜索键盘快捷键"
+        className="keyboard-shortcuts-search tw:relative tw:mb-3 tw:flex tw:w-full tw:items-center"
+        onChange={setQuery}
+        placeholder="搜索快捷键"
+        value={query}
+        variant="standard"
+      />
+      <section
+        className="keyboard-shortcuts-card tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:transition-[background,border-color,box-shadow] tw:duration-state tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover"
+        aria-label="键盘快捷键列表"
+      >
+        <div className="keyboard-shortcuts-header tw:grid tw:grid-cols-[minmax(260px,1fr)_minmax(170px,0.64fr)_var(--cpx-sys-space-7)] tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:px-4 tw:py-2 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-1)] tw:weight-medium">
+          <span>命令</span>
+          <span>快捷键</span>
         </div>
-        <SearchInput
-          aria-label="搜索键盘快捷键"
-          className="keyboard-shortcuts-search tw:relative tw:mb-3 tw:flex tw:w-full tw:items-center"
-          onChange={setQuery}
-          placeholder="搜索快捷键"
-          value={query}
-          variant="standard"
-        />
-        <section
-          className="keyboard-shortcuts-card tw:overflow-hidden tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:transition-[background,border-color,box-shadow] tw:duration-state tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover"
-          aria-label="键盘快捷键列表"
-        >
-          <div className="keyboard-shortcuts-header tw:grid tw:grid-cols-[minmax(260px,1fr)_minmax(170px,0.64fr)_var(--cpx-sys-space-7)] tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:px-4 tw:py-2 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-1)] tw:weight-medium">
-            <span>命令</span>
-            <span>快捷键</span>
-          </div>
-          <div className="keyboard-shortcuts-list tw:grid">
-            {rows.map((row, index) => (
-              <ShortcutRowView key={`${row.title}-${row.description}-${index}`} row={row} />
-            ))}
-            {rows.length === 0 && (
-              <p className="keyboard-shortcuts-empty tw:px-4 tw:py-5 tw:text-app-text-soft tw:type-1">
-                未找到匹配的快捷键。
-              </p>
-            )}
-          </div>
-        </section>
+        <div className="keyboard-shortcuts-list tw:grid">
+          {rows.map((row, index) => (
+            <ShortcutRowView key={`${row.title}-${row.description}-${index}`} row={row} />
+          ))}
+          {rows.length === 0 && (
+            <p className="keyboard-shortcuts-empty tw:px-4 tw:py-5 tw:text-app-text-soft tw:type-1">
+              未找到匹配的快捷键。
+            </p>
+          )}
+        </div>
+      </section>
     </SettingsContentArea>
   )
 }

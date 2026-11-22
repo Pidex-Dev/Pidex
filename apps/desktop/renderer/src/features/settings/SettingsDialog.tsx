@@ -64,10 +64,7 @@ export function SettingsDialog({
   const { t } = useLocale()
   const contentRef = useRef<HTMLDivElement>(null)
   const { onCloseAutoFocus } = useDialogFocusRestore(open, opener)
-  const normalizedInitial = useMemo(
-    () => normalizeSettingsDestination(destination),
-    [destination],
-  )
+  const normalizedInitial = useMemo(() => normalizeSettingsDestination(destination), [destination])
 
   return (
     <Dialog.Root

@@ -255,7 +255,8 @@ export function useThreadSummaryController(
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.target === container) containerWidth = entry.contentRect.width
-        else footerHeight = Math.ceil(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height)
+        else
+          footerHeight = Math.ceil(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height)
       }
       scheduleUpdate()
     })

@@ -187,8 +187,7 @@
       justify-content: flex-start;
       padding: 0 var(--settings-management-row-padding-x) var(--cpx-sys-space-3)
         calc(
-          var(--settings-management-row-padding-x) +
-            var(--settings-management-row-icon-width) +
+          var(--settings-management-row-padding-x) + var(--settings-management-row-icon-width) +
             var(--settings-management-row-column-gap)
         );
     }

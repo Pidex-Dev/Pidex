@@ -391,17 +391,17 @@ export function DecisionSettings({
   if (!supported) {
     return (
       <SettingsContentArea innerClassName="tw:grid tw:gap-5">
-          <header className="tw:grid tw:gap-2">
-            <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">决策</h1>
-            <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
-              当前 Agent 运行时未声明 decision.engine.v1，决策引擎不可用。
-            </p>
-          </header>
-          <SettingsRow
-            title="决策引擎不可用"
-            description="请升级 Agent 运行时后再配置 Judge 与决策点。"
-            control={<span className="tw:type-1 tw:text-app-text-meta">不支持的运行时</span>}
-          />
+        <header className="tw:grid tw:gap-2">
+          <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">决策</h1>
+          <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
+            当前 Agent 运行时未声明 decision.engine.v1，决策引擎不可用。
+          </p>
+        </header>
+        <SettingsRow
+          title="决策引擎不可用"
+          description="请升级 Agent 运行时后再配置 Judge 与决策点。"
+          control={<span className="tw:type-1 tw:text-app-text-meta">不支持的运行时</span>}
+        />
       </SettingsContentArea>
     )
   }
@@ -411,159 +411,159 @@ export function DecisionSettings({
 
   return (
     <SettingsContentArea innerClassName="tw:grid tw:gap-6">
-        <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
-          <div className="tw:grid tw:gap-1">
-            <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">决策</h1>
-            <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
-              配置 Judge 级联与各决策点的运行模式；影子模式只记录不生效。
-            </p>
-          </div>
-          <div className="tw:flex tw:shrink-0 tw:items-center tw:gap-2">
-            <Select
-              ariaLabel="配置层"
-              size="sm"
-              value={scope}
-              options={SCOPE_OPTIONS.filter((option) => option.value !== 'project' || Boolean(cwd))}
-              onValueChange={(value) => setScope(value as DecisionConfigScope)}
+      <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
+        <div className="tw:grid tw:gap-1">
+          <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">决策</h1>
+          <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
+            配置 Judge 级联与各决策点的运行模式；影子模式只记录不生效。
+          </p>
+        </div>
+        <div className="tw:flex tw:shrink-0 tw:items-center tw:gap-2">
+          <Select
+            ariaLabel="配置层"
+            size="sm"
+            value={scope}
+            options={SCOPE_OPTIONS.filter((option) => option.value !== 'project' || Boolean(cwd))}
+            onValueChange={(value) => setScope(value as DecisionConfigScope)}
+          />
+          <Button
+            isIconOnly
+            color="ghostSecondary"
+            size="toolbar"
+            type="button"
+            disabled={loading}
+            title="刷新"
+            aria-label="刷新"
+            onClick={() => void load()}
+          >
+            <RefreshCw
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+              className={`tw:size-icon-md ${loading ? 'tw:animate-spin' : ''}`}
             />
-            <Button
-              isIconOnly
-              color="ghostSecondary"
-              size="toolbar"
-              type="button"
-              disabled={loading}
-              title="刷新"
-              aria-label="刷新"
-              onClick={() => void load()}
-            >
-              <RefreshCw
+          </Button>
+        </div>
+      </header>
+
+      {loadError ? (
+        <div
+          className="tw:rounded-container tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:type-1 tw:text-app-danger"
+          role="alert"
+        >
+          {loadError}
+        </div>
+      ) : null}
+      {actionError ? (
+        <div
+          className="tw:rounded-container tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:type-1 tw:text-app-danger"
+          role="alert"
+        >
+          {actionError}
+        </div>
+      ) : null}
+
+      {!view && !loadError ? (
+        <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-4 tw:type-1 tw:text-app-text-soft">
+          正在读取决策配置…
+        </div>
+      ) : null}
+
+      {config ? (
+        <>
+          <JudgesAndCascadeSection
+            view={view!}
+            providers={providers}
+            busy={busy}
+            probes={probes}
+            probing={probing}
+            onTiersChange={(tiers) => void applyPatch([{ keyPath: ['tiers'], value: tiers }])}
+            onProbe={(name) => void probeJudge(name)}
+            onSaveJudge={saveJudge}
+            onRemoveJudge={(name) =>
+              void applyPatch([
+                { keyPath: ['judges', name], value: null },
+                { keyPath: ['tiers'], value: config.tiers.filter((tier) => tier !== name) },
+              ])
+            }
+            onOpenModelSettings={() => navigate('/providers')}
+          />
+          <DecisionPointsSection
+            config={config}
+            manifestGroups={manifestGroups}
+            busy={busy}
+            onGroupModeChange={(points, mode) =>
+              void applyPatch(buildDecisionGroupModePatches(points, mode))
+            }
+            onModeChange={(specId, mode) =>
+              void applyPatch([{ keyPath: ['modes', specId], value: mode }])
+            }
+            onRouteChange={(specId, route) =>
+              void applyPatch([
+                { keyPath: ['routes', specId], value: route.length > 0 ? route : null },
+              ])
+            }
+          />
+          <SettingsSection
+            title="决策面板"
+            description="在会话工作台的 Judge 面板中实时查看判定记录、概率分布与审批对照，并进行纠偏。"
+          >
+            <SettingsRow
+              title="Judge 面板"
+              description="打开右侧工作台的 Judge 标签页，展示当前会话的决策账本。"
+              control={
+                <Button
+                  color="secondary"
+                  size="sm"
+                  type="button"
+                  onClick={() => {
+                    if (onOpenJudgePanel) {
+                      onOpenJudgePanel()
+                    } else {
+                      navigate('/new?panel=judge')
+                    }
+                  }}
+                >
+                  <Scale aria-hidden="true" size={14} />
+                  打开面板
+                </Button>
+              }
+            />
+          </SettingsSection>
+          <SettingsSection
+            title="账本记录"
+            description="决策账本用于复盘 Judge 判定与实际结果的差异。"
+          >
+            <SettingsRow
+              title="记录决策状态原文"
+              description={DECISION_RECORD_STATE_PRIVACY_HINT}
+              control={(aria) => (
+                <ToggleSwitch
+                  ariaLabelledby={aria.labelledby}
+                  ariaDescribedby={aria.describedby}
+                  checked={config.recordState}
+                  disabled={busy}
+                  onChange={(checked) =>
+                    void applyPatch([{ keyPath: ['recordState'], value: checked }])
+                  }
+                />
+              )}
+            />
+            <div className="tw:flex tw:items-start tw:gap-2 tw:px-3 tw:pb-3 tw:type-1 tw:text-app-text-meta">
+              <ShieldAlert
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
-                className={`tw:size-icon-md ${loading ? 'tw:animate-spin' : ''}`}
+                className="tw:size-icon-md tw:shrink-0"
               />
-            </Button>
-          </div>
-        </header>
-
-        {loadError ? (
-          <div
-            className="tw:rounded-container tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:type-1 tw:text-app-danger"
-            role="alert"
-          >
-            {loadError}
-          </div>
-        ) : null}
-        {actionError ? (
-          <div
-            className="tw:rounded-container tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:type-1 tw:text-app-danger"
-            role="alert"
-          >
-            {actionError}
-          </div>
-        ) : null}
-
-        {!view && !loadError ? (
-          <div className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-4 tw:type-1 tw:text-app-text-soft">
-            正在读取决策配置…
-          </div>
-        ) : null}
-
-        {config ? (
-          <>
-            <JudgesAndCascadeSection
-              view={view!}
-              providers={providers}
-              busy={busy}
-              probes={probes}
-              probing={probing}
-              onTiersChange={(tiers) => void applyPatch([{ keyPath: ['tiers'], value: tiers }])}
-              onProbe={(name) => void probeJudge(name)}
-              onSaveJudge={saveJudge}
-              onRemoveJudge={(name) =>
-                void applyPatch([
-                  { keyPath: ['judges', name], value: null },
-                  { keyPath: ['tiers'], value: config.tiers.filter((tier) => tier !== name) },
-                ])
-              }
-              onOpenModelSettings={() => navigate('/providers')}
-            />
-            <DecisionPointsSection
-              config={config}
-              manifestGroups={manifestGroups}
-              busy={busy}
-              onGroupModeChange={(points, mode) =>
-                void applyPatch(buildDecisionGroupModePatches(points, mode))
-              }
-              onModeChange={(specId, mode) =>
-                void applyPatch([{ keyPath: ['modes', specId], value: mode }])
-              }
-              onRouteChange={(specId, route) =>
-                void applyPatch([
-                  { keyPath: ['routes', specId], value: route.length > 0 ? route : null },
-                ])
-              }
-            />
-            <SettingsSection
-              title="决策面板"
-              description="在会话工作台的 Judge 面板中实时查看判定记录、概率分布与审批对照，并进行纠偏。"
-            >
-              <SettingsRow
-                title="Judge 面板"
-                description="打开右侧工作台的 Judge 标签页，展示当前会话的决策账本。"
-                control={
-                  <Button
-                    color="secondary"
-                    size="sm"
-                    type="button"
-                    onClick={() => {
-                      if (onOpenJudgePanel) {
-                        onOpenJudgePanel()
-                      } else {
-                        navigate('/new?panel=judge')
-                      }
-                    }}
-                  >
-                    <Scale aria-hidden="true" size={14} />
-                    打开面板
-                  </Button>
-                }
-              />
-            </SettingsSection>
-            <SettingsSection
-              title="账本记录"
-              description="决策账本用于复盘 Judge 判定与实际结果的差异。"
-            >
-              <SettingsRow
-                title="记录决策状态原文"
-                description={DECISION_RECORD_STATE_PRIVACY_HINT}
-                control={(aria) => (
-                  <ToggleSwitch
-                    ariaLabelledby={aria.labelledby}
-                    ariaDescribedby={aria.describedby}
-                    checked={config.recordState}
-                    disabled={busy}
-                    onChange={(checked) =>
-                      void applyPatch([{ keyPath: ['recordState'], value: checked }])
-                    }
-                  />
-                )}
-              />
-              <div className="tw:flex tw:items-start tw:gap-2 tw:px-3 tw:pb-3 tw:type-1 tw:text-app-text-meta">
-                <ShieldAlert
-                  aria-hidden="true"
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                  className="tw:size-icon-md tw:shrink-0"
-                />
-                <span>
-                  API Key 仅加密保存在 Pidex 凭据库中，不会明文写入配置文件、账本或日志；删除 Judge
-                  时会自动清理其专属凭据。
-                </span>
-              </div>
-            </SettingsSection>
-          </>
-        ) : null}
+              <span>
+                API Key 仅加密保存在 Pidex 凭据库中，不会明文写入配置文件、账本或日志；删除 Judge
+                时会自动清理其专属凭据。
+              </span>
+            </div>
+          </SettingsSection>
+        </>
+      ) : null}
     </SettingsContentArea>
   )
 }

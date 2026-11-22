@@ -804,10 +804,7 @@ function SidebarBodyContent({
               moveFocusOnArrowKey(event, '.sidebar-session-button, .sidebar-project-button')
           }}
         >
-          <SidebarDragPreview
-            getModel={getDragOverlayModel}
-            viewportRef={scrollViewportRef}
-          />
+          <SidebarDragPreview getModel={getDragOverlayModel} viewportRef={scrollViewportRef} />
           <SidebarDragFeedback select={selectDragItems} commit={applyDropOperation} />
           {timeline ? (
             <Timeline

@@ -846,54 +846,52 @@ export function PluginsSettingsPage({
         className="plugins-settings-page"
         innerClassName="settings-content-inner plugins-settings-content"
       >
-          <PluginSettingsDetailsView
-            item={requestedPlugin}
-            workspacePath={workspacePath}
-            installedSkills={skills}
-            busySkillPaths={busySkillPaths}
-            matchingMcpServer={matchingServer}
-            mcpAttemptBusy={matchingServer ? busyMcpAuthKeys.has(mcpKey(matchingServer)) : false}
-            onBack={clearDetailsDeepLink}
-            onViewMarketDetails={(item) =>
-              navigate(`/plugins?plugin=${encodeURIComponent(item.id)}`)
-            }
-            onSelectApp={(usedApp, trigger) => {
-              const matched = appItems.find((candidate) => candidate.id === usedApp.id)
-              setSelectedApp(
-                matched ?? {
-                  id: usedApp.id,
-                  name: usedApp.name,
-                  description: usedApp.description,
-                  developerName: usedApp.developerName ?? requestedPlugin.developerName ?? 'Pidex',
-                  source: usedApp.installed ? 'builtin' : 'plugin',
-                  enabled: usedApp.enabled,
-                  canUninstall: false,
-                  pluginId: requestedPlugin.id,
-                  ...(usedApp.iconName ? { iconName: usedApp.iconName } : {}),
-                  tools: usedApp.tools ? [...usedApp.tools] : [],
-                },
-              )
-              setAppDialogTrigger(trigger ?? null)
-              setAppDialogOpen(true)
-            }}
-            onSelectSkill={(skill, trigger) => {
-              setSelectedSkill(fallbackSkill(skill))
-              setSkillDialogTrigger(trigger ?? null)
-              setSkillDialogOpen(true)
-            }}
-            onToggleSkill={(skill, enabled) => {
-              void toggleSkill(fallbackSkill(skill), enabled)
-            }}
-            onManageHooks={() => navigate('/settings/hooks')}
-            onUninstall={async (item) => {
-              await desktopClient.uninstallPlugin(item.id)
-              await refreshPlugins()
-            }}
-            onStartOAuth={(server) => void startMcpOAuth(server)}
-            onLogoutOAuth={(server) => void logoutMcpOAuth(server)}
-            onError={onError}
-            onNotice={onNotice}
-          />
+        <PluginSettingsDetailsView
+          item={requestedPlugin}
+          workspacePath={workspacePath}
+          installedSkills={skills}
+          busySkillPaths={busySkillPaths}
+          matchingMcpServer={matchingServer}
+          mcpAttemptBusy={matchingServer ? busyMcpAuthKeys.has(mcpKey(matchingServer)) : false}
+          onBack={clearDetailsDeepLink}
+          onViewMarketDetails={(item) => navigate(`/plugins?plugin=${encodeURIComponent(item.id)}`)}
+          onSelectApp={(usedApp, trigger) => {
+            const matched = appItems.find((candidate) => candidate.id === usedApp.id)
+            setSelectedApp(
+              matched ?? {
+                id: usedApp.id,
+                name: usedApp.name,
+                description: usedApp.description,
+                developerName: usedApp.developerName ?? requestedPlugin.developerName ?? 'Pidex',
+                source: usedApp.installed ? 'builtin' : 'plugin',
+                enabled: usedApp.enabled,
+                canUninstall: false,
+                pluginId: requestedPlugin.id,
+                ...(usedApp.iconName ? { iconName: usedApp.iconName } : {}),
+                tools: usedApp.tools ? [...usedApp.tools] : [],
+              },
+            )
+            setAppDialogTrigger(trigger ?? null)
+            setAppDialogOpen(true)
+          }}
+          onSelectSkill={(skill, trigger) => {
+            setSelectedSkill(fallbackSkill(skill))
+            setSkillDialogTrigger(trigger ?? null)
+            setSkillDialogOpen(true)
+          }}
+          onToggleSkill={(skill, enabled) => {
+            void toggleSkill(fallbackSkill(skill), enabled)
+          }}
+          onManageHooks={() => navigate('/settings/hooks')}
+          onUninstall={async (item) => {
+            await desktopClient.uninstallPlugin(item.id)
+            await refreshPlugins()
+          }}
+          onStartOAuth={(server) => void startMcpOAuth(server)}
+          onLogoutOAuth={(server) => void logoutMcpOAuth(server)}
+          onError={onError}
+          onNotice={onNotice}
+        />
         {skillDetailsDialog}
         {appDetailsDialog}
       </SettingsContentArea>
@@ -906,7 +904,7 @@ export function PluginsSettingsPage({
         className="plugins-settings-page"
         innerClassName="settings-content-inner plugins-settings-content"
       >
-          <LoadingRows />
+        <LoadingRows />
       </SettingsContentArea>
     )
   }
@@ -916,365 +914,357 @@ export function PluginsSettingsPage({
       className="plugins-settings-page"
       innerClassName="settings-content-inner plugins-settings-content"
     >
-        <header className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-4">
-          <div className="tw:grid tw:gap-2">
-            <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
-              插件
-            </h2>
-            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
-              管理插件、技能和 MCP
-            </p>
-          </div>
-          <div className="tw:flex tw:items-center tw:gap-3 tw:shrink-0">
-            <Button color="secondary" onClick={() => navigate('/plugins')}>
-              浏览目录
-            </Button>
-            <PopoverMenu
-              align="end"
-              open={addMenuOpen}
-              onOpenChange={setAddMenuOpen}
-              size="md"
-              trigger={
-                <Button color="primary">
-                  添加
-                  <ChevronDown
-                    className="tw:size-icon-md"
-                    aria-hidden="true"
-                    size={APP_ICON_SIZE}
-                  />
-                </Button>
-              }
+      <header className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-4">
+        <div className="tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
+            插件
+          </h2>
+          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-1">
+            管理插件、技能和 MCP
+          </p>
+        </div>
+        <div className="tw:flex tw:items-center tw:gap-3 tw:shrink-0">
+          <Button color="secondary" onClick={() => navigate('/plugins')}>
+            浏览目录
+          </Button>
+          <PopoverMenu
+            align="end"
+            open={addMenuOpen}
+            onOpenChange={setAddMenuOpen}
+            size="md"
+            trigger={
+              <Button color="primary">
+                添加
+                <ChevronDown className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
+              </Button>
+            }
+          >
+            <PopoverItem
+              icon={<Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
+              onClick={() => {
+                setAddMenuOpen(false)
+                void desktopClient.openExternalURL(
+                  'https://github.com/codepilotx-dev/Pidex-Plugins#创建插件',
+                )
+              }}
             >
-              <PopoverItem
-                icon={<Plus className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
-                onClick={() => {
-                  setAddMenuOpen(false)
-                  void desktopClient.openExternalURL(
-                    'https://github.com/codepilotx-dev/Pidex-Plugins#创建插件',
-                  )
-                }}
-              >
-                创建插件
-              </PopoverItem>
-              <PopoverItem
-                icon={
-                  <Server className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />
-                }
-                onClick={() => {
-                  setAddMenuOpen(false)
-                  setSelectedServer(null)
-                  setMcpDialogOpen(true)
-                }}
-              >
-                添加 MCP 服务器
-              </PopoverItem>
-            </PopoverMenu>
-          </div>
-        </header>
+              创建插件
+            </PopoverItem>
+            <PopoverItem
+              icon={<Server className="tw:size-icon-md" aria-hidden="true" size={APP_ICON_SIZE} />}
+              onClick={() => {
+                setAddMenuOpen(false)
+                setSelectedServer(null)
+                setMcpDialogOpen(true)
+              }}
+            >
+              添加 MCP 服务器
+            </PopoverItem>
+          </PopoverMenu>
+        </div>
+      </header>
 
-        <div className="settings-management-toolbar plugins-settings-toolbar tw:mb-3 tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-4 tw:@max-[42rem]:flex-col tw:@max-[42rem]:items-stretch">
-          <SegmentedControl
-            ariaLabel="管理扩展"
-            value={tab}
-            options={tabOptions}
-            onChange={selectTab}
-            semantics="tabs"
-            getTabId={(value) => `plugins-settings-tab-${value}`}
-            getPanelId={(value) => `plugins-settings-panel-${value}`}
+      <div className="settings-management-toolbar plugins-settings-toolbar tw:mb-3 tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-4 tw:@max-[42rem]:flex-col tw:@max-[42rem]:items-stretch">
+        <SegmentedControl
+          ariaLabel="管理扩展"
+          value={tab}
+          options={tabOptions}
+          onChange={selectTab}
+          semantics="tabs"
+          getTabId={(value) => `plugins-settings-tab-${value}`}
+          getPanelId={(value) => `plugins-settings-panel-${value}`}
+        />
+        <div className="settings-management-toolbar-actions plugins-settings-toolbar-actions tw:flex tw:min-w-0 tw:items-center tw:justify-end tw:gap-2 tw:@max-[42rem]:w-full tw:@max-[42rem]:justify-start">
+          <SearchInput
+            ref={searchRef}
+            aria-label={searchPlaceholder(tab)}
+            className="tw:w-[18rem] tw:max-w-full tw:max-[1023px]:w-full"
+            placeholder={searchPlaceholder(tab)}
+            value={query}
+            onChange={setQuery}
           />
-          <div className="settings-management-toolbar-actions plugins-settings-toolbar-actions tw:flex tw:min-w-0 tw:items-center tw:justify-end tw:gap-2 tw:@max-[42rem]:w-full tw:@max-[42rem]:justify-start">
-            <SearchInput
-              ref={searchRef}
-              aria-label={searchPlaceholder(tab)}
-              className="tw:w-[18rem] tw:max-w-full tw:max-[1023px]:w-full"
-              placeholder={searchPlaceholder(tab)}
-              value={query}
-              onChange={setQuery}
+          <Button
+            isIconOnly
+            color="ghostSecondary"
+            size="toolbar"
+            title={`刷新${tabLabel(tab)}`}
+            onClick={() => void refreshCurrentTab()}
+          >
+            <RefreshCw
+              className="tw:size-icon-md"
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
             />
+          </Button>
+          {tab === 'mcps' ? (
             <Button
-              isIconOnly
-              color="ghostSecondary"
-              size="toolbar"
-              title={`刷新${tabLabel(tab)}`}
-              onClick={() => void refreshCurrentTab()}
+              color="primary"
+              onClick={(event) => {
+                setSelectedServer(null)
+                setMcpDialogTrigger(event.currentTarget)
+                setMcpDialogOpen(true)
+              }}
             >
-              <RefreshCw
+              <Plus
                 className="tw:size-icon-md"
                 aria-hidden="true"
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
+              新增
             </Button>
-            {tab === 'mcps' ? (
-              <Button
-                color="primary"
-                onClick={(event) => {
-                  setSelectedServer(null)
-                  setMcpDialogTrigger(event.currentTarget)
-                  setMcpDialogOpen(true)
-                }}
-              >
-                <Plus
-                  className="tw:size-icon-md"
-                  aria-hidden="true"
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-                新增
-              </Button>
-            ) : null}
-          </div>
+          ) : null}
         </div>
+      </div>
 
-        {tabError ? (
-          <div
-            className="tw:type-1 tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-danger"
-            role="alert"
-          >
-            <span>{tabError}</span>
-            <Button color="secondary" onClick={() => void refreshCurrentTab()}>
-              重试
-            </Button>
-          </div>
-        ) : null}
-        {tab === 'mcps' && mcpStatus ? (
-          <p className="tw:type-1 tw:mt-0 tw:mb-4 tw:text-app-text-soft" role="status">
-            {mcpStatus}
-          </p>
-        ) : null}
-
-        <section
-          aria-labelledby={`plugins-settings-tab-${tab}`}
-          className="settings-management-list plugins-settings-list tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel"
-          id={`plugins-settings-panel-${tab}`}
-          role="tabpanel"
+      {tabError ? (
+        <div
+          className="tw:type-1 tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-danger"
+          role="alert"
         >
-          {loading ? (
-            <LoadingRows />
-          ) : tab === 'plugins' ? (
-            visiblePlugins.length ? (
-              visiblePlugins.map((item) => (
-                <ExtensionManagementRow
-                  key={item.id}
-                  title={item.name}
-                  description={
-                    <>
-                      {pluginErrors[item.id] || item.description}
-                      {item.id === 'computer-use' ? <ComputerRuntimeStatus /> : null}
-                    </>
-                  }
-                  icon={
-                    <PluginIcon
-                      plugin={{ ...item, workspacePath }}
-                      logoDarkSource={item.logoDarkSource}
-                      logoSource={item.logoSource}
-                      name={item.iconName}
-                    />
-                  }
-                  metadata={
-                    item.id === 'computer-use' && item.enabled && !computerState.runtimeInstalled
-                      ? computerState.runtime?.status === 'error'
-                        ? '安装失败'
-                        : '安装中'
-                      : pluginStatusLabel(item)
-                  }
-                  dimmed={item.status === 'disabled'}
-                  showChevron
-                  onActivate={() => {
-                    setSearchParams(
-                      (current) => {
-                        const next = new URLSearchParams(current)
-                        next.set('plugin', item.id)
-                        return next
-                      },
-                      { replace: false },
-                    )
-                  }}
-                  actions={
-                    item.status === 'enabled' || item.status === 'disabled' ? (
-                      <ToggleSwitch
-                        ariaLabel={item.name}
-                        checked={item.status === 'enabled'}
-                        disabled={busyPluginIds.has(item.id)}
-                        onChange={(enabled) => void togglePlugin(item, enabled)}
-                      />
-                    ) : item.category === 'manageable' ? (
-                      <Button color="secondary" onClick={refreshPlugins}>
-                        重试
-                      </Button>
-                    ) : null
-                  }
-                />
-              ))
-            ) : (
-              <EmptyState label="没有匹配的插件。" />
-            )
-          ) : tab === 'apps' ? (
-            visibleApps.length ? (
-              visibleApps.map((app) => {
-                const writeCount = app.tools.filter((tool) => tool.mode === 'write').length
-                const readCount = app.tools.filter((tool) => tool.mode === 'read').length
-                return (
-                  <ExtensionManagementRow
-                    key={app.id}
-                    title={app.name}
-                    description={app.description}
-                    icon={<PluginIcon name={resolveAppIconName(app)} />}
-                    metadata={`${app.tools.length} 工具 (${writeCount} write, ${readCount} read) · ${app.enabled ? '已启用' : '已禁用'}`}
-                    dimmed={!app.enabled}
-                    showChevron
-                    onActivate={(trigger) => {
-                      setSelectedApp(app)
-                      setAppDialogTrigger(trigger)
-                      setAppDialogOpen(true)
-                    }}
-                    actions={
-                      <ToggleSwitch
-                        ariaLabel={app.name}
-                        checked={app.enabled}
-                        disabled={busyAppIds.has(app.id)}
-                        onChange={(enabled) => void toggleApp(app, enabled)}
-                      />
-                    }
+          <span>{tabError}</span>
+          <Button color="secondary" onClick={() => void refreshCurrentTab()}>
+            重试
+          </Button>
+        </div>
+      ) : null}
+      {tab === 'mcps' && mcpStatus ? (
+        <p className="tw:type-1 tw:mt-0 tw:mb-4 tw:text-app-text-soft" role="status">
+          {mcpStatus}
+        </p>
+      ) : null}
+
+      <section
+        aria-labelledby={`plugins-settings-tab-${tab}`}
+        className="settings-management-list plugins-settings-list tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel"
+        id={`plugins-settings-panel-${tab}`}
+        role="tabpanel"
+      >
+        {loading ? (
+          <LoadingRows />
+        ) : tab === 'plugins' ? (
+          visiblePlugins.length ? (
+            visiblePlugins.map((item) => (
+              <ExtensionManagementRow
+                key={item.id}
+                title={item.name}
+                description={
+                  <>
+                    {pluginErrors[item.id] || item.description}
+                    {item.id === 'computer-use' ? <ComputerRuntimeStatus /> : null}
+                  </>
+                }
+                icon={
+                  <PluginIcon
+                    plugin={{ ...item, workspacePath }}
+                    logoDarkSource={item.logoDarkSource}
+                    logoSource={item.logoSource}
+                    name={item.iconName}
                   />
-                )
-              })
-            ) : (
-              <EmptyState label="没有匹配的应用。" />
-            )
-          ) : tab === 'marketplaces' ? (
-            visibleMarketplaces.length ? (
-              visibleMarketplaces.map((market) => (
-                <ExtensionManagementRow
-                  key={market.id}
-                  title={market.name}
-                  description={market.description}
-                  icon={
-                    <Globe
-                      className="tw:size-icon-md"
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                }
+                metadata={
+                  item.id === 'computer-use' && item.enabled && !computerState.runtimeInstalled
+                    ? computerState.runtime?.status === 'error'
+                      ? '安装失败'
+                      : '安装中'
+                    : pluginStatusLabel(item)
+                }
+                dimmed={item.status === 'disabled'}
+                showChevron
+                onActivate={() => {
+                  setSearchParams(
+                    (current) => {
+                      const next = new URLSearchParams(current)
+                      next.set('plugin', item.id)
+                      return next
+                    },
+                    { replace: false },
+                  )
+                }}
+                actions={
+                  item.status === 'enabled' || item.status === 'disabled' ? (
+                    <ToggleSwitch
+                      ariaLabel={item.name}
+                      checked={item.status === 'enabled'}
+                      disabled={busyPluginIds.has(item.id)}
+                      onChange={(enabled) => void togglePlugin(item, enabled)}
                     />
-                  }
-                  metadata={market.official ? '官方源' : '社区源'}
-                  actions={
-                    <Button
-                      color="secondary"
-                      onClick={() => void desktopClient.openExternalURL(market.url)}
-                    >
-                      访问
+                  ) : item.category === 'manageable' ? (
+                    <Button color="secondary" onClick={refreshPlugins}>
+                      重试
                     </Button>
-                  }
-                />
-              ))
-            ) : (
-              <EmptyState label="没有匹配的插件市场。" />
-            )
-          ) : tab === 'skills' ? (
-            visibleSkills.length ? (
-              visibleSkills.map((skill) => (
+                  ) : null
+                }
+              />
+            ))
+          ) : (
+            <EmptyState label="没有匹配的插件。" />
+          )
+        ) : tab === 'apps' ? (
+          visibleApps.length ? (
+            visibleApps.map((app) => {
+              const writeCount = app.tools.filter((tool) => tool.mode === 'write').length
+              const readCount = app.tools.filter((tool) => tool.mode === 'read').length
+              return (
                 <ExtensionManagementRow
-                  key={skill.path}
-                  title={skill.name}
-                  description={skill.shortDescription || skill.description || '未提供技能说明。'}
-                  icon={
-                    getBuiltinSkillPresentation(skill) ? (
-                      <BuiltinSkillIcon size={14} skill={skill} />
-                    ) : (
-                      <Lightbulb
-                        className="tw:size-icon-md"
-                        size={APP_ICON_SIZE}
-                        strokeWidth={APP_ICON_STROKE_WIDTH}
-                      />
-                    )
-                  }
-                  metadata={skillScopeLabel(skill.scope)}
-                  dimmed={!skill.enabled}
+                  key={app.id}
+                  title={app.name}
+                  description={app.description}
+                  icon={<PluginIcon name={resolveAppIconName(app)} />}
+                  metadata={`${app.tools.length} 工具 (${writeCount} write, ${readCount} read) · ${app.enabled ? '已启用' : '已禁用'}`}
+                  dimmed={!app.enabled}
+                  showChevron
                   onActivate={(trigger) => {
-                    setSelectedSkill(skill)
-                    setSkillDialogTrigger(trigger)
-                    setSkillDialogOpen(true)
+                    setSelectedApp(app)
+                    setAppDialogTrigger(trigger)
+                    setAppDialogOpen(true)
                   }}
                   actions={
                     <ToggleSwitch
-                      ariaLabel={skill.name}
-                      checked={skill.enabled}
-                      disabled={busySkillPaths.has(skill.path)}
-                      onChange={(enabled) => void toggleSkill(skill, enabled)}
+                      ariaLabel={app.name}
+                      checked={app.enabled}
+                      disabled={busyAppIds.has(app.id)}
+                      onChange={(enabled) => void toggleApp(app, enabled)}
                     />
                   }
                 />
-              ))
-            ) : (
-              <EmptyState label={query ? '没有匹配的技能。' : '当前范围内没有技能。'} />
-            )
-          ) : hostServers.length || visibleServers.length ? (
-            <>
-              {hostServers.map((status) => (
-                <ExtensionManagementRow
-                  key={`host:${status.name}`}
-                  title={status.name}
-                  description="由插件提供的运行时入口。"
-                  icon={
-                    <Server
-                      className="tw:size-icon-md"
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
-                  }
-                  metadata={
-                    <HostManagedMcpBadge state={status.state} toolCount={status.toolCount} />
-                  }
-                  dimmed={status.state !== 'connected'}
-                />
-              ))}
-              {visibleServers.map((server) => (
-                <ExtensionManagementRow
-                  key={mcpKey(server)}
-                  title={server.name}
-                  description={
-                    server.runtime?.error?.message || server.summary || '未提供命令或 URL。'
-                  }
-                  icon={
-                    <Server
-                      className="tw:size-icon-md"
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
-                  }
-                  metadata={mcpMetadata(server)}
-                  dimmed={!server.enabled || !server.effective}
-                  onActivate={(trigger) => {
-                    setSelectedServer(server)
-                    setMcpDialogTrigger(trigger)
-                    setMcpDialogOpen(true)
-                  }}
-                  actions={
-                    <>
-                      {mcpAuthAction(
-                        server,
-                        mcpOAuthAttempts[mcpKey(server)],
-                        busyMcpAuthKeys.has(mcpKey(server)),
-                        {
-                          login: () => void startMcpOAuth(server),
-                          logout: () => void logoutMcpOAuth(server),
-                        },
-                      )}
-                      <ToggleSwitch
-                        ariaLabel={server.name}
-                        checked={server.enabled}
-                        disabled={!server.editable || busyMcpKeys.has(mcpKey(server))}
-                        onChange={(enabled) => void toggleServer(server, enabled)}
-                      />
-                    </>
-                  }
-                />
-              ))}
-            </>
+              )
+            })
           ) : (
-            <EmptyState label={query ? '没有匹配的 MCP server。' : '暂无 MCP server。'} />
-          )}
-        </section>
+            <EmptyState label="没有匹配的应用。" />
+          )
+        ) : tab === 'marketplaces' ? (
+          visibleMarketplaces.length ? (
+            visibleMarketplaces.map((market) => (
+              <ExtensionManagementRow
+                key={market.id}
+                title={market.name}
+                description={market.description}
+                icon={
+                  <Globe
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                }
+                metadata={market.official ? '官方源' : '社区源'}
+                actions={
+                  <Button
+                    color="secondary"
+                    onClick={() => void desktopClient.openExternalURL(market.url)}
+                  >
+                    访问
+                  </Button>
+                }
+              />
+            ))
+          ) : (
+            <EmptyState label="没有匹配的插件市场。" />
+          )
+        ) : tab === 'skills' ? (
+          visibleSkills.length ? (
+            visibleSkills.map((skill) => (
+              <ExtensionManagementRow
+                key={skill.path}
+                title={skill.name}
+                description={skill.shortDescription || skill.description || '未提供技能说明。'}
+                icon={
+                  getBuiltinSkillPresentation(skill) ? (
+                    <BuiltinSkillIcon size={14} skill={skill} />
+                  ) : (
+                    <Lightbulb
+                      className="tw:size-icon-md"
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  )
+                }
+                metadata={skillScopeLabel(skill.scope)}
+                dimmed={!skill.enabled}
+                onActivate={(trigger) => {
+                  setSelectedSkill(skill)
+                  setSkillDialogTrigger(trigger)
+                  setSkillDialogOpen(true)
+                }}
+                actions={
+                  <ToggleSwitch
+                    ariaLabel={skill.name}
+                    checked={skill.enabled}
+                    disabled={busySkillPaths.has(skill.path)}
+                    onChange={(enabled) => void toggleSkill(skill, enabled)}
+                  />
+                }
+              />
+            ))
+          ) : (
+            <EmptyState label={query ? '没有匹配的技能。' : '当前范围内没有技能。'} />
+          )
+        ) : hostServers.length || visibleServers.length ? (
+          <>
+            {hostServers.map((status) => (
+              <ExtensionManagementRow
+                key={`host:${status.name}`}
+                title={status.name}
+                description="由插件提供的运行时入口。"
+                icon={
+                  <Server
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                }
+                metadata={<HostManagedMcpBadge state={status.state} toolCount={status.toolCount} />}
+                dimmed={status.state !== 'connected'}
+              />
+            ))}
+            {visibleServers.map((server) => (
+              <ExtensionManagementRow
+                key={mcpKey(server)}
+                title={server.name}
+                description={
+                  server.runtime?.error?.message || server.summary || '未提供命令或 URL。'
+                }
+                icon={
+                  <Server
+                    className="tw:size-icon-md"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                }
+                metadata={mcpMetadata(server)}
+                dimmed={!server.enabled || !server.effective}
+                onActivate={(trigger) => {
+                  setSelectedServer(server)
+                  setMcpDialogTrigger(trigger)
+                  setMcpDialogOpen(true)
+                }}
+                actions={
+                  <>
+                    {mcpAuthAction(
+                      server,
+                      mcpOAuthAttempts[mcpKey(server)],
+                      busyMcpAuthKeys.has(mcpKey(server)),
+                      {
+                        login: () => void startMcpOAuth(server),
+                        logout: () => void logoutMcpOAuth(server),
+                      },
+                    )}
+                    <ToggleSwitch
+                      ariaLabel={server.name}
+                      checked={server.enabled}
+                      disabled={!server.editable || busyMcpKeys.has(mcpKey(server))}
+                      onChange={(enabled) => void toggleServer(server, enabled)}
+                    />
+                  </>
+                }
+              />
+            ))}
+          </>
+        ) : (
+          <EmptyState label={query ? '没有匹配的 MCP server。' : '暂无 MCP server。'} />
+        )}
+      </section>
 
       <PluginDetailsDialog
         workspacePath={workspacePath}

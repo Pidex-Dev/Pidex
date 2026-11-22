@@ -1098,207 +1098,200 @@ export function ProviderEditorForm({
 
           {managed ? apiFormatField : null}
           <div className="provider-editor-tab-panel tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5">
-              <header className="provider-editor-models-header tw:flex tw:items-center tw:justify-between tw:gap-3">
-                <div className="provider-editor-models-title tw:flex tw:items-center tw:gap-2">
-                  <h3 className="tw:m-0 tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-2)] tw:weight-medium">
-                    模型列表
-                  </h3>
-                  <span className="tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:weight-medium">
-                    {models.length}
+            <header className="provider-editor-models-header tw:flex tw:items-center tw:justify-between tw:gap-3">
+              <div className="provider-editor-models-title tw:flex tw:items-center tw:gap-2">
+                <h3 className="tw:m-0 tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-2)] tw:weight-medium">
+                  模型列表
+                </h3>
+                <span className="tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)] tw:weight-medium">
+                  {models.length}
+                </span>
+              </div>
+              {!managed ? (
+                <div className="provider-editor-models-actions tw:flex tw:items-center tw:gap-2">
+                  <Button
+                    size="md"
+                    color="secondary"
+                    onClick={() => {
+                      setModels((current) => [...current, { ...emptyModel(), api: defaultApi }])
+                    }}
+                  >
+                    <Plus className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
+                    新增模型
+                  </Button>
+                </div>
+              ) : null}
+            </header>
+
+            {!managed && !editing && !createdProviderId.current ? (
+              <section className="provider-editor-discover-card tw:grid tw:gap-2.5 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3">
+                <header className="tw:grid tw:gap-1">
+                  <strong className="tw:text-app-text tw:type-2 tw:weight-medium">
+                    保存前获取模型
+                  </strong>
+                  <span className="tw:text-app-text-soft tw:type-1">
+                    使用当前 Base URL、认证与请求头读取上游目录；候选模型保存后可再导入。
                   </span>
-                </div>
-                {!managed ? (
-                  <div className="provider-editor-models-actions tw:flex tw:items-center tw:gap-2">
-                    <Button
-                      size="md"
-                      color="secondary"
-                      onClick={() => {
-                        setModels((current) => [...current, { ...emptyModel(), api: defaultApi }])
-                      }}
-                    >
-                      <Plus className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />
-                      新增模型
-                    </Button>
-                  </div>
-                ) : null}
-              </header>
-
-              {!managed && !editing && !createdProviderId.current ? (
-                <section className="provider-editor-discover-card tw:grid tw:gap-2.5 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3">
-                  <header className="tw:grid tw:gap-1">
-                    <strong className="tw:text-app-text tw:type-2 tw:weight-medium">
-                      保存前获取模型
-                    </strong>
-                    <span className="tw:text-app-text-soft tw:type-1">
-                      使用当前 Base URL、认证与请求头读取上游目录；候选模型保存后可再导入。
-                    </span>
-                  </header>
-                  <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-                    <Input
-                      aria-label="临时 API Key"
-                      autoComplete="off"
-                      className="tw:min-w-0 tw:flex-1"
-                      placeholder="临时 API Key（仅本次获取，不保存）"
-                      type="password"
-                      value={tempApiKey}
-                      onChange={(event) => setTempApiKey(event.target.value)}
-                    />
-                    <Button
-                      size="md"
-                      color="secondary"
-                      disabled={busy || discovering}
-                      loading={discovering}
-                      onClick={() => void discover()}
-                    >
-                      <RefreshCw className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />从
-                      /models 获取
-                    </Button>
-                  </div>
-                  {pendingModelSync ? (
-                    <p className="tw:m-0 tw:text-app-text-soft tw:type-1" role="status">
-                      已获取 {pendingModelSync.models.length} 个上游模型，保存时将记录同步基线。
-                    </p>
-                  ) : null}
-                </section>
-              ) : null}
-
-              {candidates.length > 0 ? (
-                <section className="provider-editor-candidates-card tw:grid tw:gap-3 tw:rounded-4 tw:border tw:border-app-accent-border tw:bg-app-accent-subtle tw:p-4">
-                  <header className="tw:flex tw:items-center tw:justify-between tw:gap-2">
-                    <strong className="tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-1)]">
-                      发现 {candidates.length} 个候选模型，已选 {selectedCandidates.size} 个
-                    </strong>
-                    <Button
-                      size="md"
-                      color="secondary"
-                      onClick={() =>
-                        setSelectedCandidates(
-                          new Set(
-                            filteredCandidates
-                              .filter((model) =>
-                                isImportableCandidate(model, candidateMatches[String(model.id)]),
-                              )
-                              .map((model) => String(model.id)),
-                          ),
-                        )
-                      }
-                    >
-                      全选
-                    </Button>
-                    <Button
-                      size="md"
-                      color="secondary"
-                      disabled={selectedCandidates.size === 0}
-                      onClick={() => setSelectedCandidates(new Set())}
-                    >
-                      清空
-                    </Button>
-                    <Button
-                      size="md"
-                      color="primary"
-                      disabled={selectedCandidates.size === 0}
-                      onClick={importSelected}
-                    >
-                      导入已选 ({selectedCandidates.size})
-                    </Button>
-                  </header>
+                </header>
+                <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
                   <Input
-                    aria-label="筛选候选模型"
+                    aria-label="临时 API Key"
                     autoComplete="off"
-                    placeholder="按 ID 筛选候选模型"
-                    value={candidateFilter}
-                    onChange={(event) => setCandidateFilter(event.target.value)}
+                    className="tw:min-w-0 tw:flex-1"
+                    placeholder="临时 API Key（仅本次获取，不保存）"
+                    type="password"
+                    value={tempApiKey}
+                    onChange={(event) => setTempApiKey(event.target.value)}
                   />
-                  <div className="provider-editor-candidates-list tw:grid tw:max-h-[10rem] tw:gap-1 tw:overflow-y-auto tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2">
-                    {filteredCandidates.length === 0 ? (
-                      <p role="status" className="tw:m-0 tw:text-app-text-soft tw:type-1">
-                        没有匹配的候选模型。
-                      </p>
-                    ) : null}
-                    {filteredCandidates.map((candidate) => {
-                      const match = candidateMatches[String(candidate.id)]
-                      const importable = isImportableCandidate(candidate, match)
-                      const hint = candidateMatchHint(match)
-                      return (
-                        <div
-                          className="provider-editor-candidate-row tw:flex tw:items-center tw:gap-2 tw:rounded-2 tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-1)] tw:hover:bg-app-hover"
-                          key={String(candidate.id)}
-                          title={hint}
-                        >
-                          <label className="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
-                            <input
-                              checked={selectedCandidates.has(String(candidate.id))}
-                              disabled={!importable}
-                              type="checkbox"
-                              onChange={(event) =>
-                                setSelectedCandidates((current) => {
-                                  const next = new Set(current)
-                                  if (event.target.checked) next.add(String(candidate.id))
-                                  else next.delete(String(candidate.id))
-                                  return next
-                                })
-                              }
-                            />
-                            <span className="tw:truncate">{String(candidate.id)}</span>
-                          </label>
-                          <span className="provider-editor-model-card-badge tw:shrink-0 tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-1)]">
-                            {candidateMatchLabel(match?.status)}
-                          </span>
-                          {candidate.contextWindow ? (
-                            <span className="tw:shrink-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)]">
-                              上下文 {candidate.contextWindow.toLocaleString()}
-                            </span>
-                          ) : null}
-                          {!importable ? (
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              onClick={() => manualImport(candidate)}
-                            >
-                              手动补齐
-                            </Button>
-                          ) : null}
-                        </div>
+                  <Button
+                    size="md"
+                    color="secondary"
+                    disabled={busy || discovering}
+                    loading={discovering}
+                    onClick={() => void discover()}
+                  >
+                    <RefreshCw className="tw:size-icon-md" aria-hidden size={APP_ICON_SIZE} />从
+                    /models 获取
+                  </Button>
+                </div>
+                {pendingModelSync ? (
+                  <p className="tw:m-0 tw:text-app-text-soft tw:type-1" role="status">
+                    已获取 {pendingModelSync.models.length} 个上游模型，保存时将记录同步基线。
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
+
+            {candidates.length > 0 ? (
+              <section className="provider-editor-candidates-card tw:grid tw:gap-3 tw:rounded-4 tw:border tw:border-app-accent-border tw:bg-app-accent-subtle tw:p-4">
+                <header className="tw:flex tw:items-center tw:justify-between tw:gap-2">
+                  <strong className="tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-1)]">
+                    发现 {candidates.length} 个候选模型，已选 {selectedCandidates.size} 个
+                  </strong>
+                  <Button
+                    size="md"
+                    color="secondary"
+                    onClick={() =>
+                      setSelectedCandidates(
+                        new Set(
+                          filteredCandidates
+                            .filter((model) =>
+                              isImportableCandidate(model, candidateMatches[String(model.id)]),
+                            )
+                            .map((model) => String(model.id)),
+                        ),
                       )
-                    })}
-                  </div>
-                  {candidates.some(
-                    (candidate) =>
-                      !isImportableCandidate(candidate, candidateMatches[String(candidate.id)]),
-                  ) ? (
-                    <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
-                      {
-                        candidates.filter(
-                          (candidate) =>
-                            !isImportableCandidate(
-                              candidate,
-                              candidateMatches[String(candidate.id)],
-                            ),
-                        ).length
-                      }{' '}
-                      个候选未匹配、歧义或缺少额度，不会默认导入；请点击“手动补齐”填写上下文与最大输出。
+                    }
+                  >
+                    全选
+                  </Button>
+                  <Button
+                    size="md"
+                    color="secondary"
+                    disabled={selectedCandidates.size === 0}
+                    onClick={() => setSelectedCandidates(new Set())}
+                  >
+                    清空
+                  </Button>
+                  <Button
+                    size="md"
+                    color="primary"
+                    disabled={selectedCandidates.size === 0}
+                    onClick={importSelected}
+                  >
+                    导入已选 ({selectedCandidates.size})
+                  </Button>
+                </header>
+                <Input
+                  aria-label="筛选候选模型"
+                  autoComplete="off"
+                  placeholder="按 ID 筛选候选模型"
+                  value={candidateFilter}
+                  onChange={(event) => setCandidateFilter(event.target.value)}
+                />
+                <div className="provider-editor-candidates-list tw:grid tw:max-h-[10rem] tw:gap-1 tw:overflow-y-auto tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2">
+                  {filteredCandidates.length === 0 ? (
+                    <p role="status" className="tw:m-0 tw:text-app-text-soft tw:type-1">
+                      没有匹配的候选模型。
                     </p>
                   ) : null}
-                </section>
-              ) : null}
-
-              {managed ? (
-                <div className="settings-management-dialog-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel">
-                  {models.map((model) => (
-                    <div
-                      className="settings-management-dialog-row tw:grid tw:min-w-0 tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:gap-4 tw:px-4 tw:py-3 tw:max-[640px]:grid-cols-1 tw:max-[640px]:gap-2"
-                      key={model.editorKey}
-                    >
-                      <span>{model.id}</span>
-                      <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-1)]">
-                        {protocol}
-                      </span>
-                    </div>
-                  ))}
+                  {filteredCandidates.map((candidate) => {
+                    const match = candidateMatches[String(candidate.id)]
+                    const importable = isImportableCandidate(candidate, match)
+                    const hint = candidateMatchHint(match)
+                    return (
+                      <div
+                        className="provider-editor-candidate-row tw:flex tw:items-center tw:gap-2 tw:rounded-2 tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-1)] tw:hover:bg-app-hover"
+                        key={String(candidate.id)}
+                        title={hint}
+                      >
+                        <label className="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
+                          <input
+                            checked={selectedCandidates.has(String(candidate.id))}
+                            disabled={!importable}
+                            type="checkbox"
+                            onChange={(event) =>
+                              setSelectedCandidates((current) => {
+                                const next = new Set(current)
+                                if (event.target.checked) next.add(String(candidate.id))
+                                else next.delete(String(candidate.id))
+                                return next
+                              })
+                            }
+                          />
+                          <span className="tw:truncate">{String(candidate.id)}</span>
+                        </label>
+                        <span className="provider-editor-model-card-badge tw:shrink-0 tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-1)]">
+                          {candidateMatchLabel(match?.status)}
+                        </span>
+                        {candidate.contextWindow ? (
+                          <span className="tw:shrink-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-1)]">
+                            上下文 {candidate.contextWindow.toLocaleString()}
+                          </span>
+                        ) : null}
+                        {!importable ? (
+                          <Button variant="ghost" size="xs" onClick={() => manualImport(candidate)}>
+                            手动补齐
+                          </Button>
+                        ) : null}
+                      </div>
+                    )
+                  })}
                 </div>
-              ) : (
-                modelsListSection
-              )}
+                {candidates.some(
+                  (candidate) =>
+                    !isImportableCandidate(candidate, candidateMatches[String(candidate.id)]),
+                ) ? (
+                  <p className="tw:m-0 tw:text-app-text-soft tw:type-1">
+                    {
+                      candidates.filter(
+                        (candidate) =>
+                          !isImportableCandidate(candidate, candidateMatches[String(candidate.id)]),
+                      ).length
+                    }{' '}
+                    个候选未匹配、歧义或缺少额度，不会默认导入；请点击“手动补齐”填写上下文与最大输出。
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
+
+            {managed ? (
+              <div className="settings-management-dialog-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel">
+                {models.map((model) => (
+                  <div
+                    className="settings-management-dialog-row tw:grid tw:min-w-0 tw:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)] tw:items-start tw:gap-4 tw:px-4 tw:py-3 tw:max-[640px]:grid-cols-1 tw:max-[640px]:gap-2"
+                    key={model.editorKey}
+                  >
+                    <span>{model.id}</span>
+                    <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-1)]">
+                      {protocol}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              modelsListSection
+            )}
           </div>
 
           {!managed ? (

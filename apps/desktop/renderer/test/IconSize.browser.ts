@@ -268,7 +268,9 @@ try {
     }
     const strokes = await page.locator('.lucide').evaluateAll((elements) =>
       elements.map((element) => {
-        const firstShape = element.querySelector('path, circle, rect, line, polyline, polygon, ellipse')
+        const firstShape = element.querySelector(
+          'path, circle, rect, line, polyline, polygon, ellipse',
+        )
         return {
           artwork: element.getAttribute('data-icon-kind') === 'artwork',
           xl: element.getAttribute('data-icon-size') === 'xl',

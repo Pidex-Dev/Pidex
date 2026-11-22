@@ -324,8 +324,8 @@ describe('Codex CPX design system token contract', () => {
   })
 
   test('keeps primary routes and workbench panels on their shared alignment axes', async () => {
-    const [automationView, pets, pullRequests, review, browser, primaryPageCss] =
-      await Promise.all([
+    const [automationView, pets, pullRequests, review, browser, primaryPageCss] = await Promise.all(
+      [
         Bun.file(new URL('../src/features/automation/AutomationView.tsx', import.meta.url)).text(),
         Bun.file(new URL('../src/features/pet/PetCatalogPage.tsx', import.meta.url)).text(),
         Bun.file(
@@ -338,7 +338,8 @@ describe('Codex CPX design system token contract', () => {
           new URL('../src/features/browser/DesktopBrowserPanel.tsx', import.meta.url),
         ).text(),
         Bun.file(new URL('../src/styles/features/primary-page.css', import.meta.url)).text(),
-      ])
+      ],
+    )
 
     // 自动化页只通过共享 PrimaryPageLayout 渲染，不再覆盖其内部结构类名。
     expectSourceContains(automationView, '<PrimaryPageLayout')
