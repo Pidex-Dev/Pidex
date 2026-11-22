@@ -558,12 +558,19 @@ describe('设置导航', () => {
   })
 
   test('权限相关设置已从常规与配置迁移到权限设置页', () => {
-    const personalGroup = SETTINGS_GROUPS.find((group) => group.id === 'personal')
+    const appGroup = SETTINGS_GROUPS.find((group) => group.id === 'app')
     const permissions = SETTINGS_ITEMS.find((item) => item.routeId === 'permissions')
     const general = SETTINGS_ITEMS.find((item) => item.routeId === 'general')
     const config = SETTINGS_ITEMS.find((item) => item.routeId === 'config')
 
-    expect(personalGroup?.items.some((item) => item.routeId === 'permissions')).toBeTrue()
+    expect(SETTINGS_GROUPS.map((group) => group.id)).toEqual([
+      'account',
+      'app',
+      'data-privacy',
+      'integrations',
+      'coding',
+    ])
+    expect(appGroup?.items.some((item) => item.routeId === 'permissions')).toBeTrue()
     expect(permissions?.label).toBe('权限')
     expect(permissions?.rows.map((row) => row.title)).toEqual([
       '权限预设',
@@ -633,7 +640,7 @@ describe('sidebar shell modes', () => {
       'chats',
       'chats',
       'scheduled',
-      'settings',
+      'chats',
       'plugins',
       'plugins',
       'providers',
