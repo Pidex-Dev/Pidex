@@ -244,11 +244,7 @@ export function StorageSettings({ onError, onNotice }: Props): React.ReactNode {
   }
 
   return (
-    <SettingsContentArea>
-      <div
-        className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]"
-        id={createSettingsTargetId('storage')}
-      >
+    <SettingsContentArea innerProps={{ id: createSettingsTargetId('storage') }}>
         <header className="tw:mb-6">
           <h2 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">存储空间</h2>
         </header>
@@ -661,7 +657,6 @@ export function StorageSettings({ onError, onNotice }: Props): React.ReactNode {
           }}
           onError={onError}
         />
-      </div>
     </SettingsContentArea>
   )
 }

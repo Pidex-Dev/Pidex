@@ -13,7 +13,6 @@ export function SettingsPanelFallback({ label }: Props = {}): React.ReactNode {
   const { t } = useLocale()
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
         <SkeletonRegion
           label={t('设置加载中')}
           className="settings-panel-fallback tw:grid tw:gap-6"
@@ -42,7 +41,6 @@ export function SettingsPanelFallback({ label }: Props = {}): React.ReactNode {
             </div>
           </section>
         </SkeletonRegion>
-      </div>
     </SettingsContentArea>
   )
 }

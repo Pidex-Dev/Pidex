@@ -842,8 +842,10 @@ export function PluginsSettingsPage({
       }
 
     return (
-      <SettingsContentArea className="plugins-settings-page">
-        <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+      <SettingsContentArea
+        className="plugins-settings-page"
+        innerClassName="settings-content-inner plugins-settings-content"
+      >
           <PluginSettingsDetailsView
             item={requestedPlugin}
             workspacePath={workspacePath}
@@ -892,7 +894,6 @@ export function PluginsSettingsPage({
             onError={onError}
             onNotice={onNotice}
           />
-        </div>
         {skillDetailsDialog}
         {appDetailsDialog}
       </SettingsContentArea>
@@ -901,17 +902,20 @@ export function PluginsSettingsPage({
 
   if (requestedPluginId && pluginsLoading) {
     return (
-      <SettingsContentArea className="plugins-settings-page">
-        <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+      <SettingsContentArea
+        className="plugins-settings-page"
+        innerClassName="settings-content-inner plugins-settings-content"
+      >
           <LoadingRows />
-        </div>
       </SettingsContentArea>
     )
   }
 
   return (
-    <SettingsContentArea className="plugins-settings-page">
-      <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+    <SettingsContentArea
+      className="plugins-settings-page"
+      innerClassName="settings-content-inner plugins-settings-content"
+    >
         <header className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-4">
           <div className="tw:grid tw:gap-2">
             <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
@@ -1271,7 +1275,6 @@ export function PluginsSettingsPage({
             <EmptyState label={query ? '没有匹配的 MCP server。' : '暂无 MCP server。'} />
           )}
         </section>
-      </div>
 
       <PluginDetailsDialog
         workspacePath={workspacePath}

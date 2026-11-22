@@ -122,7 +122,6 @@ export function ArchivedConversationsSettings(): ReactNode {
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
         <header className="tw:mb-6 tw:flex tw:items-center tw:justify-between tw:gap-4">
           <h2 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">已归档对话</h2>
           <Button
@@ -231,7 +230,6 @@ export function ArchivedConversationsSettings(): ReactNode {
           }}
           onAction={() => void deleteSessions()}
         />
-      </div>
     </SettingsContentArea>
   )
 }

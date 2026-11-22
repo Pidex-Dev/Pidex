@@ -116,7 +116,7 @@ export function ProfileSettings(): React.ReactNode {
 
   return (
     <Popover.Root open={statusEditorOpen} onOpenChange={setStatusEditorOpen}>
-      <SettingsContentArea className="profile-dashboard-area">
+      <SettingsContentArea bare className="profile-dashboard-area">
         <div className="profile-dashboard tw:min-h-full tw:bg-app-canvas tw:px-[var(--cpx-sys-layout-page-padding-inline)] tw:pt-8 tw:pb-[var(--cpx-sys-layout-page-padding-bottom)] tw:max-[980px]:pt-6">
           <header className="profile-dashboard-header tw:mx-auto tw:flex tw:max-w-[732px] tw:items-center tw:justify-between tw:gap-4 tw:pb-7 tw:max-[980px]:pb-6 tw:max-[760px]:items-start tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-row-title">
             <h2>个人资料</h2>

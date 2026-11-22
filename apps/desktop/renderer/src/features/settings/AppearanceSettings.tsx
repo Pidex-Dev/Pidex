@@ -1004,9 +1004,8 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
   }
 
   return (
-    <SettingsContentArea>
-      <div className="settings-content-inner appearance-settings tw:[&>.settings-section>.appearance-shared-fonts]:mt-4 tw:[&>.settings-section>.appearance-theme-editors]:mt-4 tw:[&>.settings-section]:grid tw:[&>.settings-section]:gap-4 tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
+    <SettingsContentArea innerClassName="appearance-settings tw:[&>.settings-section>.appearance-shared-fonts]:mt-4 tw:[&>.settings-section>.appearance-theme-editors]:mt-4 tw:[&>.settings-section]:grid tw:[&>.settings-section]:gap-4">
+      <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
           <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
             {t('外观')}
           </h2>
@@ -1296,7 +1295,6 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
             </div>
           </DisclosureController>
         </SettingsSection>
-      </div>
     </SettingsContentArea>
   )
 }

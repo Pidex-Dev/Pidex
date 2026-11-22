@@ -250,9 +250,6 @@ function EnvironmentList({
 
   return (
     <EnvironmentFrame embedded={embedded}>
-      <div
-        className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
-      >
         {!embedded ? (
           <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
             <div>
@@ -283,7 +280,6 @@ function EnvironmentList({
         >
           {projectList}
         </SettingsSection>
-      </div>
     </EnvironmentFrame>
   )
 }
@@ -468,11 +464,7 @@ function EnvironmentDetail({
   if (loading) {
     return (
       <EnvironmentFrame embedded={embedded}>
-        <div
-          className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
-        >
           <EnvironmentEmpty>正在载入项目环境…</EnvironmentEmpty>
-        </div>
       </EnvironmentFrame>
     )
   }
@@ -480,9 +472,6 @@ function EnvironmentDetail({
   if (!project) {
     return (
       <EnvironmentFrame embedded={embedded}>
-        <div
-          className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
-        >
           <button
             className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
             type="button"
@@ -492,7 +481,6 @@ function EnvironmentDetail({
             返回环境
           </button>
           <EnvironmentEmpty>项目不存在、已移除或当前不可用。</EnvironmentEmpty>
-        </div>
       </EnvironmentFrame>
     )
   }
@@ -519,9 +507,6 @@ function EnvironmentDetail({
 
   return (
     <EnvironmentFrame embedded={embedded}>
-      <div
-        className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
-      >
         <button
           className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
           type="button"
@@ -771,7 +756,6 @@ function EnvironmentDetail({
             </div>
           ) : null}
         </SettingsSection>
-      </div>
     </EnvironmentFrame>
   )
 }
@@ -812,5 +796,14 @@ function EnvironmentFrame({
   embedded?: boolean
   children: React.ReactNode
 }) {
-  return embedded ? <>{children}</> : <SettingsContentArea>{children}</SettingsContentArea>
+  const innerClassName = 'environment-settings tw:[&_.settings-section-content]:overflow-visible'
+  return embedded ? (
+    <div
+      className={`settings-content-inner ${innerClassName} tw:@container tw:w-full tw:min-w-0 tw:mx-auto`}
+    >
+      {children}
+    </div>
+  ) : (
+    <SettingsContentArea innerClassName={innerClassName}>{children}</SettingsContentArea>
+  )
 }

@@ -186,11 +186,10 @@ export function UsageBillingSettings(): React.ReactNode {
   }, [setSearchParams])
 
   return (
-    <SettingsContentArea>
-      <div
-        aria-busy={localLoading || configuration.loading || undefined}
-        className="settings-content-inner usage-billing-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]"
-      >
+    <SettingsContentArea
+      innerClassName="usage-billing-settings"
+      innerProps={{ 'aria-busy': localLoading || configuration.loading || undefined }}
+    >
         <div className="settings-page-header usage-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:flex tw:items-start tw:justify-between tw:gap-4 tw:@max-[900px]:flex-col tw:@max-[900px]:items-stretch">
           <div>
             <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
@@ -245,7 +244,6 @@ export function UsageBillingSettings(): React.ReactNode {
             selectedSourceId={selectedSourceId}
           />
         )}
-      </div>
     </SettingsContentArea>
   )
 }

@@ -169,12 +169,10 @@ export function LocalEnvironmentSettings({
   if (!threadId && (!projectId || !environmentId))
     return (
       <SettingsContentArea>
-        <div className="settings-content-inner tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
           <h2 className="tw:type-6 tw:weight-bold">本地环境</h2>
           <React.Suspense fallback={<p>正在加载项目…</p>}>
             <ProjectEnvironments onError={onError} onNotice={onNotice} />
           </React.Suspense>
-        </div>
       </SettingsContentArea>
     )
   if (!threadId && !projectId)

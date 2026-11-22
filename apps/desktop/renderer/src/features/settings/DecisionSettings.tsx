@@ -390,8 +390,7 @@ export function DecisionSettings({
 
   if (!supported) {
     return (
-      <SettingsContentArea>
-        <div className="settings-content-inner tw:grid tw:gap-5 tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+      <SettingsContentArea innerClassName="tw:grid tw:gap-5">
           <header className="tw:grid tw:gap-2">
             <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">决策</h1>
             <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
@@ -403,7 +402,6 @@ export function DecisionSettings({
             description="请升级 Agent 运行时后再配置 Judge 与决策点。"
             control={<span className="tw:type-1 tw:text-app-text-meta">不支持的运行时</span>}
           />
-        </div>
       </SettingsContentArea>
     )
   }
@@ -412,8 +410,7 @@ export function DecisionSettings({
   const manifestGroups = groupDecisionManifest(view?.manifest ?? [])
 
   return (
-    <SettingsContentArea>
-      <div className="settings-content-inner tw:@container tw:grid tw:gap-6 tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+    <SettingsContentArea innerClassName="tw:grid tw:gap-6">
         <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
           <div className="tw:grid tw:gap-1">
             <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">决策</h1>
@@ -567,7 +564,6 @@ export function DecisionSettings({
             </SettingsSection>
           </>
         ) : null}
-      </div>
     </SettingsContentArea>
   )
 }

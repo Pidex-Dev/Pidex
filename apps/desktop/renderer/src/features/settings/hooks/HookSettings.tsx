@@ -139,8 +139,7 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
 
   if (!supported) {
     return (
-      <SettingsContentArea>
-        <div className="settings-content-inner tw:grid tw:gap-5 tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+      <SettingsContentArea innerClassName="tw:grid tw:gap-5">
           <header className="tw:grid tw:gap-2">
             <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">钩子</h1>
             <p className="tw:m-0 tw:type-1 tw:text-app-text-soft">
@@ -152,7 +151,6 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
             description="请升级 Agent 运行时，或检查配置目录下的钩子文件。"
             control={<span className="settings-row-status">不支持的运行时</span>}
           />
-        </div>
       </SettingsContentArea>
     )
   }
@@ -195,8 +193,7 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
   }
 
   return (
-    <SettingsContentArea>
-      <div className="settings-content-inner tw:grid tw:gap-5 tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+    <SettingsContentArea innerClassName="tw:grid tw:gap-5">
         <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
           <div className="tw:grid tw:gap-1">
             <h1 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">钩子</h1>
@@ -298,7 +295,6 @@ export function HookSettings({ workspacePath }: Props): React.ReactNode {
           onToggleExpand={toggleExpandHook}
           onToggleEnabled={(hook, enabled) => void handleToggleHook(hook, enabled)}
         />
-      </div>
     </SettingsContentArea>
   )
 }

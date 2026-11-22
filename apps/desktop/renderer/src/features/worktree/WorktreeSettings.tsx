@@ -132,7 +132,6 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
         <h2 className="tw:m-0 tw:mb-5 tw:type-7 tw:weight-bold tw:text-app-text">Worktrees</h2>
 
         {/* 顶部偏好设置卡片 */}
@@ -373,7 +372,6 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
           }}
           onAction={confirmDelete}
         />
-      </div>
     </SettingsContentArea>
   )
 }

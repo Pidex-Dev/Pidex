@@ -186,16 +186,17 @@ export function GitSettings(): React.ReactNode {
   }
 
   return (
-    <SettingsContentArea className="">
-      <div
-        className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]"
-        onKeyDown={(event) => {
+    <SettingsContentArea
+      className=""
+      innerProps={{
+        onKeyDown: (event) => {
           if (isSettingsSaveShortcut(event)) {
             event.preventDefault()
             void save(['gitBranchPrefix', 'commitMessagePrompt', 'pullRequestPrompt'])
           }
-        }}
-      >
+        },
+      }}
+    >
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
           <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
             Git
@@ -387,7 +388,6 @@ export function GitSettings(): React.ReactNode {
             }
           />
         </SettingsSection>
-      </div>
     </SettingsContentArea>
   )
 }

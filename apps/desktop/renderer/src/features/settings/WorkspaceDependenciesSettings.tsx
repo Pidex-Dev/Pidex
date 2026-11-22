@@ -217,7 +217,6 @@ export function WorkspaceDependenciesSettings({ onError, onNotice }: Props): Rea
   if (loading && statuses.length === 0) {
     return (
       <SettingsContentArea>
-        <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
           <WorkspaceDependenciesHeader
             disabled
             refreshing={refreshing}
@@ -226,14 +225,12 @@ export function WorkspaceDependenciesSettings({ onError, onNotice }: Props): Rea
           <SettingsSection title="运行环境">
             <SettingsRow title="正在读取依赖项状态…" />
           </SettingsSection>
-        </div>
       </SettingsContentArea>
     )
   }
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
         <WorkspaceDependenciesHeader
           disabled={refreshing || busyTools.size > 0}
           refreshing={refreshing}
@@ -251,7 +248,6 @@ export function WorkspaceDependenciesSettings({ onError, onNotice }: Props): Rea
             />
           ) : null
         })}
-      </div>
     </SettingsContentArea>
   )
 }

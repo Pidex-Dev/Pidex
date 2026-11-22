@@ -378,8 +378,7 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
   }, [normalizedQuery])
 
   return (
-    <SettingsContentArea>
-      <div className="settings-content-inner keyboard-shortcuts-settings tw:max-w-wide tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-6)*2)]">
+    <SettingsContentArea innerClassName="keyboard-shortcuts-settings">
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-6 tw:grid tw:gap-2">
           <h2 className="settings-page-title tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
             键盘快捷键
@@ -412,7 +411,6 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
             )}
           </div>
         </section>
-      </div>
     </SettingsContentArea>
   )
 }
