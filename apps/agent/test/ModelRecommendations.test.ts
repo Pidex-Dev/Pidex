@@ -9,6 +9,7 @@ import {
   applyRecommendation,
 } from '../src/provider/pi/ModelRecommendations'
 import { ModelRecommendationStore } from '../src/provider/pi/ModelRecommendationStore'
+import bundledCatalog from '../src/provider/pi/data/bundled-model-catalog.json'
 
 const row = (context: number, extra = {}) => ({
   name: 'Example',
@@ -678,4 +679,138 @@ test('清单条目中的 option_specs 与忙/闲时阶梯 pricing 经索引解�
   }
   expect(applied.optionSpecs?.reasoningLevel?.map).toBe('{"reasoning_effort": reasoningLevel}')
   expect(applied.pricing).toMatchObject({ currency: 'CNY', idle: { input: 1 } })
+})
+
+test('千问 AI 平台按量与 Token Plan 通过多端点和带斜杠三方模型 ID 正确隔离与匹配', () => {
+  const index = new ModelRecommendationIndex(bundledCatalog)
+  const paygOpenAI = 'https://maas.qianwenaiapi.com/compatible-mode/v1'
+  const paygAnthropic = 'https://maas.qianwenaiapi.com/apps/anthropic'
+  const tokenPlanOpenAI = 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1'
+  const tokenPlanAnthropic = 'https://token-plan.maas.qianwenaiapi.com/apps/anthropic'
+  const tokenPlanLegacy = 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+
+  const dsFlash = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'deepseek-v4.1-flash-1017',
+    modelType: 'chat',
+  })
+  expect(dsFlash.status).toBe('matched')
+  expect(dsFlash.priceSource).toEqual({ kind: 'provider', providerId: 'qianwen-cn' })
+  expect(dsFlash.recommended.pricing).toMatchObject({
+    currency: 'CNY',
+    timeZone: 'Asia/Shanghai',
+    defaultPeriod: 'idle',
+    idle: { input: 1, output: 4, cacheRead: 0.02, cacheWrite: null },
+    busy: { input: 2, output: 8, cacheRead: 0.04, cacheWrite: null },
+    rules: [
+      {
+        period: 'busy',
+        weekdays: [0, 1, 2, 3, 4, 5, 6],
+        holiday: 'any',
+        intervals: [{ start: '08:00', end: '22:00' }],
+      },
+    ],
+  })
+
+  const qwen4Anthropic = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygAnthropic,
+    modelId: 'qwen4-max',
+    modelType: 'chat',
+  })
+  expect(qwen4Anthropic.status).toBe('matched')
+  expect(qwen4Anthropic.priceSource).toEqual({ kind: 'provider', providerId: 'qianwen-cn' })
+  expect(qwen4Anthropic.recommended.pricing?.idle).toEqual({
+    input: 10,
+    output: 30,
+    cacheRead: 0.5,
+    cacheWrite: null,
+  })
+
+  const glmFlash = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'ZHIPU/GLM-5.3-Flash',
+    modelType: 'chat',
+  })
+  const glmFlashX = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'ZHIPU/GLM-5.3-FlashX',
+    modelType: 'chat',
+  })
+  expect(glmFlash.status).toBe('matched')
+  expect(glmFlash.recommended.pricing?.idle).toMatchObject({ input: 0.8, output: 2.8, cacheRead: 0.23 })
+  expect(glmFlashX.status).toBe('matched')
+  expect(glmFlashX.recommended.name).toBe('GLM-5.3-FlashX')
+  expect(glmFlashX.recommended.pricing?.idle).toMatchObject({ input: 2, output: 7, cacheRead: 0.57 })
+
+  const kimiBase = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'kimi/kimi-k3.1-pro',
+    modelType: 'chat',
+  })
+  const kimiFast = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'kimi/kimi-k3.1-pro-highspeed',
+    modelType: 'chat',
+  })
+  expect(kimiBase.recommended.pricing?.idle).toMatchObject({ input: 13, output: 68, cacheRead: 1.3 })
+  expect(kimiFast.recommended.pricing?.idle).toMatchObject({ input: 26, output: 136, cacheRead: 1.3 })
+
+  const embed = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'qwen3.7-text-embedding-flash',
+    modelType: 'embedding',
+  })
+  expect(embed.status).toBe('matched')
+  expect(embed.recommended.pricing?.idle).toMatchObject({ input: 0.125, output: null })
+
+  for (const baseUrl of [tokenPlanOpenAI, tokenPlanAnthropic, tokenPlanLegacy]) {
+    const tokenPlan = index.resolve({
+      providerId: 'custom-token-plan',
+      baseUrl,
+      modelId: 'deepseek-v4.1-flash-1017',
+      modelType: 'chat',
+    })
+    expect(tokenPlan.status).toBe('matched')
+    expect(tokenPlan.priceSource).toEqual({ kind: 'provider', providerId: 'qwen-token-plan-cn' })
+    expect(tokenPlan.recommended.pricing).toBeUndefined()
+    expect(tokenPlan.recommended.cost).toEqual({
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    })
+  }
+})
+
+test('SharedModelCatalogCache 落盘并重启读取后保留供应商多端点 endpoints', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'pidex-qwen-endpoints-'))
+  try {
+    const cachePath = join(dir, 'recommendations.json')
+    const sharedPath = join(dir, 'shared-model-catalog.json')
+    const store = new ModelRecommendationStore(cachePath, response(bundledCatalog))
+    await store.refresh()
+    const written = await readFile(sharedPath, 'utf8')
+    expect(written).toContain('https://maas.qianwenaiapi.com/apps/anthropic')
+    const reloaded = new ModelRecommendationStore(cachePath, async () => {
+      throw new Error('offline')
+    })
+    const resolved = await reloaded.resolve({
+      providerId: 'custom-qwen',
+      baseUrl: 'https://maas.qianwenaiapi.com/apps/anthropic',
+      modelId: 'deepseek-v4.1-flash-1017',
+      modelType: 'chat',
+    })
+    expect(resolved.status).toBe('matched')
+    expect(resolved.priceSource).toEqual({ kind: 'provider', providerId: 'qianwen-cn' })
+    expect(resolved.recommended.pricing?.idle.input).toBe(1)
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
 })

@@ -1595,3 +1595,86 @@ test('builtin catalog seeding locks model list on first credential, keeps remove
     await rm(dir, { recursive: true, force: true })
   }
 })
+
+test('catalog protocolEndpoints drive builtin protocol defaults, live overrides, and user precedence', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'pidex-catalog-protocol-endpoints-'))
+  const dirPath = join(dir, 'provider-directory.json')
+  const recPath = join(dir, 'model-recommendations.json')
+  const fetcher = async () =>
+    new Response(
+      JSON.stringify({
+        owner: 'pidex-model-catalog',
+        schemaVersion: 1,
+        models: {},
+        providers: {
+          'qwen-token-plan-cn': {
+            name: 'Qwen AI Token Plan (China)',
+            api: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+            protocolEndpoints: {
+              'openai-completions': 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+              'anthropic-messages': 'https://override.qianwenaiapi.com/apps/anthropic',
+            },
+            marketVisible: false,
+            models: {
+              'qwen3.8-max': {
+                name: 'Qwen3.8 Max',
+                limit: { context: 131072, output: 32768 },
+              },
+            },
+          },
+        },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  const directory = new ProviderDirectoryStore(dirPath, fetcher, { bundledFallback: true })
+  const recommendations = new ModelRecommendationStore(recPath, fetcher, { bundledFallback: true })
+  const fake = repository()
+  const config: Record<string, unknown> = {
+    schema_version: 2,
+    providers: {
+      'qwen-token-plan-cn': {
+        kind: 'builtin',
+        enabled: true,
+        protocol: 'anthropic-messages',
+      },
+    },
+  }
+  const service = new PiModelService(fake.adapter, { directory, recommendations, config, env: {} })
+  try {
+    const bundledList = await service.list()
+    const qwenBundled = bundledList.find((p) => String(p.id) === 'qwen-token-plan-cn')
+    expect(qwenBundled?.source.endpoints?.['openai-completions']).toBe(
+      'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+    )
+    expect(qwenBundled?.source.endpoints?.['anthropic-messages']).toBe(
+      'https://token-plan.maas.qianwenaiapi.com/apps/anthropic',
+    )
+    const runtimeBundled = service.pi.getModels('qwen-token-plan-cn')[0]
+    expect(runtimeBundled?.api).toBe('anthropic-messages')
+    expect(runtimeBundled?.baseUrl).toBe('https://token-plan.maas.qianwenaiapi.com/apps/anthropic')
+
+    // Online catalog protocolEndpoints override bundled defaults.
+    await directory.refresh()
+    await service.reload()
+    const runtimeRefreshed = service.pi.getModels('qwen-token-plan-cn')[0]
+    expect(runtimeRefreshed?.baseUrl).toBe('https://override.qianwenaiapi.com/apps/anthropic')
+
+    // Explicit user config.endpoints still wins over catalog.
+    config.providers = {
+      'qwen-token-plan-cn': {
+        kind: 'builtin',
+        enabled: true,
+        protocol: 'anthropic-messages',
+        endpoints: {
+          'anthropic-messages': 'https://custom-proxy.example.com/apps/anthropic',
+        },
+      },
+    }
+    await service.reload()
+    const runtimeCustom = service.pi.getModels('qwen-token-plan-cn')[0]
+    expect(runtimeCustom?.baseUrl).toBe('https://custom-proxy.example.com/apps/anthropic')
+  } finally {
+    await service.dispose()
+    await rm(dir, { recursive: true, force: true })
+  }
+})

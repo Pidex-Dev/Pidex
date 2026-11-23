@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ProviderDirectoryStore } from '../src/provider/pi/ProviderDirectoryStore'
 import { ModelRecommendationStore } from '../src/provider/pi/ModelRecommendationStore'
+import { bundledProviderProtocolEndpoints } from '../src/provider/pi/SharedModelCatalogCache'
 
 const commonModel = (overrides: Record<string, unknown> = {}) => ({
   name: 'Common model',
@@ -280,5 +281,64 @@ test('别名歧义在迁移后仍不合并', async () => {
     ).toBe('ambiguous')
   } finally {
     await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test('共享目录缓存持久化并重建 protocolEndpoints，内置快照包含千问多协议端点', async () => {
+  expect(bundledProviderProtocolEndpoints('qwen-token-plan-cn')).toEqual({
+    'openai-completions': 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+    'anthropic-messages': 'https://token-plan.maas.qianwenaiapi.com/apps/anthropic',
+  })
+  expect(bundledProviderProtocolEndpoints('qianwen-cn')).toEqual({
+    'openai-completions': 'https://maas.qianwenaiapi.com/compatible-mode/v1',
+    'anthropic-messages': 'https://maas.qianwenaiapi.com/apps/anthropic',
+  })
+
+  const directory = await mkdtemp(join(tmpdir(), 'pidex-shared-protocol-endpoints-'))
+  const reloadDir = await mkdtemp(join(tmpdir(), 'pidex-shared-protocol-endpoints-reload-'))
+  const dirPath = join(directory, 'provider-directory.json')
+  const reloadPath = join(reloadDir, 'provider-directory.json')
+  try {
+    const fetcher = async () =>
+      new Response(
+        JSON.stringify({
+          owner: 'pidex-model-catalog',
+          schemaVersion: 1,
+          models: {},
+          providers: {
+            'qwen-token-plan-cn': {
+              name: 'Qwen AI Token Plan (China)',
+              api: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+              protocolEndpoints: {
+                'openai-completions': 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+                'anthropic-messages': 'https://token-plan.maas.qianwenaiapi.com/apps/anthropic',
+              },
+              endpoints: ['https://token-plan.maas.qianwenaiapi.com/apps/anthropic'],
+              marketVisible: false,
+              models: {
+                'qwen3.8-max': {
+                  name: 'Qwen3.8 Max',
+                  limit: { context: 131072, output: 32768 },
+                },
+              },
+            },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )
+    const store = new ProviderDirectoryStore(dirPath, fetcher)
+    await store.refresh()
+    const persisted = await readFile(join(directory, 'shared-model-catalog.json'), 'utf8')
+    await writeFile(join(reloadDir, 'shared-model-catalog.json'), persisted, 'utf8')
+    const reloaded = new ProviderDirectoryStore(reloadPath)
+    expect(await reloaded.protocolEndpoints()).toEqual({
+      'qwen-token-plan-cn': {
+        'openai-completions': 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+        'anthropic-messages': 'https://token-plan.maas.qianwenaiapi.com/apps/anthropic',
+      },
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+    await rm(reloadDir, { recursive: true, force: true })
   }
 })
