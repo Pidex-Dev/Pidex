@@ -70,32 +70,58 @@ test('Pi definitions take priority while models.dev fills provider metadata and 
   })
 })
 
-test('dual-source refresh commits atomically, restores offline and refuses foreign caches', async () => {
+test('single-source refresh commits atomically, enforces marketVisible and refuses foreign caches', async () => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-directory-'))
   const path = join(root, 'directory.json')
+  const sharedPath = join(root, 'shared-model-catalog.json')
   const requests: string[] = []
-  let failure = ''
+  let fail = false
+  const singleSourceCatalog = {
+    models: { m: { name: 'Common model' } },
+    providers: {
+      vendor: {
+        name: 'Vendor',
+        api: 'https://vendor.example/v1',
+        npm: '@ai-sdk/openai-compatible',
+        env: ['VENDOR_API_KEY'],
+        marketVisible: true,
+        models: {
+          m: {
+            name: 'Pi model',
+            pi_api: 'openai-responses',
+            base_url: 'https://vendor.example/v1',
+            limit: { context: 65536, output: 4096 },
+            reasoning: false,
+            modalities: { input: ['text'], output: ['text'] },
+          },
+        },
+      },
+      'hidden-cn': {
+        name: 'Hidden CN',
+        api: 'https://hidden.example/v1',
+        marketVisible: false,
+        models: { m: { name: 'Hidden', limit: { context: 65536, output: 4096 } } },
+      },
+    },
+  }
   const store = new ProviderDirectoryStore(path, async (url, init) => {
-    const source = new URL(String(url)).hostname === 'pi.dev' ? 'Pi' : 'models.dev'
     requests.push(String(url))
     expect(init?.headers).toBeUndefined()
     expect(init?.redirect).toBe('error')
-    if (source === failure) return new Response(null, { status: 503 })
-    return Response.json(source === 'Pi' ? pi : modelsDev)
+    if (fail) return new Response(null, { status: 503 })
+    return Response.json(singleSourceCatalog)
   })
   try {
     await store.refresh()
-    expect(requests).toHaveLength(2)
-    expect(requests).toContain('https://pi.dev/api/models?pi-version=0.99.2')
-    const before = await readFile(path, 'utf8')
+    expect(requests).toEqual(['https://models.codepilotx.top/v1/catalog.json'])
+    const before = await readFile(sharedPath, 'utf8')
     const entries = await store.providers()
+    expect(entries.map((e) => e.id)).toEqual(['vendor'])
     expect(await new ProviderDirectoryStore(path).providers()).toEqual(entries)
-    for (const source of ['Pi', 'models.dev']) {
-      failure = source
-      await expect(store.refresh()).rejects.toThrow(source)
-      expect(await store.providers()).toEqual(entries)
-      expect(await readFile(path, 'utf8')).toBe(before)
-    }
+    fail = true
+    await expect(store.refresh()).rejects.toThrow('模型清单')
+    expect(await store.providers()).toEqual(entries)
+    expect(await readFile(sharedPath, 'utf8')).toBe(before)
     await writeFile(path, '{"owner":"someone-else","formatVersion":1}', 'utf8')
     await expect(store.refresh()).rejects.toThrow('Unsupported directory cache')
     await expect(new ProviderDirectoryStore(path).refresh()).rejects.toThrow(

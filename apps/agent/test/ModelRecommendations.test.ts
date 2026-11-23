@@ -611,3 +611,71 @@ test('推荐过滤只移除 undefined，保留 false、零、空字符串与未�
   expect(Object.hasOwn(result, 'maxInputTokens')).toBe(false)
   expect(applyRecommendation(model, { cost: {} }).cost).toBe(model.cost)
 })
+
+test('清单条目中的 option_specs 与忙/闲时阶梯 pricing 经索引解析并正确透传到 applyRecommendation', () => {
+  const payload = {
+    models: {
+      'deepseek/deepseek-v4.1-flash-1017': row(1_000_000),
+    },
+    providers: {
+      deepseek: {
+        api: 'https://api.deepseek.com',
+        models: {
+          'deepseek-flash': {
+            canonical_model_id: 'deepseek/deepseek-v4.1-flash-1017',
+            option_specs: {
+              reasoningLevel: {
+                values: ['off', 'high', 'max'],
+                map: '{"reasoning_effort": reasoningLevel}',
+              },
+            },
+            pricing: {
+              currency: 'CNY',
+              timeZone: 'Asia/Shanghai',
+              defaultPeriod: 'idle',
+              idle: {
+                input: 1,
+                output: 4,
+                cacheRead: 0.02,
+                cacheWrite: 0,
+                tiers: [
+                  { inputTokensAbove: 200_000, input: 1.5, output: 6, cacheRead: 0.03, cacheWrite: 0 },
+                ],
+              },
+              busy: { input: 2, output: 8, cacheRead: 0.04, cacheWrite: 0 },
+              rules: [],
+              dateOverrides: [],
+            },
+          },
+        },
+      },
+    },
+  }
+  const index = new ModelRecommendationIndex(payload)
+  const resolved = index.resolve({
+    providerId: 'deepseek',
+    modelId: 'deepseek-flash',
+    modelType: 'chat',
+  })
+  expect(resolved.status).toBe('matched')
+  expect(resolved.recommended.optionSpecs?.reasoningLevel).toEqual({
+    values: ['off', 'high', 'max'],
+    map: '{"reasoning_effort": reasoningLevel}',
+  })
+  expect(resolved.recommended.pricing?.idle.tiers?.[0]?.inputTokensAbove).toBe(200_000)
+
+  const baseModel = {
+    name: 'old',
+    contextWindow: 32_000,
+    maxTokens: 8_000,
+    reasoning: false,
+    input: ['text' as const],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  }
+  const applied = applyRecommendation(baseModel, resolved.recommended) as typeof baseModel & {
+    optionSpecs?: { reasoningLevel?: { values?: readonly string[]; map?: string } }
+    pricing?: unknown
+  }
+  expect(applied.optionSpecs?.reasoningLevel?.map).toBe('{"reasoning_effort": reasoningLevel}')
+  expect(applied.pricing).toMatchObject({ currency: 'CNY', idle: { input: 1 } })
+})

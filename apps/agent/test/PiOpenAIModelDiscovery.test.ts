@@ -63,15 +63,27 @@ test('static OpenAI catalogs discover remote models, preserve metadata and cache
     list: () => [],
     get: () => Effect.succeed(null),
   } as unknown as ProviderCredentialRepository
-  const directory = new ProviderDirectoryStore(undefined, async (url) =>
-    Response.json(
-      String(url).startsWith('https://pi.dev/')
-        ? { nvidia: { known: provider().getModels()[0] } }
-        : {
-            models: { known: { name: 'Known model' } },
-            providers: { nvidia: { name: 'NVIDIA', models: {} } },
+  const directory = new ProviderDirectoryStore(undefined, async () =>
+    Response.json({
+      models: { known: { name: 'Known model' } },
+      providers: {
+        nvidia: {
+          name: 'NVIDIA',
+          marketVisible: true,
+          models: {
+            known: {
+              name: 'Known model',
+              pi_api: 'openai-completions',
+              base_url: `${server.url}v1`,
+              limit: { context: 131072, output: 65536 },
+              reasoning: true,
+              modalities: { input: ['text', 'image'], output: ['text'] },
+              cost: { input: 1, output: 2, cache_read: 0, cache_write: 0 },
+            },
           },
-    ),
+        },
+      },
+    }),
   )
   await directory.refresh()
   const runtime = () => {

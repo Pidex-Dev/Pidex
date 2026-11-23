@@ -16,8 +16,11 @@ import type { ConfigService } from '../src/config/ConfigService'
 import {
   EncryptedCredentialStore,
   PiModelService,
+  resetUnconfiguredBuiltinProvider,
+  seedBuiltinProviderCatalogModels,
   type PiModelCatalogConfig,
 } from '../src/provider/pi'
+import { withPiBuiltinProviderOverrides } from '../src/provider/pi/PiBuiltinProviderOverrides'
 
 test('catalog refresh identifies failed providers without logging upstream secrets', async () => {
   const logs: unknown[] = []
@@ -91,27 +94,26 @@ test('directory refresh downloads both upstreams without requesting provider mod
     requests.push(String(url))
     expect(init?.headers).toBeUndefined()
     if (failed) return Response.json({ invalid: true })
-    if (String(url).startsWith('https://pi.dev/'))
-      return Response.json({
-        google: {
-          example: {
-            id: 'example',
-            name: 'Example',
-            api: 'google-generative-ai',
-            baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-            contextWindow: 32768,
-            maxTokens: 8192,
-            input: ['text'],
-            reasoning: false,
-          },
-        },
-      })
     return Response.json({
       models: { example: { name: 'Example' } },
       providers: {
-        google: { name: 'Google updated', models: {} },
-        'directory-only': { name: 'New directory supplier', models: {} },
-        local: { name: 'Upstream local name', models: {} },
+        google: {
+          name: 'Google updated',
+          marketVisible: true,
+          models: {
+            example: {
+              name: 'Example',
+              pi_api: 'google-generative-ai',
+              base_url: 'https://generativelanguage.googleapis.com/v1beta',
+              limit: { context: 32768, output: 8192 },
+              modalities: { input: ['text'], output: ['text'] },
+              reasoning: false,
+            },
+          },
+        },
+        'directory-only': { name: 'New directory supplier', marketVisible: true, models: {} },
+        'hidden-extra': { name: 'Hidden Extra', marketVisible: false, models: {} },
+        local: { name: 'Upstream local name', marketVisible: true, models: {} },
       },
     })
   })
@@ -145,6 +147,7 @@ test('directory refresh downloads both upstreams without requesting provider mod
       name: 'New directory supplier',
       availability: { status: 'unavailable', reason: 'missing-api' },
     })
+    expect(providers.some((p) => p.id === 'hidden-extra')).toBe(false)
     expect(service.pi.getProviders().some((p) => p.id === 'directory-only')).toBe(false)
     expect(
       (await new ProviderDirectoryStore(path).providers()).some((p) => p.id === 'directory-only'),
@@ -154,13 +157,9 @@ test('directory refresh downloads both upstreams without requesting provider mod
     await expect(service.refreshDirectory()).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' })
     expect(await service.list()).toEqual(providers)
     expect(service.catalogRevision()).toBe(revision)
-    expect(
-      requests.every(
-        (url) =>
-          url === 'https://models.dev/catalog.json?type=all' ||
-          url === 'https://pi.dev/api/models?pi-version=0.99.2',
-      ),
-    ).toBe(true)
+    expect(requests.every((url) => url === 'https://models.codepilotx.top/v1/catalog.json')).toBe(
+      true,
+    )
   } finally {
     refresh.mockRestore()
     await service.dispose()
@@ -190,59 +189,74 @@ test('directory aliases deduplicate without hiding manual providers and compatib
     },
   })
   const baseUrl = `${server.url}v1`
-  const directory = new ProviderDirectoryStore(undefined, async (url) =>
-    Response.json(
-      String(url).startsWith('https://pi.dev/')
-        ? {
-            'vendor-a': {
-              m: {
-                id: 'm',
-                name: 'Pi m',
-                api: 'openai-completions',
-                baseUrl,
-                contextWindow: 32768,
-                maxTokens: 8192,
-                input: ['text'],
-                reasoning: false,
-              },
-            },
-          }
-        : {
-            models: { m: { name: 'm' } },
-            providers: {
-              'vendor-a': {
-                name: 'Vendor A',
-                api: baseUrl,
-                npm: '@ai-sdk/openai-compatible',
-                models: { m: {} },
-              },
-              'vendor-b': {
-                name: 'Same vendor with another name',
-                api: `${baseUrl}/`,
-                npm: '@ai-sdk/openai-compatible',
-                models: { m: {} },
-              },
-              separate: {
-                name: 'Different product',
-                api: `${baseUrl}/coding`,
-                npm: '@ai-sdk/openai-compatible',
-                models: { m: {} },
-              },
-              unknown: {
-                name: 'Choose protocol',
-                api: baseUrl,
-                npm: 'unsupported-sdk',
-                models: {},
-              },
-              manual: {
-                name: 'Upstream name',
-                api: baseUrl,
-                npm: '@ai-sdk/openai-compatible',
-                models: {},
-              },
+  const directory = new ProviderDirectoryStore(undefined, async () =>
+    Response.json({
+      models: { m: { name: 'm' } },
+      providers: {
+        'vendor-a': {
+          name: 'Vendor A',
+          api: baseUrl,
+          npm: '@ai-sdk/openai-compatible',
+          marketVisible: true,
+          models: {
+            m: {
+              name: 'Pi m',
+              pi_api: 'openai-completions',
+              base_url: baseUrl,
+              limit: { context: 32768, output: 8192 },
+              modalities: { input: ['text'], output: ['text'] },
+              reasoning: false,
             },
           },
-    ),
+        },
+        'vendor-b': {
+          name: 'Same vendor with another name',
+          api: `${baseUrl}/`,
+          npm: '@ai-sdk/openai-compatible',
+          marketVisible: true,
+          models: {
+            m: {
+              name: 'Pi m',
+              pi_api: 'openai-completions',
+              base_url: `${baseUrl}/`,
+              limit: { context: 32768, output: 8192 },
+              modalities: { input: ['text'], output: ['text'] },
+              reasoning: false,
+            },
+          },
+        },
+        separate: {
+          name: 'Different product',
+          api: `${baseUrl}/coding`,
+          npm: '@ai-sdk/openai-compatible',
+          marketVisible: true,
+          models: {
+            m: {
+              name: 'Pi m',
+              pi_api: 'openai-completions',
+              base_url: `${baseUrl}/coding`,
+              limit: { context: 32768, output: 8192 },
+              modalities: { input: ['text'], output: ['text'] },
+              reasoning: false,
+            },
+          },
+        },
+        unknown: {
+          name: 'Choose protocol',
+          api: baseUrl,
+          npm: 'unsupported-sdk',
+          marketVisible: true,
+          models: {},
+        },
+        manual: {
+          name: 'Upstream name',
+          api: baseUrl,
+          npm: '@ai-sdk/openai-compatible',
+          marketVisible: true,
+          models: {},
+        },
+      },
+    }),
   )
   const fake = repository([
     {
@@ -1250,5 +1264,334 @@ test('文档字段优先于目录，缺项继承目录，手动整份模式不�
   } finally {
     await service.dispose()
     resolve.mockRestore()
+  }
+})
+
+test('内置 Provider 无需 smartConfig 直接热更新定价/阶梯与思考映射，用户手工字段保留且新模型默认不进聊天列表', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'pidex-builtin-hot-update-'))
+  let version = 1
+  const catalogFor = (ver: number) => ({
+    models: {
+      'deepseek/deepseek-v4.1-flash-1017': {
+        name: ver === 1 ? 'DeepSeek Flash v1' : 'DeepSeek Flash v2',
+        limit: { context: 1_000_000, output: ver === 1 ? 384_000 : 512_000 },
+        reasoning: true,
+        tool_call: true,
+        modalities: { input: ['text', 'image'], output: ['text'] },
+        reasoning_options: [{ type: 'effort', values: ['low', 'high', 'max'] }],
+      },
+    },
+    providers: {
+      deepseek: {
+        name: 'DeepSeek',
+        api: 'https://api.deepseek.com',
+        npm: '@ai-sdk/openai-compatible',
+        marketVisible: true,
+        models: {
+          'deepseek-flash': {
+            canonical_model_id: 'deepseek/deepseek-v4.1-flash-1017',
+            name: ver === 1 ? 'DeepSeek Flash v1' : 'DeepSeek Flash v2',
+            pi_api: 'openai-completions',
+            base_url: 'https://api.deepseek.com',
+            limit: { context: 1_000_000, output: ver === 1 ? 384_000 : 512_000 },
+            reasoning: true,
+            tool_call: true,
+            modalities: { input: ['text', 'image'], output: ['text'] },
+            option_specs: {
+              reasoningLevel: {
+                values: ['off', 'high', 'max'],
+                map: '{"custom_effort": reasoningLevel}',
+              },
+            },
+            pricing: {
+              currency: 'CNY',
+              timeZone: 'Asia/Shanghai',
+              defaultPeriod: 'idle',
+              idle: {
+                input: ver === 1 ? 1 : 0.8,
+                output: 4,
+                cacheRead: 0.02,
+                cacheWrite: 0,
+                tiers: [{ inputTokensAbove: 200_000, input: 1.5, output: 6, cacheRead: 0.03, cacheWrite: 0 }],
+              },
+              busy: { input: 2, output: 8, cacheRead: 0.04, cacheWrite: 0 },
+              rules: [],
+              dateOverrides: [],
+            },
+          },
+          'deepseek-brand-new': {
+            name: 'DeepSeek Brand New',
+            pi_api: 'openai-completions',
+            base_url: 'https://api.deepseek.com',
+            limit: { context: 128_000, output: 16_000 },
+            reasoning: false,
+            modalities: { input: ['text'], output: ['text'] },
+          },
+        },
+      },
+    },
+  })
+  const fetcher = (async () => Response.json(catalogFor(version))) as unknown as typeof fetch
+  const dirPath = join(dir, 'provider-directory.json')
+  const recPath = join(dir, 'model-recommendations.json')
+  const directory = new ProviderDirectoryStore(dirPath, fetcher)
+  const recommendations = new ModelRecommendationStore(recPath, fetcher)
+  const fake = repository([
+    {
+      id: 'cred_deepseek',
+      integrationID: 'deepseek',
+      methodID: null,
+      label: 'DeepSeek',
+      value: { type: 'key', key: 'sk-deepseek' },
+    },
+  ])
+  const config: PiModelCatalogConfig = {
+    schemaVersion: 2,
+    providers: {
+      deepseek: {
+        kind: 'builtin',
+        enabled: true,
+        models: {
+          // Only enabled + user-overridden contextWindow; NO smartConfig!
+          'deepseek-flash': { enabled: true, context_window: 777_777 },
+        },
+      },
+      'legacy-dev-vendor': {
+        kind: 'custom',
+        directory_source: 'models-dev',
+        name: 'Legacy Vendor',
+        base_url: 'https://legacy.example/v1',
+        auth: 'none',
+        models: {
+          chat: { api: 'openai-completions', enabled: true },
+        },
+      },
+    },
+  }
+  const service = new PiModelService(fake.adapter, { directory, recommendations, config })
+  try {
+    await service.refreshDirectory()
+    const models1 = await service.models('deepseek' as never)
+    const flash1 = models1.find((m) => m.id === 'deepseek-flash')!
+    expect(flash1.name).toBe('DeepSeek Flash v1')
+    expect(flash1.limit.context).toBe(777_777)
+    expect(flash1.limit.output).toBe(384_000)
+    expect(flash1.variants.map((v) => String(v.id))).toEqual(['off', 'high', 'max'])
+    // Brand-new model from catalog is in discovery (enabled: false) and NOT auto-enabled in active models.
+    expect(models1.some((m) => m.id === 'deepseek-brand-new')).toBe(false)
+    const discovered = await service.discoverBuiltinModels('deepseek')
+    expect(discovered.find((m) => m.id === 'deepseek-brand-new')?.enabled).toBe(false)
+    expect(discovered.find((m) => m.id === 'deepseek-flash')?.pricing?.idle.tiers?.[0]?.inputTokensAbove).toBe(200_000)
+
+    const piFlash1 = (await service.getPiModel({
+      providerID: 'deepseek',
+      id: 'deepseek-flash',
+      variant: 'high',
+    } as never)) as unknown as {
+      optionSpecs: Parameters<typeof compileOptionSpecs>[0]
+      pricing?: Model.Pricing
+    }
+    expect(piFlash1.pricing?.idle.input).toBe(1)
+    expect(
+      applyModelOptionMap({}, compileOptionSpecs(piFlash1.optionSpecs)!, { reasoningLevel: 'high' }),
+    ).toEqual({ custom_effort: 'high' })
+
+    // Catalog hot-update: untouched fields (name, maxTokens, pricing) update; user contextWindow stays 777_777.
+    version = 2
+    await service.refreshDirectory()
+    const flash2 = (await service.models('deepseek' as never)).find((m) => m.id === 'deepseek-flash')!
+    expect(flash2.name).toBe('DeepSeek Flash v2')
+    expect(flash2.limit.output).toBe(512_000)
+    expect(flash2.limit.context).toBe(777_777)
+    const piFlash2 = (await service.getPiModel({
+      providerID: 'deepseek',
+      id: 'deepseek-flash',
+    } as never)) as { pricing?: Model.Pricing }
+    expect(piFlash2.pricing?.idle.input).toBe(0.8)
+
+    // Existing saved custom provider with directory_source = "models-dev" still loads cleanly.
+    expect((await service.models('legacy-dev-vendor' as never)).some((m) => m.id === 'chat')).toBe(true)
+  } finally {
+    await service.dispose()
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('curated bundled catalog limits market to DeepSeek and MiniMax while preserving saved providers and smartConfig', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'pidex-curated-market-'))
+  const dirPath = join(dir, 'provider-directory.json')
+  const recPath = join(dir, 'model-recommendations.json')
+  const directory = new ProviderDirectoryStore(dirPath, fetch, { bundledFallback: true })
+  const recommendations = new ModelRecommendationStore(recPath, fetch, { bundledFallback: true })
+  const fake = repository()
+  const config: Record<string, unknown> = {
+    schema_version: 2,
+    providers: {},
+  }
+  const service = new PiModelService(fake.adapter, { directory, recommendations, config, env: {} })
+  try {
+    const cleanMarket = (await service.list()).map((p) => String(p.id)).sort()
+    expect(cleanMarket).toEqual(['deepseek', 'minimax', 'minimax-cn'])
+    expect(service.catalogModelCount('deepseek')).toBe(2)
+    expect(service.catalogModelCount('minimax-cn')).toBe(2)
+    expect(service.catalogModelCount('minimax')).toBe(2)
+
+    // MiniMax CN overlay is enriched onto builtin models (M3.1-Flash effort + M3 >512K CNY tiers).
+    const minimaxModels = await service.discoverBuiltinModels('minimax-cn')
+    const m31Flash = minimaxModels.find((m) => m.id === 'MiniMax-M3.1-Flash')
+    expect(m31Flash?.pricing?.currency).toBe('CNY')
+    expect(m31Flash?.pricing?.idle.input).toBe(1)
+    expect(m31Flash?.optionSpecs?.reasoningLevel?.values).toEqual([
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ])
+    const m3 = minimaxModels.find((m) => m.id === 'MiniMax-M3')
+    expect(m3?.pricing?.currency).toBe('CNY')
+    expect(m3?.pricing?.idle.tiers?.[0]?.inputTokensAbove).toBe(512_000)
+
+    // Saving a credential for a hidden builtin provider keeps it visible without revealing others.
+    fake.values.set('openai', {
+      id: 'cred_openai',
+      integrationID: 'openai',
+      methodID: null,
+      label: 'default',
+      value: { type: 'key', key: 'sk-saved-legacy-openai' },
+    })
+    const withSavedOpenAI = (await service.list()).map((p) => String(p.id)).sort()
+    expect(withSavedOpenAI).toEqual(['deepseek', 'minimax', 'minimax-cn', 'openai'])
+
+    // Manually added custom provider still gets full smartConfig from hidden catalog providers/models.
+    const openaiMatch = await recommendations.resolve({
+      providerId: 'custom-provider',
+      baseUrl: 'https://api.openai.com/v1',
+      modelId: 'gpt-5',
+      modelType: 'chat',
+    })
+    expect(openaiMatch.status).toBe('matched')
+    expect(openaiMatch.recommended.contextWindow).toBeGreaterThan(0)
+
+    const claudeMatch = await recommendations.resolve({
+      providerId: 'custom-provider-2',
+      baseUrl: 'https://api.anthropic.com/v1',
+      modelId: 'claude-sonnet-4-5',
+      modelType: 'chat',
+    })
+    expect(claudeMatch.status).toBe('matched')
+    expect(claudeMatch.recommended.contextWindow).toBeGreaterThan(0)
+  } finally {
+    await service.dispose()
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('builtin catalog seeding locks model list on first credential, keeps removed models via fallback, and resets when last credential is deleted', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'pidex-builtin-seed-'))
+  const dirPath = join(dir, 'provider-directory.json')
+  const recPath = join(dir, 'model-recommendations.json')
+  const directory = new ProviderDirectoryStore(dirPath, fetch, { bundledFallback: true })
+  const recommendations = new ModelRecommendationStore(recPath, fetch, { bundledFallback: true })
+  const fake = repository()
+  const snapshot: Record<string, unknown> = {
+    model_catalog: { schema_version: 2 },
+    model_providers: {},
+  }
+  const config = {
+    snapshot: () => structuredClone(snapshot),
+    batchWrite: async ({ edits }: { edits: readonly { keyPath: readonly string[]; value: unknown }[] }) => {
+      for (const edit of edits) {
+        let cursor = snapshot
+        for (let i = 0; i < edit.keyPath.length - 1; i++) {
+          const segment = edit.keyPath[i]!
+          const next = cursor[segment]
+          if (!next || typeof next !== 'object' || Array.isArray(next)) {
+            cursor[segment] = {}
+          }
+          cursor = cursor[segment] as Record<string, unknown>
+        }
+        const leaf = edit.keyPath[edit.keyPath.length - 1]!
+        if (edit.value === null) delete cursor[leaf]
+        else cursor[leaf] = structuredClone(edit.value)
+      }
+      return { settingsVersion: 1 } as never
+    },
+  }
+  const service = new PiModelService(fake.adapter, {
+    directory,
+    recommendations,
+    config: () => ({
+      schemaVersion: 2,
+      providers: (snapshot.model_providers as Record<string, unknown>) ?? {},
+    }),
+    env: {},
+  })
+  try {
+    await service.list()
+    const seeded = await seedBuiltinProviderCatalogModels({
+      providerID: 'minimax',
+      piModels: service,
+      config,
+      hadCredentialsBefore: false,
+    })
+    expect(seeded).toBe(true)
+    const savedMinimax = (snapshot.model_providers as Record<string, Record<string, unknown>>).minimax
+    expect(savedMinimax?.allow_models).toEqual(['MiniMax-M3', 'MiniMax-M3.1-Flash'])
+    expect(savedMinimax?.models).toEqual({
+      'MiniMax-M3': { enabled: true },
+      'MiniMax-M3.1-Flash': { enabled: true },
+    })
+
+    const skippedSecondKey = await seedBuiltinProviderCatalogModels({
+      providerID: 'minimax',
+      piModels: service,
+      config,
+      hadCredentialsBefore: true,
+    })
+    expect(skippedSecondKey).toBe(false)
+
+    fake.values.set('minimax', {
+      id: 'cred_minimax',
+      integrationID: 'minimax',
+      methodID: null,
+      label: 'default',
+      value: { type: 'key', key: 'sk-minimax' },
+    })
+    await service.reload()
+    const enabledIds = (await service.models('minimax' as never)).map((m) => String(m.id)).sort()
+    expect(enabledIds).toEqual(['MiniMax-M3', 'MiniMax-M3.1-Flash'])
+
+    const source = service.pi.getProvider('minimax')!
+    const withRemoved = withPiBuiltinProviderOverrides(source, {
+      kind: 'builtin',
+      enabled: true,
+      allowModels: ['MiniMax-Legacy-Removed'],
+      denyModels: [],
+      models: { 'MiniMax-Legacy-Removed': { enabled: true } },
+    })
+    expect(withRemoved.getModels().some((m) => m.id === 'MiniMax-Legacy-Removed')).toBe(true)
+
+    const notResetWhileKeyExists = await resetUnconfiguredBuiltinProvider({
+      providerID: 'minimax',
+      piModels: service,
+      providerCredentials: { list: async () => [{ id: 'cred_minimax' } as never] },
+      config,
+    })
+    expect(notResetWhileKeyExists).toBe(false)
+
+    fake.values.delete('minimax')
+    await service.reload()
+    const reset = await resetUnconfiguredBuiltinProvider({
+      providerID: 'minimax',
+      piModels: service,
+      providerCredentials: { list: async () => [] },
+      config,
+    })
+    expect(reset).toBe(true)
+    expect((snapshot.model_providers as Record<string, unknown>).minimax).toBeUndefined()
+  } finally {
+    await service.dispose()
+    await rm(dir, { recursive: true, force: true })
   }
 })

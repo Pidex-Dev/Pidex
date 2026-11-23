@@ -287,3 +287,94 @@ test('日汇率与相邻年日历每天只更新一次，离线保留旧资料�
   expect(calls).toBe(8)
   sqlite.close()
 })
+
+test('busy/idle × long-context tiers validate, merge conservatively and compute USD tiered cost', async () => {
+  const tieredPricing: Model.Pricing = {
+    ...pricing,
+    idle: {
+      input: 1,
+      output: 4,
+      cacheRead: 0.02,
+      cacheWrite: 0,
+      tiers: [
+        { inputTokensAbove: 200_000, input: 2, output: 6, cacheRead: 0.05, cacheWrite: 0 },
+        { inputTokensAbove: 100_000, input: 1.5, output: 5, cacheRead: 0.03, cacheWrite: 0 },
+      ],
+    },
+    busy: {
+      input: 2,
+      output: 8,
+      cacheRead: 0.04,
+      cacheWrite: 0,
+      tiers: [{ inputTokensAbove: 200_000, input: 4, output: 12, cacheRead: 0.1, cacheWrite: null }],
+    },
+  }
+  const validated = validatePricing(tieredPricing)
+  expect(validated.idle.tiers?.map((t) => t.inputTokensAbove)).toEqual([100_000, 200_000])
+
+  expect(() =>
+    validatePricing({
+      ...tieredPricing,
+      idle: {
+        ...tieredPricing.idle,
+        tiers: [
+          { inputTokensAbove: 100_000, input: 1.5, output: 5, cacheRead: 0.03, cacheWrite: 0 },
+          { inputTokensAbove: 100_000, input: 2, output: 6, cacheRead: 0.05, cacheWrite: 0 },
+        ],
+      },
+    }),
+  ).toThrow('阶梯阈值不能重复')
+
+  const conservative = selectPricing(
+    validated,
+    Date.parse('2026-11-09T10:00:00+08:00'),
+    [],
+  )
+  expect(conservative.period).toBe('conservative')
+  expect(conservative.prices.tiers).toEqual([
+    { inputTokensAbove: 100_000, input: 2, output: 8, cacheRead: 0.04, cacheWrite: 0 },
+    { inputTokensAbove: 200_000, input: 4, output: 12, cacheRead: 0.1, cacheWrite: null },
+  ])
+
+  const sqlite = new Database(':memory:')
+  sqlite.exec(MODEL_PRICING_SCHEMA.join(';'))
+  const repository = new ModelPricingRepository(sqlite)
+  const now = Date.parse('2026-11-09T08:59:00+08:00')
+  repository.cache('fx:CNY:USD', { rate: 0.15, date: '2026-11-09', source: 'Frankfurter' }, now)
+  repository.cache('calendar:2026', calendar, now)
+  const pricingService = new ModelPricingService(
+    repository,
+    (async () => {
+      throw new Error('offline')
+    }) as unknown as typeof fetch,
+    () => now,
+  )
+  const model = {
+    provider: 'test',
+    id: 'tiered',
+    api: 'openai-completions',
+    pricing: validated,
+    cost: { input: 99, output: 99, cacheRead: 0, cacheWrite: 0 },
+  } as unknown as PiModel<Api> & { pricing: Model.Pricing }
+
+  const started = pricingService.begin(model)
+  expect(started.model.cost.tiers).toEqual([
+    { inputTokensAbove: 100_000, input: 1.5 * 0.15, output: 5 * 0.15, cacheRead: 0.03 * 0.15, cacheWrite: 0 },
+    { inputTokensAbove: 200_000, input: 2 * 0.15, output: 6 * 0.15, cacheRead: 0.05 * 0.15, cacheWrite: 0 },
+  ])
+  const usage = {
+    input: 250_000,
+    output: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+    totalTokens: 250_000,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+  }
+  const cost = calculateCost(started.model, usage)
+  expect(cost.total).toBeCloseTo(0.075, 6)
+  const msg = { usage } as unknown as AssistantMessage
+  started.annotate(msg)
+  expect((msg.usage as unknown as { costUnknown: boolean }).costUnknown).toBe(false)
+  await pricingService.refresh()
+  sqlite.close()
+})
