@@ -150,6 +150,7 @@ const ALLOWED_EXTERNAL_BRAND_PATTERNS = [
   /codepilotx-dev\/Pidex(?:-Plugins)?/gi,
   /['"]codepilotx-dev['"]/gi,
   /auth-staging\.codepilotx\.top/gi,
+  /models\.codepilotx\.top/gi,
   /codepilotx-auth-broker-staging/gi,
 ]
 

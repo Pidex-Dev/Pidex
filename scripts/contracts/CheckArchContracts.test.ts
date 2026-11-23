@@ -177,6 +177,7 @@ describe('ArchContractsCore banned patterns', () => {
       'apps/agent/src/Allowed.ts': [
         "export const repo = 'codepilotx-dev/Pidex'",
         "export const broker = 'https://auth-staging.codepilotx.top'",
+        "export const catalog = 'https://models.codepilotx.top/v1/catalog.json'",
         "export const cap = 'memory.v3'",
       ].join('\n'),
       'apps/desktop/electron/package.json': JSON.stringify({
