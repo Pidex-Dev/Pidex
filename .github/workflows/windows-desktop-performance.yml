@@ -2,11 +2,7 @@ name: Windows desktop performance
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
-  push:
-    branches: [main]
-  schedule:
-    - cron: '0 18 * * *'
+    types: [opened, synchronize, reopened, labeled, edited]
   workflow_dispatch:
 
 permissions:
@@ -17,7 +13,93 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  perf-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - name: Evaluate branch, title and label triggers
+        id: quick
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD_REF: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          head_ref_lower="${PR_HEAD_REF,,}"
+          case "$head_ref_lower" in
+            release/*|perf/*|codex/release*|codex/perf*)
+              echo 'run=true' >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
+          title_lower="${PR_TITLE,,}"
+          case "$title_lower" in
+            "chore(release)"*|release:*|release：*|"perf("*|perf:*|perf：*)
+              echo 'run=true' >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
+          labels_lower=",${PR_LABELS,,},"
+          if [[ "$labels_lower" == *,release,* || "$labels_lower" == *,perf,* || "$labels_lower" == *,performance,* ]]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo 'run=false' >> "$GITHUB_OUTPUT"
+
+      - name: Checkout for changed-path inspection
+        if: steps.quick.outputs.run != 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Evaluate performance path changes
+        id: decide
+        shell: bash
+        env:
+          QUICK_RUN: ${{ steps.quick.outputs.run }}
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$QUICK_RUN" == true ]]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ -z "$CI_BASE_SHA" ]]; then
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --no-tags --depth=1 origin "$CI_BASE_SHA"
+          changed="$(mktemp)"
+          trap 'rm -f "$changed"' EXIT
+          git diff --name-only -z "$CI_BASE_SHA" HEAD > "$changed"
+
+          run=false
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              scripts/performance/*|apps/desktop/renderer/performance-tests/*|apps/desktop/electron/performance-tests/*|.github/workflows/windows-desktop-performance.yml)
+                run=true
+                break
+                ;;
+            esac
+          done < "$changed"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   renderer-observation:
+    needs: perf-gate
+    if: needs.perf-gate.outputs.run == 'true'
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -47,7 +129,8 @@ jobs:
           retention-days: 30
 
   packaged-electron:
-    if: github.event_name != 'pull_request'
+    needs: perf-gate
+    if: needs.perf-gate.outputs.run == 'true'
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -80,7 +163,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: windows-desktop-performance
-          path: performance-results/electron/
+          name: windows-desktop-performance-${{ github.run_attempt }}
+          path: |
+            performance-results/electron/
+            performance-results/raw/electron/
+            apps/desktop/electron/test-results/performance/
           if-no-files-found: warn
           retention-days: 30
