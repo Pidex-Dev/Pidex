@@ -309,6 +309,7 @@ const ProviderListEntrySchema = Schema.Struct({
   authConfigured: Schema.Boolean,
   config: ProviderDefinitionSchema,
   modelCount: Schema.optional(NonNegativeIntSchema),
+  catalogModelCount: Schema.optional(NonNegativeIntSchema),
   modelSync: Schema.optional(ProviderModelSyncSummarySchema),
 })
 

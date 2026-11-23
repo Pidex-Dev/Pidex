@@ -78,11 +78,20 @@ const Price = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0))
 const PricingPrice = Schema.NullOr(
   Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER })),
 )
+export const PricingPriceTier = Schema.Struct({
+  inputTokensAbove: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  input: PricingPrice,
+  output: PricingPrice,
+  cacheRead: PricingPrice,
+  cacheWrite: PricingPrice,
+})
+export type PricingPriceTier = typeof PricingPriceTier.Type
 export const UnitPrices = Schema.Struct({
   input: PricingPrice,
   output: PricingPrice,
   cacheRead: PricingPrice,
   cacheWrite: PricingPrice,
+  tiers: Schema.optional(Schema.Array(PricingPriceTier)),
 })
 export type UnitPrices = typeof UnitPrices.Type
 export const BillingPeriod = Schema.Literals(['idle', 'busy'])

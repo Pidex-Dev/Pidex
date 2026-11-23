@@ -178,3 +178,4 @@ export const SmartConfigPinnedFields = Model.SmartConfigPinnedFields
 
 export type ModelPricing = Model.Pricing
 export type ModelUnitPrices = Model.UnitPrices
+export type ModelPricingTier = Model.PricingPriceTier
