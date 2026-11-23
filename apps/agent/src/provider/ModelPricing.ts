@@ -11,6 +11,41 @@ const dayMs = 86400000
 const weekday = (date: string) => new Date(date + 'T12:00:00Z').getUTCDay()
 const previousDate = (date: string) =>
   new Date(Date.parse(date + 'T12:00:00Z') - dayMs).toISOString().slice(0, 10)
+export const UNIT_PRICE_KEYS = ['input', 'output', 'cacheRead', 'cacheWrite'] as const
+export type UnitPriceKey = (typeof UNIT_PRICE_KEYS)[number]
+
+const normalizeTiers = (
+  tiers: readonly Model.PricingPriceTier[] | undefined,
+): Model.PricingPriceTier[] | undefined => {
+  if (!tiers?.length) return undefined
+  const seen = new Set<number>()
+  for (const tier of tiers) {
+    if (seen.has(tier.inputTokensAbove)) {
+      throw new PricingValidationError('计费阶梯阈值不能重复')
+    }
+    seen.add(tier.inputTokensAbove)
+  }
+  return [...tiers].sort((a, b) => a.inputTokensAbove - b.inputTokensAbove)
+}
+
+const conservativeScalar = (a: number | null, b: number | null): number | null =>
+  a === null || b === null ? null : Math.max(a, b)
+
+const bracketAt = (
+  prices: Model.UnitPrices,
+  threshold: number,
+): Record<UnitPriceKey, number | null> => {
+  let matched: Record<UnitPriceKey, number | null> = prices
+  let best = -1
+  for (const tier of prices.tiers ?? []) {
+    if (tier.inputTokensAbove <= threshold && tier.inputTokensAbove > best) {
+      matched = tier
+      best = tier.inputTokensAbove
+    }
+  }
+  return matched
+}
+
 export class PricingValidationError extends Error {}
 export function validatePricing(value: unknown): Model.Pricing {
   let pricing: Model.Pricing
@@ -24,6 +59,8 @@ export function validatePricing(value: unknown): Model.Pricing {
   } catch {
     throw new PricingValidationError('计费时区无效，请填写 IANA 时区')
   }
+  const idleTiers = normalizeTiers(pricing.idle.tiers)
+  const busyTiers = normalizeTiers(pricing.busy.tiers)
   const dates = new Set<string>()
   for (const override of pricing.dateOverrides) {
     if (
@@ -89,7 +126,23 @@ export function validatePricing(value: unknown): Model.Pricing {
         }
       }
   })
-  return pricing
+  return {
+    ...pricing,
+    idle: {
+      input: pricing.idle.input,
+      output: pricing.idle.output,
+      cacheRead: pricing.idle.cacheRead,
+      cacheWrite: pricing.idle.cacheWrite,
+      ...(idleTiers ? { tiers: idleTiers } : {}),
+    },
+    busy: {
+      input: pricing.busy.input,
+      output: pricing.busy.output,
+      cacheRead: pricing.busy.cacheRead,
+      cacheWrite: pricing.busy.cacheWrite,
+      ...(busyTiers ? { tiers: busyTiers } : {}),
+    },
+  }
 }
 export function selectPricing(
   pricing: Model.Pricing,
@@ -133,23 +186,38 @@ export function selectPricing(
       }
       matched.add(rule.period)
     }
-  if (uncertain)
+  if (uncertain) {
+    const thresholds = [
+      ...new Set([
+        ...(pricing.idle.tiers ?? []).map((tier) => tier.inputTokensAbove),
+        ...(pricing.busy.tiers ?? []).map((tier) => tier.inputTokensAbove),
+      ]),
+    ].sort((a, b) => a - b)
+    const tiers = thresholds.length
+      ? thresholds.map((threshold) => {
+          const idleBracket = bracketAt(pricing.idle, threshold)
+          const busyBracket = bracketAt(pricing.busy, threshold)
+          return {
+            inputTokensAbove: threshold,
+            input: conservativeScalar(idleBracket.input, busyBracket.input),
+            output: conservativeScalar(idleBracket.output, busyBracket.output),
+            cacheRead: conservativeScalar(idleBracket.cacheRead, busyBracket.cacheRead),
+            cacheWrite: conservativeScalar(idleBracket.cacheWrite, busyBracket.cacheWrite),
+          }
+        })
+      : undefined
     return {
       period: 'conservative' as const,
-      prices: Object.fromEntries(
-        Object.keys(pricing.idle).map((key) => [
-          key,
-          pricing.idle[key as keyof Model.UnitPrices] === null ||
-          pricing.busy[key as keyof Model.UnitPrices] === null
-            ? null
-            : Math.max(
-                pricing.idle[key as keyof Model.UnitPrices]!,
-                pricing.busy[key as keyof Model.UnitPrices]!,
-              ),
-        ]),
-      ) as Model.UnitPrices,
+      prices: {
+        input: conservativeScalar(pricing.idle.input, pricing.busy.input),
+        output: conservativeScalar(pricing.idle.output, pricing.busy.output),
+        cacheRead: conservativeScalar(pricing.idle.cacheRead, pricing.busy.cacheRead),
+        cacheWrite: conservativeScalar(pricing.idle.cacheWrite, pricing.busy.cacheWrite),
+        ...(tiers ? { tiers } : {}),
+      } satisfies Model.UnitPrices,
       reason: 'calendar-unavailable',
     }
+  }
   const period = matched.values().next().value ?? pricing.defaultPeriod
   return { period, prices: pricing[period], reason: matched.size ? 'time-rule' : 'default' }
 }

@@ -4,6 +4,8 @@ import { Provider } from '@pidex/model-schema'
 import {
   PiProviderConfigValidationError,
   PiModelServiceError,
+  resetUnconfiguredBuiltinProvider,
+  seedBuiltinProviderCatalogModels,
   serializePiProviderDefinition,
 } from '../../../provider/pi'
 import type { PiProviderDefinitionInput } from '../../../provider/pi'
@@ -171,8 +173,13 @@ export const providerHandlers = {
                 configured?.kind === 'custom'
                   ? await piModels.modelSyncSummary(String(provider.id))
                   : undefined
+              const catalogModelCount =
+                typeof piModels.catalogModelCount === 'function'
+                  ? piModels.catalogModelCount(String(provider.id))
+                  : undefined
               return {
                 ...provider,
+                ...(catalogModelCount !== undefined ? { catalogModelCount } : {}),
                 authConfigured:
                   provider.disabled !== true &&
                   (await piModels.isAuthConfigured(String(provider.id))),
@@ -609,7 +616,16 @@ export const providerHandlers = {
         )
         const credentials = await providerCredentials.delete(credentialID)
         await providers.reload()
-        if (before) await emitCredentialUpdated(runtime, String(before.providerId))
+        if (before) {
+          const reset = await resetUnconfiguredBuiltinProvider({
+            providerID: String(before.providerId),
+            piModels,
+            providerCredentials,
+            config,
+          })
+          if (reset) await providers.reload()
+          await emitCredentialUpdated(runtime, String(before.providerId))
+        }
         await runtime.publishCatalogUpdated()
         return { credentials }
       }
@@ -634,10 +650,17 @@ export const providerHandlers = {
       case 'provider/apiKey/create': {
         const providerID = stringParam(params, 'providerId')
         await assertCredentialProviderAvailable(providers, providerID)
+        const hadCredentialsBefore = (await providerCredentials.list(providerID)).length > 0
         const credential = await apiKeys.create({
           providerID,
           label: stringParam(params, 'label'),
           key: stringParam(params, 'key'),
+        })
+        await seedBuiltinProviderCatalogModels({
+          providerID,
+          piModels,
+          config,
+          hadCredentialsBefore,
         })
         await providers.reload()
         await emitCredentialUpdated(runtime, providerID)

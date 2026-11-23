@@ -2,29 +2,39 @@ import { omitUndefined } from '@pidex/shared/guards'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import bundledCatalog from './data/bundled-model-catalog.json'
 import { ModelRecommendationIndex, type RecommendationInput } from './ModelRecommendations'
 
 /**
- * models.dev 目录在 Pidex 内只保留一份共享缓存。
+ * 自维护模型清单在 Pidex 内只保留一份共享缓存。
  *
- * 旧实现把同一份原始 models.dev 目录分别写进 `provider-directory.json`
- * （与 Pi 目录混在一起）和 `model-recommendations.json`，体积约 13 MiB。
- * 现在：
- *  - 公共模型事实（`models`）只存一次；
- *  - 供应商层只存相对公共事实的差异（`diff` + `inherited` 键名），
- *    因此下游 `values()` 投影仍能拿到“原本显式存在”的字段，行为不变；
- *  - 目录与推荐共享同一个内存索引/文件（同路径单例）。
- *
- * 旧文件只读兼容：新格式文件不存在时才读取旧两份缓存，校验 owner/formatVersion
- * 后在内存转换并原子写入新格式；旧文件本身绝不删除或覆盖。
+ * - 默认在线源：`https://models.codepilotx.top/v1/catalog.json`（支持 `PIDEX_MODEL_CATALOG_URL` 覆盖）；
+ * - 支持 `ETag` / `If-None-Match`（304）条件拉取；
+ * - 目录（`ProviderDirectoryStore`）与推荐（`ModelRecommendationStore`）共用同一个内存索引与文件；
+ * - 当启用 `bundledFallback` 且本地尚无缓存文件时，自动加载随包内置快照兜底；
+ * - 旧文件只读兼容：新格式文件不存在时才读取旧两份缓存，绝不删除或覆盖旧文件。
  */
 
-const CATALOG_URL = 'https://models.dev/catalog.json?type=all'
+export const DEFAULT_CATALOG_URL = 'https://models.codepilotx.top/v1/catalog.json'
 const SHARED_FILE = 'shared-model-catalog.json'
 const LEGACY_DIRECTORY_FILE = 'provider-directory.json'
 const LEGACY_RECOMMENDATION_FILE = 'model-recommendations.json'
 const OWNER = 'pidex-model-catalog'
 const FORMAT_VERSION = 1
+
+export const resolveCatalogUrl = (): string => {
+  const override = process.env.PIDEX_MODEL_CATALOG_URL?.trim()
+  if (!override) return DEFAULT_CATALOG_URL
+  try {
+    const parsed = new URL(override)
+    if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) {
+      return parsed.href
+    }
+  } catch {
+    // 忽略无效覆盖，回退默认托管地址。
+  }
+  return DEFAULT_CATALOG_URL
+}
 
 export type CatalogFacts = Record<string, unknown>
 
@@ -42,6 +52,7 @@ type ProviderEntry = {
   readonly api?: string
   readonly env?: string[]
   readonly npm?: string
+  readonly marketVisible?: boolean
   readonly models: Record<string, ProviderDelta>
 }
 
@@ -56,6 +67,7 @@ export type RawProvider = {
   readonly api?: string
   readonly env?: string[]
   readonly npm?: string
+  readonly marketVisible?: boolean
   readonly models: Record<string, CatalogFacts>
 }
 
@@ -68,9 +80,17 @@ type Document = StorageCatalog & {
   readonly owner: typeof OWNER
   readonly formatVersion: typeof FORMAT_VERSION
   readonly updatedAt: number
+  readonly etag?: string
+  readonly checkedAt?: number
 }
 
-export type PreparedCatalog = { readonly document: Document; readonly catalog: RawCatalog }
+export type PreparedCatalog =
+  | { readonly notModified: true; readonly etag?: string }
+  | { readonly notModified: false; readonly document: Document; readonly catalog: RawCatalog }
+
+export interface SharedCatalogCacheOptions {
+  readonly bundledFallback?: boolean
+}
 
 const asObject = (value: unknown): Record<string, unknown> | undefined =>
   value && typeof value === 'object' && !Array.isArray(value)
@@ -97,6 +117,7 @@ const COST_KEYS = [
 const trimFacts = (raw: Record<string, unknown>): CatalogFacts => {
   const facts: CatalogFacts = {}
   for (const key of [
+    'id',
     'description',
     'family',
     'knowledge',
@@ -113,6 +134,11 @@ const trimFacts = (raw: Record<string, unknown>): CatalogFacts => {
     'structured_output',
     'interleaved',
     'provider',
+    'pricing',
+    'pi_api',
+    'base_url',
+    'compat',
+    'thinking_level_map',
   ]) {
     if (raw[key] !== undefined) facts[key] = raw[key]
   }
@@ -153,7 +179,6 @@ const trimFacts = (raw: Record<string, unknown>): CatalogFacts => {
     for (const key of COST_KEYS) if (cost[key] !== undefined) trimmed[key] = cost[key]
     if (Object.keys(trimmed).length) facts.cost = trimmed
   }
-  // 预留：后续 optionSpecs 的 values/map 直接透传，不进差异比较。
   if (raw.option_specs !== undefined) facts.option_specs = raw.option_specs
   if (raw.optionSpecs !== undefined) facts.optionSpecs = raw.optionSpecs
   return facts
@@ -165,23 +190,23 @@ const normalizeCatalog = (payload: unknown): StorageCatalog => {
   const catalog = asObject(payload)
   const rawModels = catalog ? asObject(catalog.models) : undefined
   const rawProviders = catalog ? asObject(catalog.providers) : undefined
-  if (!catalog || !rawModels || !rawProviders) throw new Error('Invalid models.dev catalog')
+  if (!catalog || !rawModels || !rawProviders) throw new Error('Invalid model catalog')
   const models: Record<string, CatalogFacts> = {}
   for (const [id, input] of Object.entries(rawModels)) {
     const raw = asObject(input)
-    if (!raw) throw new Error('Invalid models.dev catalog')
+    if (!raw) throw new Error('Invalid model catalog')
     models[id] = trimFacts(raw)
   }
   const providers: Record<string, ProviderEntry> = {}
   for (const [id, input] of Object.entries(rawProviders)) {
     const raw = asObject(input)
-    if (!raw) throw new Error('Invalid models.dev catalog')
+    if (!raw) throw new Error('Invalid model catalog')
     const modelsOut: Record<string, ProviderDelta> = {}
     const rawModelsForProvider = asObject(raw.models)
     if (rawModelsForProvider) {
       for (const [modelId, modelInput] of Object.entries(rawModelsForProvider)) {
         const model = asObject(modelInput)
-        if (!model) throw new Error('Invalid models.dev catalog')
+        if (!model) throw new Error('Invalid model catalog')
         const full = trimFacts(model)
         const ref =
           typeof model.canonical_model_id === 'string' &&
@@ -223,6 +248,7 @@ const normalizeCatalog = (payload: unknown): StorageCatalog => {
           }
         : {}),
       ...(typeof raw.npm === 'string' ? { npm: raw.npm } : {}),
+      ...(typeof raw.marketVisible === 'boolean' ? { marketVisible: raw.marketVisible } : {}),
       models: modelsOut,
     }
   }
@@ -244,7 +270,13 @@ const toRawCatalog = (document: StorageCatalog): RawCatalog => {
     for (const [modelId, delta] of Object.entries(entry.models))
       models[modelId] = reconstruct(delta, document.models)
     providers[id] = {
-      ...omitUndefined({ name: entry.name, api: entry.api, env: entry.env, npm: entry.npm }),
+      ...omitUndefined({
+        name: entry.name,
+        api: entry.api,
+        env: entry.env,
+        npm: entry.npm,
+        marketVisible: entry.marketVisible,
+      }),
       models,
     }
   }
@@ -262,13 +294,7 @@ const readJsonIfPresent = async (path: string): Promise<unknown | undefined> => 
   return JSON.parse(text)
 }
 
-/** 下载并解析 models.dev catalog；失败会抛错，调用方据此保留旧缓存。 */
-export const downloadCatalogJson = async (
-  request: (input: string | URL | Request, init?: RequestInit) => Promise<Response>,
-  url: string,
-): Promise<unknown> => {
-  const response = await request(url, { signal: AbortSignal.timeout(30_000), redirect: 'error' })
-  if (!response.ok) throw new Error('Catalog download failed')
+const readResponseJson = async (response: Response): Promise<unknown> => {
   const reader = response.body?.getReader()
   if (!reader) throw new Error('Empty catalog response')
   const chunks: Uint8Array[] = []
@@ -287,6 +313,44 @@ export const downloadCatalogJson = async (
   return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
+/** 下载并解析模型清单；失败会抛错，调用方据此保留旧缓存。 */
+export const downloadCatalogJson = async (
+  request: (input: string | URL | Request, init?: RequestInit) => Promise<Response>,
+  url: string,
+): Promise<unknown> => {
+  const response = await request(url, { signal: AbortSignal.timeout(30_000), redirect: 'error' })
+  if (!response.ok) throw new Error('Catalog download failed')
+  return readResponseJson(response)
+}
+
+const fetchCatalogWithEtag = async (
+  request: (input: string | URL | Request, init?: RequestInit) => Promise<Response>,
+  url: string,
+  etag?: string,
+): Promise<
+  | { readonly notModified: true; readonly etag?: string }
+  | { readonly notModified: false; readonly payload: unknown; readonly etag?: string }
+> => {
+  const init: RequestInit = {
+    signal: AbortSignal.timeout(30_000),
+    redirect: 'error',
+    ...(etag ? { headers: { 'If-None-Match': etag } } : {}),
+  }
+  const response = await request(url, init)
+  const nextEtag = response.headers.get('etag')?.trim() || undefined
+  if (response.status === 304) {
+    const resolvedEtag = nextEtag ?? etag
+    return resolvedEtag ? { notModified: true, etag: resolvedEtag } : { notModified: true }
+  }
+  if (!response.ok) throw new Error('Catalog download failed')
+  const payload = await readResponseJson(response)
+  return {
+    notModified: false,
+    payload,
+    ...(nextEtag ? { etag: nextEtag } : {}),
+  }
+}
+
 const sharedPathFor = (path: string): string => {
   const base = isAbsolute(path) ? path : resolve(path)
   return join(dirname(base), SHARED_FILE)
@@ -299,17 +363,24 @@ const instances = new Map<string, SharedModelCatalogCache>()
  * ModelRecommendationStore 因此共用同一个内存索引与串行写入队列。
  */
 export class SharedModelCatalogCache {
-  static forPath(path: string | undefined): SharedModelCatalogCache {
-    if (!path) return new SharedModelCatalogCache(undefined)
+  static forPath(
+    path: string | undefined,
+    options: SharedCatalogCacheOptions = {},
+  ): SharedModelCatalogCache {
+    if (!path) return new SharedModelCatalogCache(undefined, options.bundledFallback === true)
     const shared = sharedPathFor(path)
     const existing = instances.get(shared)
-    if (existing) return existing
-    const created = new SharedModelCatalogCache(shared)
+    if (existing) {
+      if (options.bundledFallback) existing.enableBundledFallback()
+      return existing
+    }
+    const created = new SharedModelCatalogCache(shared, options.bundledFallback === true)
     instances.set(shared, created)
     return created
   }
 
   private document: Document | undefined
+  private isBundledDocument = false
   private rawCache: RawCatalog | undefined
   private indexCache: { index: ModelRecommendationIndex; document: Document } | undefined
   private loaded = false
@@ -317,7 +388,18 @@ export class SharedModelCatalogCache {
   private operation: Promise<unknown> = Promise.resolve()
   private inFlight: Promise<{ updatedAt: number }> | undefined
 
-  private constructor(private readonly path: string | undefined) {}
+  private constructor(
+    private readonly path: string | undefined,
+    private bundledFallback: boolean,
+  ) {}
+
+  private enableBundledFallback(): void {
+    if (this.bundledFallback) return
+    this.bundledFallback = true
+    if (this.loaded && !this.document) {
+      this.loaded = false
+    }
+  }
 
   /** 当前缓存版本；未加载到任何目录时返回 undefined（与旧 updatedAt 语义一致）。 */
   async version(): Promise<number | undefined> {
@@ -352,31 +434,53 @@ export class SharedModelCatalogCache {
     return { ...result, ...(updatedAt !== undefined ? { updatedAt } : {}) }
   }
 
-  /** 下载 + 归一化，但不写盘；供目录刷新在双源都成功后再提交。 */
+  /** 下载 + 归一化，但不写盘；支持 304 Not Modified。 */
   async prepare(
     request: (input: string | URL | Request, init?: RequestInit) => Promise<Response> = fetch,
   ): Promise<PreparedCatalog> {
-    const raw = await downloadCatalogJson(request, CATALOG_URL)
-    const normalized = normalizeCatalog(raw)
+    const url = resolveCatalogUrl()
+    const fetched = await fetchCatalogWithEtag(
+      request,
+      url,
+      this.isBundledDocument ? undefined : this.document?.etag,
+    )
+    if (fetched.notModified) {
+      return { notModified: true, ...(fetched.etag ? { etag: fetched.etag } : {}) }
+    }
+    const normalized = normalizeCatalog(fetched.payload)
+    const now = Date.now()
     const document: Document = {
       owner: OWNER,
       formatVersion: FORMAT_VERSION,
-      updatedAt: Date.now(),
+      updatedAt: now,
+      checkedAt: now,
+      ...(fetched.etag ? { etag: fetched.etag } : {}),
       ...normalized,
     }
-    return { document, catalog: toRawCatalog(document) }
+    return { notModified: false, document, catalog: toRawCatalog(document) }
   }
 
   /** 原子替换共享缓存。 */
   async commit(prepared: PreparedCatalog): Promise<{ updatedAt: number }> {
+    if (prepared.notModified) {
+      if (!this.document) throw new Error('Catalog 304 received without cached catalog')
+      this.document = {
+        ...this.document,
+        checkedAt: Date.now(),
+        ...(prepared.etag ? { etag: prepared.etag } : {}),
+      }
+      this.isBundledDocument = false
+      return { updatedAt: this.document.updatedAt }
+    }
     await this.write(prepared.document)
     this.document = prepared.document
+    this.isBundledDocument = false
     this.rawCache = undefined
     this.indexCache = undefined
     return { updatedAt: prepared.document.updatedAt }
   }
 
-  /** 独立刷新 models.dev（推荐定时刷新入口）。 */
+  /** 独立刷新在线模型清单（推荐定时刷新与手动刷新共用入口）。 */
   refresh(
     request: (input: string | URL | Request, init?: RequestInit) => Promise<Response> = fetch,
   ): Promise<{ updatedAt: number }> {
@@ -403,40 +507,59 @@ export class SharedModelCatalogCache {
   private ensureLoaded(force = false): Promise<void> {
     if (this.loaded && !force) return Promise.resolve()
     if (!this.loading) {
-      this.loading = this.load(force).finally(() => {
+      this.loading = this.load().finally(() => {
         this.loading = undefined
       })
     }
     return this.loading
   }
 
-  private async load(force: boolean): Promise<void> {
-    if (!this.path) {
-      this.loaded = true
-      return
-    }
-    const shared = await this.readShared(this.path)
-    if (shared) {
-      this.apply(shared)
-      this.loaded = true
-      return
-    }
-    const migrated = await this.migrateLegacy()
-    if (migrated) {
-      this.apply(migrated)
-      try {
-        await this.write(migrated)
-      } catch {
-        // 迁移写盘失败不影响本进程可用；下次启动会重试迁移。
+  private async load(): Promise<void> {
+    if (this.path) {
+      const shared = await this.readShared(this.path)
+      if (shared) {
+        this.apply(shared, false)
+        this.loaded = true
+        return
       }
-    } else {
-      this.apply(undefined)
+      const migrated = await this.migrateLegacy()
+      if (migrated) {
+        this.apply(migrated, false)
+        try {
+          await this.write(migrated)
+        } catch {
+          // 迁移写盘失败不影响本进程可用；下次启动会重试迁移。
+        }
+        this.loaded = true
+        return
+      }
     }
+    if (this.bundledFallback) {
+      const normalized = normalizeCatalog(bundledCatalog)
+      const parsedTimestamp = Date.parse(
+        typeof (bundledCatalog as { generatedAt?: unknown }).generatedAt === 'string'
+          ? (bundledCatalog as { generatedAt: string }).generatedAt
+          : '',
+      )
+      this.apply(
+        {
+          owner: OWNER,
+          formatVersion: FORMAT_VERSION,
+          updatedAt: Number.isFinite(parsedTimestamp) && parsedTimestamp > 0 ? parsedTimestamp : 0,
+          ...normalized,
+        },
+        true,
+      )
+      this.loaded = true
+      return
+    }
+    this.apply(undefined, false)
     this.loaded = true
   }
 
-  private apply(document: Document | undefined): void {
+  private apply(document: Document | undefined, bundled: boolean): void {
     this.document = document
+    this.isBundledDocument = bundled
     this.rawCache = undefined
     this.indexCache = undefined
   }
@@ -451,6 +574,9 @@ export class SharedModelCatalogCache {
       document.formatVersion !== FORMAT_VERSION ||
       typeof document.updatedAt !== 'number' ||
       !Number.isFinite(document.updatedAt) ||
+      (document.etag !== undefined && typeof document.etag !== 'string') ||
+      (document.checkedAt !== undefined &&
+        (typeof document.checkedAt !== 'number' || !Number.isFinite(document.checkedAt))) ||
       !asObject(document.models) ||
       !asObject(document.providers)
     )

@@ -1,6 +1,7 @@
 import { omitUndefined } from '@pidex/shared/guards'
 import { Schema } from 'effect'
 import { Model } from '@pidex/model-schema'
+import { validatePricing } from '../ModelPricing'
 
 type JsonObject = Record<string, unknown>
 const object = (value: unknown): JsonObject => {
@@ -214,6 +215,44 @@ function values(raw: JsonObject): Model.Recommendation {
       outputAudioCost: cost?.output_audio,
     }),
   )
+  let explicitOptionSpecs: Model.OptionSpecs | undefined
+  const rawOptionSpecs = raw.option_specs ?? raw.optionSpecs
+  if (rawOptionSpecs !== undefined) {
+    try {
+      explicitOptionSpecs = Schema.decodeUnknownSync(Model.OptionSpecs)(rawOptionSpecs)
+    } catch {
+      explicitOptionSpecs = undefined
+    }
+  }
+  let pricing: Model.Pricing | undefined
+  if (raw.pricing !== undefined) {
+    try {
+      pricing = validatePricing(raw.pricing)
+    } catch {
+      pricing = undefined
+    }
+  }
+  const mergedReasoningValues =
+    explicitOptionSpecs?.reasoningLevel?.values ??
+    (explicitEfforts.length ? explicitEfforts : toggle ? ['disabled', 'enabled'] : undefined)
+  const mergedReasoningLevel =
+    mergedReasoningValues || explicitOptionSpecs?.reasoningLevel?.map
+      ? {
+          ...(mergedReasoningValues ? { values: mergedReasoningValues } : {}),
+          ...(explicitOptionSpecs?.reasoningLevel?.map
+            ? { map: explicitOptionSpecs.reasoningLevel.map }
+            : {}),
+        }
+      : undefined
+  const mergedOptionSpecs =
+    mergedReasoningLevel || explicitOptionSpecs?.maxOutputTokens
+      ? {
+          ...(mergedReasoningLevel ? { reasoningLevel: mergedReasoningLevel } : {}),
+          ...(explicitOptionSpecs?.maxOutputTokens
+            ? { maxOutputTokens: explicitOptionSpecs.maxOutputTokens }
+            : {}),
+        }
+      : undefined
   const rawTiers = Array.isArray(cost?.tiers)
     ? cost.tiers
     : cost?.context_over_200k
@@ -230,6 +269,7 @@ function values(raw: JsonObject): Model.Recommendation {
     }
   })
   return Schema.decodeUnknownSync(Model.Recommendation)({
+    ...(pricing ? { pricing } : {}),
     ...(Object.values(catalog).some((value) => value !== undefined) ? { catalog } : {}),
     ...(typeof raw.name === 'string' && raw.name ? { name: raw.name } : {}),
     ...(positive(limit.context) ? { contextWindow: limit.context } : {}),
@@ -238,15 +278,7 @@ function values(raw: JsonObject): Model.Recommendation {
     ...(typeof raw.reasoning === 'boolean' ? { reasoning: raw.reasoning } : {}),
     ...(typeof raw.tool_call === 'boolean' ? { tools: raw.tool_call } : {}),
     ...(supportedInput.length ? { input: supportedInput } : {}),
-    ...(explicitEfforts.length || toggle
-      ? {
-          optionSpecs: {
-            reasoningLevel: {
-              values: explicitEfforts.length ? explicitEfforts : ['disabled', 'enabled'],
-            },
-          },
-        }
-      : {}),
+    ...(mergedOptionSpecs ? { optionSpecs: mergedOptionSpecs } : {}),
     ...(efforts.length
       ? {
           reasoningLevels: levels.filter(
@@ -330,7 +362,7 @@ export class ModelRecommendationIndex {
     const suffixless = withoutLevelSuffix(trimmed).toLowerCase()
     const attempts = suffixless !== plain ? [plain, suffixless] : [plain]
     for (const value of attempts) {
-      const located = this.locate(value, official, supplied)
+      const located = this.locate(value, official, supplied, input)
       if (located) return this.compose(located, input, official, supplied)
     }
     return { status: 'unmatched', recommended: {} }
@@ -340,6 +372,7 @@ export class ModelRecommendationIndex {
     value: string,
     official: readonly Entry[],
     supplied: readonly Entry[],
+    input: RecommendationInput,
   ): { official: readonly Entry[] } | { official: readonly Entry[]; provider: Entry } | undefined {
     // 1. 完整官方 ID 或官方目录显式别名优先。
     const exact = official.filter(
@@ -364,7 +397,32 @@ export class ModelRecommendationIndex {
       return undefined
     }
     const bareMatch = this.matchBare(value, official)
-    return bareMatch.length ? { official: bareMatch } : undefined
+    if (bareMatch.length) return { official: bareMatch }
+    // INVARIANT: 官方裸名未命中后才按调用方明确的供应商 ID/端点精确查找，防止第三方条目否决官方条目。
+    if (input.providerId) {
+      const pid = input.providerId.toLowerCase()
+      const byProvider = supplied.find(
+        (entry) =>
+          entry.provider!.toLowerCase() === pid &&
+          (entry.id.toLowerCase() === value ||
+            entry.aliases.some((alias) => alias.toLowerCase() === value)),
+      )
+      if (byProvider) return { official: [], provider: byProvider }
+    }
+    const endpoint = normalizeEndpoint(input.baseUrl)
+    if (endpoint) {
+      const byEndpoint = supplied.filter(
+        (entry) =>
+          normalizeEndpoint(entry.endpoint) === endpoint &&
+          (entry.id.toLowerCase() === value ||
+            entry.aliases.some((alias) => alias.toLowerCase() === value)),
+      )
+      const canonicals = new Set(byEndpoint.map((entry) => entry.canonical.toLowerCase()))
+      if (byEndpoint.length > 0 && canonicals.size === 1) {
+        return { official: [], provider: byEndpoint[0]! }
+      }
+    }
+    return undefined
   }
 
   private matchBare(name: string, official: readonly Entry[]): readonly Entry[] {
@@ -412,19 +470,22 @@ export class ModelRecommendationIndex {
     if (!family) return { status: 'unmatched', recommended: {} }
     const identity = family.identity
     const key = identity.toLowerCase()
+    const bareIdentity = bare(identity)
+    // INVARIANT: 供应商条目缺省 canonical_model_id 时按裸名对齐官方身份，显式声明不同 canonical_model_id 时仍严格拒绝。
+    const matchesIdentity = (entry: Entry) =>
+      entry.canonical.toLowerCase() === key ||
+      (!entry.canonical.includes('/') && bare(entry.id) === bareIdentity)
     const endpoint = normalizeEndpoint(input.baseUrl)
     const specific =
       supplied.find(
         (entry) =>
-          entry.canonical.toLowerCase() === key &&
+          matchesIdentity(entry) &&
           !!input.providerId &&
           entry.provider!.toLowerCase() === input.providerId.toLowerCase(),
       ) ??
       (endpoint
         ? supplied.filter(
-            (entry) =>
-              entry.canonical.toLowerCase() === key &&
-              normalizeEndpoint(entry.endpoint) === endpoint,
+            (entry) => matchesIdentity(entry) && normalizeEndpoint(entry.endpoint) === endpoint,
           )
         : [])[0]
     if (specific) {
@@ -461,12 +522,14 @@ export class ModelRecommendationIndex {
         entry.provider?.toLowerCase() === owner &&
         entry.canonical.toLowerCase() === identity.toLowerCase() &&
         bare(entry.id) === bare(identity) &&
-        entry.values.cost !== undefined,
+        (entry.values.cost !== undefined || entry.values.pricing !== undefined),
     )
-    const price = providerEntry?.values.cost ? providerEntry : reference
+    const price =
+      providerEntry?.values.cost || providerEntry?.values.pricing ? providerEntry : reference
     const recommended = {
       ...match.recommended,
-      ...(price ? { cost: price.values.cost } : {}),
+      ...(price?.values.cost ? { cost: price.values.cost } : {}),
+      ...(price?.values.pricing ? { pricing: price.values.pricing } : {}),
     }
     const priceSource = price
       ? {

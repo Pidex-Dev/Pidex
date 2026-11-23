@@ -7,10 +7,23 @@ export function withPiBuiltinProviderOverrides(
   source: Provider<Api>,
   config: PiBuiltinProviderConfig,
 ): Provider<Api> {
+  const configuredExtraIds = [
+    ...new Set([
+      ...Object.entries(config.models)
+        .filter(([, override]) => override.enabled !== false)
+        .map(([id]) => id),
+      ...config.allowModels.filter(
+        (id) => !config.denyModels.includes(id) && config.models[id]?.enabled !== false,
+      ),
+    ]),
+  ]
+  const knownIds = new Set(source.getModels().map((model) => model.id))
+  const hasMissingConfiguredModels = configuredExtraIds.some((id) => !knownIds.has(id))
   if (
     !config.baseUrl &&
     !config.endpoints &&
     !config.protocol &&
+    !hasMissingConfiguredModels &&
     Object.values(config.models).every((model) =>
       Object.keys(model).every((key) => key === 'enabled'),
     )
@@ -55,25 +68,26 @@ export function withPiBuiltinProviderOverrides(
       input: ['text'],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     }
-    for (const [id, { enabled: _, ...override }] of Object.entries(config.models)) {
-      if (!known.has(id) && Object.keys(override).length > 0) {
-        const model = {
-          ...template,
-          ...override,
-          ...(override.input ? { inputExplicit: true } : {}),
-          ...(config.protocol ? { api: config.protocol as Api } : {}),
-          input: [...(override.input ?? template.input)] as Model<Api>['input'],
-          cost: { ...template.cost, ...override.cost },
-          id,
-          name: override.name ?? id,
-          ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
-        }
-        if (model.api !== template.api && !(override.api === model.api && override.compat))
-          delete model.compat
-        const endpoint = config.endpoints?.[model.api as keyof NonNullable<typeof config.endpoints>]
-        if (endpoint) model.baseUrl = endpoint
-        models.push(model)
+    // INVARIANT: 已配置模型即使从上游目录或 Pi 下架，也按供应商协议模板兜底保留，不凭空消失。
+    for (const id of configuredExtraIds) {
+      if (known.has(id)) continue
+      const { enabled: _, ...override } = config.models[id] ?? { enabled: true }
+      const model = {
+        ...template,
+        ...override,
+        ...(override.input ? { inputExplicit: true } : {}),
+        ...(config.protocol ? { api: config.protocol as Api } : {}),
+        input: [...(override.input ?? template.input)] as Model<Api>['input'],
+        cost: { ...template.cost, ...override.cost },
+        id,
+        name: override.name ?? id,
+        ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
       }
+      if (model.api !== template.api && !(override.api === model.api && override.compat))
+        delete model.compat
+      const endpoint = config.endpoints?.[model.api as keyof NonNullable<typeof config.endpoints>]
+      if (endpoint) model.baseUrl = endpoint
+      models.push(model)
     }
     return models
   }

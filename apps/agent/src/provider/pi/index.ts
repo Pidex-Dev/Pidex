@@ -1,3 +1,7 @@
+export {
+  resetUnconfiguredBuiltinProvider,
+  seedBuiltinProviderCatalogModels,
+} from './BuiltinProviderCatalogSync'
 export { EncryptedCredentialStore } from './EncryptedCredentialStore'
 export type { EncryptedCredentialStoreOptions } from './EncryptedCredentialStore'
 export { ModelRecommendationStore } from './ModelRecommendationStore'

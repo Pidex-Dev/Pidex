@@ -2,7 +2,7 @@ import type { Api, Model as PiModel, AssistantMessage } from '@earendil-works/pi
 import type { Model } from '@pidex/model-schema'
 import { createHash } from 'node:crypto'
 import { ModelPricingRepository } from '../storage/repositories/ModelPricingRepository'
-import { selectPricing, type CalendarYear } from './ModelPricing'
+import { selectPricing, UNIT_PRICE_KEYS, type CalendarYear } from './ModelPricing'
 
 type Fx = { rate: number; date: string; source: string }
 export class ModelPricingService {
@@ -112,18 +112,30 @@ export class ModelPricingService {
     const selected = model.pricing
       ? selectPricing(model.pricing, at, calendars)
       : { period: 'fixed', prices: model.cost, reason: 'fixed' }
-    const originalPrices = structuredClone(selected.prices)
+    const originalPrices = structuredClone(selected.prices) as Model.UnitPrices
     const fx =
       model.pricing?.currency === 'CNY'
         ? (this.repository.read('fx:CNY:USD')?.payload as Fx | null | undefined)
         : { rate: 1, date: new Date(at).toISOString().slice(0, 10), source: 'USD' }
-    const usd = Object.fromEntries(
-      ['input', 'output', 'cacheRead', 'cacheWrite'].map((key) => [
-        key,
-        fx ? (originalPrices[key as keyof Model.UnitPrices] ?? 0) * fx.rate : 0,
-      ]),
-    ) as Record<keyof Model.UnitPrices, number>
+    const convertBracket = (bracket: Record<(typeof UNIT_PRICE_KEYS)[number], number | null>) => ({
+      input: fx ? (bracket.input ?? 0) * fx.rate : 0,
+      output: fx ? (bracket.output ?? 0) * fx.rate : 0,
+      cacheRead: fx ? (bracket.cacheRead ?? 0) * fx.rate : 0,
+      cacheWrite: fx ? (bracket.cacheWrite ?? 0) * fx.rate : 0,
+    })
+    const usdTiers = originalPrices.tiers?.length
+      ? originalPrices.tiers.map((tier) => ({
+          inputTokensAbove: tier.inputTokensAbove,
+          ...convertBracket(tier),
+        }))
+      : undefined
+    const usd = {
+      ...convertBracket(originalPrices),
+      ...(usdTiers ? { tiers: usdTiers } : {}),
+    }
     const id = crypto.randomUUID()
+    const hasNullPrice = (bracket: Record<(typeof UNIT_PRICE_KEYS)[number], number | null>) =>
+      UNIT_PRICE_KEYS.some((key) => bracket[key] === null)
     const snapshot = {
       id,
       providerId: model.provider,
@@ -147,17 +159,26 @@ export class ModelPricingService {
           : null,
       ),
       estimated: true,
-      unknown: !fx || Object.values(originalPrices).some((value) => value === null),
+      unknown:
+        !fx ||
+        hasNullPrice(originalPrices) ||
+        (originalPrices.tiers?.some((tier) => hasNullPrice(tier)) ?? false),
     }
     this.repository.snapshot(id, snapshot, at)
     return {
       model: { ...model, cost: model.pricing ? usd : { ...model.cost } },
       annotate: (message: AssistantMessage) => {
+        const inputTokens = message.usage.input + message.usage.cacheRead + message.usage.cacheWrite
+        let activeBracket: Record<(typeof UNIT_PRICE_KEYS)[number], number | null> = originalPrices
+        let matchedThreshold = -1
+        for (const tier of originalPrices.tiers ?? []) {
+          if (inputTokens > tier.inputTokensAbove && tier.inputTokensAbove > matchedThreshold) {
+            activeBracket = tier
+            matchedThreshold = tier.inputTokensAbove
+          }
+        }
         const unknown =
-          !fx ||
-          (['input', 'output', 'cacheRead', 'cacheWrite'] as const).some(
-            (key) => originalPrices[key] === null && message.usage[key] > 0,
-          )
+          !fx || UNIT_PRICE_KEYS.some((key) => activeBracket[key] === null && message.usage[key] > 0)
         Object.assign(message.usage, {
           priceSnapshotId: id,
           costUnknown: unknown,

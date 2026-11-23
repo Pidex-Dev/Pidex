@@ -41,7 +41,12 @@ import { PlanApprovalService } from './session/plan/PlanApprovalService'
 import { ThreadHistoryService } from './session/ThreadHistoryService'
 import { AgentRuntimeService } from './orchestration/AgentRuntimeService'
 import { ContextCompactionService } from './context/ContextCompactionService'
-import { EncryptedCredentialStore, PiModelService, PiModelsFileStore } from './provider/pi'
+import {
+  EncryptedCredentialStore,
+  PiModelService,
+  PiModelsFileStore,
+  seedBuiltinProviderCatalogModels,
+} from './provider/pi'
 import { Model, Provider } from '@pidex/model-schema'
 import { resolveSpecializedPiModel } from './provider/pi/PiSpecializedModelResolver'
 import { createApp } from './transport/Server'
@@ -557,11 +562,15 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       logger,
       directory: new ProviderDirectoryStore(
         join(dirname(config.piModelCachePath), 'provider-directory.json'),
+        undefined,
+        { bundledFallback: true },
       ),
       ...(options.models ? { models: options.models } : {}),
       modelsStore: new PiModelsFileStore(config.piModelCachePath),
       recommendations: new ModelRecommendationStore(
         join(dirname(config.piModelCachePath), 'model-recommendations.json'),
+        undefined,
+        { bundledFallback: true },
       ),
       config: () => {
         const snapshot = configService.snapshot()
@@ -626,6 +635,14 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
       onCompleted: async (target) => {
         if (target.kind === 'provider') {
+          const hadCredentialsBefore =
+            (await providerCredentials.list(target.providerId)).length > 1
+          await seedBuiltinProviderCatalogModels({
+            providerID: target.providerId,
+            piModels,
+            config: configService,
+            hadCredentialsBefore,
+          })
           await providers.reload()
           await publishAgentEvent(db, hub, null, null, 'provider/credential/updated', {
             providerId: target.providerId,

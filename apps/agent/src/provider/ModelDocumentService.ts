@@ -113,11 +113,19 @@ export async function readModelDocument(
   throw new AgentError('INVALID_REQUEST', '文档重定向次数过多。', 400)
 }
 const money = z.number().finite().nonnegative()
+const priceTier = z.object({
+  inputTokensAbove: z.number().int().nonnegative(),
+  input: money.nullable(),
+  output: money.nullable(),
+  cacheRead: money.nullable(),
+  cacheWrite: money.nullable(),
+})
 const prices = z.object({
   input: money.nullable(),
   output: money.nullable(),
   cacheRead: money.nullable(),
   cacheWrite: money.nullable(),
+  tiers: z.array(priceTier).optional(),
 })
 const period = z.enum(['idle', 'busy'])
 const pricing = z.object({
