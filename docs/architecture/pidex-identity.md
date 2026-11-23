@@ -31,7 +31,8 @@ Decision owners: Pidex product and architecture (explicit owner instruction)
 4. **保留真实外部名称与历史记录。** GitHub 仓库与发布/更新源
    （`codepilotx-dev/Pidex`；该仓库在品牌清零后由 `codepilotx-dev/CodePilotX` 改名而来，
    属于外部改名而非本 ADR 的代码决策，旧名仍由 GitHub 重定向）、已部署的认证服务
-   `auth-staging.codepilotx.top`、
+   `auth-staging.codepilotx.top`、已部署的模型清单托管域名
+   `models.codepilotx.top`、
    第三方名称与许可证（ZCode、Codex、`CODEX_HOME`、codexpet.top、`.codex`／`.agents`／
    `.claude` 兼容目录、`cpx`／`CPX-CUA` 缩写）、`.codex/environments/` 下由第三方 CLI
    按仓库目录名自动生成的环境配置、`docs/research/**` 与 `CHANGELOG.md` 历史区段一律不动。

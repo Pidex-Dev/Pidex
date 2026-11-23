@@ -15,9 +15,10 @@
    - **补充层（`models.dev`）**：从 `models.dev/catalog.json?type=all` 补全基座缺少的模型资料（`description`、`family`、`knowledge`、`release_date`、模态、基准评分、长上下文阶梯参考价）以及精选非 Pi 主流大厂。
    - **权威覆写层（TypeScript Overlay）**：显式覆盖或补充思考强度档位、特殊协议请求体映射、`Pricing` 忙/闲时与长上下文阶梯定价、以及新增/修正模型事实。
    - Pidex 客户端仅消费构建后的单一 `catalog.json`，不再在客户端直接请求 `pi.dev/api/models` 或 `models.dev`。
-3. **供应商市场对齐 Pi 与清单内部白名单**：
-   - Pidex「供应商市场」严格对齐 Pi 稳定供应商集合，不再把非 Pi 厂商导入供应商市场。
-   - 清单内部采用显式白名单：包含 Pi 稳定供应商，以及精选的国内/主流大厂（例如火山方舟、阿里云百炼、硅基流动等）和主流模型的公共事实（`models`）。非 Pi 厂商条目仅在 `smartConfig` 为自定义供应商/中转站自动匹配规格、价格和忙/闲时规则时生效。
+3. **供应商市场精选展示与全量智能配置索引解耦**：
+   - 清单通过显式 `MARKET_VISIBLE_PROVIDERS` 控制「供应商市场」展示范围（首批收敛为 `deepseek`、`minimax-cn`、`minimax` 三项，覆盖 DeepSeek 及 MiniMax 国内/国际站），不再把大量未精修的供应商直接暴露到供应商市场；后续每精修一家厂商只需在 `MARKET_VISIBLE_PROVIDERS` 增加一行即可线上热放出。
+   - 未进入市场的其余 Pi 供应商与精选非 Pi 主流大厂（如火山方舟、阿里云百炼、硅基流动、智谱等）以及全部主流公共模型事实（`models`）继续以 `marketVisible: false` 完整保留在 `catalog.json` 中，确保用户手动添加自定义供应商/中转站时的 `smartConfig` 模型智能配置 100% 不受影响。
+   - 对已经保存过凭据或 `config.toml` 配置的旧内置供应商（如 OpenAI / Anthropic），客户端自动保留可见并正常运行，避免破坏既有用户配置；所有未配置的非市场可见内置供应商自动从供应商广场隐藏。
 4. **内置 Provider 热更新与 `smartConfig` 职责分离**：
    - **内置 Provider（Pi 供应商）**：不依赖 `smartConfig`。自维护清单直接作为其上游基线；清单更新发布后，已启用模型的新规格、思考强度、单价、忙/闲时及阶梯计费规则自动热更新到运行时，仅用户在 `config.toml` 中显式手工修改过的字段保留用户值。
    - **内置 Provider 新增模型**：清单为已配置内置供应商发布全新模型时，新模型默认以 `enabled: false` 进入该供应商的可选模型与管理列表，不自动勾选进聊天模型选择器，避免下拉列表失控膨胀。
