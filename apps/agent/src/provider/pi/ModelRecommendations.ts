@@ -40,7 +40,7 @@ type Entry = {
   aliases: string[]
   type: string
   provider: string | undefined
-  endpoint: string | undefined
+  endpoints: readonly string[]
   values: Model.Recommendation
 }
 export type RecommendationInput = {
@@ -324,13 +324,23 @@ export class ModelRecommendationIndex {
     const catalog = object(payload)
     const models = object(catalog.models)
     const providers = object(catalog.providers)
-    const add = (id: string, input: unknown, provider?: string, endpoint?: string) => {
+    const add = (id: string, input: unknown, provider?: string, providerEndpoints: readonly string[] = []) => {
       const raw = object(input)
       const type = raw.type === 'reranking' ? 'rerank' : (raw.type ?? 'chat')
       if (!['chat', 'embedding', 'rerank'].includes(String(type))) return
       // 官方条目身份就是自身；供应商条目没有显式 canonical 时只代表自己，
       // 不再按裸名跨供应商推断别人家的身份。
       const canonical = typeof raw.canonical_model_id === 'string' ? raw.canonical_model_id : id
+      const endpoints = [
+        ...new Set(
+          [
+            ...providerEndpoints,
+            ...(typeof raw.base_url === 'string' ? [raw.base_url] : []),
+          ]
+            .map((value) => normalizeEndpoint(value))
+            .filter((value): value is string => value !== undefined),
+        ),
+      ]
       this.entries.push({
         id,
         canonical,
@@ -339,15 +349,21 @@ export class ModelRecommendationIndex {
           : [],
         type: String(type),
         provider,
-        endpoint,
+        endpoints,
         values: values(raw),
       })
     }
     for (const [id, model] of Object.entries(models)) add(id, model)
     for (const [id, input] of Object.entries(providers)) {
       const provider = object(input)
+      const providerEndpoints = [
+        ...(typeof provider.api === 'string' ? [provider.api] : []),
+        ...(Array.isArray(provider.endpoints)
+          ? provider.endpoints.filter((value): value is string => typeof value === 'string')
+          : []),
+      ]
       for (const [modelId, model] of Object.entries(object(provider.models)))
-        add(modelId, model, id, typeof provider.api === 'string' ? provider.api : undefined)
+        add(modelId, model, id, providerEndpoints)
     }
     if (!this.entries.length) throw new Error('Empty models.dev catalog')
   }
@@ -363,7 +379,7 @@ export class ModelRecommendationIndex {
     const attempts = suffixless !== plain ? [plain, suffixless] : [plain]
     for (const value of attempts) {
       const located = this.locate(value, official, supplied, input)
-      if (located) return this.compose(located, input, official, supplied)
+      if (located) return this.compose(located, value, input, official, supplied)
     }
     return { status: 'unmatched', recommended: {} }
   }
@@ -394,10 +410,10 @@ export class ModelRecommendationIndex {
       const bareName = bare(value)
       const bareMatch = this.matchBare(bareName, official)
       if (bareMatch.length) return { official: bareMatch }
-      return undefined
+    } else {
+      const bareMatch = this.matchBare(value, official)
+      if (bareMatch.length) return { official: bareMatch }
     }
-    const bareMatch = this.matchBare(value, official)
-    if (bareMatch.length) return { official: bareMatch }
     // INVARIANT: 官方裸名未命中后才按调用方明确的供应商 ID/端点精确查找，防止第三方条目否决官方条目。
     if (input.providerId) {
       const pid = input.providerId.toLowerCase()
@@ -413,7 +429,7 @@ export class ModelRecommendationIndex {
     if (endpoint) {
       const byEndpoint = supplied.filter(
         (entry) =>
-          normalizeEndpoint(entry.endpoint) === endpoint &&
+          entry.endpoints.includes(endpoint) &&
           (entry.id.toLowerCase() === value ||
             entry.aliases.some((alias) => alias.toLowerCase() === value)),
       )
@@ -433,6 +449,7 @@ export class ModelRecommendationIndex {
 
   private compose(
     located: { official: readonly Entry[]; provider?: Entry },
+    value: string,
     input: RecommendationInput,
     official: readonly Entry[],
     supplied: readonly Entry[],
@@ -471,23 +488,38 @@ export class ModelRecommendationIndex {
     const identity = family.identity
     const key = identity.toLowerCase()
     const bareIdentity = bare(identity)
+    const bareValue = bare(value)
     // INVARIANT: 供应商条目缺省 canonical_model_id 时按裸名对齐官方身份，显式声明不同 canonical_model_id 时仍严格拒绝。
     const matchesIdentity = (entry: Entry) =>
       entry.canonical.toLowerCase() === key ||
       (!entry.canonical.includes('/') && bare(entry.id) === bareIdentity)
+    const pickSpecific = (candidates: readonly Entry[]): Entry | undefined =>
+      candidates.find(
+        (entry) =>
+          entry.id.toLowerCase() === value ||
+          entry.aliases.some((alias) => alias.toLowerCase() === value),
+      ) ??
+      candidates.find((entry) => bare(entry.id) === bareValue) ??
+      candidates.find((entry) => bare(entry.id) === bareIdentity) ??
+      candidates[0]
     const endpoint = normalizeEndpoint(input.baseUrl)
     const specific =
-      supplied.find(
-        (entry) =>
-          matchesIdentity(entry) &&
-          !!input.providerId &&
-          entry.provider!.toLowerCase() === input.providerId.toLowerCase(),
-      ) ??
-      (endpoint
-        ? supplied.filter(
-            (entry) => matchesIdentity(entry) && normalizeEndpoint(entry.endpoint) === endpoint,
+      (input.providerId
+        ? pickSpecific(
+            supplied.filter(
+              (entry) =>
+                matchesIdentity(entry) &&
+                entry.provider!.toLowerCase() === input.providerId.toLowerCase(),
+            ),
           )
-        : [])[0]
+        : undefined) ??
+      (endpoint
+        ? pickSpecific(
+            supplied.filter(
+              (entry) => matchesIdentity(entry) && entry.endpoints.includes(endpoint),
+            ),
+          )
+        : undefined)
     if (specific) {
       return this.finalize(
         {
