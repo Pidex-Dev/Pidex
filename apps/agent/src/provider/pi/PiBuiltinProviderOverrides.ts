@@ -6,6 +6,7 @@ import { piProviderApiStreams } from './PiProviderApis'
 export function withPiBuiltinProviderOverrides(
   source: Provider<Api>,
   config: PiBuiltinProviderConfig,
+  defaultEndpoints?: Readonly<Record<string, string>>,
 ): Provider<Api> {
   const configuredExtraIds = [
     ...new Set([
@@ -17,13 +18,21 @@ export function withPiBuiltinProviderOverrides(
       ),
     ]),
   ]
-  const knownIds = new Set(source.getModels().map((model) => model.id))
+  const nativeModels = source.getModels()
+  const knownIds = new Set(nativeModels.map((model) => model.id))
   const hasMissingConfiguredModels = configuredExtraIds.some((id) => !knownIds.has(id))
+  const hasDefaultEndpointOverride =
+    !!defaultEndpoints &&
+    nativeModels.some(
+      (model) =>
+        defaultEndpoints[model.api] !== undefined && defaultEndpoints[model.api] !== model.baseUrl,
+    )
   if (
     !config.baseUrl &&
     !config.endpoints &&
     !config.protocol &&
     !hasMissingConfiguredModels &&
+    !hasDefaultEndpointOverride &&
     Object.values(config.models).every((model) =>
       Object.keys(model).every((key) => key === 'enabled'),
     )
@@ -48,7 +57,8 @@ export function withPiBuiltinProviderOverrides(
         if (result.api !== model.api && !(override.api === result.api && override.compat))
           delete result.compat
         const endpoint =
-          config.endpoints?.[result.api as keyof NonNullable<typeof config.endpoints>]
+          config.endpoints?.[result.api as keyof NonNullable<typeof config.endpoints>] ??
+          (!config.baseUrl ? defaultEndpoints?.[result.api] : undefined)
         if (endpoint) result.baseUrl = endpoint
         mapped.set(model, result)
       }
@@ -85,7 +95,9 @@ export function withPiBuiltinProviderOverrides(
       }
       if (model.api !== template.api && !(override.api === model.api && override.compat))
         delete model.compat
-      const endpoint = config.endpoints?.[model.api as keyof NonNullable<typeof config.endpoints>]
+      const endpoint =
+        config.endpoints?.[model.api as keyof NonNullable<typeof config.endpoints>] ??
+        (!config.baseUrl ? defaultEndpoints?.[model.api] : undefined)
       if (endpoint) model.baseUrl = endpoint
       models.push(model)
     }
@@ -108,7 +120,9 @@ export function withPiBuiltinProviderOverrides(
   }
   const endpointModel = (model: Model<Api>) => {
     const baseUrl =
-      config.endpoints?.[model.api as keyof NonNullable<typeof config.endpoints>] ?? config.baseUrl
+      config.endpoints?.[model.api as keyof NonNullable<typeof config.endpoints>] ??
+      config.baseUrl ??
+      defaultEndpoints?.[model.api]
     return baseUrl ? { ...model, baseUrl } : model
   }
   return {

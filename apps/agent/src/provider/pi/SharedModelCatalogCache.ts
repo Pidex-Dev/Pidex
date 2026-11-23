@@ -50,6 +50,8 @@ export type ProviderDelta = {
 type ProviderEntry = {
   readonly name?: string
   readonly api?: string
+  readonly endpoints?: string[]
+  readonly protocolEndpoints?: Record<string, string>
   readonly env?: string[]
   readonly npm?: string
   readonly marketVisible?: boolean
@@ -65,6 +67,8 @@ type StorageCatalog = {
 export type RawProvider = {
   readonly name?: string
   readonly api?: string
+  readonly endpoints?: string[]
+  readonly protocolEndpoints?: Record<string, string>
   readonly env?: string[]
   readonly npm?: string
   readonly marketVisible?: boolean
@@ -96,6 +100,25 @@ const asObject = (value: unknown): Record<string, unknown> | undefined =>
   value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined
+
+const sanitizeProtocolEndpoints = (raw: unknown): Record<string, string> | undefined => {
+  const obj = asObject(raw)
+  if (!obj) return undefined
+  const out: Record<string, string> = {}
+  for (const [api, url] of Object.entries(obj)) {
+    if (typeof url === 'string' && url.length > 0) out[api] = url
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
+/** 从随包内置目录同步读取供应商多协议默认端点，作为冷启动与配置解析兜底。 */
+export const bundledProviderProtocolEndpoints = (
+  providerId: string,
+): Readonly<Record<string, string>> => {
+  const providers = asObject((bundledCatalog as Record<string, unknown>).providers)
+  const provider = providers ? asObject(providers[providerId]) : undefined
+  return sanitizeProtocolEndpoints(provider?.protocolEndpoints) ?? {}
+}
 
 const isEnoent = (error: unknown): boolean =>
   !!error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT'
@@ -239,9 +262,15 @@ const normalizeCatalog = (payload: unknown): StorageCatalog => {
         }
       }
     }
+    const endpoints = Array.isArray(raw.endpoints)
+      ? raw.endpoints.filter((value): value is string => typeof value === 'string' && value.length > 0)
+      : []
+    const protocolEndpoints = sanitizeProtocolEndpoints(raw.protocolEndpoints)
     providers[id] = {
       ...(typeof raw.name === 'string' ? { name: raw.name } : {}),
       ...(typeof raw.api === 'string' ? { api: raw.api } : {}),
+      ...(endpoints.length ? { endpoints } : {}),
+      ...(protocolEndpoints ? { protocolEndpoints } : {}),
       ...(Array.isArray(raw.env)
         ? {
             env: raw.env.filter((value): value is string => typeof value === 'string'),
@@ -273,6 +302,8 @@ const toRawCatalog = (document: StorageCatalog): RawCatalog => {
       ...omitUndefined({
         name: entry.name,
         api: entry.api,
+        endpoints: entry.endpoints,
+        protocolEndpoints: entry.protocolEndpoints,
         env: entry.env,
         npm: entry.npm,
         marketVisible: entry.marketVisible,

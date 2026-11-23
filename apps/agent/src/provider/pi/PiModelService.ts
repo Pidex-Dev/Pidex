@@ -109,6 +109,7 @@ const piProviderToInfo = (
   disabled: boolean,
   configured?: PiProviderConfig,
   catalogOrigin: Provider.CatalogOrigin = 'pi-bundled',
+  catalogEndpoints?: Readonly<Record<string, string>>,
 ): Provider.Info => ({
   id: Provider.ID.make(provider.id),
   name: provider.name,
@@ -119,7 +120,7 @@ const piProviderToInfo = (
     apis: [...new Set(apis)],
     ...(kind === 'builtin'
       ? {
-          endpoints: builtinProviderEndpoints(provider.id),
+          endpoints: builtinProviderEndpoints(provider.id, catalogEndpoints),
           defaultApi:
             configured?.kind === 'builtin' && configured.protocol ? configured.protocol : apis[0],
         }
@@ -340,6 +341,7 @@ export class PiModelService {
   private readonly baseProviders: ReadonlyMap<string, PiProvider>
   private directoryBaseProviders: ReadonlyMap<string, PiProvider> = new Map()
   private directoryEntries: readonly DirectoryProvider[] = []
+  private catalogProtocolEndpoints: Readonly<Record<string, Readonly<Record<string, string>>>> = {}
   private readonly builtinProviderIDs: ReadonlySet<string>
   private configuredCustomProviderIDs = new Set<string>()
   private catalogVersion = 0
@@ -441,6 +443,7 @@ export class PiModelService {
           !this.providerEnabled(provider.id, config),
           configured,
           origin,
+          this.catalogProtocolEndpoints[provider.id],
         )
         directory.delete(provider.id)
         const defaultApi =
@@ -465,7 +468,12 @@ export class PiModelService {
                           ...info.source.endpoints,
                           ...entry.endpoints,
                           ...(defaultApi
-                            ? { [defaultApi]: configured?.baseUrl ?? entry.baseUrl }
+                            ? {
+                                [defaultApi]:
+                                  configured?.baseUrl ??
+                                  entry.endpoints?.[defaultApi as CustomProviderApi] ??
+                                  entry.baseUrl,
+                              }
                             : {}),
                           ...configured?.endpoints,
                         },
@@ -1273,12 +1281,18 @@ export class PiModelService {
     const operation = async () => {
       const raw = await this.rawConfig()
       const entries = await this.directory.providers()
+      const protocolEndpoints = await this.directory.protocolEndpoints()
       // 推荐目录更新后必须重新合成，否则已保存模型会停在旧推荐值上。
-      const fingerprint = JSON.stringify([raw, await this.recommendations.version()])
+      const fingerprint = JSON.stringify([
+        raw,
+        await this.recommendations.version(),
+        protocolEndpoints,
+      ])
       if (!force && fingerprint === this.configFingerprint && entries === this.directoryEntries)
         return this.parsedConfig
       let parsed = parsePiProviderCatalog(raw)
       this.directoryEntries = entries
+      this.catalogProtocolEndpoints = protocolEndpoints
       const defaults = new Map(entries.map((entry) => [entry.id, directoryProviderConfig(entry)]))
       if (parsed.schemaVersion <= PI_PROVIDER_CONFIG_SCHEMA_VERSION) {
         const providers = { ...parsed.providers }
@@ -1351,12 +1365,14 @@ export class PiModelService {
               ),
             )
             const getModels = () => {
+              if (remoteModels.size > 0) {
+                return [...remoteModels.entries()].map(
+                  ([modelID, model]) => enrichedById.get(modelID) ?? model,
+                )
+              }
               const models = new Map<string, PiModel<Api>>()
               for (const model of base.getModels()) {
                 models.set(model.id, enrichedById.get(model.id) ?? model)
-              }
-              for (const [modelID, model] of remoteModels) {
-                models.set(modelID, enrichedById.get(modelID) ?? model)
               }
               return [...models.values()]
             }
@@ -1404,6 +1420,7 @@ export class PiModelService {
           continue
         const source =
           id === DEEPSEEK_PROVIDER_ID ? (this.deepSeekProtocol?.provider ?? base) : base
+        const defaultEndpoints = builtinProviderEndpoints(id, this.catalogProtocolEndpoints[id])
         let runtimeConfig = configured
         if (configured?.kind === 'builtin') {
           const models = { ...configured.models }
@@ -1415,6 +1432,7 @@ export class PiModelService {
             const baseUrl =
               configured.endpoints?.[api as CustomProviderApi] ??
               configured.baseUrl ??
+              defaultEndpoints[api] ??
               native.baseUrl
             if (
               override.smartConfig &&
@@ -1493,8 +1511,12 @@ export class PiModelService {
         }
         this.mutablePi?.setProvider(
           runtimeConfig?.kind === 'builtin'
-            ? withPiBuiltinProviderOverrides(source, runtimeConfig)
-            : source,
+            ? withPiBuiltinProviderOverrides(source, runtimeConfig, defaultEndpoints)
+            : withPiBuiltinProviderOverrides(
+                source,
+                { kind: 'builtin', enabled: true, allowModels: [], denyModels: [], models: {} },
+                defaultEndpoints,
+              ),
         )
       }
       this.parsedConfig = parsed

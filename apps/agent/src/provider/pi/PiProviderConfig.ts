@@ -11,6 +11,7 @@ import type {
 import { builtinProviders } from '@earendil-works/pi-ai/providers/all'
 import { Model } from '@pidex/model-schema'
 import { compileModelOptionMap } from './option-map'
+import { bundledProviderProtocolEndpoints } from './SharedModelCatalogCache'
 
 export const PI_PROVIDER_CONFIG_SCHEMA_VERSION = 2
 
@@ -37,25 +38,17 @@ export type DeepSeekProtocol = Exclude<CustomProviderApi, 'google-generative-ai'
 
 export const DEFAULT_DEEPSEEK_PROTOCOL: DeepSeekProtocol = 'openai-completions'
 
+const deepseekCatalogEndpoints = bundledProviderProtocolEndpoints(DEEPSEEK_PROVIDER_ID)
+
 /** Endpoints DeepSeek documents for each supported wire protocol. */
 export const DEEPSEEK_PROTOCOL_ENDPOINTS: Readonly<Record<DeepSeekProtocol, string>> = {
-  'openai-completions': 'https://api.deepseek.com',
-  'openai-responses': 'https://api.deepseek.com',
-  'anthropic-messages': 'https://api.deepseek.com/anthropic',
+  'openai-completions':
+    deepseekCatalogEndpoints['openai-completions'] ?? 'https://api.deepseek.com',
+  'openai-responses': deepseekCatalogEndpoints['openai-responses'] ?? 'https://api.deepseek.com',
+  'anthropic-messages':
+    deepseekCatalogEndpoints['anthropic-messages'] ?? 'https://api.deepseek.com/anthropic',
 }
 
-// Additional wire protocols verified in the vendors' API documentation.
-const extraBuiltinEndpoints: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-  deepseek: DEEPSEEK_PROTOCOL_ENDPOINTS,
-  openai: { 'openai-completions': 'https://api.openai.com/v1' },
-  google: { 'openai-completions': 'https://generativelanguage.googleapis.com/v1beta/openai' },
-  xai: { 'openai-completions': 'https://api.x.ai/v1' },
-  mistral: { 'openai-completions': 'https://api.mistral.ai/v1' },
-  openrouter: { 'openai-responses': 'https://openrouter.ai/api/v1' },
-  zai: { 'anthropic-messages': 'https://api.z.ai/api/anthropic' },
-  minimax: { 'openai-completions': 'https://api.minimax.io/v1' },
-  'minimax-cn': { 'openai-completions': 'https://api.minimax.cn/v1' },
-}
 const nativeBuiltinEndpoints = new Map(
   builtinProviders().map((provider) => [
     provider.id,
@@ -64,9 +57,13 @@ const nativeBuiltinEndpoints = new Map(
     ),
   ]),
 )
-export const builtinProviderEndpoints = (id: string): Readonly<Record<string, string>> => ({
+export const builtinProviderEndpoints = (
+  id: string,
+  catalogEndpoints?: Readonly<Record<string, string>>,
+): Readonly<Record<string, string>> => ({
   ...nativeBuiltinEndpoints.get(id),
-  ...extraBuiltinEndpoints[id],
+  ...bundledProviderProtocolEndpoints(id),
+  ...catalogEndpoints,
 })
 
 export interface PiBuiltinProviderConfig {

@@ -307,6 +307,11 @@ const projectMarketProviders = (catalog: RawCatalog): DirectoryProvider[] => {
       }
     }
     const resolvedApi = api ?? fallbackApi
+    for (const [protocol, rawUrl] of Object.entries(raw.protocolEndpoints ?? {})) {
+      if (!supported(protocol)) continue
+      const parsedUrl = address(rawUrl)
+      if (parsedUrl) endpoints[protocol] = parsedUrl
+    }
     const entry: DirectoryProvider = {
       id,
       name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : id,
@@ -352,6 +357,23 @@ export class ProviderDirectoryStore {
   async providers(): Promise<readonly DirectoryProvider[]> {
     await this.load()
     return this.entries
+  }
+
+  /** 读取共享目录中全部供应商的 `protocolEndpoints`（不限于 `marketVisible` 供应商）。 */
+  async protocolEndpoints(): Promise<Readonly<Record<string, Readonly<Record<string, string>>>>> {
+    const catalog = await this.shared.catalog()
+    if (!catalog) return {}
+    const out: Record<string, Readonly<Record<string, string>>> = {}
+    for (const [id, provider] of Object.entries(catalog.providers)) {
+      if (!provider.protocolEndpoints) continue
+      const valid: Record<string, string> = {}
+      for (const [api, rawUrl] of Object.entries(provider.protocolEndpoints)) {
+        const parsedUrl = address(rawUrl)
+        if (parsedUrl) valid[api] = parsedUrl
+      }
+      if (Object.keys(valid).length) out[id] = valid
+    }
+    return out
   }
 
   private async load(force = false): Promise<void> {
