@@ -180,7 +180,7 @@ export function useModelCenterController({ onInitialProviderState, onError, onNo
     try {
       await providerManagementStore.refreshAllProviderData()
       const { configuration: next } = providerManagementStore.getState()
-      if (!next.error) handlers.current.onNotice('供应商目录已从 Pi / models.dev 更新。')
+      if (!next.error) handlers.current.onNotice('供应商已更新。')
     } catch (error) {
       handlers.current.onError(toUserErrorMessage(error))
     } finally {

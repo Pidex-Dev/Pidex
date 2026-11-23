@@ -23,18 +23,22 @@ export function ProviderModelPanel({
   model,
   creating,
   nativeApi,
+  allowSmartConfig = true,
   providerId,
   baseUrl,
   onSave,
+  onResetDefault,
   onClose,
 }: {
   panel: ProviderManagementPanelController
   model: DesktopProviderModelDefinition
   creating: boolean
   nativeApi?: string
+  allowSmartConfig?: boolean
   providerId: string
   baseUrl: string
   onSave: (model: DesktopProviderModelDefinition) => Promise<void>
+  onResetDefault?: (() => Promise<void>) | undefined
   onClose: () => void
 }): ReactNode {
   const [draft, setDraft] = useState(() => editableModel(model))
@@ -90,6 +94,7 @@ export function ProviderModelPanel({
               baseUrl={baseUrl}
               model={draft}
               lockId={!creating}
+              allowSmartConfig={allowSmartConfig}
               onChange={(next) => {
                 allowNavigation.current = false
                 setError(null)
@@ -107,6 +112,27 @@ export function ProviderModelPanel({
           </div>
         ) : null}
         <footer className="settings-management-dialog-footer tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4">
+          {onResetDefault ? (
+            <Button
+              size="md"
+              color="secondary"
+              disabled={busy}
+              onClick={() => {
+                if (busy) return
+                setBusy(true)
+                setError(null)
+                void onResetDefault()
+                  .then(() => {
+                    allowNavigation.current = true
+                    onClose()
+                  })
+                  .catch((cause) => setError(readableError(cause)))
+                  .finally(() => setBusy(false))
+              }}
+            >
+              恢复默认
+            </Button>
+          ) : null}
           <Button size="md" color="secondary" disabled={busy} onClick={close}>
             取消
           </Button>

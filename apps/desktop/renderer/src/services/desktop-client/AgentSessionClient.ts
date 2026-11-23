@@ -782,6 +782,7 @@ export function createAgentSessionDesktopClient(
     const summary = {
       ...catalogProviderToDesktop(catalogProvider),
       modelCount: provider.modelCount,
+      catalogModelCount: provider.catalogModelCount,
       config: provider.config,
       readOnly: provider.config.kind === 'builtin',
       unresolvedMigrationIssues: directory.issues
@@ -3250,6 +3251,7 @@ export function createAgentSessionDesktopClient(
               .map((issue) => `${issue.code}:${issue.path}`),
             apiKeyConfigured: provider.authConfigured,
             modelCount: provider.modelCount,
+            catalogModelCount: provider.catalogModelCount,
           }))
         },
         () => mockClient.listModelProviders(),

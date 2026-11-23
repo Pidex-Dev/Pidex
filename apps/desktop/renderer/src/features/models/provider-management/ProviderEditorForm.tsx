@@ -1900,6 +1900,7 @@ export function ModelEditor({
   baseUrl = '',
   nativeApi,
   lockId = false,
+  allowSmartConfig = true,
 }: {
   model: EditableModel
   onChange: (model: EditableModel) => void
@@ -1907,8 +1908,9 @@ export function ModelEditor({
   lockId?: boolean
   providerId?: string
   baseUrl?: string
+  allowSmartConfig?: boolean
 }): React.ReactNode {
-  const smart = useSmartModelConfig(model, rawOnChange, providerId, baseUrl)
+  const smart = useSmartModelConfig(model, rawOnChange, providerId, baseUrl, allowSmartConfig)
   const onChange = smart.change
   const advancedValues = (value: EditableModel) => {
     const {

@@ -626,6 +626,7 @@ export type DesktopProviderAvailability =
 
 export type DesktopModelProviderSummary = Omit<ModelProviderSummary, 'modelMetadata'> & {
   modelCount?: number
+  catalogModelCount?: number
   providerKind?: 'builtin' | 'custom'
   catalogOrigin?: 'user' | 'pi-bundled' | 'pi-remote' | 'models-dev'
   availability?: DesktopProviderAvailability

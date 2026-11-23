@@ -33,6 +33,7 @@ export function useSmartModelConfig(
   onChange: (next: EditableModel) => void,
   providerId: string,
   baseUrl: string,
+  allowSmartConfig = true,
 ) {
   const supported = useRecommendationSupport()
   const catalogRevision = useProviderManagementStore((state) => state.catalogRevision)
@@ -43,6 +44,7 @@ export function useSmartModelConfig(
   const latest = useRef({ model, onChange })
   latest.current = { model, onChange }
   const enabled =
+    allowSmartConfig &&
     supported &&
     model.smartConfig !== undefined &&
     model.smartConfig.pinned.length === 0 &&
@@ -139,7 +141,8 @@ export function useSmartModelConfig(
     }
   }
 
-  const controls = supported ? (
+  const controls =
+    allowSmartConfig && supported ? (
     <div className="tw:grid tw:gap-2 tw:text-app-text-soft tw:type-1">
       <div className="tw:flex tw:items-center tw:justify-between tw:gap-2">
         <div className="tw:flex tw:items-center tw:gap-2">
@@ -203,6 +206,10 @@ export function useSmartModelConfig(
       preview?.status === 'matched' ? (preview.recommended as ModelRecommendation) : undefined,
     /** 手动修改切换整份配置，运行时不再覆盖手动值。 */
     change: (next: EditableModel) => {
+      if (!allowSmartConfig) {
+        onChange(next)
+        return
+      }
       sequence.current++
       setBusy(false)
       setError(null)

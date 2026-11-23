@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { ModelPricing, ModelUnitPrices } from '@pidex/agent-protocol'
+import type { ModelPricing, ModelPricingTier } from '@pidex/agent-protocol'
 import { Input } from '../../../components/ui/Input.js'
 import { Button } from '../../../components/ui/Button.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
@@ -21,7 +21,8 @@ const periods = [
   { value: 'idle', label: '闲时' },
   { value: 'busy', label: '忙时' },
 ]
-const labels = { input: '输入', output: '输出', cacheRead: '缓存读取', cacheWrite: '缓存写入' }
+const labels = { input: '输入', output: '输出', cacheRead: '缓存读取', cacheWrite: '缓存写入' } as const
+type PriceFieldKey = keyof typeof labels
 export function ModelPricingEditor({
   value,
   onChange,
@@ -104,38 +105,130 @@ export function ModelPricingEditor({
               onValueChange={(period) => update({ defaultPeriod: period as 'idle' | 'busy' })}
             />
           </div>
-          {(['idle', 'busy'] as const).map((period) => (
-            <section
-              key={period}
-              aria-label={period === 'idle' ? '闲时价格' : '忙时价格'}
-              className="tw:grid tw:min-w-0 tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5"
-            >
-              <h4 className="tw:m-0 tw:type-4 tw:weight-bold">
-                {period === 'idle' ? '闲时价格' : '忙时价格'}
-              </h4>
-              {(Object.keys(labels) as (keyof ModelUnitPrices)[]).map((key) => (
-                <label key={key} className={rowClassName}>
-                  <span>{labels[key]}</span>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="any"
-                    aria-label={`${period === 'idle' ? '闲时' : '忙时'}${labels[key]}价格`}
-                    value={value[period][key] === null ? '' : String(value[period][key])}
-                    placeholder="未知"
-                    onChange={(event) =>
-                      update({
-                        [period]: {
-                          ...value[period],
-                          [key]: event.target.value === '' ? null : Number(event.target.value),
-                        },
-                      })
-                    }
-                  />
-                </label>
-              ))}
-            </section>
-          ))}
+          {(['idle', 'busy'] as const).map((period) => {
+            const periodLabel = period === 'idle' ? '闲时' : '忙时'
+            const tiers = value[period].tiers ?? []
+            const setTiers = (nextTiers: ModelPricingTier[]) =>
+              update({
+                [period]: {
+                  ...value[period],
+                  tiers: nextTiers.length ? nextTiers : undefined,
+                },
+              })
+            return (
+              <section
+                key={period}
+                aria-label={`${periodLabel}价格`}
+                className="tw:grid tw:min-w-0 tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5"
+              >
+                <h4 className="tw:m-0 tw:type-4 tw:weight-bold">{periodLabel}价格</h4>
+                {(Object.keys(labels) as PriceFieldKey[]).map((key) => (
+                  <label key={key} className={rowClassName}>
+                    <span>{labels[key]}</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="any"
+                      aria-label={`${periodLabel}${labels[key]}价格`}
+                      value={value[period][key] === null ? '' : String(value[period][key])}
+                      placeholder="未知"
+                      onChange={(event) =>
+                        update({
+                          [period]: {
+                            ...value[period],
+                            [key]: event.target.value === '' ? null : Number(event.target.value),
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                ))}
+                {tiers.map((tier, tierIndex) => (
+                  <div
+                    key={tierIndex}
+                    className="tw:grid tw:gap-3 tw:rounded-3 tw:border tw:border-app-border-subtle tw:p-3"
+                  >
+                    <div className="tw:flex tw:items-center tw:justify-between">
+                      <span className="tw:type-1 tw:text-app-text-soft">
+                        {periodLabel}阶梯 {tierIndex + 1}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setTiers(tiers.filter((_, i) => i !== tierIndex))}
+                      >
+                        删除阶梯
+                      </Button>
+                    </div>
+                    <label className={rowClassName}>
+                      <span>输入 Token &gt;</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        aria-label={`${periodLabel}阶梯 ${tierIndex + 1} 阈值`}
+                        value={String(tier.inputTokensAbove)}
+                        onChange={(event) => {
+                          const next = Math.max(0, Math.trunc(Number(event.target.value) || 0))
+                          setTiers(
+                            tiers.map((item, i) =>
+                              i === tierIndex ? { ...item, inputTokensAbove: next } : item,
+                            ),
+                          )
+                        }}
+                      />
+                    </label>
+                    {(Object.keys(labels) as PriceFieldKey[]).map((key) => (
+                      <label key={key} className={rowClassName}>
+                        <span>{labels[key]}</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="any"
+                          aria-label={`${periodLabel}阶梯 ${tierIndex + 1} ${labels[key]}价格`}
+                          value={tier[key] === null ? '' : String(tier[key])}
+                          placeholder="未知"
+                          onChange={(event) =>
+                            setTiers(
+                              tiers.map((item, i) =>
+                                i === tierIndex
+                                  ? {
+                                      ...item,
+                                      [key]:
+                                        event.target.value === ''
+                                          ? null
+                                          : Number(event.target.value),
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                    ))}
+                  </div>
+                ))}
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() =>
+                    setTiers([
+                      ...tiers,
+                      {
+                        inputTokensAbove: 200_000,
+                        input: null,
+                        output: null,
+                        cacheRead: null,
+                        cacheWrite: null,
+                      },
+                    ])
+                  }
+                >
+                  添加{periodLabel}长上下文阶梯
+                </Button>
+              </section>
+            )
+          })}
           <h4 className="tw:m-0 tw:border-t tw:border-app-border-subtle tw:pt-5 tw:type-4 tw:weight-bold">
             时间规则
           </h4>
