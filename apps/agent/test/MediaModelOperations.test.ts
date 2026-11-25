@@ -1,7 +1,7 @@
 import { ModelHealthService } from '../src/provider/ModelHealthService'
 import { expect, test } from 'bun:test'
 import { Effect } from 'effect'
-import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
+import type { Api, AssistantMessage, Model as PiModel } from '@earendil-works/pi-ai'
 import { Model, Provider } from '@pidex/model-schema'
 import type { EncryptedCredentialRepository } from '../src/auth/EncryptedCredentialRepository'
 import { PiModelService } from '../src/provider/pi/PiModelService'
@@ -10,7 +10,7 @@ import {
   serializePiProviderDefinition,
 } from '../src/provider/pi/PiProviderConfig'
 import type { ModelOperationOptions } from '../src/provider/pi/PiModelOperations'
-import { prepareMediaInput } from '../src/provider/pi/MediaInput'
+import { prepareMediaInput, type MediaInput } from '../src/provider/pi/MediaInput'
 import { prepareAttachmentUpload } from '../src/subagent/AttachmentService'
 
 const repository = {
@@ -86,7 +86,7 @@ test('嵌入与重排走独立端点，向量按输入索引恢复并校验响�
   models.dispose()
 })
 
-test('用户添加的内置端点可保存，默认端点仍需显式声明地址', () => {
+test('用户添加的内置端点可保存，旧默认协议不写回', () => {
   const saved = serializePiProviderDefinition({
     kind: 'builtin',
     id: 'google',
@@ -101,17 +101,11 @@ test('用户添加的内置端点可保存，默认端点仍需显式声明地�
     },
   })
   expect(parsePiProviderCatalog({ providers: { google: saved.value } }).issues).toEqual([])
-  expect(() =>
-    serializePiProviderDefinition({
-      kind: 'builtin',
-      id: 'google',
-      enabled: true,
-      allowModels: [],
-      denyModels: [],
-      models: [],
-      protocol: 'anthropic-messages',
-    }),
-  ).toThrow()
+  expect(saved.value).not.toHaveProperty('protocol')
+  expect(saved.value.endpoints).toEqual({
+    'anthropic-messages': 'https://relay.example/anthropic',
+    'openai-embeddings': 'https://relay.example/v1',
+  })
 })
 
 test('媒体请求映射为真实协议部件；不支持协议拒绝，不能静默丢弃媒体', () => {
@@ -162,6 +156,41 @@ test('媒体请求映射为真实协议部件；不支持协议拒绝，不能�
       },
     ),
   ).toThrow('协议不支持')
+})
+
+test('切换模型会降级历史音视频，当前轮次仍校验媒体能力', () => {
+  const audio: MediaInput = { kind: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }
+  const video: MediaInput = { kind: 'video', mimeType: 'video/mp4', data: 'dmlkZW8=' }
+  const user = (media: MediaInput[], timestamp = 1) => ({
+    role: 'user' as const, content: 'describe', timestamp, media,
+  })
+  const assistant: AssistantMessage = {
+    role: 'assistant', api: 'google-generative-ai', provider: 'google', model: 'gemini',
+    content: [], timestamp: 2, stopReason: 'stop',
+    usage: {
+      input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
+  }
+  for (const [cause, input, error] of [
+    ['model', ['text'], '模型不支持视频'],
+    ['protocol', ['text', 'audio', 'video'], '协议不支持'],
+  ] as const) {
+    const model = { api: 'anthropic-messages', input } as unknown as PiModel<Api>
+    const history = user([audio, audio, video, video, audio])
+    const current = user([], 3)
+    const { context, applyPayload } = prepareMediaInput(model, { messages: [history, assistant, current] })
+    expect(context.messages[0]?.content).toEqual([
+      { type: 'text', text: 'describe' },
+      { type: 'text', text: `(audio omitted: ${cause} does not support audio)` },
+      { type: 'text', text: `(video omitted: ${cause} does not support video)` },
+      { type: 'text', text: `(audio omitted: ${cause} does not support audio)` },
+    ])
+    expect(context.messages[2]).toBe(current)
+    expect(applyPayload({})).toEqual({})
+    expect(() => prepareMediaInput(model, { messages: [history, assistant, user([video], 3)] }))
+      .toThrow(error)
+  }
 })
 
 test('音视频上传校验文件头，不把任意二进制作为媒体保存', () => {

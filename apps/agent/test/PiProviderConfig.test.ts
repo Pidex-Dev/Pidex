@@ -17,7 +17,6 @@ import {
   PiModelService,
   PiModelsFileStore,
   PiProviderConfigValidationError,
-  resolveDeepSeekProtocol,
   serializePiProviderDefinition,
   validateCustomProviderBaseUrl,
 } from '../src/provider/pi'
@@ -241,7 +240,7 @@ describe('Pi provider v2 config', () => {
     ).toThrow()
   })
 
-  test('内置提供商切换已支持协议，目录保留完整端点列表与原生认证', async () => {
+  test('内置供应商继续使用目录协议与原生认证，保留已配置的端点', async () => {
     const saved = serializePiProviderDefinition({
       kind: 'builtin',
       id: 'google',
@@ -250,35 +249,23 @@ describe('Pi provider v2 config', () => {
       denyModels: [],
       models: [],
       protocol: 'openai-completions',
-      baseUrl: 'https://compatible.example/v1',
       endpoints: { 'openai-completions': 'https://compatible.example/v1' },
     })
     const service = new PiModelService(repository, {
       config: { providers: { google: saved.value } },
     })
-    const provider = (await service.list()).find((item) => item.id === 'google')!
-    expect(Object.keys(provider.source.endpoints ?? {})).toEqual([
-      'google-generative-ai',
-      'openai-completions',
-    ])
-    expect(provider.source.defaultApi).toBe('openai-completions')
-    expect(provider.auth.apiKey).toBe(true)
-    const model = service.pi.getProvider('google')!.getModels()[0]!
-    expect(model.api).toBe('openai-completions')
-    expect(model.baseUrl).toBe('https://compatible.example/v1')
-    expect(model.compat).toBeUndefined()
-    expect(() =>
-      serializePiProviderDefinition({
-        kind: 'builtin',
-        id: 'google',
-        enabled: true,
-        allowModels: [],
-        denyModels: [],
-        models: [],
-        protocol: 'anthropic-messages',
-      }),
-    ).toThrow()
-    service.dispose()
+    try {
+      const provider = (await service.list()).find((item) => item.id === 'google')!
+      expect(provider.source.defaultApi).toBe('google-generative-ai')
+      expect(provider.auth.apiKey).toBe(true)
+      expect(service.pi.getProvider('google')!.getModels()[0]).toMatchObject({
+        api: 'google-generative-ai',
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+      })
+      expect(saved.value.endpoints).toEqual({ 'openai-completions': 'https://compatible.example/v1' })
+    } finally {
+      await service.dispose()
+    }
   })
 
   test('混合协议模型使用各自的端点地址', () => {
@@ -725,94 +712,39 @@ describe('Pi provider v2 config', () => {
   })
 })
 
-describe('DeepSeek protocol config', () => {
-  test('keeps legacy builtin configs on Chat Completions and round-trips every protocol', () => {
-    const legacy = parsePiProviderCatalog({
+test('忽略历史 builtin.protocol，并在序列化时省略', () => {
+  for (const protocol of ['anthropic-messages', 'openai-beta-fim', { obsolete: true }]) {
+    const parsed = parsePiProviderCatalog({
       schemaVersion: 2,
       providers: {
         deepseek: {
           kind: 'builtin',
-          enabled: true,
-          allow_models: [],
-          deny_models: [],
+          protocol,
+          allow_models: ['deepseek-v4-pro'],
+          models: { 'deepseek-flash': { enabled: false } },
         },
       },
     })
-
-    expect(legacy.issues).toEqual([])
-    expect(resolveDeepSeekProtocol(legacy)).toBe('openai-completions')
-
-    for (const protocol of [
-      'openai-completions',
-      'openai-responses',
-      'anthropic-messages',
-    ] as const) {
-      const serialized = serializePiProviderDefinition({
-        kind: 'builtin',
-        id: 'deepseek',
-        enabled: true,
-        allowModels: [],
-        denyModels: [],
-        models: [{ id: 'deepseek-v4-pro', enabled: false }],
-        protocol,
-      })
-
-      // key-path 写入只覆盖 DeepSeek 自己的 provider 对象。
-      expect(Object.keys(serialized.value).sort()).toEqual([
-        'allow_models',
-        'deny_models',
-        'enabled',
-        'kind',
-        'models',
-        'protocol',
-      ])
-      const parsed = parsePiProviderCatalog({
-        schemaVersion: 2,
-        providers: { deepseek: serialized.value },
-      })
-      expect(parsed.issues).toEqual([])
-      expect(parsed.providers.deepseek).toMatchObject({
-        protocol,
-        models: { 'deepseek-v4-pro': { enabled: false } },
-      })
-      expect(resolveDeepSeekProtocol(parsed)).toBe(protocol)
-    }
+    expect(parsed.issues).toEqual([])
+    expect(parsed.providers.deepseek).toMatchObject({
+      allowModels: ['deepseek-v4-pro'],
+      models: { 'deepseek-flash': { enabled: false } },
+    })
+    expect(parsed.providers.deepseek).not.toHaveProperty('protocol')
+  }
+  const saved = serializePiProviderDefinition({
+    kind: 'builtin',
+    id: 'deepseek',
+    enabled: true,
+    allowModels: ['deepseek-v4-pro'],
+    denyModels: [],
+    models: [{ id: 'deepseek-flash', enabled: false }],
+    protocol: 'anthropic-messages',
   })
-
-  test('accepts supported builtin protocols and rejects unsupported protocols', () => {
-    const parsed = parsePiProviderCatalog({
-      schemaVersion: 2,
-      providers: {
-        deepseek: { kind: 'builtin', enabled: true, protocol: 'openai-beta-fim' },
-        anthropic: {
-          kind: 'builtin',
-          enabled: true,
-          protocol: 'anthropic-messages',
-        },
-      },
-    })
-
-    expect(parsed.providers.anthropic).toMatchObject({ protocol: 'anthropic-messages' })
-    expect(parsed.issues).toEqual([
-      {
-        providerID: 'deepseek',
-        path: 'model_providers.deepseek',
-        code: 'INVALID_PROVIDER',
-      },
-    ])
-    // 被拒绝的 DeepSeek 配置不改变正在运行的协议。
-    expect(resolveDeepSeekProtocol(parsed)).toBeUndefined()
-    expect(() =>
-      serializePiProviderDefinition({
-        kind: 'builtin',
-        id: 'anthropic',
-        enabled: true,
-        allowModels: [],
-        denyModels: [],
-        models: [],
-        protocol: 'openai-responses',
-      }),
-    ).toThrow(PiProviderConfigValidationError)
+  expect(saved.value).not.toHaveProperty('protocol')
+  expect(saved.value).toMatchObject({
+    allow_models: ['deepseek-v4-pro'],
+    models: { 'deepseek-flash': { enabled: false } },
   })
 })
 

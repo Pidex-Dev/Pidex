@@ -1,8 +1,9 @@
+import { fixtureV2Fetch } from './fixtures/CatalogV2Fixture'
 import { expect, test } from 'bun:test'
 import { createModels, createProvider, type ModelsStoreEntry } from '@earendil-works/pi-ai'
 import { Effect } from 'effect'
 import type { ProviderCredentialRepository } from '../src/auth/ProviderCredentialRepository'
-import { createPiDeepSeekProvider } from '../src/provider/pi/PiDeepSeekProvider'
+import { withPiBuiltinProviderOverrides } from '../src/provider/pi/PiBuiltinProviderOverrides'
 import { PiModelService } from '../src/provider/pi/PiModelService'
 import { piProviderApiStreams } from '../src/provider/pi/PiProviderApis'
 import { withPiOpenAIModelDiscovery } from '../src/provider/pi/PiOpenAIModelDiscovery'
@@ -63,12 +64,13 @@ test('static OpenAI catalogs discover remote models, preserve metadata and cache
     list: () => [],
     get: () => Effect.succeed(null),
   } as unknown as ProviderCredentialRepository
-  const directory = new ProviderDirectoryStore(undefined, async () =>
-    Response.json({
+  const directory = new ProviderDirectoryStore(
+    undefined,
+    fixtureV2Fetch(() => ({
       models: { known: { name: 'Known model' } },
       providers: {
-        nvidia: {
-          name: 'NVIDIA',
+        'another-provider': {
+          name: 'Another directory provider',
           marketVisible: true,
           models: {
             known: {
@@ -83,7 +85,7 @@ test('static OpenAI catalogs discover remote models, preserve metadata and cache
           },
         },
       },
-    }),
+    })),
   )
   await directory.refresh()
   const runtime = () => {
@@ -102,9 +104,16 @@ test('static OpenAI catalogs discover remote models, preserve metadata and cache
   }
   const service = runtime()
   const restored = runtime()
-  const protocolOverride = createPiDeepSeekProvider(
+  const endpointOverride = withPiBuiltinProviderOverrides(
     service.pi.getProvider('nvidia')!,
-    'openai-responses',
+    {
+      kind: 'builtin',
+      enabled: true,
+      allowModels: [],
+      denyModels: [],
+      models: {},
+      endpoints: { 'openai-completions': 'https://relay.example/v1' },
+    },
   )
   try {
     await service.refresh(true, 'nvidia')
@@ -119,9 +128,10 @@ test('static OpenAI catalogs discover remote models, preserve metadata and cache
       maxTokens: 65536,
       reasoning: true,
     })
-    expect(protocolOverride.getModels().find((model) => model.id === 'remote-only')?.api).toBe(
-      'openai-responses',
-    )
+    expect(endpointOverride.getModels().find((model) => model.id === 'remote-only')).toMatchObject({
+      api: 'openai-completions',
+      baseUrl: 'https://relay.example/v1',
+    })
     expect(requests).toBe(1)
     expect(JSON.stringify([...values.values()])).not.toContain('fixture-key')
     await restored.reload()

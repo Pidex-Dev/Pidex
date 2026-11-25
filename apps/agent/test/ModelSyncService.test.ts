@@ -1,3 +1,4 @@
+import { fixtureV2Fetch } from './fixtures/CatalogV2Fixture'
 import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -121,20 +122,12 @@ const createFixture = async (
     'utf8',
   )
   const recommendations = withRecommendations
-    ? new ModelRecommendationStore(join(root, 'model-recommendations.json'))
+    ? new ModelRecommendationStore(
+        join(root, 'model-recommendations.json'),
+        fixtureV2Fetch(() => recommendationCatalog),
+      )
     : undefined
-  if (recommendations) {
-    await writeFile(
-      join(root, 'model-recommendations.json'),
-      JSON.stringify({
-        owner: 'pidex',
-        formatVersion: 1,
-        updatedAt: 99,
-        catalog: recommendationCatalog,
-      }),
-      'utf8',
-    )
-  }
+  await recommendations?.refresh()
   const runtime = await startRuntime(root, configPath, env, recommendations)
   const fixture: Fixture = {
     root,
@@ -535,7 +528,7 @@ describe('ModelSyncService', () => {
           id: 'qwen3.8-max',
           status: 'official',
           identity: 'alibaba/qwen3.8-max',
-          updatedAt: 99,
+          updatedAt: expect.any(Number),
         }),
         expect.objectContaining({
           id: 'hyper/qwen3.8-max',

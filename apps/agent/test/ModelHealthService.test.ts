@@ -47,6 +47,7 @@ const makeService = (
     list: handlers.list ?? (async () => [{ id: providerID }]),
     models: handlers.models ?? (async () => [{ id: modelID, enabled: true }]),
     getPiModel: async () => ({ provider: 'openai', id: 'gpt-test' }),
+    draftProtocolProblem: async () => undefined,
     pi: {
       completeSimple: handlers.completeSimple ?? (async () => ({ stopReason: 'stop' })),
     },

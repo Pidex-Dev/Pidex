@@ -1,3 +1,4 @@
+import { fixtureV2, fixtureV2Fetch, respondV2 } from './fixtures/CatalogV2Fixture'
 import { Schema } from 'effect'
 import { ProviderModelDefinitionSchema } from '@pidex/agent-protocol'
 import { describe, expect, spyOn, test } from 'bun:test'
@@ -20,7 +21,6 @@ import {
   seedBuiltinProviderCatalogModels,
   type PiModelCatalogConfig,
 } from '../src/provider/pi'
-import { withPiBuiltinProviderOverrides } from '../src/provider/pi/PiBuiltinProviderOverrides'
 
 test('catalog refresh identifies failed providers without logging upstream secrets', async () => {
   const logs: unknown[] = []
@@ -85,7 +85,7 @@ test('scoped catalog refresh never requests other providers and directory reload
   }
 })
 
-test('directory refresh downloads both upstreams without requesting provider models and preserves data on failure', async () => {
+test('directory refresh downloads manifest and changed payloads without requesting provider models and preserves data on failure', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'pidex-provider-directory-'))
   const path = join(directory, 'catalog.json')
   let failed = false
@@ -94,28 +94,31 @@ test('directory refresh downloads both upstreams without requesting provider mod
     requests.push(String(url))
     expect(init?.headers).toBeUndefined()
     if (failed) return Response.json({ invalid: true })
-    return Response.json({
-      models: { example: { name: 'Example' } },
-      providers: {
-        google: {
-          name: 'Google updated',
-          marketVisible: true,
-          models: {
-            example: {
-              name: 'Example',
-              pi_api: 'google-generative-ai',
-              base_url: 'https://generativelanguage.googleapis.com/v1beta',
-              limit: { context: 32768, output: 8192 },
-              modalities: { input: ['text'], output: ['text'] },
-              reasoning: false,
+    return respondV2(
+      url,
+      fixtureV2({
+        models: { example: { name: 'Example' } },
+        providers: {
+          google: {
+            name: 'Google updated',
+            marketVisible: true,
+            models: {
+              example: {
+                name: 'Example',
+                pi_api: 'google-generative-ai',
+                base_url: 'https://generativelanguage.googleapis.com/v1beta',
+                limit: { context: 32768, output: 8192 },
+                modalities: { input: ['text'], output: ['text'] },
+                reasoning: false,
+              },
             },
           },
+          'directory-only': { name: 'New directory supplier', marketVisible: true, models: {} },
+          'hidden-extra': { name: 'Hidden Extra', marketVisible: false, models: {} },
+          local: { name: 'Upstream local name', marketVisible: true, models: {} },
         },
-        'directory-only': { name: 'New directory supplier', marketVisible: true, models: {} },
-        'hidden-extra': { name: 'Hidden Extra', marketVisible: false, models: {} },
-        local: { name: 'Upstream local name', marketVisible: true, models: {} },
-      },
-    })
+      }),
+    )
   })
   const config = {
     schemaVersion: 2,
@@ -157,9 +160,12 @@ test('directory refresh downloads both upstreams without requesting provider mod
     await expect(service.refreshDirectory()).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' })
     expect(await service.list()).toEqual(providers)
     expect(service.catalogRevision()).toBe(revision)
-    expect(requests.every((url) => url === 'https://models.codepilotx.top/v1/catalog.json')).toBe(
-      true,
-    )
+    expect(requests).toEqual([
+      'https://models.codepilotx.top/v2/manifest.json',
+      'https://models.codepilotx.top/v2/providers.json',
+      'https://models.codepilotx.top/v2/models.json',
+      'https://models.codepilotx.top/v2/manifest.json',
+    ])
   } finally {
     refresh.mockRestore()
     await service.dispose()
@@ -189,8 +195,9 @@ test('directory aliases deduplicate without hiding manual providers and compatib
     },
   })
   const baseUrl = `${server.url}v1`
-  const directory = new ProviderDirectoryStore(undefined, async () =>
-    Response.json({
+  const directory = new ProviderDirectoryStore(
+    undefined,
+    fixtureV2Fetch(() => ({
       models: { m: { name: 'm' } },
       providers: {
         'vendor-a': {
@@ -256,7 +263,7 @@ test('directory aliases deduplicate without hiding manual providers and compatib
           models: {},
         },
       },
-    }),
+    })),
   )
   const fake = repository([
     {
@@ -515,123 +522,40 @@ describe('PiModelService DeepSeek protocol', () => {
     id: 'deepseek-v4-pro' as never,
   })
 
-  test('rebuilds every DeepSeek model on the selected protocol', async () => {
+  test('uses the catalog protocol instead of old DeepSeek overrides, including after reload', async () => {
     const fake = deepSeekRepository()
-    const service = new PiModelService(fake.adapter, {
-      config: deepSeekConfig('anthropic-messages'),
-      env: {},
-    })
+    let config: PiModelCatalogConfig = deepSeekConfig('anthropic-messages')
+    const service = new PiModelService(fake.adapter, { config: () => config, env: {} })
 
     try {
-      await service.list()
-      const models = service.pi.getModels('deepseek')
-      expect(models.map((model) => model.id)).toContain('deepseek-v4-pro')
-      for (const model of models) {
-        expect(model.api).toBe('anthropic-messages')
-        expect(model.baseUrl).toBe('https://api.deepseek.com/anthropic')
-        // openai-completions 的 compat 不能带到 Anthropic 协议上。
-        expect(model.compat).toBeUndefined()
-      }
-      const pro = models.find((model) => model.id === 'deepseek-v4-pro')
-      expect(pro).toMatchObject({
-        provider: 'deepseek',
+      const before = await service.getPiModel(deepSeekRef())
+      expect(before).toMatchObject({
+        api: 'openai-completions',
+        baseUrl: 'https://api.deepseek.com',
         reasoning: true,
         contextWindow: 1_000_000,
       })
+      expect(before.compat).toBeDefined()
       expect(await service.isAuthConfigured('deepseek')).toBe(true)
-      expect(await service.getPiModel(deepSeekRef() as never)).toBe(pro!)
+      expect(service.pi.getModels('deepseek').map((model) => model.api)).toEqual([
+        'openai-completions',
+        'openai-completions',
+      ])
+
+      config = deepSeekConfig('openai-beta-fim')
+      await service.reload()
+      expect(await service.configIssues()).toEqual([])
+      expect(await service.getPiModel(deepSeekRef())).toMatchObject({
+        api: 'openai-completions',
+        baseUrl: 'https://api.deepseek.com',
+      })
       expect((await service.list()).find((provider) => provider.id === 'deepseek')).toMatchObject({
         source: {
           kind: 'builtin',
-          apis: ['anthropic-messages'],
-          baseUrl: 'https://api.deepseek.com/anthropic',
+          defaultApi: 'openai-completions',
+          baseUrl: 'https://api.deepseek.com',
         },
       })
-    } finally {
-      await service.dispose()
-    }
-  })
-
-  test('uses OpenAI Responses without leaking completions compat', async () => {
-    const fake = deepSeekRepository()
-    const service = new PiModelService(fake.adapter, {
-      config: deepSeekConfig('openai-responses'),
-      env: {},
-    })
-
-    try {
-      await service.list()
-      const models = service.pi.getModels('deepseek')
-      expect(models.length).toBeGreaterThan(0)
-      for (const model of models) {
-        expect(model.api).toBe('openai-responses')
-        expect(model.baseUrl).toBe('https://api.deepseek.com')
-        expect(model.compat).toBeUndefined()
-      }
-      expect(service.pi.getProvider('deepseek')?.baseUrl).toBe('https://api.deepseek.com')
-    } finally {
-      await service.dispose()
-    }
-  })
-
-  test('keeps the running model until the next resolution and restores the default', async () => {
-    const fake = deepSeekRepository()
-    let config: PiModelCatalogConfig = deepSeekConfig()
-    const service = new PiModelService(fake.adapter, {
-      config: () => config,
-      env: {},
-    })
-
-    try {
-      const before = await service.getPiModel(deepSeekRef() as never)
-      expect(before.api).toBe('openai-completions')
-      expect(before.compat).toBeDefined()
-
-      config = deepSeekConfig('anthropic-messages') as PiModelCatalogConfig
-      await service.reload()
-      // 已经开始的请求继续使用原来的协议与端点。
-      expect(before.api).toBe('openai-completions')
-      expect(before.baseUrl).toBe('https://api.deepseek.com')
-      expect(before.compat).toBeDefined()
-      const switched = await service.getPiModel(deepSeekRef() as never)
-      expect(switched.api).toBe('anthropic-messages')
-      expect(switched.baseUrl).toBe('https://api.deepseek.com/anthropic')
-
-      config = deepSeekConfig() as PiModelCatalogConfig
-      await service.reload()
-      const restored = await service.getPiModel(deepSeekRef() as never)
-      expect(restored.api).toBe('openai-completions')
-      expect(restored.baseUrl).toBe('https://api.deepseek.com')
-      expect(restored.compat).toBeDefined()
-    } finally {
-      await service.dispose()
-    }
-  })
-
-  test('ignores a rejected protocol and keeps the running provider', async () => {
-    const fake = deepSeekRepository()
-    let config: PiModelCatalogConfig = deepSeekConfig('anthropic-messages') as PiModelCatalogConfig
-    const service = new PiModelService(fake.adapter, {
-      config: () => config,
-      env: {},
-    })
-
-    try {
-      expect((await service.configIssues()).length).toBe(0)
-      config = deepSeekConfig('openai-beta-fim') as PiModelCatalogConfig
-      await service.reload()
-
-      expect(await service.configIssues()).toEqual([
-        {
-          providerID: 'deepseek',
-          path: 'model_providers.deepseek',
-          code: 'INVALID_PROVIDER',
-        },
-      ])
-      expect(service.pi.getProvider('deepseek')?.baseUrl).toBe('https://api.deepseek.com/anthropic')
-      expect(
-        service.pi.getModels('deepseek').every((model) => model.api === 'anthropic-messages'),
-      ).toBe(true)
     } finally {
       await service.dispose()
     }
@@ -1312,7 +1236,15 @@ test('内置 Provider 无需 smartConfig 直接热更新定价/阶梯与思考�
                 output: 4,
                 cacheRead: 0.02,
                 cacheWrite: 0,
-                tiers: [{ inputTokensAbove: 200_000, input: 1.5, output: 6, cacheRead: 0.03, cacheWrite: 0 }],
+                tiers: [
+                  {
+                    inputTokensAbove: 200_000,
+                    input: 1.5,
+                    output: 6,
+                    cacheRead: 0.03,
+                    cacheWrite: 0,
+                  },
+                ],
               },
               busy: { input: 2, output: 8, cacheRead: 0.04, cacheWrite: 0 },
               rules: [],
@@ -1331,7 +1263,7 @@ test('内置 Provider 无需 smartConfig 直接热更新定价/阶梯与思考�
       },
     },
   })
-  const fetcher = (async () => Response.json(catalogFor(version))) as unknown as typeof fetch
+  const fetcher = fixtureV2Fetch(() => catalogFor(version))
   const dirPath = join(dir, 'provider-directory.json')
   const recPath = join(dir, 'model-recommendations.json')
   const directory = new ProviderDirectoryStore(dirPath, fetcher)
@@ -1381,7 +1313,9 @@ test('内置 Provider 无需 smartConfig 直接热更新定价/阶梯与思考�
     expect(models1.some((m) => m.id === 'deepseek-brand-new')).toBe(false)
     const discovered = await service.discoverBuiltinModels('deepseek')
     expect(discovered.find((m) => m.id === 'deepseek-brand-new')?.enabled).toBe(false)
-    expect(discovered.find((m) => m.id === 'deepseek-flash')?.pricing?.idle.tiers?.[0]?.inputTokensAbove).toBe(200_000)
+    expect(
+      discovered.find((m) => m.id === 'deepseek-flash')?.pricing?.idle.tiers?.[0]?.inputTokensAbove,
+    ).toBe(200_000)
 
     const piFlash1 = (await service.getPiModel({
       providerID: 'deepseek',
@@ -1393,13 +1327,17 @@ test('内置 Provider 无需 smartConfig 直接热更新定价/阶梯与思考�
     }
     expect(piFlash1.pricing?.idle.input).toBe(1)
     expect(
-      applyModelOptionMap({}, compileOptionSpecs(piFlash1.optionSpecs)!, { reasoningLevel: 'high' }),
+      applyModelOptionMap({}, compileOptionSpecs(piFlash1.optionSpecs)!, {
+        reasoningLevel: 'high',
+      }),
     ).toEqual({ custom_effort: 'high' })
 
     // Catalog hot-update: untouched fields (name, maxTokens, pricing) update; user contextWindow stays 777_777.
     version = 2
     await service.refreshDirectory()
-    const flash2 = (await service.models('deepseek' as never)).find((m) => m.id === 'deepseek-flash')!
+    const flash2 = (await service.models('deepseek' as never)).find(
+      (m) => m.id === 'deepseek-flash',
+    )!
     expect(flash2.name).toBe('DeepSeek Flash v2')
     expect(flash2.limit.output).toBe(512_000)
     expect(flash2.limit.context).toBe(777_777)
@@ -1410,14 +1348,16 @@ test('内置 Provider 无需 smartConfig 直接热更新定价/阶梯与思考�
     expect(piFlash2.pricing?.idle.input).toBe(0.8)
 
     // Existing saved custom provider with directory_source = "models-dev" still loads cleanly.
-    expect((await service.models('legacy-dev-vendor' as never)).some((m) => m.id === 'chat')).toBe(true)
+    expect((await service.models('legacy-dev-vendor' as never)).some((m) => m.id === 'chat')).toBe(
+      true,
+    )
   } finally {
     await service.dispose()
     await rm(dir, { recursive: true, force: true })
   }
 })
 
-test('curated bundled catalog limits market to DeepSeek and MiniMax while preserving saved providers and smartConfig', async () => {
+test('curated bundled catalog lists both Moonshot regions and preserves saved providers and smartConfig', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'pidex-curated-market-'))
   const dirPath = join(dir, 'provider-directory.json')
   const recPath = join(dir, 'model-recommendations.json')
@@ -1428,13 +1368,55 @@ test('curated bundled catalog limits market to DeepSeek and MiniMax while preser
     schema_version: 2,
     providers: {},
   }
-  const service = new PiModelService(fake.adapter, { directory, recommendations, config, env: {} })
+  const service = new PiModelService(fake.adapter, {
+    directory,
+    recommendations,
+    config,
+    env: { DASHSCOPE_API_KEY: '' },
+  })
   try {
-    const cleanMarket = (await service.list()).map((p) => String(p.id)).sort()
-    expect(cleanMarket).toEqual(['deepseek', 'minimax', 'minimax-cn'])
+    const market = await service.list()
+    const cleanMarket = market.map((p) => String(p.id)).sort()
+    expect(cleanMarket).toEqual([
+      'deepseek',
+      'minimax',
+      'minimax-cn',
+      'moonshotai',
+      'moonshotai-cn',
+      'qianwen-cn',
+      'qwen-token-plan',
+      'qwen-token-plan-cn',
+      'qwencloud-beijing',
+      'qwencloud-frankfurt',
+      'qwencloud-hongkong',
+      'qwencloud-singapore',
+      'qwencloud-tokyo',
+      'qwencloud-virginia',
+    ])
+    for (const [id, host, currency] of [
+      ['moonshotai', 'api.moonshot.ai', 'USD'],
+      ['moonshotai-cn', 'api.moonshot.cn', 'CNY'],
+    ] as const) {
+      expect(market.find((p) => p.id === id)).toMatchObject({
+        auth: { apiKey: true },
+        source: { env: ['MOONSHOT_API_KEY'], baseUrl: `https://${host}/v1` },
+      })
+      const models = await service.discoverBuiltinModels(id)
+      expect(models.find((model) => model.id === 'kimi-k3.1-pro')?.pricing?.currency).toBe(currency)
+    }
     expect(service.catalogModelCount('deepseek')).toBe(2)
     expect(service.catalogModelCount('minimax-cn')).toBe(2)
     expect(service.catalogModelCount('minimax')).toBe(2)
+
+    const qwen = 'qianwen-cn'
+    expect(await service.isAuthConfigured(qwen)).toBe(false)
+    const qwenModels = Schema.decodeUnknownSync(Schema.Array(ProviderModelDefinitionSchema))(
+      await service.discoverDirectoryModels(qwen),
+    )
+    expect(qwenModels).toHaveLength(18)
+    expect(qwenModels).toHaveLength(service.catalogModelCount(qwen))
+    expect(qwenModels.some((model) => model.pricing?.currency === 'CNY')).toBe(true)
+    expect(await service.models(Provider.ID.make(qwen))).toEqual([])
 
     // MiniMax CN overlay is enriched onto builtin models (M3.1-Flash effort + M3 >512K CNY tiers).
     const minimaxModels = await service.discoverBuiltinModels('minimax-cn')
@@ -1461,7 +1443,7 @@ test('curated bundled catalog limits market to DeepSeek and MiniMax while preser
       value: { type: 'key', key: 'sk-saved-legacy-openai' },
     })
     const withSavedOpenAI = (await service.list()).map((p) => String(p.id)).sort()
-    expect(withSavedOpenAI).toEqual(['deepseek', 'minimax', 'minimax-cn', 'openai'])
+    expect(withSavedOpenAI).toEqual([...cleanMarket, 'openai'].sort())
 
     // Manually added custom provider still gets full smartConfig from hidden catalog providers/models.
     const openaiMatch = await recommendations.resolve({
@@ -1487,7 +1469,161 @@ test('curated bundled catalog limits market to DeepSeek and MiniMax while preser
   }
 })
 
-test('builtin catalog seeding locks model list on first credential, keeps removed models via fallback, and resets when last credential is deleted', async () => {
+test('Moonshot uses catalog protocols in both regions and dispatches both Kimi fast aliases', async () => {
+  const directory = new ProviderDirectoryStore(undefined, fetch, { bundledFallback: true })
+  const recommendations = new ModelRecommendationStore(undefined, fetch, { bundledFallback: true })
+  const config = {
+    schemaVersion: 2,
+    providers: {
+      moonshotai: {
+        kind: 'builtin',
+        protocol: 'anthropic-messages',
+        base_url: 'https://api.moonshot.ai/anthropic/',
+        allow_models: ['kimi-k3.1-pro', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6'],
+      },
+      'moonshotai-cn': {
+        kind: 'builtin',
+        protocol: 'anthropic-messages',
+        base_url: 'https://api.moonshot.cn/anthropic',
+        allow_models: ['kimi-k3.1-pro', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6'],
+      },
+      'moonshot-direct': {
+        kind: 'custom',
+        base_url: 'https://api.moonshot.ai/anthropic',
+        auth: 'none',
+        models: {
+          'kimi-k2.7-code': { api: 'anthropic-messages', smart_config: { pinned: [] } },
+        },
+      },
+    },
+  }
+  const service = new PiModelService(repository().adapter, {
+    directory,
+    recommendations,
+    config,
+    env: { MOONSHOT_API_KEY: 'unit-moonshot-key' },
+  })
+  const ref = (providerID: string, id: string) => ({
+    providerID: Provider.ID.make(providerID),
+    id: Model.ID.make(id),
+  })
+  try {
+    for (const [providerId, host] of [
+      ['moonshotai', 'api.moonshot.ai'],
+      ['moonshotai-cn', 'api.moonshot.cn'],
+    ] as const) {
+      for (const id of ['kimi-k3.1-pro', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6']) {
+        expect(await service.getPiModel(ref(providerId, id))).toMatchObject({
+          api: 'openai-completions',
+          baseUrl: `https://${host}/v1`,
+        })
+      }
+      expect((await service.providerDefinitions()).find((provider) => provider.id === providerId))
+        .not.toHaveProperty('baseUrl')
+      expect((await service.list()).find((provider) => String(provider.id) === providerId))
+        .toMatchObject({ source: { defaultApi: 'openai-completions', baseUrl: `https://${host}/v1` } })
+    }
+    await expect(service.getPiModel(ref('moonshot-direct', 'kimi-k2.7-code'))).rejects.toThrow(
+      '仅支持 openai-completions',
+    )
+    await expect(
+      service.previewRecommendation({
+        providerId: 'moonshotai',
+        modelId: 'kimi-k2.7-code',
+        modelType: 'chat',
+        api: 'openai-responses',
+      }),
+    ).rejects.toThrow('仅支持 openai-completions')
+    expect(
+      await service.previewRecommendation({
+        providerId: 'moonshotai',
+        modelId: 'kimi-k3.1-pro',
+        modelType: 'chat',
+        api: 'openai-responses',
+      }),
+    ).toMatchObject({ status: 'matched' })
+
+    for (const [providerId, currency, rates, k2Rate] of [
+      ['moonshotai', 'USD', { '5m': 4, '1h': 8 }, 1.9],
+      ['moonshotai-cn', 'CNY', { '5m': 26, '1h': 52 }, 13],
+    ] as const) {
+      const fastK2 = await service.getPiModel({
+        ...ref(providerId, 'kimi-k2.7-code'),
+        speedTier: 'fast',
+      })
+      const fastK3 = await service.getPiModel({
+        ...ref(providerId, 'kimi-k3.1-pro'),
+        speedTier: 'fast',
+      })
+      expect(fastK2).toMatchObject({
+        speedInvocation: { requestModelId: 'kimi-k2.7-code-highspeed' },
+        pricing: { currency, busy: { input: k2Rate, cacheWrite: 0 } },
+      })
+      expect(fastK3).toMatchObject({
+        speedInvocation: { requestModelId: 'kimi-k3.1-pro-highspeed' },
+        pricing: { currency, busy: { cacheWriteByTtl: rates } },
+      })
+      expect(await service.getPiModel(ref(providerId, 'kimi-k3.1-pro-highspeed'))).toMatchObject({
+        speedTier: 'fast',
+      })
+      await expect(
+        service.getPiModel({ ...ref(providerId, 'kimi-k3.1-pro'), speedTier: 'ultrafast' }),
+      ).rejects.toThrow('不支持所选速度档位')
+    }
+  } finally {
+    await service.dispose()
+  }
+})
+
+test('SmartConfig intersects known custom endpoints with model protocol order', async () => {
+  const baseUrl = 'https://api.moonshot.ai/anthropic'
+  const openai = 'https://api.moonshot.ai/v1'
+  const service = new PiModelService(repository().adapter, {
+    directory: new ProviderDirectoryStore(undefined, fetch, { bundledFallback: true }),
+    recommendations: new ModelRecommendationStore(undefined, fetch, { bundledFallback: true }),
+    config: {
+      providers: {
+        'moonshot-multi': {
+          kind: 'custom', auth: 'none', base_url: baseUrl,
+          endpoints: { 'anthropic-messages': baseUrl, 'openai-completions': openai },
+          models: { 'kimi-k2.7-code': { api: 'anthropic-messages', smart_config: { pinned: [] } } },
+        },
+        'moonshot-no-completions': {
+          kind: 'custom', auth: 'none', base_url: baseUrl,
+          endpoints: { 'anthropic-messages': baseUrl, 'openai-responses': openai },
+          models: { 'kimi-k3.1-pro': { api: 'anthropic-messages', smart_config: { pinned: [] } } },
+        },
+        relay: {
+          kind: 'custom', auth: 'none', base_url: 'https://relay.example/anthropic',
+          endpoints: {
+            'anthropic-messages': 'https://relay.example/anthropic',
+            'openai-completions': 'https://relay.example/v1',
+          },
+          models: { 'moonshotai/kimi-k2.7-code': { api: 'anthropic-messages', smart_config: { pinned: [] } } },
+        },
+      },
+    },
+  })
+  try {
+    for (const [providerId, id, api] of [
+      ['moonshot-multi', 'kimi-k2.7-code', 'openai-completions'],
+      ['moonshot-no-completions', 'kimi-k3.1-pro', 'openai-responses'],
+    ] as const) {
+      expect(await service.previewRecommendation({
+        providerId, baseUrl, modelId: id, modelType: 'chat', api: 'anthropic-messages',
+      })).toMatchObject({ status: 'matched', recommendedApi: api })
+      expect(await service.getPiModel({ providerID: Provider.ID.make(providerId), id: Model.ID.make(id) }))
+        .toMatchObject({ api, baseUrl: openai })
+    }
+    expect(await service.getPiModel({
+      providerID: Provider.ID.make('relay'), id: Model.ID.make('moonshotai/kimi-k2.7-code'),
+    })).toMatchObject({ api: 'anthropic-messages', baseUrl: 'https://relay.example/anthropic' })
+  } finally {
+    await service.dispose()
+  }
+})
+
+test('catalog seeding locks available models, preserves the saved allowlist after delisting, and resets after the last credential', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'pidex-builtin-seed-'))
   const dirPath = join(dir, 'provider-directory.json')
   const recPath = join(dir, 'model-recommendations.json')
@@ -1500,7 +1636,11 @@ test('builtin catalog seeding locks model list on first credential, keeps remove
   }
   const config = {
     snapshot: () => structuredClone(snapshot),
-    batchWrite: async ({ edits }: { edits: readonly { keyPath: readonly string[]; value: unknown }[] }) => {
+    batchWrite: async ({
+      edits,
+    }: {
+      edits: readonly { keyPath: readonly string[]; value: unknown }[]
+    }) => {
       for (const edit of edits) {
         let cursor = snapshot
         for (let i = 0; i < edit.keyPath.length - 1; i++) {
@@ -1536,7 +1676,8 @@ test('builtin catalog seeding locks model list on first credential, keeps remove
       hadCredentialsBefore: false,
     })
     expect(seeded).toBe(true)
-    const savedMinimax = (snapshot.model_providers as Record<string, Record<string, unknown>>).minimax
+    const savedMinimax = (snapshot.model_providers as Record<string, Record<string, unknown>>)
+      .minimax
     expect(savedMinimax?.allow_models).toEqual(['MiniMax-M3', 'MiniMax-M3.1-Flash'])
     expect(savedMinimax?.models).toEqual({
       'MiniMax-M3': { enabled: true },
@@ -1562,15 +1703,13 @@ test('builtin catalog seeding locks model list on first credential, keeps remove
     const enabledIds = (await service.models('minimax' as never)).map((m) => String(m.id)).sort()
     expect(enabledIds).toEqual(['MiniMax-M3', 'MiniMax-M3.1-Flash'])
 
-    const source = service.pi.getProvider('minimax')!
-    const withRemoved = withPiBuiltinProviderOverrides(source, {
-      kind: 'builtin',
-      enabled: true,
-      allowModels: ['MiniMax-Legacy-Removed'],
-      denyModels: [],
-      models: { 'MiniMax-Legacy-Removed': { enabled: true } },
-    })
-    expect(withRemoved.getModels().some((m) => m.id === 'MiniMax-Legacy-Removed')).toBe(true)
+    savedMinimax!.allow_models = ['MiniMax-M3', 'MiniMax-M3.1-Flash', 'MiniMax-M2.7']
+    await service.reload()
+    expect(service.pi.getModel('minimax', 'MiniMax-M2.7')).toBeUndefined()
+    expect(
+      (await service.models('minimax' as never)).map((model) => String(model.id)).sort(),
+    ).toEqual(enabledIds)
+    expect(savedMinimax!.allow_models).toContain('MiniMax-M2.7')
 
     const notResetWhileKeyExists = await resetUnconfiguredBuiltinProvider({
       providerID: 'minimax',
@@ -1600,32 +1739,29 @@ test('catalog protocolEndpoints drive builtin protocol defaults, live overrides,
   const dir = await mkdtemp(join(tmpdir(), 'pidex-catalog-protocol-endpoints-'))
   const dirPath = join(dir, 'provider-directory.json')
   const recPath = join(dir, 'model-recommendations.json')
-  const fetcher = async () =>
-    new Response(
-      JSON.stringify({
-        owner: 'pidex-model-catalog',
-        schemaVersion: 1,
-        models: {},
-        providers: {
-          'qwen-token-plan-cn': {
-            name: 'Qwen AI Token Plan (China)',
-            api: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
-            protocolEndpoints: {
-              'openai-completions': 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
-              'anthropic-messages': 'https://override.qianwenaiapi.com/apps/anthropic',
-            },
-            marketVisible: false,
-            models: {
-              'qwen3.8-max': {
-                name: 'Qwen3.8 Max',
-                limit: { context: 131072, output: 32768 },
-              },
-            },
+  const fetcher = fixtureV2Fetch(() => ({
+    owner: 'pidex-model-catalog',
+    schemaVersion: 1,
+    models: {},
+    providers: {
+      'qwen-token-plan-cn': {
+        name: 'Qwen AI Token Plan (China)',
+        api: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+        protocolEndpoints: {
+          'openai-completions': 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+          'anthropic-messages': 'https://override.qianwenaiapi.com/apps/anthropic',
+        },
+        marketVisible: false,
+        models: {
+          'qwen3.8-max': {
+            name: 'Qwen3.8 Max',
+            pi_api: 'anthropic-messages',
+            limit: { context: 131072, output: 32768 },
           },
         },
-      }),
-      { status: 200, headers: { 'content-type': 'application/json' } },
-    )
+      },
+    },
+  }))
   const directory = new ProviderDirectoryStore(dirPath, fetcher, { bundledFallback: true })
   const recommendations = new ModelRecommendationStore(recPath, fetcher, { bundledFallback: true })
   const fake = repository()
@@ -1650,13 +1786,14 @@ test('catalog protocolEndpoints drive builtin protocol defaults, live overrides,
       'https://token-plan.maas.qianwenaiapi.com/apps/anthropic',
     )
     const runtimeBundled = service.pi.getModels('qwen-token-plan-cn')[0]
-    expect(runtimeBundled?.api).toBe('anthropic-messages')
-    expect(runtimeBundled?.baseUrl).toBe('https://token-plan.maas.qianwenaiapi.com/apps/anthropic')
+    expect(runtimeBundled?.api).toBe('openai-completions')
+    expect(runtimeBundled?.baseUrl).toBe('https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1')
 
     // Online catalog protocolEndpoints override bundled defaults.
     await directory.refresh()
     await service.reload()
     const runtimeRefreshed = service.pi.getModels('qwen-token-plan-cn')[0]
+    expect(runtimeRefreshed?.api).toBe('anthropic-messages')
     expect(runtimeRefreshed?.baseUrl).toBe('https://override.qianwenaiapi.com/apps/anthropic')
 
     // Explicit user config.endpoints still wins over catalog.

@@ -1676,6 +1676,15 @@ describe('RPC v4 Router', () => {
 
   test('provider methods create canonical Pi v2 configuration', async () => {
     const provider = Provider.Info.empty(Provider.ID.make('provider:fixture'))
+    const pricing = {
+      currency: 'USD',
+      timeZone: 'Asia/Shanghai',
+      defaultPeriod: 'idle',
+      busy: { input: 3, output: 15, cacheRead: null, cacheWrite: null },
+      idle: { input: 1, output: 5, cacheRead: null, cacheWrite: null },
+      rules: [],
+      dateOverrides: [],
+    }
     const { db, configDocument, call, initialize } = await fixture({
       providers: {
         list: async () => [provider],
@@ -1713,6 +1722,7 @@ describe('RPC v4 Router', () => {
               {
                 id: 'fixture-model',
                 api: 'openai-completions',
+                pricing,
               },
             ],
           },
@@ -1730,6 +1740,7 @@ describe('RPC v4 Router', () => {
     const stored = (configDocument.model_providers as Record<string, Record<string, unknown>>)[
       provider.id
     ]!
+    expect(stored.models).toMatchObject({ 'fixture-model': { pricing } })
     stored.future_setting = { keep: true }
     ;(stored.models as Record<string, Record<string, unknown>>)['fixture-model']!.future_parameter =
       42
@@ -1755,6 +1766,7 @@ describe('RPC v4 Router', () => {
       (stored.models as Record<string, Record<string, unknown>>)['fixture-model']!.future_parameter,
     ).toBe(42)
     expect(stored.base_url).toBe('https://updated.example/v1')
+    expect(stored.models).not.toHaveProperty(['fixture-model', 'pricing'])
     const builtin = await call('provider/update', {
       providerId: 'nvidia',
       definition: {

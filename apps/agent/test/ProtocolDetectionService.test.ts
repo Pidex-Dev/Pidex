@@ -94,6 +94,7 @@ type HarnessOptions = {
   readonly models?: (providerID: Provider.ID) => Promise<readonly Model.Info[]>
   readonly catalog?: unknown
   readonly auth?: (providerID: string) => Promise<unknown>
+  readonly draftProtocolProblem?: PiModelService['draftProtocolProblem']
   readonly stream?: StreamHandler
   readonly requestTimeoutMs?: number
 }
@@ -111,6 +112,7 @@ const makeHarness = (options: HarnessOptions = {}) => {
       options.models ? await options.models(providerID) : [],
     providerDefinitions: async () => options.definitions ?? [],
     catalogConfig: async () => options.catalog ?? { schemaVersion: 2, providers: {}, issues: [] },
+    draftProtocolProblem: options.draftProtocolProblem ?? (async () => undefined),
     pi: {
       getAuth: async (providerID: string) =>
         options.auth ? await options.auth(providerID) : undefined,
@@ -145,6 +147,24 @@ const singleInput = (
   draft,
   batch: false,
   ...extra,
+})
+
+test('协议检测在发送前过滤模型不支持的协议', async () => {
+  const message = '该模型当前仅支持 openai-completions'
+  const { service, calls } = makeHarness({
+    draftProtocolProblem: async (_modelId, api) =>
+      api === 'openai-completions' ? undefined : message,
+  })
+  const result = await service.detect(
+    singleInput(
+      { baseUrl: 'https://api.moonshot.ai/v1', auth: 'none' },
+      { model: 'kimi-k2.7-code' },
+    ),
+  )
+  expect(calls.map(({ model }) => model.api)).toEqual(['openai-completions'])
+  expect(
+    result.models[0]?.cells.find(({ protocol }) => protocol === 'anthropic-messages'),
+  ).toMatchObject({ status: 'failed', category: 'configuration', message })
 })
 
 describe('ProviderProtocolUrl 规范化', () => {
@@ -711,9 +731,12 @@ describe('ProtocolDetectionService', () => {
       },
     })
     try {
-      const service = new ProtocolDetectionService({} as unknown as PiModelService, {
-        requestTimeoutMs: 5_000,
-      })
+      const service = new ProtocolDetectionService(
+        { draftProtocolProblem: async () => undefined } as unknown as PiModelService,
+        {
+          requestTimeoutMs: 5_000,
+        },
+      )
       const success = await service.detect(
         singleInput(
           {

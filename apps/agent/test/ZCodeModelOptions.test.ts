@@ -3,18 +3,16 @@ import {
   resolveZCodeOptionSpecs,
   resolveZCodeOptionSpecsFrom,
 } from '../src/provider/pi/ZCodeModelOptions'
-import type { ZCodeOptionRule } from '../src/provider/pi/data/zcode-model-options'
+import type { OptionRule } from '../src/provider/pi/CatalogV2'
 
 describe('ZCodeModelOptions — 静态规则匹配与覆盖', () => {
   test('后匹配的通用层覆盖先匹配层（ZCode 通用顺序）', () => {
-    const rules: ZCodeOptionRule[] = [
+    const rules: OptionRule[] = [
       {
-        kind: 'model',
         modelMatch: '.*',
         optionSpecs: { reasoningLevel: { values: ['disabled', 'enabled'] } },
       },
       {
-        kind: 'model',
         modelMatch: '.*glm-5.*',
         optionSpecs: {
           reasoningLevel: {
@@ -35,9 +33,8 @@ describe('ZCodeModelOptions — 静态规则匹配与覆盖', () => {
   })
 
   test('apiTypeMatch 使用协议别名，且 baseUrlMatch 必须命中', () => {
-    const rules: ZCodeOptionRule[] = [
+    const rules: OptionRule[] = [
       {
-        kind: 'providerSite',
         modelMatch: 'glm-5\\.3-flash',
         apiTypeMatch: 'openai-chat-completions',
         baseUrlMatch: 'https://opencode\\.ai/zen/go/v1/?',
@@ -61,9 +58,8 @@ describe('ZCodeModelOptions — 静态规则匹配与覆盖', () => {
   })
 
   test('未命中任何规则返回 undefined（不做裸名模糊合并）', () => {
-    const rules: ZCodeOptionRule[] = [
+    const rules: OptionRule[] = [
       {
-        kind: 'model',
         modelMatch: 'glm-5',
         optionSpecs: { reasoningLevel: { values: ['low', 'high'] } },
       },
