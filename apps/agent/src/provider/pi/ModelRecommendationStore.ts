@@ -1,23 +1,10 @@
-import {
-  SharedModelCatalogCache,
-  downloadCatalogJson,
-  type SharedCatalogCacheOptions,
-} from './SharedModelCatalogCache'
+import { CatalogV2Cache, type CatalogV2CacheOptions } from './CatalogV2Cache'
 import type { RecommendationInput } from './ModelRecommendations'
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000
 
-export { downloadCatalogJson }
-
-/**
- * 推荐目录的持久化交给共享的模型清单缓存（{@link SharedModelCatalogCache}）。
- *
- * `path` 仍可指向旧 `model-recommendations.json`：文件存在时用于只读兼容迁移，
- * 新格式写入同目录的 `shared-model-catalog.json`，不再单独保存第二份目录。
- * `version()`/`updatedAt()` 语义保持不变，PiModelService 的 fingerprint 依赖它。
- */
 export class ModelRecommendationStore {
-  private readonly cache: SharedModelCatalogCache
+  private readonly cache: CatalogV2Cache
   private readonly request: (input: string | URL | Request, init?: RequestInit) => Promise<Response>
   private refreshTimer: ReturnType<typeof setInterval> | undefined
   private onAutoUpdated: (() => void | Promise<void>) | undefined
@@ -25,9 +12,9 @@ export class ModelRecommendationStore {
   constructor(
     path?: string,
     request: (input: string | URL | Request, init?: RequestInit) => Promise<Response> = fetch,
-    options: SharedCatalogCacheOptions = {},
+    options: CatalogV2CacheOptions = {},
   ) {
-    this.cache = SharedModelCatalogCache.forPath(path, options)
+    this.cache = CatalogV2Cache.forPath(path, options)
     this.request = request
   }
 
@@ -48,6 +35,10 @@ export class ModelRecommendationStore {
     this.onAutoUpdated = undefined
     if (this.refreshTimer) clearInterval(this.refreshTimer)
     this.refreshTimer = undefined
+  }
+
+  async optionRules() {
+    return (await this.cache.current())?.modelsDoc.optionRules
   }
 
   async resolve(input: RecommendationInput) {

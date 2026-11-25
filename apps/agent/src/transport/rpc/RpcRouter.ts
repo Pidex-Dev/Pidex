@@ -543,6 +543,9 @@ export class RpcRouter {
             providerID: recentProviderID,
             id: recent.id,
             ...(recentVariant ? { variant: recentVariant } : {}),
+            ...(Schema.is(Model.SpeedTierId)(recent.speedTier)
+              ? { speedTier: recent.speedTier }
+              : {}),
           } as Model.Ref)
         : null
     const security =
@@ -561,6 +564,14 @@ export class RpcRouter {
         ?.find((model) => model.id === ref.id)
       if (!match || !match.enabled) return null
       if (ref.variant && !match.variants.some((variant) => variant.id === ref.variant)) return null
+      if (
+        ref.speedTier &&
+        ref.speedTier !== 'standard' &&
+        !match.speedTiers?.some((tier) => tier.id === ref.speedTier)
+      ) {
+        const { speedTier: _, ...standard } = ref
+        return standard
+      }
       return ref
     }
     return {
@@ -910,6 +921,7 @@ export const modelRef = (value: Record<string, unknown>) => {
     providerID: Provider.ID.make(value.providerID),
     id: Model.ID.make(value.id),
     ...(typeof value.variant === 'string' ? { variant: Model.VariantID.make(value.variant) } : {}),
+    ...(Schema.is(Model.SpeedTierId)(value.speedTier) ? { speedTier: value.speedTier } : {}),
   })
 }
 

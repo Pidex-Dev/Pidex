@@ -11,19 +11,14 @@ export type { PiModelServiceOptions, PiProviderModelSyncSummary } from './PiMode
 export {
   assertSafeProviderHeaders,
   CUSTOM_PROVIDER_APIS,
-  DEEPSEEK_PROTOCOL_ENDPOINTS,
-  DEEPSEEK_PROVIDER_ID,
-  DEFAULT_DEEPSEEK_PROTOCOL,
   parsePiProviderCatalog,
   PI_PROVIDER_CONFIG_SCHEMA_VERSION,
   PiProviderConfigValidationError,
-  resolveDeepSeekProtocol,
   serializePiProviderDefinition,
   validateCustomProviderBaseUrl,
 } from './PiProviderConfig'
 export type {
   CustomProviderApi,
-  DeepSeekProtocol,
   ParsedPiProviderCatalog,
   PiBuiltinProviderConfig,
   PiCustomModelConfig,
@@ -35,7 +30,6 @@ export type {
   PiProviderConfigIssue,
 } from './PiProviderConfig'
 export { piProviderApiStreams } from './PiProviderApis'
-export { createPiDeepSeekProvider } from './PiDeepSeekProvider'
 export { createPiCustomProvider, discoverOpenAIModels } from './PiCustomProvider'
 export type { DiscoveredOpenAIModel, DiscoverOpenAIModelsOptions } from './PiCustomProvider'
 export { LISTABLE_CHAT_APIS, listProviderModels, resolveModelListingRoot } from './PiModelListing'

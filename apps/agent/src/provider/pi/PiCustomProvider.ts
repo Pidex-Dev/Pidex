@@ -20,6 +20,8 @@ export const toPiModel = (
   model: PiCustomModelConfig,
 ): Model<Api> & {
   pricing?: PidexModel.Pricing
+  billingMode?: PidexModel.BillingMode
+  speedTiers?: readonly PidexModel.SpeedTierInfo[]
   inputExplicit: boolean
   modelType?: NonNullable<PiCustomModelConfig['modelType']>
   tools?: boolean
@@ -36,6 +38,12 @@ export const toPiModel = (
   ...(model.modelType ? { modelType: model.modelType } : {}),
   ...(model.tools !== undefined ? { tools: model.tools } : {}),
   ...(model.pricing ? { pricing: model.pricing } : {}),
+  ...('billingMode' in model && model.billingMode
+    ? { billingMode: model.billingMode as PidexModel.BillingMode }
+    : {}),
+  ...('speedTiers' in model && Array.isArray(model.speedTiers)
+    ? { speedTiers: model.speedTiers as PidexModel.SpeedTierInfo[] }
+    : {}),
   cost: { ...model.cost },
   contextWindow: model.contextWindow,
   ...(model.maxInputTokens !== undefined ? { maxInputTokens: model.maxInputTokens } : {}),

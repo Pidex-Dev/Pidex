@@ -249,6 +249,7 @@ export const providerHandlers = {
                     providerID: String(model.providerID),
                     id: String(model.id),
                     ...(model.variant ? { variant: String(model.variant) } : {}),
+                    ...(model.speedTier ? { speedTier: model.speedTier } : {}),
                   }
                 : null,
             },
@@ -291,6 +292,7 @@ export const providerHandlers = {
             String(explicitModel.id),
             draft as never,
             typeof draft.apiKey === 'string' && draft.apiKey ? draft.apiKey : undefined,
+            draftProviderID,
           )
           const modelField = { model: explicitModel }
           const apiField = probe.api ? { api: probe.api } : {}
@@ -468,6 +470,7 @@ export const providerHandlers = {
             'reasoning',
             'input',
             'cost',
+            'pricing',
             'headers',
             'thinkingLevelMap',
             'thinking_level_map',
@@ -556,8 +559,13 @@ export const providerHandlers = {
         const definition = (await piModels.providerDefinitions()).find(
           (item) => item.id === providerID,
         )
-        if (definition?.kind === 'builtin') {
-          const models = await piModels.discoverBuiltinModels(providerID)
+        if (
+          definition?.kind === 'builtin' ||
+          (definition?.directorySource && !(await piModels.isAuthConfigured(providerID)))
+        ) {
+          const models = await (definition.kind === 'builtin'
+            ? piModels.discoverBuiltinModels(providerID)
+            : piModels.discoverDirectoryModels(providerID))
           return { models, matches: models.map((model) => ({ id: model.id, status: 'provider' })) }
         }
         const discovered = await modelSync.discoverSaved(providerID, api)

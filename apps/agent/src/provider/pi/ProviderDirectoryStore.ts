@@ -1,11 +1,6 @@
-import { readFile } from 'node:fs/promises'
 import { AgentError } from '../../Domain'
-import { ModelRecommendationIndex } from './ModelRecommendations'
-import {
-  SharedModelCatalogCache,
-  type RawCatalog,
-  type SharedCatalogCacheOptions,
-} from './SharedModelCatalogCache'
+import { CatalogV2Cache, type CatalogV2CacheOptions } from './CatalogV2Cache'
+import { providerEndpointIndex, resolveCatalogEndpoint, selectCatalogProtocol } from './CatalogV2'
 import {
   CUSTOM_PROVIDER_APIS,
   parsePiProviderCatalog,
@@ -25,31 +20,8 @@ export type DirectoryProvider = {
   endpoints?: Partial<Record<CustomProviderApi, string>>
   modelBaseUrls?: Record<string, string>
 }
-type Snapshot = {
-  owner: 'pidex-provider-directory'
-  formatVersion: 1
-  pi: unknown
-  modelsDev: unknown
-}
-const record = (value: unknown): Record<string, unknown> => {
-  if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new Error('Invalid directory')
-  return value as Record<string, unknown>
-}
-const asObject = (value: unknown): Record<string, unknown> | undefined =>
-  value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined
 const supported = (api: unknown): api is CustomProviderApi =>
   typeof api === 'string' && (CUSTOM_PROVIDER_APIS as readonly string[]).includes(api)
-const sdkApis: Record<string, CustomProviderApi> = {
-  '@ai-sdk/openai': 'openai-completions',
-  '@ai-sdk/openai-compatible': 'openai-completions',
-  '@ai-sdk/anthropic': 'anthropic-messages',
-  '@ai-sdk/google': 'google-generative-ai',
-}
-const invalidDirectory = (source: string) =>
-  new AgentError('PROVIDER_UNAVAILABLE', `${source} 目录格式无效，已保留原目录。`, 502)
 const address = (value: unknown): string | undefined => {
   if (typeof value !== 'string' || !value.trim()) return undefined
   try {
@@ -58,13 +30,6 @@ const address = (value: unknown): string | undefined => {
     return undefined
   }
 }
-const positiveLimit = (value: unknown, fallback: number) =>
-  typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback
-const finiteCost = (value: unknown): number =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0
-
-const PI_FORMAT_VERSION = 2
-
 export const directoryBaseUrlKey = (value: string | undefined): string | undefined => {
   if (!value) return undefined
   try {
@@ -104,341 +69,131 @@ export const directoryProviderConfig = (
   return config
 }
 
-export const parseProviderDirectory = (snapshot: Snapshot): DirectoryProvider[] => {
-  if (snapshot.owner !== 'pidex-provider-directory' || snapshot.formatVersion !== 1)
-    throw new Error('Unsupported directory cache')
-  const providers = new Map<string, DirectoryProvider>()
-  try {
-    new ModelRecommendationIndex(snapshot.modelsDev)
-    const devProviders = record(record(snapshot.modelsDev).providers)
-    for (const [id, input] of Object.entries(devProviders)) {
-      const raw = record(input)
-      const api = typeof raw.npm === 'string' ? sdkApis[raw.npm] : undefined
-      const baseUrl = address(raw.api)
-      const models: DirectoryProvider['models'] = {}
-      const endpoints: Partial<Record<CustomProviderApi, string>> = {}
-      const modelBaseUrls: Record<string, string> = {}
-      for (const [modelID, inputModel] of Object.entries(record(raw.models))) {
-        const model = record(inputModel)
-        const override =
-          model.provider && typeof model.provider === 'object' ? record(model.provider) : {}
-        const sdk = typeof override.npm === 'string' ? override.npm : raw.npm
-        const modelApi =
-          sdk === '@ai-sdk/openai' && override.shape === 'responses'
-            ? 'openai-responses'
-            : typeof sdk === 'string'
-              ? sdkApis[sdk]
-              : undefined
-        if ((model.type !== undefined && model.type !== 'chat') || !modelApi) continue
-        const modelBaseUrl = address(override.api) ?? baseUrl
-        if (modelBaseUrl) {
-          endpoints[modelApi] ??= modelBaseUrl
-          modelBaseUrls[modelID] = modelBaseUrl
-        }
-        const limit = model.limit === undefined ? {} : record(model.limit)
-        const modalities = model.modalities === undefined ? {} : record(model.modalities)
-        if (Array.isArray(modalities.output) && !modalities.output.includes('text')) continue
-        models[modelID] = {
-          api: modelApi,
-          name: typeof model.name === 'string' ? model.name : modelID,
-          contextWindow: positiveLimit(limit.context, 32768),
-          maxTokens: positiveLimit(limit.output, 8192),
-          reasoning: model.reasoning === true,
-          input: Array.isArray(modalities.input)
-            ? modalities.input.filter((v) =>
-                ['text', 'image', 'audio', 'video'].includes(String(v)),
-              )
-            : ['text'],
-          ...(typeof model.tool_call === 'boolean' ? { tools: model.tool_call } : {}),
-        }
-      }
-      providers.set(id, {
-        id,
-        name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : id,
-        origin: 'models-dev',
-        ...(baseUrl ? { baseUrl } : {}),
-        ...(api ? { api } : {}),
-        env: Array.isArray(raw.env)
-          ? raw.env.filter(
-              (v): v is string => typeof v === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(v),
-            )
-          : [],
-        models,
-        endpoints,
-        modelBaseUrls,
-      })
-    }
-  } catch {
-    throw invalidDirectory('models.dev')
-  }
-  try {
-    const pi = record(snapshot.pi)
-    if (!Object.keys(pi).length || !providers.size) throw new Error('Empty directory')
-    for (const [id, input] of Object.entries(pi)) {
-      const models: DirectoryProvider['models'] = {}
-      const endpoints: Partial<Record<CustomProviderApi, string>> = {}
-      const modelBaseUrls: Record<string, string> = {}
-      let baseUrl: string | undefined
-      let api: CustomProviderApi | undefined
-      for (const [modelID, inputModel] of Object.entries(record(input))) {
-        const model = record(inputModel)
-        if (
-          typeof model.id !== 'string' ||
-          typeof model.api !== 'string' ||
-          typeof model.baseUrl !== 'string'
-        )
-          throw new Error('Invalid Pi model')
-        baseUrl ??= address(model.baseUrl)
-        if (!supported(model.api)) continue
-        if (!api) {
-          api = model.api
-          baseUrl = address(model.baseUrl) ?? baseUrl
-        }
-        const modelBaseUrl = address(model.baseUrl)
-        if (modelBaseUrl) {
-          endpoints[model.api] ??= modelBaseUrl
-          modelBaseUrls[modelID] = modelBaseUrl
-        }
-        models[modelID] = {
-          api: model.api,
-          name: model.name,
-          contextWindow: model.contextWindow,
-          maxTokens: model.maxTokens,
-          reasoning: model.reasoning,
-          input: model.input,
-          ...(model.cost ? { cost: model.cost } : {}),
-          ...(model.thinkingLevelMap ? { thinkingLevelMap: model.thinkingLevelMap } : {}),
-          ...(model.compat ? { compat: model.compat } : {}),
-        }
-      }
-      const previous = providers.get(id)
-      const resolvedBaseUrl = baseUrl ?? previous?.baseUrl
-      const resolvedApi = api ?? previous?.api
-      providers.set(id, {
-        id,
-        name: previous?.name ?? id,
-        origin: 'pi-remote',
-        ...(resolvedBaseUrl ? { baseUrl: resolvedBaseUrl } : {}),
-        ...(resolvedApi ? { api: resolvedApi } : {}),
-        env: previous?.env ?? [],
-        models: { ...previous?.models, ...models },
-        endpoints: { ...previous?.endpoints, ...endpoints },
-        modelBaseUrls: { ...previous?.modelBaseUrls, ...modelBaseUrls },
-      })
-    }
-  } catch {
-    throw invalidDirectory('Pi')
-  }
-  const entries = [...providers.values()]
-  for (const entry of entries) {
-    try {
-      directoryProviderConfig(entry)
-    } catch {
-      throw invalidDirectory(entry.origin === 'pi-remote' ? 'Pi' : 'models.dev')
-    }
-  }
-  return entries
-}
-
-/**
- * 从单一共享清单投影可进入供应商市场的 Pi 稳定供应商（`marketVisible === true`）。
- * 非 Pi 厂商仅留在共享推荐索引中供自定义供应商 `smartConfig` 使用，不进入市场列表。
- */
-const projectMarketProviders = (catalog: RawCatalog): DirectoryProvider[] => {
-  const entries: DirectoryProvider[] = []
-  for (const [id, raw] of Object.entries(catalog.providers)) {
-    if (raw.marketVisible !== true) continue
-    const fallbackApi = typeof raw.npm === 'string' ? sdkApis[raw.npm] : undefined
-    let baseUrl = address(raw.api)
-    let api: CustomProviderApi | undefined
-    const models: DirectoryProvider['models'] = {}
-    const endpoints: Partial<Record<CustomProviderApi, string>> = {}
-    const modelBaseUrls: Record<string, string> = {}
-    for (const [modelID, model] of Object.entries(raw.models)) {
-      if (model.type !== undefined && model.type !== 'chat') continue
-      const override = asObject(model.provider)
-      const sdk = typeof override?.npm === 'string' ? override.npm : raw.npm
-      const sdkApi =
-        sdk === '@ai-sdk/openai' && override?.shape === 'responses'
-          ? 'openai-responses'
-          : typeof sdk === 'string'
-            ? sdkApis[sdk]
-            : undefined
-      const modelApi = supported(model.pi_api) ? model.pi_api : (sdkApi ?? fallbackApi)
-      if (!modelApi) continue
-      const modelBaseUrl = address(model.base_url) ?? address(override?.api) ?? address(raw.api)
-      if (modelBaseUrl) {
-        baseUrl ??= modelBaseUrl
-        endpoints[modelApi] ??= modelBaseUrl
-        modelBaseUrls[modelID] = modelBaseUrl
-      }
-      if (!api) api = modelApi
-      const limit = asObject(model.limit)
-      const modalities = asObject(model.modalities)
-      const cost = asObject(model.cost)
-      const inputModalities = Array.isArray(modalities?.input)
-        ? modalities.input.filter((v) => ['text', 'image', 'audio', 'video'].includes(String(v)))
-        : ['text']
-      models[modelID] = {
-        api: modelApi,
-        name: typeof model.name === 'string' && model.name.trim() ? model.name : modelID,
-        contextWindow: positiveLimit(limit?.context, 32768),
-        ...(typeof limit?.input === 'number' && Number.isSafeInteger(limit.input) && limit.input > 0
-          ? { maxInputTokens: limit.input }
-          : {}),
-        maxTokens: positiveLimit(limit?.output, 8192),
-        reasoning: model.reasoning === true,
-        input: inputModalities.length ? inputModalities : ['text'],
-        ...(typeof model.tool_call === 'boolean' ? { tools: model.tool_call } : {}),
-        ...(cost
-          ? {
-              cost: {
-                input: finiteCost(cost.input),
-                output: finiteCost(cost.output),
-                cacheRead: finiteCost(cost.cache_read ?? cost.cacheRead),
-                cacheWrite: finiteCost(cost.cache_write ?? cost.cacheWrite),
-              },
-            }
-          : {}),
-        ...(asObject(model.thinking_level_map)
-          ? { thinkingLevelMap: model.thinking_level_map }
-          : {}),
-        ...(asObject(model.compat) ? { compat: model.compat } : {}),
-      }
-    }
-    const resolvedApi = api ?? fallbackApi
-    for (const [protocol, rawUrl] of Object.entries(raw.protocolEndpoints ?? {})) {
-      if (!supported(protocol)) continue
-      const parsedUrl = address(rawUrl)
-      if (parsedUrl) endpoints[protocol] = parsedUrl
-    }
-    const entry: DirectoryProvider = {
-      id,
-      name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : id,
-      origin: 'pi-remote',
-      ...(baseUrl ? { baseUrl } : {}),
-      ...(resolvedApi ? { api: resolvedApi } : {}),
-      env: Array.isArray(raw.env)
-        ? raw.env.filter(
-            (v): v is string => typeof v === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(v),
-          )
-        : [],
-      models,
-      endpoints,
-      modelBaseUrls,
-    }
-    try {
-      directoryProviderConfig(entry)
-    } catch {
-      throw invalidDirectory('Pi')
-    }
-    entries.push(entry)
-  }
-  return entries
-}
+type SnapshotV2 = NonNullable<Awaited<ReturnType<CatalogV2Cache['current']>>>
+const EMPTY_DIRECTORY: readonly DirectoryProvider[] = []
 
 export class ProviderDirectoryStore {
-  private entries: readonly DirectoryProvider[] = []
-  private pi: unknown = undefined
-  private loaded = false
-  private operation: Promise<unknown> = Promise.resolve()
-  private readonly shared: SharedModelCatalogCache
+  private readonly cache: CatalogV2Cache
+  private projection:
+    | {
+        snapshot: SnapshotV2
+        entries: DirectoryProvider[]
+        endpoints: ReturnType<typeof providerEndpointIndex>
+      }
+    | undefined
+
   constructor(
-    private readonly path?: string,
+    path?: string,
     private readonly request: (
       input: string | URL | Request,
       init?: RequestInit,
     ) => Promise<Response> = fetch,
-    options: SharedCatalogCacheOptions = {},
+    options: CatalogV2CacheOptions = {},
   ) {
-    this.shared = SharedModelCatalogCache.forPath(path, options)
+    this.cache = CatalogV2Cache.forPath(path, options)
+  }
+
+  catalog() {
+    return this.cache.current()
+  }
+
+  private async project() {
+    const current = await this.catalog()
+    if (!current) return undefined
+    if (this.projection?.snapshot === current) return this.projection
+    const entries: DirectoryProvider[] = []
+    for (const [id, provider] of Object.entries(current.providersDoc.providers)) {
+      if (!provider.marketVisible) continue
+      const endpoints: NonNullable<DirectoryProvider['endpoints']> = {}
+      for (const [api, raw] of Object.entries(provider.protocolEndpoints)) {
+        const url = address(raw)
+        if (supported(api) && url) endpoints[api] = url
+      }
+      const api = supported(provider.defaultProtocol) ? provider.defaultProtocol : undefined
+      const baseUrl = api ? endpoints[api] : undefined
+      const models: DirectoryProvider['models'] = {}
+      const modelBaseUrls: Record<string, string> = {}
+      for (const [modelID, binding] of Object.entries(provider.models)) {
+        const kind =
+          binding.type ??
+          (binding.modelRef ? current.modelsDoc.models[binding.modelRef]?.type : undefined) ??
+          'chat'
+        const modelApi = selectCatalogProtocol(provider, binding)
+        if (!supported(modelApi)) continue
+        const { recommended } = current.index.resolve({
+          providerId: id,
+          modelId: modelID,
+          modelType: kind,
+        })
+        if (recommended.catalog?.status === 'deprecated') continue
+        models[modelID] = {
+          api: modelApi,
+          name: recommended.name ?? binding.name ?? modelID,
+          contextWindow: recommended.contextWindow ?? (kind === 'chat' ? 32_768 : 8_192),
+          maxTokens: recommended.maxTokens ?? 8_192,
+          reasoning: recommended.reasoning ?? false,
+          input: recommended.input ?? ['text'],
+          ...(kind !== 'chat' ? { modelType: kind } : {}),
+          ...(recommended.optionSpecs ? { optionSpecs: recommended.optionSpecs } : {}),
+          ...(recommended.cost ? { cost: recommended.cost } : {}),
+          ...(binding.compat ? { compat: binding.compat } : {}),
+          ...(binding.thinkingLevelMap ? { thinkingLevelMap: binding.thinkingLevelMap } : {}),
+        }
+        const url = !binding.api || binding.api === modelApi ? address(binding.baseUrl) : undefined
+        if (url) modelBaseUrls[modelID] = url
+      }
+      entries.push({
+        id,
+        name: provider.name,
+        origin: 'pi-remote',
+        env: provider.env ?? [],
+        ...(api ? { api } : {}),
+        ...(baseUrl ? { baseUrl } : {}),
+        endpoints,
+        models,
+        modelBaseUrls,
+      })
+    }
+    return (this.projection = {
+      snapshot: current,
+      entries,
+      endpoints: providerEndpointIndex(current.providersDoc),
+    })
   }
 
   async providers(): Promise<readonly DirectoryProvider[]> {
-    await this.load()
-    return this.entries
+    return (await this.project())?.entries ?? EMPTY_DIRECTORY
   }
 
-  /** 读取共享目录中全部供应商的 `protocolEndpoints`（不限于 `marketVisible` 供应商）。 */
+  async resolveProviderByBaseUrl(url: string) {
+    const endpoints = (await this.project())?.endpoints
+    return endpoints ? resolveCatalogEndpoint(endpoints, url) : undefined
+  }
+
   async protocolEndpoints(): Promise<Readonly<Record<string, Readonly<Record<string, string>>>>> {
-    const catalog = await this.shared.catalog()
-    if (!catalog) return {}
-    const out: Record<string, Readonly<Record<string, string>>> = {}
-    for (const [id, provider] of Object.entries(catalog.providers)) {
-      if (!provider.protocolEndpoints) continue
-      const valid: Record<string, string> = {}
-      for (const [api, rawUrl] of Object.entries(provider.protocolEndpoints)) {
-        const parsedUrl = address(rawUrl)
-        if (parsedUrl) valid[api] = parsedUrl
-      }
-      if (Object.keys(valid).length) out[id] = valid
-    }
-    return out
-  }
-
-  private async load(force = false): Promise<void> {
-    if (this.loaded && !force) return
-    if (this.path) {
-      let raw: unknown = undefined
-      try {
-        raw = JSON.parse(await readFile(this.path, 'utf8'))
-      } catch (error) {
-        if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT'))
-          throw error
-      }
-      if (raw !== undefined) {
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw))
-          throw new Error('Unsupported directory cache')
-        const document = raw as Record<string, unknown>
-        if (
-          document.owner !== 'pidex-provider-directory' ||
-          (document.formatVersion !== 1 && document.formatVersion !== PI_FORMAT_VERSION)
-        )
-          throw new Error('Unsupported directory cache')
-        this.pi = document.pi
-      } else {
-        this.pi = undefined
-      }
-    }
-    this.entries = await this.buildEntries(this.pi)
-    this.loaded = true
-  }
-
-  private async buildEntries(pi: unknown): Promise<DirectoryProvider[]> {
-    const catalog = await this.shared.catalog()
-    if (!catalog) return []
-    const hasMarketFlags = Object.values(catalog.providers).some(
-      (provider) => provider.marketVisible !== undefined,
+    const providers = (await this.catalog())?.providersDoc.providers ?? {}
+    return Object.fromEntries(
+      Object.entries(providers).map(([id, provider]) => [
+        id,
+        Object.fromEntries(
+          Object.entries(provider.protocolEndpoints).flatMap(([api, raw]) => {
+            const url = address(raw)
+            return url ? [[api, url]] : []
+          }),
+        ),
+      ]),
     )
-    if (hasMarketFlags) {
-      return projectMarketProviders(catalog)
-    }
-    if (!pi) return []
-    return parseProviderDirectory({
-      owner: 'pidex-provider-directory',
-      formatVersion: 1,
-      pi,
-      modelsDev: catalog,
-    }).filter((entry) => entry.origin === 'pi-remote')
   }
 
-  refresh(): Promise<void> {
-    const action = async () => {
-      await this.load(true)
-      try {
-        await this.shared.refresh(this.request)
-      } catch (cause) {
-        if (cause instanceof AgentError) throw cause
-        throw new AgentError(
-          'PROVIDER_UNAVAILABLE',
-          '模型清单官方目录下载失败，已保留原目录，请稍后重试。',
-          502,
-        )
-      }
-      this.entries = await this.buildEntries(this.pi)
+  async refresh(): Promise<void> {
+    try {
+      await this.cache.refresh(this.request)
+    } catch {
+      throw new AgentError(
+        'PROVIDER_UNAVAILABLE',
+        '模型清单官方目录下载失败，已保留原目录，请稍后重试。',
+        502,
+      )
     }
-    const next = this.operation.then(action, action)
-    this.operation = next.catch(() => undefined)
-    return next
   }
 }

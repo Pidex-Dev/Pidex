@@ -1,18 +1,9 @@
 import { Schema } from 'effect'
 import { Model } from '@pidex/model-schema'
 
-export type CalendarYear = {
-  year: number
-  papers: string[]
-  days: { date: string; isOffDay: boolean; name: string }[]
-}
+export { selectPricing, ZERO_PRICES, UNIT_PRICE_KEYS, type CalendarYear } from '@pidex/model-schema'
+
 const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3))
-const dayMs = 86400000
-const weekday = (date: string) => new Date(date + 'T12:00:00Z').getUTCDay()
-const previousDate = (date: string) =>
-  new Date(Date.parse(date + 'T12:00:00Z') - dayMs).toISOString().slice(0, 10)
-export const UNIT_PRICE_KEYS = ['input', 'output', 'cacheRead', 'cacheWrite'] as const
-export type UnitPriceKey = (typeof UNIT_PRICE_KEYS)[number]
 
 const normalizeTiers = (
   tiers: readonly Model.PricingPriceTier[] | undefined,
@@ -28,24 +19,6 @@ const normalizeTiers = (
   return [...tiers].sort((a, b) => a.inputTokensAbove - b.inputTokensAbove)
 }
 
-const conservativeScalar = (a: number | null, b: number | null): number | null =>
-  a === null || b === null ? null : Math.max(a, b)
-
-const bracketAt = (
-  prices: Model.UnitPrices,
-  threshold: number,
-): Record<UnitPriceKey, number | null> => {
-  let matched: Record<UnitPriceKey, number | null> = prices
-  let best = -1
-  for (const tier of prices.tiers ?? []) {
-    if (tier.inputTokensAbove <= threshold && tier.inputTokensAbove > best) {
-      matched = tier
-      best = tier.inputTokensAbove
-    }
-  }
-  return matched
-}
-
 export class PricingValidationError extends Error {}
 export function validatePricing(value: unknown): Model.Pricing {
   let pricing: Model.Pricing
@@ -59,6 +32,28 @@ export function validatePricing(value: unknown): Model.Pricing {
   } catch {
     throw new PricingValidationError('计费时区无效，请填写 IANA 时区')
   }
+  const promotions = pricing.promotions?.map((promotion) => {
+    const hasPrices = promotion.prices !== undefined
+    const hasFactor = promotion.discountFactor !== undefined
+    const timestamp = /^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/
+    if (
+      hasPrices === hasFactor ||
+      !timestamp.test(promotion.startAt) ||
+      !timestamp.test(promotion.endAt) ||
+      !(Date.parse(promotion.startAt) < Date.parse(promotion.endAt))
+    ) {
+      throw new PricingValidationError('优惠必须包含有效时间范围与一种价格调整方式')
+    }
+    return promotion.prices
+      ? {
+          ...promotion,
+          prices: {
+            ...promotion.prices,
+            ...(promotion.prices.tiers ? { tiers: normalizeTiers(promotion.prices.tiers)! } : {}),
+          },
+        }
+      : promotion
+  })
   const idleTiers = normalizeTiers(pricing.idle.tiers)
   const busyTiers = normalizeTiers(pricing.busy.tiers)
   const dates = new Set<string>()
@@ -128,96 +123,14 @@ export function validatePricing(value: unknown): Model.Pricing {
   })
   return {
     ...pricing,
+    ...(promotions ? { promotions } : {}),
     idle: {
-      input: pricing.idle.input,
-      output: pricing.idle.output,
-      cacheRead: pricing.idle.cacheRead,
-      cacheWrite: pricing.idle.cacheWrite,
+      ...pricing.idle,
       ...(idleTiers ? { tiers: idleTiers } : {}),
     },
     busy: {
-      input: pricing.busy.input,
-      output: pricing.busy.output,
-      cacheRead: pricing.busy.cacheRead,
-      cacheWrite: pricing.busy.cacheWrite,
+      ...pricing.busy,
       ...(busyTiers ? { tiers: busyTiers } : {}),
     },
   }
-}
-export function selectPricing(
-  pricing: Model.Pricing,
-  at: number,
-  calendars: readonly CalendarYear[],
-) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: pricing.timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(at)
-  const part = (name: string) => parts.find((p) => p.type === name)!.value
-  const date = `${part('year')}-${part('month')}-${part('day')}`,
-    now = Number(part('hour')) * 60 + Number(part('minute'))
-  const override = pricing.dateOverrides.find((item) => item.date === date)
-  if (override)
-    return { period: override.period, prices: pricing[override.period], reason: 'date-override' }
-  let uncertain = false
-  const matched = new Set<'idle' | 'busy'>()
-  for (const rule of pricing.rules)
-    for (const interval of rule.intervals) {
-      const start = minutes(interval.start),
-        end = minutes(interval.end)
-      const anchor = end < start && now < end ? previousDate(date) : date
-      if (!rule.weekdays.includes(weekday(anchor))) continue
-      if (!(end > start ? now >= start && now < end : now >= start || now < end)) continue
-      if (rule.holiday !== 'any') {
-        const year = calendars.find((item) => item.year === Number(anchor.slice(0, 4)))
-        if (!year) {
-          uncertain = true
-          continue
-        }
-        const holiday = calendars.some((item) =>
-          item.days.some((day) => day.date === anchor && day.isOffDay),
-        )
-        if ((rule.holiday === 'only-cn') !== holiday) continue
-      }
-      matched.add(rule.period)
-    }
-  if (uncertain) {
-    const thresholds = [
-      ...new Set([
-        ...(pricing.idle.tiers ?? []).map((tier) => tier.inputTokensAbove),
-        ...(pricing.busy.tiers ?? []).map((tier) => tier.inputTokensAbove),
-      ]),
-    ].sort((a, b) => a - b)
-    const tiers = thresholds.length
-      ? thresholds.map((threshold) => {
-          const idleBracket = bracketAt(pricing.idle, threshold)
-          const busyBracket = bracketAt(pricing.busy, threshold)
-          return {
-            inputTokensAbove: threshold,
-            input: conservativeScalar(idleBracket.input, busyBracket.input),
-            output: conservativeScalar(idleBracket.output, busyBracket.output),
-            cacheRead: conservativeScalar(idleBracket.cacheRead, busyBracket.cacheRead),
-            cacheWrite: conservativeScalar(idleBracket.cacheWrite, busyBracket.cacheWrite),
-          }
-        })
-      : undefined
-    return {
-      period: 'conservative' as const,
-      prices: {
-        input: conservativeScalar(pricing.idle.input, pricing.busy.input),
-        output: conservativeScalar(pricing.idle.output, pricing.busy.output),
-        cacheRead: conservativeScalar(pricing.idle.cacheRead, pricing.busy.cacheRead),
-        cacheWrite: conservativeScalar(pricing.idle.cacheWrite, pricing.busy.cacheWrite),
-        ...(tiers ? { tiers } : {}),
-      } satisfies Model.UnitPrices,
-      reason: 'calendar-unavailable',
-    }
-  }
-  const period = matched.values().next().value ?? pricing.defaultPeriod
-  return { period, prices: pricing[period], reason: matched.size ? 'time-rule' : 'default' }
 }

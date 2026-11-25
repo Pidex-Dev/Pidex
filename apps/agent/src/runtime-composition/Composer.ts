@@ -87,6 +87,7 @@ const snapshotModel = (model: Model<any>, ref?: ModelSchema.Ref): ResolvedModelS
   providerID: model.provider,
   id: model.id,
   variant: ref?.variant ? String(ref.variant) : null,
+  ...(ref?.speedTier ? { speedTier: ref.speedTier } : {}),
   contextWindow: Math.max(1, Math.trunc(Number(model.contextWindow) || 1)),
   capabilities: {
     tools: true,
@@ -343,6 +344,7 @@ export function composeRuntimeComposition(
     contextWindow: input.model.contextWindow,
     thinkingLevel: input.thinkingLevel ?? null,
     variant: input.modelRef?.variant ? String(input.modelRef.variant) : null,
+    ...(input.modelRef?.speedTier ? { speedTier: input.modelRef.speedTier } : {}),
   })
   const permissionHash = permissionHashFor(effectivePermissionConfig)
   const workspaceHash = workspaceHashFor(input.workspaceScope)
@@ -457,6 +459,7 @@ export function rebindRuntimeComposition(
     currentModel.providerID !== snapshot.model.providerID ||
     currentModel.id !== snapshot.model.id ||
     currentModel.variant !== snapshot.model.variant ||
+    (currentModel.speedTier ?? 'standard') !== (snapshot.model.speedTier ?? 'standard') ||
     currentModel.contextWindow !== snapshot.model.contextWindow ||
     stableStringify(currentModel.capabilities) !== stableStringify(snapshot.model.capabilities)
   )

@@ -1,7 +1,22 @@
 import { omitUndefined } from '@pidex/shared/guards'
+import { ProviderChatApiSchema } from '@pidex/agent-protocol'
 import { Schema } from 'effect'
 import { Model } from '@pidex/model-schema'
-import { validatePricing } from '../ModelPricing'
+import {
+  catalogBinding,
+  expandCatalogPricing,
+  isOtherCatalogProtocolEndpoint,
+  providerEndpointIndex,
+  resolveCatalogEndpoint,
+  selectCatalogProtocol,
+  supportsCatalogProtocol,
+  type CatalogBinding,
+  type CatalogKnowledge,
+  type ModelsV2,
+  type ProvidersV2,
+} from './CatalogV2'
+
+const isChatApi = Schema.is(ProviderChatApiSchema)
 
 type JsonObject = Record<string, unknown>
 const object = (value: unknown): JsonObject => {
@@ -19,40 +34,19 @@ const LEVEL_SUFFIX = /\((?:off|none|minimal|low|medium|high|xhigh|max)\)$/i
 
 const withoutLevelSuffix = (value: string) => value.replace(LEVEL_SUFFIX, '')
 
-/** 规范化端点：忽略大小写、查询串、哈希与尾部斜杠，只保留 origin + pathname。 */
-const normalizeEndpoint = (value: string | undefined): string | undefined => {
-  if (!value) return undefined
-  try {
-    const url = new URL(value)
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined
-    url.hash = ''
-    url.search = ''
-    url.pathname = url.pathname.replace(/\/+$/, '') || '/'
-    return `${url.origin}${url.pathname === '/' ? '' : url.pathname}`.toLowerCase()
-  } catch {
-    return undefined
-  }
-}
-
-type Entry = {
-  id: string
-  canonical: string
-  aliases: string[]
-  type: string
-  provider: string | undefined
-  endpoints: readonly string[]
-  values: Model.Recommendation
-}
 export type RecommendationInput = {
   providerId: string
   baseUrl?: string | undefined
   modelId: string
   modelType: 'chat' | 'embedding' | 'rerank'
+  api?: string | undefined
+  endpoints?: Readonly<Record<string, string | undefined>> | undefined
 }
 
 export type RecommendationMatch = {
   status: 'matched' | 'unmatched' | 'ambiguous' | 'no-cache'
   recommended: Model.Recommendation
+  recommendedApi?: typeof ProviderChatApiSchema.Type
   /** 命中的官方模型身份（canonical id）。 */
   identity?: string
   /** 基础规格来自官方目录，或叠加了当前供应商的差异。 */
@@ -61,6 +55,7 @@ export type RecommendationMatch = {
   candidates?: string[]
   /** 价格独立于规格标明来源；未知网关仅继承原厂参考价。 */
   priceSource?: { kind: 'provider' | 'reference'; providerId: string }
+  unsupportedProtocol?: readonly string[]
 }
 
 /**
@@ -84,6 +79,8 @@ export function applyRecommendation<T extends PiModelFields>(
     ...(recommended.catalog ? { catalog: recommended.catalog } : {}),
     ...omitUndefined({
       pricing: recommended.pricing,
+      billingMode: recommended.billingMode,
+      speedTiers: recommended.speedTiers,
       modelType: recommended.modelType,
       name: recommended.name,
       contextWindow: recommended.contextWindow,
@@ -210,9 +207,9 @@ function values(raw: JsonObject): Model.Recommendation {
       links: raw.links,
       weights: raw.weights,
       benchmarks: raw.benchmarks,
-      reasoningCost: cost?.reasoning,
-      inputAudioCost: cost?.input_audio,
-      outputAudioCost: cost?.output_audio,
+      reasoningCost: raw.reasoningCost ?? cost?.reasoning,
+      inputAudioCost: raw.inputAudioCost ?? cost?.input_audio,
+      outputAudioCost: raw.outputAudioCost ?? cost?.output_audio,
     }),
   )
   let explicitOptionSpecs: Model.OptionSpecs | undefined
@@ -222,14 +219,6 @@ function values(raw: JsonObject): Model.Recommendation {
       explicitOptionSpecs = Schema.decodeUnknownSync(Model.OptionSpecs)(rawOptionSpecs)
     } catch {
       explicitOptionSpecs = undefined
-    }
-  }
-  let pricing: Model.Pricing | undefined
-  if (raw.pricing !== undefined) {
-    try {
-      pricing = validatePricing(raw.pricing)
-    } catch {
-      pricing = undefined
     }
   }
   const mergedReasoningValues =
@@ -253,23 +242,7 @@ function values(raw: JsonObject): Model.Recommendation {
             : {}),
         }
       : undefined
-  const rawTiers = Array.isArray(cost?.tiers)
-    ? cost.tiers
-    : cost?.context_over_200k
-      ? [{ ...object(cost.context_over_200k), tier: { size: 200_000 } }]
-      : undefined
-  const tiers = rawTiers?.map((item) => {
-    const tier = object(item)
-    return {
-      inputTokensAbove: object(tier.tier).size,
-      input: tier.input,
-      output: tier.output,
-      cacheRead: tier.cache_read ?? cost?.cache_read ?? 0,
-      cacheWrite: tier.cache_write ?? cost?.cache_write ?? 0,
-    }
-  })
   return Schema.decodeUnknownSync(Model.Recommendation)({
-    ...(pricing ? { pricing } : {}),
     ...(Object.values(catalog).some((value) => value !== undefined) ? { catalog } : {}),
     ...(typeof raw.name === 'string' && raw.name ? { name: raw.name } : {}),
     ...(positive(limit.context) ? { contextWindow: limit.context } : {}),
@@ -286,317 +259,261 @@ function values(raw: JsonObject): Model.Recommendation {
           ),
         }
       : {}),
-    ...(cost
-      ? {
-          cost: {
-            input: cost.input,
-            output: cost.output,
-            cacheRead: cost.cache_read,
-            cacheWrite: cost.cache_write,
-            ...(tiers ? { tiers } : {}),
-          },
-        }
-      : {}),
   })
 }
 
-const mergeValues = (entries: readonly Entry[]): Model.Recommendation =>
-  entries.reduce<Model.Recommendation>(
-    (merged, entry) => ({
-      ...merged,
-      ...entry.values,
-      ...(merged.catalog || entry.values.catalog
-        ? { catalog: { ...merged.catalog, ...entry.values.catalog } }
-        : {}),
-    }),
-    {},
-  )
-
-/**
- * 模型身份解析索引。
- *
- * 身份只由官方目录（`catalog.models`）决定；第三方供应商条目只提供当前
- * 供应商的规格差异，不参与同名投票，也不能否决官方匹配。
- */
 export class ModelRecommendationIndex {
-  private readonly entries: Entry[] = []
-  constructor(payload: unknown) {
-    const catalog = object(payload)
-    const models = object(catalog.models)
-    const providers = object(catalog.providers)
-    const add = (id: string, input: unknown, provider?: string, providerEndpoints: readonly string[] = []) => {
-      const raw = object(input)
-      const type = raw.type === 'reranking' ? 'rerank' : (raw.type ?? 'chat')
-      if (!['chat', 'embedding', 'rerank'].includes(String(type))) return
-      // 官方条目身份就是自身；供应商条目没有显式 canonical 时只代表自己，
-      // 不再按裸名跨供应商推断别人家的身份。
-      const canonical = typeof raw.canonical_model_id === 'string' ? raw.canonical_model_id : id
-      const endpoints = [
-        ...new Set(
-          [
-            ...providerEndpoints,
-            ...(typeof raw.base_url === 'string' ? [raw.base_url] : []),
-          ]
-            .map((value) => normalizeEndpoint(value))
-            .filter((value): value is string => value !== undefined),
-        ),
-      ]
-      this.entries.push({
-        id,
-        canonical,
-        aliases: Array.isArray(raw.aliases)
-          ? raw.aliases.filter((v): v is string => typeof v === 'string')
-          : [],
-        type: String(type),
-        provider,
-        endpoints,
-        values: values(raw),
-      })
+  private readonly endpoints: ReadonlyMap<string, string | null>
+  private readonly exact = new Map<string, Set<CatalogKnowledge>>()
+  private readonly names = new Map<string, Set<CatalogKnowledge>>()
+  private readonly prices = new Map<object, Model.Pricing>()
+
+  constructor(
+    private readonly providers: ProvidersV2,
+    private readonly models: ModelsV2,
+  ) {
+    this.endpoints = providerEndpointIndex(providers)
+    const add = (
+      index: Map<string, Set<CatalogKnowledge>>,
+      key: string,
+      model: CatalogKnowledge,
+    ) => {
+      const entries = index.get(key) ?? new Set()
+      entries.add(model)
+      index.set(key, entries)
     }
-    for (const [id, model] of Object.entries(models)) add(id, model)
-    for (const [id, input] of Object.entries(providers)) {
-      const provider = object(input)
-      const providerEndpoints = [
-        ...(typeof provider.api === 'string' ? [provider.api] : []),
-        ...(Array.isArray(provider.endpoints)
-          ? provider.endpoints.filter((value): value is string => typeof value === 'string')
-          : []),
-      ]
-      for (const [modelId, model] of Object.entries(object(provider.models)))
-        add(modelId, model, id, providerEndpoints)
+    for (const [id, model] of Object.entries(models.models)) {
+      if (id !== model.id) throw new Error('Model catalog identity mismatch')
+      for (const key of [id, ...(model.aliases ?? [])]) {
+        add(this.exact, key.toLowerCase(), model)
+        add(this.names, bare(key), model)
+      }
+      this.pricing(model.referencePricing?.pricing)
+      for (const offering of Object.values(model.providers)) {
+        for (const details of [offering, ...Object.values(offering.modelOverrides ?? {})]) {
+          this.pricing(details.pricing)
+          for (const tier of Object.values(details.speedTiers ?? {})) this.pricing(tier?.pricing)
+        }
+      }
     }
-    if (!this.entries.length) throw new Error('Empty models.dev catalog')
+    for (const provider of Object.values(providers.providers)) {
+      for (const binding of Object.values(provider.models)) {
+        if (binding.modelRef && !Object.hasOwn(models.models, binding.modelRef))
+          throw new Error('Unknown model catalog binding reference')
+      }
+    }
+  }
+
+  private pricing(raw: Parameters<typeof expandCatalogPricing>[1] | undefined) {
+    if (!raw) return undefined
+    const previous = this.prices.get(raw)
+    if (previous) return previous
+    const pricing = expandCatalogPricing(this.models, raw)
+    this.prices.set(raw, pricing)
+    return pricing
+  }
+
+  private providerId(input: RecommendationInput, value: string) {
+    const explicit = input.providerId.toLowerCase()
+    const known = Object.hasOwn(this.providers.providers, explicit) ? explicit : undefined
+    if (known && catalogBinding(this.providers.providers[known], value)) return known
+    const matched = resolveCatalogEndpoint(this.endpoints, input.baseUrl)
+    if (matched && (!known || catalogBinding(this.providers.providers[matched], value)))
+      return matched
+    const separator = value.indexOf('/')
+    const prefix = value.slice(0, separator)
+    if (
+      separator > 0 &&
+      catalogBinding(this.providers.providers[prefix], value.slice(separator + 1))
+    )
+      return prefix
+    return known ?? matched
   }
 
   resolve(input: RecommendationInput): RecommendationMatch {
-    const entries = this.entries.filter((entry) => entry.type === input.modelType)
-    const official = entries.filter((entry) => !entry.provider)
-    const supplied = entries.filter((entry) => !!entry.provider)
-    const trimmed = input.modelId.trim()
-    if (!trimmed) return { status: 'unmatched', recommended: {} }
-    const plain = trimmed.toLowerCase()
-    const suffixless = withoutLevelSuffix(trimmed).toLowerCase()
-    const attempts = suffixless !== plain ? [plain, suffixless] : [plain]
-    for (const value of attempts) {
-      const located = this.locate(value, official, supplied, input)
-      if (located) return this.compose(located, value, input, official, supplied)
+    const baseUrl = (input.api && input.endpoints?.[input.api]) || input.baseUrl
+    const endpointProvider = resolveCatalogEndpoint(this.endpoints, baseUrl)
+    const plain = input.modelId.trim().toLowerCase()
+    for (const value of new Set([plain, withoutLevelSuffix(plain)])) {
+      if (!value) continue
+      const providerId = endpointProvider ?? this.providerId(input, value)
+      const provider = providerId ? this.providers.providers[providerId] : undefined
+      const bindingMatch =
+        catalogBinding(provider, value) ??
+        (providerId && value.startsWith(providerId + '/')
+          ? catalogBinding(provider, value.slice(providerId.length + 1))
+          : undefined)
+      const binding = bindingMatch?.binding
+      const referenced = binding?.modelRef ? this.models.models[binding.modelRef] : undefined
+      const bindingType = binding?.type ?? referenced?.type ?? 'chat'
+      let recommendedApi: RecommendationMatch['recommendedApi']
+      if (provider && binding && endpointProvider && bindingType === 'chat' &&
+        input.modelType === 'chat' && input.endpoints) {
+        const endpoints = {
+          ...(input.api && baseUrl ? { [input.api]: baseUrl } : {}),
+          ...input.endpoints,
+        }
+        const availableApis = new Set(
+          Object.entries(endpoints).flatMap(([api, url]) =>
+            isChatApi(api) && url &&
+            resolveCatalogEndpoint(this.endpoints, url) === endpointProvider &&
+            !isOtherCatalogProtocolEndpoint(url, api, provider.protocolEndpoints)
+              ? [api]
+              : [],
+          ),
+        )
+        const preferred =
+          availableApis.size > 1
+            ? selectCatalogProtocol(provider, binding, undefined, availableApis)
+            : undefined
+        if (isChatApi(preferred)) recommendedApi = preferred
+      }
+      if (
+        input.api &&
+        !recommendedApi &&
+        (endpointProvider || !baseUrl) &&
+        !supportsCatalogProtocol(binding, input.api)
+      ) {
+        return {
+          status: 'unmatched',
+          recommended: {},
+          unsupportedProtocol: binding!.supportedProtocols!,
+        }
+      }
+      if (binding && !binding.modelRef && bindingType === input.modelType) {
+        const mode = binding.routerFallback?.billingMode ?? provider?.billingMode
+        const pricing =
+          mode && mode !== 'pay-as-you-go' ? this.pricing({ billingMode: mode }) : undefined
+        return {
+          status: 'matched',
+          source: 'provider',
+          ...(recommendedApi ? { recommendedApi } : {}),
+          recommended: {
+            ...values({ ...binding.routerFallback, name: binding.name }),
+            modelType: bindingType,
+            ...(mode ? { billingMode: mode } : {}),
+            ...(pricing
+              ? { pricing, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }
+              : {}),
+          },
+        }
+      }
+      if (referenced && bindingType === input.modelType) {
+        const aliasTier = Model.SpeedTierIds.find(
+          (tier) => binding?.speedTiers?.[tier]?.requestModelId?.toLowerCase() === value,
+        )
+        return {
+          ...this.compose(referenced, providerId, bindingMatch?.id, binding, aliasTier),
+          ...(recommendedApi ? { recommendedApi } : {}),
+        }
+      }
+      const matchingType = (candidates?: Set<CatalogKnowledge>) =>
+        [...(candidates ?? [])].filter((candidate) => candidate.type === input.modelType)
+      const exact = matchingType(this.exact.get(value))
+      const candidates = exact.length ? exact : matchingType(this.names.get(bare(value)))
+      if (candidates.length > 1) {
+        return {
+          status: 'ambiguous',
+          recommended: {},
+          candidates: candidates.map((entry) => entry.id),
+        }
+      }
+      const model = candidates[0]
+      if (model) return this.compose(model, providerId)
     }
     return { status: 'unmatched', recommended: {} }
   }
 
-  private locate(
-    value: string,
-    official: readonly Entry[],
-    supplied: readonly Entry[],
-    input: RecommendationInput,
-  ): { official: readonly Entry[] } | { official: readonly Entry[]; provider: Entry } | undefined {
-    // 1. 完整官方 ID 或官方目录显式别名优先。
-    const exact = official.filter(
-      (entry) =>
-        entry.id.toLowerCase() === value ||
-        entry.aliases.some((alias) => alias.toLowerCase() === value),
-    )
-    if (exact.length) return { official: exact }
-    // 2. 已知目录供应商前缀 + 该供应商确有对应完整模型条目。
-    const separator = value.indexOf('/')
-    if (separator > 0) {
-      const prefix = value.slice(0, separator)
-      const name = value.slice(separator + 1)
-      const providerEntry = supplied.find(
-        (entry) => entry.provider!.toLowerCase() === prefix && entry.id.toLowerCase() === name,
-      )
-      if (providerEntry) return { official: [], provider: providerEntry }
-      // 3. 其余前缀只是请求命名空间，只在官方目录匹配末段模型名与显式别名。
-      const bareName = bare(value)
-      const bareMatch = this.matchBare(bareName, official)
-      if (bareMatch.length) return { official: bareMatch }
-    } else {
-      const bareMatch = this.matchBare(value, official)
-      if (bareMatch.length) return { official: bareMatch }
-    }
-    // INVARIANT: 官方裸名未命中后才按调用方明确的供应商 ID/端点精确查找，防止第三方条目否决官方条目。
-    if (input.providerId) {
-      const pid = input.providerId.toLowerCase()
-      const byProvider = supplied.find(
-        (entry) =>
-          entry.provider!.toLowerCase() === pid &&
-          (entry.id.toLowerCase() === value ||
-            entry.aliases.some((alias) => alias.toLowerCase() === value)),
-      )
-      if (byProvider) return { official: [], provider: byProvider }
-    }
-    const endpoint = normalizeEndpoint(input.baseUrl)
-    if (endpoint) {
-      const byEndpoint = supplied.filter(
-        (entry) =>
-          entry.endpoints.includes(endpoint) &&
-          (entry.id.toLowerCase() === value ||
-            entry.aliases.some((alias) => alias.toLowerCase() === value)),
-      )
-      const canonicals = new Set(byEndpoint.map((entry) => entry.canonical.toLowerCase()))
-      if (byEndpoint.length > 0 && canonicals.size === 1) {
-        return { official: [], provider: byEndpoint[0]! }
-      }
-    }
-    return undefined
-  }
-
-  private matchBare(name: string, official: readonly Entry[]): readonly Entry[] {
-    return official.filter(
-      (entry) => bare(entry.id) === name || entry.aliases.some((alias) => bare(alias) === name),
-    )
-  }
-
   private compose(
-    located: { official: readonly Entry[]; provider?: Entry },
-    value: string,
-    input: RecommendationInput,
-    official: readonly Entry[],
-    supplied: readonly Entry[],
+    model: CatalogKnowledge,
+    providerId?: string,
+    modelId?: string,
+    binding?: CatalogBinding,
+    aliasTier: Model.SpeedTierId = 'standard',
   ): RecommendationMatch {
-    if (located.provider) {
-      const entry = located.provider
-      const identity = entry.canonical
-      const base = official.filter(
-        (candidate) => candidate.canonical.toLowerCase() === identity.toLowerCase(),
-      )
-      return this.finalize(
-        { status: 'matched', recommended: mergeValues([...base, entry]) },
-        identity,
-        'provider',
-        input,
-        entry,
-      )
-    }
-
-    const families = new Map<string, { identity: string; entries: Entry[] }>()
-    for (const entry of located.official) {
-      const key = entry.canonical.toLowerCase()
-      const family = families.get(key) ?? { identity: entry.canonical, entries: [] }
-      family.entries.push(entry)
-      families.set(key, family)
-    }
-    if (families.size > 1) {
-      return {
-        status: 'ambiguous',
-        recommended: {},
-        candidates: [...families.values()].map((family) => family.identity),
-      }
-    }
-    const family = [...families.values()][0]
-    if (!family) return { status: 'unmatched', recommended: {} }
-    const identity = family.identity
-    const key = identity.toLowerCase()
-    const bareIdentity = bare(identity)
-    const bareValue = bare(value)
-    // INVARIANT: 供应商条目缺省 canonical_model_id 时按裸名对齐官方身份，显式声明不同 canonical_model_id 时仍严格拒绝。
-    const matchesIdentity = (entry: Entry) =>
-      entry.canonical.toLowerCase() === key ||
-      (!entry.canonical.includes('/') && bare(entry.id) === bareIdentity)
-    const pickSpecific = (candidates: readonly Entry[]): Entry | undefined =>
-      candidates.find(
-        (entry) =>
-          entry.id.toLowerCase() === value ||
-          entry.aliases.some((alias) => alias.toLowerCase() === value),
-      ) ??
-      candidates.find((entry) => bare(entry.id) === bareValue) ??
-      candidates.find((entry) => bare(entry.id) === bareIdentity) ??
-      candidates[0]
-    const endpoint = normalizeEndpoint(input.baseUrl)
-    const specific =
-      (input.providerId
-        ? pickSpecific(
-            supplied.filter(
-              (entry) =>
-                matchesIdentity(entry) &&
-                entry.provider!.toLowerCase() === input.providerId.toLowerCase(),
-            ),
-          )
-        : undefined) ??
-      (endpoint
-        ? pickSpecific(
-            supplied.filter(
-              (entry) => matchesIdentity(entry) && entry.endpoints.includes(endpoint),
-            ),
-          )
-        : undefined)
-    if (specific) {
-      return this.finalize(
-        {
-          status: 'matched',
-          recommended: mergeValues([...family.entries, specific]),
-        },
-        identity,
-        'provider',
-        input,
-        specific,
-      )
-    }
-    return this.finalize(
-      { status: 'matched', recommended: mergeValues(family.entries) },
-      identity,
-      'official',
-      input,
-    )
-  }
-
-  private finalize(
-    match: { status: 'matched'; recommended: Model.Recommendation },
-    identity: string,
-    source: 'official' | 'provider',
-    input: RecommendationInput,
-    providerEntry?: Entry,
-  ): RecommendationMatch {
-    const owner = identity.split('/')[0]!.toLowerCase()
-    const reference = this.entries.find(
-      (entry) =>
-        entry.type === input.modelType &&
-        entry.provider?.toLowerCase() === owner &&
-        entry.canonical.toLowerCase() === identity.toLowerCase() &&
-        bare(entry.id) === bare(identity) &&
-        (entry.values.cost !== undefined || entry.values.pricing !== undefined),
-    )
-    const price =
-      providerEntry?.values.cost || providerEntry?.values.pricing ? providerEntry : reference
-    const recommended = {
-      ...match.recommended,
-      ...(price?.values.cost ? { cost: price.values.cost } : {}),
-      ...(price?.values.pricing ? { pricing: price.values.pricing } : {}),
-    }
-    const priceSource = price
-      ? {
-          kind: providerEntry === price ? ('provider' as const) : ('reference' as const),
-          providerId: price.provider!,
-        }
+    const offer = providerId ? model.providers[providerId] : undefined
+    const available = offer?.available ? offer : undefined
+    const details = (modelId && available?.modelOverrides?.[modelId]) || available
+    const overrides = details?.overrides
+    const mode = providerId ? this.providers.providers[providerId]?.billingMode : undefined
+    const standardPrice =
+      details?.pricing ??
+      (available && mode && mode !== 'pay-as-you-go' ? { billingMode: mode } : undefined)
+    const providerPrice = details?.speedTiers?.[aliasTier]?.pricing ?? standardPrice
+    const priceSource =
+      providerPrice && providerId
+        ? { kind: 'provider' as const, providerId }
+        : model.referencePricing
+          ? { kind: 'reference' as const, providerId: model.referencePricing.sourceProviderId }
+          : undefined
+    const pricing = this.pricing(providerPrice ?? model.referencePricing?.pricing)
+    const price = pricing?.busy
+    const cost = price
+      ? omitUndefined({
+          input: price.input ?? undefined,
+          output: price.output ?? undefined,
+          cacheRead: price.cacheRead ?? undefined,
+          cacheWrite: price.cacheWrite ?? undefined,
+          tiers: price.tiers?.map((tier) => ({
+            inputTokensAbove: tier.inputTokensAbove,
+            input: tier.input ?? 0,
+            output: tier.output ?? 0,
+            cacheRead: tier.cacheRead ?? 0,
+            cacheWrite: tier.cacheWrite ?? 0,
+          })),
+        })
       : undefined
-    if (recommended.catalog || priceSource)
-      recommended.catalog = {
-        ...recommended.catalog,
-        reasoningCost: price?.values.catalog?.reasoningCost,
-        inputAudioCost: price?.values.catalog?.inputAudioCost,
-        outputAudioCost: price?.values.catalog?.outputAudioCost,
-        ...(priceSource ? { priceSource } : {}),
-      }
-    if (input.modelType === 'chat')
-      return {
-        status: 'matched',
-        recommended,
-        identity,
-        source,
-        ...(priceSource ? { priceSource } : {}),
-      }
-    const { maxTokens: _maxTokens, reasoning: _reasoning, ...rest } = recommended
+    const profiles: Model.SpeedTierInfo[] = Model.SpeedTierIds.flatMap((id) => {
+      const tier = details?.speedTiers?.[id]
+      if (id !== 'standard' && (!tier || !binding?.speedTiers?.[id])) return []
+      const price = tier?.pricing ?? standardPrice ?? model.referencePricing?.pricing
+      return [
+        {
+          id,
+          ...omitUndefined({
+            label: tier?.label,
+            speedMultiplier: tier?.speedMultiplier,
+            pricing: this.pricing(price),
+          }),
+        },
+      ]
+    })
+    const base = values({
+      ...model,
+      ...overrides,
+      name: binding?.name ?? model.name,
+      ...omitUndefined({
+        reasoningCost: details?.reasoningCost,
+        inputAudioCost: details?.inputAudioCost,
+        outputAudioCost: details?.outputAudioCost,
+      }),
+      limit: { ...object(model.limit ?? {}), ...object(overrides?.limit ?? {}) },
+      modalities: { ...object(model.modalities ?? {}), ...object(overrides?.modalities ?? {}) },
+    })
+    const recommended: Model.Recommendation = {
+      ...base,
+      modelType: model.type,
+      ...omitUndefined({
+        pricing,
+        cost,
+        billingMode: pricing?.billingMode ?? (pricing ? ('pay-as-you-go' as const) : undefined),
+        speedTiers: profiles.length > 1 || details?.speedTiers?.standard ? profiles : undefined,
+      }),
+      ...(priceSource ? { catalog: { ...base.catalog, priceSource } } : {}),
+    }
     const {
-      optionSpecs: _optionSpecs,
-      reasoningLevels: _reasoningLevels,
+      maxTokens: _max,
+      reasoning: _reasoning,
+      optionSpecs: _options,
+      reasoningLevels: _levels,
       tools: _tools,
       ...nonChat
-    } = rest
+    } = recommended
     return {
       status: 'matched',
-      recommended: nonChat,
-      identity,
-      source,
+      recommended: model.type === 'chat' ? recommended : nonChat,
+      identity: model.id,
+      source: available ? 'provider' : 'official',
       ...(priceSource ? { priceSource } : {}),
     }
   }

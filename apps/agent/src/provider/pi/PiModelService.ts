@@ -34,6 +34,7 @@ import type {
   ModelsStore,
   MutableModels,
   Provider as PiProvider,
+  StreamOptions,
 } from '@earendil-works/pi-ai'
 import { builtinModels } from '@earendil-works/pi-ai/providers/all'
 import { Model, Provider } from '@pidex/model-schema'
@@ -46,11 +47,7 @@ import {
   CUSTOM_PROVIDER_APIS,
   parsePiProviderCatalog,
   PI_PROVIDER_CONFIG_SCHEMA_VERSION,
-  DEEPSEEK_PROVIDER_ID,
-  DEFAULT_DEEPSEEK_PROTOCOL,
-  resolveDeepSeekProtocol,
   type CustomProviderApi,
-  type DeepSeekProtocol,
   type ParsedPiProviderCatalog,
   type PiCustomModelConfig,
   type PiModelCatalogConfig,
@@ -58,13 +55,26 @@ import {
   type PiProviderConfigIssue,
   type PiProviderDefinitionInput,
 } from './PiProviderConfig'
-import { createPiDeepSeekProvider } from './PiDeepSeekProvider'
+import { withCatalogProvider } from './PiCatalogProvider'
+import {
+  catalogBinding,
+  supportsCatalogProtocol,
+  type OptionRule,
+  type SpeedTierInvocation,
+} from './CatalogV2'
+import { applyOrderedJsonMergePatches } from './option-map/merge-patch'
+import type { JsonObject } from './option-map/types'
 import { withPiOpenAIModelDiscovery } from './PiOpenAIModelDiscovery'
-import { withPiBuiltinProviderOverrides } from './PiBuiltinProviderOverrides'
+import {
+  builtinBaseUrlOverride,
+  builtinModelConnection,
+  withPiBuiltinProviderOverrides,
+} from './PiBuiltinProviderOverrides'
+import { observeCacheWriteUsage } from './PiCacheWriteUsage'
 import {
   createPiCustomProvider,
-  toPiModel,
   discoverOpenAIModels,
+  toPiModel,
   type DiscoveredOpenAIModel,
 } from './PiCustomProvider'
 
@@ -110,6 +120,7 @@ const piProviderToInfo = (
   configured?: PiProviderConfig,
   catalogOrigin: Provider.CatalogOrigin = 'pi-bundled',
   catalogEndpoints?: Readonly<Record<string, string>>,
+  catalogDefault?: string,
 ): Provider.Info => ({
   id: Provider.ID.make(provider.id),
   name: provider.name,
@@ -121,8 +132,7 @@ const piProviderToInfo = (
     ...(kind === 'builtin'
       ? {
           endpoints: builtinProviderEndpoints(provider.id, catalogEndpoints),
-          defaultApi:
-            configured?.kind === 'builtin' && configured.protocol ? configured.protocol : apis[0],
+          defaultApi: catalogDefault ?? apis[0],
         }
       : {}),
     ...(provider.baseUrl ? { baseUrl: provider.baseUrl } : {}),
@@ -161,6 +171,11 @@ type ConfiguredPiModel = PiModel<Api> & {
   modelType?: 'chat' | 'embedding' | 'rerank'
   tools?: boolean
   pricing?: Model.Pricing
+  billingMode?: Model.BillingMode
+  speedTiers?: readonly Model.SpeedTierInfo[]
+  speedTier?: Model.SpeedTierId
+  speedInvocation?: SpeedTierInvocation
+  supportedProtocols?: readonly string[]
   /** 双层参数规格（仅 Pidex 内存模型携带，不进入 Pi 上游类型）。 */
   optionSpecs?: Model.OptionSpecs
 }
@@ -274,6 +289,22 @@ const piModelToInfo = (model: PiModel<Api>, enabled: boolean, variant?: string):
   id: Model.ID.make(model.id),
   providerID: Provider.ID.make(model.provider),
   name: model.name,
+  ...((model as ConfiguredPiModel).pricing
+    ? { pricing: (model as ConfiguredPiModel).pricing }
+    : {}),
+  ...((model as ConfiguredPiModel).billingMode || (model as ConfiguredPiModel).pricing?.billingMode
+    ? {
+        billingMode:
+          (model as ConfiguredPiModel).billingMode ??
+          (model as ConfiguredPiModel).pricing?.billingMode,
+      }
+    : {}),
+  ...((model as ConfiguredPiModel).speedTiers
+    ? { speedTiers: (model as ConfiguredPiModel).speedTiers }
+    : {}),
+  ...((model as ConfiguredPiModel).speedTier
+    ? { speedTier: (model as ConfiguredPiModel).speedTier }
+    : {}),
   ...((model as ConfiguredPiModel).catalog
     ? { catalog: (model as ConfiguredPiModel).catalog }
     : {}),
@@ -288,6 +319,9 @@ const piModelToInfo = (model: PiModel<Api>, enabled: boolean, variant?: string):
     type: 'pi',
     name: model.api,
     baseUrl: model.baseUrl,
+    ...((model as ConfiguredPiModel).supportedProtocols
+      ? { supportedProtocols: (model as ConfiguredPiModel).supportedProtocols }
+      : {}),
   },
   ...(variant ? { variant } : {}),
   capabilities: {
@@ -346,19 +380,14 @@ export class PiModelService {
   private configuredCustomProviderIDs = new Set<string>()
   private catalogVersion = 0
   private configFingerprint = ''
+  private providerCatalog: Awaited<ReturnType<ProviderDirectoryStore['catalog']>>
+  private optionRules: readonly OptionRule[] | undefined
   private parsedConfig: ParsedPiProviderCatalog = {
     schemaVersion: PI_PROVIDER_CONFIG_SCHEMA_VERSION,
     providers: {},
     issues: [],
   }
   private syncOperation: Promise<ParsedPiProviderCatalog> = Promise.resolve(this.parsedConfig)
-  private deepSeekProtocol:
-    | {
-        readonly protocol: DeepSeekProtocol
-        readonly provider: PiProvider
-        readonly source: PiProvider
-      }
-    | undefined
   private disposed = false
   /** 按 Pi 模型对象缓存编译后的 option map；配置同步重建模型对象时自动失效。 */
   private readonly optionMapCompiled = new WeakMap<object, CompiledOptionSpecs | null>()
@@ -443,17 +472,14 @@ export class PiModelService {
           !this.providerEnabled(provider.id, config),
           configured,
           origin,
-          this.catalogProtocolEndpoints[provider.id],
+          this.protocolDefaults(provider),
+          this.providerCatalog?.providersDoc.providers[provider.id]?.defaultProtocol,
         )
         directory.delete(provider.id)
-        const defaultApi =
-          configured?.kind === 'builtin' && configured.protocol
-            ? configured.protocol
-            : configured?.kind === 'custom'
-              ? (Object.keys(configured.endpoints ?? {})[0] ??
-                Object.values(configured.models)[0]?.api ??
-                entry?.api)
-              : (entry?.api ?? info.source.apis[0])
+        const defaultApi = configured?.kind === 'custom'
+          ? (Object.keys(configured.endpoints ?? {})[0] ??
+            Object.values(configured.models)[0]?.api ?? entry?.api)
+          : (info.source.defaultApi ?? entry?.api)
         return [
           kind === 'builtin' && entry
             ? {
@@ -461,6 +487,7 @@ export class PiModelService {
                 name: configured?.kind === 'custom' ? configured.name : entry.name,
                 source: {
                   ...info.source,
+                  ...(entry.env.length ? { env: entry.env } : {}),
                   ...(defaultApi ? { defaultApi } : {}),
                   ...(entry.baseUrl
                     ? {
@@ -470,7 +497,7 @@ export class PiModelService {
                           ...(defaultApi
                             ? {
                                 [defaultApi]:
-                                  configured?.baseUrl ??
+                                  provider.baseUrl ??
                                   entry.endpoints?.[defaultApi as CustomProviderApi] ??
                                   entry.baseUrl,
                               }
@@ -497,6 +524,7 @@ export class PiModelService {
           apis: [],
           ...(entry.api ? { defaultApi: entry.api } : {}),
           ...(entry.baseUrl ? { baseUrl: entry.baseUrl } : {}),
+          ...(entry.env.length ? { env: entry.env } : {}),
         },
         auth: { apiKey: true, oauth: false },
         availability: {
@@ -549,31 +577,35 @@ export class PiModelService {
   /** 返回供应商在当前清单/运行时中的活跃模型数（不含已废弃模型，不受用户启用过滤影响）。 */
   catalogModelCount(providerID: string): number {
     this.assertActive()
+    const directoryEntry = this.directoryEntries.find((entry) => entry.id === providerID)
+    if (directoryEntry && !this.builtinProviderIDs.has(providerID))
+      return Object.keys(directoryEntry.models).length
     const piModels = this.pi.getModels(providerID)
     if (piModels.length > 0) {
       return piModels.filter(
         (model) => (model as ConfiguredPiModel).catalog?.status !== 'deprecated',
       ).length
     }
-    const directoryEntry = this.directoryEntries.find((entry) => entry.id === providerID)
-    return directoryEntry ? Object.keys(directoryEntry.models).length : 0
+    return 0
   }
 
   /** 返回内置供应商在当前目录中的全部活跃模型 ID（排除已废弃模型）。 */
   async activeCatalogModelIDs(providerID: string): Promise<readonly string[]> {
     this.assertActive()
     const config = await this.syncProviders()
-    if (!this.builtinProviderIDs.has(providerID) || config.providers[providerID]?.kind === 'custom') {
+    if (
+      !this.builtinProviderIDs.has(providerID) ||
+      config.providers[providerID]?.kind === 'custom'
+    ) {
       return []
     }
-    const models = await Promise.all(
-      this.pi.getModels(providerID).map((model) => this.withCatalog(model)),
-    )
+    const current = this.pi.getModels(providerID).filter(isChatModel)
+    if (this.providerCatalog?.providersDoc.providers[providerID])
+      return current.map((model) => model.id)
+    const models = await Promise.all(current.map((model) => this.withCatalog(model)))
     return [
       ...new Set(
-        models
-          .filter((model) => model.catalog?.status !== 'deprecated')
-          .map((model) => model.id),
+        models.filter((model) => model.catalog?.status !== 'deprecated').map((model) => model.id),
       ),
     ]
   }
@@ -620,6 +652,13 @@ export class PiModelService {
         }
       }
       const builtin = configured?.kind === 'builtin' ? configured : undefined
+      const catalog = this.providerCatalog?.providersDoc.providers[provider.id]
+      const baseUrl = builtinBaseUrlOverride(
+        provider.id,
+        builtin?.baseUrl,
+        catalog?.defaultProtocol ?? provider.getModels()[0]?.api,
+        catalog?.protocolEndpoints,
+      )
       return {
         kind: 'builtin',
         id: provider.id,
@@ -631,11 +670,10 @@ export class PiModelService {
           ...model,
         })),
         ...(builtin?.endpoints ? { endpoints: builtin.endpoints } : {}),
-        ...(builtin?.baseUrl ? { baseUrl: builtin.baseUrl } : {}),
+        ...(baseUrl ? { baseUrl } : {}),
         ...(builtin?.allowInsecureHttp !== undefined
           ? { allowInsecureHttp: builtin.allowInsecureHttp }
           : {}),
-        ...(builtin?.protocol ? { protocol: builtin.protocol } : {}),
       }
     })
     return definitions.map(clone)
@@ -645,8 +683,30 @@ export class PiModelService {
     const config = await this.syncProviders()
     if (!this.builtinProviderIDs.has(providerID) || config.providers[providerID]?.kind === 'custom')
       throw new AgentError('PROVIDER_NOT_FOUND', '内置供应商不存在', 404)
+    return this.describeDiscoveredModels(this.pi.getModels(providerID))
+  }
+
+  /** Reads the local catalog for a market provider represented by a custom runtime definition. */
+  async discoverDirectoryModels(providerID: string) {
+    await this.syncProviders()
+    const entry = this.directoryEntries.find((candidate) => candidate.id === providerID)
+    if (!entry) return []
+    const config = directoryProviderConfig(entry)
+    if (!config) return []
+    const models = await Promise.all(
+      Object.values(config.models).map((model) =>
+        this.enrichBuiltinModel(providerID, {
+          ...toPiModel(providerID, config, model),
+          baseUrl: entry.modelBaseUrls?.[model.id] ?? config.endpoints?.[model.api] ?? config.baseUrl,
+        }),
+      ),
+    )
+    return this.describeDiscoveredModels(models)
+  }
+
+  private describeDiscoveredModels(models: readonly PiModel<Api>[]) {
     return Promise.all(
-      this.pi.getModels(providerID).map(async (original) => {
+      models.map(async (original) => {
         const model = await this.withCatalog(original)
         const input = effectiveInput(model)
         return {
@@ -662,6 +722,7 @@ export class PiModelService {
           maxTokens: model.maxTokens,
           reasoning: model.reasoning,
           tools: piModelToInfo(model, false).capabilities.tools,
+          ...(model.modelType ? { modelType: model.modelType } : {}),
           ...(input.length ? { input } : {}),
           ...(model.optionSpecs ? { optionSpecs: model.optionSpecs } : {}),
           ...(model.pricing ? { pricing: model.pricing } : {}),
@@ -702,14 +763,31 @@ export class PiModelService {
   }
 
   private async withCatalog(model: PiModel<Api>): Promise<ConfiguredPiModel> {
-    if ((model as ConfiguredPiModel).catalog) return model as ConfiguredPiModel
+    const providerId =
+      this.parsedConfig?.providers[model.provider]?.kind === 'custom'
+        ? await this.directory.resolveProviderByBaseUrl(model.baseUrl)
+        : model.provider
+    const entry = providerId ? this.providerCatalog?.providersDoc.providers[providerId] : undefined
+    const protocols = catalogBinding(entry, model.id)?.binding.supportedProtocols
+    const configured: ConfiguredPiModel = protocols
+      ? { ...model, supportedProtocols: protocols }
+      : model
+    if (configured.catalog) return configured
     const { recommended } = await this.recommendations.resolve({
       providerId: model.provider,
       modelId: model.id,
       baseUrl: model.baseUrl,
       modelType: (model as ConfiguredPiModel).modelType ?? 'chat',
+      api: model.api,
     })
-    return recommended.catalog ? { ...model, catalog: recommended.catalog } : model
+    if (!recommended.catalog && !recommended.speedTiers && !recommended.billingMode)
+      return configured
+    return {
+      ...configured,
+      ...(recommended.catalog ? { catalog: recommended.catalog } : {}),
+      ...(recommended.speedTiers ? { speedTiers: recommended.speedTiers } : {}),
+      ...(recommended.billingMode ? { billingMode: recommended.billingMode } : {}),
+    }
   }
 
   async getPiModel(ref: Model.Ref): Promise<PiModel<Api>> {
@@ -720,9 +798,16 @@ export class PiModelService {
     if (!this.providerEnabled(providerID, config)) {
       throw new PiModelServiceError('PROVIDER_NOT_FOUND', `Provider ${providerID} was not found`)
     }
-    const found = this.pi.getModel(providerID, modelID)
-    const model = found ? await this.withCatalog(found) : undefined
-    if (!model || !this.modelEnabled(model, config)) {
+    const source = this.providerCatalog?.providersDoc.providers[providerID]
+    const alias =
+      config.providers[providerID]?.kind === 'custom' ? undefined : catalogBinding(source, modelID)
+    const found = this.pi.getModel(providerID, alias?.id ?? modelID)
+    let model = found ? await this.withCatalog(found) : undefined
+    if (
+      !model ||
+      (!this.modelEnabled(model, config) &&
+        !(alias && alias.id !== modelID && this.modelEnabled({ ...model, id: modelID }, config)))
+    ) {
       throw new PiModelServiceError(
         'MODEL_NOT_FOUND',
         `Model ${providerID}/${modelID} was not found`,
@@ -740,6 +825,36 @@ export class PiModelService {
         'PROVIDER_NOT_CONFIGURED',
         `Provider ${providerID} is not configured`,
       )
+    const matchedProvider =
+      config.providers[providerID]?.kind === 'custom'
+        ? await this.directory.resolveProviderByBaseUrl(model.baseUrl)
+        : providerID
+    const match = matchedProvider
+      ? catalogBinding(this.providerCatalog?.providersDoc.providers[matchedProvider], modelID)
+      : undefined
+    const binding = match?.binding
+    if (!supportsCatalogProtocol(binding, model.api)) {
+      throw this.unsupportedProtocol(binding!.supportedProtocols!)
+    }
+    const aliasTier = Model.SpeedTierIds.find(
+      (id) => binding?.speedTiers?.[id]?.requestModelId?.toLowerCase() === modelID.toLowerCase(),
+    )
+    const speedTier = ref.speedTier ?? aliasTier ?? 'standard'
+    const invocation =
+      binding?.speedTiers?.[speedTier] ??
+      (aliasTier && speedTier === 'standard' ? { requestModelId: match!.id } : undefined)
+    const profile = model.speedTiers?.find((tier) => tier.id === speedTier)
+    if (speedTier !== 'standard' && (!invocation || !profile)) {
+      throw new PiModelServiceError('VARIANT_NOT_FOUND', '该模型当前不支持所选速度档位。')
+    }
+    if (ref.speedTier || aliasTier || invocation) {
+      model = {
+        ...model,
+        speedTier,
+        ...(invocation ? { speedInvocation: invocation } : {}),
+        ...(profile?.pricing ? { pricing: profile.pricing } : {}),
+      }
+    }
     const input = effectiveInput(model)
     if (
       input.length === model.input.length &&
@@ -776,8 +891,13 @@ export class PiModelService {
       throw new AgentError('INVALID_REQUEST', '输入超过模型最大输入 Token 预算', 400)
     const config = (await this.syncProviders()).providers[model.provider]
     const endpointKey = kind === 'embedding' ? 'openai-embeddings' : 'jina-rerank'
-    const explicitEndpoint = config?.endpoints?.[endpointKey]
-    if (!explicitEndpoint && !['openai-completions', 'openai-responses'].includes(model.api))
+    const explicitEndpoint =
+      config?.endpoints?.[endpointKey] ??
+      this.catalogProtocolEndpoints[model.provider]?.[endpointKey]
+    if (
+      !explicitEndpoint &&
+      ![endpointKey, 'openai-completions', 'openai-responses'].includes(model.api)
+    )
       throw new AgentError('INVALID_REQUEST', '请先为该模型类型添加对应端点', 400)
     const base = explicitEndpoint ?? model.baseUrl
     const suffix = kind === 'embedding' ? '/embeddings' : '/rerank'
@@ -1032,19 +1152,68 @@ export class PiModelService {
   }
 
   async previewRecommendation(input: RecommendationInput) {
-    const resolved = await this.recommendations.resolve(input)
-    // 预览阶段通常没有协议的精确 api，仅用通用层规则贡献思考 values/map。
-    const zcode = resolveZCodeOptionSpecsDetailed({
-      modelId: input.modelId,
-      api: '',
-      baseUrl: input.baseUrl,
-    })
+    const config = (await this.syncProviders()).providers[input.providerId]
+    const endpoints: RecommendationInput['endpoints'] =
+      config?.kind === 'custom' &&
+      (!input.baseUrl ||
+        input.baseUrl === config.baseUrl ||
+        Object.values(config.endpoints ?? {}).includes(input.baseUrl))
+        ? config.endpoints
+        : undefined
+    const resolved = await this.recommendations.resolve({ ...input, endpoints })
+    if (resolved.unsupportedProtocol) throw this.unsupportedProtocol(resolved.unsupportedProtocol)
+    const zcode = resolveZCodeOptionSpecsDetailed(
+      {
+        modelId: input.modelId,
+        api: resolved.recommendedApi ?? input.api ?? '',
+        baseUrl:
+          (resolved.recommendedApi && endpoints?.[resolved.recommendedApi]) ??
+          (input.api && endpoints?.[input.api]) ??
+          input.baseUrl,
+      },
+      await this.recommendations.optionRules(),
+    )
     const optionSpecs = composeOptionSpecs(resolved.recommended, zcode)
     if (!optionSpecs) return resolved
     return {
       ...resolved,
       recommended: { ...resolved.recommended, optionSpecs },
     }
+  }
+
+  private unsupportedProtocol(protocols: readonly string[]) {
+    return new AgentError('INVALID_REQUEST', this.catalogProtocolMessage(protocols), 400)
+  }
+
+  private catalogProtocolMessage(protocols: readonly string[]) {
+    return protocols.length
+      ? `该模型当前仅支持 ${protocols.join('、')}，请选择支持的协议。`
+      : '该模型当前没有可用的 API 协议。'
+  }
+
+  async draftProtocolProblem(
+    modelId: string,
+    api: string,
+    baseUrl: string,
+    providerId?: string,
+    draftBaseUrl?: string,
+  ) {
+    const catalog = await this.directory.catalog()
+    if (!catalog) return undefined
+    const matched =
+      (await this.directory.resolveProviderByBaseUrl(baseUrl)) ??
+      (draftBaseUrl && draftBaseUrl !== baseUrl
+        ? await this.directory.resolveProviderByBaseUrl(draftBaseUrl)
+        : undefined)
+    const id =
+      matched ?? (providerId && this.builtinProviderIDs.has(providerId) ? providerId : undefined)
+    const binding = id
+      ? catalogBinding(catalog.providersDoc.providers[id], modelId)?.binding
+      : undefined
+    const protocols = binding?.supportedProtocols
+    return protocols && !supportsCatalogProtocol(binding, api)
+      ? this.catalogProtocolMessage(protocols)
+      : undefined
   }
 
   refreshRecommendations() {
@@ -1068,6 +1237,7 @@ export class PiModelService {
       modelId: model.id,
       modelType: (model as ConfiguredPiModel).modelType ?? 'chat',
       baseUrl: model.baseUrl,
+      api: model.api,
     })
     if (!Object.keys(recommended).length) return model
     const applied = applyRecommendation(
@@ -1079,16 +1249,20 @@ export class PiModelService {
     const optionSpecs = shouldComposeOptionSpecs
       ? composeOptionSpecs(
           recommended,
-          resolveZCodeOptionSpecsDetailed({
-            modelId: model.id,
-            api: model.api,
-            baseUrl: model.baseUrl,
-          }),
+          resolveZCodeOptionSpecsDetailed(
+            {
+              modelId: model.id,
+              api: model.api,
+              baseUrl: model.baseUrl,
+            },
+            this.optionRules,
+          ),
           declaredThinkingValues(applied.reasoning, applied.thinkingLevelMap),
         )
       : applied.optionSpecs
     return {
       ...applied,
+      ...(recommended.input ? { inputExplicit: true } : {}),
       ...(optionSpecs ? { optionSpecs } : {}),
     }
   }
@@ -1114,16 +1288,27 @@ export class PiModelService {
         models[id] = model
         continue
       }
-      const baseUrl = (model.api && provider.endpoints?.[model.api]) || provider.baseUrl
-      const { recommended: baseRecommended } = await this.recommendations.resolve({
-        providerId: providerID,
-        baseUrl,
-        modelId: model.id,
-        modelType: model.modelType ?? 'chat',
-      })
+      const { recommended: baseRecommended, unsupportedProtocol, recommendedApi } =
+        await this.recommendations.resolve({
+          providerId: providerID,
+          baseUrl: provider.baseUrl,
+          modelId: model.id,
+          modelType: model.modelType ?? 'chat',
+          api: model.api,
+          endpoints: provider.endpoints,
+        })
+      if (unsupportedProtocol) {
+        models[id] = model
+        continue
+      }
+      const api = recommendedApi ?? model.api
+      const baseUrl = provider.endpoints?.[api] ?? provider.baseUrl
       // 档位值域按“推荐 → ZCode 专用规则 → 模型自身声明 → 通用兜底”取值，
       // 协议 map 继续由静态规则补齐。
-      const zcode = resolveZCodeOptionSpecsDetailed({ modelId: model.id, api: model.api, baseUrl })
+      const zcode = resolveZCodeOptionSpecsDetailed(
+        { modelId: model.id, api, baseUrl },
+        this.optionRules,
+      )
       const recommended = {
         ...baseRecommended,
         optionSpecs: composeOptionSpecs(
@@ -1136,7 +1321,11 @@ export class PiModelService {
         model.smartConfig.source === 'document' ? model.smartConfig.document?.data : undefined
       const applied = applyRecommendation(applyRecommendation(model, recommended), document ?? {})
       if (document?.pricing) (applied as { pricing?: Model.Pricing }).pricing = document.pricing
-      models[id] = applied
+      if (api === model.api) models[id] = applied
+      else {
+        const { compat: _compat, ...configured } = applied
+        models[id] = { ...configured, api }
+      }
     }
     return { ...provider, models }
   }
@@ -1155,29 +1344,56 @@ export class PiModelService {
     const original = pi.streamSimple.bind(this.pi)
     try {
       pi.streamSimple = (model: unknown, context: unknown, options?: unknown) => {
+        const invocation = (model as ConfiguredPiModel | undefined)?.speedInvocation
         const priced =
           model && typeof model === 'object'
             ? this.options.pricing?.begin(model as PiModel<Api>)
             : undefined
-        const requestModel = priced?.model ?? model
+        const pricedModel = priced?.model ?? model
+        const requestModel = invocation?.requestModelId
+          ? { ...(pricedModel as PiModel<Api>), id: invocation.requestModelId }
+          : pricedModel
         const dispatch = (m: unknown, c: unknown, o?: unknown) => {
+          if (invocation?.payloadPatch) {
+            const opts = (o && typeof o === 'object' ? o : {}) as Record<string, unknown>
+            const previous =
+              typeof opts.onPayload === 'function'
+                ? (opts.onPayload as (payload: unknown, target: unknown) => unknown)
+                : undefined
+            const patch = invocation.payloadPatch as JsonObject
+            o = {
+              ...opts,
+              onPayload: async (payload: JsonObject, target: unknown) => {
+                const resolved = (await previous?.(payload, target)) ?? payload
+                return applyOrderedJsonMergePatches(resolved as JsonObject, [
+                  { option: 'speedTier', patch },
+                ])
+              },
+            }
+          }
+          const target = (m === model ? requestModel : m) as PiModel<Api>
+          const cacheUsage = target?.api
+            ? observeCacheWriteUsage(target.api, o as StreamOptions | undefined)
+            : undefined
           const source = original(
-            m === model ? requestModel : m,
+            target,
             c,
-            o,
+            cacheUsage?.options ?? o,
           ) as AssistantMessageEventStream
-          if (!priced) return source
+          if (!priced && !cacheUsage) return source
           const result = createAssistantMessageEventStream()
           void (async () => {
             try {
               for await (const event of source) {
-                priced.annotate(
+                const terminal = event.type === 'done' || event.type === 'error'
+                const message =
                   event.type === 'done'
                     ? event.message
                     : event.type === 'error'
                       ? event.error
-                      : event.partial,
-                )
+                      : event.partial
+                const split = terminal ? cacheUsage?.settle(message.usage, target) : undefined
+                priced?.annotate(message, split)
                 result.push(event)
               }
               result.end()
@@ -1200,7 +1416,7 @@ export class PiModelService {
                   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
                 },
               }
-              priced.annotate(error)
+              priced?.annotate(error)
               result.push({ type: 'error', reason: 'error', error })
               result.end()
             }
@@ -1281,6 +1497,7 @@ export class PiModelService {
     const operation = async () => {
       const raw = await this.rawConfig()
       const entries = await this.directory.providers()
+      const catalog = await this.directory.catalog()
       const protocolEndpoints = await this.directory.protocolEndpoints()
       // 推荐目录更新后必须重新合成，否则已保存模型会停在旧推荐值上。
       const fingerprint = JSON.stringify([
@@ -1288,10 +1505,18 @@ export class PiModelService {
         await this.recommendations.version(),
         protocolEndpoints,
       ])
-      if (!force && fingerprint === this.configFingerprint && entries === this.directoryEntries)
+      if (
+        !force &&
+        fingerprint === this.configFingerprint &&
+        entries === this.directoryEntries &&
+        catalog === this.providerCatalog
+      )
         return this.parsedConfig
       let parsed = parsePiProviderCatalog(raw)
       this.directoryEntries = entries
+      this.providerCatalog = catalog
+      this.optionRules =
+        catalog?.modelsDoc.optionRules ?? (await this.recommendations.optionRules())
       this.catalogProtocolEndpoints = protocolEndpoints
       const defaults = new Map(entries.map((entry) => [entry.id, directoryProviderConfig(entry)]))
       if (parsed.schemaVersion <= PI_PROVIDER_CONFIG_SCHEMA_VERSION) {
@@ -1308,85 +1533,38 @@ export class PiModelService {
               directorySource: entries.find((entry) => entry.id === id)!.origin,
             }
           }
-          if (config && this.builtinProviderIDs.has(id)) {
-            const existing = providers[id]
-            const bundledModels = new Set(
-              this.baseProviders
-                .get(id)!
-                .getModels()
-                .map((model) => model.id),
-            )
-            const disabled = Object.fromEntries(
-              Object.keys(config.models)
-                .filter((modelID) => !bundledModels.has(modelID))
-                .map((modelID) => [modelID, { enabled: false }]),
-            )
-            if (Object.keys(disabled).length && (!existing || existing.kind === 'builtin')) {
-              providers[id] = {
-                kind: 'builtin',
-                enabled: true,
-                allowModels: [],
-                denyModels: [],
-                ...existing,
-                models: { ...disabled, ...existing?.models },
-              }
-            }
-          }
         }
         parsed = { ...parsed, providers }
       }
       this.directoryBaseProviders = new Map(
         await Promise.all(
-          [...this.baseProviders].map(async ([id, base]): Promise<[string, PiProvider]> => {
-            const config = defaults.get(id)
-            const entry = entries.find((candidate) => candidate.id === id)
-            const apis = new Set(base.getModels().map((model) => model.api))
-            const remoteModels = new Map<string, PiModel<Api>>()
-            if (config) {
-              for (const model of Object.values(config.models)) {
-                if (apis.has(model.api))
-                  remoteModels.set(model.id, {
-                    ...toPiModel(id, config, model),
-                    baseUrl:
-                      entry?.modelBaseUrls?.[model.id] ??
-                      config.endpoints?.[model.api] ??
-                      config.baseUrl,
-                  })
-              }
+          [...this.baseProviders].map(async ([id, source]): Promise<[string, PiProvider]> => {
+            const entry = catalog?.providersDoc.providers[id]
+            if (entry) {
+              const projected = await withCatalogProvider(source, entry, (model, binding) => {
+                const kind =
+                  binding.type ??
+                  (binding.modelRef ? catalog?.modelsDoc.models[binding.modelRef]?.type : undefined)
+                return this.enrichBuiltinModel(
+                  id,
+                  kind ? ({ ...model, modelType: kind } as ConfiguredPiModel) : model,
+                )
+              })
+              return [id, projected]
             }
-            const combined = new Map(base.getModels().map((model) => [model.id, model]))
-            for (const [modelID, model] of remoteModels) combined.set(modelID, model)
-            const enrichedById = new Map(
+            const getModels = () => source.getModels()
+            const enriched = new Map(
               await Promise.all(
-                [...combined.entries()].map(async ([modelID, model]): Promise<[string, PiModel<Api>]> => [
-                  modelID,
-                  await this.enrichBuiltinModel(id, model),
-                ]),
+                getModels().map(
+                  async (model) => [model.id, await this.enrichBuiltinModel(id, model)] as const,
+                ),
               ),
             )
-            const getModels = () => {
-              if (remoteModels.size > 0) {
-                return [...remoteModels.entries()].map(
-                  ([modelID, model]) => enrichedById.get(modelID) ?? model,
-                )
-              }
-              const models = new Map<string, PiModel<Api>>()
-              for (const model of base.getModels()) {
-                models.set(model.id, enrichedById.get(model.id) ?? model)
-              }
-              return [...models.values()]
-            }
             return [
               id,
               {
-                ...base,
-                getModels,
-                getAllModels: () => [
-                  ...(base.getAllModels?.() ?? []).filter(
-                    (model) => model.type !== undefined && model.type !== 'chat',
-                  ),
-                  ...getModels(),
-                ],
+                ...source,
+                getModels: () => getModels().map((model) => enriched.get(model.id) ?? model),
               },
             ]
           }),
@@ -1413,14 +1591,14 @@ export class PiModelService {
         nextCustomProviderIDs.add(providerID)
       }
       this.configuredCustomProviderIDs = nextCustomProviderIDs
-      this.applyProviderProtocolOverride(parsed)
       for (const [id, base] of this.directoryBaseProviders) {
+        if (nextCustomProviderIDs.has(id)) continue
         const configured = parsed.providers[id]
-        if (id === DEEPSEEK_PROVIDER_ID && parsed.issues.some((issue) => issue.providerID === id))
+        if (parsed.issues.some((issue) => issue.providerID === id) && this.configFingerprint)
           continue
-        const source =
-          id === DEEPSEEK_PROVIDER_ID ? (this.deepSeekProtocol?.provider ?? base) : base
-        const defaultEndpoints = builtinProviderEndpoints(id, this.catalogProtocolEndpoints[id])
+        const source = base
+        const catalogEntry = catalog?.providersDoc.providers[id]
+        const defaultEndpoints = builtinProviderEndpoints(id, this.protocolDefaults(source))
         let runtimeConfig = configured
         if (configured?.kind === 'builtin') {
           const models = { ...configured.models }
@@ -1428,12 +1606,12 @@ export class PiModelService {
             if (!override.enabled) continue
             const native = source.getModels().find((model) => model.id === modelID)
             if (!native) continue
-            const api = override.api ?? configured.protocol ?? native.api
-            const baseUrl =
-              configured.endpoints?.[api as CustomProviderApi] ??
-              configured.baseUrl ??
-              defaultEndpoints[api] ??
-              native.baseUrl
+            const { api, baseUrl } = builtinModelConnection(
+              native,
+              configured,
+              defaultEndpoints,
+              catalogEntry,
+            )
             if (
               override.smartConfig &&
               override.smartConfig.enabled !== false &&
@@ -1444,6 +1622,7 @@ export class PiModelService {
                 modelId: modelID,
                 modelType: 'chat',
                 baseUrl,
+                api,
               })
               const document =
                 override.smartConfig.source === 'document'
@@ -1463,7 +1642,10 @@ export class PiModelService {
               )
               const optionSpecs = composeOptionSpecs(
                 recommended,
-                resolveZCodeOptionSpecsDetailed({ modelId: modelID, api, baseUrl }),
+                resolveZCodeOptionSpecsDetailed(
+                  { modelId: modelID, api, baseUrl },
+                  this.optionRules,
+                ),
                 declaredThinkingValues(composed.reasoning, composed.thinkingLevelMap),
               )
               const { pricing: _pricing, ...baseOverride } = override
@@ -1492,6 +1674,7 @@ export class PiModelService {
                 modelId: modelID,
                 modelType: 'chat',
                 baseUrl,
+                api,
               })
               if (
                 recommended.optionSpecs ||
@@ -1500,7 +1683,10 @@ export class PiModelService {
               ) {
                 const optionSpecs = composeOptionSpecs(
                   recommended,
-                  resolveZCodeOptionSpecsDetailed({ modelId: modelID, api, baseUrl }),
+                  resolveZCodeOptionSpecsDetailed(
+                    { modelId: modelID, api, baseUrl },
+                    this.optionRules,
+                  ),
                   declaredThinkingValues(native.reasoning, native.thinkingLevelMap),
                 )
                 if (optionSpecs) models[modelID] = { ...override, optionSpecs }
@@ -1511,11 +1697,12 @@ export class PiModelService {
         }
         this.mutablePi?.setProvider(
           runtimeConfig?.kind === 'builtin'
-            ? withPiBuiltinProviderOverrides(source, runtimeConfig, defaultEndpoints)
+            ? withPiBuiltinProviderOverrides(source, runtimeConfig, defaultEndpoints, catalogEntry)
             : withPiBuiltinProviderOverrides(
                 source,
                 { kind: 'builtin', enabled: true, allowModels: [], denyModels: [], models: {} },
                 defaultEndpoints,
+                catalogEntry,
               ),
         )
       }
@@ -1527,34 +1714,15 @@ export class PiModelService {
     return this.syncOperation
   }
 
-  /**
-   * DeepSeek selects one global wire protocol per config write, so the runtime
-   * provider is rebuilt from whatever catalog is currently installed.
-   */
-  private applyProviderProtocolOverride(config: ParsedPiProviderCatalog): void {
-    if (!this.mutablePi) return
-    const base =
-      this.directoryBaseProviders.get(DEEPSEEK_PROVIDER_ID) ??
-      this.baseProviders.get(DEEPSEEK_PROVIDER_ID)
-    if (!base) return
-    const active = this.deepSeekProtocol
-    const current = base
-    const protocol = resolveDeepSeekProtocol(config)
-    // A rejected DeepSeek block keeps the provider that is already running.
-    if (!protocol) return
-    if (protocol === DEFAULT_DEEPSEEK_PROTOCOL) {
-      if (!active) return
-      this.deepSeekProtocol = undefined
-      this.mutablePi.setProvider(active.source)
-      return
-    }
-    if (active?.protocol === protocol && current === active.provider) return
-    // A provider other than our own override means the catalog was rebuilt
-    // underneath it, so that provider becomes the new mapping source.
-    const source = current === active?.provider ? active.source : current
-    const provider = createPiDeepSeekProvider(source, protocol)
-    this.deepSeekProtocol = { protocol, provider, source }
-    this.mutablePi.setProvider(provider)
+  private protocolDefaults(provider: PiProvider): Readonly<Record<string, string>> | undefined {
+    const declared = this.catalogProtocolEndpoints[provider.id]
+    if (declared || !this.providerCatalog) return declared
+    return Object.fromEntries(
+      provider
+        .getModels()
+        .filter((model) => model.baseUrl)
+        .map((model) => [model.api, model.baseUrl]),
+    )
   }
 
   private providerEnabled(providerID: string, config: ParsedPiProviderCatalog) {

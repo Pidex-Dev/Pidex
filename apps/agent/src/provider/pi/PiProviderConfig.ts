@@ -11,7 +11,7 @@ import type {
 import { builtinProviders } from '@earendil-works/pi-ai/providers/all'
 import { Model } from '@pidex/model-schema'
 import { compileModelOptionMap } from './option-map'
-import { bundledProviderProtocolEndpoints } from './SharedModelCatalogCache'
+import { bundledProviderProtocolEndpoints } from './CatalogV2Cache'
 
 export const PI_PROVIDER_CONFIG_SCHEMA_VERSION = 2
 
@@ -31,24 +31,6 @@ export type ProviderEndpointApi = (typeof PROVIDER_ENDPOINT_APIS)[number]
 
 export type CustomProviderApi = (typeof CUSTOM_PROVIDER_APIS)[number]
 
-/** DeepSeek keeps its existing three-protocol catalog mapping. */
-export const DEEPSEEK_PROVIDER_ID = 'deepseek'
-
-export type DeepSeekProtocol = Exclude<CustomProviderApi, 'google-generative-ai'>
-
-export const DEFAULT_DEEPSEEK_PROTOCOL: DeepSeekProtocol = 'openai-completions'
-
-const deepseekCatalogEndpoints = bundledProviderProtocolEndpoints(DEEPSEEK_PROVIDER_ID)
-
-/** Endpoints DeepSeek documents for each supported wire protocol. */
-export const DEEPSEEK_PROTOCOL_ENDPOINTS: Readonly<Record<DeepSeekProtocol, string>> = {
-  'openai-completions':
-    deepseekCatalogEndpoints['openai-completions'] ?? 'https://api.deepseek.com',
-  'openai-responses': deepseekCatalogEndpoints['openai-responses'] ?? 'https://api.deepseek.com',
-  'anthropic-messages':
-    deepseekCatalogEndpoints['anthropic-messages'] ?? 'https://api.deepseek.com/anthropic',
-}
-
 const nativeBuiltinEndpoints = new Map(
   builtinProviders().map((provider) => [
     provider.id,
@@ -61,9 +43,10 @@ export const builtinProviderEndpoints = (
   id: string,
   catalogEndpoints?: Readonly<Record<string, string>>,
 ): Readonly<Record<string, string>> => ({
-  ...nativeBuiltinEndpoints.get(id),
-  ...bundledProviderProtocolEndpoints(id),
-  ...catalogEndpoints,
+  ...(catalogEndpoints ??
+    (Object.keys(bundledProviderProtocolEndpoints(id)).length > 0
+      ? bundledProviderProtocolEndpoints(id)
+      : nativeBuiltinEndpoints.get(id))),
 })
 
 export interface PiBuiltinProviderConfig {
@@ -75,7 +58,6 @@ export interface PiBuiltinProviderConfig {
   readonly baseUrl?: string
   readonly endpoints?: Readonly<Record<string, string>>
   readonly allowInsecureHttp?: boolean
-  readonly protocol?: string
 }
 
 export type PiBuiltinModelConfig = Partial<Omit<PiCustomModelConfig, 'id' | 'cost'>> & {
@@ -556,27 +538,6 @@ const parseEndpoints = (
   ) as Partial<Record<ProviderEndpointApi, string>>
 }
 
-const parseBuiltinProtocol = (
-  providerID: string,
-  value: unknown,
-  endpoints: unknown,
-): string | undefined => {
-  if (value === undefined) return undefined
-  if (
-    typeof value !== 'string' ||
-    (!(value in builtinProviderEndpoints(providerID)) &&
-      !(
-        (CUSTOM_PROVIDER_APIS as readonly string[])
-          .filter((api) => api !== 'google-generative-ai')
-          .includes(value) &&
-        isObject(endpoints) &&
-        typeof endpoints[value] === 'string'
-      ))
-  )
-    throw new Error('Builtin provider protocol is unsupported')
-  return value
-}
-
 const parseBuiltin = (providerID: string, value: Record<string, unknown>) => {
   const modelDeclarations = isObject(value.models) ? value.models : {}
   const models = Object.fromEntries(
@@ -585,8 +546,6 @@ const parseBuiltin = (providerID: string, value: Record<string, unknown>) => {
       return [id, parseBuiltinModel(providerID, id, model)]
     }),
   )
-  const protocol = parseBuiltinProtocol(providerID, value.protocol, value.endpoints)
-
   return {
     kind: 'builtin' as const,
     ...(value.endpoints !== undefined
@@ -613,7 +572,6 @@ const parseBuiltin = (providerID: string, value: Record<string, unknown>) => {
     ...(value.allow_insecure_http !== undefined || value.allowInsecureHttp !== undefined
       ? { allowInsecureHttp: bool(value.allow_insecure_http ?? value.allowInsecureHttp, false) }
       : {}),
-    ...(protocol ? { protocol } : {}),
   }
 }
 
@@ -667,23 +625,6 @@ const parseBuiltinModel = (
       ),
     )
   return result as PiBuiltinModelConfig
-}
-
-/**
- * Protocol every DeepSeek model must use. Absent configuration keeps the
- * Chat Completions default for compatibility, while a rejected DeepSeek block
- * returns undefined so callers keep the provider that is already running
- * instead of half-applying a new protocol.
- */
-export const resolveDeepSeekProtocol = (
-  catalog: Pick<ParsedPiProviderCatalog, 'providers' | 'issues'>,
-): DeepSeekProtocol | undefined => {
-  if (catalog.issues.some((issue) => issue.providerID === DEEPSEEK_PROVIDER_ID)) {
-    return undefined
-  }
-  const provider = catalog.providers[DEEPSEEK_PROVIDER_ID]
-  if (provider?.kind !== 'builtin') return DEFAULT_DEEPSEEK_PROTOCOL
-  return (provider.protocol as DeepSeekProtocol | undefined) ?? DEFAULT_DEEPSEEK_PROTOCOL
 }
 
 const parseCustom = (
@@ -877,7 +818,6 @@ export const serializePiProviderDefinition = (
           allow_models: [...definition.allowModels],
           deny_models: [...definition.denyModels],
           models: Object.fromEntries(definition.models.map(({ id, ...model }) => [id, model])),
-          ...(definition.protocol ? { protocol: definition.protocol } : {}),
           ...(definition.baseUrl ? { base_url: definition.baseUrl } : {}),
           ...(definition.allowInsecureHttp !== undefined
             ? { allow_insecure_http: definition.allowInsecureHttp }
@@ -973,7 +913,6 @@ export const serializePiProviderDefinition = (
             models: Object.fromEntries(
               Object.entries(provider.models).map(([id, model]) => [id, { ...model }]),
             ),
-            ...(provider.protocol ? { protocol: provider.protocol } : {}),
             ...(provider.baseUrl ? { base_url: provider.baseUrl } : {}),
             ...(provider.allowInsecureHttp !== undefined
               ? { allow_insecure_http: provider.allowInsecureHttp }

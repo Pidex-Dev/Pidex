@@ -1,5 +1,5 @@
 import type { Api, Model as PiModel, AssistantMessage } from '@earendil-works/pi-ai'
-import type { Model } from '@pidex/model-schema'
+import { cacheWritePrice, type Model } from '@pidex/model-schema'
 import { createHash } from 'node:crypto'
 import { ModelPricingRepository } from '../storage/repositories/ModelPricingRepository'
 import { selectPricing, UNIT_PRICE_KEYS, type CalendarYear } from './ModelPricing'
@@ -113,8 +113,9 @@ export class ModelPricingService {
       ? selectPricing(model.pricing, at, calendars)
       : { period: 'fixed', prices: model.cost, reason: 'fixed' }
     const originalPrices = structuredClone(selected.prices) as Model.UnitPrices
+    const cashless = selected.reason === 'subscription' || selected.reason === 'free'
     const fx =
-      model.pricing?.currency === 'CNY'
+      model.pricing?.currency === 'CNY' && !cashless
         ? (this.repository.read('fx:CNY:USD')?.payload as Fx | null | undefined)
         : { rate: 1, date: new Date(at).toISOString().slice(0, 10), source: 'USD' }
     const convertBracket = (bracket: Record<(typeof UNIT_PRICE_KEYS)[number], number | null>) => ({
@@ -134,8 +135,9 @@ export class ModelPricingService {
       ...(usdTiers ? { tiers: usdTiers } : {}),
     }
     const id = crypto.randomUUID()
-    const hasNullPrice = (bracket: Record<(typeof UNIT_PRICE_KEYS)[number], number | null>) =>
-      UNIT_PRICE_KEYS.some((key) => bracket[key] === null)
+    const hasNullPrice = (bracket: Model.UnitPrices) =>
+      UNIT_PRICE_KEYS.some((key) => bracket[key] === null) ||
+      Object.values(bracket.cacheWriteByTtl ?? {}).includes(null)
     const snapshot = {
       id,
       providerId: model.provider,
@@ -146,6 +148,9 @@ export class ModelPricingService {
         .digest('hex'),
       period: selected.period,
       reason: selected.reason,
+      ...('promotionId' in selected
+        ? { promotionId: selected.promotionId, promotionLabel: selected.promotionLabel }
+        : {}),
       original: originalPrices,
       currency: model.pricing?.currency ?? 'USD',
       usd: fx ? usd : null,
@@ -167,9 +172,10 @@ export class ModelPricingService {
     this.repository.snapshot(id, snapshot, at)
     return {
       model: { ...model, cost: model.pricing ? usd : { ...model.cost } },
-      annotate: (message: AssistantMessage) => {
-        const inputTokens = message.usage.input + message.usage.cacheRead + message.usage.cacheWrite
-        let activeBracket: Record<(typeof UNIT_PRICE_KEYS)[number], number | null> = originalPrices
+      annotate: (message: AssistantMessage, cacheWrites?: Readonly<Record<string, number>>) => {
+        const { usage } = message
+        const inputTokens = usage.input + usage.cacheRead + usage.cacheWrite
+        let activeBracket = originalPrices
         let matchedThreshold = -1
         for (const tier of originalPrices.tiers ?? []) {
           if (inputTokens > tier.inputTokensAbove && tier.inputTokensAbove > matchedThreshold) {
@@ -177,13 +183,37 @@ export class ModelPricingService {
             matchedThreshold = tier.inputTokensAbove
           }
         }
+        const breakdown =
+          cacheWrites ?? (usage.cacheWrite1h ? { '1h': usage.cacheWrite1h } : undefined)
+        const writes = Object.entries(breakdown ?? {})
+        const unclassified = usage.cacheWrite - writes.reduce((sum, [, tokens]) => sum + tokens, 0)
+        const writeCharges = [
+          ...writes.map(([ttl, tokens]) => ({
+            tokens,
+            price: cacheWritePrice(activeBracket, ttl),
+          })),
+          { tokens: Math.max(0, unclassified), price: activeBracket.cacheWrite },
+        ]
+        if (model.pricing && breakdown) {
+          usage.cost.cacheWrite = fx
+            ? (writeCharges.reduce((sum, { tokens, price }) => sum + tokens * (price ?? 0), 0) *
+                fx.rate) /
+              1_000_000
+            : 0
+          usage.cost.total =
+            usage.cost.input + usage.cost.output + usage.cost.cacheRead + usage.cost.cacheWrite
+        }
         const unknown =
-          !fx || UNIT_PRICE_KEYS.some((key) => activeBracket[key] === null && message.usage[key] > 0)
-        Object.assign(message.usage, {
+          !fx ||
+          UNIT_PRICE_KEYS.some(
+            (key) => key !== 'cacheWrite' && activeBracket[key] === null && usage[key] > 0,
+          ) ||
+          writeCharges.some(({ tokens, price }) => tokens > 0 && price === null)
+        Object.assign(usage, {
           priceSnapshotId: id,
           costUnknown: unknown,
           pricingReason: selected.reason,
-          conservativeCost: selected.reason === 'calendar-unavailable',
+          conservativeCost: selected.period === 'conservative',
         })
       },
     }

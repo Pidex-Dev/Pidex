@@ -10,10 +10,15 @@ export type ID = typeof ID.Type
 export const VariantID = Schema.String.pipe(Schema.brand('Model.VariantID'))
 export type VariantID = typeof VariantID.Type
 
+export const SpeedTierIds = ['standard', 'fast', 'ultrafast'] as const
+export const SpeedTierId = Schema.Literals(SpeedTierIds)
+export type SpeedTierId = typeof SpeedTierId.Type
+
 export const Ref = Schema.Struct({
   providerID: Provider.ID,
   id: ID,
   variant: optional(VariantID),
+  speedTier: optional(SpeedTierId),
 }).annotate({ identifier: 'Model.Ref' })
 export interface Ref extends Schema.Schema.Type<typeof Ref> {}
 
@@ -78,12 +83,14 @@ const Price = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0))
 const PricingPrice = Schema.NullOr(
   Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER })),
 )
+const CacheWriteByTtl = Schema.Record(Schema.NonEmptyString, PricingPrice)
 export const PricingPriceTier = Schema.Struct({
   inputTokensAbove: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   input: PricingPrice,
   output: PricingPrice,
   cacheRead: PricingPrice,
   cacheWrite: PricingPrice,
+  cacheWriteByTtl: Schema.optional(CacheWriteByTtl),
 })
 export type PricingPriceTier = typeof PricingPriceTier.Type
 export const UnitPrices = Schema.Struct({
@@ -91,12 +98,31 @@ export const UnitPrices = Schema.Struct({
   output: PricingPrice,
   cacheRead: PricingPrice,
   cacheWrite: PricingPrice,
+  cacheWriteByTtl: Schema.optional(CacheWriteByTtl),
   tiers: Schema.optional(Schema.Array(PricingPriceTier)),
 })
 export type UnitPrices = typeof UnitPrices.Type
 export const BillingPeriod = Schema.Literals(['idle', 'busy'])
 const ClockTime = Schema.String.check(Schema.isPattern(/^(?:[01]\d|2[0-3]):[0-5]\d$/))
+export const BillingMode = Schema.Literals(['pay-as-you-go', 'subscription', 'free'])
+export type BillingMode = typeof BillingMode.Type
+
+export const PricingPromotion = Schema.Struct({
+  id: Schema.optional(Schema.String),
+  label: Schema.optional(Schema.String),
+  startAt: Schema.String,
+  endAt: Schema.String,
+  appliesTo: Schema.optional(Schema.Literals(['all', 'idle', 'busy'])),
+  discountFactor: Schema.optional(
+    Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: 1 })),
+  ),
+  prices: Schema.optional(UnitPrices),
+})
+export type PricingPromotion = typeof PricingPromotion.Type
+
 export const Pricing = Schema.Struct({
+  billingMode: Schema.optional(BillingMode),
+  promotions: Schema.optional(Schema.Array(PricingPromotion)),
   currency: Schema.Literals(['USD', 'CNY']),
   timeZone: Schema.String.check(Schema.isMinLength(1)),
   defaultPeriod: BillingPeriod,
@@ -122,6 +148,21 @@ export const Pricing = Schema.Struct({
   ).check(Schema.isMaxLength(1000)),
 })
 export type Pricing = typeof Pricing.Type
+
+/** Finds the first promotion active for a known period, using a half-open time range. */
+export const activePricingPromotion = (
+  pricing: Pricing,
+  at: number,
+  period: 'idle' | 'busy' | 'conservative',
+) =>
+  pricing.promotions?.find(
+    (promotion) =>
+      Date.parse(promotion.startAt) <= at &&
+      at < Date.parse(promotion.endAt) &&
+      (promotion.appliesTo === undefined ||
+        promotion.appliesTo === 'all' ||
+        promotion.appliesTo === period),
+  )
 export type RequestPriceUsage = {
   priceSnapshotId?: string
   priceSnapshotIds?: string[]
@@ -208,7 +249,34 @@ export const CatalogDetails = Schema.Struct({
 })
 export type CatalogDetails = typeof CatalogDetails.Type
 
+export interface Cost extends Schema.Schema.Type<typeof Cost> {}
+export const Cost = Schema.Struct({
+  tier: optional(
+    Schema.Struct({
+      type: Schema.Literal('context'),
+      size: Schema.Int,
+    }),
+  ),
+  input: Schema.Finite,
+  output: Schema.Finite,
+  cache: Schema.Struct({
+    read: Schema.Finite,
+    write: Schema.Finite,
+  }),
+}).annotate({ identifier: 'Model.Cost' })
+
+export const SpeedTierInfo = Schema.Struct({
+  id: SpeedTierId,
+  label: Schema.optional(Schema.String),
+  speedMultiplier: Schema.optional(Schema.Finite.check(Schema.isGreaterThan(0))),
+  pricing: Schema.optional(Pricing),
+  cost: Schema.optional(Schema.Array(Cost)),
+})
+export type SpeedTierInfo = typeof SpeedTierInfo.Type
+
 export const Recommendation = Schema.Struct({
+  billingMode: Schema.optional(BillingMode),
+  speedTiers: Schema.optional(Schema.Array(SpeedTierInfo)),
   pricing: Schema.optional(Pricing),
   modelType: Schema.optional(Schema.Literals(['chat', 'embedding', 'rerank'])),
   catalog: Schema.optional(CatalogDetails),
@@ -267,28 +335,13 @@ export const Capabilities = Schema.Struct({
   output: Schema.Array(Schema.String),
 }).annotate({ identifier: 'Model.Capabilities' })
 
-export interface Cost extends Schema.Schema.Type<typeof Cost> {}
-export const Cost = Schema.Struct({
-  tier: optional(
-    Schema.Struct({
-      type: Schema.Literal('context'),
-      size: Schema.Int,
-    }),
-  ),
-  input: Schema.Finite,
-  output: Schema.Finite,
-  cache: Schema.Struct({
-    read: Schema.Finite,
-    write: Schema.Finite,
-  }),
-}).annotate({ identifier: 'Model.Cost' })
-
 export const Api = Schema.Union([
   Schema.Struct({
     id: ID,
     type: Schema.Literal('pi'),
     name: Schema.String,
     baseUrl: Schema.String,
+    supportedProtocols: Schema.optional(Schema.Array(Schema.String)),
   }),
 ])
   .pipe(Schema.toTaggedUnion('type'))
@@ -297,6 +350,10 @@ export type Api = typeof Api.Type
 
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 export const Info = Schema.Struct({
+  billingMode: Schema.optional(BillingMode),
+  pricing: Schema.optional(Pricing),
+  speedTiers: Schema.optional(Schema.Array(SpeedTierInfo)),
+  speedTier: optional(SpeedTierId),
   catalog: Schema.optional(CatalogDetails),
   id: ID,
   providerID: Provider.ID,

@@ -53,6 +53,7 @@ export const Source = Schema.Struct({
   type: Schema.Literal('pi'),
   kind: SourceKind,
   apis: Schema.Array(Schema.String),
+  env: optional(Schema.Array(Schema.String)),
   endpoints: optional(Schema.Record(Schema.String, Schema.String)),
   defaultApi: optional(Schema.String),
   baseUrl: optional(Schema.String),

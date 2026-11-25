@@ -156,6 +156,7 @@ export class ProtocolDetectionService {
           apiKey,
           missingCredential,
           providerID,
+          draft.baseUrl,
         )
       selected.forEach((_, modelIndex) => {
         PROTOCOL_DETECTION_APIS.forEach((_, protocolIndex) => {
@@ -206,6 +207,7 @@ export class ProtocolDetectionService {
             apiKey,
             missingCredential,
             providerID,
+            draft.baseUrl,
           ),
       ),
       PROTOCOL_DETECTION_CONCURRENCY,
@@ -311,6 +313,7 @@ export class ProtocolDetectionService {
     apiKey: string | undefined,
     missingCredential: boolean,
     providerId: string | undefined,
+    draftBaseUrl: string,
   ): Promise<ProtocolDetectionCell> {
     if (missingCredential) {
       const category: ModelHealthFailureCategory = 'configuration'
@@ -322,6 +325,15 @@ export class ProtocolDetectionService {
       }
     }
     try {
+      const problem = await this.piModels.draftProtocolProblem(
+        modelId,
+        protocol,
+        baseUrl,
+        providerId,
+        draftBaseUrl,
+      )
+      if (problem)
+        return { protocol, status: 'failed', category: 'configuration', message: problem }
       const result = await this.probe.probe(
         {
           protocol,

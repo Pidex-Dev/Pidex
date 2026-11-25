@@ -1967,6 +1967,7 @@ export class ThreadService {
         providerID: selectedInfo.providerID,
         id: selectedInfo.id,
         ...(selectedInfo.variant ? { variant: Model.VariantID.make(selectedInfo.variant) } : {}),
+        ...(selectedInfo.speedTier ? { speedTier: selectedInfo.speedTier } : {}),
       })
       const piModel = cachedResult ? null : await this.providers.getModel(selectedModel)
       const attachments = await this.agentAttachments(input.id)
@@ -2470,7 +2471,12 @@ export class ThreadService {
     let lastError: unknown
     for (const candidate of candidates) {
       if (!candidate) continue
-      const key = `${candidate.providerID}/${candidate.id}/${candidate.variant ?? ''}`
+      const key = JSON.stringify([
+        candidate.providerID,
+        candidate.id,
+        candidate.variant,
+        candidate.speedTier,
+      ])
       if (seen.has(key)) continue
       seen.add(key)
       try {

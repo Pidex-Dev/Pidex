@@ -1,27 +1,70 @@
 import { createProvider, type Api, type Model, type Provider } from '@earendil-works/pi-ai'
-import type { PiBuiltinProviderConfig } from './PiProviderConfig'
+import { builtinProviderEndpoints, type PiBuiltinProviderConfig } from './PiProviderConfig'
 import { piProviderApiStreams } from './PiProviderApis'
+import { isOtherCatalogProtocolEndpoint, type CatalogProviderV2 } from './CatalogV2'
+
+export function builtinBaseUrlOverride(
+  providerId: string,
+  baseUrl: string | undefined,
+  api: string | undefined,
+  defaultEndpoints: Readonly<Record<string, string>> = {},
+) {
+  if (
+    baseUrl &&
+    api &&
+    (isOtherCatalogProtocolEndpoint(baseUrl, api, defaultEndpoints) ||
+      isOtherCatalogProtocolEndpoint(baseUrl, api, builtinProviderEndpoints(providerId)))
+  )
+    return undefined
+  return baseUrl
+}
+
+export function builtinModelConnection(
+  model: Model<Api>,
+  config: PiBuiltinProviderConfig,
+  defaultEndpoints?: Readonly<Record<string, string>>,
+  catalog?: CatalogProviderV2,
+) {
+  const binding = catalog?.models[model.id]
+  const api = binding ? model.api : (config.models[model.id]?.api ?? model.api)
+  const baseUrl =
+    !binding?.supportedProtocols || api === catalog?.defaultProtocol
+      ? builtinBaseUrlOverride(model.provider, config.baseUrl, api, defaultEndpoints)
+      : undefined
+  return {
+    api,
+    baseUrl:
+      config.endpoints?.[api] ??
+      baseUrl ??
+      (!catalog || api !== model.api ? defaultEndpoints?.[api] : undefined) ??
+      model.baseUrl,
+  }
+}
 
 /** Keep native auth, discovery and transport while applying explicit user overrides. */
 export function withPiBuiltinProviderOverrides(
   source: Provider<Api>,
   config: PiBuiltinProviderConfig,
   defaultEndpoints?: Readonly<Record<string, string>>,
+  catalog?: CatalogProviderV2,
 ): Provider<Api> {
-  const configuredExtraIds = [
-    ...new Set([
-      ...Object.entries(config.models)
-        .filter(([, override]) => override.enabled !== false)
-        .map(([id]) => id),
-      ...config.allowModels.filter(
-        (id) => !config.denyModels.includes(id) && config.models[id]?.enabled !== false,
-      ),
-    ]),
-  ]
+  const configuredExtraIds = catalog
+    ? []
+    : [
+        ...new Set([
+          ...Object.entries(config.models)
+            .filter(([, override]) => override.enabled !== false)
+            .map(([id]) => id),
+          ...config.allowModels.filter(
+            (id) => !config.denyModels.includes(id) && config.models[id]?.enabled !== false,
+          ),
+        ]),
+      ]
   const nativeModels = source.getModels()
   const knownIds = new Set(nativeModels.map((model) => model.id))
   const hasMissingConfiguredModels = configuredExtraIds.some((id) => !knownIds.has(id))
   const hasDefaultEndpointOverride =
+    !catalog &&
     !!defaultEndpoints &&
     nativeModels.some(
       (model) =>
@@ -30,7 +73,6 @@ export function withPiBuiltinProviderOverrides(
   if (
     !config.baseUrl &&
     !config.endpoints &&
-    !config.protocol &&
     !hasMissingConfiguredModels &&
     !hasDefaultEndpointOverride &&
     Object.values(config.models).every((model) =>
@@ -44,22 +86,19 @@ export function withPiBuiltinProviderOverrides(
     const models = original.map((model) => {
       let result = mapped.get(model)
       if (!result) {
-        const { enabled: _, ...override } = config.models[model.id] ?? { enabled: true }
+        const { enabled: _, compat, ...override } = config.models[model.id] ?? { enabled: true }
+        const { api, baseUrl } = builtinModelConnection(model, config, defaultEndpoints, catalog)
         result = {
           ...model,
           ...override,
           ...(override.input ? { inputExplicit: true } : {}),
-          ...(config.protocol ? { api: config.protocol as Api } : {}),
+          api,
+          baseUrl,
           input: [...(override.input ?? model.input)] as Model<Api>['input'],
           cost: { ...model.cost, ...override.cost },
-          ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
         }
-        if (result.api !== model.api && !(override.api === result.api && override.compat))
-          delete result.compat
-        const endpoint =
-          config.endpoints?.[result.api as keyof NonNullable<typeof config.endpoints>] ??
-          (!config.baseUrl ? defaultEndpoints?.[result.api] : undefined)
-        if (endpoint) result.baseUrl = endpoint
+        if (compat && (!override.api || override.api === api)) result.compat = compat
+        else if (api !== model.api) delete result.compat
         mapped.set(model, result)
       }
       return result
@@ -86,19 +125,14 @@ export function withPiBuiltinProviderOverrides(
         ...template,
         ...override,
         ...(override.input ? { inputExplicit: true } : {}),
-        ...(config.protocol ? { api: config.protocol as Api } : {}),
         input: [...(override.input ?? template.input)] as Model<Api>['input'],
         cost: { ...template.cost, ...override.cost },
         id,
         name: override.name ?? id,
-        ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
       }
       if (model.api !== template.api && !(override.api === model.api && override.compat))
         delete model.compat
-      const endpoint =
-        config.endpoints?.[model.api as keyof NonNullable<typeof config.endpoints>] ??
-        (!config.baseUrl ? defaultEndpoints?.[model.api] : undefined)
-      if (endpoint) model.baseUrl = endpoint
+      model.baseUrl = builtinModelConnection(model, config, defaultEndpoints).baseUrl
       models.push(model)
     }
     return models
@@ -114,24 +148,30 @@ export function withPiBuiltinProviderOverrides(
     ),
   })
   const changedApi = (model: Model<Api>) => {
+    if (catalog) return false
     const original =
       source.getModels().find((item) => item.id === model.id) ?? source.getModels()[0]
     return model.api !== original?.api && model.api in piProviderApiStreams
   }
   const endpointModel = (model: Model<Api>) => {
+    if (catalog) return model
     const baseUrl =
       config.endpoints?.[model.api as keyof NonNullable<typeof config.endpoints>] ??
-      config.baseUrl ??
+      builtinBaseUrlOverride(source.id, config.baseUrl, model.api, defaultEndpoints) ??
       defaultEndpoints?.[model.api]
     return baseUrl ? { ...model, baseUrl } : model
   }
+  const defaultApi = catalog?.defaultProtocol ?? nativeModels[0]?.api
+  const baseUrl =
+    (defaultApi ? config.endpoints?.[defaultApi] : undefined) ??
+    builtinBaseUrlOverride(source.id, config.baseUrl, defaultApi, defaultEndpoints)
   return {
     ...source,
-    ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
+    ...(baseUrl ? { baseUrl } : {}),
     getModels,
     getAllModels: () => [
       ...getModels(),
-      ...(source.getAllModels?.().filter((model) => model.type !== 'chat') ?? []),
+      ...(!catalog ? (source.getAllModels?.().filter((model) => model.type !== 'chat') ?? []) : []),
     ],
     stream: (model, context, options) =>
       changedApi(model)

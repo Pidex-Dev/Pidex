@@ -757,6 +757,7 @@ export class ModelHealthService {
     modelId: string,
     draft: ProviderRequestDraftLike,
     explicitApiKey?: string,
+    providerId?: string,
   ): Promise<ProbeResult> {
     let baseUrl: string
     let headers: Readonly<Record<string, string>>
@@ -775,6 +776,14 @@ export class ModelHealthService {
         api: protocol,
       }
     }
+    const problem = await this.piModels.draftProtocolProblem(
+      modelId,
+      protocol,
+      baseUrl,
+      providerId,
+      draft.baseUrl,
+    )
+    if (problem) return { ok: false, category: 'configuration', message: problem, api: protocol }
     const apiKey = resolveTransientProbeApiKey(draft, headers, explicitApiKey)
     if (!apiKey && !hasAuthorizationHeader(headers)) {
       return {
