@@ -203,7 +203,7 @@ export default {
 
 ### 5.2 `apps/agent/src/provider/pi/`
 
-- **[`SharedModelCatalogCache.ts`](../../apps/agent/src/provider/pi/SharedModelCatalogCache.ts)**：
+- **`SharedModelCatalogCache.ts`（v1 历史实现）**：
   - 将默认 `CATALOG_URL` 切换为 `https://models.codepilotx.top/v1/catalog.json`，支持 `PIDEX_MODEL_CATALOG_URL` 覆盖（保留 HTTPS 与安全校验，测试环境支持注入 `request`）。
   - 缓存文件元数据持久化 `etag`，刷新请求附带 `If-None-Match`；收到 `304 Not Modified` 时直接复用内存与磁盘缓存并更新检查时间。
   - 引入随包内置的静态兜底快照（如 `apps/agent/src/provider/pi/data/bundled-model-catalog.json`）：本地无 `shared-model-catalog.json` 且尚未在线拉取成功时，自动加载内置快照保证开箱可用。
@@ -246,7 +246,7 @@ export default {
 ### Phase 2：Pidex 客户端改造与内置快照集成
 
 1. 扩展 `@pidex/model-schema`（`UnitPrices.tiers`）与 [`ModelPricing.ts`](../../apps/agent/src/provider/ModelPricing.ts) / [`ModelPricingService.ts`](../../apps/agent/src/provider/ModelPricingService.ts)。
-2. 改造 [`SharedModelCatalogCache.ts`](../../apps/agent/src/provider/pi/SharedModelCatalogCache.ts)（新默认 URL + `PIDEX_MODEL_CATALOG_URL` + `ETag`/`304` + 内置快照兜底）与 [`ProviderDirectoryStore.ts`](../../apps/agent/src/provider/pi/ProviderDirectoryStore.ts)（单源读取、市场对齐 Pi）。
+2. 改造 `SharedModelCatalogCache.ts`（v1 历史实现）（新默认 URL + `PIDEX_MODEL_CATALOG_URL` + `ETag`/`304` + 内置快照兜底）与 [`ProviderDirectoryStore.ts`](../../apps/agent/src/provider/pi/ProviderDirectoryStore.ts)（单源读取、市场对齐 Pi）。
 3. 升级 [`ModelRecommendations.ts`](../../apps/agent/src/provider/pi/ModelRecommendations.ts) 与 [`PiModelService.ts`](../../apps/agent/src/provider/pi/PiModelService.ts)（内置 Provider 直接基线热更新、新增模型默认不自动勾选进聊天、`option_specs.map` 优先级、`smartConfig` 收敛至自定义供应商）。
 4. 更新渲染层模型中心表单与计费阶梯展示，更新 [`ArchContractsCore.ts`](../../scripts/contracts/ArchContractsCore.ts) 白名单与 [`pidex-identity.md`](../architecture/pidex-identity.md)，并引入首份内置快照。
 
