@@ -146,10 +146,7 @@ import {
 import { useWorkbenchShellController } from './UseWorkbenchShellController.js'
 import { useIntegratedTerminalController } from './UseIntegratedTerminalController.js'
 import { useWorkbenchWorkspaceController } from './UseWorkbenchWorkspaceController.js'
-import {
-  isDeepSeekThinkingModel,
-  useModelProviderController,
-} from '../UseModelProviderController.js'
+import { hasReasoningToggle, useModelProviderController } from '../UseModelProviderController.js'
 import { buildVariantOptions } from '../../models/ReasoningVariantLabels.js'
 import { useSubagentsAvailability } from '../../session/subagents/UseSubagentsAvailability.js'
 import { useSideChatController } from '../dock/UseSideChatController.js'
@@ -1633,6 +1630,7 @@ export function DesktopLayout(): React.ReactNode {
       selectedModelPreset: 'custom',
       thinkingMode: session.modelSelection?.thinkingMode ?? 'default',
       variant: session.modelSelection?.variant,
+      speedTier: session.modelSelection?.speedTier,
     }),
     [effectivePermissionMode, planModeActive, session.modelSelection],
   )
@@ -2229,6 +2227,7 @@ export function DesktopLayout(): React.ReactNode {
     selectedVariant,
     variantOptions,
     handleVariantChange,
+    handleSpeedTierChange,
     maxContextTokens,
     handleMaxContextTokensChange,
     selectedModelUnavailableMessage,
@@ -2744,11 +2743,7 @@ export function DesktopLayout(): React.ReactNode {
         (providerState?.selectedProviderID === sideSettings.providerID
           ? providerState.modelMetadata?.[sideSettings.model]
           : undefined)
-      const sideDeepSeekThinkingControls = isDeepSeekThinkingModel({
-        providerID: sideSettings.providerID,
-        model: sideSettings.model,
-        metadata: sideModelMetadata,
-      })
+      const sideDeepSeekThinkingControls = hasReasoningToggle(sideModelMetadata)
       const sideModelConfigured = Boolean(
         sideSettings.model &&
         sideProviderSummary?.apiKeyConfigured &&
@@ -3889,6 +3884,8 @@ export function DesktopLayout(): React.ReactNode {
             modelVariant: selectedVariant,
             modelVariantOptions: variantOptions,
             onModelVariantChange: handleVariantChange,
+            speedTier: sessionModelSelection?.speedTier,
+            onSpeedTierChange: handleSpeedTierChange,
             maxContextTokens,
             onMaxContextTokensChange: handleMaxContextTokensChange,
             modelSelectionError: sessionModelSelectionError ?? selectedModelUnavailableMessage,
@@ -3975,6 +3972,7 @@ export function DesktopLayout(): React.ReactNode {
       grillModeActive,
       codingModel,
       sessionModelSelection?.thinkingMode,
+      sessionModelSelection?.speedTier,
       sessionModelSelectionError,
       sessionModelSelectionLoading,
       reloadModelSelection,
@@ -3983,6 +3981,7 @@ export function DesktopLayout(): React.ReactNode {
       selectedVariant,
       variantOptions,
       handleVariantChange,
+      handleSpeedTierChange,
       selectedModelUnavailableMessage,
       activeSessionItem,
       handleGoalPause,

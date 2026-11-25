@@ -57,7 +57,7 @@ import type {
   ModelProviderKind,
   ModelProviderSummary,
 } from '@pidex/core/models/Provider.js'
-import type { CatalogProvider, ModelRef, ProviderTestResponse } from '@pidex/shared'
+import type { CatalogProvider, ModelInfo, ModelRef, ProviderTestResponse } from '@pidex/shared'
 import type { HighlightThemeSlug } from './themes/Manifest.js'
 import type {
   McpRuntimeServerStatus,
@@ -604,9 +604,13 @@ export type ModelProviderID = CoreModelProviderID
 export type DesktopModelProviderKind = ModelProviderKind
 
 export type DesktopModelMetadata = ModelMetadata & {
+  billingMode?: ModelInfo['billingMode']
+  pricing?: ModelInfo['pricing']
+  speedTiers?: ModelInfo['speedTiers']
   catalog?: NonNullable<DesktopProviderModelDefinition['catalog']>
   inputTokens?: number
   nativeApi?: string
+  supportedProtocols?: ModelInfo['api']['supportedProtocols']
   variants?: string[]
   providerApi?:
     'openai-completions' | 'openai-responses' | 'anthropic-messages' | 'google-generative-ai'
@@ -1334,6 +1338,7 @@ export type DesktopSessionSettingsSnapshot = {
   providerBaseURL?: string
   model?: string
   variant?: string
+  speedTier?: ModelRef['speedTier']
   effort?: string | null
   personality?: DesktopPersonality
   sessionName?: string
@@ -1565,6 +1570,7 @@ export type DesktopModelSelection = {
   providerBaseURL?: string
   model?: string
   variant?: string
+  speedTier?: ModelRef['speedTier']
   localRouterMode?: LocalRouterMode
 }
 
@@ -1960,6 +1966,7 @@ export type DesktopApi = {
     providerID: string
     id: string
     variant?: string
+    speedTier?: ModelRef['speedTier']
   }): Promise<void>
   /** 按 Provider/模型目录稳定顺序返回第一个启用且 Provider 可用的模型。 */
   resolveFirstAvailableModel(): Promise<ModelRef | null>

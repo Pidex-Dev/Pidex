@@ -62,6 +62,12 @@ import type {
 } from '../../../../shared/Types.js'
 import { getModelDisplayLabel, type ModelPreset } from '../../../ModelPresets.js'
 import { Button } from '../../../components/ui/Button.js'
+import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
+import {
+  billingModeLabel,
+  modelPrice,
+  useModelPricing,
+} from '../../models/provider-management/UseModelPricing.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { MetaChip } from '../../../components/ui/MetaChip.js'
 import { Spinner } from '../../../components/ui/Spinner.js'
@@ -300,6 +306,8 @@ type Props = {
   modelVariant?: string
   modelVariantOptions?: Option<string>[]
   onModelVariantChange?: (value: string) => void
+  speedTier?: import('@pidex/shared').ModelRef['speedTier']
+  onSpeedTierChange?: (tier: NonNullable<import('@pidex/shared').ModelRef['speedTier']>) => void
   selectedProviderID: ModelProviderID
   selectedModelPreset: string
   modelConfigured?: boolean
@@ -443,6 +451,8 @@ export function ComposerCard({
   modelVariant,
   modelVariantOptions,
   onModelVariantChange,
+  speedTier,
+  onSpeedTierChange,
   selectedProviderID,
   selectedModelPreset,
   modelConfigured = true,
@@ -733,8 +743,14 @@ export function ComposerCard({
     selectedModelPreset !== '__custom__'
       ? getModelDisplayLabel(selectedModelPreset)
       : undefined)
+  const speedProfiles = selectedModelMetadata?.speedTiers ?? []
+  const speedProfile = speedProfiles.find((tier) => tier.id === speedTier) ?? speedProfiles[0]
+  const speedPrice = useModelPricing(speedProfile?.pricing)
+  const speedBillingMode = speedProfile?.pricing?.billingMode
   const selectedModelLabel =
-    resolvedModelLabel ??
+    (resolvedModelLabel && speedProfile && speedProfile.id !== 'standard'
+      ? `${resolvedModelLabel} ⚡`
+      : resolvedModelLabel) ??
     (modelCatalogLoading ? '加载模型列表中……' : !modelConfigured ? '配置模型' : '未选择模型')
   const selectedModelTitle =
     resolvedModelLabel ??
@@ -2293,6 +2309,31 @@ export function ComposerCard({
                     }
                   />
                 )
+              }
+              speedControl={
+                speedProfiles.length > 1 && speedProfile && onSpeedTierChange ? (
+                  <div className="tw:flex tw:items-center tw:justify-between tw:gap-2">
+                    <SegmentedControl
+                      size="xs"
+                      ariaLabel="速度档位"
+                      value={speedProfile.id}
+                      options={speedProfiles.map((tier) => ({
+                        value: tier.id,
+                        label:
+                          tier.label ??
+                          { standard: '标准', fast: '快速', ultrafast: '极速' }[tier.id],
+                      }))}
+                      onChange={onSpeedTierChange}
+                    />
+                    <span>
+                      {speedProfile.speedMultiplier ? `约 ${speedProfile.speedMultiplier}× ` : ''}
+                      {speedPrice &&
+                        (speedBillingMode === 'free' || speedBillingMode === 'subscription'
+                          ? billingModeLabel(speedBillingMode)
+                          : `输入 ${modelPrice(speedPrice.prices.input, speedProfile.pricing?.currency)} / 百万 tokens`)}
+                    </span>
+                  </div>
+                ) : undefined
               }
               reasoningControl={
                 footerFit.modelMode !== 'text' &&

@@ -95,6 +95,8 @@ export type DesktopComposerProps = {
   modelVariant?: string
   modelVariantOptions?: { value: string; label: string }[]
   onModelVariantChange?: (value: string) => void
+  speedTier?: import('@pidex/shared').ModelRef['speedTier']
+  onSpeedTierChange?: (tier: NonNullable<import('@pidex/shared').ModelRef['speedTier']>) => void
   thinkingMode: DesktopThinkingMode
   selectedProviderID?: ModelProviderID
   selectedModelPreset: string
@@ -220,6 +222,8 @@ export function DesktopComposer({
   modelVariant,
   modelVariantOptions,
   onModelVariantChange,
+  speedTier,
+  onSpeedTierChange,
   selectedProviderID,
   selectedModelPreset,
   modelSelectionError,
@@ -483,6 +487,8 @@ export function DesktopComposer({
         modelVariant={modelVariant}
         modelVariantOptions={modelVariantOptions}
         onModelVariantChange={onModelVariantChange}
+        speedTier={speedTier}
+        onSpeedTierChange={onSpeedTierChange}
         thinkingMode={thinkingMode}
         selectedProviderID={selectedProviderID ?? 'anthropic'}
         selectedModelPreset={selectedModelPreset}

@@ -473,7 +473,7 @@ export function ProviderModelsSection({
     if (!(await panel?.open(provider.providerID, 'model'))) return
     const metadata = id ? modelMetadata[id] : undefined
     const protocolMetadata = id ? metadata : modelMetadata[models[0] ?? '']
-    const discovered = id ? discoveredModels.find((item) => item.id === id) : undefined
+    const discovered = id ? discoveredModels?.find((item) => item.id === id) : undefined
     const configured = id
       ? (customConfig?.models.find((model) => model.id === id) ??
         builtinConfig?.models.find((model) => model.id === id))
@@ -509,7 +509,7 @@ export function ProviderModelsSection({
           : 'chat',
       input: metadata?.modalities?.input ?? (metadata?.vision ? ['text', 'image'] : ['text']),
       ...(discovered?.optionSpecs ? { optionSpecs: discovered.optionSpecs } : {}),
-      ...(discovered?.pricing ? { pricing: discovered.pricing } : {}),
+      pricing: metadata?.pricing ?? discovered?.pricing,
       ...configured,
       ...candidate,
       catalog: candidate?.catalog ?? metadata?.catalog,

@@ -48,6 +48,7 @@ export type SessionSettingsSnapshot = {
   model: string
   sessionName: string
   variant?: string
+  speedTier?: DesktopModelSelection['speedTier']
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
   appendSystemPrompt: string
@@ -267,6 +268,7 @@ export async function submitSessionMessageAction(
       : resolveSessionMessageDelivery(options?.sessionStatus, options?.delivery)
   const modelSelection: DesktopModelSelection = {
     variant: settings.variant,
+    ...(settings.speedTier ? { speedTier: settings.speedTier } : {}),
     providerID: settings.providerID,
     providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
     model: normalizeOptionalText(settings.model),

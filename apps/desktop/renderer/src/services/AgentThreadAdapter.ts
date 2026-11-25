@@ -230,6 +230,7 @@ export function agentThreadSnapshotToDesktop(
       providerID: latestModel?.providerID,
       model: latestModel?.id,
       variant,
+      ...(latestModel?.speedTier ? { speedTier: latestModel.speedTier } : {}),
       thinkingMode,
       sessionName: item.sessionName ?? undefined,
       additionalDirectories: [],

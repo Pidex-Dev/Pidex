@@ -9,7 +9,7 @@ import {
   resolveCollaborationMode,
 } from '../../shims/core/agent/SessionContract.js'
 import type { CatalogProvider, ModelRef, Project } from '@pidex/shared'
-import { ModelRefSchema } from '@pidex/shared'
+import { isModelSpeedTier, ModelRefSchema } from '@pidex/shared'
 import type {
   PermissionConfig,
   ThreadListItem,
@@ -1536,6 +1536,7 @@ export function createAgentSessionDesktopClient(
       return ModelRefSchema.make({
         providerID: ModelRefSchema.fields.providerID.make(selection.providerID),
         id: ModelRefSchema.fields.id.make(selection.model),
+        ...(selection.speedTier ? { speedTier: selection.speedTier } : {}),
         ...(selection.variant
           ? { variant: ModelRefSchema.fields.variant.from.make(selection.variant) }
           : {}),
@@ -1556,13 +1557,21 @@ export function createAgentSessionDesktopClient(
         providers.defaultModel?.providerID === cached.settings.providerID &&
         providers.defaultModel.id === cached.settings.model
       ) {
-        return providers.defaultModel
+        return {
+          ...providers.defaultModel,
+          ...(cached.settings.speedTier ? { speedTier: cached.settings.speedTier } : {}),
+        }
       }
       const provider = providers.providers.find(
         (item) => item.provider.id === cached.settings.providerID,
       )
       const model = provider?.models.find((item) => item.id === cached.settings.model)
-      if (provider && model) return { providerID: provider.provider.id, id: model.id }
+      if (provider && model)
+        return {
+          providerID: provider.provider.id,
+          id: model.id,
+          ...(cached.settings.speedTier ? { speedTier: cached.settings.speedTier } : {}),
+        }
     }
     if (providers.defaultModel) return providers.defaultModel
     const credentials = await loadProviderCredentials()
@@ -3367,6 +3376,7 @@ export function createAgentSessionDesktopClient(
           return ModelRefSchema.make({
             providerID: ModelRefSchema.fields.providerID.make(providerID),
             id: ModelRefSchema.fields.id.make(id),
+            ...(isModelSpeedTier(record.speedTier) ? { speedTier: record.speedTier } : {}),
             ...(typeof record.variant === 'string' && record.variant
               ? { variant: ModelRefSchema.fields.variant.from.make(record.variant) }
               : {}),
@@ -3398,6 +3408,11 @@ export function createAgentSessionDesktopClient(
             model: ModelRefSchema.make({
               providerID: ModelRefSchema.fields.providerID.make(String(provider.id)),
               id: ModelRefSchema.fields.id.make(String(selectedModel.id)),
+              ...(model.speedTier &&
+              (model.speedTier === 'standard' ||
+                selectedModel.speedTiers?.some((tier) => tier.id === model.speedTier))
+                ? { speedTier: model.speedTier }
+                : {}),
               ...(selectedVariant
                 ? { variant: ModelRefSchema.fields.variant.from.make(String(selectedVariant)) }
                 : {}),

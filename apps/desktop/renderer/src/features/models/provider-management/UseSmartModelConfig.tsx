@@ -65,6 +65,7 @@ export function useSmartModelConfig(
         baseUrl,
         modelId: model.id,
         modelType: model.modelType ?? 'chat',
+        api: model.api,
       })
       if (request !== sequence.current) return
       setPreview(result)
@@ -79,7 +80,13 @@ export function useSmartModelConfig(
           config.source === 'document' && config.document
             ? fillModelDraft(base, config.document.data)
             : base
-        current.onChange({ ...filled, smartConfig: { ...config, pinned: [], enabled: true } })
+        const api = result.recommendedApi ?? filled.api
+        current.onChange({
+          ...filled,
+          api,
+          compat: api === filled.api ? filled.compat : '',
+          smartConfig: { ...config, pinned: [], enabled: true },
+        })
       }
     } catch (cause) {
       if (request === sequence.current) {

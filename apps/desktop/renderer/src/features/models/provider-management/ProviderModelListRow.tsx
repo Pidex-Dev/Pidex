@@ -9,7 +9,7 @@ import { modelLogoURL } from '../../../services/desktop-client/ModelLogo.js'
 import { cx } from '../../../utils/Cx.js'
 import { formatCompactNumber } from '../../../utils/UsageFormatters.js'
 import { ProviderIcon } from '../ProviderIcon.js'
-import { modelPrice } from './ModelCatalogDetails.js'
+import { billingModeLabel, modelPrice, useModelPricing } from './UseModelPricing.js'
 import {
   resolveModelCapabilities,
   resolveModelContextWindow,
@@ -161,7 +161,12 @@ function ModelExpandedDetails({
 }): React.ReactNode {
   const contextWindow = resolveModelContextWindow(model, metadata)
   const catalog = model.catalog
-  const price = model.cost
+  const pricing = model.pricing ?? metadata?.pricing
+  const active = useModelPricing(pricing)
+  const mode = pricing?.billingMode ?? metadata?.billingMode
+  const cashless = mode === 'subscription' || mode === 'free'
+  const price = cashless ? undefined : (active?.prices ?? model.cost)
+  const format = (value?: number | null) => modelPrice(value, pricing?.currency)
   const hasCachePrice = price?.cacheRead !== undefined || price?.cacheWrite !== undefined
   const nonTextOutputs = (catalog?.output ?? []).filter((item) => item !== 'text')
   const reasoningControls = [
@@ -216,21 +221,29 @@ function ModelExpandedDetails({
 
         <div className="tw:grid tw:content-start tw:gap-1 tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-2">
           <span className="tw:truncate tw:text-app-text-meta">
-            价格 · $/M
+            {billingModeLabel(mode)}
+            {cashless ? '' : ` · ${pricing?.currency ?? 'USD'}/M`}
             {catalog?.priceSource?.kind === 'reference'
               ? ' · 原厂参考价'
               : catalog?.priceSource
                 ? ' · 供应商价格'
                 : ''}
           </span>
-          <span className="tw:weight-medium tw:text-app-text tw:tabular-nums">
-            输入 {modelPrice(price?.input)} / 输出 {modelPrice(price?.output)}
-          </span>
+          {active?.promotion && (
+            <span>
+              {active.promotion.label} · 至 {active.promotion.endAt}
+            </span>
+          )}
+          {!cashless && (
+            <span className="tw:weight-medium tw:text-app-text tw:tabular-nums">
+              输入 {format(price?.input)} / 输出 {format(price?.output)}
+            </span>
+          )}
           {hasCachePrice ? (
             <span className="tw:text-app-text-meta tw:tabular-nums">
               {[
-                price?.cacheRead !== undefined ? `缓存读 ${modelPrice(price.cacheRead)}` : null,
-                price?.cacheWrite !== undefined ? `缓存写 ${modelPrice(price.cacheWrite)}` : null,
+                price?.cacheRead !== undefined ? `缓存读 ${format(price.cacheRead)}` : null,
+                price?.cacheWrite !== undefined ? `缓存写 ${format(price.cacheWrite)}` : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}
@@ -296,10 +309,10 @@ function ModelExpandedDetails({
               </span>
               <span className="tw:min-w-0 tw:text-right tw:text-app-text">
                 {[
-                  `入 ${modelPrice(tier.input)}`,
-                  `出 ${modelPrice(tier.output)}`,
-                  tier.cacheRead !== undefined ? `读 ${modelPrice(tier.cacheRead)}` : null,
-                  tier.cacheWrite !== undefined ? `写 ${modelPrice(tier.cacheWrite)}` : null,
+                  `入 ${format(tier.input)}`,
+                  `出 ${format(tier.output)}`,
+                  tier.cacheRead !== undefined ? `读 ${format(tier.cacheRead)}` : null,
+                  tier.cacheWrite !== undefined ? `写 ${format(tier.cacheWrite)}` : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}

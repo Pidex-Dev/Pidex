@@ -121,14 +121,9 @@ export function useModelProviderController({
     () => buildVariantOptions(selectedModelMetadata?.variants),
     [selectedModelMetadata?.variants],
   )
-  const deepSeekThinkingControls = isDeepSeekThinkingModel({
-    providerID: selectedProviderID,
-    model,
-    metadata: selectedModelMetadata,
-  })
+  const deepSeekThinkingControls = hasReasoningToggle(selectedModelMetadata)
   const showThinkingOptions =
     deepSeekThinkingControls ||
-    selectedProviderSummary?.kind === 'anthropic' ||
     selectedModelMetadata?.reasoning === true ||
     Boolean(selectedModelMetadata?.variants?.length) ||
     Boolean(selection?.variant) ||
@@ -296,6 +291,22 @@ export function useModelProviderController({
     [selectionLoading, sessionId, onSelectionChange, setNoticeMessage],
   )
 
+  const handleSpeedTierChange = useCallback(
+    (speedTier: NonNullable<SessionModelSelection['speedTier']>) => {
+      const previous = selectionRef.current
+      if (
+        !previous ||
+        selectionLoading ||
+        !selectedModelMetadata?.speedTiers?.some((tier) => tier.id === speedTier)
+      )
+        return
+      const next: SessionModelSelection = { ...previous, speedTier }
+      selectionRef.current = next
+      onSelectionChange(next)
+    },
+    [onSelectionChange, selectedModelMetadata, selectionLoading],
+  )
+
   const handleVariantChange = useCallback(
     (variant: string): void => {
       if (variant !== 'default' && !selectedModelMetadata?.variants?.includes(variant)) return
@@ -381,6 +392,7 @@ export function useModelProviderController({
           providerID,
           model: preset.value,
           variant: finalVariant,
+          speedTier: undefined,
           thinkingMode: finalThinkingMode,
           maxContextTokens: finalMaxContextTokens,
         })
@@ -487,6 +499,7 @@ export function useModelProviderController({
     selectedVariant,
     variantOptions,
     handleVariantChange,
+    handleSpeedTierChange,
     maxContextTokens: selection?.maxContextTokens ?? null,
     handleMaxContextTokensChange,
     selectedModelUnavailableMessage,
@@ -494,20 +507,10 @@ export function useModelProviderController({
   }
 }
 
-export function isDeepSeekThinkingModel({
-  providerID,
-  model,
-  metadata,
-}: {
-  providerID?: ModelProviderID
-  model: string
-  metadata?: DesktopModelMetadata
-}): boolean {
-  if (providerID === 'deepseek') {
-    return true
-  }
-  if (providerID !== 'openrouter') {
-    return false
-  }
-  return model.toLowerCase().includes('deepseek') && metadata?.reasoning === true
+/** A binary thinking control is selected from advertised options. */
+export function hasReasoningToggle(metadata?: DesktopModelMetadata): boolean {
+  return (
+    metadata?.catalog?.reasoningOptions?.some((option) => option.type === 'toggle') === true ||
+    (metadata?.variants?.includes('enabled') === true && metadata.variants.includes('disabled'))
+  )
 }

@@ -1,7 +1,5 @@
 import type { DesktopProviderModelDefinition } from '../../../../shared/Types.js'
-
-export const modelPrice = (value: number | undefined) =>
-  value === undefined ? '未知' : value === 0 ? '免费' : `$${value}`
+import { billingModeLabel, modelPrice, useModelPricing } from './UseModelPricing.js'
 
 type CatalogModel = Omit<DesktopProviderModelDefinition, 'id'> & { id: string }
 
@@ -27,7 +25,15 @@ export function ModelCatalogDetails({
   current?: CatalogModel
 }) {
   const info = model.catalog
-  const price = model.cost
+  const active = useModelPricing(model.pricing)
+  const mode = model.pricing?.billingMode
+  const cashless = mode === 'subscription' || mode === 'free'
+  const price = active?.prices ?? model.cost
+  const format = (value?: number | null) => modelPrice(value, model.pricing?.currency)
+  const formatTtl = (rates?: Readonly<Record<string, number | null>>) =>
+    Object.entries(rates ?? {})
+      .map(([ttl, rate]) => ` · ${ttl} 写入 ${format(rate)}`)
+      .join('')
   const source = info?.priceSource
   const differences = current
     ? [
@@ -92,25 +98,39 @@ export function ModelCatalogDetails({
         aria-label="完整价格"
         className="tw:grid tw:gap-1 tw:border-t tw:border-app-border-subtle tw:pt-2"
       >
-        <strong className="tw:weight-medium tw:text-app-text">价格 · USD / 百万 tokens</strong>
+        <strong className="tw:weight-medium tw:text-app-text">
+          {billingModeLabel(mode)}
+          {cashless ? '' : ` · ${model.pricing?.currency ?? 'USD'} / 百万 tokens`}
+        </strong>
+        {active?.promotion && (
+          <p>
+            {active.promotion.label} · 至 {active.promotion.endAt}
+          </p>
+        )}
         <p>
           {source
             ? `${source.kind === 'provider' ? '供应商价格' : '原厂参考价'} · ${source.providerId}`
             : '价格来源未提供'}
         </p>
-        <p>
-          输入 {modelPrice(price?.input)} · 输出 {modelPrice(price?.output)}
-        </p>
-        <p>
-          缓存读取 {modelPrice(price?.cacheRead)} · 缓存写入 {modelPrice(price?.cacheWrite)}
-        </p>
-        {price?.tiers?.map((tier) => (
-          <p key={tier.inputTokensAbove}>
-            输入超过 {tier.inputTokensAbove} tokens：输入 {modelPrice(tier.input)} / 输出{' '}
-            {modelPrice(tier.output)} / 缓存读 {modelPrice(tier.cacheRead)} / 缓存写{' '}
-            {modelPrice(tier.cacheWrite)}
-          </p>
-        ))}
+        {!cashless && (
+          <>
+            <p>
+              输入 {format(price?.input)} · 输出 {format(price?.output)}
+            </p>
+            <p>
+              缓存读取 {format(price?.cacheRead)} · 缓存写入 {format(price?.cacheWrite)}
+              {formatTtl(price?.cacheWriteByTtl)}
+            </p>
+            {price?.tiers?.map((tier) => (
+              <p key={tier.inputTokensAbove}>
+                输入超过 {tier.inputTokensAbove} tokens：输入 {format(tier.input)} / 输出{' '}
+                {format(tier.output)} / 缓存读 {format(tier.cacheRead)} / 缓存写{' '}
+                {format(tier.cacheWrite)}
+                {formatTtl(tier.cacheWriteByTtl)}
+              </p>
+            ))}
+          </>
+        )}
         {(info?.reasoningCost !== undefined ||
           info?.inputAudioCost !== undefined ||
           info?.outputAudioCost !== undefined) && (
