@@ -6,6 +6,8 @@ export type ProcessSemanticKind = ToolSemanticKind | 'thinking' | 'failed'
 
 export type ProcessSummary = {
   active: boolean
+  /** All grouped tools have settled while the turn is still running (between-tools thinking gap). */
+  betweenTools?: boolean
   failed: boolean
   kind: ProcessSemanticKind
   label: string
@@ -406,9 +408,20 @@ export function summarizeTurnProcessItems(
 
   const active = isActiveTurn(turnStatus)
   const failed = items.some((item) => itemActivity(item) === 'failed')
-  const label = formatProcessSummaryLabel(parts, active)
 
   if (active) {
+    const hasRunningItem = items.some((item) => itemActivity(item) === 'running')
+    if (parts.length > 0 && !hasRunningItem) {
+      return {
+        active: true,
+        betweenTools: true,
+        failed: false,
+        kind: 'thinking',
+        label: '正在思考',
+        summaryKey: `active:between-tools:${items.map((item) => item.id).join('|')}`,
+      }
+    }
+    const label = formatProcessSummaryLabel(parts, true)
     return {
       active: true,
       failed: false,
@@ -418,6 +431,7 @@ export function summarizeTurnProcessItems(
     }
   }
 
+  const label = formatProcessSummaryLabel(parts, false)
   return {
     active: false,
     failed,
