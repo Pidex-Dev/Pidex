@@ -5,31 +5,53 @@ export type MediaInput = { kind: 'audio' | 'video'; mimeType: string; data: stri
 /** Pi owns transport/auth; the payload hook supplies media parts unsupported by its text/image mapper. */
 export function prepareMediaInput(model: Model<Api>, context: Context) {
   const replacements = new Map<string, Record<string, unknown>>()
-  const messages = context.messages.map((message) => {
+  let lastAssistant = context.messages.length - 1
+  while (lastAssistant >= 0 && context.messages[lastAssistant]?.role !== 'assistant') lastAssistant--
+  const gemini = model.api === 'google-generative-ai' || model.api === 'google-vertex'
+  const messages = context.messages.map((message, index) => {
     const media = (message as typeof message & { media?: MediaInput[] }).media
     if (message.role !== 'user' || !media?.length) return message
     const content =
       typeof message.content === 'string'
         ? [{ type: 'text' as const, text: message.content }]
         : [...message.content]
+    let omitted: MediaInput['kind'] | undefined
     for (const part of media) {
-      if (!(model.input as readonly string[]).includes(part.kind))
-        throw new Error(`当前模型不支持${part.kind === 'audio' ? '音频' : '视频'}输入`)
-      let wire: Record<string, unknown>
-      if (model.api === 'google-generative-ai' || model.api === 'google-vertex') {
-        wire = { inlineData: { mimeType: part.mimeType, data: part.data } }
-      } else if (
+      const supportedByModel = (model.input as readonly string[]).includes(part.kind)
+      const completionsAudio =
         model.api === 'openai-completions' &&
         part.kind === 'audio' &&
         ['audio/wav', 'audio/mpeg', 'audio/mp3'].includes(part.mimeType)
-      ) {
-        wire = {
-          type: 'input_audio',
-          input_audio: { data: part.data, format: part.mimeType === 'audio/wav' ? 'wav' : 'mp3' },
+      if (!supportedByModel || (!gemini && !completionsAudio)) {
+        if (index > lastAssistant) {
+          if (!supportedByModel)
+            throw new Error(`当前模型不支持${part.kind === 'audio' ? '音频' : '视频'}输入`)
+          throw new Error('当前协议不支持该媒体输入，请切换到兼容的聊天端点')
         }
-      } else throw new Error('当前协议不支持该媒体输入，请切换到兼容的聊天端点')
+        if (omitted !== part.kind) {
+          const cause = supportedByModel ? 'protocol' : 'model'
+          content.push({
+            type: 'text',
+            text: `(${part.kind} omitted: ${cause} does not support ${part.kind})`,
+          })
+        }
+        omitted = part.kind
+        continue
+      }
+      omitted = undefined
       const marker = `pidex-media:${crypto.randomUUID()}`
-      replacements.set(marker, wire)
+      replacements.set(
+        marker,
+        gemini
+          ? { inlineData: { mimeType: part.mimeType, data: part.data } }
+          : {
+              type: 'input_audio',
+              input_audio: {
+                data: part.data,
+                format: part.mimeType === 'audio/wav' ? 'wav' : 'mp3',
+              },
+            },
+      )
       content.push({ type: 'text', text: marker })
     }
     return { ...message, content }
