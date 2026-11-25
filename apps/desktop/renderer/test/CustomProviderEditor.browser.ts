@@ -999,17 +999,20 @@ try {
   await builtinPanel
     .getByRole('textbox', { name: 'Chat Completions API 地址', exact: true })
     .fill('https://custom-compatible.example/v1')
-  await builtinPanel.getByRole('button', { name: '设为默认', exact: true }).click()
+  await builtinPanel
+    .getByRole('textbox', { name: 'Chat Completions API 地址', exact: true })
+    .press('Tab')
+  await expect(builtinPanel.getByRole('button', { name: '设为默认', exact: true })).toHaveCount(0)
   await expect
-    .poll(() => builtinPage.evaluate(() => (window as any).__providers.google.config.protocol))
-    .toBe('openai-completions')
+    .poll(() => builtinPage.evaluate(() => (window as any).__providers.google.config.endpoints['openai-completions']))
+    .toBe('https://custom-compatible.example/v1')
   assert.equal(
     await builtinPage.evaluate(() => (window as any).__providers.google.config.protocol),
-    'openai-completions',
+    undefined,
   )
   assert.equal(
     await builtinPage.evaluate(() => (window as any).__providers.google.config.baseUrl),
-    'https://custom-compatible.example/v1',
+    'https://override.example/v1',
   )
   await builtinPage.close()
   const navigationPage = await mount('/providers?provider=mixed&controller=1', false)

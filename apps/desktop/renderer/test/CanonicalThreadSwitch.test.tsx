@@ -95,6 +95,12 @@ test('reasoning tail reveals the node and removes only its active waiting indica
   try {
     expect(render()).toBe('')
     expect(waiting()).toContain('正在思考')
+    expect(waiting()).toContain('canonical-turn__thinking')
+    expect(
+      renderToStaticMarkup(
+        <ReasoningWaitingIndicator delayMs={1_000} item={item} threadId="reasoning-test" />,
+      ),
+    ).toBe('')
     liveItemTailStore.append('reasoning-test', item.id, 'reasoning', '追加内容')
     expect(render()).toContain('追加内容')
     expect(waiting()).toBe('')

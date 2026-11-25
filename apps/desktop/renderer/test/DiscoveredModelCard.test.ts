@@ -14,10 +14,8 @@ import {
   resolveModelContextWindow,
   resolveModelVendor,
 } from '../src/features/models/provider-management/ModelSyncHelpers.js'
-import {
-  ModelCatalogDetails,
-  modelPrice,
-} from '../src/features/models/provider-management/ModelCatalogDetails.js'
+import { ModelCatalogDetails } from '../src/features/models/provider-management/ModelCatalogDetails.js'
+import { modelPrice } from '../src/features/models/provider-management/UseModelPricing.js'
 import { describe, expect, it } from 'bun:test'
 import type {
   DesktopModelProviderSummary,
