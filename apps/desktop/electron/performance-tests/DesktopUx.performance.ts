@@ -718,7 +718,7 @@ async function terminateBackgroundAgent(dataDirectory: string): Promise<void> {
       killProcessTree(record.pid)
     }
   } catch {
-    // Runtime descriptor may not exist yet or may already be removed.
+    return
   }
 }
 
@@ -733,7 +733,7 @@ function killProcessTree(pid: number): void {
       process.kill(pid, 'SIGKILL')
     }
   } catch {
-    // Process may have already exited.
+    return
   }
 }
 
