@@ -268,7 +268,7 @@ describe('execution log observers', () => {
   })
 
   test('模型连续请求递增，失败分类安全，结束和取消清理观测状态', async () => {
-    const { logger, read } = await setup()
+    const { logger, read, output } = await setup()
     const observer = new HarnessLogObserver(logger, () => 1_000)
     const context = { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1' }
     const request = {
@@ -283,7 +283,7 @@ describe('execution log observers', () => {
       message: {
         role: 'assistant',
         stopReason: 'error',
-        errorMessage: '429 private response token=secret',
+        errorMessage: `400 Bad Request: {"error":{"type":"invalid_request_error","message":"developer is not one of ['system', 'assistant', 'user', 'tool', 'function']"}} private response token=secret`,
         usage: {},
       },
     } as AgentHarnessEvent)
@@ -306,9 +306,19 @@ describe('execution log observers', () => {
     ).toEqual([1, 2, 1, 1, 1])
     expect(logged.find((record) => record.event === 'provider.failed')).toMatchObject({
       level: 'error',
-      details: { category: 'rate-limit', reason: 'error' },
+      details: {
+        category: 'configuration',
+        reason: 'error',
+        httpStatus: 400,
+        providerCode: 'invalid_request_error',
+        message: '供应商拒绝了聊天请求中的 developer 消息角色（HTTP 400）',
+      },
     })
     expect(logged.at(-1)).toMatchObject({ level: 'warn', event: 'provider.aborted' })
+    expect(output.find((line) => line.includes('provider.failed'))).toContain('httpStatus=400')
+    expect(output.find((line) => line.includes('provider.failed'))).toContain(
+      'providerCode=invalid_request_error',
+    )
     expect(JSON.stringify(logged)).not.toContain('private response')
     expect(JSON.stringify(logged)).not.toContain('secret')
   })
