@@ -6,7 +6,11 @@ import { removeFixturePaths } from './FixtureCleanup'
 import { Effect, Schema } from 'effect'
 import { DEFAULT_PERMISSION_CONFIG } from '@pidex/shared/thread'
 import { Model, Provider } from '@pidex/model-schema'
-import { Capabilities, type ProtocolCapability } from '@pidex/agent-protocol'
+import {
+  ATTACHMENT_UPLOAD_CHUNK_BYTES,
+  Capabilities,
+  type ProtocolCapability,
+} from '@pidex/agent-protocol'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { AgentError } from '../src/Domain'
 import { PiModelServiceError } from '../src/provider/pi/PiModelService'
@@ -16,6 +20,9 @@ import { TerminalOutputMirror } from '../src/terminal/TerminalOutputMirror'
 import { rpcTransportAuthority } from '../src/transport/Server'
 import { TurnCoordinator } from '../src/session/TurnCoordinator'
 import { ThreadHistoryService } from '../src/session/ThreadHistoryService'
+import { AttachmentService } from '../src/subagent/AttachmentService'
+import { SqliteAttachmentCatalog } from '../src/subagent/SqliteAttachmentCatalog'
+import { buildEventNextNotification } from '../src/transport/EventEnvelope'
 
 const roots: string[] = []
 
@@ -99,7 +106,7 @@ afterEach(async () => {
 
 const fixture = async (
   overrides: Partial<RpcRouterDependencies> = {},
-  routerOptions: { connectionLeaseMs?: number; now?: () => number } = {},
+  routerOptions: { connectionLeaseMs?: number; now?: () => number; attachmentStorage?: true } = {},
 ) => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-rpc-v4-'))
   roots.push(root)
@@ -189,7 +196,9 @@ const fixture = async (
       approvals: null,
       questions: null,
       subagents: null,
-      attachments: null,
+      attachments: routerOptions.attachmentStorage
+        ? await AttachmentService.open(root, { catalog: new SqliteAttachmentCatalog(db) })
+        : null,
       providers: null,
       piModels: null,
       providerCredentials: null,
@@ -973,6 +982,118 @@ describe('RPC v4 Router', () => {
       data: { code: 'UNAUTHORIZED' },
     })
     db.close()
+  })
+
+  test('分块导入 PDF 后按协商能力投影附件，重复提交复用 ID', async () => {
+    const { db, call, initialize, router } = await fixture({}, { attachmentStorage: true })
+    try {
+      const initial = await initialize()
+      const bytes = Buffer.alloc(ATTACHMENT_UPLOAD_CHUNK_BYTES + 23, 42)
+      bytes.write('%PDF-1.7')
+      const begin = await call('attachment/upload/begin', {
+        kind: 'pdf',
+        name: 'report.pdf',
+        mediaType: 'application/pdf',
+        size: bytes.length,
+      })
+      expect(begin.error).toBeUndefined()
+      const { uploadId } = begin.result
+      await initialize()
+      expect((await call('attachment/upload/commit', { uploadId })).error.data.code).toBe(
+        'ATTACHMENT_NOT_FOUND',
+      )
+      const context = { connectionId: initial.result.connectionId }
+      const request = (method: string, params: Record<string, unknown>) =>
+        router.handle(
+          { jsonrpc: '2.0', id: crypto.randomUUID(), method, params },
+          context,
+        ) as Promise<any>
+      expect((await request('attachment/upload/commit', { uploadId })).error.data.code).toBe(
+        'CONFLICT',
+      )
+      for (let offset = 0; offset < bytes.length; offset += ATTACHMENT_UPLOAD_CHUNK_BYTES) {
+        const data = bytes.subarray(offset, offset + ATTACHMENT_UPLOAD_CHUNK_BYTES)
+        expect(
+          (
+            await request('attachment/upload/chunk', {
+              uploadId,
+              offset,
+              data: data.toString('base64'),
+            })
+          ).result,
+        ).toEqual({ offset: offset + data.length })
+      }
+      const [first, repeated] = await Promise.all([
+        request('attachment/upload/commit', { uploadId }),
+        request('attachment/upload/commit', { uploadId }),
+      ])
+      expect(first.error).toBeUndefined()
+      expect(repeated.result).toEqual(first.result)
+      const attachment = first.result.attachment
+      expect(attachment).toMatchObject({ name: 'report.pdf', kind: 'pdf', sizeBytes: bytes.length })
+      const offset = ATTACHMENT_UPLOAD_CHUNK_BYTES
+      const actual = await call('attachment/read', {
+        attachmentId: attachment.id,
+        range: { offset, length: 50 },
+      })
+      expect(actual.result).toMatchObject({
+        attachment,
+        encoding: 'base64',
+        data: bytes.subarray(offset).toString('base64'),
+        range: { offset, length: 23, total: bytes.length },
+      })
+
+      const thread = db.createThread('附件能力')
+      const turn = db.createTurn(
+        thread.id,
+        {
+          content: '读取附件',
+          model: Model.Ref.make({
+            providerID: Provider.ID.make('openai'),
+            id: Model.ID.make('gpt'),
+          }),
+          permissionConfig: DEFAULT_PERMISSION_CONFIG,
+          strategy: 'queue',
+          taskMode: 'chat',
+        },
+        'queued',
+      )
+      db.bindInputAttachments(turn.inputID, [attachment.id])
+      expect(
+        (await call('thread/history/read', { threadId: thread.id })).result.queue.inputs[0]
+          .attachmentIds,
+      ).toEqual([attachment.id])
+      expect(
+        db.sqlite.query('SELECT id FROM input_attachments WHERE id = ?').get(attachment.id),
+      ).toBeNull()
+      expect(
+        db.sqlite.query('SELECT id FROM input_pdf_attachments WHERE id = ?').get(attachment.id),
+      ).toEqual({ id: attachment.id })
+      const event = db
+        .eventsAfter(0, thread.id, 100)
+        .find((event) => event.method === 'turn/queued')!
+      const replay = (includePdfAttachments: boolean) =>
+        buildEventNextNotification({
+          subscriptionId: 'subscription',
+          streamId: thread.id,
+          event,
+          projection: router.projection,
+          includePdfAttachments,
+        })!.params.event.payload
+      expect(replay(true)).toMatchObject({ input: { attachmentIds: [attachment.id] } })
+      expect(replay(false)).toMatchObject({ input: { attachmentIds: [] } })
+
+      await initialize(Capabilities.filter((capability) => capability !== 'attachments.chunked.v1'))
+      expect(
+        (await call('thread/read', { threadId: thread.id })).result.snapshot.inputs[0]
+          .attachmentIds,
+      ).toEqual([])
+      expect((await call('attachment/read', { attachmentId: attachment.id })).error.data.code).toBe(
+        'ATTACHMENT_NOT_FOUND',
+      )
+    } finally {
+      db.close()
+    }
   })
 
   test('rejects methods whose capability was not negotiated by the client', async () => {

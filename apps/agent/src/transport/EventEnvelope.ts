@@ -18,6 +18,7 @@ export type BuildEventNextNotificationInput = {
   streamId: string
   event: StoredEventEnvelope
   projection: ThreadProjection
+  includePdfAttachments?: boolean
 }
 
 export type EventNextNotification = {
@@ -71,7 +72,7 @@ export const buildEventNextNotification = (
   const type = event.method as EventType
   const definition = EventManifest[type]
   if (definition.durability === 'live' && event.afterSequence === undefined) return null
-  const payload = projection.notification(event).notification.params
+  const payload = projection.notification(event, input.includePdfAttachments).notification.params
   const base = {
     eventId:
       definition.durability === 'live'

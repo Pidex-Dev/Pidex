@@ -28,6 +28,7 @@ export class EventHub {
       toolCallId?: string
       item?: { id: string }
       turn?: { id: string }
+      discardedItemIds?: string[]
     }
     if (event.method === 'visualization/preview' && params.toolCallId) {
       this.visualizationPreviews.set(params.toolCallId, event)
@@ -35,6 +36,11 @@ export class EventHub {
         this.visualizationPreviews.delete(this.visualizationPreviews.keys().next().value!)
     } else if (['tool/callCompleted', 'tool/error'].includes(event.method) && params.item) {
       this.visualizationPreviews.delete(params.item.id)
+    } else if (event.method === 'turn/statusChanged' && params.discardedItemIds) {
+      for (const id of params.discardedItemIds) {
+        if (this.visualizationPreviews.get(id)?.turnId === event.turnId)
+          this.visualizationPreviews.delete(id)
+      }
     } else if (['turn/completed', 'turn/failed', 'turn/interrupted'].includes(event.method)) {
       for (const [id, preview] of this.visualizationPreviews) {
         if (preview.turnId === (params.turn?.id ?? event.turnId))

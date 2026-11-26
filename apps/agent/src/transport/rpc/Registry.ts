@@ -34,6 +34,7 @@ import { sideChatHandlers } from './handlers/SideChat'
 import { threadGoalHandlers } from './handlers/ThreadGoal'
 import { threadBookmarkHandlers } from './handlers/ThreadBookmark'
 import { threadHandlers } from './handlers/Thread'
+import { attachmentHandlers } from './handlers/Attachment'
 import { toolingHandlers } from './handlers/Tooling'
 import { usageHandlers } from './handlers/Usage'
 import { speechHandlers } from './handlers/Speech'
@@ -74,6 +75,7 @@ const groups: readonly RpcHandlerGroup[] = [
   skillHandlers,
   githubHandlers,
   threadHandlers,
+  attachmentHandlers,
   localContextHandlers,
   memoryHandlers,
   petHandlers,

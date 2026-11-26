@@ -16,9 +16,9 @@ export class ThreadReadViewRepository {
     this.projection = new ThreadProjection(db)
   }
 
-  snapshot(threadID: string) {
+  snapshot(threadID: string, includePdfAttachments = true) {
     return this.db.transaction(() => {
-      const snapshot = this.projection.snapshot(threadID)
+      const snapshot = this.projection.snapshot(threadID, includePdfAttachments)
       if (!snapshot) throw new AgentError('THREAD_NOT_FOUND', 'Thread 不存在', 404)
       this.faultSeams.afterProjectionRead?.('snapshot')
       const sequence = globalEventSequence(this.db)
@@ -26,9 +26,13 @@ export class ThreadReadViewRepository {
     })
   }
 
-  history(threadID: string, params: { before?: string; limit?: number }) {
+  history(
+    threadID: string,
+    params: { before?: string; limit?: number },
+    includePdfAttachments = true,
+  ) {
     return this.db.transaction(() => {
-      const page = this.projection.historyPage(threadID, params)
+      const page = this.projection.historyPage(threadID, params, includePdfAttachments)
       if (!page) throw new AgentError('THREAD_NOT_FOUND', 'Thread 不存在', 404)
       this.faultSeams.afterProjectionRead?.('history')
       const sequence = globalEventSequence(this.db)
@@ -36,9 +40,9 @@ export class ThreadReadViewRepository {
     })
   }
 
-  queue(threadID: string, eventID?: number) {
+  queue(threadID: string, eventID?: number, includePdfAttachments = true) {
     return this.db.transaction(() => {
-      const snapshot = this.projection.snapshot(threadID)
+      const snapshot = this.projection.snapshot(threadID, includePdfAttachments)
       if (!snapshot) throw new AgentError('THREAD_NOT_FOUND', 'Thread 不存在', 404)
       const metadata = this.db.queueStateMeta(threadID) ?? { version: 0, pauseReason: null }
       this.faultSeams.afterProjectionRead?.('queue')

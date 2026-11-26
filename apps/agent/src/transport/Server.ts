@@ -487,12 +487,14 @@ const eventNextNotification = (
   streamId: string,
   event: StoredEventEnvelope,
   rpc: RpcRouter,
+  capabilities: ReadonlySet<ProtocolCapability>,
 ) =>
   buildEventNextNotification({
     subscriptionId,
     streamId,
     event,
     projection: rpc.projection,
+    includePdfAttachments: capabilities.has('attachments.chunked.v1'),
   })
 
 export const createApp = (dependencies: TransportDependencies) => {
@@ -846,7 +848,13 @@ export const createApp = (dependencies: TransportDependencies) => {
               cursors.set(streamId, nextCursor)
             },
             deliver: async (event) => {
-              const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
+              const notification = eventNextNotification(
+                subscriptionId,
+                streamId,
+                event,
+                rpc,
+                subscription.capabilities,
+              )
               if (!notification) return false
               await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
               return true
@@ -913,7 +921,13 @@ export const createApp = (dependencies: TransportDependencies) => {
                     durableDelivered += await deliverDurableThrough(streamId, target)
                   },
                   async () => {
-                    const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
+                    const notification = eventNextNotification(
+                      subscriptionId,
+                      streamId,
+                      event,
+                      rpc,
+                      subscription.capabilities,
+                    )
                     if (notification) await stream.writeSSE({ data: JSON.stringify(notification) })
                   },
                 )

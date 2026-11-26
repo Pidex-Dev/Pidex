@@ -1,3 +1,4 @@
+import { inputAttachmentRows, inputAttachmentTable } from './InputAttachmentRepository'
 import { isUserAuthoredInput, type InputOrigin } from '@pidex/shared/thread'
 import { SqlitePiSessionRepo, SqlitePiSessionStorage } from '../pi-session/SqlitePiSession'
 import type { AgentDatabase } from '../database/AgentDatabase'
@@ -129,7 +130,9 @@ export class ThreadEditRepository {
     references: readonly string[],
   ) {
     const owned = this.db.sqlite
-      .query('SELECT id FROM input_attachments WHERE input_id = ? AND thread_id = ?')
+      .query(
+        `SELECT id FROM ${inputAttachmentRows(this.db.sqlite)} WHERE input_id = ? AND thread_id = ?`,
+      )
       .all(inputId, threadId) as { id: string }[]
     const contexts = this.db.sqlite
       .query('SELECT context_path_id AS id FROM input_context_paths WHERE input_id = ?')
@@ -215,9 +218,14 @@ export class ThreadEditRepository {
   cloneAttachments(ids: readonly string[]) {
     return ids.map((source) => {
       const id = crypto.randomUUID()
+      const sourceRow = this.db.sqlite
+        .query(`SELECT kind FROM ${inputAttachmentRows(this.db.sqlite)} WHERE id = ?`)
+        .get(source) as { kind: string } | null
+      if (!sourceRow) throw new AgentError('ATTACHMENT_NOT_FOUND', '附件不存在', 404)
+      const table = inputAttachmentTable(sourceRow.kind)
       this.db.sqlite
         .query(
-          `INSERT INTO input_attachments (id, kind, name, media_type, size_bytes, sha256, storage_path, created_at) SELECT ?, kind, name, media_type, size_bytes, sha256, storage_path, created_at FROM input_attachments WHERE id = ?`,
+          `INSERT INTO ${table} (id, kind, name, media_type, size_bytes, sha256, storage_path, created_at) SELECT ?, kind, name, media_type, size_bytes, sha256, storage_path, created_at FROM ${table} WHERE id = ?`,
         )
         .run(id, source)
       return id

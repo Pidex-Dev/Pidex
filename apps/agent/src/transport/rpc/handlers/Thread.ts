@@ -3,6 +3,7 @@ import { Schema } from 'effect'
 import { Effect } from 'effect'
 import type { RpcMethod } from '@pidex/agent-protocol'
 import type { RpcRouter } from '../RpcRouter'
+import type { RpcRouterContext } from '../RequestContext'
 import {
   decodeRpcParams as decodeParams,
   optionalRpcRecord as optionalRecord,
@@ -13,7 +14,6 @@ import {
   InvalidThreadHistoryCursorError,
   globalEventSequence,
   artifactMetadataView,
-  attachmentView,
   decodeQueueAdd,
   decodeQueueInput,
   decodeQueueResume,
@@ -59,13 +59,17 @@ export const threadHandlers = {
     'queue/update',
     'queue/remove',
     'queue/resume',
-    'attachment/import',
-    'attachment/read',
     'artifact/read',
   ],
-  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown): Promise<unknown> {
-    const { db, threads, history, attachments, turnPatches } = runtime.dependencies
+  async handle(
+    runtime: RpcRouter,
+    method: RpcMethod,
+    rawParams: unknown,
+    context: RpcRouterContext,
+  ): Promise<unknown> {
+    const { db, threads, history, turnPatches } = runtime.dependencies
     const params = optionalRecord(rawParams)
+    const includePdfAttachments = runtime.connectionHasCapability(context, 'attachments.chunked.v1')
     if (
       (
         [
@@ -214,10 +218,10 @@ export const threadHandlers = {
             created.id,
             Date.now(),
           )
-        return runtime.threadSnapshotResult(created.id)
+        return runtime.threadSnapshotResult(created.id, includePdfAttachments)
       }
       case 'thread/read':
-        return runtime.threadSnapshotResult(stringParam(params, 'threadId'))
+        return runtime.threadSnapshotResult(stringParam(params, 'threadId'), includePdfAttachments)
       case 'thread/patch/diff':
         return turnPatches.readDiff({
           threadID: stringParam(params, 'threadId'),
@@ -248,10 +252,14 @@ export const threadHandlers = {
       case 'thread/history/read': {
         const threadId = stringParam(params, 'threadId')
         try {
-          return runtime.threadHistoryPageResult(threadId, {
-            ...(typeof params.before === 'string' ? { before: params.before } : {}),
-            ...(typeof params.limit === 'number' ? { limit: params.limit } : {}),
-          })
+          return runtime.threadHistoryPageResult(
+            threadId,
+            {
+              ...(typeof params.before === 'string' ? { before: params.before } : {}),
+              ...(typeof params.limit === 'number' ? { limit: params.limit } : {}),
+            },
+            includePdfAttachments,
+          )
         } catch (cause) {
           if (cause instanceof InvalidThreadHistoryCursorError)
             throw new AgentError('CONFLICT', cause.message, 409)
@@ -446,7 +454,7 @@ export const threadHandlers = {
           },
           request.skills,
         )
-        return runtime.queueStateResult(request.threadId, mutation.event?.id)
+        return runtime.queueStateResult(request.threadId, mutation.event?.id, includePdfAttachments)
       }
       case 'queue/add': {
         const request = decodeParams(decodeQueueAdd, rawParams, 'queue/add')
@@ -497,7 +505,7 @@ export const threadHandlers = {
             ? {}
             : { expectedVersion: request.expectedVersion }),
         })
-        return runtime.queueStateResult(request.threadId, mutation.event?.id)
+        return runtime.queueStateResult(request.threadId, mutation.event?.id, includePdfAttachments)
       }
       case 'queue/resume': {
         const request = decodeParams(decodeQueueResume, rawParams, 'queue/resume')
@@ -507,49 +515,7 @@ export const threadHandlers = {
             ? {}
             : { expectedVersion: request.expectedVersion }),
         })
-        return runtime.queueStateResult(request.threadId, mutation.event?.id)
-      }
-      case 'attachment/import': {
-        if (!Array.isArray(params.uploads))
-          throw new AgentError('INVALID_REQUEST', 'uploads 参数无效', 400)
-        const uploads = params.uploads.map((entry) => {
-          const value = record(entry, 'attachment')
-          const kind = enumValue(value.kind, ['text', 'image', 'audio', 'video'] as const, 'kind')
-          const data = stringParam(value, 'data')
-          return {
-            kind,
-            name: stringParam(value, 'name'),
-            mimeType: stringParam(value, 'mediaType', 'mimeType'),
-            data:
-              kind !== 'text' || value.encoding === 'base64'
-                ? new Uint8Array(Buffer.from(data, 'base64'))
-                : data,
-          }
-        })
-        return { attachments: (await attachments.store(uploads)).map(attachmentView) }
-      }
-      case 'attachment/read': {
-        const value = await attachments.read(stringParam(params, 'attachmentId', 'id'))
-        const all = value.data
-        const range =
-          params.range && typeof params.range === 'object' && !Array.isArray(params.range)
-            ? (params.range as Record<string, unknown>)
-            : null
-        const offset = range && typeof range.offset === 'number' ? range.offset : 0
-        const length =
-          range && typeof range.length === 'number'
-            ? Math.min(range.length, Math.max(0, all.byteLength - offset))
-            : Math.max(0, all.byteLength - offset)
-        const data = all.slice(offset, offset + length)
-        return {
-          attachment: attachmentView(value.record),
-          data:
-            value.record.kind === 'text'
-              ? new TextDecoder().decode(data)
-              : Buffer.from(data).toString('base64'),
-          encoding: value.record.kind === 'text' ? 'utf8' : 'base64',
-          range: { offset, length: data.byteLength, total: all.byteLength },
-        }
+        return runtime.queueStateResult(request.threadId, mutation.event?.id, includePdfAttachments)
       }
       case 'artifact/read': {
         const threadId = stringParam(params, 'threadId')

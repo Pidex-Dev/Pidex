@@ -367,13 +367,17 @@ export class SqlitePiSessionRepo implements SessionRepo<
 
   async fork(
     source: SqlitePiSessionMetadata,
-    options: SqlitePiSessionCreateOptions & { entryId?: string; position?: 'before' | 'at' },
+    options: SqlitePiSessionCreateOptions & {
+      entryId?: string
+      position?: 'before' | 'at'
+      mapEntry?: (entry: SessionTreeEntry) => SessionTreeEntry
+    },
   ) {
     const sourceSession = await this.open(source)
     const entries = await getEntriesToFork(sourceSession.getStorage(), options)
     const forked = await this.create(options)
     const storage = forked.getStorage() as SqlitePiSessionStorage
-    for (const entry of entries) await storage.appendEntry(entry)
+    for (const entry of entries) await storage.appendEntry(options.mapEntry?.(entry) ?? entry)
     storage.flush()
     return forked
   }

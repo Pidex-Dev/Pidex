@@ -39,7 +39,8 @@ import type { AgentDatabase } from '../../storage/database/AgentDatabase'
 import type { EventHub } from '../../storage/events/EventHub'
 import { globalEventSequence, publishAgentEvent } from '../../storage/events/EventPublisher'
 import type { SubagentService } from '../../subagent/SubagentService'
-import type { AttachmentService } from '../../subagent/AttachmentService'
+import type { AttachmentRecord, AttachmentService } from '../../subagent/AttachmentService'
+import { AttachmentUploads } from '../../subagent/AttachmentUploads'
 import type { ArtifactService } from '../../storage/ArtifactService'
 import type { LocalContextPathService } from '../../local-context/LocalContextPathService'
 import type { ProjectSourceService } from '../../project/ProjectSourceService'
@@ -275,6 +276,7 @@ export const submitMessage = (raw: unknown): SubmitMessage => {
 }
 
 export class RpcRouter {
+  readonly attachmentUploads: AttachmentUploads
   readonly projection: ThreadProjection
   readonly decisions: DecisionService
   readonly subscriptions: EventSubscriptionRegistry
@@ -317,6 +319,7 @@ export class RpcRouter {
   ) {
     this.connectionLeaseMs = options.connectionLeaseMs ?? 60_000
     this.now = options.now ?? Date.now
+    this.attachmentUploads = new AttachmentUploads(dependencies.attachments)
     this.projection = new ThreadProjection(dependencies.db)
     this.decisions =
       dependencies.decisions ??
@@ -383,7 +386,27 @@ export class RpcRouter {
     }
     const declared = RpcMethods[method].errors as readonly string[]
     const exact = declared.includes(cause.code) ? (cause.code as ApplicationErrorCode) : null
-    const mapped = workspaceFileApplicationErrorCode(method, cause.code, declared)
+    const mapped =
+      workspaceFileApplicationErrorCode(method, cause.code, declared) ??
+      (declared.includes('ATTACHMENT_LIMIT') &&
+      [
+        'ATTACHMENT_COUNT_LIMIT',
+        'ATTACHMENT_FILE_TOO_LARGE',
+        'ATTACHMENT_TOTAL_TOO_LARGE',
+      ].includes(cause.code)
+        ? 'ATTACHMENT_LIMIT'
+        : declared.includes('ATTACHMENT_FORMAT_INVALID') &&
+            [
+              'ATTACHMENT_NAME_INVALID',
+              'ATTACHMENT_CHARSET_UNSUPPORTED',
+              'ATTACHMENT_IMAGE_INVALID',
+              'ATTACHMENT_IMAGE_TYPE_UNSUPPORTED',
+              'ATTACHMENT_TEXT_TYPE_UNSUPPORTED',
+              'ATTACHMENT_UTF8_INVALID',
+              'INVALID_REQUEST',
+            ].includes(cause.code)
+          ? 'ATTACHMENT_FORMAT_INVALID'
+          : null)
     const fallback: ApplicationErrorCode =
       cause.status === 429 && declared.includes('RATE_LIMITED')
         ? 'RATE_LIMITED'
@@ -404,6 +427,13 @@ export class RpcRouter {
         ? cause.retryable
         : cause.status === 429 || cause.status >= 500,
       safeErrorDetails(code, cause.details, cause instanceof ProviderRequestError),
+    )
+  }
+
+  connectionHasCapability(context: RpcRouterContext, capability: ProtocolCapability) {
+    return (
+      !!context.connectionId &&
+      !!this.connections.get(context.connectionId)?.capabilities.has(capability)
     )
   }
 
@@ -441,6 +471,7 @@ export class RpcRouter {
   closeConnection(connectionId: string) {
     const deleted = this.connections.delete(connectionId)
     this.subscriptions.closeConnection(connectionId)
+    this.attachmentUploads.close(connectionId)
     for (const [key, watcher] of this.workspaceFileWatchers) {
       watcher.ownerCounts.delete(connectionId)
       if (watcher.ownerCounts.size > 0) continue
@@ -463,18 +494,22 @@ export class RpcRouter {
     return snapshot
   }
 
-  threadSnapshotResult(threadId: string) {
+  threadSnapshotResult(threadId: string, includePdfAttachments: boolean) {
     this.dependencies.db.repositories.planApprovals.recover(threadId)
-    return this.threadReadViews.snapshot(threadId)
+    return this.threadReadViews.snapshot(threadId, includePdfAttachments)
   }
 
-  threadHistoryPageResult(threadId: string, params: { before?: string; limit?: number }) {
+  threadHistoryPageResult(
+    threadId: string,
+    params: { before?: string; limit?: number },
+    includePdfAttachments: boolean,
+  ) {
     this.dependencies.db.repositories.planApprovals.recover(threadId)
-    return this.threadReadViews.history(threadId, params)
+    return this.threadReadViews.history(threadId, params, includePdfAttachments)
   }
 
-  queueStateResult(threadId: string, eventID?: number) {
-    return this.threadReadViews.queue(threadId, eventID)
+  queueStateResult(threadId: string, eventID: number | undefined, includePdfAttachments: boolean) {
+    return this.threadReadViews.queue(threadId, eventID, includePdfAttachments)
   }
 
   private loadCatalogSource() {
@@ -878,7 +913,7 @@ export const githubPullRequestIdentity = (params: Record<string, unknown>) => ({
 
 export const attachmentView = (record: {
   id: string
-  kind: 'text' | 'image' | 'audio' | 'video'
+  kind: AttachmentRecord['kind']
   name: string
   mimeType: string
   size: number
