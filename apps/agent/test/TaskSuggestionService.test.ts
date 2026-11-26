@@ -16,8 +16,10 @@ import {
 } from '../src/suggestion/TaskSuggestionService'
 
 const roots: string[] = []
+const cleanups: Array<() => void> = []
 
 afterEach(async () => {
+  for (const cleanup of cleanups.splice(0)) cleanup()
   await removeFixturePaths(roots.splice(0))
 })
 
@@ -150,6 +152,10 @@ const fixture = async () => {
   const project = db.createProject({ rootPath: join(root, 'workspace') })
   const memory = new MemoryService(db, { enabled: true, rootDirectory: join(root, 'memories') })
   const logger = new AgentLogger(join(root, 'logs'))
+  cleanups.push(() => {
+    memory.dispose()
+    db.close()
+  })
   return { root, db, project, memory, logger }
 }
 
@@ -229,7 +235,6 @@ describe('TaskSuggestionService', () => {
     })
     await service.generate(params(project.id), project.id)
     expect(prompts).toHaveLength(2)
-    db.close()
   })
 
   test('does not include project memories for projectless suggestions', async () => {
@@ -281,7 +286,6 @@ describe('TaskSuggestionService', () => {
     await service.generate(params())
     expect(prompt).toContain('用户记忆')
     expect(prompt).not.toContain('不应出现的项目记忆')
-    db.close()
   })
 
   test('isolates Working generation with its own prompt, categories, and three-result limit', async () => {
@@ -340,7 +344,6 @@ describe('TaskSuggestionService', () => {
     expect(working.suggestions[0]?.prompt).toContain('<path>')
     expect(working.suggestions[2]?.prompt).not.toContain('sk-123456')
     expect(working.suggestions[2]?.prompt).toContain('<redacted>')
-    db.close()
   })
 
   test('rejects categories that do not belong to the requested surface', async () => {
@@ -363,7 +366,6 @@ describe('TaskSuggestionService', () => {
     await expect(service.generate(invalid)).rejects.toMatchObject({
       reason: 'invalid-output',
     })
-    db.close()
   })
 
   test('hanging provider returns local candidates after the short timeout and caches them', async () => {
@@ -449,7 +451,6 @@ describe('TaskSuggestionService', () => {
         }),
       }),
     )
-    db.close()
   })
 
   test('provider failure returns local candidates, caches them, and logs only once per context', async () => {
@@ -518,7 +519,6 @@ describe('TaskSuggestionService', () => {
         durationMs: expect.any(Number),
       }),
     )
-    db.close()
   })
 
   test('invalid-output still rejects and never returns fallback suggestions', async () => {
@@ -561,7 +561,6 @@ describe('TaskSuggestionService', () => {
     await expect(service.generate(params(project.id))).rejects.toMatchObject({
       reason: 'invalid-output',
     })
-    db.close()
   })
 
   test('configuration failure is not masked by the local fallback', async () => {
@@ -579,7 +578,6 @@ describe('TaskSuggestionService', () => {
     )
 
     await expect(service.generate(params())).rejects.toMatchObject({ reason: 'configuration' })
-    db.close()
   })
 
   test('Working fallback keeps the three-category, three-row shape', async () => {
@@ -625,6 +623,5 @@ describe('TaskSuggestionService', () => {
       'automate',
     ])
     expect(result.suggestions[0]?.label).toBe(workingCandidates[0].label)
-    db.close()
   })
 })

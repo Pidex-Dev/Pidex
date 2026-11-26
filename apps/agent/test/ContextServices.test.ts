@@ -670,6 +670,8 @@ describe('Hooks 与记忆', () => {
     const scoped = await memory.list({ kind: 'project', projectId: 'project-a' })
     expect(scoped.files.map((file) => file.path)).toEqual(['bun.md'])
     expect((await memory.list({ kind: 'project', projectId: 'project-b' })).files).toHaveLength(0)
+    disabled.dispose()
+    memory.dispose()
     db.close()
   })
 
@@ -706,6 +708,7 @@ describe('Hooks 与记忆', () => {
         .map((task) => task.status)
         .sort(),
     ).toEqual(['completed', 'failed'])
+    memory.dispose()
     db.close()
   })
 })
