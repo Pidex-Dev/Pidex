@@ -34,9 +34,11 @@ test('native PNG grant snapshot preserves source bytes through upload preparatio
   const uploads = await buildAgentAttachmentUploads({ text: '', attachments }, async () => {
     throw new Error('Unexpected retained attachment')
   })
-  expect(uploads).toHaveLength(1)
-  expect(uploads[0]!.encoding).toBe('base64')
-  const uploaded = Buffer.from(uploads[0]!.data, 'base64')
+  expect(uploads.prepared).toHaveLength(1)
+  const { upload } = uploads.prepared[0]!
+  if (!('data' in upload)) throw new Error('Expected inline PNG data')
+  expect(upload.encoding).toBe('base64')
+  const uploaded = Buffer.from(upload.data, 'base64')
   expect(uploaded.length).toBe(source.length)
   expect(createHash('sha256').update(uploaded).digest('hex')).toBe(
     createHash('sha256').update(source).digest('hex'),

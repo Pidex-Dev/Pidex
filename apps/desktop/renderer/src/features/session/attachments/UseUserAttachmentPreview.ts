@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { UserAttachmentPreviewTab } from '../../layout/dock/RightDockState.js'
 
+import {
+  isChunkedAttachmentKind,
+  readAttachmentBase64Ranges,
+} from '../../../services/desktop-client/AttachmentUploadSupport.js'
 import { isMediaPreviewKind } from './AttachmentPreviewSupport.js'
 
 export type LoadedUserAttachment = {
@@ -50,31 +54,13 @@ export function useUserAttachmentPreview(
     }
 
     let cancelled = false
+    const readAbort = new AbortController()
     setState({ status: 'loading' })
     const request =
       tab.source.storage === 'thread'
-        ? desktopClient.readAttachment(tab.source.attachmentId).then((result) => ({
-            attachment: result.attachment,
-            data: result.data,
-            encoding: result.encoding,
-          }))
+        ? loadThreadAttachment(tab, tab.source.attachmentId, readAbort.signal)
         : tab.source.storage === 'draft-path'
-          ? desktopClient
-              .readDraftComposerPath({
-                grantId: tab.source.grantId,
-                ...(tab.source.relativePath ? { relativePath: tab.source.relativePath } : {}),
-              })
-              .then((result) => ({
-                attachment: {
-                  id: tab.attachment.id,
-                  kind: result.kind,
-                  name: result.name,
-                  mediaType: result.mediaType,
-                  sizeBytes: result.sizeBytes,
-                },
-                data: result.data ?? '',
-                encoding: result.encoding ?? null,
-              }))
+          ? loadDraftPathAttachment(tab, tab.source, readAbort.signal)
           : tab.source.storage === 'artifact'
             ? desktopClient
                 .readArtifact(tab.source.threadId, tab.source.artifactId)
@@ -119,7 +105,9 @@ export function useUserAttachmentPreview(
             attachment: {
               id: result.attachment.id,
               kind:
-                result.attachment.kind === 'text' || isMediaPreviewKind(result.attachment.kind)
+                result.attachment.kind === 'text' ||
+                result.attachment.kind === 'pdf' ||
+                isMediaPreviewKind(result.attachment.kind)
                   ? result.attachment.kind
                   : 'binary',
               name: result.attachment.name,
@@ -139,6 +127,7 @@ export function useUserAttachmentPreview(
 
     return () => {
       cancelled = true
+      readAbort.abort()
     }
   }, [retryVersion, tab])
 
@@ -147,6 +136,76 @@ export function useUserAttachmentPreview(
   }, [])
 
   return { ...state, retry }
+}
+
+async function loadThreadAttachment(
+  { attachment }: UserAttachmentPreviewTab,
+  attachmentId: string,
+  signal: AbortSignal,
+): Promise<LoadedUserAttachment> {
+  if (!isChunkedAttachmentKind(attachment.kind) || attachment.sizeBytes === 0) {
+    const result = await desktopClient.readAttachment(attachmentId)
+    return {
+      attachment: result.attachment,
+      data: result.data,
+      encoding: result.encoding,
+    }
+  }
+  const data = await readAttachmentBase64Ranges(
+    attachment.name,
+    attachment.sizeBytes,
+    async (offset, length) => {
+      const result = await desktopClient.readAttachment(attachmentId, { offset, length })
+      if (result.range.offset !== offset || result.range.total !== attachment.sizeBytes)
+        throw new Error('附件内容发生变化')
+      return result
+    },
+    signal,
+  )
+  return { attachment, data, encoding: 'base64' }
+}
+
+async function loadDraftPathAttachment(
+  { attachment }: UserAttachmentPreviewTab,
+  source: Extract<UserAttachmentPreviewTab['source'], { storage: 'draft-path' }>,
+  signal: AbortSignal,
+): Promise<LoadedUserAttachment> {
+  const request = {
+    grantId: source.grantId,
+    ...(source.relativePath ? { relativePath: source.relativePath } : {}),
+  }
+  if (
+    isChunkedAttachmentKind(attachment.kind) &&
+    attachment.sizeBytes > 0 &&
+    attachment.sizeBytes <= 20 * 1024 * 1024
+  ) {
+    const data = await readAttachmentBase64Ranges(
+      attachment.name,
+      attachment.sizeBytes,
+      async (offset, length) => {
+        const result = await desktopClient.readDraftComposerPath({
+          ...request,
+          range: { offset, length },
+        })
+        if (result.sizeBytes !== attachment.sizeBytes) throw new Error('附件内容发生变化')
+        return result
+      },
+      signal,
+    )
+    return { attachment, data, encoding: 'base64' }
+  }
+  const result = await desktopClient.readDraftComposerPath(request)
+  return {
+    attachment: {
+      id: attachment.id,
+      kind: result.kind,
+      name: result.name,
+      mediaType: result.mediaType,
+      sizeBytes: result.sizeBytes,
+    },
+    data: result.data ?? '',
+    encoding: result.encoding ?? null,
+  }
 }
 
 function decodeBase64Utf8(base64: string): string {

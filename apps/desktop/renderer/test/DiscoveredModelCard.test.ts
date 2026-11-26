@@ -121,6 +121,20 @@ describe('DiscoveredModelCard helpers', () => {
       expect(resolveModelCapabilities(model).some((c) => c.key === 'audio')).toBe(true)
     })
 
+    it('区分模型目录声明和当前端点的媒体能力', () => {
+      const model: DesktopProviderModelDefinition = {
+        id: 'qwen4-max',
+        api: 'openai-completions',
+        catalog: { input: ['text', 'video', 'pdf'] },
+      }
+      const labels = (input: string[]) =>
+        resolveModelCapabilities(model, { id: model.id, modalities: { input, output: ['text'] } })
+          .filter(({ key }) => key === 'video' || key === 'pdf')
+          .map(({ label }) => label)
+      expect(labels(['text', 'video', 'pdf'])).toEqual(['视频', 'PDF'])
+      expect(labels(['text'])).toEqual(['视频（目录）', 'PDF（目录）'])
+    })
+
     it('detects embedding capability', () => {
       const model: DesktopProviderModelDefinition = {
         id: 'text-embedding-3-small',
@@ -221,7 +235,7 @@ it('点击行展开详情且不触发添加，右侧按钮独立触发添加/移
   expect(html).not.toContain('draggable="true"')
   expect(html).not.toContain('role="checkbox"')
   expect(html).toContain('原厂参考价')
-  expect(html).toContain('当前客户端暂未支持原生发送')
+  expect(html).toContain('PDF（目录）')
   expect(html).toContain('输出 未知')
   expect(html).toContain('128K')
   expect(html).toContain('8K')

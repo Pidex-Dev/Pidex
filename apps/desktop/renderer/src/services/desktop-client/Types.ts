@@ -620,7 +620,10 @@ export type DesktopAttachmentApi = {
   chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
   grantComposerFilePaths(filePaths: string[]): Promise<DesktopComposerAttachment[]>
   getComposerFilePath(file: File): string
-  readAttachment(attachmentId: string): Promise<RpcResult<'attachment/read'>>
+  readAttachment(
+    attachmentId: string,
+    range?: RpcParams<'attachment/read'>['range'],
+  ): Promise<RpcResult<'attachment/read'>>
   readArtifact(threadId: string, artifactId: string): Promise<RpcResult<'artifact/read'>>
   submitVisualizationFollowUp(
     input: RpcParams<'visualization/submitFollowUp'>,

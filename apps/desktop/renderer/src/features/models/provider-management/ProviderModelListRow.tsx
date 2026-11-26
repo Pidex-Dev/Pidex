@@ -195,7 +195,15 @@ function ModelExpandedDetails({
           saved !== undefined && recommended !== undefined && saved !== recommended,
       )
     : []
-  const supportsPdfNote = (catalog?.input ?? model.input)?.includes('pdf')
+  const unavailableAttachments = metadata?.modalities?.input
+    ? (['video', 'pdf'] as const)
+        .filter(
+          (kind) =>
+            (catalog?.input ?? model.input)?.includes(kind) &&
+            !metadata.modalities?.input?.includes(kind),
+        )
+        .map((kind) => (kind === 'pdf' ? 'PDF' : '视频'))
+    : []
   const extraPriceParts = [
     catalog?.reasoningCost !== undefined ? `推理 ${modelPrice(catalog.reasoningCost)}` : null,
     catalog?.inputAudioCost !== undefined ? `音频入 ${modelPrice(catalog.inputAudioCost)}` : null,
@@ -289,7 +297,7 @@ function ModelExpandedDetails({
       price?.tiers?.length ||
       extraPriceParts.length > 0 ||
       configDifferences.length > 0 ||
-      supportsPdfNote ? (
+      unavailableAttachments.length > 0 ? (
         <div className="tw:overflow-hidden tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-panel">
           {reasoningControls.length > 0 ? (
             <div className="tw:flex tw:items-baseline tw:justify-between tw:gap-3 tw:border-b tw:border-app-border-subtle tw:last:border-b-0 tw:px-2 tw:py-2">
@@ -337,9 +345,9 @@ function ModelExpandedDetails({
               </span>
             </div>
           ) : null}
-          {supportsPdfNote ? (
+          {unavailableAttachments.length > 0 ? (
             <div className="tw:bg-app-warning/10 tw:px-2 tw:py-2 tw:text-app-warning-fg">
-              目录支持 PDF；当前客户端暂未支持原生发送。
+              当前端点未启用{unavailableAttachments.join('和')}附件发送。
             </div>
           ) : null}
         </div>

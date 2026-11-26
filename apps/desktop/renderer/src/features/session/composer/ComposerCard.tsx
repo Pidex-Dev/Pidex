@@ -56,6 +56,7 @@ import type {
   DesktopWorkspace,
   DesktopContextUsage,
   DesktopComposerAttachment,
+  DesktopAttachmentUploadProgress,
   DesktopModelProviderSummary,
   DesktopModelMetadata,
   ModelProviderID,
@@ -85,6 +86,7 @@ import { resolveThinkingLabel, resolveThinkingOptions } from './ThinkingLevelPop
 import { MotionConfig } from 'motion/react'
 import { useComposerFooterFit } from './ComposerFooterLayout.js'
 import { ComposerStatusOverlay } from './ComposerStatusOverlay.js'
+import { AttachmentUploadProgress } from '../attachments/AttachmentUploadProgress.js'
 import { ComposerGoalRow } from './ComposerGoalRow.js'
 import { ContextUsagePanel } from './ContextUsagePanel.js'
 import { usePluginCatalog } from '../../plugins/UsePluginCatalog.js'
@@ -333,6 +335,10 @@ type Props = {
   recentWorkspaces: DesktopWorkspace[]
   workspace: DesktopWorkspace | null
   attachments?: DesktopComposerAttachment[]
+  attachmentIssues?: { id: string; name: string; reason: string; canUseReference: boolean }[]
+  attachmentUploadProgress?: DesktopAttachmentUploadProgress | null
+  onCancelAttachmentUpload?: () => void
+  onUseAttachmentReference?: (attachmentId: string) => void
   document?: ComposerDocument
   skillCatalogLoading?: boolean
   skillCatalogError?: string | null
@@ -477,6 +483,10 @@ export function ComposerCard({
   recentWorkspaces,
   workspace,
   attachments = [],
+  attachmentIssues = [],
+  attachmentUploadProgress,
+  onCancelAttachmentUpload,
+  onUseAttachmentReference,
   document,
   skillCommands = [],
   skillCatalogLoading = false,
@@ -1692,6 +1702,34 @@ export function ComposerCard({
               onRemove={onRemoveAttachment}
             />
           </Suspense>
+        ) : null}
+        {attachmentIssues.length ? (
+          <div className="tw:mb-2 tw:grid tw:gap-1 tw:type-1 tw:text-app-warning" role="status">
+            {attachmentIssues.map((issue) => (
+              <div key={issue.id} className="tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+                <span className="tw:min-w-0 tw:wrap-anywhere">
+                  {issue.name} · {issue.reason}
+                </span>
+                {issue.canUseReference && onUseAttachmentReference ? (
+                  <Button
+                    size="xs"
+                    type="button"
+                    onClick={() => onUseAttachmentReference(issue.id)}
+                    aria-label={'仅发送文件引用：' + issue.name}
+                    title="模型收到文件路径，未收到文件内容"
+                  >
+                    仅发送文件引用
+                  </Button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {attachmentUploadProgress ? (
+          <AttachmentUploadProgress
+            progress={attachmentUploadProgress}
+            onCancel={onCancelAttachmentUpload}
+          />
         ) : null}
         <Suspense fallback={null}>
           <BrowserAnnotationDraftCards draftKey={draftKey} />

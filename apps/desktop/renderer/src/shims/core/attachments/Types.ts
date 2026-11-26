@@ -1,4 +1,4 @@
-export type AttachmentKind = 'image' | 'document' | 'text' | 'audio' | 'video' | 'binary'
+export type AttachmentKind = 'image' | 'document' | 'text' | 'audio' | 'video' | 'pdf' | 'binary'
 
 export type Attachment = {
   kind: AttachmentKind

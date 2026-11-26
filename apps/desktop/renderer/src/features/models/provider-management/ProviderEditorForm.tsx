@@ -2354,7 +2354,7 @@ export function normalizeEditableModel(
         ? ['text']
         : [
             ...(model.original?.input ?? ['text']).filter(
-              (value) => !['image', 'audio', 'video'].includes(value),
+              (value) => !['image', 'audio', 'video', 'pdf'].includes(value),
             ),
             ...(model.imageInput ? ['image' as const] : []),
             ...(model.audioInput ? ['audio' as const] : []),
@@ -2373,5 +2373,8 @@ export function normalizeEditableModel(
     optionSpecs: optionSpecs as never,
     pricing: model.pricing,
     smartConfig: model.smartConfig ? structuredClone(model.smartConfig) : undefined,
+    ...(model.original?.mediaInput
+      ? { mediaInput: structuredClone(model.original.mediaInput) }
+      : {}),
   } as unknown as DesktopProviderModelDefinition
 }

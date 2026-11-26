@@ -62,6 +62,7 @@ type ProviderModelOption = {
   providerID: ModelProviderID
   displayName: string
   modelPresets: ModelPreset[]
+  modelMetadata?: Record<string, DesktopModelMetadata>
 }
 
 export type DesktopComposerProps = {
@@ -309,6 +310,11 @@ export function DesktopComposer({
   const {
     branchName,
     canSubmit,
+    allowAttachmentModelSelection,
+    attachmentIssues,
+    attachmentUploadProgress,
+    cancelAttachmentUpload,
+    handleUseAttachmentReference,
     effectivePermissionMode,
     fileAttachmentsAvailable,
     goalModeEnabled,
@@ -519,6 +525,10 @@ export function DesktopComposer({
         browserContext={browserContext}
         workspace={workspace}
         attachments={attachments}
+        attachmentIssues={attachmentIssues}
+        attachmentUploadProgress={attachmentUploadProgress}
+        onCancelAttachmentUpload={cancelAttachmentUpload}
+        onUseAttachmentReference={handleUseAttachmentReference}
         skillCommands={skillCommands}
         skillCatalogLoading={skillCatalogLoading}
         skillCatalogError={skillCatalogError}
@@ -548,7 +558,16 @@ export function DesktopComposer({
             throw error
           }
         }}
-        onProviderModelChange={onProviderModelChange}
+        onProviderModelChange={(providerID, modelPresetID) => {
+          const option = providerOptions.find((candidate) => candidate.providerID === providerID)
+          const preset = option?.modelPresets.find((candidate) => candidate.id === modelPresetID)
+          const metadata = option?.modelMetadata?.[preset?.value ?? modelPresetID] ?? {
+            id: modelPresetID,
+            name: preset?.label ?? modelPresetID,
+          }
+          if (allowAttachmentModelSelection(metadata))
+            onProviderModelChange(providerID, modelPresetID)
+        }}
         onProviderOpen={onProviderOpen}
         onProviderSearch={onProviderSearch}
         onAddFiles={(files) => void handleAddFiles(files)}

@@ -187,7 +187,7 @@ export type DesktopFileSaveInput = {
 }
 
 export type DesktopComposerAttachmentKind =
-  'image' | 'document' | 'text' | 'audio' | 'video' | 'binary'
+  'image' | 'document' | 'text' | 'audio' | 'video' | 'pdf' | 'binary'
 
 export type DesktopComposerAttachmentStatus = 'ready' | 'error'
 
@@ -229,12 +229,22 @@ export type DesktopGoalBudgetBaseline = {
   tokenBudget: number | null
 }
 
+export type DesktopAttachmentUploadProgress = {
+  fileName: string
+  deliveredBytes: number
+  totalBytes: number
+}
+
 export type DesktopUserMessageInput = {
   text: string
   goal?: DesktopGoalSubmission
   taskMode?: 'chat' | 'plan' | 'grill'
   skills?: readonly import('@pidex/agent-protocol').SkillSelection[]
   attachments?: DesktopComposerAttachment[]
+  attachmentTransfer?: {
+    signal: AbortSignal
+    onProgress: (progress: DesktopAttachmentUploadProgress | null) => void
+  }
   retainedAttachmentIds?: string[]
   retainedContextReferenceIds?: string[]
   skillInvocation?: {

@@ -71,6 +71,10 @@ import {
   type AgentRpcSubscription,
 } from '../AgentRpcClient.js'
 import { createAgentTurnQueueClient } from './AgentTurnQueueClient.js'
+import {
+  buildAgentAttachmentUploads,
+  uploadAgentAttachmentChunks,
+} from './AttachmentUploadSupport.js'
 import { questionInteractionResponse } from './QuestionInteractionResponse.js'
 import { AGENT_LIVE_EVENT_FILTERS } from './EventSubscriptionFilters.js'
 import { SessionCatalogCoordinator } from './SessionCatalogCoordinator.js'
@@ -143,6 +147,7 @@ export const RENDERER_CAPABILITIES = [
   'model.operations.v1',
   'model.recommendations.v1',
   'model.media-input.v1',
+  'attachments.chunked.v1',
   'provider.config.pi.v1',
   'provider.modelSync.v1',
   'provider.modelSpecs.v1',
@@ -212,7 +217,6 @@ import type {
 // Start the two small message-input chunks while the desktop client initializes,
 // so the first send does not initiate new module requests and the entry bundle
 // does not need to retain their implementation.
-const attachmentUploadSupport = import('./AttachmentUploadSupport.js')
 const localContextImportSupport = import('./LocalContextImportSupport.js')
 export const THREAD_LIST_PAGE_SIZE = 100
 
@@ -344,6 +348,7 @@ export function createAgentSessionDesktopClient(
   const providerModelRequests = new Map<string, Promise<RpcResult<'model/list'>>>()
   let providerCredentialsCache: DesktopProviderCredential[] | null = null
   const sessionSnapshots = new Map<string, DesktopSessionSnapshot>()
+  const pendingAttachmentImports = new Map<string, Map<string, string>>()
   const lifecycleEpochBySessionId = new Map<string, number>()
   const latestLifecycleBySessionId = new Map<string, SessionLifecycleUpdate>()
   // Canonical projection status per thread. It outranks the catalog snapshot for
@@ -1361,42 +1366,96 @@ export function createAgentSessionDesktopClient(
     })
   }
 
-  async function importAgentAttachments(input: DesktopUserMessageInput) {
-    const { buildAgentAttachmentUploads } = await attachmentUploadSupport
-    const payload = await buildAgentAttachmentUploads(input, (attachmentId) =>
-      rpc.call('attachment/read', { attachmentId }),
+  function completeAgentMessageContext(sessionId: string, inputId: string): void {
+    pendingAttachmentImports.delete(JSON.stringify([sessionId, inputId]))
+  }
+
+  async function importAgentAttachments(
+    sessionId: string,
+    inputId: string,
+    input: DesktopUserMessageInput,
+  ): Promise<string[]> {
+    const transfer = input.attachmentTransfer
+    transfer?.signal.throwIfAborted()
+    const transferKey = JSON.stringify([sessionId, inputId])
+    const imported = pendingAttachmentImports.get(transferKey) ?? new Map<string, string>()
+    const bridge = environment.window?.DesktopBridge
+    const { order, prepared } = await buildAgentAttachmentUploads(
+      input,
+      (attachmentId, range) => rpc.call('attachment/read', { attachmentId, range }),
+      {
+        chunked: agentCapabilities.has('attachments.chunked.v1'),
+        readGrant: bridge?.readComposerPathGrant?.bind(bridge),
+        reusing: imported,
+      },
     )
-    if (payload.some((attachment) => attachment.kind === 'audio' || attachment.kind === 'video'))
+    if (!order.length) return []
+    if (prepared.some(({ upload }) => upload.kind === 'audio' || upload.kind === 'video'))
       requireAgentCapability('model.media-input.v1')
-    if (!payload.length) return []
-    const response = await rpc.call('attachment/import', {
-      uploads: payload,
-      operationId: crypto.randomUUID(),
-    })
-    return response.attachments.map((attachment) => attachment.id)
+
+    if (!pendingAttachmentImports.has(transferKey)) {
+      pendingAttachmentImports.set(transferKey, imported)
+      if (pendingAttachmentImports.size > 64)
+        pendingAttachmentImports.delete(pendingAttachmentImports.keys().next().value!)
+    }
+
+    const legacy = prepared.flatMap(({ key, upload }) =>
+      'readChunk' in upload ? [] : [{ key, upload }],
+    )
+    if (legacy.length) {
+      transfer?.signal.throwIfAborted()
+      const response = await rpc.call('attachment/import', {
+        uploads: legacy.map(({ upload }) => upload),
+        operationId: crypto.randomUUID(),
+      })
+      legacy.forEach(({ key }, index) => {
+        const attachment = response.attachments[index]
+        if (!attachment) throw new Error('Agent 返回的附件数量不一致。')
+        imported.set(key, attachment.id)
+      })
+    }
+    for (const { key, upload } of prepared) {
+      if (!('readChunk' in upload)) continue
+      const id = await uploadAgentAttachmentChunks(
+        upload,
+        {
+          begin: (value) => rpc.call('attachment/upload/begin', value),
+          chunk: (value) => rpc.call('attachment/upload/chunk', value),
+          commit: (value) => rpc.call('attachment/upload/commit', value),
+          abort: (value) => rpc.call('attachment/upload/abort', value),
+        },
+        transfer,
+      )
+      imported.set(key, id)
+    }
+    transfer?.signal.throwIfAborted()
+    return order.map((key) => imported.get(key)!)
   }
 
   async function importAgentMessageContext(
     sessionId: string,
     input: DesktopUserMessageInput,
+    inputId: string,
   ): Promise<{ attachmentIds: string[]; contextReferenceIds: string[] }> {
-    const attachmentIds = await importAgentAttachments(input)
-    const { importLocalContextReferences } = await localContextImportSupport
-    const contextReferenceIds = await importLocalContextReferences(
-      sessionId,
-      input,
-      async (threadId, paths) => {
-        requireAgentCapability('local-context.paths.v1')
-        return rpc.call('context/path/import', {
-          threadId,
-          paths,
-          operationId: crypto.randomUUID(),
-        })
-      },
-    )
-    return {
-      attachmentIds,
-      contextReferenceIds,
+    try {
+      const attachmentIds = await importAgentAttachments(sessionId, inputId, input)
+      const { importLocalContextReferences } = await localContextImportSupport
+      const contextReferenceIds = await importLocalContextReferences(
+        sessionId,
+        input,
+        async (threadId, paths) => {
+          requireAgentCapability('local-context.paths.v1')
+          return rpc.call('context/path/import', {
+            threadId,
+            paths,
+            operationId: crypto.randomUUID(),
+          })
+        },
+      )
+      input.attachmentTransfer?.signal.throwIfAborted()
+      return { attachmentIds, contextReferenceIds }
+    } finally {
+      input.attachmentTransfer?.onProgress(null)
     }
   }
 
@@ -1599,6 +1658,7 @@ export function createAgentSessionDesktopClient(
     requireSkillInvocationCapability: () => requireAgentCapability('skills.invocation.v1'),
     awaitPendingSettingsUpdate,
     importMessageContext: importAgentMessageContext,
+    completeMessageContext: completeAgentMessageContext,
     resolveModelRef: resolveAgentModelRef,
     permissionConfigForSession,
     taskModeForSession,
@@ -2325,9 +2385,9 @@ export function createAgentSessionDesktopClient(
       )
     },
     getComposerFilePath: (file) => environment.window?.DesktopBridge?.getPathForFile?.(file) ?? '',
-    readAttachment: (attachmentId) =>
+    readAttachment: (attachmentId, range) =>
       withAgentOrMock(
-        () => rpc.call('attachment/read', { attachmentId }),
+        () => rpc.call('attachment/read', { attachmentId, range }),
         () => mockClient.readAttachment(attachmentId),
       ),
     submitVisualizationFollowUp: (input) =>
@@ -3978,7 +4038,7 @@ export function createAgentSessionDesktopClient(
             input.attachments !== undefined || input.retainedContextReferenceIds !== undefined
           const imported =
             shouldReplaceAttachments || shouldReplaceContextReferences
-              ? await importAgentMessageContext(sessionId, input)
+              ? await importAgentMessageContext(sessionId, input, followUpId)
               : undefined
           if (input.skills?.length) requireAgentCapability('skills.invocation.v1')
           await turnQueueClient.callQueueMutation(sessionId, 'queue/update', {
@@ -3990,6 +4050,7 @@ export function createAgentSessionDesktopClient(
               ? { contextReferenceIds: imported?.contextReferenceIds ?? [] }
               : {}),
           })
+          completeAgentMessageContext(sessionId, followUpId)
           const snapshot = await loadAgentSessionSnapshot(sessionId)
           emitSessionStoreChange()
           return snapshot

@@ -361,6 +361,109 @@ describe('desktop thread settings client', () => {
     })
   })
 
+  test('retrying a PDF submission reuses committed files and aborts the interrupted upload', async () => {
+    const calls: { method: string; params: any }[] = []
+    const uploads = new Map<
+      string,
+      { name: string; kind: string; mediaType: string; size: number }
+    >()
+    let failSecondFile = true
+    const fetcher = async (_path: string, init?: RequestInit): Promise<Response> => {
+      const { id, method, params } = JSON.parse(String(init?.body))
+      calls.push({ method, params })
+      if (method === 'initialize') {
+        const initialized = initializedResult()
+        return rpc(id, {
+          ...initialized,
+          capabilities: [...initialized.capabilities, 'attachments.chunked.v1'],
+        })
+      }
+      if (method === 'initialized') return new Response(null, { status: 204 })
+      if (method === 'model/list') return rpc(id, modelCatalog())
+      if (method === 'attachment/upload/begin') {
+        const uploadId = 'upload-' + (uploads.size + 1)
+        uploads.set(uploadId, params)
+        return rpc(id, { uploadId })
+      }
+      if (method === 'attachment/upload/chunk') {
+        if (uploads.get(params.uploadId)?.name === 'second.pdf' && failSecondFile) {
+          failSecondFile = false
+          throw new Error('上传临时断开')
+        }
+        const bytes = Buffer.from(params.data, 'base64')
+        expect(bytes.byteLength).toBeLessThanOrEqual(512 * 1024)
+        return rpc(id, { offset: params.offset + bytes.byteLength })
+      }
+      if (method === 'attachment/upload/abort') return rpc(id, {})
+      if (method === 'attachment/upload/commit') {
+        const upload = uploads.get(params.uploadId)!
+        return rpc(id, {
+          attachment: {
+            id: 'attachment-' + upload.name,
+            kind: upload.kind,
+            name: upload.name,
+            mediaType: upload.mediaType,
+            sizeBytes: upload.size,
+            sha256: 'test-sha',
+            createdAt: now,
+          },
+        })
+      }
+      if (method === 'turn/start')
+        return rpc(id, {
+          inputId: params.inputId,
+          turnId: 'pdf-turn',
+          disposition: 'accepted',
+          streamPosition: { streamId: params.threadId, sequence: 1 },
+        })
+      if (method === 'thread/read') throw new Error('Skip snapshot refresh in this test')
+      throw new Error('Unexpected method: ' + method)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+    const pdf = (name: string, data: Buffer) => ({
+      id: name,
+      name,
+      kind: 'pdf' as const,
+      status: 'ready' as const,
+      storage: 'managed' as const,
+      path: '',
+      mediaType: 'application/pdf',
+      contentBase64: data.toString('base64'),
+      sizeBytes: data.byteLength,
+    })
+    const input = {
+      text: '',
+      attachments: [
+        pdf('first.pdf', Buffer.alloc(512 * 1024 + 3, 65)),
+        pdf('second.pdf', Buffer.from('%PDF-1.7')),
+      ],
+    }
+
+    await expect(
+      client.sendUserMessage('session-pdf', input, undefined, 'pdf-input'),
+    ).rejects.toThrow('second.pdf')
+    expect(calls.filter(({ method }) => method === 'attachment/upload/abort')).toHaveLength(1)
+    expect(calls.some(({ method }) => method === 'turn/start')).toBe(false)
+
+    await client.sendUserMessage('session-pdf', input, undefined, 'pdf-input')
+
+    expect(
+      calls.filter(
+        ({ method, params }) => method === 'attachment/upload/begin' && params.name === 'first.pdf',
+      ),
+    ).toHaveLength(1)
+    expect(
+      calls.filter(
+        ({ method, params }) =>
+          method === 'attachment/upload/chunk' && params.uploadId === 'upload-1',
+      ),
+    ).toHaveLength(2)
+    expect(calls.find(({ method }) => method === 'turn/start')?.params).toMatchObject({
+      attachmentIds: ['attachment-first.pdf', 'attachment-second.pdf'],
+      inputId: 'pdf-input',
+    })
+  })
+
   test('reimports retained attachments before starting an edited turn', async () => {
     const calls: Array<{ method: string; params: any }> = []
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {

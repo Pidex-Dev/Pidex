@@ -8,7 +8,8 @@ import {
   useOptionalConversationItemContext,
 } from '../timeline/ConversationItemContext.js'
 import { ReasoningWaitingIndicator } from '../timeline/ReasoningWaitingIndicator.js'
-import type { PendingSubmission } from '../state/PendingSubmissionStore.js'
+import { pendingSubmissionStore, type PendingSubmission } from '../state/PendingSubmissionStore.js'
+import { AttachmentUploadProgress } from '../attachments/AttachmentUploadProgress.js'
 
 const CONTENT_WIDTH_CLASS = 'tw:w-[min(var(--page-content-max-width),var(--session-content-w))]'
 
@@ -22,7 +23,13 @@ const PENDING_CONTENT_CLASS =
 export function pendingAttachmentDisplay(attachment: DesktopComposerAttachment): Attachment {
   return {
     id: attachment.id,
-    kind: attachment.kind === 'image' ? 'image' : 'text',
+    kind:
+      attachment.kind === 'image' ||
+      attachment.kind === 'pdf' ||
+      attachment.kind === 'video' ||
+      attachment.kind === 'audio'
+        ? attachment.kind
+        : 'text',
     name: attachment.name,
     mediaType: attachment.mediaType,
     sizeBytes: attachment.sizeBytes,
@@ -64,9 +71,16 @@ export function PendingSubmissionMessages({
               withActions={false}
             />
           </article>
-          <ReasoningWaitingIndicator
-            label={submission.stage === 'sending' ? '正在思考' : '正在开启会话…'}
-          />
+          {submission.attachmentUploadProgress ? (
+            <AttachmentUploadProgress
+              progress={submission.attachmentUploadProgress}
+              onCancel={pendingSubmissionStore.attachmentCancel(submission.submissionId)}
+            />
+          ) : (
+            <ReasoningWaitingIndicator
+              label={submission.stage === 'sending' ? '正在思考' : '正在开启会话…'}
+            />
+          )}
         </div>
       </div>
     </ConversationItemContext.Provider>

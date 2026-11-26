@@ -53,7 +53,6 @@ export function ModelCatalogDetails({
         <strong className="tw:weight-medium tw:text-app-text">能力与限制</strong>
         <p>目录输入：{(info?.input ?? model.input)?.join(' · ') || '未知'}</p>
         <p>目录输出：{info?.output?.join(' · ') || '未知'}</p>
-        {info?.input?.includes('pdf') && <p>目录支持 PDF；当前客户端暂未支持原生发送。</p>}
         <p>
           工具：{support(model.tools)} · 结构化输出：{support(info?.structuredOutput)} · 温度：
           {support(info?.temperature)}

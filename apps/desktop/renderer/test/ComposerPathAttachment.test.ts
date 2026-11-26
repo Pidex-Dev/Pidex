@@ -73,7 +73,7 @@ describe('composer local path attachments', () => {
         throw new Error('local path must not call attachment/read')
       },
     )
-    expect(uploads).toEqual([])
+    expect(uploads.prepared).toEqual([])
   })
 })
 
@@ -109,5 +109,9 @@ test('音视频路径按授权快照为托管附件，并以 base64 上传', asy
   const uploads = await buildAgentAttachmentUploads({ text: '', attachments }, async () => {
     throw new Error('Not a retained attachment')
   })
-  expect(uploads[0]).toMatchObject({ kind: 'audio', encoding: 'base64', data: 'fixture-audio' })
+  expect(uploads.prepared[0]?.upload).toMatchObject({
+    kind: 'audio',
+    encoding: 'base64',
+    data: 'fixture-audio',
+  })
 })
