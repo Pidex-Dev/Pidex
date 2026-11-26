@@ -177,12 +177,6 @@ export function ProviderModelsSection({
   const editable = provider.config != null
 
   useEffect(() => {
-    if (provider.config && togglingModelIds.size === 0) {
-      pendingConfigRef.current = provider.config
-    }
-  }, [provider.config, togglingModelIds.size])
-
-  useEffect(() => {
     if (!previewKey) return
     let cancelled = false
     void desktopClient
@@ -360,9 +354,6 @@ export function ProviderModelsSection({
         Object.fromEntries((result.matches ?? []).map((match) => [String(match.id), match])),
       )
       setExpandedModelId(null)
-      if (togglingModelIds.size === 0) {
-        pendingConfigRef.current = provider.config ?? null
-      }
     } catch (error) {
       const message = toUserErrorMessage(error)
       setSyncError(message)
@@ -422,10 +413,10 @@ export function ProviderModelsSection({
         onNotice(options.noticeMessage)
       })
       .catch((error) => {
-        pendingConfigRef.current = provider.config ?? null
         onError(toUserErrorMessage(error))
       })
       .finally(() => {
+        if (pendingConfigRef.current === nextConfig) pendingConfigRef.current = null
         setOptimisticAdded((prev) => {
           const next = { ...prev }
           for (const id of mutatedIds) delete next[id]
