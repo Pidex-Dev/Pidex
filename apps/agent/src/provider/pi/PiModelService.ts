@@ -71,6 +71,7 @@ import {
   withPiBuiltinProviderOverrides,
 } from './PiBuiltinProviderOverrides'
 import { observeCacheWriteUsage } from './PiCacheWriteUsage'
+import { normalizeDeveloperRoleCompat } from './PiProviderApis'
 import {
   createPiCustomProvider,
   discoverOpenAIModels,
@@ -476,10 +477,12 @@ export class PiModelService {
           this.providerCatalog?.providersDoc.providers[provider.id]?.defaultProtocol,
         )
         directory.delete(provider.id)
-        const defaultApi = configured?.kind === 'custom'
-          ? (Object.keys(configured.endpoints ?? {})[0] ??
-            Object.values(configured.models)[0]?.api ?? entry?.api)
-          : (info.source.defaultApi ?? entry?.api)
+        const defaultApi =
+          configured?.kind === 'custom'
+            ? (Object.keys(configured.endpoints ?? {})[0] ??
+              Object.values(configured.models)[0]?.api ??
+              entry?.api)
+            : (info.source.defaultApi ?? entry?.api)
         return [
           kind === 'builtin' && entry
             ? {
@@ -580,7 +583,8 @@ export class PiModelService {
     const directoryEntry = this.directoryEntries.find((entry) => entry.id === providerID)
     if (directoryEntry && !this.builtinProviderIDs.has(providerID))
       return Object.keys(directoryEntry.models).length
-    const piModels = this.pi.getModels(providerID)
+    const piModels =
+      this.directoryBaseProviders.get(providerID)?.getModels() ?? this.pi.getModels(providerID)
     if (piModels.length > 0) {
       return piModels.filter(
         (model) => (model as ConfiguredPiModel).catalog?.status !== 'deprecated',
@@ -599,7 +603,9 @@ export class PiModelService {
     ) {
       return []
     }
-    const current = this.pi.getModels(providerID).filter(isChatModel)
+    const current = (
+      this.directoryBaseProviders.get(providerID)?.getModels() ?? this.pi.getModels(providerID)
+    ).filter(isChatModel)
     if (this.providerCatalog?.providersDoc.providers[providerID])
       return current.map((model) => model.id)
     const models = await Promise.all(current.map((model) => this.withCatalog(model)))
@@ -683,7 +689,15 @@ export class PiModelService {
     const config = await this.syncProviders()
     if (!this.builtinProviderIDs.has(providerID) || config.providers[providerID]?.kind === 'custom')
       throw new AgentError('PROVIDER_NOT_FOUND', '内置供应商不存在', 404)
-    return this.describeDiscoveredModels(this.pi.getModels(providerID))
+    const runtimeModels = this.pi.getModels(providerID)
+    const catalogIds = new Set(
+      this.directoryBaseProviders.get(providerID)?.getModels().map((model) => model.id),
+    )
+    return this.describeDiscoveredModels(
+      catalogIds.size > 0
+        ? runtimeModels.filter((model) => catalogIds.has(model.id))
+        : runtimeModels,
+    )
   }
 
   /** Reads the local catalog for a market provider represented by a custom runtime definition. */
@@ -697,7 +711,8 @@ export class PiModelService {
       Object.values(config.models).map((model) =>
         this.enrichBuiltinModel(providerID, {
           ...toPiModel(providerID, config, model),
-          baseUrl: entry.modelBaseUrls?.[model.id] ?? config.endpoints?.[model.api] ?? config.baseUrl,
+          baseUrl:
+            entry.modelBaseUrls?.[model.id] ?? config.endpoints?.[model.api] ?? config.baseUrl,
         }),
       ),
     )
@@ -801,7 +816,9 @@ export class PiModelService {
     const source = this.providerCatalog?.providersDoc.providers[providerID]
     const alias =
       config.providers[providerID]?.kind === 'custom' ? undefined : catalogBinding(source, modelID)
-    const found = this.pi.getModel(providerID, alias?.id ?? modelID)
+    const found =
+      this.pi.getModel(providerID, modelID) ??
+      (alias ? this.pi.getModel(providerID, alias.id) : undefined)
     let model = found ? await this.withCatalog(found) : undefined
     if (
       !model ||
@@ -855,6 +872,7 @@ export class PiModelService {
         ...(profile?.pricing ? { pricing: profile.pricing } : {}),
       }
     }
+    model = normalizeDeveloperRoleCompat(model)
     const input = effectiveInput(model)
     if (
       input.length === model.input.length &&
@@ -1288,15 +1306,18 @@ export class PiModelService {
         models[id] = model
         continue
       }
-      const { recommended: baseRecommended, unsupportedProtocol, recommendedApi } =
-        await this.recommendations.resolve({
-          providerId: providerID,
-          baseUrl: provider.baseUrl,
-          modelId: model.id,
-          modelType: model.modelType ?? 'chat',
-          api: model.api,
-          endpoints: provider.endpoints,
-        })
+      const {
+        recommended: baseRecommended,
+        unsupportedProtocol,
+        recommendedApi,
+      } = await this.recommendations.resolve({
+        providerId: providerID,
+        baseUrl: provider.baseUrl,
+        modelId: model.id,
+        modelType: model.modelType ?? 'chat',
+        api: model.api,
+        endpoints: provider.endpoints,
+      })
       if (unsupportedProtocol) {
         models[id] = model
         continue
@@ -1371,7 +1392,8 @@ export class PiModelService {
               },
             }
           }
-          const target = (m === model ? requestModel : m) as PiModel<Api>
+          const rawTarget = (m === model ? requestModel : m) as PiModel<Api>
+          const target = rawTarget?.api ? normalizeDeveloperRoleCompat(rawTarget) : rawTarget
           const cacheUsage = target?.api
             ? observeCacheWriteUsage(target.api, o as StreamOptions | undefined)
             : undefined

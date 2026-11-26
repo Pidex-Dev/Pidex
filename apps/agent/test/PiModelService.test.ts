@@ -1518,10 +1518,14 @@ test('Moonshot uses catalog protocols in both regions and dispatches both Kimi f
           baseUrl: `https://${host}/v1`,
         })
       }
-      expect((await service.providerDefinitions()).find((provider) => provider.id === providerId))
-        .not.toHaveProperty('baseUrl')
-      expect((await service.list()).find((provider) => String(provider.id) === providerId))
-        .toMatchObject({ source: { defaultApi: 'openai-completions', baseUrl: `https://${host}/v1` } })
+      expect(
+        (await service.providerDefinitions()).find((provider) => provider.id === providerId),
+      ).not.toHaveProperty('baseUrl')
+      expect(
+        (await service.list()).find((provider) => String(provider.id) === providerId),
+      ).toMatchObject({
+        source: { defaultApi: 'openai-completions', baseUrl: `https://${host}/v1` },
+      })
     }
     await expect(service.getPiModel(ref('moonshot-direct', 'kimi-k2.7-code'))).rejects.toThrow(
       '仅支持 openai-completions',
@@ -1584,22 +1588,33 @@ test('SmartConfig intersects known custom endpoints with model protocol order', 
     config: {
       providers: {
         'moonshot-multi': {
-          kind: 'custom', auth: 'none', base_url: baseUrl,
+          kind: 'custom',
+          auth: 'none',
+          base_url: baseUrl,
           endpoints: { 'anthropic-messages': baseUrl, 'openai-completions': openai },
           models: { 'kimi-k2.7-code': { api: 'anthropic-messages', smart_config: { pinned: [] } } },
         },
         'moonshot-no-completions': {
-          kind: 'custom', auth: 'none', base_url: baseUrl,
+          kind: 'custom',
+          auth: 'none',
+          base_url: baseUrl,
           endpoints: { 'anthropic-messages': baseUrl, 'openai-responses': openai },
           models: { 'kimi-k3.1-pro': { api: 'anthropic-messages', smart_config: { pinned: [] } } },
         },
         relay: {
-          kind: 'custom', auth: 'none', base_url: 'https://relay.example/anthropic',
+          kind: 'custom',
+          auth: 'none',
+          base_url: 'https://relay.example/anthropic',
           endpoints: {
             'anthropic-messages': 'https://relay.example/anthropic',
             'openai-completions': 'https://relay.example/v1',
           },
-          models: { 'moonshotai/kimi-k2.7-code': { api: 'anthropic-messages', smart_config: { pinned: [] } } },
+          models: {
+            'moonshotai/kimi-k2.7-code': {
+              api: 'anthropic-messages',
+              smart_config: { pinned: [] },
+            },
+          },
         },
       },
     },
@@ -1609,21 +1624,34 @@ test('SmartConfig intersects known custom endpoints with model protocol order', 
       ['moonshot-multi', 'kimi-k2.7-code', 'openai-completions'],
       ['moonshot-no-completions', 'kimi-k3.1-pro', 'openai-responses'],
     ] as const) {
-      expect(await service.previewRecommendation({
-        providerId, baseUrl, modelId: id, modelType: 'chat', api: 'anthropic-messages',
-      })).toMatchObject({ status: 'matched', recommendedApi: api })
-      expect(await service.getPiModel({ providerID: Provider.ID.make(providerId), id: Model.ID.make(id) }))
-        .toMatchObject({ api, baseUrl: openai })
+      expect(
+        await service.previewRecommendation({
+          providerId,
+          baseUrl,
+          modelId: id,
+          modelType: 'chat',
+          api: 'anthropic-messages',
+        }),
+      ).toMatchObject({ status: 'matched', recommendedApi: api })
+      expect(
+        await service.getPiModel({
+          providerID: Provider.ID.make(providerId),
+          id: Model.ID.make(id),
+        }),
+      ).toMatchObject({ api, baseUrl: openai })
     }
-    expect(await service.getPiModel({
-      providerID: Provider.ID.make('relay'), id: Model.ID.make('moonshotai/kimi-k2.7-code'),
-    })).toMatchObject({ api: 'anthropic-messages', baseUrl: 'https://relay.example/anthropic' })
+    expect(
+      await service.getPiModel({
+        providerID: Provider.ID.make('relay'),
+        id: Model.ID.make('moonshotai/kimi-k2.7-code'),
+      }),
+    ).toMatchObject({ api: 'anthropic-messages', baseUrl: 'https://relay.example/anthropic' })
   } finally {
     await service.dispose()
   }
 })
 
-test('catalog seeding locks available models, preserves the saved allowlist after delisting, and resets after the last credential', async () => {
+test('catalog seeding locks available models, preserves added and delisted models, and resets after the last credential', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'pidex-builtin-seed-'))
   const dirPath = join(dir, 'provider-directory.json')
   const recPath = join(dir, 'model-recommendations.json')
@@ -1703,11 +1731,47 @@ test('catalog seeding locks available models, preserves the saved allowlist afte
     const enabledIds = (await service.models('minimax' as never)).map((m) => String(m.id)).sort()
     expect(enabledIds).toEqual(['MiniMax-M3', 'MiniMax-M3.1-Flash'])
 
-    savedMinimax!.allow_models = ['MiniMax-M3', 'MiniMax-M3.1-Flash', 'MiniMax-M2.7']
+    savedMinimax!.allow_models = [
+      'MiniMax-M3',
+      'MiniMax-M3.1-Flash',
+      'MiniMax-M2.7',
+      'MiniMax-Custom-Preview',
+    ]
+    ;(savedMinimax!.models as Record<string, unknown>)['MiniMax-Custom-Preview'] = {
+      enabled: true,
+      name: 'MiniMax Custom Preview',
+      api: 'openai-completions',
+      context_window: 200_000,
+      max_tokens: 16_384,
+      reasoning: true,
+    }
     await service.reload()
-    expect(service.pi.getModel('minimax', 'MiniMax-M2.7')).toBeUndefined()
+    expect(service.pi.getModel('minimax', 'MiniMax-M2.7')).toBeDefined()
+    expect(service.pi.getModel('minimax', 'MiniMax-Custom-Preview')).toMatchObject({
+      id: 'MiniMax-Custom-Preview',
+      name: 'MiniMax Custom Preview',
+      api: 'openai-completions',
+      contextWindow: 200_000,
+      maxTokens: 16_384,
+      reasoning: true,
+    })
     expect(
       (await service.models('minimax' as never)).map((model) => String(model.id)).sort(),
+    ).toEqual(['MiniMax-Custom-Preview', 'MiniMax-M2.7', 'MiniMax-M3', 'MiniMax-M3.1-Flash'])
+    const resolvedCustom = await service.getPiModel({
+      providerID: Provider.ID.make('minimax'),
+      id: Model.ID.make('MiniMax-Custom-Preview'),
+    })
+    expect(resolvedCustom).toMatchObject({
+      id: 'MiniMax-Custom-Preview',
+      name: 'MiniMax Custom Preview',
+      api: 'openai-completions',
+      contextWindow: 200_000,
+    })
+    expect((resolvedCustom as { pricing?: unknown }).pricing).toBeUndefined()
+    expect(service.catalogModelCount('minimax')).toBe(2)
+    expect(
+      (await service.discoverBuiltinModels('minimax')).map((model) => String(model.id)).sort(),
     ).toEqual(enabledIds)
     expect(savedMinimax!.allow_models).toContain('MiniMax-M2.7')
 
@@ -1787,7 +1851,9 @@ test('catalog protocolEndpoints drive builtin protocol defaults, live overrides,
     )
     const runtimeBundled = service.pi.getModels('qwen-token-plan-cn')[0]
     expect(runtimeBundled?.api).toBe('openai-completions')
-    expect(runtimeBundled?.baseUrl).toBe('https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1')
+    expect(runtimeBundled?.baseUrl).toBe(
+      'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+    )
 
     // Online catalog protocolEndpoints override bundled defaults.
     await directory.refresh()
@@ -1813,5 +1879,99 @@ test('catalog protocolEndpoints drive builtin protocol defaults, live overrides,
   } finally {
     await service.dispose()
     await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('defaults system instructions to system role on openai-completions and non-OpenAI openai-responses endpoints', async () => {
+  const fake = repository()
+  const config: Record<string, unknown> = {
+    schema_version: 2,
+    providers: {
+      'custom-relay': {
+        kind: 'custom',
+        name: 'Custom Relay',
+        base_url: 'https://relay.example.com/v1',
+        auth: 'none',
+        models: {
+          'deepseek-r1-completions': {
+            api: 'openai-completions',
+            reasoning: true,
+          },
+          'explicit-developer-completions': {
+            api: 'openai-completions',
+            reasoning: true,
+            compat: { supportsDeveloperRole: true },
+          },
+          'deepseek-r1-responses': {
+            api: 'openai-responses',
+            reasoning: true,
+          },
+          'gpt-5.2': {
+            api: 'openai-responses',
+            reasoning: true,
+          },
+        },
+      },
+    },
+  }
+  const service = new PiModelService(fake.adapter, { config, env: {} })
+  const capturePayload = async (modelId: string, viaRawPiGetModel = false) => {
+    const model = viaRawPiGetModel
+      ? service.pi.getModel('custom-relay', modelId)!
+      : await service.getPiModel({
+          providerID: Provider.ID.make('custom-relay'),
+          id: Model.ID.make(modelId),
+        })
+    let captured: unknown
+    await service.pi.completeSimple(
+      model,
+      {
+        systemPrompt: 'Follow workspace rules.',
+        messages: [{ role: 'user', content: 'Hello', timestamp: 1 }],
+      },
+      {
+        apiKey: 'fixture-key',
+        maxTokens: 64,
+        onPayload: (payload) => {
+          captured = payload
+          throw new Error('Stop before network')
+        },
+      },
+    )
+    return captured
+  }
+  try {
+    expect(await capturePayload('deepseek-r1-completions')).toMatchObject({
+      messages: [
+        { role: 'system', content: 'Follow workspace rules.' },
+        { role: 'user', content: 'Hello' },
+      ],
+    })
+    expect(await capturePayload('deepseek-r1-completions', true)).toMatchObject({
+      messages: [
+        { role: 'system', content: 'Follow workspace rules.' },
+        { role: 'user', content: 'Hello' },
+      ],
+    })
+    expect(await capturePayload('explicit-developer-completions')).toMatchObject({
+      messages: [
+        { role: 'developer', content: 'Follow workspace rules.' },
+        { role: 'user', content: 'Hello' },
+      ],
+    })
+    expect(await capturePayload('deepseek-r1-responses')).toMatchObject({
+      input: [
+        { role: 'system', content: 'Follow workspace rules.' },
+        { role: 'user', content: [{ type: 'input_text', text: 'Hello' }] },
+      ],
+    })
+    expect(await capturePayload('gpt-5.2')).toMatchObject({
+      input: [
+        { role: 'developer', content: 'Follow workspace rules.' },
+        { role: 'user', content: [{ type: 'input_text', text: 'Hello' }] },
+      ],
+    })
+  } finally {
+    await service.dispose()
   }
 })

@@ -48,18 +48,22 @@ export function withPiBuiltinProviderOverrides(
   defaultEndpoints?: Readonly<Record<string, string>>,
   catalog?: CatalogProviderV2,
 ): Provider<Api> {
-  const configuredExtraIds = catalog
-    ? []
-    : [
-        ...new Set([
-          ...Object.entries(config.models)
-            .filter(([, override]) => override.enabled !== false)
-            .map(([id]) => id),
-          ...config.allowModels.filter(
-            (id) => !config.denyModels.includes(id) && config.models[id]?.enabled !== false,
-          ),
-        ]),
-      ]
+  // INVARIANT: 提供商页添加或自定义的模型必须始终保留到运行时与模型选择器，严禁因存在 catalog 而丢弃。
+  const configuredExtraIds = [
+    ...new Set([
+      ...Object.entries(config.models)
+        .filter(
+          ([id, override]) =>
+            override.enabled !== false &&
+            !config.denyModels.includes(id) &&
+            (!config.allowModels.length || config.allowModels.includes(id)),
+        )
+        .map(([id]) => id),
+      ...config.allowModels.filter(
+        (id) => !config.denyModels.includes(id) && config.models[id]?.enabled !== false,
+      ),
+    ]),
+  ]
   const nativeModels = source.getModels()
   const knownIds = new Set(nativeModels.map((model) => model.id))
   const hasMissingConfiguredModels = configuredExtraIds.some((id) => !knownIds.has(id))
@@ -104,20 +108,31 @@ export function withPiBuiltinProviderOverrides(
       return result
     })
     const known = new Set(original.map((model) => model.id))
-    const template: Model<Api> = original[0] ?? {
+    const fallbackApi =
+      original[0]?.api ?? (catalog?.defaultProtocol as Api | undefined) ?? 'openai-completions'
+    const template: Model<Api> = {
       type: 'chat',
       id: '',
       name: '',
       provider: source.id,
-      baseUrl: config.baseUrl ?? source.baseUrl ?? '',
-      api: 'openai-completions',
-      contextWindow: 32_768,
-      maxTokens: 8_192,
-      reasoning: false,
-      input: ['text'],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      baseUrl:
+        original[0]?.baseUrl ??
+        config.baseUrl ??
+        source.baseUrl ??
+        defaultEndpoints?.[fallbackApi] ??
+        '',
+      api: fallbackApi,
+      ...(original[0]?.headers ? { headers: original[0].headers } : {}),
+      ...(original[0]?.compat ? { compat: original[0].compat } : {}),
+      contextWindow: original[0]?.contextWindow ?? 32_768,
+      maxTokens: original[0]?.maxTokens ?? 8_192,
+      reasoning: original[0]?.reasoning ?? false,
+      input: original[0]?.input ? ([...original[0].input] as Model<Api>['input']) : ['text'],
+      cost: original[0]?.cost
+        ? { ...original[0].cost }
+        : { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     }
-    // INVARIANT: 已配置模型即使从上游目录或 Pi 下架，也按供应商协议模板兜底保留，不凭空消失。
+    // INVARIANT: 已配置模型即使不在上游目录或已从目录/Pi 下架，也按供应商协议模板兜底保留，不凭空消失。
     for (const id of configuredExtraIds) {
       if (known.has(id)) continue
       const { enabled: _, ...override } = config.models[id] ?? { enabled: true }
@@ -148,13 +163,13 @@ export function withPiBuiltinProviderOverrides(
     ),
   })
   const changedApi = (model: Model<Api>) => {
-    if (catalog) return false
+    if (catalog?.models[model.id]) return false
     const original =
       source.getModels().find((item) => item.id === model.id) ?? source.getModels()[0]
     return model.api !== original?.api && model.api in piProviderApiStreams
   }
   const endpointModel = (model: Model<Api>) => {
-    if (catalog) return model
+    if (catalog?.models[model.id]) return model
     const baseUrl =
       config.endpoints?.[model.api as keyof NonNullable<typeof config.endpoints>] ??
       builtinBaseUrlOverride(source.id, config.baseUrl, model.api, defaultEndpoints) ??
