@@ -128,6 +128,7 @@ export interface AgentRuntimeRequest {
   agentID: string
   sessionID: string
   profile?: SubagentProfile
+  waitForModelNetwork?: boolean
   depth?: number
   collaborationMessages?: () => Array<{
     id: string
@@ -178,10 +179,7 @@ export interface AgentRuntimeRequest {
   ): Promise<unknown>
   /** Subagent-only safe-boundary control; main Chat steer does not use this callback. */
   checkSafeBoundary?: () => Promise<boolean>
-  attachments?: Array<
-    | { kind: 'text'; name: string; text: string }
-    | { kind: 'image' | 'audio' | 'video'; name: string; mediaType: string; base64: string }
-  >
+  attachments?: import('../provider/pi/MediaInput').RuntimeAttachment[]
 }
 
 export type AgentRuntimeResult =

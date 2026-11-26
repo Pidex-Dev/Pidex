@@ -972,6 +972,7 @@ interface AgentHarnessOptionsBase<
    * auth.
    */
   models: Models
+  readMediaAttachment?: import('../../provider/pi/MediaInput').ReadMediaAttachment
   tools?: TTool[]
   /** Lazily loaded tools that can be searched and activated by exact name. */
   deferredToolCatalog?: DeferredToolCatalog<TTool>
@@ -1004,6 +1005,8 @@ interface AgentHarnessOptionsBase<
   }
   /** Optional retry policy for generated compaction and branch-summary requests. */
   retry?: RetryPolicy
+  modelRetry?: 'bounded' | 'wait-for-network'
+  hasCommittedToolResult?: (toolCallID: string) => boolean
   model: Model<any>
   thinkingLevel?: ThinkingLevel
   activeToolNames?: string[]

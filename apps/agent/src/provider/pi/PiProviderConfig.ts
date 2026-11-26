@@ -78,6 +78,7 @@ export interface PiCustomModelConfig {
   readonly maxTokens: number
   readonly reasoning: boolean
   readonly input: readonly ('text' | 'image' | 'audio' | 'video')[]
+  readonly mediaInput?: Model.MediaInputCapability
   readonly cost: {
     readonly input: number
     readonly output: number
@@ -456,6 +457,12 @@ const serializeOptionSpecs = (specs: Model.OptionSpecs): Record<string, unknown>
     : {}),
 })
 
+const parseMediaInput = (value: unknown): Model.MediaInputCapability | undefined => {
+  if (value === undefined) return undefined
+  const capability = Schema.decodeUnknownSync(Model.MediaInputCapability)(value)
+  return { ...capability, endpoint: validateCustomProviderBaseUrl(capability.endpoint, true) }
+}
+
 const parseCustomModel = (
   providerID: string,
   configuredID: string,
@@ -489,6 +496,7 @@ const parseCustomModel = (
   const compat = parseCompat(value.compat)
   const smartConfig = parseSmartConfig(value.smart_config ?? value.smartConfig)
   const optionSpecs = parseOptionSpecs(value.option_specs ?? value.optionSpecs)
+  const mediaInput = parseMediaInput(value.media_input ?? value.mediaInput)
   return {
     id,
     api: api as CustomProviderApi,
@@ -506,6 +514,7 @@ const parseCustomModel = (
     maxTokens: positiveInteger(value.max_tokens ?? value.maxTokens, 8_192),
     reasoning: bool(value.reasoning, false),
     input: input.length ? input : ['text'],
+    ...(mediaInput ? { mediaInput } : {}),
     cost: {
       input: finiteNonNegative(cost.input, 0),
       output: finiteNonNegative(cost.output, 0),
@@ -861,6 +870,7 @@ export const serializePiProviderDefinition = (
                   reasoning: model.reasoning,
                 }),
                 ...(model.input !== undefined ? { input: [...model.input] } : {}),
+                ...(model.mediaInput ? { media_input: structuredClone(model.mediaInput) } : {}),
                 ...(model.cost !== undefined
                   ? {
                       cost: {
@@ -956,6 +966,7 @@ export const serializePiProviderDefinition = (
                   max_tokens: model.maxTokens,
                   reasoning: model.reasoning,
                   input: [...model.input],
+                  ...(model.mediaInput ? { media_input: structuredClone(model.mediaInput) } : {}),
                   cost: {
                     input: model.cost.input,
                     output: model.cost.output,

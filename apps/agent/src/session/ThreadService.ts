@@ -34,7 +34,16 @@ import type { QuestionService } from './QuestionService'
 import { ResumeCheckpointResolver, toPlanCheckpoint } from '../interaction/ResumeCheckpointResolver'
 import type { AgentRuntime } from '../orchestration/AgentRuntimeTypes'
 import { AgentHarnessError } from '../orchestration/harness/Types'
-import type { AttachmentService } from '../subagent/AttachmentService'
+import { ATTACHMENT_LIMITS, type AttachmentService } from '../subagent/AttachmentService'
+import {
+  BEDROCK_PDF_COUNT_LIMIT,
+  encodedMediaSize,
+  mediaFileBudget,
+  mediaRequestBudget,
+  nativeMediaFormat,
+  pdfRequiresSeparateMessage,
+  runtimeAttachmentMedia,
+} from '../provider/pi/MediaInput'
 import type { LocalContextPathService } from '../local-context/LocalContextPathService'
 import type { ProjectSourceService } from '../project/ProjectSourceService'
 import type { SubagentService } from '../subagent/SubagentService'
@@ -889,13 +898,19 @@ export class ThreadService {
     model: Model.Ref,
   ) {
     if (attachmentIDs.length === 0) return
-    if (attachmentIDs.length > 8 || new Set(attachmentIDs).size !== attachmentIDs.length) {
+    if (
+      attachmentIDs.length > ATTACHMENT_LIMITS.maxCount ||
+      new Set(attachmentIDs).size !== attachmentIDs.length
+    ) {
       throw new AgentError('ATTACHMENT_COUNT_LIMIT', '每条消息最多包含 8 个不重复附件', 413)
     }
     const binding = { type: 'input', id: inputID } as const
-    const records = await Promise.all(
-      attachmentIDs.map((id) => this.attachments.read(id).then((value) => value.record)),
-    )
+    const records = await this.attachments.getMany(attachmentIDs)
+    if (
+      records.reduce((total, record) => total + record.size, 0) > ATTACHMENT_LIMITS.maxTotalBytes
+    ) {
+      throw new AgentError('ATTACHMENT_TOTAL_TOO_LARGE', '每条消息的托管附件上限为 25 MiB', 413)
+    }
     if (
       records.some(
         (record) =>
@@ -905,14 +920,75 @@ export class ThreadService {
     ) {
       throw new AgentError('ATTACHMENT_ALREADY_BOUND', '附件已绑定到其他 Turn', 409)
     }
-    if (records.some((record) => record.kind !== 'text')) {
-      const selected = await this.providers.resolve(model)
-      if (
-        records.some(
-          (record) => record.kind !== 'text' && !selected.capabilities.input.includes(record.kind),
-        )
+    const native = records.filter((record) => record.kind === 'pdf' || record.kind === 'video')
+    if (native.length > 0) {
+      const selected = await this.providers.getPiModel(model)
+      const incompatible = native.find(
+        (record) =>
+          (record.kind === 'pdf' || record.kind === 'video') &&
+          !nativeMediaFormat(selected, record.kind, record.mimeType),
       )
-        throw new AgentError('INVALID_REQUEST', '当前模型不支持所选媒体输入', 409)
+      if (incompatible)
+        throw new AgentError(
+          'ATTACHMENT_INCOMPATIBLE',
+          `当前模型不支持 ${incompatible.name} 的媒体格式`,
+          409,
+        )
+      if (
+        native.some((record) => record.kind === 'pdf') &&
+        records.some((record) => record.kind === 'image' || record.kind === 'video') &&
+        pdfRequiresSeparateMessage(selected)
+      )
+        throw new AgentError(
+          'ATTACHMENT_INCOMPATIBLE',
+          '当前端点的 PDF 需要与图片或视频分开发送',
+          409,
+        )
+      const oversized = native.find(
+        (record) =>
+          (record.kind === 'pdf' || record.kind === 'video') &&
+          encodedMediaSize(record.size) > mediaFileBudget(selected, record.kind),
+      )
+      if (oversized)
+        throw new AgentError(
+          'ATTACHMENT_TOTAL_TOO_LARGE',
+          `附件 ${oversized.name} 超过当前端点的单文件请求上限`,
+          413,
+        )
+      if (
+        selected.api === 'bedrock-converse-stream' &&
+        native.filter((record) => record.kind === 'pdf').length > BEDROCK_PDF_COUNT_LIMIT
+      )
+        throw new AgentError(
+          'ATTACHMENT_TOTAL_TOO_LARGE',
+          `当前端点单条消息最多可发送 ${BEDROCK_PDF_COUNT_LIMIT} 份 PDF`,
+          413,
+        )
+      if (
+        native.reduce((total, record) => total + encodedMediaSize(record.size), 0) >
+        mediaRequestBudget(selected)
+      ) {
+        throw new AgentError(
+          'ATTACHMENT_TOTAL_TOO_LARGE',
+          '本轮 PDF 或视频超过当前端点的请求额度，请减少附件',
+          413,
+        )
+      }
+    }
+    const ordinary = records.filter((record) => record.kind === 'image' || record.kind === 'audio')
+    if (ordinary.length > 0) {
+      const selected = await this.providers.resolve(model)
+      const incompatible = ordinary.find(
+        (record) =>
+          (record.kind === 'image' || record.kind === 'audio') &&
+          !selected.capabilities.input.includes(record.kind),
+      )
+      if (incompatible)
+        throw new AgentError(
+          'ATTACHMENT_INCOMPATIBLE',
+          `当前模型不支持 ${incompatible.name} 的媒体格式`,
+          409,
+        )
     }
   }
 
@@ -921,7 +997,7 @@ export class ThreadService {
     attachmentIDs: readonly string[],
     contextReferenceIDs: readonly string[],
   ) {
-    if (attachmentIDs.length + contextReferenceIDs.length > 8) {
+    if (attachmentIDs.length + contextReferenceIDs.length > ATTACHMENT_LIMITS.maxCount) {
       throw new AgentError('ATTACHMENT_COUNT_LIMIT', '每条消息最多包含 8 个附件项', 413)
     }
     if (contextReferenceIDs.length > 0 && !this.localContextPaths)
@@ -1366,7 +1442,11 @@ export class ThreadService {
         throw new AgentError('TURN_ID_MISMATCH', '活动 Turn 已变化，请刷新后重试', 409)
       }
       this.validateInputItems(threadID, attachmentIDs, contextReferenceIDs)
-      await this.validateInputAttachments(inputID, attachmentIDs, input.model)
+      await this.validateInputAttachments(
+        inputID,
+        attachmentIDs,
+        this.db.getTurnInput(turnID)?.model ?? input.model,
+      )
       let guide
       guide = this.db.transaction(() => {
         const value = this.db.appendGuide(
@@ -1462,11 +1542,7 @@ export class ThreadService {
           content,
           images,
           input.id,
-          attachments.flatMap((attachment) =>
-            attachment.kind === 'audio' || attachment.kind === 'video'
-              ? [{ kind: attachment.kind, data: attachment.base64, mimeType: attachment.mediaType }]
-              : [],
-          ),
+          attachments.flatMap(runtimeAttachmentMedia),
         )
         handle.dispatchedSteerIDs.add(input.id)
       } catch (cause) {
@@ -1491,83 +1567,60 @@ export class ThreadService {
     meta: QueueMutationMeta,
     skills?: SubmitMessage['skills'],
   ) {
-    const duplicate = this.db.lookupQueueOperation(threadID, 'queue/update', meta.operationID)
-    if (duplicate) return duplicate
-    const queued = this.db.queuedInput(inputID)
-    if (!queued || queued.thread_id !== threadID)
-      throw new AgentError('QUEUED_INPUT_NOT_FOUND', '排队消息不存在或已开始执行', 409)
-    const nextSkills = skills ?? this.db.getTurnInput(queued.turn_id)?.skills
-    if (nextSkills?.length)
-      (await this.inputSkillService(threadID)).resolveInvocations(content, nextSkills)
-    const desired = attachmentIDs ? [...attachmentIDs] : null
-    if (desired && (desired.length > 8 || new Set(desired).size !== desired.length))
-      throw new AgentError('ATTACHMENT_COUNT_LIMIT', '每条排队消息最多包含 8 个不重复附件', 413)
-    const binding = { type: 'input', id: inputID } as const
-    const current = await this.attachments.listByBinding(binding)
-    const currentIDs = current.map((record) => record.id)
-    const nextIDs = desired ?? currentIDs
-    const currentContextIDs =
-      this.localContextPaths?.repository.listByInput(inputID).map((entry) => entry.id) ?? []
-    const nextContextIDs =
-      contextReferenceIDs === undefined ? currentContextIDs : [...contextReferenceIDs]
-    if (!content.trim() && !nextSkills?.length && !nextIDs.length && !nextContextIDs.length)
-      throw new AgentError('EMPTY_MESSAGE', '消息不能为空', 400)
-    this.validateInputItems(threadID, nextIDs, nextContextIDs)
-    const records = await Promise.all(
-      nextIDs.map((id) => this.attachments.read(id).then((value) => value.record)),
-    )
-    if (
-      records.some(
-        (record) =>
-          record.binding &&
-          (record.binding.type !== binding.type || record.binding.id !== binding.id),
+    return this.coordinator.exclusive(threadID, async () => {
+      const duplicate = this.db.lookupQueueOperation(threadID, 'queue/update', meta.operationID)
+      if (duplicate) return duplicate
+      const queued = this.db.queuedInput(inputID)
+      if (!queued || queued.thread_id !== threadID)
+        throw new AgentError('QUEUED_INPUT_NOT_FOUND', '排队消息不存在或已开始执行', 409)
+      const nextSkills = skills ?? this.db.getTurnInput(queued.turn_id)?.skills
+      if (nextSkills?.length)
+        (await this.inputSkillService(threadID)).resolveInvocations(content, nextSkills)
+      const binding = { type: 'input', id: inputID } as const
+      const current = await this.attachments.listByBinding(binding)
+      const currentIDs = current.map((record) => record.id)
+      const nextIDs = attachmentIDs ?? currentIDs
+      const currentContextIDs =
+        this.localContextPaths?.repository.listByInput(inputID).map((entry) => entry.id) ?? []
+      const nextContextIDs =
+        contextReferenceIDs === undefined ? currentContextIDs : [...contextReferenceIDs]
+      if (!content.trim() && !nextSkills?.length && !nextIDs.length && !nextContextIDs.length)
+        throw new AgentError('EMPTY_MESSAGE', '消息不能为空', 400)
+      this.validateInputItems(threadID, nextIDs, nextContextIDs)
+      await this.validateInputAttachments(
+        inputID,
+        nextIDs,
+        JSON.parse(queued.model_ref) as Model.Ref,
       )
-    )
-      throw new AgentError('ATTACHMENT_ALREADY_BOUND', '附件已绑定到其他 Turn', 409)
-    if (records.some((record) => record.kind !== 'text')) {
-      const model = await this.providers.resolve(JSON.parse(queued.model_ref) as Model.Ref)
-      if (
-        records.some(
-          (record) => record.kind !== 'text' && !model.capabilities.input.includes(record.kind),
-        )
-      )
-        throw new AgentError('INVALID_REQUEST', '当前模型不支持所选媒体输入', 409)
-    }
-    const removed = currentIDs.filter((id) => !nextIDs.includes(id))
-    const added = nextIDs.filter((id) => !currentIDs.includes(id))
-    try {
-      if (removed.length) await this.attachments.unbind(removed, binding)
-      if (added.length) await this.attachments.bind(added, binding)
+      const removed = currentIDs.filter((id) => !nextIDs.includes(id))
+      const added = nextIDs.filter((id) => !currentIDs.includes(id))
       const mutation = this.db.transaction(() => {
+        this.db.unbindInputAttachments(inputID, removed)
+        this.db.bindInputAttachments(inputID, added)
         const value = this.db.updateQueuedInput(threadID, inputID, content.trim(), meta, skills)
         this.localContextPaths?.repository.bindInput(threadID, inputID, nextContextIDs)
         return value
       })
-      return await this.publishQueueMutation(mutation)
-    } catch (cause) {
-      if (added.length) await this.attachments.unbind(added, binding).catch(() => undefined)
-      if (removed.length) await this.attachments.bind(removed, binding).catch(() => undefined)
-      throw cause
-    }
+      return this.publishQueueMutation(mutation)
+    })
   }
 
   async removeQueue(threadID: string, inputID: string, meta: QueueMutationMeta) {
-    const duplicate = this.db.lookupQueueOperation(threadID, 'queue/remove', meta.operationID)
-    if (duplicate) return duplicate
-    const queued = this.db.queuedInput(inputID)
-    if (!queued || queued.thread_id !== threadID)
-      throw new AgentError('QUEUED_INPUT_NOT_FOUND', '排队消息不存在或已开始执行', 409)
-    const binding = { type: 'input', id: inputID } as const
-    const attachments = await this.attachments.listByBinding(binding)
-    const attachmentIDs = attachments.map((record) => record.id)
-    if (attachmentIDs.length) await this.attachments.unbind(attachmentIDs, binding)
-    try {
-      return await this.publishQueueMutation(this.db.removeQueuedInput(threadID, inputID, meta))
-    } catch (cause) {
-      if (attachmentIDs.length)
-        await this.attachments.bind(attachmentIDs, binding).catch(() => undefined)
-      throw cause
-    }
+    return this.coordinator.exclusive(threadID, async () => {
+      const duplicate = this.db.lookupQueueOperation(threadID, 'queue/remove', meta.operationID)
+      if (duplicate) return duplicate
+      const queued = this.db.queuedInput(inputID)
+      if (!queued || queued.thread_id !== threadID)
+        throw new AgentError('QUEUED_INPUT_NOT_FOUND', '排队消息不存在或已开始执行', 409)
+      const binding = { type: 'input', id: inputID } as const
+      const attachments = await this.attachments.listByBinding(binding)
+      const attachmentIDs = attachments.map((record) => record.id)
+      const mutation = this.db.transaction(() => {
+        this.db.unbindInputAttachments(inputID, attachmentIDs)
+        return this.db.removeQueuedInput(threadID, inputID, meta)
+      })
+      return this.publishQueueMutation(mutation)
+    })
   }
 
   async resumeQueue(threadID: string, meta: QueueMutationMeta) {
@@ -1594,50 +1647,70 @@ export class ThreadService {
   }
 
   private async executeTurnBody(threadID: string, turnID: string) {
-    const input = this.db.getTurnInput(turnID)
-    if (!input) return
-    const automaticGoal = this.db.repositories.threadGoalContinuations.goalForContinuation(turnID)
-    if (automaticGoal) {
-      const goal = this.db.repositories.threadGoals.get(threadID)
-      if (!goal || goal.id !== automaticGoal || goal.status !== 'active') {
-        await this.publishQueueMutation(
-          this.db.removeQueuedInput(threadID, input.id, { operationID: `goal-stale:${turnID}` }),
-        )
+    const admission = await this.coordinator.exclusive(threadID, async () => {
+      const input = this.db.getTurnInput(turnID)
+      if (!input) return
+      const automaticGoal = this.db.repositories.threadGoalContinuations.goalForContinuation(turnID)
+      if (automaticGoal) {
+        const goal = this.db.repositories.threadGoals.get(threadID)
+        if (!goal || goal.id !== automaticGoal || goal.status !== 'active') {
+          await this.publishQueueMutation(
+            this.db.removeQueuedInput(threadID, input.id, { operationID: `goal-stale:${turnID}` }),
+          )
+          return
+        }
+        const prompt = buildContinuationPrompt(goal)
+        const reference = input.content.indexOf('\n<verifier_reference>')
+        input.content =
+          reference >= 0 && input.content.slice(0, reference) === prompt ? input.content : prompt
+      }
+      let handle
+      let reservedHere = false
+      try {
+        const active = this.coordinator.active(threadID)
+        if (active?.turnID === turnID) handle = active
+        else {
+          handle = this.coordinator.reserve(threadID, turnID)
+          reservedHere = true
+        }
+      } catch {
         return
       }
-      const prompt = buildContinuationPrompt(goal)
-      const reference = input.content.indexOf('\n<verifier_reference>')
-      input.content =
-        reference >= 0 && input.content.slice(0, reference) === prompt ? input.content : prompt
-    }
-    let handle
-    let reservedHere = false
-    try {
-      const active = this.coordinator.active(threadID)
-      if (active?.turnID === turnID) handle = active
-      else {
-        handle = this.coordinator.reserve(threadID, turnID)
-        reservedHere = true
+      let started
+      try {
+        if (this.db.queuedInput(input.id)?.queue_position != null) {
+          const records = await this.attachments.listByBinding({ type: 'input', id: input.id })
+          await this.validateInputAttachments(
+            input.id,
+            records.map((record) => record.id),
+            input.model,
+          )
+        }
+        started = this.db.startTurnExecution(turnID, input, () => {
+          new ThreadEditRepository(this.db).recordStart(threadID, turnID)
+          return this.threadGoals?.applyInputInTransaction(threadID, input.id, input.taskMode)
+        })
+      } catch (cause) {
+        this.coordinator.release(threadID, turnID)
+        for (const event of this.db.recordQueuedStartFailure(
+          turnID,
+          cause instanceof AgentError &&
+            (cause.code === 'ATTACHMENT_INCOMPATIBLE' ||
+              cause.code === 'ATTACHMENT_TOTAL_TOO_LARGE')
+            ? cause.message
+            : undefined,
+        ))
+          await Effect.runPromise(this.hub.publish(event))
+        return
       }
-    } catch {
-      return
-    }
-    let started
-    try {
-      started = this.db.startTurnExecution(turnID, input, () => {
-        new ThreadEditRepository(this.db).recordStart(threadID, turnID)
-        return this.threadGoals?.applyInputInTransaction(threadID, input.id, input.taskMode)
-      })
-    } catch {
-      this.coordinator.release(threadID, turnID)
-      for (const event of this.db.recordQueuedStartFailure(turnID))
-        await Effect.runPromise(this.hub.publish(event))
-      return
-    }
-    if (!started) {
-      if (reservedHere) this.coordinator.release(threadID, turnID)
-      return
-    }
+      if (!started) {
+        if (reservedHere) this.coordinator.release(threadID, turnID)
+        return
+      }
+      return { input, handle, started, automaticGoal }
+    })
+    if (!admission) return
+    const { input, handle, started, automaticGoal } = admission
     const agent = started.agent
     const acquiredResume = this.resumeCheckpoints.acquire(turnID, 'main', crypto.randomUUID())
     const acquiredResumeLeaseID = acquiredResume?.leaseID
@@ -1977,6 +2050,7 @@ export class ThreadService {
         (await this.orchestrator.run({
           threadID,
           turnID,
+          waitForModelNetwork: !automaticGoal && !input.id.startsWith('automation-run:'),
           collaborationEnabled: this.subagents.collaboration.available,
           collaborationMessages: () => this.subagents.collaborationNotices(threadID),
           agentID: agent.id,
@@ -2449,6 +2523,16 @@ export class ThreadService {
     const records = await this.attachments.listByBinding({ type: 'input', id: inputID })
     return Promise.all(
       records.map(async (record) => {
+        if (record.kind === 'pdf' || record.kind === 'video') {
+          return {
+            kind: record.kind,
+            id: record.id,
+            inputId: inputID,
+            name: record.name,
+            mediaType: record.mimeType,
+            sizeBytes: record.size,
+          }
+        }
         const value = await this.attachments.read(record.id)
         return record.kind === 'text'
           ? {
@@ -2457,7 +2541,7 @@ export class ThreadService {
               text: new TextDecoder('utf-8', { fatal: true }).decode(value.data),
             }
           : {
-              kind: record.kind as 'image' | 'audio' | 'video',
+              kind: record.kind,
               name: record.name,
               mediaType: record.mimeType,
               base64: Buffer.from(value.data).toString('base64'),

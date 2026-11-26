@@ -1416,6 +1416,10 @@ test('curated bundled catalog lists both Moonshot regions and preserves saved pr
     expect(qwenModels).toHaveLength(18)
     expect(qwenModels).toHaveLength(service.catalogModelCount(qwen))
     expect(qwenModels.some((model) => model.pricing?.currency === 'CNY')).toBe(true)
+    expect(qwenModels.find((model) => model.id === 'qwen4-max')).toMatchObject({
+      input: expect.arrayContaining(['video']),
+      catalog: { input: expect.arrayContaining(['pdf']) },
+    })
     expect(await service.models(Provider.ID.make(qwen))).toEqual([])
 
     // MiniMax CN overlay is enriched onto builtin models (M3.1-Flash effort + M3 >512K CNY tiers).
@@ -1444,6 +1448,47 @@ test('curated bundled catalog lists both Moonshot regions and preserves saved pr
     })
     const withSavedOpenAI = (await service.list()).map((p) => String(p.id)).sort()
     expect(withSavedOpenAI).toEqual([...cleanMarket, 'openai'].sort())
+
+    Object.assign(config.providers as Record<string, unknown>, {
+      [qwen]: {
+        kind: 'custom',
+        base_url: 'https://maas.qianwenaiapi.com/compatible-mode/v1',
+        auth: 'none',
+        models: {
+          'qwen4-max': {
+            api: 'openai-completions',
+            input: ['text', 'image', 'video'],
+            smart_config: { pinned: [] },
+          },
+        },
+      },
+    })
+    const qwenRef = { providerID: Provider.ID.make(qwen), id: Model.ID.make('qwen4-max') }
+    expect((await service.resolve(qwenRef)).capabilities.input).toEqual(
+      expect.arrayContaining(['video', 'pdf']),
+    )
+    let qwenPayload: unknown
+    await service.pi.completeSimple(
+      await service.getPiModel(qwenRef),
+      {
+        systemPrompt: 'Follow the workspace instructions.',
+        messages: [{ role: 'user', content: 'Reply OK.', timestamp: 1 }],
+      },
+      {
+        apiKey: 'fixture-key',
+        maxTokens: 64,
+        onPayload: (payload) => {
+          qwenPayload = payload
+          throw new Error('Stop before network')
+        },
+      },
+    )
+    expect(qwenPayload).toMatchObject({
+      messages: [
+        { role: 'system', content: 'Follow the workspace instructions.' },
+        { role: 'user', content: 'Reply OK.' },
+      ],
+    })
 
     // Manually added custom provider still gets full smartConfig from hidden catalog providers/models.
     const openaiMatch = await recommendations.resolve({

@@ -5,6 +5,16 @@ import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completio
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy'
 import type { CustomProviderApi } from './PiProviderConfig'
 
+/** Matches the official Qwen/DashScope compatible API base URLs. */
+export function isQwenCompatibleEndpoint(url: URL | undefined): boolean {
+  return (
+    url?.protocol === 'https:' &&
+    (/^dashscope(?:-intl)?\.aliyuncs\.com$/.test(url.hostname) ||
+      /^(?:[a-z0-9-]+\.)*maas\.(?:aliyuncs|qianwenaiapi|qwencloudapi)\.com$/.test(url.hostname)) &&
+    /^\/(?:compatible-mode\/v1|apps\/anthropic(?:\/v1)?)\/?$/.test(url.pathname)
+  )
+}
+
 /**
  * Whether an `openai-responses` model should send system instructions as `developer`
  * when `compat.supportsDeveloperRole` is not explicitly configured.

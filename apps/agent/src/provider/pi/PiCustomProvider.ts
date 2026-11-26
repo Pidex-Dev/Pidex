@@ -23,6 +23,7 @@ export const toPiModel = (
   billingMode?: PidexModel.BillingMode
   speedTiers?: readonly PidexModel.SpeedTierInfo[]
   inputExplicit: boolean
+  mediaInput?: NonNullable<PiCustomModelConfig['mediaInput']>
   modelType?: NonNullable<PiCustomModelConfig['modelType']>
   tools?: boolean
   optionSpecs?: PidexModel.OptionSpecs
@@ -35,6 +36,7 @@ export const toPiModel = (
   reasoning: model.reasoning,
   inputExplicit: true,
   input: [...model.input] as Model<Api>['input'],
+  ...(model.mediaInput ? { mediaInput: model.mediaInput } : {}),
   ...(model.modelType ? { modelType: model.modelType } : {}),
   ...(model.tools !== undefined ? { tools: model.tools } : {}),
   ...(model.pricing ? { pricing: model.pricing } : {}),

@@ -1,4 +1,5 @@
 import { isProviderContextOverflow } from '../pi/ContextOverflow'
+import { providerHttpErrorStatus } from '../../provider/ModelHealthService'
 /**
  * Agent loop that works with AgentMessage throughout.
  * Transforms to Message[] only at the LLM call boundary.
@@ -6,10 +7,16 @@ import { isProviderContextOverflow } from '../pi/ContextOverflow'
 
 import {
   type AssistantMessage,
+  type AssistantMessageEvent,
+  type AssistantMessageEventStream,
   type Context,
   type ToolResultMessage,
   validateToolArguments,
 } from '@earendil-works/pi-ai'
+import { setTimeout as delay } from 'node:timers/promises'
+import type { ModelRecoveryState } from '@pidex/shared/thread'
+import { createFailureMessage } from './Messages'
+import { ModelAttempt, ModelRetryBudget } from './ModelAttempt'
 import type {
   AgentContext,
   AgentEvent,
@@ -19,7 +26,7 @@ import type {
   AgentToolCall,
   AgentToolResult,
   PrepareNextTurnContext,
-  StreamFn,
+  PrepareModelStep,
 } from './AgentTypes.ts'
 
 type AgentEventSink = (event: AgentEvent) => Promise<void> | void
@@ -30,7 +37,7 @@ export async function runAgentLoop(
   config: AgentLoopConfig,
   emit: AgentEventSink,
   signal: AbortSignal | undefined,
-  streamFn: StreamFn,
+  prepareModelStep: PrepareModelStep,
 ): Promise<AgentMessage[]> {
   const newMessages: AgentMessage[] = [...prompts]
   const currentContext: AgentContext = {
@@ -45,7 +52,7 @@ export async function runAgentLoop(
     await emit({ type: 'message_end', message: prompt })
   }
 
-  await runLoop(currentContext, newMessages, config, signal, emit, streamFn)
+  await runLoop(currentContext, newMessages, config, signal, emit, prepareModelStep)
   return newMessages
 }
 
@@ -58,7 +65,7 @@ async function runLoop(
   initialConfig: AgentLoopConfig,
   signal: AbortSignal | undefined,
   emit: AgentEventSink,
-  streamFunction: StreamFn,
+  prepareModelStep: PrepareModelStep,
 ): Promise<void> {
   let currentContext = initialContext
   let config = initialConfig
@@ -105,7 +112,7 @@ async function runLoop(
         config,
         signal,
         emit,
-        streamFunction,
+        prepareModelStep,
       )
       if (
         message.stopReason === 'error' &&
@@ -118,7 +125,7 @@ async function runLoop(
           config,
           signal,
           emit,
-          streamFunction,
+          prepareModelStep,
         )
       }
       newMessages.push(message)
@@ -202,7 +209,7 @@ async function streamAssistantResponse(
   config: AgentLoopConfig,
   signal: AbortSignal | undefined,
   emit: AgentEventSink,
-  streamFunction: StreamFn,
+  prepareModelStep: PrepareModelStep,
 ): Promise<AssistantMessage> {
   // Apply context transform if configured (AgentMessage[] → AgentMessage[])
   let messages = context.messages
@@ -216,79 +223,178 @@ async function streamAssistantResponse(
   // Build LLM context
   const llmContext: Context = {
     systemPrompt: context.systemPrompt,
-    messages: llmMessages,
-    ...(context.tools !== undefined ? { tools: context.tools } : {}),
+    messages: [...llmMessages],
+    ...(context.tools !== undefined ? { tools: [...context.tools] } : {}),
   }
 
-  // Resolve API key (important for expiring tokens)
-  const resolvedApiKey =
-    (config.getApiKey ? await config.getApiKey(config.model.provider) : undefined) || config.apiKey
-
-  const streamOptions = {
-    ...config,
-    ...(resolvedApiKey !== undefined ? { apiKey: resolvedApiKey } : {}),
-    ...(signal !== undefined ? { signal } : {}),
+  const step = await prepareModelStep(config.model, llmContext, config, signal)
+  const retryBudget = step.retry ? new ModelRetryBudget(step.retry === 'wait-for-network') : null
+  let recoveryState: ModelRecoveryState | null = null
+  const recovery = async (
+    state: ModelRecoveryState | null,
+    details: Omit<Extract<AgentEvent, { type: 'model_recovery' }>, 'type' | 'state'> = {},
+  ) => {
+    if (recoveryState === state && Object.keys(details).length === 0) return
+    recoveryState = state
+    await emit({ type: 'model_recovery', state, ...details })
   }
-  const response = await streamFunction(config.model, llmContext, streamOptions)
+  const complete = async (message: AssistantMessage, started: boolean) => {
+    const finalMessage = withoutCommittedToolCalls(message, config.hasCommittedToolResult)
+    context.messages.push(finalMessage)
+    if (!started) await emit({ type: 'message_start', message: { ...finalMessage } })
+    await emit({ type: 'message_end', message: finalMessage })
+    return finalMessage
+  }
 
-  let partialMessage: AssistantMessage | null = null
-  let addedPartial = false
-
-  for await (const event of response) {
-    switch (event.type) {
-      case 'start':
-        partialMessage = event.partial
-        context.messages.push(partialMessage)
-        addedPartial = true
-        await emit({ type: 'message_start', message: { ...partialMessage } })
-        break
-
-      case 'text_start':
-      case 'text_delta':
-      case 'text_end':
-      case 'thinking_start':
-      case 'thinking_delta':
-      case 'thinking_end':
-      case 'toolcall_start':
-      case 'toolcall_delta':
-      case 'toolcall_end':
-        if (partialMessage) {
-          partialMessage = event.partial
-          context.messages[context.messages.length - 1] = partialMessage
+  for (;;) {
+    if (signal?.aborted) {
+      await recovery(null)
+      return complete(createFailureMessage(config.model, '任务已停止', true), false)
+    }
+    const attempt = new ModelAttempt(signal)
+    const apiKey = (await config.getApiKey?.(config.model.provider)) || config.apiKey
+    let started = false
+    const start = async (message: AssistantMessage) => {
+      if (started) return
+      started = true
+      await recovery(null)
+      await emit({ type: 'message_start', message: { ...message } })
+    }
+    let message = await readAssistantAttempt(
+      attempt,
+      step,
+      apiKey,
+      config,
+      signal,
+      async (event) => {
+        if (event.type === 'start') {
+          if (!retryBudget) await start(event.partial)
+          return
+        }
+        if (
+          (event.type === 'text_delta' && event.delta) ||
+          (event.type === 'thinking_delta' && event.delta) ||
+          event.type === 'toolcall_start' ||
+          event.type === 'toolcall_delta' ||
+          event.type === 'toolcall_end'
+        )
+          await start(event.partial)
+        if (started) {
           await emit({
             type: 'message_update',
             assistantMessageEvent: event,
-            message: { ...partialMessage },
+            message: { ...event.partial },
           })
         }
-        break
-
-      case 'done':
-      case 'error': {
-        const finalMessage = await response.result()
-        if (addedPartial) {
-          context.messages[context.messages.length - 1] = finalMessage
-        } else {
-          context.messages.push(finalMessage)
-        }
-        if (!addedPartial) {
-          await emit({ type: 'message_start', message: { ...finalMessage } })
-        }
-        await emit({ type: 'message_end', message: finalMessage })
-        return finalMessage
+      },
+    )
+    const retry =
+      message.stopReason === 'error' && !signal?.aborted
+        ? retryBudget?.next(attempt, step.knownEndpoint?.() ?? false)
+        : undefined
+    if (attempt.receivedResponse) step.rememberEndpoint?.()
+    if (retry && 'state' in retry) {
+      attempt.stop()
+      await recovery(retry.state, { discardOutput: started, usage: message.usage })
+      try {
+        await delay(retry.delayMs, undefined, { signal })
+      } catch (error) {
+        if (!signal?.aborted) throw error
       }
+      continue
     }
+    if (retryBudget && message.stopReason === 'error') {
+      await recovery(null, {
+        discardOutput: started,
+        ...(retry ? { retryAt: Date.now() + retry.retryAfterMs } : {}),
+      })
+      message = { ...message, content: [] }
+      started = false
+    } else {
+      await recovery(null)
+    }
+    return complete(message, started)
   }
+}
 
-  const finalMessage = await response.result()
-  if (addedPartial) {
-    context.messages[context.messages.length - 1] = finalMessage
-  } else {
-    context.messages.push(finalMessage)
-    await emit({ type: 'message_start', message: { ...finalMessage } })
+async function readAssistantAttempt(
+  attempt: ModelAttempt,
+  step: Awaited<ReturnType<PrepareModelStep>>,
+  apiKey: string | undefined,
+  config: AgentLoopConfig,
+  signal: AbortSignal | undefined,
+  emit: (event: Exclude<AssistantMessageEvent, { type: 'done' | 'error' }>) => Promise<void>,
+): Promise<AssistantMessage> {
+  let stream: AssistantMessageEventStream | undefined
+  let iterator: AsyncIterator<AssistantMessageEvent> | undefined
+  let terminal = false
+  let partial: AssistantMessage | undefined
+  try {
+    try {
+      stream = await step.stream(attempt, apiKey)
+      iterator = stream[Symbol.asyncIterator]()
+    } catch (error) {
+      attempt.onError(error)
+    }
+    while (iterator) {
+      let next: IteratorResult<AssistantMessageEvent>
+      try {
+        next = await attempt.read(iterator)
+      } catch (error) {
+        attempt.onError(error)
+        break
+      }
+      if (next.done) {
+        attempt.onError({ code: 'PROVIDER_STREAM_EOF' })
+        break
+      }
+      const event = next.value
+      if (event.type === 'done' || event.type === 'error') {
+        terminal = true
+        if (event.type === 'done') return event.message
+        const status = attempt.httpErrorStatus
+        return status &&
+          event.reason === 'error' &&
+          !providerHttpErrorStatus(event.error.errorMessage)
+          ? { ...event.error, errorMessage: `HTTP ${status}: ${event.error.errorMessage ?? ''}` }
+          : event.error
+      }
+      attempt.onActivity()
+      partial = event.partial
+      await emit(event)
+    }
+    const status = attempt.httpErrorStatus
+    const errorMessage = status ? `HTTP ${status}: 模型响应流中断` : '模型响应流中断'
+    const failure = createFailureMessage(config.model, errorMessage, signal?.aborted === true)
+    return partial ? { ...partial, stopReason: failure.stopReason, errorMessage } : failure
+  } finally {
+    if (!terminal) {
+      attempt.stop()
+      stream?.end()
+    }
+    await iterator?.return?.()
   }
-  await emit({ type: 'message_end', message: finalMessage })
-  return finalMessage
+}
+
+function withoutCommittedToolCalls(
+  message: AssistantMessage,
+  hasCommittedToolResult: AgentLoopConfig['hasCommittedToolResult'],
+): AssistantMessage {
+  if (!hasCommittedToolResult || message.stopReason === 'error' || message.stopReason === 'aborted')
+    return message
+  const content = message.content.filter(
+    (part) => part.type !== 'toolCall' || !hasCommittedToolResult(part.id),
+  )
+  return content.length === message.content.length
+    ? message
+    : {
+        ...message,
+        content,
+        stopReason:
+          message.stopReason === 'toolUse' && !content.some((part) => part.type === 'toolCall')
+            ? 'stop'
+            : message.stopReason,
+      }
 }
 
 /**

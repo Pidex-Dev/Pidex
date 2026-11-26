@@ -1336,3 +1336,76 @@ test.each([false, true])('阶段签名仅在完成时出现仍拆分流式文本
     { phase: 'final_answer', text: '回答' },
   ])
 })
+
+test('先思考后正文时按到达顺序先启动 reasoning 再启动 text，非流式 message_end 同样保持顺序', async () => {
+  const order: string[] = []
+  const adapter = new PiEventAdapter(
+    { threadID: 't', turnID: 'turn', agentID: 'a' },
+    {
+      reasoningStarted: (_ctx, input) => {
+        order.push(`reasoning-start:${input.itemID}`)
+      },
+      reasoningDelta: (_ctx, input) => {
+        order.push(`reasoning-delta:${input.delta}`)
+      },
+      assistantMessageStarted: (_ctx, input) => {
+        order.push(`text-start:${input.textItemID}`)
+      },
+      textDelta: (_ctx, input) => {
+        order.push(`text-delta:${input.delta}`)
+      },
+    },
+  )
+  const send = (event: unknown) => adapter.handle(event as AgentHarnessEvent)
+
+  await send({ type: 'message_start', message: { role: 'assistant', content: [] } })
+  await send({
+    type: 'message_update',
+    assistantMessageEvent: { type: 'thinking_delta', delta: '   ' },
+  })
+  expect(order).toEqual([])
+  await send({
+    type: 'message_update',
+    assistantMessageEvent: { type: 'thinking_delta', delta: '先分析' },
+  })
+  await send({
+    type: 'message_update',
+    assistantMessageEvent: { type: 'text_delta', delta: '再回答', contentIndex: 1 },
+  })
+  await send({
+    type: 'message_end',
+    message: {
+      role: 'assistant',
+      content: [
+        { type: 'thinking', thinking: '   先分析' },
+        { type: 'text', text: '再回答' },
+      ],
+    },
+  })
+
+  expect(order.map((entry) => entry.split(':')[0])).toEqual([
+    'reasoning-start',
+    'reasoning-delta',
+    'text-start',
+    'text-delta',
+  ])
+  expect(order[1]).toBe('reasoning-delta:   先分析')
+
+  order.length = 0
+  await send({ type: 'message_start', message: { role: 'assistant', content: [] } })
+  await send({
+    type: 'message_end',
+    message: {
+      role: 'assistant',
+      content: [
+        { type: 'thinking', thinking: '非流式思考' },
+        { type: 'text', text: '非流式回答' },
+      ],
+    },
+  })
+  expect(order.map((entry) => entry.split(':')[0])).toEqual([
+    'reasoning-start',
+    'text-start',
+    'text-delta',
+  ])
+})

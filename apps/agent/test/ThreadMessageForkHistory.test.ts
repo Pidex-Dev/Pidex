@@ -12,6 +12,8 @@ import {
 } from '../src/storage/pi-session/SqlitePiSession'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { TurnPiBoundaryRepository } from '../src/storage/repositories/TurnPiBoundaryRepository'
+import { AttachmentService } from '../src/subagent/AttachmentService'
+import { SqliteAttachmentCatalog } from '../src/subagent/SqliteAttachmentCatalog'
 
 const roots: string[] = []
 const databases: AgentDatabase[] = []
@@ -231,7 +233,33 @@ describe('ConversationHistoryForkRepository', () => {
       threadID: source.id,
       agentID: 'side-agent-1',
     })
-    await session.appendMessage({ role: 'user', content: 'question-side-1', timestamp: 1 })
+    const attachments = await AttachmentService.open(roots.at(-1)!, {
+      catalog: new SqliteAttachmentCatalog(db),
+    })
+    const [attachment] = await attachments.store([
+      {
+        kind: 'pdf',
+        name: 'side.pdf',
+        mimeType: 'application/pdf',
+        data: Buffer.from('%PDF-1.7\n'),
+      },
+    ])
+    const userMessage = {
+      role: 'user' as const,
+      content: 'question-side-1',
+      timestamp: 1,
+      mediaAttachments: [
+        {
+          kind: 'pdf' as const,
+          attachmentId: attachment!.id,
+          inputId: 'input-side-turn-1',
+          name: attachment!.name,
+          mimeType: attachment!.mimeType,
+          sizeBytes: attachment!.size,
+        },
+      ],
+    }
+    await session.appendMessage(userMessage)
     const firstAssistantEntry = await session.appendMessage(assistant('side-answer-1', 2))
     await session.appendMessage({ role: 'user', content: 'question-side-active', timestamp: 3 })
     ;(session.getStorage() as SqlitePiSessionStorage).flush()
@@ -254,6 +282,7 @@ describe('ConversationHistoryForkRepository', () => {
       status: 'running',
       createdAt: 20,
     })
+    db.bindInputAttachments('input-side-turn-1', [attachment!.id])
     new TurnPiBoundaryRepository(db).upsert({
       turnID: 'side-turn-1',
       sessionID: 'side-source',
@@ -295,7 +324,17 @@ describe('ConversationHistoryForkRepository', () => {
     const copiedSession = db.sqlite
       .query("SELECT id FROM pi_sessions WHERE thread_id = 'side-target'")
       .get() as { id: string }
-    expect((await sessions.openByID(copiedSession.id)).getEntries()).resolves.toHaveLength(2)
+    const entries = await (await sessions.openByID(copiedSession.id)).getEntries()
+    expect(entries).toHaveLength(2)
+    const cloned = db.sqlite
+      .query('SELECT id, input_id FROM input_pdf_attachments WHERE thread_id = ?')
+      .get('side-target') as { id: string; input_id: string }
+    expect(cloned.id).not.toBe(attachment!.id)
+    expect(cloned.input_id).not.toBe('input-side-turn-1')
+    expect(entries[0]).toMatchObject({
+      message: { mediaAttachments: [{ attachmentId: cloned.id, inputId: cloned.input_id }] },
+    })
+    expect((await attachments.read(cloned.id)).record.sha256).toBe(attachment!.sha256)
     await expect(
       history.forkLatestForSideChat(
         source.id,

@@ -173,6 +173,50 @@ describe('ThreadService 附件 admission', () => {
     db.close()
   })
 
+  test('附件原始字节未超限但本轮编码超过当前端点预算时阻止入队', async () => {
+    const { db, attachments, service } = await fixture({
+      resolve: async () => ({ capabilities: { input: ['text', 'pdf'], tools: true } }),
+      getPiModel: async () => ({
+        api: 'anthropic-messages',
+        baseUrl: 'https://api.anthropic.com',
+        input: ['text'],
+        catalog: { input: ['pdf'] },
+      }),
+    })
+    try {
+      const thread = db.createThread()
+      const stored = await attachments.store(
+        [20, 3].map((size) => {
+          const data = Buffer.alloc(size * 1024 * 1024)
+          data.write('%PDF-1.7')
+          return { kind: 'pdf', name: `${size}.pdf`, mimeType: 'application/pdf', data }
+        }),
+      )
+      await expect(
+        service.enqueueFollowUp(
+          thread.id,
+          {
+            content: '',
+            model,
+            permissionConfig: DEFAULT_PERMISSION_CONFIG,
+            strategy: 'queue',
+            taskMode: 'chat',
+          },
+          'input:oversized-native-request',
+          stored.map((record) => record.id),
+        ),
+      ).rejects.toMatchObject({ code: 'ATTACHMENT_TOTAL_TOO_LARGE' })
+      expect(db.inputAdmission('input:oversized-native-request')).toBeNull()
+      expect(
+        (await attachments.getMany(stored.map((record) => record.id))).every(
+          (record) => !record.binding,
+        ),
+      ).toBe(true)
+    } finally {
+      db.close()
+    }
+  })
+
   test('运行中引导创建 input 后在同一事务绑定图片', async () => {
     const { db, attachments, service } = await fixture()
     const thread = db.createThread()

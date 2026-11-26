@@ -1170,6 +1170,7 @@ function CanonicalConversationTurnComponent({
     return null
   }, [entry.items])
   const active = isActiveTurn(entry.turn.status)
+  const modelRecovery = active ? entry.turn.modelRecovery : undefined
   const historicalDeliveries = entry.processItems.filter(
     (item) => item.type === 'tool' && historicalDeliveryText(item) !== null,
   )
@@ -1365,7 +1366,7 @@ function CanonicalConversationTurnComponent({
       {decisionNotices.map((notice) => (
         <DecisionNoticeItem key={`decision-notice:${notice.id}`} notice={notice} />
       ))}
-      {processActivity.showThinkingFallback ? (
+      {processActivity.showThinkingFallback && !modelRecovery ? (
         <ReasoningWaitingIndicator
           key={lastProcessUnit?.key ?? 'initial'}
           delayMs={processActivity.units.length > 0 ? PROCESS_SUMMARY_DEFER_MS : 0}
@@ -1449,6 +1450,12 @@ function CanonicalConversationTurnComponent({
           <CircleAlert size="var(--inline-icon-size, 1em)" aria-hidden="true" />
           <span>{entry.turn.error}</span>
         </div>
+      ) : null}
+      {modelRecovery ? (
+        <ReasoningWaitingIndicator
+          label={modelRecovery === 'waiting-for-network' ? '等待网络恢复' : '正在重试'}
+          threadId={threadId}
+        />
       ) : null}
     </article>
   )

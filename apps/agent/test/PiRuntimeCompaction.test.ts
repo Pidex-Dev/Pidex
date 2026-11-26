@@ -187,6 +187,11 @@ describe('Harness runtime provider errors', () => {
   test.each([
     ['timeout', 'PI_TIMEOUT_FAILED', '模型请求超时，请稍后重试'],
     ['unexpected failure', 'PI_UNKNOWN_FAILED', '模型请求失败，请稍后重试'],
+    [
+      `400 Bad Request: {"error":{"message":"developer is not one of ['system', 'assistant', 'user', 'tool', 'function']","type":"invalid_request_error"}}`,
+      'PI_CONFIGURATION_FAILED',
+      '供应商拒绝了聊天请求中的 developer 消息角色（HTTP 400）',
+    ],
   ])('%s 使用主请求安全文案', async (providerMessage, code, message) => {
     const credential = 'sk-test-private-credential'
     const localPath = 'C:\\private\\credentials.json'

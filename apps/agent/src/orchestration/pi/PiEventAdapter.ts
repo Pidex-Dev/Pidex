@@ -253,6 +253,17 @@ export const piToolResultText = (
   return ''
 }
 
+const hasReasoningContent = (content: unknown): boolean =>
+  Array.isArray(content) &&
+  content.some(
+    (part) =>
+      part &&
+      typeof part === 'object' &&
+      (part as { type?: unknown }).type === 'thinking' &&
+      typeof (part as { thinking?: unknown }).thinking === 'string' &&
+      (part as { thinking: string }).thinking.trim().length > 0,
+  )
+
 /** Converts Pi's protocol into stable semantic callbacks used by the Agent persistence layer. */
 export class PiEventAdapter {
   private phases = new Map<number, MessagePhase>()
@@ -275,11 +286,14 @@ export class PiEventAdapter {
   private parser: ProposedPlanStreamParser | null = null
   private receivedTextDelta = false
   private textStarted = false
+  private reasoningStarted = false
   private planStarted = false
   private pendingText = ''
+  private pendingReasoning = ''
   private pendingPlan = ''
   private deferredPlan = ''
   private completedText = ''
+  private readonly attemptPreviewIDs = new Set<string>()
   private readonly previewEmissions = new Map<
     string,
     { at: number; revision: number; visible: boolean }
@@ -319,18 +333,42 @@ export class PiEventAdapter {
     this.parser = this.options.parseProposedPlan ? new ProposedPlanStreamParser() : null
     this.receivedTextDelta = false
     this.textStarted = false
+    this.reasoningStarted = false
     this.planStarted = false
     this.pendingText = ''
+    this.pendingReasoning = ''
     this.pendingPlan = ''
     this.deferredPlan = ''
+    this.attemptPreviewIDs.clear()
     return items
   }
 
-  private async ensureAssistantItems(startText = !this.options.parseProposedPlan) {
+  private ensureAssistantItems() {
     if (this.assistantItems) return this.assistantItems
-    const items = this.resetAssistantMessage()
-    if (startText) await this.startText()
-    return items
+    return this.resetAssistantMessage()
+  }
+
+  private async startReasoning() {
+    const items = this.assistantItems ?? this.resetAssistantMessage()
+    if (this.reasoningStarted) return
+    this.reasoningStarted = true
+    await this.sink.reasoningStarted?.(this.context, { itemID: items.reasoningItemID })
+  }
+
+  private async emitReasoning(delta: string) {
+    const items = this.ensureAssistantItems()
+    this.pendingReasoning += delta
+    if (!this.reasoningStarted && /\S/.test(this.pendingReasoning)) {
+      await this.startReasoning()
+    }
+    if (this.reasoningStarted && this.pendingReasoning) {
+      const next = this.pendingReasoning
+      this.pendingReasoning = ''
+      await this.sink.reasoningDelta?.(this.context, {
+        itemID: items.reasoningItemID,
+        delta: next,
+      })
+    }
   }
 
   private async startText() {
@@ -348,7 +386,7 @@ export class PiEventAdapter {
   }
 
   private async selectTextSegment(contentIndex: number, phase = this.phases.get(contentIndex)) {
-    await this.ensureAssistantItems(false)
+    this.ensureAssistantItems()
     const knownIndex = this.segmentByContentIndex.get(contentIndex)
     if (knownIndex !== undefined) this.segmentIndex = knownIndex
     else {
@@ -380,15 +418,16 @@ export class PiEventAdapter {
   }
 
   private async emitText(delta: string) {
-    await this.startText()
     const segment = this.textSegments[this.segmentIndex]!
+    if (!segment.started && !delta) return
+    await this.startText()
     segment.text += delta
     this.blockTexts.set(this.contentIndex, (this.blockTexts.get(this.contentIndex) ?? '') + delta)
     await this.sink.textDelta?.(this.context, { itemID: segment.textItemID, delta })
   }
 
   private async routeChunks(chunks: readonly ProposedPlanChunk[], deferPlan = false) {
-    const items = await this.ensureAssistantItems(false)
+    const items = this.ensureAssistantItems()
     for (const chunk of chunks) {
       if (chunk.kind === 'text') {
         this.pendingText += chunk.delta
@@ -461,6 +500,27 @@ export class PiEventAdapter {
   async handle(event: AgentHarnessEvent) {
     await this.sink.event?.(this.context, event)
     switch (event.type) {
+      case 'model_recovery': {
+        const discardedItemIDs = []
+        if (event.discardOutput && this.assistantItems) {
+          discardedItemIDs.push(
+            ...this.textSegments.map((segment) => segment.textItemID),
+            this.assistantItems.reasoningItemID,
+            this.assistantItems.planItemID,
+            ...this.attemptPreviewIDs,
+          )
+          for (const id of this.attemptPreviewIDs) this.previewEmissions.delete(id)
+          this.resetAssistantMessage()
+          this.assistantItems = null
+          this.parser = null
+        }
+        await this.sink.modelRecovery?.(this.context, {
+          state: event.state,
+          discardedItemIDs,
+          ...(event.usage ? { usage: event.usage } : {}),
+        })
+        break
+      }
       case 'provider_text_reset':
         this.phases.clear()
         break
@@ -471,7 +531,6 @@ export class PiEventAdapter {
       case 'message_start':
         if (event.message.role === 'assistant') {
           this.resetAssistantMessage()
-          if (!this.options.parseProposedPlan) await this.startText()
         }
         break
       case 'session_before_compact':
@@ -501,6 +560,7 @@ export class PiEventAdapter {
                 Date.now() - previous.at >= 1000)
             ) {
               const revision = (previous?.revision ?? 0) + 1
+              this.attemptPreviewIDs.add(call.id)
               this.previewEmissions.set(call.id, { at: Date.now(), revision, visible })
               await this.sink.visualizationPreview?.(this.context, {
                 ...preview,
@@ -512,7 +572,7 @@ export class PiEventAdapter {
             }
           }
         }
-        const items = await this.ensureAssistantItems()
+        this.ensureAssistantItems()
         if (
           update.type === 'text_start' ||
           update.type === 'text_delta' ||
@@ -528,16 +588,15 @@ export class PiEventAdapter {
           if (this.parser) await this.routeChunks(this.parser.push(update.delta), true)
           else await this.emitText(update.delta)
         }
-        if (update.type === 'thinking_delta')
-          await this.sink.reasoningDelta?.(this.context, {
-            itemID: items.reasoningItemID,
-            delta: update.delta,
-          })
+        if (update.type === 'thinking_delta') await this.emitReasoning(update.delta)
         break
       }
       case 'message_end':
         if (event.message.role === 'assistant') {
-          const items = await this.ensureAssistantItems(false)
+          const items = this.ensureAssistantItems()
+          if (!this.reasoningStarted && hasReasoningContent(event.message.content)) {
+            await this.startReasoning()
+          }
           const usage =
             event.message.usage && typeof event.message.usage === 'object'
               ? (event.message.usage as unknown as Record<string, unknown>)

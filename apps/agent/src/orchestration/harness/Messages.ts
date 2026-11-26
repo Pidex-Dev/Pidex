@@ -1,5 +1,36 @@
-import type { ImageContent, Message, TextContent } from '@earendil-works/pi-ai'
+import type {
+  AssistantMessage,
+  ImageContent,
+  Message,
+  Model,
+  TextContent,
+} from '@earendil-works/pi-ai'
 import type { AgentMessage } from './AgentTypes.ts'
+
+export function createFailureMessage(
+  model: Model<any>,
+  error: unknown,
+  aborted: boolean,
+): AssistantMessage {
+  return {
+    role: 'assistant',
+    content: [{ type: 'text', text: '' }],
+    api: model.api,
+    provider: model.provider,
+    model: model.id,
+    stopReason: aborted ? 'aborted' : 'error',
+    errorMessage: error instanceof Error ? error.message : String(error),
+    timestamp: Date.now(),
+    usage: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
+  }
+}
 
 export const COMPACTION_SUMMARY_PREFIX = `The conversation history before this point was compacted into the following summary:
 

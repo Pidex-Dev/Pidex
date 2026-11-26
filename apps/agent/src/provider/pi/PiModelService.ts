@@ -71,6 +71,7 @@ import {
   withPiBuiltinProviderOverrides,
 } from './PiBuiltinProviderOverrides'
 import { observeCacheWriteUsage } from './PiCacheWriteUsage'
+import { nativeMediaFormat } from './MediaInput'
 import { normalizeDeveloperRoleCompat } from './PiProviderApis'
 import {
   createPiCustomProvider,
@@ -169,6 +170,7 @@ type ConfiguredPiModel = PiModel<Api> & {
   catalog?: Model.CatalogDetails
   maxInputTokens?: number
   inputExplicit?: boolean
+  mediaInput?: Model.MediaInputCapability
   modelType?: 'chat' | 'embedding' | 'rerank'
   tools?: boolean
   pricing?: Model.Pricing
@@ -279,11 +281,14 @@ const effectiveInput = (model: PiModel<Api>): string[] => {
   const gemini = model.api === 'google-generative-ai' || model.api === 'google-vertex'
   const nativeMedia =
     gemini && !(model as ConfiguredPiModel).inputExplicit && model.id.includes('gemini')
-  return [...new Set<string>([...model.input, ...(nativeMedia ? ['audio', 'video'] : [])])].filter(
-    (input) =>
-      (input !== 'audio' || gemini || model.api === 'openai-completions') &&
-      (input !== 'video' || gemini),
-  )
+  const input = new Set<string>([...model.input, ...(nativeMedia ? ['audio', 'video'] : [])])
+  if (!(gemini || model.api === 'openai-completions')) input.delete('audio')
+  if (Model.VideoInputMimeTypes.some((mimeType) => nativeMediaFormat(model, 'video', mimeType)))
+    input.add('video')
+  else input.delete('video')
+  if (nativeMediaFormat(model, 'pdf', 'application/pdf')) input.add('pdf')
+  else input.delete('pdf')
+  return [...input]
 }
 
 const piModelToInfo = (model: PiModel<Api>, enabled: boolean, variant?: string): Model.Info => ({
@@ -647,6 +652,7 @@ export class PiModelService {
             ...(model.tools !== undefined ? { tools: model.tools } : {}),
             reasoning: model.reasoning,
             input: [...model.input],
+            ...(model.mediaInput ? { mediaInput: structuredClone(model.mediaInput) } : {}),
             ...(model.pricing ? { pricing: model.pricing } : {}),
             cost: { ...model.cost },
             ...(Object.keys(model.headers).length ? { headers: { ...model.headers } } : {}),
@@ -738,7 +744,7 @@ export class PiModelService {
           reasoning: model.reasoning,
           tools: piModelToInfo(model, false).capabilities.tools,
           ...(model.modelType ? { modelType: model.modelType } : {}),
-          ...(input.length ? { input } : {}),
+          ...(input.length ? { input: input.filter((kind) => kind !== 'pdf') } : {}),
           ...(model.optionSpecs ? { optionSpecs: model.optionSpecs } : {}),
           ...(model.pricing ? { pricing: model.pricing } : {}),
           cost: model.cost,

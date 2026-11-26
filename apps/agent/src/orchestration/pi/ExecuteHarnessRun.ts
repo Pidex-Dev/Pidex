@@ -4,8 +4,9 @@ import { DeferredToolCatalog } from '../../tool/harness/DeferredToolCatalog'
 import { type AssistantMessage, type ImageContent } from '@earendil-works/pi-ai'
 import { AgentError } from '../../Domain'
 import type { SubagentResult } from '../../Domain'
-import { providerFailureCategory, providerFailureMessage } from '../../provider/ModelHealthService'
+import { describeProviderRequestFailure } from '../../provider/ModelHealthService'
 import { normalizePiProviderPayload } from '../../provider/pi/PiProviderPayload'
+import { runtimeAttachmentMedia } from '../../provider/pi/MediaInput'
 import { PromptComposer } from '../../prompt/PromptComposer'
 import { inferPromptCacheRuntimePolicy } from '../../prompt/PromptCache'
 import {
@@ -177,8 +178,13 @@ export async function executeHarnessRun(
   const harness = new AgentHarness({
     session: dependencies.session,
     models: dependencies.models,
+    ...(options.readMediaAttachment ? { readMediaAttachment: options.readMediaAttachment } : {}),
     ...(dependencies.resources ? { resources: dependencies.resources } : {}),
     model: request.model,
+    modelRetry: request.waitForModelNetwork ? 'wait-for-network' : 'bounded',
+    ...(options.hasCommittedToolResult
+      ? { hasCommittedToolResult: options.hasCommittedToolResult }
+      : {}),
     thinkingLevel: request.thinkingLevel ?? 'off',
     ...(request.maxContextTokens !== undefined
       ? { maxContextTokens: request.maxContextTokens }
@@ -509,8 +515,12 @@ export async function executeHarnessRun(
   let latestAssistantText = ''
   let toolUseCount = 0
   let totalTokens = 0
+  let retryAt: number | undefined
   const unsubscribe = harness.subscribe((event) => {
-    if (event.type === 'tool_execution_end') {
+    if (event.type === 'model_recovery') {
+      retryAt = event.retryAt
+      totalTokens += event.usage?.totalTokens ?? 0
+    } else if (event.type === 'tool_execution_end') {
       toolUseCount += 1
     } else if (event.type === 'message_end' && event.message.role === 'assistant') {
       const stepText = adapter.outputText(event.message.content)
@@ -575,24 +585,11 @@ export async function executeHarnessRun(
     ])
     const isResumed = typeof request.resumedContent === 'string'
     const images = isResumed ? [] : promptImages(request)
+    const media = request.attachments?.flatMap(runtimeAttachmentMedia) ?? []
+    const inputIds = media.flatMap((part) => ('inputId' in part ? [part.inputId] : []))
     let message: AssistantMessage = await harness.prompt(
       promptContext(request, bundle.contextItems),
-      {
-        images,
-        media: isResumed
-          ? []
-          : (request.attachments?.flatMap((attachment) =>
-              attachment.kind === 'audio' || attachment.kind === 'video'
-                ? [
-                    {
-                      kind: attachment.kind,
-                      data: attachment.base64,
-                      mimeType: attachment.mediaType,
-                    },
-                  ]
-                : [],
-            ) ?? []),
-      },
+      { images, media: isResumed ? [] : media, inputIds },
     )
     if (message.stopReason === 'error' && isProviderContextOverflow(message.errorMessage)) {
       await options.compaction?.recordFailure(request.threadID, 'reactive')
@@ -603,6 +600,14 @@ export async function executeHarnessRun(
       )
     }
     if (message.stopReason === 'error') {
+      if (retryAt !== undefined) {
+        const minutes = Math.max(1, Math.ceil((retryAt - Date.now()) / 60_000))
+        throw new AgentError(
+          'PI_RETRY_DELAY_EXCEEDED',
+          `模型服务要求等待约 ${minutes} 分钟后重试`,
+          429,
+        )
+      }
       if (
         message.errorMessage?.includes('目标预算受限') ||
         message.errorMessage?.includes('GOAL_BUDGET_LIMITED')
@@ -617,10 +622,10 @@ export async function executeHarnessRun(
           413,
         )
       }
-      const category = providerFailureCategory(message.errorMessage ?? 'Pi Agent 执行失败')
+      const failure = describeProviderRequestFailure(message.errorMessage)
       throw new AgentError(
-        `PI_${category.toUpperCase().replace('-', '_')}_FAILED`,
-        providerFailureMessage(category, 'request'),
+        `PI_${failure.category.toUpperCase().replace('-', '_')}_FAILED`,
+        failure.message,
         502,
       )
     }

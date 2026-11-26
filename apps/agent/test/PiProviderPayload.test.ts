@@ -1,5 +1,7 @@
+import { prepareMediaInput, type MediaInputCapability } from '../src/provider/pi/MediaInput'
 import { streamSimple as streamResponses } from '@earendil-works/pi-ai/api/openai-responses'
 import { streamSimple as streamAnthropic } from '@earendil-works/pi-ai/api/anthropic-messages'
+import { streamSimple as streamBedrock } from '@earendil-works/pi-ai/api/bedrock-converse-stream'
 import { PromptComposer } from '../src/prompt/PromptComposer'
 import { createPromptSections } from '../src/prompt/Sections'
 import { promptContext } from '../src/orchestration/pi/ExecuteHarnessRun'
@@ -267,5 +269,182 @@ for (const api of ['openai-completions', 'openai-responses', 'anthropic-messages
     } finally {
       await server.stop(true)
     }
+  })
+}
+
+test('Bedrock Converse 发送 PDF 和视频的字节，并为无正文的 PDF 请求补齐必需文本', async () => {
+  const model: Model<'bedrock-converse-stream'> = {
+    id: 'amazon.nova-pro-v1:0',
+    name: 'Nova Pro',
+    api: 'bedrock-converse-stream',
+    provider: 'amazon-bedrock',
+    baseUrl: 'https://bedrock-runtime.us-east-1.amazonaws.com',
+    reasoning: false,
+    input: ['text', 'image'],
+    contextWindow: 300_000,
+    maxTokens: 10_000,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  }
+  const bytes = Buffer.from(pdfData, 'base64')
+  const input = {
+    role: 'user' as const,
+    content: '',
+    timestamp: 1,
+    media: [{ kind: 'video' as const, data: videoData, mimeType: 'video/mp4' }],
+    mediaAttachments: [
+      {
+        kind: 'pdf' as const,
+        attachmentId: 'pdf-1',
+        inputId: 'input-1',
+        name: 'fixture.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: bytes.length,
+      },
+    ],
+  }
+  const prepared = await prepareMediaInput(
+    model,
+    { messages: [input] },
+    { currentInputIds: new Set(['input-1']), readAttachment: async () => bytes },
+  )
+  let sent: unknown
+  await streamBedrock(model, normalizeContext(prepared.context), {
+    apiKey: 'fixture-key',
+    onPayload: (request) => {
+      sent = prepared.applyPayload(request)
+      throw new Error('Stop before network')
+    },
+  }).result()
+  expect(sent).toMatchObject({
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { text: expect.stringMatching(/\S/) },
+          { video: { format: 'mp4', source: { bytes: Buffer.from(videoData, 'base64') } } },
+          { document: { format: 'pdf', name: 'Document', source: { bytes } } },
+        ],
+      },
+    ],
+  })
+})
+
+const pdfData = 'JVBERi0xLjcK'
+const videoData = 'Zml4dHVyZQ=='
+for (const api of ['openai-completions', 'openai-responses', 'anthropic-messages'] as const) {
+  test(`${api} serializes managed PDF and video bytes without storing them in the session input`, async () => {
+    const baseUrl = 'http://127.0.0.1:1/v1'
+    const model = {
+      id: 'test',
+      name: 'test',
+      api,
+      provider: 'test',
+      baseUrl,
+      reasoning: false,
+      input: ['text', 'video'] as unknown as Model<typeof api>['input'],
+      contextWindow: 64000,
+      maxTokens: 128,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      mediaInput: { endpoint: baseUrl, protocol: api, pdf: true, video: ['video/mp4'] },
+    } satisfies Model<typeof api> & { mediaInput: MediaInputCapability }
+    const input = {
+      role: 'user' as const,
+      content: [{ type: 'text' as const, text: 'Read the PDF and the video' }],
+      timestamp: 1,
+      mediaAttachments: [
+        {
+          kind: 'pdf' as const,
+          attachmentId: 'pdf-1',
+          inputId: 'input-1',
+          name: 'fixture.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: Buffer.from(pdfData, 'base64').byteLength,
+        },
+        {
+          kind: 'video' as const,
+          attachmentId: 'video-1',
+          inputId: 'input-1',
+          name: 'fixture.mp4',
+          mimeType: 'video/mp4',
+          sizeBytes: Buffer.from(videoData, 'base64').byteLength,
+        },
+      ],
+    }
+    const reads: string[] = []
+    const projection = await prepareMediaInput(
+      model,
+      { messages: [input] },
+      {
+        currentInputIds: new Set(['input-1']),
+        readAttachment: async (reference) => {
+          reads.push(reference.attachmentId)
+          return Buffer.from(reference.kind === 'pdf' ? pdfData : videoData, 'base64')
+        },
+      },
+    )
+    const invoke = {
+      'openai-completions': streamSimple,
+      'openai-responses': streamResponses,
+      'anthropic-messages': streamAnthropic,
+    }[api] as typeof streamSimple
+    let payload: Record<string, unknown> | undefined
+    await invoke(model as Model<'openai-completions'>, normalizeContext(projection.context), {
+      apiKey: 'fixture-key',
+      maxRetries: 0,
+      onPayload: (request) => {
+        payload = projection.applyPayload(normalizePiProviderPayload(request, api)) as Record<
+          string,
+          unknown
+        >
+        throw new Error('Stop before network')
+      },
+    }).result()
+    const dataUrl = `data:application/pdf;base64,${pdfData}`
+    const expectedPart = {
+      'openai-completions': { type: 'file', file: { filename: 'fixture.pdf', file_data: dataUrl } },
+      'openai-responses': { type: 'input_file', filename: 'fixture.pdf', file_data: dataUrl },
+      'anthropic-messages': {
+        type: 'document',
+        source: { type: 'base64', media_type: 'application/pdf', data: pdfData },
+      },
+    }[api]
+    const videoUrl = `data:video/mp4;base64,${videoData}`
+    const expectedVideo = {
+      'openai-completions': { type: 'video_url', video_url: { url: videoUrl } },
+      'openai-responses': { type: 'input_video', video_url: videoUrl },
+      'anthropic-messages': {
+        type: 'video',
+        source: { type: 'base64', media_type: 'video/mp4', data: videoData },
+      },
+    }[api]
+    expect(payload?.[api === 'openai-responses' ? 'input' : 'messages']).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'user',
+          content: expect.arrayContaining([expectedPart, expectedVideo]),
+        }),
+      ]),
+    )
+    expect(JSON.stringify(payload)).not.toContain('pidex-media:')
+    expect(JSON.stringify(input)).not.toContain(pdfData)
+    expect(JSON.stringify(input)).not.toContain(videoData)
+    expect(reads).toEqual(['pdf-1', 'video-1'])
+
+    const changedEndpoint = { ...model, baseUrl: 'https://other.example/v1' }
+    const history = await prepareMediaInput(changedEndpoint, { messages: [input] })
+    expect(history.context.messages[0]?.content).toEqual([
+      { type: 'text', text: 'Read the PDF and the video' },
+      { type: 'text', text: '(附件 "fixture.pdf" 未传入模型，当前模型或端点不支持此格式)' },
+      { type: 'text', text: '(附件 "fixture.mp4" 未传入模型，当前模型或端点不支持此格式)' },
+    ])
+    await expect(
+      prepareMediaInput(
+        changedEndpoint,
+        { messages: [input] },
+        {
+          currentInputIds: new Set(['input-1']),
+        },
+      ),
+    ).rejects.toThrow('协议不支持')
   })
 }

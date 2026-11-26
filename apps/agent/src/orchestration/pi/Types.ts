@@ -39,6 +39,7 @@ export interface HarnessRuntimeRequest {
   agentID: string
   sessionID: string
   profile?: SubagentProfile
+  waitForModelNetwork?: boolean
   content: string
   /** Resume continuation prompt emitted instead of re-sending the initial turn bundle. */
   resumedContent?: string
@@ -61,10 +62,7 @@ export interface HarnessRuntimeRequest {
   promptSections: readonly PromptSection[]
   /** Authoritative pre-composed prompt bundle (frozen by the turn composition). */
   bundle?: PromptBundle
-  attachments?: Array<
-    | { kind: 'text'; name: string; text: string }
-    | { kind: 'image' | 'audio' | 'video'; name: string; mediaType: string; base64: string }
-  >
+  attachments?: import('../../provider/pi/MediaInput').RuntimeAttachment[]
   allowedTools?: readonly string[]
   delegationEnabled?: boolean
   collaborationEnabled?: boolean
@@ -122,6 +120,14 @@ export type PiToolCompletionMetadata = {
  * after the transaction commits.
  */
 export interface PiRuntimeEventSink {
+  modelRecovery?(
+    context: PiRuntimeEventContext,
+    input: {
+      state: import('@pidex/shared/thread').ModelRecoveryState | null
+      discardedItemIDs: readonly string[]
+      usage?: import('@earendil-works/pi-ai').Usage
+    },
+  ): void | Promise<void>
   visualizationPreview?(
     context: PiRuntimeEventContext,
     preview: import('@pidex/shared/visualization').VisualizationPreview,
@@ -175,6 +181,10 @@ export interface PiRuntimeEventSink {
   planDelta?(
     context: PiRuntimeEventContext,
     input: { itemID: string; delta: string },
+  ): void | Promise<void>
+  reasoningStarted?(
+    context: PiRuntimeEventContext,
+    input: { itemID: string },
   ): void | Promise<void>
   reasoningDelta?(
     context: PiRuntimeEventContext,
@@ -333,9 +343,11 @@ export interface PiLifecycleCallbacks {
 export interface HarnessRuntimeOptions {
   harnessFactory: PiHarnessFactory
   toolExecutor: ToolExecutor
+  readMediaAttachment?: import('../../provider/pi/MediaInput').ReadMediaAttachment
   eventSink?: PiRuntimeEventSink
   activated?(threadID: string, active: ActiveHarness): void
   onRuntimeReady?(): void | Promise<void>
+  hasCommittedToolResult?: (toolCallID: string) => boolean
   lifecycle?: PiLifecycleCallbacks
   beforeToolCall?: (
     request: HarnessRuntimeRequest,

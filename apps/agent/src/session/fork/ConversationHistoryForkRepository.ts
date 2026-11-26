@@ -1,3 +1,5 @@
+import type { MediaAttachmentReference } from '../../provider/pi/MediaInput'
+import { inputAttachmentTables } from '../../storage/repositories/InputAttachmentRepository'
 import { activeTurnSql } from '../../storage/repositories/ThreadEditRepository'
 import { randomUUID } from 'node:crypto'
 import type { SessionTreeEntry } from '../../orchestration/harness/Types'
@@ -71,12 +73,30 @@ type ForkMappings = {
   turnIDs: Map<string, string>
   agentIDs: Map<string, string>
   inputIDs: Map<string, string>
+  attachmentIDs: Map<string, string>
   itemIDs: Map<string, string>
   toolCallIDs: Map<string, string>
   taskIDs: Map<string, string>
   runIDs: Map<string, string>
   contextPathIDs: Map<string, string>
   includedTurns: Map<string, Set<string>>
+}
+
+const remapAttachmentMedia = (entry: SessionTreeEntry, maps: ForkMappings): SessionTreeEntry => {
+  if (entry.type !== 'message' || entry.message.role !== 'user') return entry
+  const message = entry.message as typeof entry.message & {
+    mediaAttachments?: readonly MediaAttachmentReference[]
+  }
+  if (!message.mediaAttachments?.length) return entry
+  const forkedMessage = {
+    ...message,
+    mediaAttachments: message.mediaAttachments.map((attachment) => ({
+      ...attachment,
+      attachmentId: maps.attachmentIDs.get(attachment.attachmentId) ?? attachment.attachmentId,
+      inputId: maps.inputIDs.get(attachment.inputId) ?? attachment.inputId,
+    })),
+  }
+  return { ...entry, message: forkedMessage }
 }
 
 const replaceIDs = (value: unknown, ids: ReadonlyMap<string, string>): unknown => {
@@ -300,6 +320,7 @@ export class ConversationHistoryForkRepository {
           id: entry.targetSessionID,
           threadID: entry.targetThreadID,
           agentID: entry.targetAgentID,
+          mapEntry: (sessionEntry) => remapAttachmentMedia(sessionEntry, maps),
         })
       }
       this.upsertCopiedBoundaries(copiedBoundaries)
@@ -487,6 +508,7 @@ export class ConversationHistoryForkRepository {
           id: entry.targetSessionID,
           threadID: entry.targetThreadID,
           agentID: entry.targetAgentID,
+          mapEntry: (sessionEntry) => remapAttachmentMedia(sessionEntry, maps),
           ...(entry.entryID ? { entryId: entry.entryID, position: 'at' as const } : {}),
         })
       }
@@ -618,6 +640,7 @@ export class ConversationHistoryForkRepository {
           id: entry.targetSessionID,
           threadID: entry.targetThreadID,
           agentID: entry.targetAgentID,
+          mapEntry: (sessionEntry) => remapAttachmentMedia(sessionEntry, maps),
           ...(entry.entryID ? { entryId: entry.entryID, position: 'at' as const } : {}),
         })
       }
@@ -938,6 +961,7 @@ export class ConversationHistoryForkRepository {
     const itemIDs = new Map<string, string>()
     const toolCallIDs = new Map<string, string>()
     const taskIDs = new Map<string, string>()
+    const attachmentIDs = new Map<string, string>()
     const runIDs = new Map<string, string>()
     const contextPathIDs = new Map<string, string>()
     for (const [sourceThreadID, turns] of includedTurns) {
@@ -974,11 +998,15 @@ export class ConversationHistoryForkRepository {
     for (const taskID of taskIDs.keys())
       for (const row of this.rows('subagent_runs', 'task_id', taskID))
         runIDs.set(String(row.id), this.nextID())
+    for (const table of inputAttachmentTables(this.db.sqlite))
+      for (const row of this.rowsByMappedIDs(table, 'input_id', inputIDs))
+        attachmentIDs.set(String(row.id), this.nextID())
     return {
       threadIDs,
       turnIDs,
       agentIDs,
       inputIDs,
+      attachmentIDs,
       itemIDs,
       toolCallIDs,
       taskIDs,
@@ -994,6 +1022,7 @@ export class ConversationHistoryForkRepository {
       turnIDs: new Map(),
       agentIDs: new Map(),
       inputIDs: new Map(),
+      attachmentIDs: new Map(),
       itemIDs: new Map(),
       toolCallIDs: new Map(),
       taskIDs: new Map(),
@@ -1054,6 +1083,7 @@ export class ConversationHistoryForkRepository {
       ...maps.turnIDs,
       ...maps.agentIDs,
       ...maps.inputIDs,
+      ...maps.attachmentIDs,
       ...maps.itemIDs,
       ...maps.toolCallIDs,
       ...maps.taskIDs,
@@ -1168,14 +1198,6 @@ export class ConversationHistoryForkRepository {
             turn_id: maps.turnIDs,
           }),
         )
-      for (const source of this.rowsByMappedIDs('input_attachments', 'input_id', maps.inputIDs))
-        this.insert(
-          'input_attachments',
-          this.remapRow({ ...source, id: this.nextID() }, allIDs, {
-            thread_id: maps.threadIDs,
-            input_id: maps.inputIDs,
-          }),
-        )
       for (const source of this.rows('thread_context_paths', 'thread_id', sourceThreadID)) {
         if (!maps.contextPathIDs.has(String(source.id))) continue
         this.insert(
@@ -1241,6 +1263,16 @@ export class ConversationHistoryForkRepository {
       }
       this.recomputeThreadSummary(targetThreadID)
     }
+    for (const table of inputAttachmentTables(this.db.sqlite))
+      for (const source of this.rowsByMappedIDs(table, 'id', maps.attachmentIDs))
+        this.insert(
+          table,
+          this.remapRow(source, allIDs, {
+            id: maps.attachmentIDs,
+            thread_id: maps.threadIDs,
+            input_id: maps.inputIDs,
+          }),
+        )
     for (const sourceTurnID of maps.turnIDs.keys()) {
       for (const source of this.rows('turn_patch_batches', 'turn_id', sourceTurnID))
         this.insert(

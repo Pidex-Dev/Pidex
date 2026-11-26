@@ -10,9 +10,10 @@ import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
 import { PiEventAdapter } from '../src/orchestration/pi/PiEventAdapter'
 import type { PiRuntimeEventSink } from '../src/orchestration/pi/Types'
 import type { AgentHarnessEvent } from '../src/orchestration/harness/Types'
+import { ThreadProjection } from '../src/transport/ThreadProjection'
 
 for (const parseProposedPlan of [false, true]) {
-  for (const finish of ['stop', 'complete'] as const) {
+  for (const finish of ['stop', 'complete', 'retry'] as const) {
     test(`visible stream survives ${finish} and database reopen (plan parser=${parseProposedPlan})`, async () => {
       const path = join(await mkdtemp(join(tmpdir(), 'c24-stream-')), 'history.sqlite')
       let db = new AgentDatabase(path)
@@ -72,7 +73,7 @@ for (const parseProposedPlan of [false, true]) {
             assistantMessageEvent: { type: 'text_delta', delta },
           } as AgentHarnessEvent)
         }
-        const prefix = published.join('')
+        let prefix = published.join('')
         expect(prefix).toContain('001 visible')
         if (finish === 'stop') {
           await adapter.handle({ type: 'abort' } as AgentHarnessEvent)
@@ -80,9 +81,51 @@ for (const parseProposedPlan of [false, true]) {
           await sink.textDelta?.(context, { itemID, delta: 'LATE-MUST-NOT-APPEAR' })
           expect(published.join('')).toBe(prefix)
         } else {
+          if (finish === 'retry') {
+            const failedItemID = itemID
+            await adapter.handle({
+              type: 'model_recovery',
+              state: 'retrying',
+              discardOutput: true,
+            })
+            expect(db.getItem(failedItemID)).toBeNull()
+            const view = new ThreadProjection(db)
+            expect(
+              view.snapshot(thread.id)?.turns.find(({ id }) => id === turn.turnID),
+            ).toMatchObject({
+              status: 'running',
+              modelRecovery: 'retrying',
+            })
+            const event = db
+              .eventsAfter(0, thread.id)
+              .find(
+                (entry) =>
+                  entry.method === 'turn/statusChanged' &&
+                  (entry.params as { modelRecovery?: string }).modelRecovery === 'retrying',
+              )
+            expect(event && view.notification(event).notification.params).toMatchObject({
+              modelRecovery: 'retrying',
+              discardedItemIds: expect.arrayContaining([failedItemID]),
+            })
+            await adapter.handle({ type: 'model_recovery', state: null })
+            expect(
+              view.snapshot(thread.id)?.turns.find(({ id }) => id === turn.turnID)?.modelRecovery,
+            ).toBeUndefined()
+            published.length = 0
+            prefix = '003 recovered\n'
+            await adapter.handle({
+              type: 'message_start',
+              message: message(''),
+            } as AgentHarnessEvent)
+            await adapter.handle({
+              type: 'message_update',
+              assistantMessageEvent: { type: 'text_delta', delta: prefix },
+            } as AgentHarnessEvent)
+            expect(itemID).not.toBe(failedItemID)
+          }
           await adapter.handle({
             type: 'message_end',
-            message: message('001 visible\n002 retained\n'),
+            message: message(prefix),
           } as unknown as AgentHarnessEvent)
           await sink.savePoint?.(context, { hadPendingMutations: true })
           db.finalizeTurn({ ...context, status: 'completed' })

@@ -580,7 +580,7 @@ describe('执行恢复不变量', () => {
     }
   })
 
-  test('重复 continuation 不会释放正在运行的同 turn coordinator handle', () => {
+  test('重复 continuation 不会释放正在运行的同 turn coordinator handle', async () => {
     const { db, thread } = setup()
     const questions = { setResumeHandler: () => undefined }
     const subagents = {
@@ -596,7 +596,7 @@ describe('执行恢复不变量', () => {
       questions as never,
       null as never,
       subagents as never,
-      null as never,
+      { listByBinding: async () => [] } as never,
       { dataRoot: '', userHome: '' },
       null as never,
       null as never,
@@ -638,7 +638,7 @@ describe('执行恢复不变量', () => {
       coordinator: { active(threadID: string): { turnID: string } | undefined }
     }
     void internal.executeTurn(thread.id, turn.turnID)
-    void internal.executeTurn(thread.id, turn.turnID)
+    await internal.executeTurn(thread.id, turn.turnID)
     expect(starts).toBe(2)
     expect(internal.coordinator.active(thread.id)?.turnID).toBe(turn.turnID)
   })

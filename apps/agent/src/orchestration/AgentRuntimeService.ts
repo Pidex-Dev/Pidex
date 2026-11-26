@@ -407,6 +407,7 @@ export interface AgentRuntimeServiceOptions {
   toolExecutor: ToolExecutor
   contextCompaction: ContextCompactionService
   artifacts?: ArtifactService
+  attachments?: Pick<import('../subagent/AttachmentService').AttachmentService, 'read'>
   memoryManager?: MemoryManager | undefined
   decisions?: import('../decision/DecisionService').DecisionService | undefined
   observeHarnessEvent?: (context: PiRuntimeEventContext, event: AgentHarnessEvent) => void
@@ -972,6 +973,68 @@ export class AgentRuntimeService implements AgentRuntime {
     readContextUsageBreakdown?: () => readonly ContextUsageBreakdownEntry[] | undefined,
   ): PiRuntimeEventSink {
     let usageGoal: { id: string; threadId: string } | null | undefined
+    let modelRecoveryState: import('@pidex/shared/thread').ModelRecoveryState | null = null
+    const recordProviderUsage = async (
+      context: PiRuntimeEventContext,
+      sourceEntryId: string,
+      usage: {
+        input: number
+        output: number
+        cacheRead: number
+        cacheWrite: number
+        reasoning?: number
+      },
+    ) => {
+      const inputTokens = usage.input + usage.cacheRead + usage.cacheWrite
+      await onUsage?.({
+        inputTokens,
+        outputTokens: usage.output,
+        totalTokens: inputTokens + usage.output,
+        requests: 1,
+      })
+      const rootThreadId = getRootThreadId(this.options.db, context.threadID)
+      const rootGoal =
+        usageGoal === undefined
+          ? this.options.db.repositories.threadGoalLedger.visibleGoal(rootThreadId)
+          : usageGoal
+      if (rootGoal) {
+        const entry: GoalUsageEntry = {
+          threadId: rootThreadId,
+          goalId: rootGoal.id,
+          agentId: context.agentID,
+          sourceEntryId,
+          inputTokens: usage.input,
+          outputTokens: usage.output,
+          cacheReadTokens: usage.cacheRead,
+          cacheWriteTokens: usage.cacheWrite,
+          reasoningTokens: usage.reasoning ?? 0,
+        }
+        if (
+          entry.inputTokens +
+            entry.outputTokens +
+            entry.cacheReadTokens +
+            entry.cacheWriteTokens +
+            entry.reasoningTokens >
+          0
+        ) {
+          const inserted = this.options.db.repositories.threadGoalLedger.recordUsage([entry])
+          if (inserted > 0) {
+            const current = this.options.db.repositories.threadGoals.get(rootThreadId)
+            if (current?.id !== rootGoal.id) {
+              this.options.db.repositories.threadGoalLedger.refreshArchivedMeasurement(rootGoal.id)
+            }
+            const measurement =
+              current?.id === rootGoal.id
+                ? this.options.db.repositories.threadGoalLedger.refreshMeasurement(rootThreadId)
+                : null
+            if (measurement) {
+              await this.publish(measurement.event)
+              await this.publishThreadProjectionChanged(rootThreadId)
+            }
+          }
+        }
+      }
+    }
     const pendingFor = (context: PiRuntimeEventContext) => {
       const existing = this.pending.get(context.threadID)
       if (existing) return existing
@@ -984,6 +1047,14 @@ export class AgentRuntimeService implements AgentRuntime {
       return created
     }
     return {
+      modelRecovery: async (context, input) => {
+        if (input.state !== modelRecoveryState || input.discardedItemIDs.length > 0) {
+          const event = this.options.db.recordModelRecovery({ ...context, ...input })
+          modelRecoveryState = input.state
+          await this.publish(event)
+        }
+        if (input.usage) await recordProviderUsage(context, crypto.randomUUID(), input.usage)
+      },
       event: (context, event) => {
         if (event.type === 'before_provider_request') {
           const rootThreadId = getRootThreadId(this.options.db, context.threadID)
@@ -1081,7 +1152,34 @@ export class AgentRuntimeService implements AgentRuntime {
           ),
         )
       },
+      reasoningStarted: async (context, input) => {
+        const timestamp = Date.now()
+        const persisted = this.options.db.upsertItemWithEvent(
+          context.threadID,
+          {
+            id: input.itemID,
+            turnID: context.turnID,
+            agentID: context.agentID,
+            type: 'reasoning',
+            status: 'running',
+            data: { text: '' },
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+          'item/started',
+        )
+        await this.publish(persisted.event)
+      },
       reasoningDelta: async (context, input) => {
+        const current = this.options.db.getItem(input.itemID)
+        if (current) {
+          if (current.status !== 'running') return
+          this.options.db.upsertItem(context.threadID, {
+            ...current,
+            data: { ...current.data, text: String(current.data.text ?? '') + input.delta },
+            updatedAt: Date.now(),
+          })
+        }
         await this.publish(
           createLiveEvent(
             this.options.db,
@@ -1118,6 +1216,31 @@ export class AgentRuntimeService implements AgentRuntime {
           reasoning: input.usage.reasoning,
           ...(contextUsageBreakdown?.length ? { breakdown: [...contextUsageBreakdown] } : {}),
         }
+        const terminalStatus =
+          input.completion?.stopReason === 'aborted' || input.completion?.stopReason === 'error'
+            ? 'interrupted'
+            : 'completed'
+        const content = Array.isArray(input.content) ? input.content : []
+        const reasoning = content
+          .flatMap((part) => (part.type === 'thinking' ? [part.thinking] : []))
+          .join('\n')
+          .trim()
+        const currentReasoning = this.options.db.getItem(input.reasoningItemID)
+        if (reasoning || currentReasoning) {
+          pending.items.set(input.reasoningItemID, {
+            id: input.reasoningItemID,
+            turnID: context.turnID,
+            agentID: context.agentID,
+            type: 'reasoning',
+            status: terminalStatus,
+            data: { text: reasoning },
+            ...(currentReasoning?.ordinal === undefined
+              ? {}
+              : { ordinal: currentReasoning.ordinal }),
+            createdAt: currentReasoning?.createdAt ?? timestamp,
+            updatedAt: timestamp,
+          })
+        }
         if (input.text === undefined || text || this.options.db.getItem(input.textItemID)) {
           const currentText = this.options.db.getItem(input.textItemID)
           pending.items.set(input.textItemID, {
@@ -1125,10 +1248,7 @@ export class AgentRuntimeService implements AgentRuntime {
             turnID: context.turnID,
             agentID: context.agentID,
             type: 'text',
-            status:
-              input.completion?.stopReason === 'aborted' || input.completion?.stopReason === 'error'
-                ? 'interrupted'
-                : 'completed',
+            status: terminalStatus,
             data: {
               placement: input.placement,
               ...(input.phase ? { phase: input.phase } : {}),
@@ -1156,74 +1276,7 @@ export class AgentRuntimeService implements AgentRuntime {
             updatedAt: timestamp,
           })
         }
-        const inputTokens = usage.input + usage.cacheRead + usage.cacheWrite
-        await onUsage?.({
-          inputTokens,
-          outputTokens: usage.output,
-          totalTokens: inputTokens + usage.output,
-          requests: 1,
-        })
-        const rootThreadId = getRootThreadId(this.options.db, context.threadID)
-        const rootGoal =
-          usageGoal === undefined
-            ? this.options.db.repositories.threadGoalLedger.visibleGoal(rootThreadId)
-            : usageGoal
-        if (rootGoal) {
-          const entry: GoalUsageEntry = {
-            threadId: rootThreadId,
-            goalId: rootGoal.id,
-            agentId: context.agentID,
-            sourceEntryId: input.textItemID,
-            inputTokens: usage.input,
-            outputTokens: usage.output,
-            cacheReadTokens: usage.cacheRead,
-            cacheWriteTokens: usage.cacheWrite,
-            reasoningTokens: usage.reasoning ?? 0,
-          }
-          if (
-            entry.inputTokens +
-              entry.outputTokens +
-              entry.cacheReadTokens +
-              entry.cacheWriteTokens +
-              entry.reasoningTokens >
-            0
-          ) {
-            const inserted = this.options.db.repositories.threadGoalLedger.recordUsage([entry])
-            if (inserted > 0) {
-              const current = this.options.db.repositories.threadGoals.get(rootThreadId)
-              if (current?.id !== rootGoal.id) {
-                this.options.db.repositories.threadGoalLedger.refreshArchivedMeasurement(
-                  rootGoal.id,
-                )
-              }
-              const measurement =
-                current?.id === rootGoal.id
-                  ? this.options.db.repositories.threadGoalLedger.refreshMeasurement(rootThreadId)
-                  : null
-              if (measurement) {
-                await this.publish(measurement.event)
-                await this.publishThreadProjectionChanged(rootThreadId)
-              }
-            }
-          }
-        }
-        const content = Array.isArray(input.content) ? input.content : []
-        const reasoning = content
-          .flatMap((part) => (part.type === 'thinking' ? [part.thinking] : []))
-          .join('\n')
-          .trim()
-        if (reasoning) {
-          pending.items.set(input.reasoningItemID, {
-            id: input.reasoningItemID,
-            turnID: context.turnID,
-            agentID: context.agentID,
-            type: 'reasoning',
-            status: 'completed',
-            data: { text: reasoning },
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          })
-        }
+        await recordProviderUsage(context, input.textItemID, usage)
       },
       visualizationPreview: async (context, preview) => {
         await this.publish(
@@ -2094,6 +2147,24 @@ export class AgentRuntimeService implements AgentRuntime {
         })
       }
       const runtimeOptions: HarnessRuntimeOptions = {
+        readMediaAttachment: async (reference) => {
+          const source = this.options.db.inputAdmission(reference.inputId)
+          if (source?.thread_id !== request.threadID || !this.options.attachments) return undefined
+          const stored = await this.options.attachments
+            .read(reference.attachmentId)
+            .catch(() => undefined)
+          if (!stored) return undefined
+          const { record } = stored
+          if (
+            record.binding?.type !== 'input' ||
+            record.binding.id !== reference.inputId ||
+            record.kind !== reference.kind ||
+            record.mimeType !== reference.mimeType ||
+            stored.data.byteLength !== reference.sizeBytes
+          )
+            return undefined
+          return stored.data
+        },
         activated: (threadID, active) => this.active.set(threadID, active),
         ...(request.onRuntimeReady ? { onRuntimeReady: request.onRuntimeReady } : {}),
         toolExecutor: this.options.toolExecutor,
@@ -2114,6 +2185,8 @@ export class AgentRuntimeService implements AgentRuntime {
           request.onUsage,
           () => contextUsageBreakdown,
         ),
+        hasCommittedToolResult: (toolCallID) =>
+          this.options.db.hasPersistedToolResult(request.turnID, toolCallID),
         beforeToolCall: async (_runtimeRequest, input) => {
           if ((PI_LIFECYCLE_TOOLS as readonly string[]).includes(input.tool)) return undefined
           const decision = await this.options.toolExecutor.previewApproval(
@@ -2689,6 +2762,7 @@ export class AgentRuntimeService implements AgentRuntime {
           agentID: request.agentID,
           sessionID: request.sessionID,
           ...(request.profile ? { profile: request.profile } : {}),
+          ...(request.waitForModelNetwork ? { waitForModelNetwork: true } : {}),
           content: request.content,
           ...(resumedContent ? { resumedContent } : {}),
           taskMode: request.taskMode,

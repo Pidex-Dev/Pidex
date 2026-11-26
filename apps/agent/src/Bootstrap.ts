@@ -876,7 +876,13 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         pointer: `[pidex-admission-archive] 完整输出已归档（${name}，sha256:${stored.sha256}），可按该哈希经 Artifact 通道读取。`,
       }
     })
+    const attachments = yield* Effect.promise(() =>
+      AttachmentService.open(config.dataDir, {
+        catalog: new SqliteAttachmentCatalog(db),
+      }),
+    )
     const orchestrator = new AgentRuntimeService({
+      attachments,
       db,
       hub,
       models: piModels.pi,
@@ -902,11 +908,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         await Effect.runPromise(hub.publish(event))
       },
       (threadID, signal) => orchestrator.compact(threadID, undefined, undefined, signal),
-    )
-    const attachments = yield* Effect.promise(() =>
-      AttachmentService.open(config.dataDir, {
-        catalog: new SqliteAttachmentCatalog(db),
-      }),
     )
     const projectSources = yield* Effect.promise(() =>
       ProjectSourceService.open(config.dataDir, db),
