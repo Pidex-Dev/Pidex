@@ -3036,6 +3036,30 @@ const fixtures = {
     },
     { attachments: [attachment] },
   ),
+  'attachment/upload/begin': methodFixture(
+    'attachment/upload/begin',
+    { kind: 'pdf', name: 'fixture.pdf', mediaType: 'application/pdf', size: 9 },
+    { uploadId: 'upload:1' },
+  ),
+  'attachment/upload/chunk': methodFixture(
+    'attachment/upload/chunk',
+    { uploadId: 'upload:1', offset: 0, data: 'JVBERi0xLjcK' },
+    { offset: 9 },
+  ),
+  'attachment/upload/commit': methodFixture(
+    'attachment/upload/commit',
+    { uploadId: 'upload:1' },
+    {
+      attachment: {
+        ...attachment,
+        kind: 'pdf',
+        name: 'fixture.pdf',
+        mediaType: 'application/pdf',
+        sizeBytes: 9,
+      },
+    },
+  ),
+  'attachment/upload/abort': methodFixture('attachment/upload/abort', { uploadId: 'upload:1' }, {}),
   'attachment/read': methodFixture(
     'attachment/read',
     {
@@ -6775,7 +6799,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(376)
+    expect(methods).toHaveLength(380)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -7143,7 +7167,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(355)
+    expect(Object.keys(RpcMethods)).toHaveLength(359)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })

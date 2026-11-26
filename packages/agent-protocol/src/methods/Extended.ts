@@ -126,6 +126,7 @@ export const ProviderModelDefinitionSchema = Schema.Struct({
       Schema.isMaxLength(4),
     ),
   ),
+  mediaInput: Schema.optional(Model.MediaInputCapability),
   cost: Schema.optional(ProviderModelCostSchema),
   headers: Schema.optional(PublicHeadersSchema),
   thinkingLevelMap: Schema.optional(ThinkingLevelMapSchema),

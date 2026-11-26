@@ -7,7 +7,7 @@ export const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
 } as const
 
 export type DesktopAttachmentSaveInput = {
-  kind: 'image' | 'text'
+  kind: 'image' | 'text' | 'pdf'
   name: string
   mediaType: string
   encoding: 'base64' | 'utf8'
@@ -43,7 +43,7 @@ export type DesktopComposerPathPreview = {
   relativePath: string
   mediaType: string
   sizeBytes: number
-  kind: 'image' | 'text' | 'audio' | 'video' | 'binary'
+  kind: 'image' | 'text' | 'audio' | 'video' | 'pdf' | 'binary'
   encoding?: 'base64' | 'utf8'
   data?: string
   truncated?: boolean

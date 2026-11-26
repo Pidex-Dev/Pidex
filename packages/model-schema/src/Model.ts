@@ -328,6 +328,20 @@ export const SmartConfig = Schema.Struct({
 })
 export type SmartConfig = typeof SmartConfig.Type
 
+export const VideoInputMimeTypes = ['video/mp4', 'video/webm'] as const
+
+export const MediaInputCapability = Schema.Struct({
+  endpoint: Schema.String.check(Schema.isMinLength(1)),
+  protocol: Schema.Literals(['anthropic-messages', 'openai-responses', 'openai-completions']),
+  pdf: Schema.optional(Schema.Boolean),
+  video: Schema.optional(
+    Schema.Array(Schema.Literals(VideoInputMimeTypes)).check(
+      Schema.isMaxLength(VideoInputMimeTypes.length),
+    ),
+  ),
+})
+export type MediaInputCapability = typeof MediaInputCapability.Type
+
 export interface Capabilities extends Schema.Schema.Type<typeof Capabilities> {}
 export const Capabilities = Schema.Struct({
   tools: Schema.Boolean,

@@ -33,6 +33,7 @@ export const Capabilities = [
   'turn.resume.v1',
   'turn.queue.management.v1',
   'attachments.v1',
+  'attachments.chunked.v1',
   'artifacts.read.v1',
   'visualizations.v1',
   'local-context.paths.v1',
