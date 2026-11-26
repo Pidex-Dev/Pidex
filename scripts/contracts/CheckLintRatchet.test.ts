@@ -1,3 +1,7 @@
+import { spawnSync } from 'node:child_process'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 import { describe, expect, test } from 'bun:test'
 import {
   evaluateLintRatchet,
@@ -176,5 +180,69 @@ describe('CheckLintRatchet', () => {
       'import(no-duplicates)': 2,
       'react(refs)': 4,
     })
+  })
+
+  test('oxlint pidex-models/preserve-configured-models flags catalog-only model regressions as errors', async () => {
+    const repoRoot = resolve(import.meta.dir, '../..')
+    const pluginPath = resolve(import.meta.dir, 'ModelSelectorLintPlugin.mjs')
+    const dir = await mkdtemp(join(tmpdir(), 'pidex-model-selector-lint-'))
+    try {
+      const files: Record<string, string> = {
+        '.oxlintrc.json': JSON.stringify({
+          jsPlugins: [pluginPath],
+          rules: {
+            'pidex-models/preserve-configured-models': 'error',
+          },
+        }),
+        'apps/agent/src/provider/pi/PiBuiltinProviderOverrides.ts': [
+          'export function withPiBuiltinProviderOverrides(source: any, config: any, catalog?: any) {',
+          '  const configuredExtraIds = catalog ? [] : [...Object.keys(config.models), ...config.allowModels]',
+          '  const changedApi = (model: any) => {',
+          '    if (catalog) return false',
+          '    return Boolean(model)',
+          '  }',
+          '  return { source, configuredExtraIds, changedApi }',
+          '}',
+        ].join('\n'),
+        'apps/agent/src/provider/pi/PiModelService.ts': [
+          'export class PiModelService {',
+          '  directoryBaseProviders = new Map<string, any>()',
+          '  async models(providerID: string) {',
+          '    return this.directoryBaseProviders.get(providerID)?.getModels() ?? []',
+          '  }',
+          '}',
+        ].join('\n'),
+        'apps/desktop/renderer/src/features/layout/UseModelProviderController.ts': [
+          'export function useModelProviderController(client: any, provider: any) {',
+          '  return client.discoverProviderModels({ providerId: provider.providerID })',
+          '}',
+        ].join('\n'),
+      }
+      for (const [rel, content] of Object.entries(files)) {
+        const target = join(dir, rel)
+        await mkdir(dirname(target), { recursive: true })
+        await writeFile(target, content, 'utf8')
+      }
+      const result = spawnSync(
+        'bun',
+        [
+          'x',
+          'oxlint',
+          '--config',
+          join(dir, '.oxlintrc.json'),
+          join(dir, 'apps'),
+          '--format=json',
+        ],
+        { cwd: repoRoot, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+      )
+      expect(result.status).not.toBe(0)
+      const diagnostics = parseOxlintJsonOutput(result.stdout ?? '')
+      const ruleDiagnostics = diagnostics.filter(
+        (d) => d.code === 'pidex-models(preserve-configured-models)' && d.severity === 'error',
+      )
+      expect(ruleDiagnostics).toHaveLength(4)
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 })

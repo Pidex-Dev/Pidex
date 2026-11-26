@@ -339,3 +339,89 @@ describe('ArchContractsCore comment discipline', () => {
     expect(report.violations).toEqual([])
   })
 })
+
+describe('ArchContractsCore model selector preservation', () => {
+  test('fails when builtin overrides drop configured models under catalog or model selector reads catalog discovery', async () => {
+    const rootDir = await createFixtureRepo({
+      'apps/agent/src/provider/pi/PiBuiltinProviderOverrides.ts': [
+        'export function withPiBuiltinProviderOverrides(source: any, config: any, defaultEndpoints?: any, catalog?: any) {',
+        '  const configuredExtraIds = catalog ? [] : [...Object.keys(config.models), ...config.allowModels]',
+        '  const changedApi = (model: any) => {',
+        '    if (catalog) return false',
+        '    return Boolean(model.api)',
+        '  }',
+        '  const endpointModel = (model: any) => {',
+        '    if (catalog) return model',
+        '    return model',
+        '  }',
+        '  return { source, configuredExtraIds, changedApi, endpointModel }',
+        '}',
+      ].join('\n'),
+      'apps/agent/src/provider/pi/PiModelService.ts': [
+        'export class PiModelService {',
+        '  directoryBaseProviders = new Map<string, any>()',
+        '  providerCatalog: any = null',
+        '  async models(providerID: string) {',
+        '    return this.directoryBaseProviders.get(providerID)?.getModels() ?? []',
+        '  }',
+        '  modelEnabled(model: any) {',
+        '    return Boolean(this.providerCatalog?.providersDoc?.providers?.[model.provider])',
+        '  }',
+        '}',
+      ].join('\n'),
+      'apps/desktop/renderer/src/features/layout/UseModelProviderController.ts': [
+        'export function useModelProviderController(client: any, provider: any) {',
+        '  void client.discoverProviderModels({ providerId: provider.providerID })',
+        '  return provider.catalogModelCount',
+        '}',
+      ].join('\n'),
+    })
+
+    const report = await evaluateArchContracts({ rootDir, manifest: EMPTY_MANIFEST })
+    const modelViolations = report.violations.filter(
+      (v) => v.rule === 'model-selector/preserve-configured-models',
+    )
+    expect(modelViolations).toHaveLength(7)
+  })
+
+  test('passes when builtin overrides preserve configured models and selector uses configured model listing', async () => {
+    const rootDir = await createFixtureRepo({
+      'apps/agent/src/provider/pi/PiBuiltinProviderOverrides.ts': [
+        'export function withPiBuiltinProviderOverrides(source: any, config: any, defaultEndpoints?: any, catalog?: any) {',
+        '  const configuredExtraIds = [...Object.keys(config.models), ...config.allowModels]',
+        '  const changedApi = (model: any) => {',
+        '    if (catalog?.models[model.id]) return false',
+        '    return Boolean(model.api)',
+        '  }',
+        '  const endpointModel = (model: any) => {',
+        '    if (catalog?.models[model.id]) return model',
+        '    return model',
+        '  }',
+        '  return { source, configuredExtraIds, changedApi, endpointModel }',
+        '}',
+      ].join('\n'),
+      'apps/agent/src/provider/pi/PiModelService.ts': [
+        'export class PiModelService {',
+        '  pi = { getModels: () => [] as any[] }',
+        '  async models() {',
+        '    return this.pi.getModels().filter((m) => this.modelEnabled(m))',
+        '  }',
+        '  modelEnabled(model: any) {',
+        '    return Boolean(model.id)',
+        '  }',
+        '}',
+      ].join('\n'),
+      'apps/desktop/renderer/src/features/layout/UseModelProviderController.ts': [
+        'export function useModelProviderController(client: any, provider: any) {',
+        '  void client.fetchProviderModels({ providerID: provider.providerID, all: true })',
+        '  return provider.defaultModels',
+        '}',
+      ].join('\n'),
+    })
+
+    const report = await evaluateArchContracts({ rootDir, manifest: EMPTY_MANIFEST })
+    expect(
+      report.violations.filter((v) => v.rule === 'model-selector/preserve-configured-models'),
+    ).toEqual([])
+  })
+})

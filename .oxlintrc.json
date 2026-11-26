@@ -1,7 +1,9 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "oxc", "import"],
+  "jsPlugins": ["./scripts/contracts/ModelSelectorLintPlugin.mjs"],
   "rules": {
+    "pidex-models/preserve-configured-models": "error",
     "no-constant-condition": "error",
     "no-empty-pattern": "error",
     "no-irregular-whitespace": "error",
