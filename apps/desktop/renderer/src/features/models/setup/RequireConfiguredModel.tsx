@@ -2,10 +2,17 @@ import { startupSurfaceReadyRef } from '../../../startup/StartupSplashHandoff.js
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import * as Dialog from '@radix-ui/react-dialog'
 import { Button } from '../../../components/ui/Button.js'
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../../components/ui/Dialog.js'
 import { FullScreenWhaleLoading } from '../../../components/ui/FullScreenWhaleLoading.js'
-import { useDialogFocusRestore } from '../../../components/ui/UseDialogFocusRestore.js'
 import type { DesktopModelProviderSummary } from '../../../../shared/Types.js'
 import { isExecutableDesktopProvider } from '../../../services/desktop-client/ProviderAdapters.js'
 import type { ProviderConfigurationState } from '../../provider-management/Types.js'
@@ -168,44 +175,43 @@ function ModelSetupGuideDialog({
   onDismiss: () => void
   onGoToProviders: () => void
 }): React.ReactNode {
-  const { onCloseAutoFocus } = useDialogFocusRestore(open)
-
   return (
-    <Dialog.Root
+    <Dialog
       open={open}
+      showDialogClose={false}
+      size="compact"
       onOpenChange={(nextOpen) => {
         if (!nextOpen) onDismiss()
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="ui-dialog-backdrop" />
-        <Dialog.Content
-          className="ui-dialog-surface ui-dialog-surface--centered tw:grid tw:w-[min(26rem,calc(100vw-2rem))] tw:gap-4 tw:p-5"
-          onCloseAutoFocus={onCloseAutoFocus}
-        >
-          <header className="tw:flex tw:flex-col tw:gap-1">
-            <Dialog.Title asChild>
-              <h2 className="tw:type-5 tw:weight-bold tw:m-0 tw:text-app-text">先配置一个模型</h2>
-            </Dialog.Title>
-            <Dialog.Description asChild>
-              <p className="tw:type-1 tw:m-0 tw:text-app-text-soft">
+      <DialogBody>
+        <DialogHeader
+          reserveCloseSpace={false}
+          subtitle={
+            <DialogDescription asChild>
+              <p className="tw:m-0">
                 配置模型后即可开始编写代码、分析项目或执行自动化任务。
               </p>
-            </Dialog.Description>
-          </header>
-          <div className="tw:mt-2 tw:flex tw:items-center tw:justify-end tw:gap-3">
-            <Dialog.Close asChild>
-              <Button size="md" color="secondary">
-                稍后
-              </Button>
-            </Dialog.Close>
-            <Button size="md" color="primary" onClick={onGoToProviders}>
-              前往供应商市场
+            </DialogDescription>
+          }
+          title={
+            <DialogTitle asChild>
+              <h2 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text">先配置一个模型</h2>
+            </DialogTitle>
+          }
+        />
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button color="ghost" size="medium">
+              稍后
             </Button>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+          </DialogClose>
+          <Button color="primary" size="medium" onClick={onGoToProviders}>
+            前往供应商市场
+          </Button>
+        </DialogFooter>
+      </DialogBody>
+    </Dialog>
   )
 }
 

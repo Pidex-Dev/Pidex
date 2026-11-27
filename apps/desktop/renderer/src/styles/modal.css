@@ -3,7 +3,11 @@
  * flattening its nesting: the renderer no longer compiles Sass.
  */
 @layer primitives {
-  .permission-modal-backdrop {
+  /* INVARIANT: Codex Desktop dialogs dim the viewport lightly without blurring the
+   * background; the frosted glass lives on `.ui-dialog-surface` so underlying
+   * content stays sharp outside the dialog card. `:where()` keeps zero specificity
+   * so dedicated overlays such as `.settings-dialog-backdrop` override cleanly. */
+  :where(.permission-modal-backdrop) {
     position: fixed;
     inset: 0;
     z-index: var(--cpx-sys-z-modal);
@@ -11,8 +15,11 @@
     align-items: center;
     justify-content: center;
     padding: var(--cpx-sys-space-6);
-    background: var(--cpx-comp-modal-scrim, var(--cpx-sys-color-scrim));
-    backdrop-filter: blur(var(--cpx-sys-blur-sm, 4px));
+    background: color-mix(
+      in srgb,
+      var(--cpx-comp-modal-scrim, var(--cpx-sys-color-scrim)) 52%,
+      transparent
+    );
   }
 
   /* Radix dialog enter/exit motion (backdrop fade, surface lift) and the keyframes
@@ -29,11 +36,68 @@
     z-index: calc(var(--cpx-sys-z-modal) + 1);
   }
 
-  .ui-dialog-surface {
-    background: var(--cpx-comp-modal-bg, var(--cpx-comp-surface-floating));
+  /* INVARIANT: Matches Codex Desktop default dialog surface (90% elevated fill,
+   * 24px backdrop blur, 0.5px border ring + floating shadow, 20px outer corner
+   * derived from prominent radius + 1 spacing step to preserve the 6-step scale). */
+  :where(.ui-dialog-surface) {
+    background: color-mix(
+      in oklab,
+      var(--cpx-comp-modal-bg, var(--cpx-comp-surface-floating)) 90%,
+      transparent
+    );
+    backdrop-filter: blur(var(--cpx-sys-blur-lg));
     border: 0;
-    box-shadow: var(--cpx-comp-modal-shadow, var(--cpx-sys-shadow-floating));
-    border-radius: var(--cpx-comp-modal-radius, var(--cpx-sys-radius-prominent));
+    box-shadow:
+      0 0 0 0.5px var(--cpx-sys-color-border-default),
+      var(--cpx-comp-modal-shadow, var(--cpx-sys-shadow-floating));
+    border-radius: calc(var(--cpx-sys-radius-prominent) + var(--cpx-sys-space-1));
+  }
+
+  .ui-dialog-surface[data-variant='translucent'] {
+    background: color-mix(
+      in oklab,
+      var(--cpx-comp-modal-bg, var(--cpx-comp-surface-floating)) 70%,
+      transparent
+    );
+    backdrop-filter: blur(var(--cpx-sys-blur-md));
+  }
+
+  .ui-dialog-surface[data-variant='opaque'] {
+    background: var(--cpx-comp-modal-bg, var(--cpx-comp-surface-floating));
+    backdrop-filter: none;
+  }
+
+  .ui-dialog-sized[data-dialog-size='narrow'] {
+    width: min(23.75rem, calc(100vw - var(--cpx-sys-space-6)));
+  }
+
+  .ui-dialog-sized[data-dialog-size='compact'] {
+    width: min(26.25rem, calc(100vw - var(--cpx-sys-space-6)));
+  }
+
+  .ui-dialog-sized[data-dialog-size='medium'] {
+    width: min(28rem, calc(100vw - var(--cpx-sys-space-6)));
+  }
+
+  .ui-dialog-sized[data-dialog-size='default'] {
+    width: min(32.5rem, calc(100vw - var(--cpx-sys-space-6)));
+  }
+
+  .ui-dialog-sized[data-dialog-size='large'] {
+    width: min(36rem, calc(100vw - var(--cpx-sys-space-6)));
+  }
+
+  .ui-dialog-sized[data-dialog-size='wide'] {
+    width: min(38rem, calc(100vw - var(--cpx-sys-space-6)));
+  }
+
+  .ui-dialog-sized[data-dialog-size='xwide'] {
+    width: min(42.5rem, calc(100vw - var(--cpx-sys-space-6)));
+  }
+
+  .permission-modal-backdrop[data-backdrop='dimmed'] {
+    background: var(--cpx-comp-modal-scrim, var(--cpx-sys-color-scrim));
+    backdrop-filter: blur(1px);
   }
 
   .permission-modal-backdrop[data-backdrop='flat'] {
@@ -43,6 +107,7 @@
 
   .ui-dialog-surface[data-surface='command'] {
     background: var(--cpx-comp-modal-bg, var(--cpx-comp-surface-floating));
+    backdrop-filter: none;
     border: 1px solid var(--cpx-sys-color-border-subtle);
     border-radius: var(--cpx-sys-radius-none);
     box-shadow: none;
@@ -61,6 +126,10 @@
 
     .permission-modal-backdrop[data-backdrop='flat'] {
       background: transparent;
+    }
+
+    .ui-dialog-surface {
+      border: 1px solid CanvasText;
     }
 
     .ui-dialog-surface[data-surface='command'],

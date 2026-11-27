@@ -1,4 +1,3 @@
-import * as Dialog from '@radix-ui/react-dialog'
 import { Folder, FolderPlus, RefreshCw, Star, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
@@ -8,8 +7,14 @@ import type {
   ProjectAppearance,
 } from '../../../shared/Types.js'
 import { Button } from '../../components/ui/Button.js'
-
-import { useDialogFocusRestore } from '../../components/ui/UseDialogFocusRestore.js'
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/Dialog.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { cx } from '../../utils/Cx.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
@@ -49,7 +54,6 @@ export function ProjectEditDialog({
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const nameInputRef = useRef<HTMLInputElement | null>(null)
   const projectId = project.projectId
-  const { onCloseAutoFocus } = useDialogFocusRestore(open)
 
   useEffect(() => {
     if (!open) return
@@ -174,49 +178,38 @@ export function ProjectEditDialog({
   }
 
   return (
-    <Dialog.Root
+    <Dialog
+      closeButtonRef={closeButtonRef}
+      closeDisabled={busy}
+      closeLabel="关闭编辑项目"
+      contentClassName="project-edit-dialog tw:overflow-y-auto"
+      overlayClassName="project-edit-backdrop"
       open={open}
+      size="default"
+      contentProps={{
+        'aria-describedby': undefined,
+        onOpenAutoFocus: (event) => {
+          event.preventDefault()
+          const initialFocus = nameInputRef.current ?? closeButtonRef.current
+          initialFocus?.focus()
+          if (initialFocus === nameInputRef.current) {
+            nameInputRef.current?.select()
+          }
+        },
+      }}
       onOpenChange={(nextOpen) => {
         if (!busy) onOpenChange(nextOpen)
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="ui-dialog-backdrop project-edit-backdrop" />
-        <Dialog.Content
-          aria-describedby={undefined}
-          className="ui-dialog-surface ui-dialog-surface--centered project-edit-dialog tw:flex tw:flex-col tw:box-border tw:w-[min(32rem,calc(100vw-2rem))] tw:max-w-[calc(100vw-2rem)] tw:max-h-[calc(100vh-2rem)] tw:overflow-y-auto tw:gap-3 tw:p-5 tw:text-app-text tw:outline-none"
-          onCloseAutoFocus={onCloseAutoFocus}
-          onOpenAutoFocus={(event) => {
-            event.preventDefault()
-            const initialFocus = nameInputRef.current ?? closeButtonRef.current
-            initialFocus?.focus()
-            if (initialFocus === nameInputRef.current) {
-              nameInputRef.current?.select()
-            }
-          }}
-        >
-          <header className="project-edit-header tw:flex tw:items-center tw:justify-between tw:gap-4">
-            <Dialog.Title className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
-              编辑项目
-            </Dialog.Title>
-            <Dialog.Close asChild>
-              <Button
-                isIconOnly
-                className="project-edit-close"
-                color="ghostSecondary"
-                disabled={busy}
-                ref={closeButtonRef}
-                size="toolbar"
-                title="关闭编辑项目"
-              >
-                <X
-                  className="tw:size-icon-md"
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-              </Button>
-            </Dialog.Close>
-          </header>
+      <DialogBody>
+        <DialogHeader
+          className="project-edit-header"
+          title={
+            <DialogTitle asChild>
+              <h2 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text">编辑项目</h2>
+            </DialogTitle>
+          }
+        />
 
           {!projectId ? (
             <p className="project-edit-empty tw:m-0 tw:type-2 tw:text-app-text-meta">
@@ -349,10 +342,10 @@ export function ProjectEditDialog({
             </>
           )}
 
-          <footer className="project-edit-footer tw:mt-2 tw:flex tw:items-center tw:justify-between tw:gap-3">
+          <DialogFooter className="project-edit-footer tw:justify-between">
             <Button
               className="project-edit-delete tw:me-auto"
-              color="danger"
+              color="dangerSubtle"
               disabled={busy || !projectId}
               size="medium"
               onClick={onRequestRemove}
@@ -361,11 +354,11 @@ export function ProjectEditDialog({
               移除本地项目
             </Button>
             <div className="project-edit-footer-actions tw:flex tw:items-center tw:gap-3">
-              <Dialog.Close asChild>
-                <Button color="secondary" disabled={busy} size="medium">
+              <DialogClose asChild>
+                <Button color="ghost" disabled={busy} size="medium">
                   取消
                 </Button>
-              </Dialog.Close>
+              </DialogClose>
               <Button
                 color="primary"
                 disabled={busy || !projectId || !draftName.trim()}
@@ -376,10 +369,9 @@ export function ProjectEditDialog({
                 保存
               </Button>
             </div>
-          </footer>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+          </DialogFooter>
+      </DialogBody>
+    </Dialog>
   )
 }
 

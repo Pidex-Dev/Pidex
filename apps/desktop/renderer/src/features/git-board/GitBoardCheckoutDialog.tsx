@@ -1,13 +1,19 @@
 import { useState } from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
-import { Check, GitBranch, X } from 'lucide-react'
+import { Check, GitBranch } from 'lucide-react'
 import type { DesktopWorkspace } from '../../../shared/Types.js'
 import type { ReviewBranch } from '../review/source/ReviewAgentClient.js'
 import { Button } from '../../components/ui/Button.js'
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/Dialog.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { Tooltip } from '../../components/ui/Tooltip.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
-import { useDialogFocusRestore } from '../../components/ui/UseDialogFocusRestore.js'
 import { cx } from '../../utils/Cx.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 import type { GitBoardRepository } from './GitBoardRepository.js'
@@ -51,7 +57,6 @@ export function GitBoardCheckoutDialog({
 }) {
   const { t } = useLocale()
   const [query, setQuery] = useState('')
-  const { onCloseAutoFocus } = useDialogFocusRestore(open)
   const result = repository?.result
   const branchError = repository?.branchError
   const branches = gitBoardLocalBranches(repository)
@@ -60,57 +65,42 @@ export function GitBoardCheckoutDialog({
     : null
   const branchListUnavailable = !repository || !result || !result.ok
   return (
-    <Dialog.Root
+    <Dialog
+      closeLabel={t('关闭对话框')}
+      contentProps={{ 'aria-describedby': 'git-board-checkout-description' }}
       open={open}
+      size="medium"
       onOpenChange={(nextOpen) => {
         if (nextOpen) return
         setQuery('')
         onClose()
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
-        <Dialog.Content
-          aria-describedby="git-board-checkout-description"
-          className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:grid tw:w-[min(30rem,100%)] tw:gap-3 tw:p-5"
-          onCloseAutoFocus={onCloseAutoFocus}
-        >
-          <header className="tw:flex tw:items-start tw:justify-between tw:gap-3">
-            <Dialog.Title asChild>
-              <h2 className="tw:m-0 tw:min-w-0 tw:flex-1 tw:text-app-text tw:type-4 tw:weight-bold tw:break-words">
+      <DialogBody>
+        <DialogHeader
+          subtitle={
+            <DialogDescription asChild>
+              <div
+                id="git-board-checkout-description"
+                className="tw:m-0 tw:min-w-0 tw:text-app-text-soft tw:type-1"
+              >
+                <p className="tw:m-0 tw:truncate tw:text-app-text">
+                  {project ? project.name : t('未选择项目')}
+                </p>
+                <p className="tw:m-0 tw:truncate" title={project?.path}>
+                  {project?.path ?? t('仓库操作始终针对实际工作分支。')}
+                </p>
+              </div>
+            </DialogDescription>
+          }
+          title={
+            <DialogTitle asChild>
+              <h2 className="tw:m-0 tw:min-w-0 tw:text-app-text tw:type-4 tw:weight-bold tw:break-words">
                 {t('签出分支')}
               </h2>
-            </Dialog.Title>
-            <Dialog.Close asChild>
-              <Button
-                isIconOnly
-                className="tw:shrink-0"
-                color="ghostSecondary"
-                size="toolbar"
-                title={t('关闭对话框')}
-              >
-                <X
-                  className="tw:size-icon-md"
-                  aria-hidden="true"
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-              </Button>
-            </Dialog.Close>
-          </header>
-          <Dialog.Description asChild>
-            <div
-              id="git-board-checkout-description"
-              className="tw:m-0 tw:min-w-0 tw:text-app-text-soft tw:type-1"
-            >
-              <p className="tw:m-0 tw:truncate tw:text-app-text">
-                {project ? project.name : t('未选择项目')}
-              </p>
-              <p className="tw:m-0 tw:truncate" title={project?.path}>
-                {project?.path ?? t('仓库操作始终针对实际工作分支。')}
-              </p>
-            </div>
-          </Dialog.Description>
+            </DialogTitle>
+          }
+        />
           {error && (
             <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-1">
               {error}
@@ -196,15 +186,14 @@ export function GitBoardCheckoutDialog({
               </div>
             </>
           )}
-          <div className="permission-modal-actions tw:flex tw:items-center tw:justify-end">
-            <Dialog.Close asChild>
-              <Button className="tw:min-w-[4.75rem]" color="secondary" size="md">
-                {t('关闭')}
-              </Button>
-            </Dialog.Close>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button color="ghost" size="medium">
+              {t('关闭')}
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogBody>
+    </Dialog>
   )
 }
