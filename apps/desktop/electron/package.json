@@ -78,10 +78,6 @@
       {
         "from": "../../../third_party",
         "to": "third_party"
-      },
-      {
-        "from": "../../agent/third_party/pi-agent-core/LICENSE",
-        "to": "agent/third_party/pi-agent-core/LICENSE"
       }
     ],
     "protocols": [
