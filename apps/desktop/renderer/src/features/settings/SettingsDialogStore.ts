@@ -102,14 +102,6 @@ export function closeSettingsDialog(): void {
   })
 }
 
-export function toggleSettingsDialog(opener?: HTMLElement | null): void {
-  if (settingsDialogStore.getState().open) {
-    closeSettingsDialog()
-  } else {
-    openSettingsDialog(DEFAULT_SETTINGS_DESTINATION, { opener })
-  }
-}
-
 export function setSettingsDialogActiveTab(tab: string): void {
   const current = settingsDialogStore.getState()
   if (current.activeTab === tab) return

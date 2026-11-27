@@ -51,7 +51,6 @@ import type {
   DesktopBrowserSnapshot,
   DesktopBrowserTabInput,
   NavigateDesktopBrowserInput,
-  SetDesktopBrowserBoundsInput,
   SetDesktopBrowserVisibleInput,
 } from '@pidex/shared/desktop-browser-ipc'
 import type {
@@ -176,7 +175,6 @@ const DESKTOP_BROWSER_IPC_CHANNELS = {
   stop: 'desktop-browser:stop',
   goBack: 'desktop-browser:go-back',
   goForward: 'desktop-browser:go-forward',
-  setBounds: 'desktop-browser:set-bounds',
   setVisible: 'desktop-browser:set-visible',
   focus: 'desktop-browser:focus',
   close: 'desktop-browser:close',
@@ -245,9 +243,6 @@ const DESKTOP_APPEARANCE_IPC_CHANNELS = {
   getSystemTheme: 'appearance:system-theme:get',
   getStartupThemeSeed: 'appearance:startup-theme-seed:get',
   systemThemeChanged: 'appearance:system-theme:changed',
-  canRestorePreviousAppearance: 'appearance:previous-appearance:can-restore',
-  restorePreviousAppearance: 'appearance:previous-appearance:restore',
-  applyNewDesignTheme: 'appearance:new-design-theme:apply',
   listExternalFonts: 'appearance:external-fonts:list',
   downloadExternalFont: 'appearance:external-fonts:download',
   getExternalFontCss: 'appearance:external-fonts:css',
@@ -381,8 +376,6 @@ const desktop = {
     ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.goBack, input),
   goForwardDesktopBrowser: (input: DesktopBrowserTabInput): Promise<DesktopBrowserSnapshot> =>
     ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.goForward, input),
-  setDesktopBrowserBounds: (input: SetDesktopBrowserBoundsInput): Promise<DesktopBrowserSnapshot> =>
-    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.setBounds, input),
   setDesktopBrowserVisible: (
     input: SetDesktopBrowserVisibleInput,
   ): Promise<DesktopBrowserSnapshot> =>
@@ -602,12 +595,6 @@ const desktop = {
     ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.getSettings),
   saveAppearanceSettings: (settings: DesktopThemeSettingsV8): Promise<void> =>
     ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.saveSettings, settings),
-  canRestorePreviousAppearance: (): Promise<boolean> =>
-    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.canRestorePreviousAppearance),
-  restorePreviousAppearance: (): Promise<DesktopThemeSettingsV8> =>
-    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.restorePreviousAppearance),
-  applyNewDesignTheme: (): Promise<DesktopThemeSettingsV8> =>
-    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.applyNewDesignTheme),
   listExternalFonts: (): Promise<DesktopExternalFontState[]> =>
     ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.listExternalFonts),
   downloadExternalFont: (fontId: string): Promise<DesktopExternalFontDownloadResult> =>
@@ -891,6 +878,8 @@ function isDesktopStartupSnapshot(value: unknown): value is DesktopStartupSnapsh
     Number.isSafeInteger(value.revision) &&
     Number(value.revision) >= 0 &&
     ['loading', 'connected', 'failed'].includes(String(value.state)) &&
+    (value.failureReason === undefined ||
+      (value.state === 'failed' && value.failureReason === 'relocation')) &&
     typeof value.label === 'string' &&
     value.label.length <= 200
   )

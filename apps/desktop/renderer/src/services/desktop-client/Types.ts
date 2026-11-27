@@ -57,9 +57,6 @@ type DesktopClientWindow = {
     pickWorkspaceDirectories?(): Promise<string[]>
     getAppearanceSettings?(): Promise<DesktopThemeSettings>
     saveAppearanceSettings?(settings: DesktopThemeSettings): Promise<void>
-    canRestorePreviousAppearance?(): Promise<boolean>
-    restorePreviousAppearance?(): Promise<DesktopThemeSettings>
-    applyNewDesignTheme?(): Promise<DesktopThemeSettings>
     getDesktopSettings?(): Promise<DesktopStoredSettings>
     saveDesktopSettings?(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
     onDesktopSettingsChange?(

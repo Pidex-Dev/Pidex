@@ -99,7 +99,6 @@ import { shouldRestoreLastWorkspace } from '../../workspace/LastWorkspaceRestore
 import { useSessionState } from '../../session/state/UseSessionState.js'
 import { pendingSubmissionStore } from '../../session/state/PendingSubmissionStore.js'
 import { useSessionTitleRegeneration } from '../../session/state/UseSessionTitleRegeneration.js'
-import { useDesktopCommands } from '../../session/UseDesktopCommands.js'
 import { useEverOpened, useLastNonNull } from '../../../hooks/UsePresenceRetention.js'
 import type {
   DesktopComposerAttachment,
@@ -165,7 +164,6 @@ import {
 import {
   closeSettingsDialog,
   openSettingsDialog,
-  toggleSettingsDialog,
   useSettingsDialogState,
 } from '../../settings/SettingsDialogStore.js'
 import { WorkbenchPanel } from '../dock/RightDock.js'
@@ -496,7 +494,6 @@ export function DesktopLayout(): React.ReactNode {
     settingsLoaded,
     setPermissionMode,
     setRecentWorkspaces,
-    setDrawerTab,
     setReviewView,
     setSidebarSessionPins,
     setTitlebarSessionTabIds: persistTitlebarSessionTabIds,
@@ -718,7 +715,7 @@ export function DesktopLayout(): React.ReactNode {
 
   // 显式进入新会话页（侧栏“新建/新聊天”、产品模式切换、返回首页等）时复位模式。
   // 目录刷新与普通切会话不改变路由，不会触发；已停留在首页时的重复点击由
-  // 各自的显式入口（handleNewConversation / handleCreateSession / handleUseSkill）复位。
+  // 各自的显式入口（handleCreateSession / handleUseSkill）复位。
   const previousPathnameRef = useRef(location.pathname)
   useEffect(() => {
     const enteredQuickChat = isQuickChatPage && previousPathnameRef.current !== QUICK_CHAT_PATH
@@ -746,17 +743,6 @@ export function DesktopLayout(): React.ReactNode {
     enableMemory,
     rustSearchAndDiffKernels,
     onError: handleErrorMessage,
-    onDiffForActive: (patch: string) => setDiffState(patch),
-    onRefreshActiveWorkspace: (sessionId: string) => {
-      const target = session.sessionId === sessionId ? currentWorkspace : null
-      if (!target) return
-      void refreshWorkspace(target, {
-        clearSelectedFile: false,
-        expectedSessionId: sessionId,
-        force: true,
-      })
-    },
-    onOpenDrawerPermissions: () => setDrawerTab('permissions'),
   })
   const {
     sessionId,
@@ -1791,14 +1777,6 @@ export function DesktopLayout(): React.ReactNode {
     [appendComposerAttachmentsForDraft, mainComposerDraftKey],
   )
 
-  const handleNewConversation = useCallback(async (): Promise<void> => {
-    resetHomeComposerModes()
-    activateSessionById(null)
-    inputBinding.replace('')
-    setComposerAttachments([])
-    navigate(QUICK_CHAT_PATH)
-  }, [activateSessionById, inputBinding, navigate, resetHomeComposerModes, setComposerAttachments])
-
   const handleUseSkill = useCallback(
     (skill: DesktopInstalledSkill): void => {
       closeSettingsDialog()
@@ -1887,24 +1865,6 @@ export function DesktopLayout(): React.ReactNode {
       confirmProviderBeforeChange,
     ],
   )
-
-  useDesktopCommands({
-    onNewConversation: () => {
-      void handleNewConversation()
-    },
-    onChooseWorkspace: () => {
-      void handleChooseWorkspace()
-    },
-    onRefreshWorkspace: () => {
-      void refreshWorkspace(undefined, { force: true, refreshGitStatus: true })
-    },
-    onOpenSettings: () => {
-      toggleSettingsDialog()
-    },
-    onLogOut: () => {
-      setErrorMessage('已退出登录。本地桌面端暂无持久账号切换，请重启应用。')
-    },
-  })
 
   const prevSessionIdRef = useRef<string | null>(null)
   const hasInitializedSessionSwitchRef = useRef(false)

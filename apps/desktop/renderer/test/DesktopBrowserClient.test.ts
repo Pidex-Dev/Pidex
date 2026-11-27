@@ -42,7 +42,6 @@ describe('desktop browser client', () => {
       stopDesktopBrowser: async () => snapshot({ loading: false }),
       goBackDesktopBrowser: async () => snapshot(),
       goForwardDesktopBrowser: async () => snapshot(),
-      setDesktopBrowserBounds: async (input) => (calls.push(input), snapshot()),
       setDesktopBrowserVisible: async (input) => (calls.push(input), snapshot()),
       focusDesktopBrowser: async (input) => {
         calls.push(input)

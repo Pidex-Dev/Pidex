@@ -16,9 +16,6 @@ type ConfigSettingsApiMethod =
   | 'getDesktopSettings'
   | 'getThemeSettings'
   | 'saveThemeSettings'
-  | 'canRestorePreviousAppearance'
-  | 'restorePreviousAppearance'
-  | 'applyNewDesignTheme'
   | 'saveDesktopSettings'
 
 type ConfigSettingsApi = Pick<DesktopClient, ConfigSettingsApiMethod>
@@ -191,33 +188,6 @@ export function createAgentConfigSettingsApi({
         return
       }
       await mockClient.saveThemeSettings(normalized)
-    },
-    canRestorePreviousAppearance: async () => {
-      const checker = environment.window?.DesktopBridge?.canRestorePreviousAppearance
-      if (checker) {
-        return checker()
-      }
-      return mockClient.canRestorePreviousAppearance()
-    },
-    restorePreviousAppearance: async () => {
-      const restorer = environment.window?.DesktopBridge?.restorePreviousAppearance
-      if (restorer) {
-        const restored = await restorer()
-        const normalized = normalizeDesktopThemeSettings(restored)
-        await mockClient.saveThemeSettings(normalized)
-        return normalized
-      }
-      return mockClient.restorePreviousAppearance()
-    },
-    applyNewDesignTheme: async () => {
-      const applier = environment.window?.DesktopBridge?.applyNewDesignTheme
-      if (applier) {
-        const applied = await applier()
-        const normalized = normalizeDesktopThemeSettings(applied)
-        await mockClient.saveThemeSettings(normalized)
-        return normalized
-      }
-      return mockClient.applyNewDesignTheme()
     },
     saveDesktopSettings: queueDesktopSettingsSave,
   }

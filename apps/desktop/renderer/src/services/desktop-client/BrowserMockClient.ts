@@ -9,10 +9,7 @@ import {
   type RpcParams,
   type RpcResult,
 } from '@pidex/agent-protocol'
-import {
-  DEFAULT_DESKTOP_THEME_SETTINGS,
-  normalizeDesktopThemeSettings,
-} from '../../../shared/Theme.js'
+import { normalizeDesktopThemeSettings } from '../../../shared/Theme.js'
 import type {
   DesktopApi,
   DesktopBrowserState,
@@ -37,7 +34,6 @@ import {
   createBrowserVisualFixture,
   emptyBrowserState,
   emptyReviewDiff,
-  mockCopilotLogin,
   mockGithubLogin,
   mockModelProvider,
   mockSessionSnapshot,
@@ -46,7 +42,7 @@ import {
   readBrowserThemeSettings,
   requireMockSession,
 } from './Fixtures.js'
-import { bridgeWindowMaximized, mockAuthStatus, mockRuntimeStatus } from './FixtureRuntime.js'
+import { bridgeWindowMaximized } from './FixtureRuntime.js'
 import type {
   DesktopAttachmentApi,
   DesktopAutomationApi,
@@ -363,6 +359,14 @@ export function createBrowserMockDesktopClient(
     'google-generative-ai',
   ] as const
 
+  async function disposeSession(sessionId: string) {
+    sessions.delete(sessionId)
+    if (activeSessionId === sessionId) {
+      activeSessionId = [...sessions.keys()][0] ?? null
+    }
+    emitSessionStoreChange()
+  }
+
   return {
     getSpeechStatus: async () => BROWSER_UNAVAILABLE_SPEECH_STATUS,
     installSpeech: async () => BROWSER_UNAVAILABLE_SPEECH_STATUS,
@@ -497,51 +501,6 @@ export function createBrowserMockDesktopClient(
     },
     feedbackScheduleDraft: async () => {
       throw new Error('浏览器模拟环境不保存任务规划草案。')
-    },
-    getAuthStatus: async () => mockAuthStatus(),
-    getRuntimeStatus: async () => mockRuntimeStatus(),
-    diagnoseDesktopToolchain: async () => {
-      const runtimeStatus = mockRuntimeStatus()
-      return {
-        enabled: settings.installPidexDependencies,
-        root: runtimeStatus.toolchainRoot,
-        managedRoot: runtimeStatus.managedToolchainRoot,
-        packagedRoot: runtimeStatus.packagedToolchainRoot,
-        pathEntries: runtimeStatus.toolchainPathEntries,
-        binaries: runtimeStatus.toolchainBinaries,
-      }
-    },
-    reinstallDesktopToolchain: async () => {
-      const runtimeStatus = mockRuntimeStatus()
-      return {
-        ok: true,
-        root: runtimeStatus.managedToolchainRoot,
-        copiedFrom: null,
-        diagnostics: {
-          enabled: settings.installPidexDependencies,
-          root: runtimeStatus.toolchainRoot,
-          managedRoot: runtimeStatus.managedToolchainRoot,
-          packagedRoot: runtimeStatus.packagedToolchainRoot,
-          pathEntries: runtimeStatus.toolchainPathEntries,
-          binaries: runtimeStatus.toolchainBinaries,
-        },
-      }
-    },
-    deleteDesktopToolchain: async () => {
-      const runtimeStatus = mockRuntimeStatus()
-      return {
-        ok: true,
-        root: runtimeStatus.managedToolchainRoot,
-        copiedFrom: null,
-        diagnostics: {
-          enabled: settings.installPidexDependencies,
-          root: null,
-          managedRoot: runtimeStatus.managedToolchainRoot,
-          packagedRoot: runtimeStatus.packagedToolchainRoot,
-          pathEntries: [],
-          binaries: runtimeStatus.toolchainBinaries,
-        },
-      }
     },
     readConfig: async (params) => ({
       config: configDocument,
@@ -696,14 +655,6 @@ export function createBrowserMockDesktopClient(
       throw new Error('TASK_SUGGESTIONS_UNAVAILABLE')
     },
     generateComposerPrediction: async () => ({ prediction: null }),
-    exportUserMemory: async () => ({
-      memoryDir: 'mock/user-memory/',
-      files: [],
-    }),
-    importUserMemory: async (input) => ({
-      memoryDir: 'mock/user-memory/',
-      files: input.files,
-    }),
     getBrowserState: async () => browserState,
     openBrowser: async (url) => {
       browserState = {
@@ -1092,10 +1043,6 @@ export function createBrowserMockDesktopClient(
     cancelAuthSession: async () => {
       throw new Error('浏览器 mock 模式没有活动授权会话。')
     },
-    getCopilotAuthStatus: async () => ({ authenticated: false }),
-    startCopilotLogin: async () => mockCopilotLogin(),
-    pollCopilotLogin: async () => mockCopilotLogin(),
-    cancelCopilotLogin: async () => ({ cancelled: true }),
     getGithubAuthStatus: async () => ({
       configured: false,
       authenticated: false,
@@ -1305,34 +1252,6 @@ export function createBrowserMockDesktopClient(
       } catch {
         // Browser preview persistence is best-effort.
       }
-    },
-    canRestorePreviousAppearance: async () => false,
-    restorePreviousAppearance: async () => themeSettings,
-    applyNewDesignTheme: async () => {
-      themeSettings = normalizeDesktopThemeSettings({
-        ...themeSettings,
-        fonts: { ...DEFAULT_DESKTOP_THEME_SETTINGS.fonts },
-        chromeThemes: {
-          light: {
-            ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.light,
-            fonts: { ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.light.fonts },
-          },
-          dark: {
-            ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.dark,
-            fonts: { ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.dark.fonts },
-          },
-        },
-        fontSizes: {
-          ...themeSettings.fontSizes,
-          ui: 14,
-        },
-      })
-      try {
-        storage?.setItem(BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY, JSON.stringify(themeSettings))
-      } catch {
-        // Browser preview persistence is best-effort.
-      }
-      return themeSettings
     },
     createSession: async (options) => {
       if (options.operationId) {
@@ -1604,13 +1523,13 @@ export function createBrowserMockDesktopClient(
     sendUserMessage: async () => {},
     respondToPermission: async () => {},
     interruptSession: async () => {},
-    disposeSession: async (sessionId) => {
-      sessions.delete(sessionId)
-      if (activeSessionId === sessionId) {
-        activeSessionId = [...sessions.keys()][0] ?? null
-      }
-      emitSessionStoreChange()
+    supportsArchivedSessionDeletion: () => true,
+    async deleteArchivedSession(sessionId) {
+      if (!sessions.get(sessionId)?.item.archivedAt) return false
+      await disposeSession(sessionId)
+      return true
     },
+    disposeSession,
     minimizeWindow: async () => {
       await window.DesktopBridge?.minimize()
     },
@@ -1620,8 +1539,6 @@ export function createBrowserMockDesktopClient(
     },
     isWindowMaximized: async () => bridgeWindowMaximized(),
     newWindow: async () => {},
-    openDevTools: async () => {},
-    closeDevTools: async () => {},
     openSettings: async () => {},
     logOut: async () => {},
     exitApp: async () => {},
@@ -1684,9 +1601,6 @@ export function createBrowserMockDesktopClient(
       resourceId,
       reclaimedBytes: 0,
     }),
-    onAgentEvent: () => noop,
-    onWorkflowEvent: () => noop,
-    onUiCommand: () => noop,
     onSessionStoreChange: (callback) => {
       sessionStoreListeners.add(callback)
       return () => {
@@ -1704,24 +1618,6 @@ export function createBrowserMockDesktopClient(
     downloadUpdate: async () => {},
     quitAndInstall: async () => {},
     onUpdateStatusChange: () => noop,
-    listDebugBuiltinTools: async () => ({
-      toolNames: [],
-      enabled: [],
-      hasProbeInput: [],
-    }),
-    runDebugToolProbe: async (mode) => ({
-      runId: 'browser-mock-probe',
-      mode,
-      startedAt: new Date().toISOString(),
-      finishedAt: new Date().toISOString(),
-      totalTools: 0,
-      passed: 0,
-      failed: 0,
-      permissionDenied: 0,
-      skippedByEnvironment: 0,
-      items: [],
-    }),
-    cancelDebugToolProbe: async () => {},
     submitSessionFollowUp: async (_sessionId, _input, delivery) =>
       delivery === 'steer' ? ('steered' as const) : ('queued' as const),
     updateQueuedFollowUp: async () =>

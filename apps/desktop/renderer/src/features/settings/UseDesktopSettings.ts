@@ -137,7 +137,6 @@ export type UseDesktopSettingsResult = {
       | Record<string, ProjectAppearance>
       | ((current: Record<string, ProjectAppearance>) => Record<string, ProjectAppearance>),
   ) => void
-  setDrawerTab: (value: DrawerTab) => void
   setSelectedModelPreset: (value: string) => void
   setProviderID: (value: ModelProviderID) => void
   setProviderBaseURL: (value: string) => void
@@ -215,7 +214,6 @@ export type UseDesktopRuntimeSettingsResult = Pick<
   | 'setProviderID'
   | 'setThinkingMode'
   | 'setRecentWorkspaces'
-  | 'setDrawerTab'
   | 'setSelectedModelPreset'
   | 'setReviewView'
   | 'setSidebarSessionPins'
@@ -548,7 +546,7 @@ function useDesktopSettingsState(
   )
   const [lastActiveWorkspacePath] = useFieldState(stateStore, 'lastActiveWorkspacePath')
   const [removedWorkspaces] = useFieldState(stateStore, 'removedWorkspaces')
-  const [drawerTab, setDrawerTab] = useFieldState(stateStore, 'drawerTab')
+  const [drawerTab] = useFieldState(stateStore, 'drawerTab')
   const [selectedModelPreset, setSelectedModelPreset] = useFieldState(
     stateStore,
     'selectedModelPreset',
@@ -1210,7 +1208,6 @@ function useDesktopSettingsState(
       setProviderID,
       setThinkingMode,
       setRecentWorkspaces,
-      setDrawerTab,
       setSelectedModelPreset,
       setReviewView,
       setSidebarSessionPins,
@@ -1230,7 +1227,6 @@ function useDesktopSettingsState(
       setProviderID,
       setThinkingMode,
       setRecentWorkspaces,
-      setDrawerTab,
       setSelectedModelPreset,
       setReviewView,
       setSidebarSessionPins,
@@ -1324,7 +1320,6 @@ function useDesktopSettingsState(
     setAdditionalDirectories,
     setRecentWorkspaces,
     setProjectAppearances,
-    setDrawerTab,
     setSelectedModelPreset,
     setProviderID,
     setProviderBaseURL,

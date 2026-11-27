@@ -587,7 +587,7 @@ describe('canonical thread switch', () => {
         runId: 'run-1',
         childThreadId: 'child-1',
         displayName: 'Explorer',
-        title: '核对 ZCode 参照设计细节',
+        title: '核对 参照设计细节',
         profile: 'explorer',
         role: 'general',
         task: '检查设计细节',
@@ -646,7 +646,7 @@ describe('canonical thread switch', () => {
     )
 
     expect(html).toContain('Explorer')
-    expect(html).toContain('核对 ZCode 参照设计细节')
+    expect(html).toContain('核对 参照设计细节')
     expect(html).toContain('Backend')
     expect(html).toContain('历史任务标题回退')
     expect(html).toContain('等待审批')

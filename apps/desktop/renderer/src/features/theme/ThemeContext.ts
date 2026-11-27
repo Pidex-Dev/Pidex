@@ -30,9 +30,6 @@ export type DesktopThemeContextValue = {
   draft: DesktopThemeDraft
   setMode: (mode: DesktopThemeMode) => Promise<void>
   saveSettings: (settings: DesktopThemeSettings) => Promise<void>
-  canRestorePreviousAppearance: () => Promise<boolean>
-  restorePreviousAppearance: () => Promise<void>
-  applyNewDesignTheme: () => Promise<void>
 }
 
 type DesktopThemeHotData = {

@@ -110,6 +110,7 @@ export const RENDERER_CAPABILITIES = [
   'mcp.elicitation.v1',
   'turn.admission.v1',
   'thread.editUserMessage.v1',
+  'thread.deleteArchived.v1',
   'skills.invocation.v1',
   'plan.approval.v1',
   'plan.approval.fresh.v1',
@@ -193,12 +194,7 @@ type AgentCapabilityName = keyof typeof CAPABILITY_ALIASES | ProtocolCapability
 const CURRENT_APP_VERSION = typeof __PIDEX_VERSION__ === 'string' ? __PIDEX_VERSION__ : '0.0.0-dev'
 type PendingInteraction = RpcResult<'interaction/listPending'>['interactions'][number]
 
-import {
-  bridgeWindowMaximized,
-  mockAuthStatus,
-  mockRuntimeStatus,
-  permissionModeFromDesktopConfig,
-} from './FixtureRuntime.js'
+import { bridgeWindowMaximized, permissionModeFromDesktopConfig } from './FixtureRuntime.js'
 import { catalogProviderToDesktop } from './ProviderAdapters.js'
 import type {
   DesktopClient,
@@ -1018,6 +1014,17 @@ export function createAgentSessionDesktopClient(
         latestTurnError: targetError,
       },
     })
+    emitSessionStoreChange()
+  }
+
+  function forgetDeletedSession(sessionId: string): void {
+    sessionSnapshots.delete(sessionId)
+    clearSessionLifecycle(sessionId)
+    if (activeSessionId === sessionId) {
+      activeSessionId =
+        [...sessionSnapshots.values()].find((snapshot) => !snapshot.item.archivedAt)?.item.id ??
+        null
+    }
     emitSessionStoreChange()
   }
 
@@ -3237,12 +3244,6 @@ export function createAgentSessionDesktopClient(
     getThemeSettings: () => loadAgentConfigSettingsApi().then((api) => api.getThemeSettings()),
     saveThemeSettings: (settings) =>
       loadAgentConfigSettingsApi().then((api) => api.saveThemeSettings(settings)),
-    canRestorePreviousAppearance: () =>
-      loadAgentConfigSettingsApi().then((api) => api.canRestorePreviousAppearance()),
-    restorePreviousAppearance: () =>
-      loadAgentConfigSettingsApi().then((api) => api.restorePreviousAppearance()),
-    applyNewDesignTheme: () =>
-      loadAgentConfigSettingsApi().then((api) => api.applyNewDesignTheme()),
     saveDesktopSettings: (settings) =>
       loadAgentConfigSettingsApi().then((api) => api.saveDesktopSettings(settings)),
     listProjectMemories: (workspacePath, namespace) =>
@@ -3961,6 +3962,21 @@ export function createAgentSessionDesktopClient(
       withUnsupportedAgentFallback('setSessionLocalRouterMode', () =>
         mockClient.setSessionLocalRouterMode(sessionId, mode),
       ),
+    supportsArchivedSessionDeletion: () =>
+      agentReady ? agentCapabilities.has('thread.deleteArchived.v1') : allowBrowserMockFallback,
+    deleteArchivedSession: (sessionId) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('thread.deleteArchived.v1')
+          const { deleted } = await rpc.call('thread/deleteArchived', {
+            threadId: sessionId,
+            operationId: crypto.randomUUID(),
+          })
+          if (deleted) forgetDeletedSession(sessionId)
+          return deleted
+        },
+        () => mockClient.deleteArchivedSession(sessionId),
+      ),
     disposeSession: async (sessionId) =>
       withAgentOrMock(
         async () => {
@@ -3968,14 +3984,7 @@ export function createAgentSessionDesktopClient(
             threadId: sessionId,
             operationId: crypto.randomUUID(),
           })
-          sessionSnapshots.delete(sessionId)
-          clearSessionLifecycle(sessionId)
-          if (activeSessionId === sessionId) {
-            activeSessionId =
-              [...sessionSnapshots.values()].find((snapshot) => !snapshot.item.archivedAt)?.item
-                .id ?? null
-          }
-          emitSessionStoreChange()
+          forgetDeletedSession(sessionId)
         },
         () => mockClient.disposeSession(sessionId),
       ),
@@ -4279,8 +4288,6 @@ export function createAgentSessionDesktopClient(
       if (!makeEventSource) return noop
       return subscribeGlobalEventEnvelopes(options, callback)
     },
-    onAgentEvent: (callback) =>
-      allowBrowserMockFallback ? mockClient.onAgentEvent(callback) : noop,
     onSessionStoreChange: (callback) => {
       sessionStoreListeners.add(callback)
       if (sessionStoreListeners.size === 1) startSessionCatalogSubscription()
@@ -4321,39 +4328,21 @@ export function createAgentSessionDesktopClient(
   // lazy facade 加载 Mock chunk，行为与原实现等价。
   const MOCK_FALLBACK_METHODS = [
     'applyWorkspaceReviewOperation',
-    'cancelCopilotLogin',
-    'cancelDebugToolProbe',
-    'closeDevTools',
     'closeWindow',
-    'deleteDesktopToolchain',
-    'diagnoseDesktopToolchain',
     'discardWorkspaceChanges',
     'exitApp',
-    'exportUserMemory',
-    'getAuthStatus',
-    'getCopilotAuthStatus',
-    'getRuntimeStatus',
     'getWorkspaceReviewDiff',
-    'importUserMemory',
     'installSkill',
     'isWindowMaximized',
-    'listDebugBuiltinTools',
     'listRuntimePermissionProfiles',
     'listSkillsCatalog',
     'logOut',
     'minimizeWindow',
     'newWindow',
-    'onUiCommand',
-    'onWorkflowEvent',
-    'openDevTools',
     'openExternalURL',
     'openSettings',
     'pickWorkspaceDirectory',
     'pickWorkspaceDirectories',
-    'pollCopilotLogin',
-    'reinstallDesktopToolchain',
-    'runDebugToolProbe',
-    'startCopilotLogin',
     'toggleWindowMaximized',
   ] as const
   type MockFallbackMethod = (typeof MOCK_FALLBACK_METHODS)[number]
@@ -4364,50 +4353,30 @@ export function createAgentSessionDesktopClient(
       return impl(...args)
     }
   const mockFallbackMethods: Record<MockFallbackMethod, unknown> = {
-    // 首屏挂载链（useSessionState/useDesktopCommands/useWorkspaceState/
-    // DesktopLayout）会调用：使用与 Mock 等价的本地实现，不加载 Mock chunk。
-    onWorkflowEvent: () => () => {},
-    onUiCommand: () => () => {},
-    getAuthStatus: async () => mockAuthStatus(),
-    getRuntimeStatus: async () => mockRuntimeStatus(),
     isWindowMaximized: async () => bridgeWindowMaximized(),
     newWindow: () =>
       environment.window?.DesktopBridge?.openWindow?.({ kind: 'home' }) ?? Promise.resolve(),
     // 其余方法只在用户交互或导航后调用，按需经 lazy facade 加载 Mock chunk。
     applyWorkspaceReviewOperation: lazyMock('applyWorkspaceReviewOperation'),
-    cancelCopilotLogin: lazyMock('cancelCopilotLogin'),
-    cancelDebugToolProbe: lazyMock('cancelDebugToolProbe'),
-    closeDevTools: lazyMock('closeDevTools'),
     closeWindow: async () => {
       await environment.window?.DesktopBridge?.close?.()
     },
-    deleteDesktopToolchain: lazyMock('deleteDesktopToolchain'),
-    diagnoseDesktopToolchain: lazyMock('diagnoseDesktopToolchain'),
     discardWorkspaceChanges: lazyMock('discardWorkspaceChanges'),
     exitApp: async () => {
       await environment.window?.DesktopBridge?.quitDuringStartup?.()
     },
-    exportUserMemory: lazyMock('exportUserMemory'),
-    getCopilotAuthStatus: lazyMock('getCopilotAuthStatus'),
     getWorkspaceReviewDiff: lazyMock('getWorkspaceReviewDiff'),
-    importUserMemory: lazyMock('importUserMemory'),
     installSkill: lazyMock('installSkill'),
-    listDebugBuiltinTools: lazyMock('listDebugBuiltinTools'),
     listRuntimePermissionProfiles: lazyMock('listRuntimePermissionProfiles'),
     listSkillsCatalog: lazyMock('listSkillsCatalog'),
     logOut: lazyMock('logOut'),
     minimizeWindow: async () => {
       await environment.window?.DesktopBridge?.minimize?.()
     },
-    openDevTools: lazyMock('openDevTools'),
     openExternalURL: lazyMock('openExternalURL'),
     openSettings: lazyMock('openSettings'),
     pickWorkspaceDirectory: lazyMock('pickWorkspaceDirectory'),
     pickWorkspaceDirectories: lazyMock('pickWorkspaceDirectories'),
-    pollCopilotLogin: lazyMock('pollCopilotLogin'),
-    reinstallDesktopToolchain: lazyMock('reinstallDesktopToolchain'),
-    runDebugToolProbe: lazyMock('runDebugToolProbe'),
-    startCopilotLogin: lazyMock('startCopilotLogin'),
     toggleWindowMaximized: async () =>
       (await environment.window?.DesktopBridge?.toggleMaximize?.()) ?? false,
   }

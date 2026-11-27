@@ -41,28 +41,10 @@ export function registerAppearanceIpc(
     await store.save(next)
     settings = next
     appearance.updateSettings(next)
-    appearance.broadcastAppearanceSettings(next)
   })
   ipcMain.handle(DESKTOP_APPEARANCE_IPC_CHANNELS.getSystemTheme, () =>
     appearance.systemThemeVariant(),
   )
-  ipcMain.handle(DESKTOP_APPEARANCE_IPC_CHANNELS.canRestorePreviousAppearance, () =>
-    store.canRestorePreviousAppearance(),
-  )
-  ipcMain.handle(DESKTOP_APPEARANCE_IPC_CHANNELS.restorePreviousAppearance, async () => {
-    const restored = await store.restorePreviousAppearance()
-    settings = restored
-    appearance.updateSettings(restored)
-    appearance.broadcastAppearanceSettings(restored)
-    return restored
-  })
-  ipcMain.handle(DESKTOP_APPEARANCE_IPC_CHANNELS.applyNewDesignTheme, async () => {
-    const next = await store.applyNewDesignTheme()
-    settings = next
-    appearance.updateSettings(next)
-    appearance.broadcastAppearanceSettings(next)
-    return next
-  })
   ipcMain.handle(DESKTOP_APPEARANCE_IPC_CHANNELS.listExternalFonts, async (event) => {
     if (!isMainWindowSender(event.sender) || !externalFonts) return []
     return externalFonts.listStates()

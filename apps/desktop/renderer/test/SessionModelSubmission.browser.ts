@@ -25,7 +25,6 @@ window.failB = false;
 export const desktopClient = {
   listSessions: async () => ['a', 'b'].map(id => snapshot(id)),
   getSessionCatalogStatus: async () => ({ state: 'ready', error: null }),
-  onWorkflowEvent: () => () => {},
   onSessionStoreChange: listener => { sessionListener = listener; return () => { sessionListener = undefined }; },
   markSessionRead: async () => {}, setActiveSession: async () => {},
   getSession: async id => { if (id === 'b') { if (deferredB) { const gate = deferredB; deferredB = null; await gate; } if (window.failB) throw Error('B history failed'); } return snapshot(id, true); },
@@ -39,7 +38,7 @@ export const desktopClient = {
       const created = snapshot(id, true);
       created.item.sessionName = 'Canonical created title';
       created.item.status = 'running';
-      sessionListener?.({sessions: [snapshot('a'), snapshot('b'), created]});
+      sessionListener?.({sessions: [snapshot('a'), snapshot('b'), created], pendingInteractionThreadIds: [id]});
     }
     return { sessionId: id, workspace, standalone: false };
   },
@@ -67,7 +66,7 @@ function Harness() {
     planModeActive: false, localRouterMode: 'off', providerID: 'WRONG-GLOBAL', providerBaseURL: 'https://wrong.example', model: 'WRONG-MODEL',
     thinkingMode: 'disabled', sessionName: '', systemPrompt: '', appendSystemPrompt: '', additionalDirectories: '',
     installPidexDependencies: false, enableMemory: false, rustSearchAndDiffKernels: false,
-    onError: message => { document.body.dataset.error = message }, onDiffForActive() {}, onRefreshActiveWorkspace() {}, onOpenDrawerPermissions() {},
+    onError: message => { document.body.dataset.error = message },
   });
   window.api = state;
   return <>
@@ -256,6 +255,7 @@ try {
     'data-status',
     'running',
   )
+  assert.deepEqual(await page.evaluate('Array.from(api.pendingPermissionSessionIds)'), ['created'])
   assert.deepEqual(await page.evaluate('store.getSnapshot("created").selection'), {
     providerID: 'home-provider',
     model: 'home-draft',
