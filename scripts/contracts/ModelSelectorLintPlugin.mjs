@@ -4,8 +4,8 @@
  * selectable models to upstream provider catalog lists.
  */
 
-const BUILTIN_OVERRIDES_SUFFIX = 'apps/agent/src/provider/pi/PiBuiltinProviderOverrides.ts'
-const PI_MODEL_SERVICE_SUFFIX = 'apps/agent/src/provider/pi/PiModelService.ts'
+const BUILTIN_OVERRIDES_SUFFIX = 'apps/agent/src/provider/runtime/BuiltinProviderOverrides.ts'
+const MODEL_SERVICE_SUFFIX = 'apps/agent/src/provider/runtime/ModelService.ts'
 const MODEL_SELECTOR_SUFFIXES = [
   'apps/desktop/renderer/src/features/layout/UseModelProviderController.ts',
   'apps/desktop/renderer/src/features/session/composer/ModelPickerPopover.tsx',
@@ -107,7 +107,7 @@ function checkBuiltinOverrides(context, programNode) {
     if (
       !overrideFn &&
       node.type === 'FunctionDeclaration' &&
-      node.id?.name === 'withPiBuiltinProviderOverrides'
+      node.id?.name === 'withBuiltinProviderOverrides'
     ) {
       overrideFn = node
     }
@@ -134,14 +134,14 @@ function checkBuiltinOverrides(context, programNode) {
         context.report({
           node: node.init,
           message:
-            'withPiBuiltinProviderOverrides must not drop configuredExtraIds when catalog is present; models added or customized on the Provider Page must always remain selectable.',
+            'withBuiltinProviderOverrides must not drop configuredExtraIds when catalog is present; models added or customized on the Provider Page must always remain selectable.',
         })
       }
       if (node.init?.type === 'LogicalExpression' && containsCatalogIdentifier(node.init.left)) {
         context.report({
           node: node.init,
           message:
-            'withPiBuiltinProviderOverrides must not gate configuredExtraIds on catalog presence.',
+            'withBuiltinProviderOverrides must not gate configuredExtraIds on catalog presence.',
         })
       }
     }
@@ -175,7 +175,7 @@ function checkBuiltinOverrides(context, programNode) {
         context.report({
           node,
           message:
-            'withPiBuiltinProviderOverrides must not gate configured extra model synthesis behind a catalog check.',
+            'withBuiltinProviderOverrides must not gate configured extra model synthesis behind a catalog check.',
         })
       }
     }
@@ -201,12 +201,12 @@ function checkBuiltinOverrides(context, programNode) {
     context.report({
       node: configuredExtraDeclarator ?? overrideFn,
       message:
-        'withPiBuiltinProviderOverrides must synthesize extra configured models from both config.models and config.allowModels so Provider Page additions remain visible in the model selector.',
+        'withBuiltinProviderOverrides must synthesize extra configured models from both config.models and config.allowModels so Provider Page additions remain visible in the model selector.',
     })
   }
 }
 
-function checkPiModelService(context, programNode) {
+function checkModelService(context, programNode) {
   walkEstree(programNode, (node) => {
     if (node.type !== 'MethodDefinition' || node.key?.type !== 'Identifier') return
     const methodName = node.key.name
@@ -220,7 +220,7 @@ function checkPiModelService(context, programNode) {
         ) {
           context.report({
             node: inner,
-            message: `PiModelService.models() must expose user-configured runtime models via pi.getModels() + modelEnabled(), not catalog-only source "${inner.property.name}".`,
+            message: `ModelService.models() must expose user-configured runtime models via registry.getModels() + modelEnabled(), not catalog-only source "${inner.property.name}".`,
           })
         }
       })
@@ -234,7 +234,7 @@ function checkPiModelService(context, programNode) {
         ) {
           context.report({
             node: inner,
-            message: `PiModelService.modelEnabled() must not filter out models based on catalog source "${inner.property.name}"; Provider Page configured models must stay enabled.`,
+            message: `ModelService.modelEnabled() must not filter out models based on catalog source "${inner.property.name}"; Provider Page configured models must stay enabled.`,
           })
         }
       })
@@ -281,10 +281,10 @@ const plugin = {
             },
           }
         }
-        if (filename.endsWith(PI_MODEL_SERVICE_SUFFIX)) {
+        if (filename.endsWith(MODEL_SERVICE_SUFFIX)) {
           return {
             Program(node) {
-              checkPiModelService(context, node)
+              checkModelService(context, node)
             },
           }
         }

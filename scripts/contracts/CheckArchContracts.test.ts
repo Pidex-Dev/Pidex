@@ -37,6 +37,33 @@ afterEach(async () => {
   }
 })
 
+test('rejects upstream brand paths and allows product names and license paths', async () => {
+  const forbidden = [
+    '.zcodeignore',
+    'apps/agent/src/provider/ZCodeFoo.ts',
+    'apps/agent/src/provider/pi/Foo.ts',
+    'apps/agent/src/provider/PiFoo.ts',
+    'apps/agent/src/storage/pi-session/Bar.ts',
+  ]
+  const allowed = [
+    'apps/agent/src/PidexExec.ts',
+    'packages/ui/PidexMarkIcon.tsx',
+    'packages/ui/DatePicker.tsx',
+    'packages/ui/SidebarStatusPill.tsx',
+    'apps/agent/src/ApiKeyService.ts',
+    'third_party/zcode/LICENSE',
+    'third_party/pi-agent-core/LICENSE',
+    'patches/@earendil-works%2Fpi-ai@0.99.2.patch',
+  ]
+  const rootDir = await createFixtureRepo(Object.fromEntries(
+    [...forbidden, ...allowed].map((path) => [path, '']),
+  ))
+  const report = await evaluateArchContracts({ rootDir, manifest: EMPTY_MANIFEST })
+  expect(report.violations.map((v) => [v.rule, v.file]).sort()).toEqual(
+    forbidden.map((path) => ['banned-upstream-brand-path', path]).sort(),
+  )
+})
+
 describe('ArchContractsCore boundary isolation', () => {
   test('allows compliant imports across workspaces', async () => {
     const rootDir = await createFixtureRepo({
@@ -343,8 +370,8 @@ describe('ArchContractsCore comment discipline', () => {
 describe('ArchContractsCore model selector preservation', () => {
   test('fails when builtin overrides drop configured models under catalog or model selector reads catalog discovery', async () => {
     const rootDir = await createFixtureRepo({
-      'apps/agent/src/provider/pi/PiBuiltinProviderOverrides.ts': [
-        'export function withPiBuiltinProviderOverrides(source: any, config: any, defaultEndpoints?: any, catalog?: any) {',
+      'apps/agent/src/provider/runtime/BuiltinProviderOverrides.ts': [
+        'export function withBuiltinProviderOverrides(source: any, config: any, defaultEndpoints?: any, catalog?: any) {',
         '  const configuredExtraIds = catalog ? [] : [...Object.keys(config.models), ...config.allowModels]',
         '  const changedApi = (model: any) => {',
         '    if (catalog) return false',
@@ -357,8 +384,8 @@ describe('ArchContractsCore model selector preservation', () => {
         '  return { source, configuredExtraIds, changedApi, endpointModel }',
         '}',
       ].join('\n'),
-      'apps/agent/src/provider/pi/PiModelService.ts': [
-        'export class PiModelService {',
+      'apps/agent/src/provider/runtime/ModelService.ts': [
+        'export class ModelService {',
         '  directoryBaseProviders = new Map<string, any>()',
         '  providerCatalog: any = null',
         '  async models(providerID: string) {',
@@ -386,8 +413,8 @@ describe('ArchContractsCore model selector preservation', () => {
 
   test('passes when builtin overrides preserve configured models and selector uses configured model listing', async () => {
     const rootDir = await createFixtureRepo({
-      'apps/agent/src/provider/pi/PiBuiltinProviderOverrides.ts': [
-        'export function withPiBuiltinProviderOverrides(source: any, config: any, defaultEndpoints?: any, catalog?: any) {',
+      'apps/agent/src/provider/runtime/BuiltinProviderOverrides.ts': [
+        'export function withBuiltinProviderOverrides(source: any, config: any, defaultEndpoints?: any, catalog?: any) {',
         '  const configuredExtraIds = [...Object.keys(config.models), ...config.allowModels]',
         '  const changedApi = (model: any) => {',
         '    if (catalog?.models[model.id]) return false',
@@ -400,11 +427,11 @@ describe('ArchContractsCore model selector preservation', () => {
         '  return { source, configuredExtraIds, changedApi, endpointModel }',
         '}',
       ].join('\n'),
-      'apps/agent/src/provider/pi/PiModelService.ts': [
-        'export class PiModelService {',
-        '  pi = { getModels: () => [] as any[] }',
+      'apps/agent/src/provider/runtime/ModelService.ts': [
+        'export class ModelService {',
+        '  registry = { getModels: () => [] as any[] }',
         '  async models() {',
-        '    return this.pi.getModels().filter((m) => this.modelEnabled(m))',
+        '    return this.registry.getModels().filter((m) => this.modelEnabled(m))',
         '  }',
         '  modelEnabled(model: any) {',
         '    return Boolean(model.id)',

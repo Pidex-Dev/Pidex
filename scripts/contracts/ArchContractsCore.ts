@@ -222,6 +222,9 @@ async function collectFiles(rootDir: string): Promise<string[]> {
     }
   }
 
+  for (const entry of await readdir(rootDir, { withFileTypes: true })) {
+    if (entry.isFile()) collected.push(join(rootDir, entry.name))
+  }
   await walk(join(rootDir, 'apps'))
   await walk(join(rootDir, 'packages'))
   await walk(join(rootDir, 'scripts'))
@@ -657,10 +660,10 @@ export function checkModelSelectorContracts(
 ): ContractViolation[] {
   const violations: ContractViolation[] = []
 
-  if (relPath === 'apps/agent/src/provider/pi/PiBuiltinProviderOverrides.ts') {
+  if (relPath === 'apps/agent/src/provider/runtime/BuiltinProviderOverrides.ts') {
     let overrideFn: ts.FunctionDeclaration | undefined
     for (const stmt of sourceFile.statements) {
-      if (ts.isFunctionDeclaration(stmt) && stmt.name?.text === 'withPiBuiltinProviderOverrides') {
+      if (ts.isFunctionDeclaration(stmt) && stmt.name?.text === 'withBuiltinProviderOverrides') {
         overrideFn = stmt
         break
       }
@@ -692,7 +695,7 @@ export function checkModelSelectorContracts(
               line,
               column,
               message:
-                'withPiBuiltinProviderOverrides must not drop configuredExtraIds when catalog is present; models added or customized on the Provider Page must stay selectable.',
+                'withBuiltinProviderOverrides must not drop configuredExtraIds when catalog is present; models added or customized on the Provider Page must stay selectable.',
             })
           }
           if (
@@ -713,7 +716,7 @@ export function checkModelSelectorContracts(
               line,
               column,
               message:
-                'withPiBuiltinProviderOverrides must not gate configuredExtraIds on catalog presence.',
+                'withBuiltinProviderOverrides must not gate configuredExtraIds on catalog presence.',
             })
           }
         } else if (node.name.text === 'changedApi' || node.name.text === 'endpointModel') {
@@ -740,7 +743,7 @@ export function checkModelSelectorContracts(
             line,
             column,
             message:
-              'withPiBuiltinProviderOverrides must not gate configured extra model synthesis behind a catalog check.',
+              'withBuiltinProviderOverrides must not gate configured extra model synthesis behind a catalog check.',
           })
         }
       }
@@ -782,13 +785,13 @@ export function checkModelSelectorContracts(
         line,
         column,
         message:
-          'withPiBuiltinProviderOverrides must synthesize extra configured models from both config.models and config.allowModels.',
+          'withBuiltinProviderOverrides must synthesize extra configured models from both config.models and config.allowModels.',
       })
     }
     return violations
   }
 
-  if (relPath === 'apps/agent/src/provider/pi/PiModelService.ts') {
+  if (relPath === 'apps/agent/src/provider/runtime/ModelService.ts') {
     function visitService(node: ts.Node): void {
       if (ts.isMethodDeclaration(node) && ts.isIdentifier(node.name)) {
         const forbidden =
@@ -808,7 +811,7 @@ export function checkModelSelectorContracts(
                 file: relPath,
                 line,
                 column,
-                message: `PiModelService.${methodName}() must not restrict selectable models to catalog-only source "${inner.name.text}".`,
+                message: `ModelService.${methodName}() must not restrict selectable models to catalog-only source "${inner.name.text}".`,
               })
             }
             ts.forEachChild(inner, scanBody)
@@ -1121,6 +1124,18 @@ export async function evaluateArchContracts(
 
   for (const fullPath of files) {
     const relPath = toPosixRelative(rootDir, fullPath)
+    const segments = relPath.split('/')
+    if (segments.some((name) => /zcode|^pi-|^pi$/i.test(name) || /^Pi[A-Z]/.test(name))) {
+      violations.push({
+        category: 'banned-pattern',
+        rule: 'banned-upstream-brand-path',
+        file: relPath,
+        line: 1,
+        column: 1,
+        message: 'Use a domain name for this path. Keep upstream attribution in third_party/.',
+      })
+    }
+    if (segments.length === 1) continue
     const base = basename(relPath)
     const ext = getExtension(relPath)
 
