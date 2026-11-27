@@ -265,11 +265,11 @@ export class ThreadHistoryService {
     return { preference: result.preference }
   }
 
-  async remove(threadID: string) {
-    const existing = this.getListItem(threadID)
-    if (!existing) throw new AgentError('THREAD_NOT_FOUND', 'Thread 不存在', 404)
-    const cleanup = this.prepareThreadCleanup?.(threadID)
-    const event = this.db.transaction(() => {
+  async remove(threadID: string, scope: 'any' | 'archived' = 'any'): Promise<boolean> {
+    const result = this.db.transaction(() => {
+      const existing = this.getListItem(threadID)
+      if (scope === 'archived' && (existing?.archivedAt ?? 0) <= 0) return null
+      if (!existing) throw new AgentError('THREAD_NOT_FOUND', 'Thread 不存在', 404)
       const active = this.db.sqlite
         .query(
           `
@@ -288,16 +288,20 @@ export class ThreadHistoryService {
         .get(threadID) as { turn_id: string } | null
       if (active)
         throw new AgentError('THREAD_ACTIVE', '运行中的 Thread 或子 Agent Thread 不能删除', 409)
+      const cleanup = this.prepareThreadCleanup?.(threadID)
       this.db.sqlite.query('DELETE FROM threads WHERE id = ?').run(threadID)
-      return this.db.insertEvent(null, null, 'thread/deleted', {
+      const event = this.db.insertEvent(null, null, 'thread/deleted', {
         threadId: threadID,
         deletedAt: Date.now(),
       })
+      return { event, cleanup }
     })
+    if (!result) return false
     try {
-      await Effect.runPromise(this.hub.publish(event))
+      await Effect.runPromise(this.hub.publish(result.event))
     } finally {
-      await cleanup?.()
+      await result.cleanup?.()
     }
+    return true
   }
 }

@@ -48,6 +48,7 @@ export const threadHandlers = {
     'thread/title/regenerate',
     'thread/settings/update',
     'thread/delete',
+    'thread/deleteArchived',
     'thread/patch/diff',
     'thread/patch/apply',
     'thread/editUserMessage',
@@ -352,6 +353,8 @@ export const threadHandlers = {
         if (settings.permissionConfig) supportedPermissionConfig(settings.permissionConfig)
         return history.patchSettings(threadId, settings)
       }
+      case 'thread/deleteArchived':
+        return { deleted: await history.remove(stringParam(params, 'threadId'), 'archived') }
       case 'thread/delete': {
         const threadId = stringParam(params, 'threadId')
         await history.remove(threadId)
