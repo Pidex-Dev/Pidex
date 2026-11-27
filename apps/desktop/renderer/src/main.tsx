@@ -8,6 +8,7 @@ import {
 } from './startup/StartupSplashHandoff.js'
 import {
   publishStartupConnectionSnapshot,
+  startupRecoveryActions,
   subscribeStartupConnection,
 } from './startup/StartupConnection.js'
 import './styles/tailwind.css'
@@ -44,11 +45,7 @@ if (!window.location.hash.startsWith(PET_OVERLAY_HASH_PREFIX) && bridge) {
         reportStartupLabel(snapshot.label)
         void mountApplication()
       } else if (snapshot.state === 'failed') {
-        reportStartupFailure(snapshot.label, () => {
-          void bridge
-            .retryStartup(snapshot.generation)
-            .catch(() => reportStartupFailure('无法重试连接，请查看日志。'))
-        })
+        reportStartupFailure(snapshot.label, startupRecoveryActions(snapshot))
       } else {
         reportStartupLabel(snapshot.label)
       }

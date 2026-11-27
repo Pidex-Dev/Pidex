@@ -19,6 +19,7 @@
 
 @layer primitives {
   .scroll-area[data-scroll-fade='true'] {
+    --scroll-area-fade-size: var(--cpx-sys-space-4);
     --scroll-area-fade-start: 0px;
     --scroll-area-fade-end: 0px;
 

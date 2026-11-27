@@ -7,6 +7,7 @@ import {
   ProviderCatalog,
   type ProviderCatalogItem,
 } from '../src/features/models/ProviderCatalog.js'
+import { getApiKeyDeleteConfirmation } from '../src/features/models/ModelCenterState.js'
 import {
   ProviderCredentialUsageCard,
   envInferenceConnections,
@@ -205,6 +206,28 @@ describe('provider connection environment and balance', () => {
     expect(html).toContain('data-variant="secondary"')
     expect(html).toContain('data-shape="round"')
     expect(html).toContain('data-size="sm"')
+  })
+
+  test('deleting the last credential of a builtin provider warns about model list reset', () => {
+    const onlyKey = apiKey('key-1', '主 Key')
+    const builtinLast = getApiKeyDeleteConfirmation(onlyKey, [onlyKey], 'DeepSeek', {
+      isBuiltin: true,
+      hasOtherCredentials: false,
+    })
+    expect(builtinLast.description).toContain('回到未配置状态')
+    expect(builtinLast.description).toContain('重置其模型列表与连接设置')
+
+    const builtinWithOther = getApiKeyDeleteConfirmation(onlyKey, [onlyKey], 'DeepSeek', {
+      isBuiltin: true,
+      hasOtherCredentials: true,
+    })
+    expect(builtinWithOther.description).not.toContain('重置其模型列表')
+
+    const customLast = getApiKeyDeleteConfirmation(onlyKey, [onlyKey], 'Custom Relay', {
+      isBuiltin: false,
+      hasOtherCredentials: false,
+    })
+    expect(customLast.description).not.toContain('重置其模型列表')
   })
 })
 

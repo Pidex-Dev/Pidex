@@ -1,6 +1,10 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
 
-import type { DesktopWorkspace, DesktopUserMessageInput } from '../../../../shared/Types.js'
+import type {
+  DesktopAttachmentUploadProgress,
+  DesktopWorkspace,
+  DesktopUserMessageInput,
+} from '../../../../shared/Types.js'
 import type { ComposerDraftKey, PreparedComposerSubmission } from '../composer/ComposerTypes.js'
 
 const PENDING_STATE_CHANNEL = 'pidex:pending-submission'
@@ -16,6 +20,7 @@ export type PendingSubmission = {
   submissionId: string
   sourceDraftKey: ComposerDraftKey
   stage: PendingSubmissionStage
+  attachmentUploadProgress?: DesktopAttachmentUploadProgress | null
   input: DesktopUserMessageInput
   workspace: DesktopWorkspace | null
   createdAt: number
@@ -40,6 +45,7 @@ class PendingSubmissionStore {
   readonly #store: StoreApi<PendingSubmissionState>
   readonly #source = globalThis.crypto.randomUUID()
   readonly #channel: BroadcastChannel | null
+  readonly #attachmentCancels = new Map<string, () => void>()
 
   constructor() {
     this.#store = createStore<PendingSubmissionState>()(() => ({ submissions: {} }))
@@ -64,15 +70,27 @@ class PendingSubmissionStore {
     this.#post({ submissionId: submission.submissionId, submission })
   }
 
-  update(submissionId: string, patch: Partial<Pick<PendingSubmission, 'stage'>>): void {
+  update(
+    submissionId: string,
+    patch: Partial<Pick<PendingSubmission, 'stage' | 'attachmentUploadProgress'>>,
+  ): void {
     const current = this.#store.getState().submissions[submissionId]
     if (!current) return
     const next = { ...current, ...patch }
     this.#write(next)
-    this.#post({ submissionId, submission: next })
+    if (patch.stage !== undefined) this.#post({ submissionId, submission: next })
+  }
+
+  setAttachmentCancel(submissionId: string, cancel: () => void): void {
+    this.#attachmentCancels.set(submissionId, cancel)
+  }
+
+  attachmentCancel(submissionId: string): (() => void) | undefined {
+    return this.#attachmentCancels.get(submissionId)
   }
 
   remove(submissionId: string): void {
+    this.#attachmentCancels.delete(submissionId)
     if (!this.#remove(submissionId)) return
     this.#post({ submissionId, submission: null })
   }
@@ -81,6 +99,7 @@ class PendingSubmissionStore {
   clear(): void {
     const submissionIds = Object.keys(this.#store.getState().submissions)
     if (submissionIds.length === 0) return
+    this.#attachmentCancels.clear()
     this.#store.setState({ submissions: {} })
     for (const submissionId of submissionIds) this.#post({ submissionId, submission: null })
   }

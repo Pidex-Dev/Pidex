@@ -4,7 +4,7 @@ import { ToolCatalog } from '../src/tool/ToolRegistry'
 import type { SubagentProfile, TaskMode } from '../src/Domain'
 import type { ApprovalPolicy } from '@pidex/shared/thread'
 import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
-import { createLifecycleTools } from '../src/orchestration/pi/PiToolAdapter'
+import { createLifecycleTools } from '../src/orchestration/execution/ProviderToolAdapter'
 import type { ToolExposureInput } from '../src/tool/ToolExposurePlan'
 
 test('运行时重建 Goal 工具暴露后仍可调用 complete/blocked，普通聊天和 allowlist 不扩大', async () => {

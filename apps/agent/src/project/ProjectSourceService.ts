@@ -479,15 +479,6 @@ export class ProjectSourceService {
     return { removedSourceId: sourceID }
   }
 
-  async removeAll(projectID: string) {
-    this.project(projectID)
-    const sourceIDs = this.repository
-      .list(projectID, PROJECT_SOURCE_LIMITS.maxPerProject, 0)
-      .map((source) => source.id)
-    for (const sourceID of sourceIDs) await this.remove(projectID, sourceID)
-    return { removedSourceCount: sourceIDs.length }
-  }
-
   async catalog(projectID: string) {
     const { sources, total } = await this.list(projectID, PROJECT_SOURCE_LIMITS.maxPerProject, 0)
     const lines = [

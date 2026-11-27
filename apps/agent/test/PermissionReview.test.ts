@@ -3,14 +3,14 @@ import type { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import type { ToolInvocation } from '../src/Domain'
 import { ReviewerService } from '../src/permission/ReviewerService'
 import { GuardianEvidenceService } from '../src/permission/GuardianEvidenceService'
-import type { PiModelService } from '../src/provider/pi'
+import type { ModelService } from '../src/provider/runtime'
 import { ToolRegistry } from '../src/tool/ToolRegistry'
 import { PermissionDecisionEngine } from '../src/permission/PermissionDecisionEngine'
 import { Model, Provider } from '@pidex/model-schema'
 
 const reviewer = (
   getSetting: AgentDatabase['getSetting'],
-  providers: PiModelService = {} as PiModelService,
+  providers: ModelService = {} as ModelService,
 ) => {
   const configured = getSetting<Model.Ref>('reviewerModel')
   return new ReviewerService(
@@ -88,8 +88,8 @@ const reviewDatabase = (options: ReviewDatabaseOptions) => {
 
 const reviewProviders = (captured: ReviewCapture[], onCall?: () => void) =>
   ({
-    getPiModel: async () => ({ provider: 'configured', id: 'reviewer' }),
-    pi: {
+    getRuntimeModel: async () => ({ provider: 'configured', id: 'reviewer' }),
+    registry: {
       completeSimple: async (_model: unknown, context: ReviewCapture) => {
         captured.push(context)
         onCall?.()
@@ -112,7 +112,7 @@ const reviewProviders = (captured: ReviewCapture[], onCall?: () => void) =>
         }
       },
     },
-  }) as unknown as PiModelService
+  }) as unknown as ModelService
 
 const contextualReviewer = (
   options: ReviewDatabaseOptions,
@@ -270,12 +270,12 @@ describe('Shell ReviewerService', () => {
     })
     const resolved: string[] = []
     const providers = {
-      getPiModel: async (ref: Model.Ref) => {
+      getRuntimeModel: async (ref: Model.Ref) => {
         resolved.push(`${ref.providerID}/${ref.id}`)
         if (String(ref.providerID) === 'configured') throw new Error('reviewer unavailable')
         return { provider: 'fallback', id: 'task' }
       },
-      pi: {
+      registry: {
         completeSimple: async () => ({
           stopReason: 'stop',
           content: [
@@ -293,7 +293,7 @@ describe('Shell ReviewerService', () => {
           ],
         }),
       },
-    } as unknown as PiModelService
+    } as unknown as ModelService
     const service = reviewer((() => configured) as AgentDatabase['getSetting'], providers)
 
     await expect(
@@ -315,8 +315,8 @@ describe('Shell ReviewerService', () => {
         logs.push({ event, details: entry.details ?? {} })
       let timedOut = false
       const providers = {
-        getPiModel: async (ref: Model.Ref) => ({ provider: ref.providerID, id: ref.id }),
-        pi: {
+        getRuntimeModel: async (ref: Model.Ref) => ({ provider: ref.providerID, id: ref.id }),
+        registry: {
           completeSimple: async (
             model: { provider: string; id: string },
             _context: unknown,
@@ -360,7 +360,7 @@ describe('Shell ReviewerService', () => {
             }
           },
         },
-      } as unknown as PiModelService
+      } as unknown as ModelService
       const service = new ReviewerService(
         { threadProjectID: () => null } as unknown as AgentDatabase,
         providers,
@@ -409,10 +409,10 @@ describe('Shell ReviewerService', () => {
       id: Model.ID.make('task'),
     })
     const providers = {
-      getPiModel: async () => {
+      getRuntimeModel: async () => {
         throw new Error('all reviewers unavailable')
       },
-    } as unknown as PiModelService
+    } as unknown as ModelService
     const service = reviewer((() => configured) as AgentDatabase['getSetting'], providers)
 
     await expect(
@@ -435,8 +435,8 @@ describe('Shell ReviewerService', () => {
     }))
     let calls = 0
     const providers = {
-      getPiModel: async () => ({ provider: 'configured', id: 'reviewer' }),
-      pi: {
+      getRuntimeModel: async () => ({ provider: 'configured', id: 'reviewer' }),
+      registry: {
         completeSimple: async (_model: unknown, context: { tools?: Array<{ name: string }> }) => {
           calls += 1
           if (calls === 1) {
@@ -474,7 +474,7 @@ describe('Shell ReviewerService', () => {
           }
         },
       },
-    } as unknown as PiModelService
+    } as unknown as ModelService
     const sqlite = {
       query: (sql: string) => ({
         get: () => (sql.includes('FROM threads') ? { present: 1 } : null),

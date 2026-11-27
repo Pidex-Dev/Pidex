@@ -15,10 +15,7 @@ import {
 import { HookService } from '../src/hooks/HookService'
 import { MemoryService } from '../src/memory/MemoryService'
 import { AgentDatabase, SCHEMA_VERSION } from '../src/storage/database/AgentDatabase'
-import {
-  SqlitePiSessionRepo,
-  type SqlitePiSessionStorage,
-} from '../src/storage/pi-session/SqlitePiSession'
+import { SqliteSessionRepo, type SqliteSessionStorage } from '../src/storage/session/SqliteSession'
 import { ConfigService } from '../src/config/ConfigService'
 import { ThreadService } from '../src/session/ThreadService'
 import { AgentHarnessError } from '../src/orchestration/harness/Types'
@@ -239,13 +236,13 @@ describe('v8 上下文存储', () => {
       cacheKey: thread.id,
     })
     const service = new ContextCompactionService(db, manager)
-    const session = await new SqlitePiSessionRepo(db).create({
+    const session = await new SqliteSessionRepo(db).create({
       id: 'session',
       threadID: thread.id,
       agentID: 'main',
     })
-    const storage = session.getStorage() as SqlitePiSessionStorage
-    const piEntry: CompactionEntry = {
+    const storage = session.getStorage() as SqliteSessionStorage
+    const sessionEntry: CompactionEntry = {
       type: 'compaction',
       id: 'compact-1',
       parentId: null,
@@ -254,7 +251,7 @@ describe('v8 上下文存储', () => {
       firstKeptEntryId: 'kept-1',
       tokensBefore: 900,
     }
-    await storage.appendEntry(piEntry)
+    await storage.appendEntry(sessionEntry)
 
     let completed!: ReturnType<ContextCompactionService['complete']>
     db.transaction(() => {
@@ -262,9 +259,9 @@ describe('v8 上下文存储', () => {
       completed = service.complete({
         threadID: thread.id,
         sessionID: 'session',
-        piEntry,
-        summary: piEntry.summary,
-        firstKeptEntryID: piEntry.firstKeptEntryId ?? null,
+        sessionEntry,
+        summary: sessionEntry.summary,
+        firstKeptEntryID: sessionEntry.firstKeptEntryId ?? null,
         beforeCount: 12,
         afterCount: 3,
         items: [{ role: 'user', content: '继续' }],
@@ -275,7 +272,7 @@ describe('v8 上下文存储', () => {
     })
 
     expect(completed.compaction).toMatchObject({
-      id: piEntry.id,
+      id: sessionEntry.id,
       beforeCount: 12,
       afterCount: 3,
       beforeTokens: 900,
@@ -287,26 +284,26 @@ describe('v8 上下文存储', () => {
       threadId: thread.id,
       method: 'context/compacted',
       params: {
-        compactionId: piEntry.id,
+        compactionId: sessionEntry.id,
         trigger: 'automatic',
         afterTokensSource: 'compaction-estimate',
       },
     })
     expect(service.latest(thread.id)).toEqual(completed.compaction)
-    expect(service.byID(piEntry.id)).toEqual(completed.compaction)
+    expect(service.byID(sessionEntry.id)).toEqual(completed.compaction)
     expect(manager.state(thread.id)).toMatchObject({
       usageSource: 'compaction-estimate',
       needsCompaction: false,
     })
     const stored = db.sqlite
       .query('SELECT replacement_history FROM agent_compactions WHERE id = ?')
-      .get(piEntry.id) as { replacement_history: string }
+      .get(sessionEntry.id) as { replacement_history: string }
     expect(JSON.parse(stored.replacement_history)).toEqual({
       version: 1,
       kind: 'pi-compaction-reference',
       sessionID: 'session',
-      entryID: piEntry.id,
-      firstKeptEntryID: piEntry.firstKeptEntryId,
+      entryID: sessionEntry.id,
+      firstKeptEntryID: sessionEntry.firstKeptEntryId,
       trigger: 'automatic',
       afterTokensSource: 'compaction-estimate',
     })
@@ -314,7 +311,7 @@ describe('v8 上下文存储', () => {
     const failedEntry: CompactionEntry = {
       type: 'compaction',
       id: 'compact-rollback',
-      parentId: piEntry.id,
+      parentId: sessionEntry.id,
       timestamp: new Date().toISOString() as CompactionEntry['timestamp'],
       summary: '这次事务必须回滚。',
       tokensBefore: 100,
@@ -329,7 +326,7 @@ describe('v8 上下文存储', () => {
         service.complete({
           threadID: thread.id,
           sessionID: 'session',
-          piEntry: failedEntry,
+          sessionEntry: failedEntry,
           summary: failedEntry.summary,
           firstKeptEntryID: null,
           beforeCount: 3,
@@ -670,6 +667,8 @@ describe('Hooks 与记忆', () => {
     const scoped = await memory.list({ kind: 'project', projectId: 'project-a' })
     expect(scoped.files.map((file) => file.path)).toEqual(['bun.md'])
     expect((await memory.list({ kind: 'project', projectId: 'project-b' })).files).toHaveLength(0)
+    disabled.dispose()
+    memory.dispose()
     db.close()
   })
 
@@ -706,6 +705,7 @@ describe('Hooks 与记忆', () => {
         .map((task) => task.status)
         .sort(),
     ).toEqual(['completed', 'failed'])
+    memory.dispose()
     db.close()
   })
 })

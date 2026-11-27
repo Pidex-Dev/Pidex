@@ -6,16 +6,23 @@ import { removeFixturePaths } from './FixtureCleanup'
 import { Effect, Schema } from 'effect'
 import { DEFAULT_PERMISSION_CONFIG } from '@pidex/shared/thread'
 import { Model, Provider } from '@pidex/model-schema'
-import { Capabilities, type ProtocolCapability } from '@pidex/agent-protocol'
+import {
+  ATTACHMENT_UPLOAD_CHUNK_BYTES,
+  Capabilities,
+  type ProtocolCapability,
+} from '@pidex/agent-protocol'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { AgentError } from '../src/Domain'
-import { PiModelServiceError } from '../src/provider/pi/PiModelService'
+import { ModelServiceError } from '../src/provider/runtime/ModelService'
 import { RpcRouter, type RpcRouterDependencies } from '../src/transport/rpc/RpcRouter'
 import { ThreadProjection } from '../src/transport/ThreadProjection'
 import { TerminalOutputMirror } from '../src/terminal/TerminalOutputMirror'
 import { rpcTransportAuthority } from '../src/transport/Server'
 import { TurnCoordinator } from '../src/session/TurnCoordinator'
 import { ThreadHistoryService } from '../src/session/ThreadHistoryService'
+import { AttachmentService } from '../src/subagent/AttachmentService'
+import { SqliteAttachmentCatalog } from '../src/subagent/SqliteAttachmentCatalog'
+import { buildEventNextNotification } from '../src/transport/EventEnvelope'
 
 const roots: string[] = []
 
@@ -99,7 +106,7 @@ afterEach(async () => {
 
 const fixture = async (
   overrides: Partial<RpcRouterDependencies> = {},
-  routerOptions: { connectionLeaseMs?: number; now?: () => number } = {},
+  routerOptions: { connectionLeaseMs?: number; now?: () => number; attachmentStorage?: true } = {},
 ) => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-rpc-v4-'))
   roots.push(root)
@@ -189,9 +196,11 @@ const fixture = async (
       approvals: null,
       questions: null,
       subagents: null,
-      attachments: null,
+      attachments: routerOptions.attachmentStorage
+        ? await AttachmentService.open(root, { catalog: new SqliteAttachmentCatalog(db) })
+        : null,
       providers: null,
-      piModels: null,
+      runtimeModels: null,
       providerCredentials: null,
       authSessions: null,
       apiKeys: null,
@@ -532,7 +541,7 @@ describe('RPC v4 Router', () => {
           runtimeVersion: 'host-hook-v1',
           maturity: 'alpha',
           maxConcurrentCommands: 1,
-          error: '内置命令沙箱已移除；Shell 经 Pi Hook 和权限检查后以当前用户身份在本机执行。',
+          error: '内置命令沙箱已移除；Shell 经 Hook 和权限检查后以当前用户身份在本机执行。',
           operations: {
             canInstall: false,
             canRepair: false,
@@ -973,6 +982,118 @@ describe('RPC v4 Router', () => {
       data: { code: 'UNAUTHORIZED' },
     })
     db.close()
+  })
+
+  test('分块导入 PDF 后按协商能力投影附件，重复提交复用 ID', async () => {
+    const { db, call, initialize, router } = await fixture({}, { attachmentStorage: true })
+    try {
+      const initial = await initialize()
+      const bytes = Buffer.alloc(ATTACHMENT_UPLOAD_CHUNK_BYTES + 23, 42)
+      bytes.write('%PDF-1.7')
+      const begin = await call('attachment/upload/begin', {
+        kind: 'pdf',
+        name: 'report.pdf',
+        mediaType: 'application/pdf',
+        size: bytes.length,
+      })
+      expect(begin.error).toBeUndefined()
+      const { uploadId } = begin.result
+      await initialize()
+      expect((await call('attachment/upload/commit', { uploadId })).error.data.code).toBe(
+        'ATTACHMENT_NOT_FOUND',
+      )
+      const context = { connectionId: initial.result.connectionId }
+      const request = (method: string, params: Record<string, unknown>) =>
+        router.handle(
+          { jsonrpc: '2.0', id: crypto.randomUUID(), method, params },
+          context,
+        ) as Promise<any>
+      expect((await request('attachment/upload/commit', { uploadId })).error.data.code).toBe(
+        'CONFLICT',
+      )
+      for (let offset = 0; offset < bytes.length; offset += ATTACHMENT_UPLOAD_CHUNK_BYTES) {
+        const data = bytes.subarray(offset, offset + ATTACHMENT_UPLOAD_CHUNK_BYTES)
+        expect(
+          (
+            await request('attachment/upload/chunk', {
+              uploadId,
+              offset,
+              data: data.toString('base64'),
+            })
+          ).result,
+        ).toEqual({ offset: offset + data.length })
+      }
+      const [first, repeated] = await Promise.all([
+        request('attachment/upload/commit', { uploadId }),
+        request('attachment/upload/commit', { uploadId }),
+      ])
+      expect(first.error).toBeUndefined()
+      expect(repeated.result).toEqual(first.result)
+      const attachment = first.result.attachment
+      expect(attachment).toMatchObject({ name: 'report.pdf', kind: 'pdf', sizeBytes: bytes.length })
+      const offset = ATTACHMENT_UPLOAD_CHUNK_BYTES
+      const actual = await call('attachment/read', {
+        attachmentId: attachment.id,
+        range: { offset, length: 50 },
+      })
+      expect(actual.result).toMatchObject({
+        attachment,
+        encoding: 'base64',
+        data: bytes.subarray(offset).toString('base64'),
+        range: { offset, length: 23, total: bytes.length },
+      })
+
+      const thread = db.createThread('附件能力')
+      const turn = db.createTurn(
+        thread.id,
+        {
+          content: '读取附件',
+          model: Model.Ref.make({
+            providerID: Provider.ID.make('openai'),
+            id: Model.ID.make('gpt'),
+          }),
+          permissionConfig: DEFAULT_PERMISSION_CONFIG,
+          strategy: 'queue',
+          taskMode: 'chat',
+        },
+        'queued',
+      )
+      db.bindInputAttachments(turn.inputID, [attachment.id])
+      expect(
+        (await call('thread/history/read', { threadId: thread.id })).result.queue.inputs[0]
+          .attachmentIds,
+      ).toEqual([attachment.id])
+      expect(
+        db.sqlite.query('SELECT id FROM input_attachments WHERE id = ?').get(attachment.id),
+      ).toBeNull()
+      expect(
+        db.sqlite.query('SELECT id FROM input_pdf_attachments WHERE id = ?').get(attachment.id),
+      ).toEqual({ id: attachment.id })
+      const event = db
+        .eventsAfter(0, thread.id, 100)
+        .find((event) => event.method === 'turn/queued')!
+      const replay = (includePdfAttachments: boolean) =>
+        buildEventNextNotification({
+          subscriptionId: 'subscription',
+          streamId: thread.id,
+          event,
+          projection: router.projection,
+          includePdfAttachments,
+        })!.params.event.payload
+      expect(replay(true)).toMatchObject({ input: { attachmentIds: [attachment.id] } })
+      expect(replay(false)).toMatchObject({ input: { attachmentIds: [] } })
+
+      await initialize(Capabilities.filter((capability) => capability !== 'attachments.chunked.v1'))
+      expect(
+        (await call('thread/read', { threadId: thread.id })).result.snapshot.inputs[0]
+          .attachmentIds,
+      ).toEqual([])
+      expect((await call('attachment/read', { attachmentId: attachment.id })).error.data.code).toBe(
+        'ATTACHMENT_NOT_FOUND',
+      )
+    } finally {
+      db.close()
+    }
   })
 
   test('rejects methods whose capability was not negotiated by the client', async () => {
@@ -1474,7 +1595,7 @@ describe('RPC v4 Router', () => {
         },
         refresh: async () => undefined,
       } as unknown as RpcRouterDependencies['providers'],
-      piModels: {
+      runtimeModels: {
         providerDefinitions: async () => [
           {
             kind: 'builtin',
@@ -1498,7 +1619,7 @@ describe('RPC v4 Router', () => {
           authConfiguredCalls.push(candidateProviderID)
           return true
         },
-      } as unknown as RpcRouterDependencies['piModels'],
+      } as unknown as RpcRouterDependencies['runtimeModels'],
     })
     await initialize()
 
@@ -1548,7 +1669,7 @@ describe('RPC v4 Router', () => {
     const { db, call, initialize } = await fixture({
       providers: {
         refresh: async () => {
-          throw new PiModelServiceError('CATALOG_REFRESH_FAILED', 'private upstream failure', {
+          throw new ModelServiceError('CATALOG_REFRESH_FAILED', 'private upstream failure', {
             cause: new Error('private credential or endpoint'),
           })
         },
@@ -1574,7 +1695,7 @@ describe('RPC v4 Router', () => {
     const { db, call, initialize } = await fixture({
       providers: {
         refresh: async () => {
-          throw new PiModelServiceError(
+          throw new ModelServiceError(
             'CATALOG_REFRESH_FAILED',
             'private upstream failure',
             { cause: new Error('private credential') },
@@ -1623,11 +1744,11 @@ describe('RPC v4 Router', () => {
           refreshScopes.push(providerId)
         },
       } as unknown as RpcRouterDependencies['providers'],
-      piModels: {
+      runtimeModels: {
         refreshDirectory: async () => {
           reloadCalls += 1
         },
-      } as unknown as RpcRouterDependencies['piModels'],
+      } as unknown as RpcRouterDependencies['runtimeModels'],
     })
     await initialize()
     expect(
@@ -1676,6 +1797,15 @@ describe('RPC v4 Router', () => {
 
   test('provider methods create canonical Pi v2 configuration', async () => {
     const provider = Provider.Info.empty(Provider.ID.make('provider:fixture'))
+    const pricing = {
+      currency: 'USD',
+      timeZone: 'Asia/Shanghai',
+      defaultPeriod: 'idle',
+      busy: { input: 3, output: 15, cacheRead: null, cacheWrite: null },
+      idle: { input: 1, output: 5, cacheRead: null, cacheWrite: null },
+      rules: [],
+      dateOverrides: [],
+    }
     const { db, configDocument, call, initialize } = await fixture({
       providers: {
         list: async () => [provider],
@@ -1713,6 +1843,7 @@ describe('RPC v4 Router', () => {
               {
                 id: 'fixture-model',
                 api: 'openai-completions',
+                pricing,
               },
             ],
           },
@@ -1730,6 +1861,7 @@ describe('RPC v4 Router', () => {
     const stored = (configDocument.model_providers as Record<string, Record<string, unknown>>)[
       provider.id
     ]!
+    expect(stored.models).toMatchObject({ 'fixture-model': { pricing } })
     stored.future_setting = { keep: true }
     ;(stored.models as Record<string, Record<string, unknown>>)['fixture-model']!.future_parameter =
       42
@@ -1755,6 +1887,7 @@ describe('RPC v4 Router', () => {
       (stored.models as Record<string, Record<string, unknown>>)['fixture-model']!.future_parameter,
     ).toBe(42)
     expect(stored.base_url).toBe('https://updated.example/v1')
+    expect(stored.models).not.toHaveProperty(['fixture-model', 'pricing'])
     const builtin = await call('provider/update', {
       providerId: 'nvidia',
       definition: {

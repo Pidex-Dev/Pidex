@@ -52,15 +52,13 @@ import {
   type SessionActionContext,
   type SessionSettingsSnapshot,
 } from './SessionActions.js'
-import { appendUniqueWorkflowEvent, dedupeWorkflowEvents } from '../workflow/WorkflowEventDedup.js'
+import { dedupeWorkflowEvents } from '../workflow/WorkflowEventDedup.js'
 import { mergeSessionStoreSnapshotView } from './SessionStoreMerge.js'
 import { deriveWorkflowViewPatch } from '../workflow/WorkflowViewPatch.js'
 import {
   applySessionView,
   createEmptySessionView,
-  setSessionView,
   type SessionViewStateSetters,
-  type UpdateSessionView,
 } from './SessionViewState.js'
 import {
   createSessionDisplayStore,
@@ -92,9 +90,6 @@ export type UseSessionStateOptions = {
   enableMemory: boolean
   rustSearchAndDiffKernels: boolean
   onError: (message: string) => void
-  onDiffForActive: (patch: string) => void
-  onRefreshActiveWorkspace: (sessionId: string) => void
-  onOpenDrawerPermissions: () => void
 }
 
 export type SessionInputBinding = {
@@ -220,15 +215,12 @@ export function useSessionState(options: UseSessionStateOptions): UseSessionStat
     enableMemory,
     rustSearchAndDiffKernels,
     onError,
-    onOpenDrawerPermissions,
   } = options
 
   const onErrorRef = useRef(onError)
-  const onOpenDrawerPermissionsRef = useRef(onOpenDrawerPermissions)
   useLayoutEffect(() => {
     onErrorRef.current = onError
-    onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
-  }, [onError, onOpenDrawerPermissions])
+  }, [onError])
 
   /**
    * 会话展示状态进入按窗口实例创建的 Zustand Store：消费者可按字段订阅，
@@ -490,62 +482,6 @@ export function useSessionState(options: UseSessionStateOptions): UseSessionStat
     },
     [setInput, setComposerAttachments],
   )
-
-  const syncPendingPermissionSessionIds = useCallback((): void => {
-    const next = buildPendingPermissionSessionIds(sessionViewsRef.current)
-    setPendingPermissionSessionIds((current) => (sameSessionIdSet(current, next) ? current : next))
-  }, [setPendingPermissionSessionIds])
-
-  const updateSessionView = useCallback<UpdateSessionView>(
-    (targetSessionId, updater) => {
-      const nextView = updater(sessionViewsRef.current[targetSessionId] ?? createEmptySessionView())
-      setSessionView(sessionViewsRef, targetSessionId, nextView)
-      if (targetSessionId === activeSessionIdRef.current) {
-        applySessionView(nextView, viewSetters)
-      }
-      syncPendingPermissionSessionIds()
-      setSessionFallbackTitles((current) =>
-        updateSessionFallbackTitle(
-          current,
-          targetSessionId,
-          sessionViewsRef.current[targetSessionId],
-        ),
-      )
-    },
-    [syncPendingPermissionSessionIds, viewSetters, setSessionFallbackTitles],
-  )
-
-  const handleWorkflowEvent = useCallback(
-    (event: DesktopWorkflowEvent): void => {
-      if (!sessionsRef.current.some((session) => session.id === event.threadId)) {
-        return
-      }
-      const shouldOpenPermissions =
-        event.threadId === activeSessionIdRef.current &&
-        'item' in event &&
-        event.item.type === 'permission_request' &&
-        event.item.status === 'in_progress'
-      updateSessionView(event.threadId, (view) => ({
-        ...view,
-        ...deriveWorkflowViewPatch(
-          appendUniqueWorkflowEvent(view.workflowEvents, event),
-          view,
-          event.threadId,
-        ),
-      }))
-      if (shouldOpenPermissions) {
-        onOpenDrawerPermissionsRef.current()
-      }
-    },
-    [updateSessionView],
-  )
-
-  useEffect(() => {
-    const unsubscribeWorkflow = desktopClient.onWorkflowEvent(handleWorkflowEvent)
-    return () => {
-      unsubscribeWorkflow()
-    }
-  }, [handleWorkflowEvent])
 
   useEffect(() => {
     const unsubscribe = desktopClient.onSessionStoreChange((change) => {
@@ -1084,28 +1020,4 @@ function buildPendingPermissionSessionIds(views: Record<string, SessionViewState
     }
   }
   return ids
-}
-
-function sameSessionIdSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
-  if (left.size !== right.size) return false
-  for (const id of left) {
-    if (!right.has(id)) return false
-  }
-  return true
-}
-
-function updateSessionFallbackTitle(
-  current: Record<string, string>,
-  sessionId: string,
-  view: SessionViewState | undefined,
-): Record<string, string> {
-  const title = view ? sessionViewFallbackTitle(view) : null
-  if (title) {
-    if (current[sessionId] === title) return current
-    return { ...current, [sessionId]: title }
-  }
-  if (!(sessionId in current)) return current
-  const next = { ...current }
-  delete next[sessionId]
-  return next
 }

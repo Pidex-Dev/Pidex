@@ -43,13 +43,8 @@ import {
   rightDockWidthToRatio,
 } from '../src/features/layout/shell/WorkbenchLayoutSizing.js'
 import {
-  resolveInitialBottomPanelHeightRatio,
-  resolveInitialRightDockWidthRatio,
-} from '../src/features/layout/shell/WorkbenchLayoutStorage.js'
-import {
   WORKBENCH_LAYOUT_SCHEMA_VERSION,
   WORKBENCH_LAYOUT_STORAGE_KEY,
-  createDefaultWorkbenchLayoutSnapshot,
   readWorkbenchLayoutSnapshot,
   saveWorkbenchLayoutSnapshot,
 } from '../src/features/layout/shell/WorkbenchLayoutStorage.js'
@@ -1705,6 +1700,13 @@ function restoreLocalStorage(): void {
 }
 
 describe('workbench right panel sizing', () => {
+  const layoutInput = {
+    workspaceWidth: 1_165,
+    workspaceHeight: 800,
+    sidebarCollapsed: false,
+    sidebarWidth: 300,
+  }
+
   test('默认宽度为工作区的 40% 并遵守最小尺寸', () => {
     expect(RIGHT_DOCK_DEFAULT_WIDTH).toBe(600)
     expect(getResponsiveRightDockDefaultWidth(1_500, 800)).toBe(600)
@@ -1740,26 +1742,33 @@ describe('workbench right panel sizing', () => {
     expect(BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY).toEndWith('.v3')
     expect(BOTTOM_PANEL_DEFAULT_HEIGHT).toBe(220)
 
-    expect(resolveInitialRightDockWidthRatio('.4', '700', 1_165, 800)).toBe(0.4)
+    const storage = makeMemoryStorage()
+    storage.setItem('pidex.desktop.rightDockWidth', '.5')
+    const migrated = readWorkbenchLayoutSnapshot(layoutInput, { storage })
+    expect(migrated.auxiliaryPanelWidth).toBe(567)
+    expect(migrated.bottomPanelHeight).toBe(220)
 
-    const migratedLegacyRatio = resolveInitialRightDockWidthRatio(null, '.5', 1_165, 800)
-    expect(rightDockWidthFromRatio(migratedLegacyRatio, 1_165)).toBe(567)
+    storage.setItem('pidex.desktop.rightDockWidth', '500')
+    expect(readWorkbenchLayoutSnapshot(layoutInput, { storage }).auxiliaryPanelWidth).toBe(500)
 
-    const migratedPixels = resolveInitialRightDockWidthRatio(null, '500', 1_165, 800)
-    expect(rightDockWidthFromRatio(migratedPixels, 1_165)).toBe(500)
+    storage.setItem(RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY, '.4')
+    storage.setItem(BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY, '.3')
+    const ratios = readWorkbenchLayoutSnapshot(layoutInput, { storage })
+    expect(ratios.auxiliaryPanelWidth).toBe(466)
+    expect(ratios.bottomPanelHeight).toBe(240)
 
-    expect(resolveInitialBottomPanelHeightRatio('.3', 800)).toBe(0.3)
-    expect(resolveInitialBottomPanelHeightRatio(null, 800)).toBe(0.275)
+    saveWorkbenchLayoutSnapshot(migrated, { storage })
+    expect(readWorkbenchLayoutSnapshot(layoutInput, { storage })).toEqual(migrated)
   })
 
   test('非法存储值回退到当前工作区默认尺寸', () => {
-    const rightRatio = resolveInitialRightDockWidthRatio('invalid', '-1', 1_165, 800)
-    expect(rightDockWidthFromRatio(rightRatio, 1_165)).toBe(
-      getResponsiveRightDockDefaultWidth(1_165, 800),
-    )
-
-    const bottomRatio = resolveInitialBottomPanelHeightRatio('2', 800)
-    expect(bottomPanelHeightFromRatio(bottomRatio, 800)).toBe(220)
+    const storage = makeMemoryStorage()
+    storage.setItem(RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY, 'invalid')
+    storage.setItem('pidex.desktop.rightDockWidth', '-1')
+    storage.setItem(BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY, '2')
+    const snapshot = readWorkbenchLayoutSnapshot(layoutInput, { storage })
+    expect(snapshot.auxiliaryPanelWidth).toBe(getResponsiveRightDockDefaultWidth(1_165, 800))
+    expect(snapshot.bottomPanelHeight).toBe(220)
   })
 
   test('越界拖拽仅可隐藏内容，拉宽仍保持分屏', () => {
@@ -1795,12 +1804,10 @@ describe('workbench layout snapshot v1', () => {
     workspaceHeight: 900,
     sidebarCollapsed: false,
     sidebarWidth: 300,
-    rightDockRatio: 0.4,
-    bottomPanelRatio: 0.25,
   } as const
 
   function makeSnapshot(overrides: Partial<WorkbenchLayoutSnapshot> = {}): WorkbenchLayoutSnapshot {
-    const base = createDefaultWorkbenchLayoutSnapshot(baselineInput)
+    const base = readWorkbenchLayoutSnapshot(baselineInput, { storage: makeMemoryStorage() })
     return { ...base, ...overrides }
   }
 
@@ -1815,17 +1822,17 @@ describe('workbench layout snapshot v1', () => {
   })
 
   test('legacy/default 构造以调用方传入的 sidebar 状态覆盖 primarySidebar', () => {
-    const visible = createDefaultWorkbenchLayoutSnapshot(baselineInput)
-    const collapsed = createDefaultWorkbenchLayoutSnapshot({
-      ...baselineInput,
-      sidebarCollapsed: true,
-      sidebarWidth: 480,
-    })
+    const storage = makeMemoryStorage()
+    const visible = readWorkbenchLayoutSnapshot(baselineInput, { storage })
+    const collapsed = readWorkbenchLayoutSnapshot(
+      { ...baselineInput, sidebarCollapsed: true, sidebarWidth: 480 },
+      { storage },
+    )
 
     expect(visible.visibility.primarySidebar).toBe(true)
     expect(visible.primarySidebarWidth).toBe(300)
     expect(visible.auxiliaryPanelWidth).toBe(640)
-    expect(visible.bottomPanelHeight).toBe(225)
+    expect(visible.bottomPanelHeight).toBe(220)
     expect(visible.visibility.mainContent).toBe(true)
 
     expect(collapsed.visibility.primarySidebar).toBe(false)
@@ -1864,7 +1871,7 @@ describe('workbench layout snapshot v1', () => {
     expect(result.schemaVersion).toBe(WORKBENCH_LAYOUT_SCHEMA_VERSION)
     expect(result.primarySidebarWidth).toBe(300)
     expect(result.auxiliaryPanelWidth).toBe(640)
-    expect(result.bottomPanelHeight).toBe(225)
+    expect(result.bottomPanelHeight).toBe(220)
     expect(result.auxiliaryMaximized).toBe(false)
   })
 
@@ -1906,7 +1913,7 @@ describe('workbench layout snapshot v1', () => {
     const result = readWorkbenchLayoutSnapshot(baselineInput, { storage })
 
     expect(result.auxiliaryPanelWidth).toBe(640)
-    expect(result.bottomPanelHeight).toBe(225)
+    expect(result.bottomPanelHeight).toBe(220)
   })
 
   test('visibility 字段非 boolean 时整体回退默认快照', () => {
@@ -1933,7 +1940,7 @@ describe('workbench layout snapshot v1', () => {
     const result = readWorkbenchLayoutSnapshot(baselineInput, { storage })
 
     expect(result.auxiliaryPanelWidth).toBe(640)
-    expect(result.bottomPanelHeight).toBe(225)
+    expect(result.bottomPanelHeight).toBe(220)
     expect(result.visibility.auxiliaryPanel).toBe(true)
   })
 
@@ -2134,14 +2141,14 @@ describe('workbench layout snapshot v1', () => {
       kind: 'subagent-thread',
       taskId: 'task-42',
       parentThreadId: 'thread-main',
-      title: '核对 ZCode 参照设计细节',
+      title: '核对 参照设计细节',
       role: 'frontend',
     }
     const state = open(createDefaultWorkbenchTabsState(), subagentTab)
     expect(state.right.tabIds).toEqual(['subagent-thread:task-42'])
     expect(state.right.activeTabId).toBe('subagent-thread:task-42')
     const def = getWorkbenchTabDefinition('subagent-thread')
-    expect(getWorkbenchTabDisplayTitle(subagentTab)).toBe('核对 ZCode 参照设计细节')
+    expect(getWorkbenchTabDisplayTitle(subagentTab)).toBe('核对 参照设计细节')
     const iconHtml = renderToStaticMarkup(def.getIcon?.(subagentTab) ?? null)
     expect(iconHtml).toContain('Frontend.png')
 

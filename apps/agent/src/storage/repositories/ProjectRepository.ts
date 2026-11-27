@@ -326,10 +326,6 @@ export abstract class ProjectRepositoryDatabase extends CredentialRepositoryData
     return project
   }
 
-  requireProjectForRemoval(projectID: string) {
-    return this.requireProject(projectID)
-  }
-
   createProject(input: { id?: string; rootPath?: string; primaryPath?: string; name?: string }) {
     const primaryPath = canonicalPath(input.primaryPath ?? input.rootPath ?? '')
     const timestamp = now()
@@ -583,23 +579,6 @@ export abstract class ProjectRepositoryDatabase extends CredentialRepositoryData
         .run(timestamp, projectID)
     })()
     return { project: this.getProject(projectID)!, changed: true }
-  }
-
-  removeProjectRecord(projectID: string, removedAt: number) {
-    this.requireProject(projectID)
-    this.profileSqlite.transaction(() => {
-      this.profileSqlite.query('DELETE FROM project_sources WHERE project_id = ?').run(projectID)
-      this.profileSqlite.query('DELETE FROM project_folders WHERE project_id = ?').run(projectID)
-      this.profileSqlite
-        .query(
-          `
-        UPDATE projects
-        SET removed_at = ?, updated_at = ?
-        WHERE id = ? AND removed_at IS NULL
-      `,
-        )
-        .run(removedAt, removedAt, projectID)
-    })()
   }
 
   resolveProjectModel(projectID: string, globalDefault: ModelRef | null) {

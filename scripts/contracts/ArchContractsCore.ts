@@ -20,7 +20,7 @@ export interface ArchContractManifest {
  * Category of an architectural contract violation.
  */
 export type ContractViolationCategory =
-  'boundary' | 'banned-pattern' | 'use-effect-ratchet' | 'comment-discipline'
+  'boundary' | 'banned-pattern' | 'use-effect-ratchet' | 'comment-discipline' | 'model-selector'
 
 /**
  * Single enforceable static contract violation with source coordinates.
@@ -150,6 +150,7 @@ const ALLOWED_EXTERNAL_BRAND_PATTERNS = [
   /codepilotx-dev\/Pidex(?:-Plugins)?/gi,
   /['"]codepilotx-dev['"]/gi,
   /auth-staging\.codepilotx\.top/gi,
+  /models\.codepilotx\.top/gi,
   /codepilotx-auth-broker-staging/gi,
 ]
 
@@ -221,6 +222,9 @@ async function collectFiles(rootDir: string): Promise<string[]> {
     }
   }
 
+  for (const entry of await readdir(rootDir, { withFileTypes: true })) {
+    if (entry.isFile()) collected.push(join(rootDir, entry.name))
+  }
   await walk(join(rootDir, 'apps'))
   await walk(join(rootDir, 'packages'))
   await walk(join(rootDir, 'scripts'))
@@ -568,6 +572,283 @@ function checkBannedPatternsInCode(
   }
 }
 
+const MODEL_SELECTOR_FILES = new Set([
+  'apps/desktop/renderer/src/features/layout/UseModelProviderController.ts',
+  'apps/desktop/renderer/src/features/session/composer/ModelPickerPopover.tsx',
+  'apps/desktop/renderer/src/features/settings/SpecializedModelSelect.tsx',
+  'apps/desktop/renderer/src/features/settings/SpecializedModelProviders.ts',
+])
+
+const FORBIDDEN_SELECTOR_PROPERTIES = new Set([
+  'discoverProviderModels',
+  'discoverBuiltinModels',
+  'discoverDirectoryModels',
+  'catalogModelCount',
+])
+
+const FORBIDDEN_MODELS_METHOD_PROPERTIES = new Set([
+  'directoryBaseProviders',
+  'providerCatalog',
+  'directoryEntries',
+  'discoverBuiltinModels',
+  'discoverDirectoryModels',
+  'activeCatalogModelIDs',
+])
+
+const FORBIDDEN_MODEL_ENABLED_PROPERTIES = new Set([
+  'providerCatalog',
+  'directoryBaseProviders',
+  'directoryEntries',
+])
+
+function isBareCatalogExpression(node: ts.Expression): boolean {
+  if (ts.isParenthesizedExpression(node)) return isBareCatalogExpression(node.expression)
+  if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken) {
+    return isBareCatalogExpression(node.operand)
+  }
+  return ts.isIdentifier(node) && node.text === 'catalog'
+}
+
+function expressionContainsCatalog(node: ts.Node): boolean {
+  let found = false
+  function visit(current: ts.Node): void {
+    if (found) return
+    if (ts.isIdentifier(current) && current.text === 'catalog') {
+      found = true
+      return
+    }
+    ts.forEachChild(current, visit)
+  }
+  visit(node)
+  return found
+}
+
+function isEmptyArrayLiteral(node: ts.Expression): boolean {
+  return ts.isArrayLiteralExpression(node) && node.elements.length === 0
+}
+
+function subtreeHasPropertyAccess(
+  root: ts.Node,
+  objectName: string,
+  propertyName: string,
+): boolean {
+  let found = false
+  function visit(current: ts.Node): void {
+    if (found) return
+    if (
+      ts.isPropertyAccessExpression(current) &&
+      ts.isIdentifier(current.expression) &&
+      current.expression.text === objectName &&
+      current.name.text === propertyName
+    ) {
+      found = true
+      return
+    }
+    ts.forEachChild(current, visit)
+  }
+  visit(root)
+  return found
+}
+
+/**
+ * Enforces that builtin overrides, model listing, and model selector surfaces preserve
+ * models added or customized on the Provider Page instead of restricting to catalog lists.
+ */
+export function checkModelSelectorContracts(
+  relPath: string,
+  sourceFile: ts.SourceFile,
+): ContractViolation[] {
+  const violations: ContractViolation[] = []
+
+  if (relPath === 'apps/agent/src/provider/runtime/BuiltinProviderOverrides.ts') {
+    let overrideFn: ts.FunctionDeclaration | undefined
+    for (const stmt of sourceFile.statements) {
+      if (ts.isFunctionDeclaration(stmt) && stmt.name?.text === 'withBuiltinProviderOverrides') {
+        overrideFn = stmt
+        break
+      }
+    }
+    if (!overrideFn) return violations
+
+    let configuredExtraDecl: ts.VariableDeclaration | undefined
+    const helperDecls: ts.VariableDeclaration[] = []
+
+    function visitOverride(node: ts.Node): void {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+        if (node.name.text === 'configuredExtraIds') {
+          configuredExtraDecl = node
+          if (
+            node.initializer &&
+            ts.isConditionalExpression(node.initializer) &&
+            expressionContainsCatalog(node.initializer.condition) &&
+            (isEmptyArrayLiteral(node.initializer.whenTrue) ||
+              isEmptyArrayLiteral(node.initializer.whenFalse))
+          ) {
+            const { line, column } = getLineAndCol(
+              sourceFile,
+              node.initializer.getStart(sourceFile),
+            )
+            violations.push({
+              category: 'model-selector',
+              rule: 'model-selector/preserve-configured-models',
+              file: relPath,
+              line,
+              column,
+              message:
+                'withBuiltinProviderOverrides must not drop configuredExtraIds when catalog is present; models added or customized on the Provider Page must stay selectable.',
+            })
+          }
+          if (
+            node.initializer &&
+            ts.isBinaryExpression(node.initializer) &&
+            (node.initializer.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+              node.initializer.operatorToken.kind === ts.SyntaxKind.BarBarToken) &&
+            expressionContainsCatalog(node.initializer.left)
+          ) {
+            const { line, column } = getLineAndCol(
+              sourceFile,
+              node.initializer.getStart(sourceFile),
+            )
+            violations.push({
+              category: 'model-selector',
+              rule: 'model-selector/preserve-configured-models',
+              file: relPath,
+              line,
+              column,
+              message:
+                'withBuiltinProviderOverrides must not gate configuredExtraIds on catalog presence.',
+            })
+          }
+        } else if (node.name.text === 'changedApi' || node.name.text === 'endpointModel') {
+          helperDecls.push(node)
+        }
+      }
+      if (ts.isIfStatement(node) && isBareCatalogExpression(node.expression)) {
+        let touchesExtraIds = false
+        const scan = (inner: ts.Node): void => {
+          if (touchesExtraIds) return
+          if (ts.isIdentifier(inner) && inner.text === 'configuredExtraIds') {
+            touchesExtraIds = true
+            return
+          }
+          ts.forEachChild(inner, scan)
+        }
+        scan(node.thenStatement)
+        if (touchesExtraIds) {
+          const { line, column } = getLineAndCol(sourceFile, node.getStart(sourceFile))
+          violations.push({
+            category: 'model-selector',
+            rule: 'model-selector/preserve-configured-models',
+            file: relPath,
+            line,
+            column,
+            message:
+              'withBuiltinProviderOverrides must not gate configured extra model synthesis behind a catalog check.',
+          })
+        }
+      }
+      ts.forEachChild(node, visitOverride)
+    }
+
+    visitOverride(overrideFn)
+
+    for (const helper of helperDecls) {
+      const helperName = ts.isIdentifier(helper.name) ? helper.name.text : 'helper'
+      const scanHelper = (node: ts.Node): void => {
+        if (ts.isIfStatement(node) && isBareCatalogExpression(node.expression)) {
+          const { line, column } = getLineAndCol(sourceFile, node.getStart(sourceFile))
+          violations.push({
+            category: 'model-selector',
+            rule: 'model-selector/preserve-configured-models',
+            file: relPath,
+            line,
+            column,
+            message: `${helperName} must check catalog.models[model.id] instead of unconditionally skipping all models when catalog exists.`,
+          })
+        }
+        ts.forEachChild(node, scanHelper)
+      }
+      scanHelper(helper)
+    }
+
+    if (
+      !configuredExtraDecl ||
+      !subtreeHasPropertyAccess(configuredExtraDecl, 'config', 'models') ||
+      !subtreeHasPropertyAccess(configuredExtraDecl, 'config', 'allowModels')
+    ) {
+      const target = configuredExtraDecl ?? overrideFn
+      const { line, column } = getLineAndCol(sourceFile, target.getStart(sourceFile))
+      violations.push({
+        category: 'model-selector',
+        rule: 'model-selector/preserve-configured-models',
+        file: relPath,
+        line,
+        column,
+        message:
+          'withBuiltinProviderOverrides must synthesize extra configured models from both config.models and config.allowModels.',
+      })
+    }
+    return violations
+  }
+
+  if (relPath === 'apps/agent/src/provider/runtime/ModelService.ts') {
+    function visitService(node: ts.Node): void {
+      if (ts.isMethodDeclaration(node) && ts.isIdentifier(node.name)) {
+        const forbidden =
+          node.name.text === 'models'
+            ? FORBIDDEN_MODELS_METHOD_PROPERTIES
+            : node.name.text === 'modelEnabled'
+              ? FORBIDDEN_MODEL_ENABLED_PROPERTIES
+              : null
+        if (forbidden && node.body) {
+          const methodName = node.name.text
+          const scanBody = (inner: ts.Node): void => {
+            if (ts.isPropertyAccessExpression(inner) && forbidden.has(inner.name.text)) {
+              const { line, column } = getLineAndCol(sourceFile, inner.getStart(sourceFile))
+              violations.push({
+                category: 'model-selector',
+                rule: 'model-selector/preserve-configured-models',
+                file: relPath,
+                line,
+                column,
+                message: `ModelService.${methodName}() must not restrict selectable models to catalog-only source "${inner.name.text}".`,
+              })
+            }
+            ts.forEachChild(inner, scanBody)
+          }
+          scanBody(node.body)
+        }
+      }
+      ts.forEachChild(node, visitService)
+    }
+    visitService(sourceFile)
+    return violations
+  }
+
+  if (MODEL_SELECTOR_FILES.has(relPath)) {
+    function visitSelector(node: ts.Node): void {
+      if (
+        ts.isPropertyAccessExpression(node) &&
+        FORBIDDEN_SELECTOR_PROPERTIES.has(node.name.text)
+      ) {
+        const { line, column } = getLineAndCol(sourceFile, node.getStart(sourceFile))
+        violations.push({
+          category: 'model-selector',
+          rule: 'model-selector/preserve-configured-models',
+          file: relPath,
+          line,
+          column,
+          message: `Model selector must display provider-configured models, not raw catalog/discovery source "${node.name.text}".`,
+        })
+      }
+      ts.forEachChild(node, visitSelector)
+    }
+    visitSelector(sourceFile)
+  }
+
+  return violations
+}
+
 function isRawUseEffectExempt(relPath: string): boolean {
   if (!relPath.startsWith('apps/desktop/renderer/src/')) return true
   if (
@@ -843,6 +1124,18 @@ export async function evaluateArchContracts(
 
   for (const fullPath of files) {
     const relPath = toPosixRelative(rootDir, fullPath)
+    const segments = relPath.split('/')
+    if (segments.some((name) => /zcode|^pi-|^pi$/i.test(name) || /^Pi[A-Z]/.test(name))) {
+      violations.push({
+        category: 'banned-pattern',
+        rule: 'banned-upstream-brand-path',
+        file: relPath,
+        line: 1,
+        column: 1,
+        message: 'Use a domain name for this path. Keep upstream attribution in third_party/.',
+      })
+    }
+    if (segments.length === 1) continue
     const base = basename(relPath)
     const ext = getExtension(relPath)
 
@@ -901,6 +1194,7 @@ export async function evaluateArchContracts(
     )
 
     violations.push(...checkBoundaryImports(relPath, sourceFile))
+    violations.push(...checkModelSelectorContracts(relPath, sourceFile))
 
     const bannedResult = checkBannedPatternsInCode(relPath, text, sourceFile)
     violations.push(...bannedResult.violations)

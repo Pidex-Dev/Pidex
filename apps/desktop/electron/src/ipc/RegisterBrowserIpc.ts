@@ -4,7 +4,6 @@ import {
   type CreateOrRestoreDesktopBrowserInput,
   type DesktopBrowserTabInput,
   type NavigateDesktopBrowserInput,
-  type SetDesktopBrowserBoundsInput,
   type SetDesktopBrowserVisibleInput,
 } from '@pidex/shared/desktop-browser-ipc'
 import type { DesktopBrowserController } from '../browser/BrowserController.js'
@@ -129,11 +128,6 @@ export function registerBrowserIpc(dependencies: BrowserIpcDependencies): void {
     const value = requireTabInput(input)
     return controller.goForward(owner, value.tabId)
   })
-  ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.setBounds, (event, input) => {
-    const owner = senderWindow(event.sender)
-    const value = requireBoundsInput(input)
-    return controller.setBounds(owner, value.tabId, value.bounds)
-  })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.setVisible, (event, input) => {
     const owner = senderWindow(event.sender)
     const value = requireVisibleInput(input)
@@ -191,19 +185,6 @@ function requireNavigateInput(value: unknown): NavigateDesktopBrowserInput {
   )
     invalidInput()
   return value as unknown as NavigateDesktopBrowserInput
-}
-
-function requireBoundsInput(value: unknown): SetDesktopBrowserBoundsInput {
-  if (
-    !isExactRecord(value, ['tabId', 'bounds']) ||
-    !isIdentifier(value.tabId) ||
-    !isExactRecord(value.bounds, ['x', 'y', 'width', 'height']) ||
-    ![value.bounds.x, value.bounds.y, value.bounds.width, value.bounds.height].every(
-      (item) => typeof item === 'number' && Number.isFinite(item),
-    )
-  )
-    invalidInput()
-  return value as unknown as SetDesktopBrowserBoundsInput
 }
 
 function requireVisibleInput(value: unknown): SetDesktopBrowserVisibleInput {

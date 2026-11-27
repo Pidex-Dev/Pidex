@@ -30,16 +30,17 @@ import type { ModelSyncService } from '../../provider/ModelSyncService'
 import type { ProtocolDetectionService } from '../../provider/ProtocolDetectionService'
 import type { ProviderCredentialService } from '../../provider/ProviderCredentialService'
 import type { ProviderCredentialStoreManager } from '../../auth/ProviderCredentialStoreManager'
-import type { PiModelService } from '../../provider/pi'
-import { resolveSpecializedPiModel } from '../../provider/pi/PiSpecializedModelResolver'
-import type { PiAuthSessionService } from '../../auth/PiAuthSessionService'
+import type { ModelService } from '../../provider/runtime'
+import { resolveSpecializedModel } from '../../provider/runtime/SpecializedModelResolver'
+import type { ProviderAuthSessionService } from '../../auth/ProviderAuthSessionService'
 import type { ThreadHistoryService } from '../../session/ThreadHistoryService'
 import type { ThreadService } from '../../session/ThreadService'
 import type { AgentDatabase } from '../../storage/database/AgentDatabase'
 import type { EventHub } from '../../storage/events/EventHub'
 import { globalEventSequence, publishAgentEvent } from '../../storage/events/EventPublisher'
 import type { SubagentService } from '../../subagent/SubagentService'
-import type { AttachmentService } from '../../subagent/AttachmentService'
+import type { AttachmentRecord, AttachmentService } from '../../subagent/AttachmentService'
+import { AttachmentUploads } from '../../subagent/AttachmentUploads'
 import type { ArtifactService } from '../../storage/ArtifactService'
 import type { LocalContextPathService } from '../../local-context/LocalContextPathService'
 import type { ProjectSourceService } from '../../project/ProjectSourceService'
@@ -155,14 +156,14 @@ export type RpcRouterDependencies = {
   localContextPaths: LocalContextPathService
   projectSources: ProjectSourceService
   providers: AgentModelCatalog
-  piModels: PiModelService
+  runtimeModels: ModelService
   apiKeys: ApiKeyService
   modelHealth: ModelHealthService
   modelSync: ModelSyncService
   protocolDetection: ProtocolDetectionService
   providerCredentials: ProviderCredentialService
   providerCredentialStore: ProviderCredentialStoreManager
-  authSessions: PiAuthSessionService
+  authSessions: ProviderAuthSessionService
   memory: MemoryService
   hooks: HookService
   /** Optional: unset when Hook management is not wired for this runtime. */
@@ -275,6 +276,7 @@ export const submitMessage = (raw: unknown): SubmitMessage => {
 }
 
 export class RpcRouter {
+  readonly attachmentUploads: AttachmentUploads
   readonly projection: ThreadProjection
   readonly decisions: DecisionService
   readonly subscriptions: EventSubscriptionRegistry
@@ -317,6 +319,7 @@ export class RpcRouter {
   ) {
     this.connectionLeaseMs = options.connectionLeaseMs ?? 60_000
     this.now = options.now ?? Date.now
+    this.attachmentUploads = new AttachmentUploads(dependencies.attachments)
     this.projection = new ThreadProjection(dependencies.db)
     this.decisions =
       dependencies.decisions ??
@@ -383,7 +386,27 @@ export class RpcRouter {
     }
     const declared = RpcMethods[method].errors as readonly string[]
     const exact = declared.includes(cause.code) ? (cause.code as ApplicationErrorCode) : null
-    const mapped = workspaceFileApplicationErrorCode(method, cause.code, declared)
+    const mapped =
+      workspaceFileApplicationErrorCode(method, cause.code, declared) ??
+      (declared.includes('ATTACHMENT_LIMIT') &&
+      [
+        'ATTACHMENT_COUNT_LIMIT',
+        'ATTACHMENT_FILE_TOO_LARGE',
+        'ATTACHMENT_TOTAL_TOO_LARGE',
+      ].includes(cause.code)
+        ? 'ATTACHMENT_LIMIT'
+        : declared.includes('ATTACHMENT_FORMAT_INVALID') &&
+            [
+              'ATTACHMENT_NAME_INVALID',
+              'ATTACHMENT_CHARSET_UNSUPPORTED',
+              'ATTACHMENT_IMAGE_INVALID',
+              'ATTACHMENT_IMAGE_TYPE_UNSUPPORTED',
+              'ATTACHMENT_TEXT_TYPE_UNSUPPORTED',
+              'ATTACHMENT_UTF8_INVALID',
+              'INVALID_REQUEST',
+            ].includes(cause.code)
+          ? 'ATTACHMENT_FORMAT_INVALID'
+          : null)
     const fallback: ApplicationErrorCode =
       cause.status === 429 && declared.includes('RATE_LIMITED')
         ? 'RATE_LIMITED'
@@ -404,6 +427,13 @@ export class RpcRouter {
         ? cause.retryable
         : cause.status === 429 || cause.status >= 500,
       safeErrorDetails(code, cause.details, cause instanceof ProviderRequestError),
+    )
+  }
+
+  connectionHasCapability(context: RpcRouterContext, capability: ProtocolCapability) {
+    return (
+      !!context.connectionId &&
+      !!this.connections.get(context.connectionId)?.capabilities.has(capability)
     )
   }
 
@@ -441,6 +471,7 @@ export class RpcRouter {
   closeConnection(connectionId: string) {
     const deleted = this.connections.delete(connectionId)
     this.subscriptions.closeConnection(connectionId)
+    this.attachmentUploads.close(connectionId)
     for (const [key, watcher] of this.workspaceFileWatchers) {
       watcher.ownerCounts.delete(connectionId)
       if (watcher.ownerCounts.size > 0) continue
@@ -463,18 +494,22 @@ export class RpcRouter {
     return snapshot
   }
 
-  threadSnapshotResult(threadId: string) {
+  threadSnapshotResult(threadId: string, includePdfAttachments: boolean) {
     this.dependencies.db.repositories.planApprovals.recover(threadId)
-    return this.threadReadViews.snapshot(threadId)
+    return this.threadReadViews.snapshot(threadId, includePdfAttachments)
   }
 
-  threadHistoryPageResult(threadId: string, params: { before?: string; limit?: number }) {
+  threadHistoryPageResult(
+    threadId: string,
+    params: { before?: string; limit?: number },
+    includePdfAttachments: boolean,
+  ) {
     this.dependencies.db.repositories.planApprovals.recover(threadId)
-    return this.threadReadViews.history(threadId, params)
+    return this.threadReadViews.history(threadId, params, includePdfAttachments)
   }
 
-  queueStateResult(threadId: string, eventID?: number) {
-    return this.threadReadViews.queue(threadId, eventID)
+  queueStateResult(threadId: string, eventID: number | undefined, includePdfAttachments: boolean) {
+    return this.threadReadViews.queue(threadId, eventID, includePdfAttachments)
   }
 
   private loadCatalogSource() {
@@ -543,6 +578,9 @@ export class RpcRouter {
             providerID: recentProviderID,
             id: recent.id,
             ...(recentVariant ? { variant: recentVariant } : {}),
+            ...(Schema.is(Model.SpeedTierId)(recent.speedTier)
+              ? { speedTier: recent.speedTier }
+              : {}),
           } as Model.Ref)
         : null
     const security =
@@ -561,6 +599,14 @@ export class RpcRouter {
         ?.find((model) => model.id === ref.id)
       if (!match || !match.enabled) return null
       if (ref.variant && !match.variants.some((variant) => variant.id === ref.variant)) return null
+      if (
+        ref.speedTier &&
+        ref.speedTier !== 'standard' &&
+        !match.speedTiers?.some((tier) => tier.id === ref.speedTier)
+      ) {
+        const { speedTier: _, ...standard } = ref
+        return standard
+      }
       return ref
     }
     return {
@@ -774,7 +820,7 @@ export const resolveAiReviewSource = async (
 export const aiReviewModel = async (
   db: AgentDatabase,
   providers: AgentModelCatalog,
-  piModels: PiModelService,
+  runtimeModels: ModelService,
   configService: ConfigService,
   threadId: string,
   projectId: string,
@@ -790,10 +836,10 @@ export const aiReviewModel = async (
       latestModel = null
     }
   }
-  const specialized = await resolveSpecializedPiModel({
+  const specialized = await resolveSpecializedModel({
     purpose: 'coding',
     db,
-    models: piModels,
+    models: runtimeModels,
     configService,
     projectId,
     ...(latestModel ? { fallbackRefs: [latestModel] } : {}),
@@ -867,7 +913,7 @@ export const githubPullRequestIdentity = (params: Record<string, unknown>) => ({
 
 export const attachmentView = (record: {
   id: string
-  kind: 'text' | 'image' | 'audio' | 'video'
+  kind: AttachmentRecord['kind']
   name: string
   mimeType: string
   size: number
@@ -910,6 +956,7 @@ export const modelRef = (value: Record<string, unknown>) => {
     providerID: Provider.ID.make(value.providerID),
     id: Model.ID.make(value.id),
     ...(typeof value.variant === 'string' ? { variant: Model.VariantID.make(value.variant) } : {}),
+    ...(Schema.is(Model.SpeedTierId)(value.speedTier) ? { speedTier: value.speedTier } : {}),
   })
 }
 

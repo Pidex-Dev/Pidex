@@ -65,11 +65,13 @@ test('归档投影搜索、项目/定时分类与创建/更新时间排序', () 
   expect(archivedGroups(sessions, '', 'all', 'alphabetical')).toHaveLength(2)
 })
 test('归档批量部分失败只移除成功记录，保留失败项供重试', async () => {
-  const result = await deleteArchivedSessions(['a', 'failed', 'b'], async (id) => {
+  const result = await deleteArchivedSessions(['a', 'failed', 'restored', 'b'], async (id) => {
     if (id === 'failed') throw new Error('删除失败')
+    return id !== 'restored'
   })
   expect([...result.removed]).toEqual(['a', 'b'])
   expect(result.failed).toBe(1)
+  expect(result.skipped).toBe(1)
 })
 
 test('上下文展示方式经设置草稿保存后可恢复，保留其他设置', async () => {

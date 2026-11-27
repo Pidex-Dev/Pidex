@@ -231,6 +231,7 @@ export function ConversationPage(): React.ReactNode {
           providerID: composerProps.selectedProviderID,
           model: planModel,
           variant: composerProps.modelVariant,
+          speedTier: composerProps.speedTier,
         }
       : undefined,
     (threadId) => navigate(`/threads/${encodeURIComponent(threadId)}`),

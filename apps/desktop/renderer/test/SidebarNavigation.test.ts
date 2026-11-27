@@ -206,7 +206,7 @@ describe('Codex 侧栏导航', () => {
         readySidebarCapabilities(
           'pets.management.v1',
           'skills.manage.v1',
-          'session-group.v1',
+          'workflow.v1',
           'git.review.v1',
         ),
       )
@@ -440,9 +440,14 @@ describe('Codex 侧栏导航', () => {
     )
   })
 
-  test('协商 session-group.v1 后工作组位于新建对话之后、项目之前', () => {
+  test('工作组入口仅在协商 workflow.v1 后显示', () => {
     expect(
       sidebarNavItems(true, undefined, readySidebarCapabilities('session-group.v1')).map(
+        (item) => item.view,
+      ),
+    ).not.toContain('sessionGroups')
+    expect(
+      sidebarNavItems(true, undefined, readySidebarCapabilities('workflow.v1')).map(
         (item) => item.view,
       ),
     ).toEqual(['new', 'sessionGroups', 'projects', 'automations', 'providers'])

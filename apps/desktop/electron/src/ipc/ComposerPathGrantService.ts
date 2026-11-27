@@ -17,6 +17,7 @@ const DEFAULT_DIRECTORY_PAGE_SIZE = 100
 const MAX_DIRECTORY_PAGE_SIZE = 200
 const MAX_TEXT_PREVIEW_BYTES = 1024 * 1024
 const MAX_IMAGE_PREVIEW_BYTES = 10 * 1024 * 1024
+const MAX_MEDIA_CHUNK_BYTES = 512 * 1024
 
 type StoredGrant = DesktopComposerPathGrant & {
   canonicalPathKey: string
@@ -53,6 +54,7 @@ export class ComposerPathGrantService {
       returnedPaths.add(canonicalPathKey)
       const existing = grantsByPath.get(canonicalPathKey)
       if (existing) {
+        existing.sizeBytes = info.isFile() ? info.size : 0
         result.push(publicGrant(existing))
         continue
       }
@@ -91,10 +93,26 @@ export class ComposerPathGrantService {
       mediaType,
       sizeBytes: info.size,
     }
+    const chunkedKind =
+      mediaType === 'application/pdf' ? 'pdf' : mediaType.startsWith('video/') ? 'video' : null
+    if (chunkedKind && request.range) {
+      const offset = request.range.offset ?? 0
+      const length = Math.min(
+        request.range.length ?? MAX_MEDIA_CHUNK_BYTES,
+        MAX_MEDIA_CHUNK_BYTES,
+        Math.max(0, info.size - offset),
+      )
+      const content = await readBytes(target.path, offset, length)
+      return {
+        ...base,
+        kind: chunkedKind,
+        encoding: 'base64',
+        data: content.toString('base64'),
+        truncated: offset + content.byteLength < info.size,
+      }
+    }
     if (
-      (mediaType.startsWith('image/') ||
-        mediaType.startsWith('audio/') ||
-        mediaType.startsWith('video/')) &&
+      (mediaType.startsWith('image/') || mediaType.startsWith('audio/') || chunkedKind) &&
       !request.range
     ) {
       if (
@@ -105,11 +123,7 @@ export class ComposerPathGrantService {
       const content = await readBytes(target.path, 0, info.size)
       return {
         ...base,
-        kind: mediaType.startsWith('audio/')
-          ? 'audio'
-          : mediaType.startsWith('video/')
-            ? 'video'
-            : 'image',
+        kind: chunkedKind ?? (mediaType.startsWith('audio/') ? 'audio' : 'image'),
         encoding: 'base64',
         data: content.toString('base64'),
         truncated: false,
@@ -382,6 +396,7 @@ const MEDIA_TYPE_BY_EXTENSION: Readonly<Record<string, string>> = {
   '.flac': 'audio/flac',
   '.m4a': 'audio/mp4',
   '.mp4': 'video/mp4',
+  '.pdf': 'application/pdf',
   '.webm': 'video/webm',
   '.bmp': 'image/bmp',
   '.css': 'text/css',

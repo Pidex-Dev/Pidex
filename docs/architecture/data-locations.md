@@ -15,7 +15,7 @@ Pidex 将持久化内容分为用户数据、工作区配置、Electron 状态�
 - `history.sqlite`、`profile.sqlite` 及其 WAL/SHM；
 - 可移植的 `config.json` 和 `profiles\<id>.json`；
 - 选择明文 Provider 凭据仓库时使用的 `auth.json`；
-- `pi-models.cache.json`（Pi 模型目录缓存；旧 `models.cache.json` 仅原样保留，不再读取）；
+- `provider-models.cache.json`（供应商模型目录缓存）。首次使用时校验旧 `pi-models.cache.json` 的 Pidex 归属、版本和结构，新文件写入成功后清理旧缓存。已有有效新缓存时只清理有效的旧缓存。无效文件和更早的 `models.cache.json` 原样保留；
 - 全局 `hooks.json` 和 `skills`；
 - `attachments`、`pets`、`tooling`、`workspaces`；
 - `memories`（文件记忆：Markdown 正文与索引，见下节）；

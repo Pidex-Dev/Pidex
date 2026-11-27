@@ -500,6 +500,9 @@ export function ProviderConnectionSection({
                           <h4 className="tw:m-0 tw:type-2 tw:weight-medium">API Key</h4>
                           <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-1">
                             优先使用排在首位的活动密钥。
+                            {provider.envVars?.length
+                              ? ` 支持环境变量 ${provider.envVars.join('、')}。`
+                              : ''}
                           </p>
                         </div>
                         <ProviderPanelActionButton

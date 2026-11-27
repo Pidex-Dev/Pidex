@@ -26,7 +26,9 @@ type AgentTurnQueueClientDependencies = {
   importMessageContext: (
     sessionId: string,
     input: DesktopUserMessageInput,
+    inputId: string,
   ) => Promise<{ attachmentIds: string[]; contextReferenceIds: string[] }>
+  completeMessageContext?: (sessionId: string, inputId: string) => void
   resolveModelRef: (
     model: string | DesktopModelSelection | undefined,
     sessionId: string,
@@ -45,6 +47,7 @@ export function createAgentTurnQueueClient({
   rpc,
   awaitPendingSettingsUpdate,
   importMessageContext,
+  completeMessageContext,
   resolveModelRef,
   permissionConfigForSession,
   taskModeForSession,
@@ -109,9 +112,14 @@ export function createAgentTurnQueueClient({
             permissionConfig,
             taskMode,
           }
-    const { attachmentIds, contextReferenceIds } = await importMessageContext(sessionId, input)
-    const content = formatCanonicalSkillInvocation(input.skillInvocation, input.text)
     const inputId = options?.inputId ?? crypto.randomUUID()
+    const { attachmentIds, contextReferenceIds } = await importMessageContext(
+      sessionId,
+      input,
+      inputId,
+    )
+    const content = formatCanonicalSkillInvocation(input.skillInvocation, input.text)
+    input.attachmentTransfer?.signal.throwIfAborted()
 
     if (delivery === 'steer') {
       const current = await loadThreadSnapshot(sessionId)
@@ -129,6 +137,7 @@ export function createAgentTurnQueueClient({
           ...(attachmentIds.length ? { attachmentIds } : {}),
           ...(contextReferenceIds.length ? { contextReferenceIds } : {}),
         })
+        completeMessageContext?.(sessionId, inputId)
         await refreshSession(sessionId).catch(() => null)
         emitSessionStoreChange()
         return { inputId, outcome: 'steered' }
@@ -145,6 +154,7 @@ export function createAgentTurnQueueClient({
         input.taskMode,
         frozen,
       )
+      completeMessageContext?.(sessionId, inputId)
       await refreshSession(sessionId).catch(() => null)
       emitSessionStoreChange()
       return { inputId, outcome: 'sent' }
@@ -169,6 +179,7 @@ export function createAgentTurnQueueClient({
         ...(attachmentIds.length ? { attachmentIds } : {}),
         ...(contextReferenceIds.length ? { contextReferenceIds } : {}),
       })
+      completeMessageContext?.(sessionId, inputId)
       await refreshSession(sessionId).catch(() => null)
       emitSessionStoreChange()
       return {
@@ -189,6 +200,7 @@ export function createAgentTurnQueueClient({
       input.taskMode,
       frozen,
     )
+    completeMessageContext?.(sessionId, inputId)
     await refreshSession(sessionId).catch(() => null)
     emitSessionStoreChange()
     return { inputId, outcome: 'sent' }

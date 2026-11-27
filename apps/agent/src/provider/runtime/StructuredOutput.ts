@@ -1,0 +1,189 @@
+import {
+  contentText,
+  type Tool,
+  type Api,
+  type Model as RuntimeModel,
+  type Models,
+  type Context,
+  type AssistantMessage,
+} from '@earendil-works/pi-ai'
+import { z } from 'zod'
+
+const jsonPayload = (text: string) => {
+  const trimmed = text.trim()
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1]
+  const candidate = fenced ?? trimmed
+  try {
+    return JSON.parse(candidate) as unknown
+  } catch {
+    const start = candidate.indexOf('{')
+    const end = candidate.lastIndexOf('}')
+    if (start < 0 || end <= start) throw new SyntaxError('模型没有返回有效 JSON')
+    return JSON.parse(candidate.slice(start, end + 1)) as unknown
+  }
+}
+
+const isOfficialOpenAIResponses = (model: RuntimeModel<Api>) => {
+  if (model.provider !== 'openai' || model.api !== 'openai-responses') return false
+  try {
+    return new URL(model.baseUrl).hostname.toLowerCase() === 'api.openai.com'
+  } catch {
+    return false
+  }
+}
+
+export class StructuredOutputError extends Error {
+  readonly code: 'STRUCTURED_OUTPUT_MISSING'
+
+  constructor() {
+    super('结构化输出未调用提交工具')
+    this.name = 'StructuredOutputError'
+    this.code = 'STRUCTURED_OUTPUT_MISSING'
+  }
+}
+
+export type GenerationDiagnostic = {
+  stage: 'schema' | 'request' | 'tool-result' | 'json' | 'validation'
+  reason:
+    | 'schema'
+    | 'authentication'
+    | 'rate-limit'
+    | 'network'
+    | 'provider'
+    | 'missing-tool'
+    | 'invalid-json'
+    | 'invalid-schema'
+    | 'unsupported-api'
+    | 'invalid-request'
+    | 'runtime-type'
+    | 'stream-incomplete'
+  status?: number
+}
+
+// Only emit fixed categories and HTTP status codes, never provider error text.
+function failureDiagnostic(
+  stage: GenerationDiagnostic['stage'],
+  error: unknown,
+): GenerationDiagnostic {
+  const record =
+    error !== null && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+  const message = error instanceof Error ? error.message : ''
+  const rawStatus =
+    record.status ?? record.statusCode ?? message.match(/^(?:HTTP\s+)?([45]\d{2})\b/i)?.[1]
+  const status = Number(rawStatus)
+  const reason: GenerationDiagnostic['reason'] =
+    stage === 'schema'
+      ? 'schema'
+      : error instanceof StructuredOutputError
+        ? 'missing-tool'
+        : error instanceof z.ZodError
+          ? 'invalid-schema'
+          : stage === 'json'
+            ? 'invalid-json'
+            : status === 401 ||
+                status === 403 ||
+                /No API key|auth failed|OAuth .*failed|Credential store .*failed/i.test(message)
+              ? 'authentication'
+              : status === 429
+                ? 'rate-limit'
+                : /ECONNRESET|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|fetch failed|network error/i.test(
+                      message,
+                    )
+                  ? 'network'
+                  : /No API provider|no API implementation|Mismatched api|not support|unsupported/i.test(
+                        message,
+                      )
+                    ? 'unsupported-api'
+                    : error instanceof TypeError ||
+                        /is not a function|is not an object|Cannot read propert|undefined is not/i.test(
+                          message,
+                        )
+                      ? 'runtime-type'
+                      : /stream ended|without finish_reason|without a stop reason/i.test(message)
+                        ? 'stream-incomplete'
+                        : status === 400 || status === 422
+                          ? 'invalid-request'
+                          : 'provider'
+  return {
+    stage,
+    reason,
+    ...(Number.isInteger(status) && status >= 400 && status <= 599 ? { status } : {}),
+  }
+}
+
+export async function generateObject<TSchema extends z.ZodType>(input: {
+  models: Models
+  model: RuntimeModel<Api>
+  schema: TSchema
+  schemaName: string
+  system: string
+  prompt: string
+  signal?: AbortSignal
+  maxTokens?: number
+  maxRetries?: number
+  beforeRequest?: (context: Context) => void | Promise<void>
+  onResponse?: (response: AssistantMessage) => void | Promise<void>
+  onFailure?: (diagnostic: GenerationDiagnostic) => void
+}): Promise<z.output<TSchema>> {
+  let stage: GenerationDiagnostic['stage'] = 'schema'
+  try {
+    // Type.Unsafe adds function-valued Standard Schema metadata that cannot be
+    // structured-cloned by Pi's constrained-sampling conversion.
+    const parameters = z.toJSONSchema(input.schema) as Tool['parameters']
+    const toolName = `submit_${input.schemaName}`
+    const strictToolCall = isOfficialOpenAIResponses(input.model)
+    stage = 'request'
+    const context: Context = {
+      systemPrompt: [
+        input.system,
+        `Call ${toolName} to submit a result conforming to ${input.schemaName}. Do not return explanatory text.`,
+      ].join('\n'),
+      messages: [{ role: 'user', content: input.prompt, timestamp: Date.now() }],
+      tools: [
+        {
+          name: toolName,
+          description: `Submit a structured result conforming to the ${input.schemaName} schema`,
+          parameters,
+          constrainedSampling: {
+            type: 'json_schema',
+            strict: strictToolCall ? 'require' : 'prefer',
+          },
+        },
+      ],
+    }
+    await input.beforeRequest?.(context)
+    input.signal?.throwIfAborted()
+    const response = await input.models.completeSimple(input.model, context, {
+      ...(input.signal ? { signal: input.signal } : {}),
+      maxRetries: input.maxRetries ?? 1,
+      ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
+      ...(strictToolCall
+        ? {
+            onPayload: (payload: unknown) => ({
+              ...(payload as Record<string, unknown>),
+              tool_choice: { type: 'function', name: toolName },
+            }),
+          }
+        : {}),
+    })
+    await input.onResponse?.(response)
+    if (response.stopReason === 'error')
+      throw new Error(response.errorMessage ?? '结构化模型调用失败')
+    stage = 'tool-result'
+    const toolCall = response.content.find(
+      (item) => item.type === 'toolCall' && item.name === toolName,
+    )
+    if (toolCall?.type === 'toolCall') {
+      stage = 'validation'
+      return input.schema.parse(toolCall.arguments)
+    }
+    if (strictToolCall) throw new StructuredOutputError()
+    stage = 'json'
+    const payload = jsonPayload(contentText(response.content, '\n'))
+    stage = 'validation'
+    return input.schema.parse(payload)
+  } catch (error) {
+    input.onFailure?.(failureDiagnostic(stage, error))
+    throw error
+  }
+}

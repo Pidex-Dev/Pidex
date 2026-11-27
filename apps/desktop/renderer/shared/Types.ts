@@ -57,7 +57,7 @@ import type {
   ModelProviderKind,
   ModelProviderSummary,
 } from '@pidex/core/models/Provider.js'
-import type { CatalogProvider, ModelRef, ProviderTestResponse } from '@pidex/shared'
+import type { CatalogProvider, ModelInfo, ModelRef, ProviderTestResponse } from '@pidex/shared'
 import type { HighlightThemeSlug } from './themes/Manifest.js'
 import type {
   McpRuntimeServerStatus,
@@ -68,13 +68,6 @@ import type {
   RpcParams,
   RpcResult,
 } from '@pidex/agent-protocol'
-
-export type DesktopAuthStatus = {
-  authenticated: boolean
-  method: string
-  email?: string | null
-  organizationName?: string | null
-}
 
 export type DesktopProjectFolder = {
   id: string
@@ -187,7 +180,7 @@ export type DesktopFileSaveInput = {
 }
 
 export type DesktopComposerAttachmentKind =
-  'image' | 'document' | 'text' | 'audio' | 'video' | 'binary'
+  'image' | 'document' | 'text' | 'audio' | 'video' | 'pdf' | 'binary'
 
 export type DesktopComposerAttachmentStatus = 'ready' | 'error'
 
@@ -229,12 +222,22 @@ export type DesktopGoalBudgetBaseline = {
   tokenBudget: number | null
 }
 
+export type DesktopAttachmentUploadProgress = {
+  fileName: string
+  deliveredBytes: number
+  totalBytes: number
+}
+
 export type DesktopUserMessageInput = {
   text: string
   goal?: DesktopGoalSubmission
   taskMode?: 'chat' | 'plan' | 'grill'
   skills?: readonly import('@pidex/agent-protocol').SkillSelection[]
   attachments?: DesktopComposerAttachment[]
+  attachmentTransfer?: {
+    signal: AbortSignal
+    onProgress: (progress: DesktopAttachmentUploadProgress | null) => void
+  }
   retainedAttachmentIds?: string[]
   retainedContextReferenceIds?: string[]
   skillInvocation?: {
@@ -480,54 +483,6 @@ export type DesktopGitOperationResult =
 export type DesktopPullRequestResult =
   { ok: true; url: string; output?: string } | { ok: false; error: string }
 
-export type DesktopRuntimeStatus = {
-  runtimeKind: 'rust-sidecar'
-  runtimePreference: 'auto' | 'rust-sidecar'
-  runtimeSelectionSource: 'default' | 'env'
-  agentExecutablePath: string
-  agentExecutableExists: boolean
-  configDirectoryPath: string
-  toolchainEnabled: boolean
-  toolchainRoot: string | null
-  managedToolchainRoot: string
-  packagedToolchainRoot: string
-  toolchainPathEntries: string[]
-  toolchainBinaries: DesktopRuntimeBinaryStatus[]
-}
-
-export type DesktopRuntimeBinaryName = 'node' | 'npm' | 'npx' | 'python' | 'pip'
-
-export type DesktopRuntimeBinarySource = 'managed' | 'packaged' | 'system' | 'missing'
-
-export type DesktopRuntimeBinaryStatus = {
-  name: DesktopRuntimeBinaryName
-  source: DesktopRuntimeBinarySource
-  path: string | null
-  exists: boolean
-  targetVersion?: string
-  version: string | null
-  error?: string
-}
-
-export type DesktopToolchainDiagnosticReport = {
-  enabled: boolean
-  root: string | null
-  managedRoot: string
-  packagedRoot: string
-  pathEntries: string[]
-  binaries: DesktopRuntimeBinaryStatus[]
-  logPath?: string
-}
-
-export type DesktopToolchainInstallResult =
-  | {
-      ok: true
-      root: string
-      copiedFrom: string | null
-      diagnostics: DesktopToolchainDiagnosticReport
-    }
-  | { ok: false; error: string; diagnostics: DesktopToolchainDiagnosticReport }
-
 export type DesktopBrowserBounds = SharedDesktopBrowserBounds
 
 export type DesktopBrowserState = Pick<
@@ -604,9 +559,13 @@ export type ModelProviderID = CoreModelProviderID
 export type DesktopModelProviderKind = ModelProviderKind
 
 export type DesktopModelMetadata = ModelMetadata & {
+  billingMode?: ModelInfo['billingMode']
+  pricing?: ModelInfo['pricing']
+  speedTiers?: ModelInfo['speedTiers']
   catalog?: NonNullable<DesktopProviderModelDefinition['catalog']>
   inputTokens?: number
   nativeApi?: string
+  supportedProtocols?: ModelInfo['api']['supportedProtocols']
   variants?: string[]
   providerApi?:
     'openai-completions' | 'openai-responses' | 'anthropic-messages' | 'google-generative-ai'
@@ -626,6 +585,7 @@ export type DesktopProviderAvailability =
 
 export type DesktopModelProviderSummary = Omit<ModelProviderSummary, 'modelMetadata'> & {
   modelCount?: number
+  catalogModelCount?: number
   providerKind?: 'builtin' | 'custom'
   catalogOrigin?: 'user' | 'pi-bundled' | 'pi-remote' | 'models-dev'
   availability?: DesktopProviderAvailability
@@ -685,25 +645,6 @@ export type DesktopApiKeySummary = {
   }
   createdAt: number
   updatedAt: number
-}
-
-export type DesktopCopilotAuthStatus = {
-  authenticated: boolean
-  user?: string | null
-  method?: string | null
-  error?: string
-}
-
-export type DesktopCopilotLoginState =
-  'idle' | 'starting' | 'awaiting_auth' | 'completed' | 'failed'
-
-export type DesktopCopilotLoginStatus = {
-  state: DesktopCopilotLoginState
-  deviceCode: string | null
-  verificationUrl: string | null
-  error: string | null
-  auth: DesktopCopilotAuthStatus | null
-  elapsedMs: number
 }
 
 export type DesktopGithubUser = {
@@ -1333,6 +1274,7 @@ export type DesktopSessionSettingsSnapshot = {
   providerBaseURL?: string
   model?: string
   variant?: string
+  speedTier?: ModelRef['speedTier']
   effort?: string | null
   personality?: DesktopPersonality
   sessionName?: string
@@ -1564,6 +1506,7 @@ export type DesktopModelSelection = {
   providerBaseURL?: string
   model?: string
   variant?: string
+  speedTier?: ModelRef['speedTier']
   localRouterMode?: LocalRouterMode
 }
 
@@ -1620,42 +1563,8 @@ export type DesktopSkillInstallResult = {
   installPath: string
 }
 
-export type DesktopUiCommand =
-  'newConversation' | 'chooseWorkspace' | 'refreshWorkspace' | 'openSettings' | 'logOut'
-
 export type { DesktopDataLocationControlSource, DesktopDataLocationState }
 export type DesktopDataLocationMigrationResult = DesktopDataLocationChange
-
-export type DebugToolProbeMode = 'safe' | 'realManual' | 'realAuto'
-
-export type DebugToolProbeItemStatus =
-  'passed' | 'failed' | 'permissionDenied' | 'skippedByEnvironment'
-
-export type DebugToolProbeItem = {
-  toolName: string
-  status: DebugToolProbeItemStatus
-  reason?: string
-  durationMs?: number
-  permissionRequestId?: string
-  permissionDecision?: string
-  inputSummary?: string
-  error?: string
-}
-
-export type DebugToolProbeReport = {
-  runId: string
-  mode: DebugToolProbeMode
-  startedAt: string
-  finishedAt?: string
-  cancelled?: boolean
-  totalTools: number
-  passed: number
-  failed: number
-  permissionDenied: number
-  skippedByEnvironment: number
-  items: DebugToolProbeItem[]
-  logPath?: string
-}
 
 export type RustSidecarBinarySource = 'env-override' | 'workspace' | 'bundled'
 
@@ -1764,21 +1673,6 @@ export type DeleteUserMemoryInput = {
 
 export type ResetUserMemoryInput = Record<string, never>
 
-export type ExportUserMemoryResult = {
-  memoryDir: string
-  files: Array<{
-    relativePath: string
-    content: string
-  }>
-}
-
-export type ImportUserMemoryInput = {
-  files: Array<{
-    relativePath: string
-    content: string
-  }>
-}
-
 /** Real usage timeline: index injection and body reads are separate records. */
 export type DesktopMemoryUsageRecord = {
   id: string
@@ -1832,11 +1726,6 @@ export type DesktopApi = {
     behavior: 'allow' | 'deny',
     grantScope?: DesktopPermissionGrantScope,
   ): Promise<void>
-  getAuthStatus(): Promise<DesktopAuthStatus>
-  getRuntimeStatus(): Promise<DesktopRuntimeStatus>
-  diagnoseDesktopToolchain(): Promise<DesktopToolchainDiagnosticReport>
-  reinstallDesktopToolchain(): Promise<DesktopToolchainInstallResult>
-  deleteDesktopToolchain(): Promise<DesktopToolchainInstallResult>
   readConfig(params?: RpcParams<'config/read'>): Promise<DesktopConfigReadResult>
   pauseQuestion(interactionId: string, expectedVersion: number): Promise<void>
   listApprovalRules(
@@ -1898,8 +1787,6 @@ export type DesktopApi = {
   generateComposerPrediction(
     input: GenerateDesktopComposerPredictionInput,
   ): Promise<RpcResult<'composer-prediction/generate'>>
-  exportUserMemory(): Promise<ExportUserMemoryResult>
-  importUserMemory(input: ImportUserMemoryInput): Promise<ExportUserMemoryResult>
   getBrowserState(): Promise<DesktopBrowserState>
   openBrowser(url?: string): Promise<DesktopBrowserState>
   navigateBrowser(url: string): Promise<DesktopBrowserState>
@@ -1959,6 +1846,7 @@ export type DesktopApi = {
     providerID: string
     id: string
     variant?: string
+    speedTier?: ModelRef['speedTier']
   }): Promise<void>
   /** 按 Provider/模型目录稳定顺序返回第一个启用且 Provider 可用的模型。 */
   resolveFirstAvailableModel(): Promise<ModelRef | null>
@@ -2056,10 +1944,6 @@ export type DesktopApi = {
   ): Promise<DesktopAuthSession>
   getAuthSessionStatus(sessionId: string): Promise<DesktopAuthSession>
   cancelAuthSession(sessionId: string): Promise<DesktopAuthSession>
-  getCopilotAuthStatus(): Promise<DesktopCopilotAuthStatus>
-  startCopilotLogin(): Promise<DesktopCopilotLoginStatus>
-  pollCopilotLogin(): Promise<DesktopCopilotLoginStatus>
-  cancelCopilotLogin(): Promise<{ cancelled: boolean }>
   getGithubAuthStatus(): Promise<DesktopGithubAuthStatus>
   startGithubLogin(input: StartGithubLoginInput): Promise<DesktopGithubLoginStatus>
   pollGithubLogin(): Promise<DesktopGithubLoginStatus>
@@ -2196,9 +2080,6 @@ export type DesktopApi = {
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
   getThemeSettings(): Promise<DesktopThemeSettings>
   saveThemeSettings(settings: DesktopThemeSettings): Promise<void>
-  canRestorePreviousAppearance(): Promise<boolean>
-  restorePreviousAppearance(): Promise<DesktopThemeSettings>
-  applyNewDesignTheme(): Promise<DesktopThemeSettings>
   createSession(options: CreateDesktopSessionOptions): Promise<CreateDesktopSessionResult>
   createSideChat(input: {
     sourceThreadId: string
@@ -2283,6 +2164,8 @@ export type DesktopApi = {
     decision: DesktopPermissionDecision,
   ): Promise<void>
   interruptSession(sessionId: string): Promise<void>
+  supportsArchivedSessionDeletion(): boolean
+  deleteArchivedSession(sessionId: string): Promise<boolean>
   disposeSession(sessionId: string): Promise<void>
   submitSessionFollowUp(
     sessionId: string,
@@ -2348,8 +2231,6 @@ export type DesktopApi = {
   closeWindow(): Promise<void>
   isWindowMaximized(): Promise<boolean>
   newWindow(): Promise<void>
-  openDevTools(): Promise<void>
-  closeDevTools(): Promise<void>
   openSettings(): Promise<void>
   logOut(): Promise<void>
   exitApp(): Promise<void>
@@ -2370,9 +2251,6 @@ export type DesktopApi = {
   deleteUserDataDownloadedResource(
     resourceId: string,
   ): Promise<{ resourceId: string; reclaimedBytes: number }>
-  onAgentEvent(callback: (event: DesktopAgentEvent) => void): () => void
-  onWorkflowEvent(callback: (event: DesktopWorkflowEvent) => void): () => void
-  onUiCommand(callback: (command: DesktopUiCommand) => void): () => void
   onSessionStoreChange(callback: (change: DesktopSessionStoreChange) => void): () => void
   onReconciliationError?(callback: (error: unknown) => void): () => void
   onDesktopSettingsChange(callback: (change: DesktopSettingsChange) => void): () => void
@@ -2380,11 +2258,4 @@ export type DesktopApi = {
   downloadUpdate(): Promise<void>
   quitAndInstall(): Promise<void>
   onUpdateStatusChange(callback: (status: DesktopUpdateStatus) => void): () => void
-  listDebugBuiltinTools(): Promise<{
-    toolNames: string[]
-    enabled: boolean[]
-    hasProbeInput: boolean[]
-  }>
-  runDebugToolProbe(mode: DebugToolProbeMode): Promise<DebugToolProbeReport>
-  cancelDebugToolProbe(runId: string): Promise<void>
 }

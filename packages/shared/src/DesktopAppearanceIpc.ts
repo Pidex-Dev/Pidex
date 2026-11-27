@@ -10,9 +10,6 @@ export const DESKTOP_APPEARANCE_IPC_CHANNELS = {
   getSystemTheme: 'appearance:system-theme:get',
   getStartupThemeSeed: 'appearance:startup-theme-seed:get',
   systemThemeChanged: 'appearance:system-theme:changed',
-  canRestorePreviousAppearance: 'appearance:previous-appearance:can-restore',
-  restorePreviousAppearance: 'appearance:previous-appearance:restore',
-  applyNewDesignTheme: 'appearance:new-design-theme:apply',
   listExternalFonts: 'appearance:external-fonts:list',
   downloadExternalFont: 'appearance:external-fonts:download',
   getExternalFontCss: 'appearance:external-fonts:css',
@@ -30,9 +27,6 @@ export interface DesktopAppearanceIpcBridge<CodeThemeId extends string = string>
   saveAppearanceSettings(settings: DesktopThemeSettingsV8<CodeThemeId>): Promise<void>
   getSystemTheme(): Promise<DesktopThemeVariant>
   onSystemThemeChange(listener: (variant: DesktopThemeVariant) => void): () => void
-  canRestorePreviousAppearance(): Promise<boolean>
-  restorePreviousAppearance(): Promise<DesktopThemeSettingsV8<CodeThemeId>>
-  applyNewDesignTheme(): Promise<DesktopThemeSettingsV8<CodeThemeId>>
   listExternalFonts(): Promise<DesktopExternalFontState[]>
   downloadExternalFont(fontId: string): Promise<DesktopExternalFontDownloadResult>
   getExternalFontCss(fontId: string): Promise<string | null>

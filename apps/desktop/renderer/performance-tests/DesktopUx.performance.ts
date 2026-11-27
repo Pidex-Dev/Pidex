@@ -111,7 +111,8 @@ test.describe('desktop UX performance', () => {
       })
     }
 
-    await page.getByRole('menuitem', { name: '查看' }).click()
+    await page.getByRole('menuitem', { name: '应用菜单' }).click()
+    await page.getByRole('menuitem', { name: '视图' }).click()
     await page.getByRole('menuitem', { name: '切换底部面板' }).click()
     const bottomHandle = page.getByRole('separator', {
       name: '调整底部面板高度',

@@ -66,7 +66,12 @@ describe('edited message attachment delivery', () => {
     )
 
     expect(readIds).toEqual(['history-image', 'history-text'])
-    expect(uploads).toEqual([
+    expect(uploads.order).toEqual([
+      'retained:history-image',
+      'retained:history-text',
+      'draft:draft-text',
+    ])
+    expect(uploads.prepared.map(({ upload }) => upload)).toEqual([
       {
         kind: 'image',
         name: 'history.png',

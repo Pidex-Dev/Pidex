@@ -1,15 +1,15 @@
-import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
+import type { Api, Model as RuntimeModel } from '@earendil-works/pi-ai'
 import type { ThreadListItem } from '@pidex/shared/thread'
 import { z } from 'zod'
 import type { ConfigService } from '../config/ConfigService'
 import { AgentError } from '../Domain'
 import type { AgentLogger } from '../observability/AgentLogger'
 import {
-  resolveSpecializedPiModel,
-  type SpecializedPiModelService,
-} from '../provider/pi/PiSpecializedModelResolver'
-import { generatePiObject, PiStructuredOutputError } from '../provider/pi/PiStructuredOutput'
-import type { PiModelService } from '../provider/pi/PiModelService'
+  resolveSpecializedModel,
+  type SpecializedModelService,
+} from '../provider/runtime/SpecializedModelResolver'
+import { generateObject, StructuredOutputError } from '../provider/runtime/StructuredOutput'
+import type { ModelService } from '../provider/runtime/ModelService'
 import { secretScrubber } from '../security/SecretScrubber'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { ThreadHistoryService } from './ThreadHistoryService'
@@ -28,7 +28,7 @@ const generatedTitleSchema = z.object({
 })
 
 type GeneratedTitle = z.output<typeof generatedTitleSchema>
-type ThreadTitleModelService = SpecializedPiModelService & Pick<PiModelService, 'pi'>
+type ThreadTitleModelService = SpecializedModelService & Pick<ModelService, 'registry'>
 type ThreadTitleFailureReason = 'configuration' | 'timeout' | 'provider' | 'invalid-output'
 type ThreadTitleGenerationScope = 'initial' | 'conversation'
 type ThreadTitleGenerationResult = {
@@ -40,7 +40,7 @@ type ThreadTitleGenerationResult = {
 export type ThreadTitleServiceOptions = {
   timeoutMs?: number
   generate?: (input: {
-    model: PiModel<Api>
+    model: RuntimeModel<Api>
     signal: AbortSignal
     system: string
     prompt: string
@@ -134,8 +134,8 @@ export class ThreadTitleService {
     this.generateObject =
       options.generate ??
       ((input) =>
-        generatePiObject({
-          models: this.models.pi,
+        generateObject({
+          models: this.models.registry,
           model: input.model,
           signal: input.signal,
           schema: generatedTitleSchema,
@@ -302,7 +302,7 @@ export class ThreadTitleService {
     const startedAt = Date.now()
     let stage = 'model-resolution'
     try {
-      const selected = await resolveSpecializedPiModel({
+      const selected = await resolveSpecializedModel({
         purpose: 'generation',
         db: this.db,
         models: this.models,
@@ -354,7 +354,7 @@ export class ThreadTitleService {
         ? 'timeout'
         : error instanceof z.ZodError ||
             error instanceof SyntaxError ||
-            error instanceof PiStructuredOutputError
+            error instanceof StructuredOutputError
           ? 'invalid-output'
           : 'provider'
       this.logger.warn('thread_title.generation.failed', {

@@ -77,10 +77,16 @@ function normalizeKeyToken(key: string): string {
   }
 }
 
+function isTypingCharacter(
+  event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey'>,
+): boolean {
+  return event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
+}
+
 export function formatShortcutFromKeyboardEvent(
   event: Pick<KeyboardEvent, 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'key'>,
 ): string | null {
-  if (MODIFIER_KEYS.has(event.key)) return null
+  if (MODIFIER_KEYS.has(event.key) || isTypingCharacter(event)) return null
   if (!event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
     return null
   }
@@ -100,7 +106,7 @@ export function matchesVoiceShortcut(
   >,
   shortcut: string,
 ): boolean {
-  if (event.isComposing || event.keyCode === 229) return false
+  if (event.isComposing || event.keyCode === 229 || isTypingCharacter(event)) return false
   const trimmed = shortcut.trim()
   if (!trimmed || trimmed === '关闭') return false
   const tokens = trimmed

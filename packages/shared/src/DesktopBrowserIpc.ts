@@ -29,7 +29,6 @@ export const DESKTOP_BROWSER_IPC_CHANNELS = {
   stop: 'desktop-browser:stop',
   goBack: 'desktop-browser:go-back',
   goForward: 'desktop-browser:go-forward',
-  setBounds: 'desktop-browser:set-bounds',
   setVisible: 'desktop-browser:set-visible',
   focus: 'desktop-browser:focus',
   close: 'desktop-browser:close',
@@ -207,10 +206,6 @@ export interface NavigateDesktopBrowserInput extends DesktopBrowserTabInput {
   url: string
 }
 
-export interface SetDesktopBrowserBoundsInput extends DesktopBrowserTabInput {
-  bounds: DesktopBrowserBounds
-}
-
 export interface SetDesktopBrowserVisibleInput extends DesktopBrowserTabInput {
   visible: boolean
 }
@@ -256,7 +251,6 @@ export interface DesktopBrowserIpcBridge {
   stopDesktopBrowser(input: DesktopBrowserTabInput): Promise<DesktopBrowserSnapshot>
   goBackDesktopBrowser(input: DesktopBrowserTabInput): Promise<DesktopBrowserSnapshot>
   goForwardDesktopBrowser(input: DesktopBrowserTabInput): Promise<DesktopBrowserSnapshot>
-  setDesktopBrowserBounds(input: SetDesktopBrowserBoundsInput): Promise<DesktopBrowserSnapshot>
   setDesktopBrowserVisible(input: SetDesktopBrowserVisibleInput): Promise<DesktopBrowserSnapshot>
   focusDesktopBrowser(input: DesktopBrowserTabInput): Promise<void>
   closeDesktopBrowser(input: DesktopBrowserTabInput): Promise<DesktopBrowserSnapshot>

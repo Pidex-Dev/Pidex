@@ -77,7 +77,6 @@ export function useDesktopLayoutSettings() {
   const subscribedSettingsLoaded = useDesktopRuntimeSettingsField((s) => s.settingsLoaded)
   const subscribedSetPermissionMode = useDesktopRuntimeSettingsField((s) => s.setPermissionMode)
   const subscribedSetRecentWorkspaces = useDesktopRuntimeSettingsField((s) => s.setRecentWorkspaces)
-  const subscribedSetDrawerTab = useDesktopRuntimeSettingsField((s) => s.setDrawerTab)
   const subscribedSetReviewView = useDesktopRuntimeSettingsField((s) => s.setReviewView)
   const subscribedSetSidebarSessionPins = useDesktopRuntimeSettingsField(
     (s) => s.setSidebarSessionPins,
@@ -130,7 +129,6 @@ export function useDesktopLayoutSettings() {
       settingsLoaded: subscribedSettingsLoaded,
       setPermissionMode: subscribedSetPermissionMode,
       setRecentWorkspaces: subscribedSetRecentWorkspaces,
-      setDrawerTab: subscribedSetDrawerTab,
       setReviewView: subscribedSetReviewView,
       setSidebarSessionPins: subscribedSetSidebarSessionPins,
       setTitlebarSessionTabIds: subscribedSetTitlebarSessionTabIds,
@@ -174,7 +172,6 @@ export function useDesktopLayoutSettings() {
       subscribedSettingsLoaded,
       subscribedSetPermissionMode,
       subscribedSetRecentWorkspaces,
-      subscribedSetDrawerTab,
       subscribedSetReviewView,
       subscribedSetSidebarSessionPins,
       subscribedSetTitlebarSessionTabIds,

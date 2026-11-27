@@ -7,19 +7,19 @@ import { Judge, type JudgeLike } from './Judge'
 import { CascadeJudge, type CascadeTier } from './JudgeCascade'
 import type { ConfigService } from '../config/ConfigService'
 import type { ApiKeyService } from '../provider/ApiKeyService'
-import type { PiModelService } from '../provider/pi/PiModelService'
+import type { ModelService } from '../provider/runtime/ModelService'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import {
   isOpenAIAddress,
   OpenAIDecisionsJudgeProvider,
 } from './providers/OpenAIDecisionsJudgeProvider'
 import { HttpJudgeProvider, SystemOneJudgeProvider } from './providers/SystemOneJudgeProvider'
-import { createPiClassifierJudgeProvider } from './providers/PiClassifierJudgeProvider'
-import { createPiLlmJudgeProvider } from './providers/PiLlmJudgeProvider'
+import { createProviderClassifierJudgeProvider } from './providers/ProviderClassifierJudgeProvider'
+import { createProviderLlmJudgeProvider } from './providers/ProviderLlmJudgeProvider'
 import { MockJudgeProvider } from './providers/MockJudgeProvider'
 
 export interface JudgeFactoryDeps {
-  models?: PiModelService | undefined
+  models?: ModelService | undefined
   apiKeys?: ApiKeyService | undefined
   credentials?: ProviderCredentialRepository | undefined
   config?: ConfigService | undefined
@@ -61,12 +61,12 @@ function keyResolverFor(
       )
     }
     if (judge.providerId && deps.models) {
-      const auth = await deps.models.pi.getAuth(judge.providerId)
+      const auth = await deps.models.registry.getAuth(judge.providerId)
       if (auth?.auth.apiKey) return auth.auth.apiKey
       throw new JudgeError('auth', `No API key is configured for provider ${judge.providerId}`)
     }
     if (options.openaiFallback && isOpenAIAddress(judge.baseUrl) && deps.models) {
-      const auth = await deps.models.pi.getAuth('openai')
+      const auth = await deps.models.registry.getAuth('openai')
       if (auth?.auth.apiKey) return auth.auth.apiKey
     }
     return undefined
@@ -85,9 +85,9 @@ function baseUrlResolverFor(
     const config = await models.catalogConfig()
     const configured = config.providers[providerId]
     if (configured?.baseUrl) return configured.baseUrl
-    const piModels = models.pi.getModels(providerId)
-    const matched = judge.model ? piModels.find((item) => item.id === judge.model) : undefined
-    return matched?.baseUrl ?? piModels[0]?.baseUrl
+    const runtimeModels = models.registry.getModels(providerId)
+    const matched = judge.model ? runtimeModels.find((item) => item.id === judge.model) : undefined
+    return matched?.baseUrl ?? runtimeModels[0]?.baseUrl
   }
 }
 
@@ -140,7 +140,7 @@ export function buildJudge(name: string, judge: JudgeConfig, deps: JudgeFactoryD
       const model = qualifiedModelOf(judge)
       if (!model) throw new JudgeError('bad_request', `Judge "${name}" needs a model`)
       return new Judge({
-        provider: createPiClassifierJudgeProvider({ models: deps.models, model }),
+        provider: createProviderClassifierJudgeProvider({ models: deps.models, model }),
         timeoutMs,
       })
     }
@@ -148,7 +148,7 @@ export function buildJudge(name: string, judge: JudgeConfig, deps: JudgeFactoryD
       if (!deps.models || !deps.db || !deps.config)
         throw new JudgeError('auth', 'Model service is unavailable')
       return new Judge({
-        provider: createPiLlmJudgeProvider({
+        provider: createProviderLlmJudgeProvider({
           models: deps.models,
           db: deps.db,
           config: deps.config,

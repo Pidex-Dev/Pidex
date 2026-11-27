@@ -21,7 +21,7 @@ import {
   createCompactionSummaryMessage,
   createCustomMessage,
 } from '../../orchestration/harness/Messages.ts'
-import { buildSessionContext } from '../../storage/pi-session/Session.ts'
+import { buildSessionContext } from '../../storage/session/Session.ts'
 import {
   type CompactionEntry,
   CompactionError,

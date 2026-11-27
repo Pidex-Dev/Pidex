@@ -17,6 +17,9 @@ export function catalogProviderToDesktop(
       const metadata: DesktopModelMetadata = {
         id: model.id,
         ...(model.catalog ? { catalog: model.catalog } : {}),
+        ...(model.pricing ? { pricing: model.pricing } : {}),
+        ...(model.billingMode ? { billingMode: model.billingMode } : {}),
+        ...(model.speedTiers ? { speedTiers: model.speedTiers } : {}),
         name: model.name || model.id,
         contextWindow: model.limit.context,
         inputTokens: model.limit.input,
@@ -41,6 +44,9 @@ export function catalogProviderToDesktop(
         variants: model.variants.map((variant) => variant.id),
         providerApi: isProviderApi(model.api.name) ? model.api.name : undefined,
         nativeApi: model.api.name,
+        ...(model.api.supportedProtocols
+          ? { supportedProtocols: model.api.supportedProtocols }
+          : {}),
       }
       return [model.id, metadata]
     }),
@@ -71,7 +77,7 @@ export function catalogProviderToDesktop(
     defaultModels: models.map((model) => model.id),
     modelMetadata,
     apiKeyConfigured: provider.disabled !== true && !provider.auth.apiKey && !provider.auth.oauth,
-    envVars: [],
+    envVars: [...(provider.source.env ?? [])],
     requiresBaseURL: provider.source.kind === 'custom' && !provider.source.baseUrl,
   }
 }

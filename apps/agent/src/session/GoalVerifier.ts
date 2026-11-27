@@ -1,13 +1,13 @@
 import {
   type Api,
-  type Model as PiModel,
+  type Model as RuntimeModel,
   type Models,
   type AssistantMessage,
 } from '@earendil-works/pi-ai'
 import { z } from 'zod'
 import type { ThreadGoal } from '@pidex/shared/thread'
 import { computeConvergenceReserve, escapeGoalPromptText } from './GoalDirectiveService'
-import { generatePiObject } from '../provider/pi/PiStructuredOutput'
+import { generateObject } from '../provider/runtime/StructuredOutput'
 import { RequestContextUsage } from '../context/ContextBudget'
 import { secretScrubber } from '../security/SecretScrubber'
 import type { PermissionConfig, TaskMode } from '../Domain'
@@ -123,7 +123,7 @@ export type GoalVerifierCurrentState = {
 
 export type GoalVerifierOptions = {
   models: Models
-  model: PiModel<Api>
+  model: RuntimeModel<Api>
   /** Resolves when the caller aborted; the verifier never outlives it. */
   signal?: AbortSignal
   /** Upper bound for the whole call. */
@@ -173,7 +173,7 @@ export async function runGoalVerifier(
   ].join('\n')
 
   try {
-    const parsed = await generatePiObject({
+    const parsed = await generateObject({
       models: options.models,
       model: options.model,
       schema: verdictSchema,

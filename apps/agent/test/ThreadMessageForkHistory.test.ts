@@ -3,15 +3,14 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeFixturePaths } from './FixtureCleanup'
-import { PiEventAdapter } from '../src/orchestration/pi/PiEventAdapter'
+import { ProviderEventAdapter } from '../src/orchestration/execution/ProviderEventAdapter'
 import { ConversationHistoryForkRepository } from '../src/session/fork/ConversationHistoryForkRepository'
 import { ThreadMessageForkRepository } from '../src/session/fork/ThreadMessageForkRepository'
-import {
-  SqlitePiSessionRepo,
-  SqlitePiSessionStorage,
-} from '../src/storage/pi-session/SqlitePiSession'
+import { SqliteSessionRepo, SqliteSessionStorage } from '../src/storage/session/SqliteSession'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
-import { TurnPiBoundaryRepository } from '../src/storage/repositories/TurnPiBoundaryRepository'
+import { TurnSessionBoundaryRepository } from '../src/storage/repositories/TurnSessionBoundaryRepository'
+import { AttachmentService } from '../src/subagent/AttachmentService'
+import { SqliteAttachmentCatalog } from '../src/subagent/SqliteAttachmentCatalog'
 
 const roots: string[] = []
 const databases: AgentDatabase[] = []
@@ -225,16 +224,42 @@ describe('ConversationHistoryForkRepository', () => {
   test('侧边聊天从最新完成回复创建隐藏前缀并忽略活动 Turn', async () => {
     const db = await database()
     const source = db.createThread('侧边聊天来源')
-    const sessions = new SqlitePiSessionRepo(db)
+    const sessions = new SqliteSessionRepo(db)
     const session = await sessions.create({
       id: 'side-source',
       threadID: source.id,
       agentID: 'side-agent-1',
     })
-    await session.appendMessage({ role: 'user', content: 'question-side-1', timestamp: 1 })
+    const attachments = await AttachmentService.open(roots.at(-1)!, {
+      catalog: new SqliteAttachmentCatalog(db),
+    })
+    const [attachment] = await attachments.store([
+      {
+        kind: 'pdf',
+        name: 'side.pdf',
+        mimeType: 'application/pdf',
+        data: Buffer.from('%PDF-1.7\n'),
+      },
+    ])
+    const userMessage = {
+      role: 'user' as const,
+      content: 'question-side-1',
+      timestamp: 1,
+      mediaAttachments: [
+        {
+          kind: 'pdf' as const,
+          attachmentId: attachment!.id,
+          inputId: 'input-side-turn-1',
+          name: attachment!.name,
+          mimeType: attachment!.mimeType,
+          sizeBytes: attachment!.size,
+        },
+      ],
+    }
+    await session.appendMessage(userMessage)
     const firstAssistantEntry = await session.appendMessage(assistant('side-answer-1', 2))
     await session.appendMessage({ role: 'user', content: 'question-side-active', timestamp: 3 })
-    ;(session.getStorage() as SqlitePiSessionStorage).flush()
+    ;(session.getStorage() as SqliteSessionStorage).flush()
     insertTurn(db, {
       threadID: source.id,
       turnID: 'side-turn-1',
@@ -254,7 +279,8 @@ describe('ConversationHistoryForkRepository', () => {
       status: 'running',
       createdAt: 20,
     })
-    new TurnPiBoundaryRepository(db).upsert({
+    db.bindInputAttachments('input-side-turn-1', [attachment!.id])
+    new TurnSessionBoundaryRepository(db).upsert({
       turnID: 'side-turn-1',
       sessionID: 'side-source',
       entryID: firstAssistantEntry,
@@ -295,7 +321,17 @@ describe('ConversationHistoryForkRepository', () => {
     const copiedSession = db.sqlite
       .query("SELECT id FROM pi_sessions WHERE thread_id = 'side-target'")
       .get() as { id: string }
-    expect((await sessions.openByID(copiedSession.id)).getEntries()).resolves.toHaveLength(2)
+    const entries = await (await sessions.openByID(copiedSession.id)).getEntries()
+    expect(entries).toHaveLength(2)
+    const cloned = db.sqlite
+      .query('SELECT id, input_id FROM input_pdf_attachments WHERE thread_id = ?')
+      .get('side-target') as { id: string; input_id: string }
+    expect(cloned.id).not.toBe(attachment!.id)
+    expect(cloned.input_id).not.toBe('input-side-turn-1')
+    expect(entries[0]).toMatchObject({
+      message: { mediaAttachments: [{ attachmentId: cloned.id, inputId: cloned.input_id }] },
+    })
+    expect((await attachments.read(cloned.id)).record.sha256).toBe(attachment!.sha256)
     await expect(
       history.forkLatestForSideChat(
         source.id,
@@ -332,10 +368,10 @@ describe('ConversationHistoryForkRepository', () => {
     ).toEqual({ count: 0 })
   })
 
-  test('从已完成回复复制精确前缀，保留源后续 active 并按边界 fork Pi session', async () => {
+  test('从已完成回复复制精确前缀，保留源后续 active 并按边界 fork session', async () => {
     const db = await database()
     const source = db.createThread('实现普通 Fork')
-    const sessions = new SqlitePiSessionRepo(db)
+    const sessions = new SqliteSessionRepo(db)
     const session = await sessions.create({
       id: 'source-main',
       threadID: source.id,
@@ -345,7 +381,7 @@ describe('ConversationHistoryForkRepository', () => {
     const firstAssistantEntry = await session.appendMessage(assistant('answer-1', 2))
     await session.appendMessage({ role: 'user', content: 'question-turn-2', timestamp: 3 })
     await session.appendMessage(assistant('answer-2', 4))
-    ;(session.getStorage() as SqlitePiSessionStorage).flush()
+    ;(session.getStorage() as SqliteSessionStorage).flush()
 
     insertTurn(db, {
       threadID: source.id,
@@ -391,7 +427,7 @@ describe('ConversationHistoryForkRepository', () => {
       status: 'running',
       createdAt: 30,
     })
-    new TurnPiBoundaryRepository(db).upsert({
+    new TurnSessionBoundaryRepository(db).upsert({
       turnID: 'turn-1',
       sessionID: 'source-main',
       entryID: firstAssistantEntry,
@@ -505,7 +541,7 @@ describe('ConversationHistoryForkRepository', () => {
   test('旧历史只在最终 Assistant entry 可唯一确定时回退，隐藏 target 可以安全回滚', async () => {
     const db = await database()
     const source = db.createThread('旧历史（分支）')
-    const sessions = new SqlitePiSessionRepo(db)
+    const sessions = new SqliteSessionRepo(db)
     const session = await sessions.create({
       id: 'legacy-main',
       threadID: source.id,
@@ -519,7 +555,7 @@ describe('ConversationHistoryForkRepository', () => {
     const assistantEntry = await session.appendMessage(
       assistant('legacy answer\n<proposed_plan>\n# Legacy plan\n</proposed_plan>', 2),
     )
-    const storage = session.getStorage() as SqlitePiSessionStorage
+    const storage = session.getStorage() as SqliteSessionStorage
     await storage.setLeafId(userEntry)
     await session.appendMessage(
       assistant('legacy answer\n<proposed_plan>\n# Detached plan\n</proposed_plan>', 3),
@@ -572,7 +608,7 @@ describe('ConversationHistoryForkRepository', () => {
   test('过滤未完成 subagent item，并完整重映射已完成 subagent', async () => {
     const db = await database()
     const source = db.createThread('包含异步子任务')
-    const sessions = new SqlitePiSessionRepo(db)
+    const sessions = new SqliteSessionRepo(db)
     const session = await sessions.create({
       id: 'subagent-main',
       threadID: source.id,
@@ -580,7 +616,7 @@ describe('ConversationHistoryForkRepository', () => {
     })
     await session.appendMessage({ role: 'user', content: 'question', timestamp: 1 })
     const assistantEntry = await session.appendMessage(assistant('answer', 2))
-    ;(session.getStorage() as SqlitePiSessionStorage).flush()
+    ;(session.getStorage() as SqliteSessionStorage).flush()
     insertTurn(db, {
       threadID: source.id,
       turnID: 'root-turn',
@@ -590,7 +626,7 @@ describe('ConversationHistoryForkRepository', () => {
       text: 'answer',
       createdAt: 10,
     })
-    new TurnPiBoundaryRepository(db).upsert({
+    new TurnSessionBoundaryRepository(db).upsert({
       turnID: 'root-turn',
       sessionID: 'subagent-main',
       entryID: assistantEntry,
@@ -673,16 +709,16 @@ describe('ConversationHistoryForkRepository', () => {
     ).toBeNull()
   })
 
-  test('压缩后的会话分叉跳过目标 Pi 会话里不存在的前置边界', async () => {
+  test('压缩后的会话分叉跳过目标会话里不存在的前置边界', async () => {
     const db = await database()
     const source = db.createThread('压缩后分叉来源')
-    const sessions = new SqlitePiSessionRepo(db)
+    const sessions = new SqliteSessionRepo(db)
     const session = await sessions.create({
       id: 'compact-source',
       threadID: source.id,
       agentID: 'compact-agent-1',
     })
-    const storage = session.getStorage() as SqlitePiSessionStorage
+    const storage = session.getStorage() as SqliteSessionStorage
     const stamp = new Date(0).toISOString()
     await storage.appendEntry({
       type: 'message',
@@ -745,7 +781,7 @@ describe('ConversationHistoryForkRepository', () => {
       text: 'compact-answer-2',
       createdAt: 20,
     })
-    const boundaries = new TurnPiBoundaryRepository(db)
+    const boundaries = new TurnSessionBoundaryRepository(db)
     boundaries.upsert({
       turnID: 'compact-turn-1',
       sessionID: 'compact-source',
@@ -782,14 +818,14 @@ describe('ConversationHistoryForkRepository', () => {
         `SELECT turn_id FROM turn_pi_boundaries WHERE turn_id IN (${targetTurns.map(() => '?').join(',')})`,
       )
       .all(...targetTurns.map((turn) => turn.id)) as Array<{ turn_id: string }>
-    // 只有目标 Pi 会话真实保留的边界会被写回，压缩前的 turn 边界被跳过而不是整笔失败。
+    // 只有目标会话真实保留的边界会被写回，压缩前的 turn 边界被跳过而不是整笔失败。
     expect(copiedBoundaries).toHaveLength(1)
   })
 
   test('再次分支保存直接来源及当前边界，且回滚完整清理', async () => {
     const db = await database()
     const source = db.createThread('祖先任务')
-    const sessions = new SqlitePiSessionRepo(db)
+    const sessions = new SqliteSessionRepo(db)
     const session = await sessions.create({
       id: 's-session',
       threadID: source.id,
@@ -797,7 +833,7 @@ describe('ConversationHistoryForkRepository', () => {
     })
     await session.appendMessage({ role: 'user', content: 'question-1', timestamp: 1 })
     const entry1 = await session.appendMessage(assistant('answer-1', 2))
-    ;(session.getStorage() as SqlitePiSessionStorage).flush()
+    ;(session.getStorage() as SqliteSessionStorage).flush()
 
     insertTurn(db, {
       threadID: source.id,
@@ -808,7 +844,7 @@ describe('ConversationHistoryForkRepository', () => {
       text: 'answer-1',
       createdAt: 10,
     })
-    new TurnPiBoundaryRepository(db).upsert({
+    new TurnSessionBoundaryRepository(db).upsert({
       turnID: 's-turn-1',
       sessionID: 's-session',
       entryID: entry1,
@@ -852,7 +888,7 @@ describe('ConversationHistoryForkRepository', () => {
     const openedSession = await sessions.openByID(fork1Session.session_id)
     await openedSession.appendMessage({ role: 'user', content: 'question-2', timestamp: 3 })
     const entry2 = await openedSession.appendMessage(assistant('answer-2', 4))
-    ;(openedSession.getStorage() as SqlitePiSessionStorage).flush()
+    ;(openedSession.getStorage() as SqliteSessionStorage).flush()
 
     insertTurn(db, {
       threadID: 'fork-thread-1',
@@ -863,7 +899,7 @@ describe('ConversationHistoryForkRepository', () => {
       text: 'answer-2',
       createdAt: 30,
     })
-    new TurnPiBoundaryRepository(db).upsert({
+    new TurnSessionBoundaryRepository(db).upsert({
       turnID: 'fork-1-turn-2',
       sessionID: fork1Session.session_id,
       entryID: entry2,
@@ -936,10 +972,10 @@ describe('ConversationHistoryForkRepository', () => {
   })
 })
 
-describe('PiEventAdapter turn boundary', () => {
+describe('ProviderEventAdapter turn boundary', () => {
   test('只给最终 result Assistant 回传已写入 session 的 entry ID', async () => {
     const completed: Array<{ placement: string; sessionEntryID?: string }> = []
-    const adapter = new PiEventAdapter(
+    const adapter = new ProviderEventAdapter(
       { threadID: 'thread', turnID: 'turn', agentID: 'agent' },
       {
         assistantMessageCompleted: (_context, input) => {

@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto'
 import type { BrowserTab, BrowserCommand, BrowserResult } from '@pidex/agent-protocol'
 import type {
   DesktopBrowserSnapshot,
-  DesktopBrowserBounds,
   DesktopBrowserSitePermission,
   DesktopBrowserUtilityInput,
   DesktopBrowserUtilityResult,
@@ -344,9 +343,6 @@ export class DesktopBrowserController {
     const guest = await this.#ready(entry)
     if (guest.navigationHistory.canGoToOffset(offset)) guest.navigationHistory.goToOffset(offset)
     return this.#snapshot(entry)
-  }
-  async setBounds(owner: BrowserWindow, tabId: string, _bounds: DesktopBrowserBounds) {
-    return this.getState(owner, tabId)
   }
   async setVisible(owner: BrowserWindow, tabId: string, visible: boolean) {
     // A panel's visibility notification may arrive after the tab was closed.

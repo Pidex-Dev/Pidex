@@ -3,17 +3,14 @@ import {
   type DesktopReviewAgentSummary,
   type DesktopReviewAgentSummaryResult,
 } from '../../services/desktop-client/index.js'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useMountEffect } from '../../hooks/UseMountEffect.js'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type {
-  DesktopAuthStatus,
   DesktopFileEntry,
   DesktopFilePreview,
   DesktopGitStatus,
   DesktopGitStatusResult,
   DesktopGitDetectionState,
   DesktopReviewSource,
-  DesktopRuntimeStatus,
   DesktopWorkspace,
 } from '../../../shared/Types.js'
 import { notifyProjectCatalogChanged } from '../projects/ProjectCatalogEvents.js'
@@ -218,14 +215,11 @@ type WorkspaceRefreshResult = {
 export type UseWorkspaceStateResult = {
   gitDetection: DesktopGitDetectionState
   workspace: DesktopWorkspace | null
-  authStatus: DesktopAuthStatus | null
-  runtimeStatus: DesktopRuntimeStatus | null
   files: DesktopFileEntry[]
   selectedFile: DesktopFilePreview | null
   diff: string
   gitStatus: DesktopGitStatus | null
   setActiveSessionId: (id: string | null) => void
-  refreshRuntimeStatus: () => Promise<void>
   refreshWorkspace: (
     target?: DesktopWorkspace | null,
     options?: RefreshWorkspaceOptions,
@@ -240,8 +234,6 @@ export type UseWorkspaceStateResult = {
 
 export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspaceStateResult {
   const [workspace, setWorkspaceState] = useState<DesktopWorkspace | null>(null)
-  const [authStatus, setAuthStatus] = useState<DesktopAuthStatus | null>(null)
-  const [runtimeStatus, setRuntimeStatus] = useState<DesktopRuntimeStatus | null>(null)
   const [files, setFiles] = useState<DesktopFileEntry[]>([])
   const [selectedFile, setSelectedFileState] = useState<DesktopFilePreview | null>(null)
   const selectedFileRef = useRef<DesktopFilePreview | null>(null)
@@ -316,38 +308,6 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
     },
     [refreshCoordinator],
   )
-
-  const refreshRuntimeStatus = useCallback(async (): Promise<void> => {
-    try {
-      const status = await desktopClient.getRuntimeStatus()
-      setRuntimeStatus(status)
-    } catch (error) {
-      onErrorRef.current(errorMessageOf(error))
-    }
-  }, [])
-
-  useMountEffect(() => {
-    void desktopClient
-      .getAuthStatus()
-      .then((status) => setAuthStatus(status))
-      .catch((error: unknown) => onErrorRef.current(errorMessageOf(error)))
-  })
-
-  useEffect(() => {
-    let mounted = true
-    const refresh = (): void => {
-      void refreshRuntimeStatus().finally(() => {
-        if (!mounted) return
-      })
-    }
-
-    refresh()
-    const timer = window.setInterval(refresh, 5000)
-    return () => {
-      mounted = false
-      window.clearInterval(timer)
-    }
-  }, [refreshRuntimeStatus])
 
   const refreshSelectedFilePreview = useCallback(
     async (target: DesktopWorkspace, targetSessionId: string | null): Promise<void> => {
@@ -536,14 +496,11 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
   return {
     gitDetection,
     workspace,
-    authStatus,
-    runtimeStatus,
     files,
     selectedFile,
     diff,
     gitStatus,
     setActiveSessionId,
-    refreshRuntimeStatus,
     refreshWorkspace,
     chooseWorkspace,
     openRecentWorkspace,

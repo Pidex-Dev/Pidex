@@ -81,7 +81,7 @@ License; its license notice is distributed with the packaged dependency.
 Pidex includes source derived from pi-agent-core 0.82.1 as an internal
 part of the App Agent Harness under the MIT License. Pidex maintains this
 Harness independently; the retained attribution and license are provided for
-distribution compliance. See `apps/agent/third_party/pi-agent-core/LICENSE`.
+distribution compliance. See [third_party/pi-agent-core/LICENSE](third_party/pi-agent-core/LICENSE).
 
 Pidex uses Marked, Shiki, KaTeX, and Mermaid to render Markdown, syntax
 highlighting, mathematical notation, and diagrams. These packages retain the
@@ -123,9 +123,12 @@ trademark owners, and Pidex is not affiliated with those vendors.
   GitHub Logo Policy:
   https://docs.github.com/en/site-policy/other-site-policies/github-logo-policy.
 
-## ZCode browser helpers
+## ZCode
 
-Playwright injected runtime loading and keyboard input helpers adapted from ZCode (revision 872ad96), Apache-2.0. Source: https://github.com/zai-org/ZCode . License: third_party/zcode-browser/LICENSE.
+Pidex adapts model option rules, the restricted CEL and JSON Merge Patch engine,
+Playwright browser helpers, permission capability and input recheck design, and
+prompt guidance from ZCode. See the [Apache-2.0 license](third_party/zcode/LICENSE)
+and [upstream revisions, files and local changes](third_party/zcode/UPSTREAM.md).
 
 ## Playwright injected runtime
 

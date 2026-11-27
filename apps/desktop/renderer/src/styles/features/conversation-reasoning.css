@@ -53,7 +53,6 @@
 
   .reasoning-node__detail {
     padding-block-start: var(--cpx-sys-space-2);
-    padding-inline-start: var(--cpx-sys-space-5);
   }
 
   .reasoning-node__scroller {

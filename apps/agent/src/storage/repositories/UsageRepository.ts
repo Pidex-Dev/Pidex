@@ -2,7 +2,7 @@ import type { SessionTreeEntry } from '../../orchestration/harness/Types'
 import type { LocalUsageResult } from '@pidex/agent-protocol'
 import { Model, Provider } from '@pidex/model-schema'
 import type { AgentDatabase } from '../database/AgentDatabase'
-import { parsePiSessionEntry } from '../pi-session/PiSessionEntry'
+import { parseSessionEntry } from '../session/SessionEntry'
 
 export type LocalUsageRange = '7d' | '30d' | 'all'
 
@@ -202,7 +202,7 @@ export class UsageRepository {
     for (const row of rows) {
       let entry: SessionTreeEntry
       try {
-        entry = parsePiSessionEntry(row)
+        entry = parseSessionEntry(row)
       } catch {
         continue
       }

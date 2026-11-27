@@ -21,7 +21,7 @@ const TEXT_APPLICATION_MIME_TYPES = new Set([
 ])
 const WINDOWS_RESERVED_NAME = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i
 
-export type AttachmentKind = 'text' | 'image' | 'audio' | 'video'
+export type AttachmentKind = 'text' | 'image' | 'audio' | 'video' | 'pdf'
 
 export interface AttachmentUpload {
   readonly kind: AttachmentKind
@@ -61,7 +61,7 @@ export interface AttachmentCatalog {
   unbindMany(ids: readonly string[], binding: AttachmentBinding): Promise<void>
   removeMany(ids: readonly string[]): Promise<void>
   removeOrphans(createdBefore: number, limit: number): Promise<AttachmentRecord[]>
-  countBySha256(sha256: string): Promise<number>
+  countBySha256(sha256: string, kind: AttachmentKind): Promise<number>
 }
 
 export interface AttachmentServiceOptions {
@@ -143,14 +143,14 @@ export class InMemoryAttachmentCatalog implements AttachmentCatalog {
     return removed.map(cloneRecord)
   }
 
-  async countBySha256(sha256: string) {
-    let count = 0
-    for (const record of this.records.values()) if (record.sha256 === sha256) count += 1
-    return count
+  async countBySha256(sha256: string, kind: AttachmentKind) {
+    return [...this.records.values()].filter(
+      (record) => record.sha256 === sha256 && (record.kind === 'pdf') === (kind === 'pdf'),
+    ).length
   }
 }
 
-const validateName = (name: string) => {
+export const validateAttachmentName = (name: string) => {
   if (
     !name ||
     name.length > 255 ||
@@ -211,6 +211,9 @@ export const normalizeAttachmentMimeType = (kind: AttachmentKind, value: string)
     (kind === 'video' && !['video/mp4', 'video/webm'].includes(mimeType))
   )
     throw new AgentError('INVALID_REQUEST', '不支持的音视频文件类型', 400)
+  if (kind === 'pdf' && mimeType !== 'application/pdf') {
+    throw new AgentError('ATTACHMENT_FORMAT_INVALID', '附件 MIME 类型必须是 application/pdf', 400)
+  }
   if (kind === 'image' && !IMAGE_MIME_TYPES.has(mimeType)) {
     throw new AgentError(
       'ATTACHMENT_IMAGE_TYPE_UNSUPPORTED',
@@ -235,6 +238,9 @@ export const normalizeAttachmentMimeType = (kind: AttachmentKind, value: string)
 export const attachmentUploadBytes = (upload: AttachmentUpload, mimeType: string) => {
   if ((upload.kind === 'audio' || upload.kind === 'video') && typeof upload.data === 'string')
     throw new AgentError('INVALID_REQUEST', '音视频附件必须使用二进制数据', 400)
+  if (upload.kind === 'pdf' && typeof upload.data === 'string') {
+    throw new AgentError('ATTACHMENT_FORMAT_INVALID', 'PDF 附件必须使用二进制数据', 400)
+  }
   if (upload.kind === 'image' && typeof upload.data === 'string') {
     throw new AgentError('ATTACHMENT_IMAGE_BYTES_REQUIRED', '图片附件必须使用二进制数据', 400)
   }
@@ -251,9 +257,12 @@ export const attachmentUploadBytes = (upload: AttachmentUpload, mimeType: string
   } else if (upload.kind === 'image' && detectImageMimeType(data) !== mimeType) {
     throw new AgentError('ATTACHMENT_IMAGE_INVALID', '图片内容与 MIME 类型不匹配', 400)
   }
+  const prefix = (offset: number, text: string) =>
+    new TextDecoder().decode(data.subarray(offset, offset + text.length)) === text
+  if (upload.kind === 'pdf' && !prefix(0, '%PDF-')) {
+    throw new AgentError('ATTACHMENT_FORMAT_INVALID', '附件内容与 PDF 格式不匹配', 400)
+  }
   if (upload.kind === 'audio' || upload.kind === 'video') {
-    const prefix = (offset: number, text: string) =>
-      new TextDecoder().decode(data.subarray(offset, offset + text.length)) === text
     const valid =
       mimeType === 'audio/wav'
         ? prefix(0, 'RIFF') && prefix(8, 'WAVE')
@@ -266,13 +275,14 @@ export const attachmentUploadBytes = (upload: AttachmentUpload, mimeType: string
               : mimeType.endsWith('/webm')
                 ? [26, 69, 223, 163].every((byte, index) => data[index] === byte)
                 : prefix(4, 'ftyp')
-    if (!valid) throw new AgentError('INVALID_REQUEST', '音视频内容与 MIME 类型不匹配', 400)
+    if (!valid)
+      throw new AgentError('ATTACHMENT_FORMAT_INVALID', '音视频内容与 MIME 类型不匹配', 400)
   }
   return data
 }
 
 export const prepareAttachmentUpload = <T extends AttachmentUpload>(upload: T) => {
-  validateName(upload.name)
+  validateAttachmentName(upload.name)
   const mimeType = normalizeAttachmentMimeType(upload.kind, upload.mimeType)
   const data = attachmentUploadBytes(upload, mimeType)
   const limit =
@@ -299,6 +309,7 @@ export class AttachmentService {
 
   private constructor(
     private readonly blobs: ContentBlobStore,
+    private readonly pdfBlobs: ContentBlobStore,
     options: AttachmentServiceOptions,
   ) {
     this.catalog = options.catalog ?? new InMemoryAttachmentCatalog()
@@ -307,7 +318,15 @@ export class AttachmentService {
   }
 
   static async open(dataDir: string, options: AttachmentServiceOptions = {}) {
-    return new AttachmentService(await ContentBlobStore.open(dataDir), options)
+    const [blobs, pdfBlobs] = await Promise.all([
+      ContentBlobStore.open(dataDir),
+      ContentBlobStore.open(dataDir, 'pdf-blobs'),
+    ])
+    return new AttachmentService(blobs, pdfBlobs, options)
+  }
+
+  private blobsFor(kind: AttachmentKind) {
+    return kind === 'pdf' ? this.pdfBlobs : this.blobs
   }
 
   private exclusive<T>(operation: () => Promise<T>) {
@@ -356,15 +375,15 @@ export class AttachmentService {
         throw new AgentError('ATTACHMENT_ID_INVALID', '附件 ID 生成器返回了无效或重复 ID', 500)
       }
 
-      const createdBlobs = new Set<string>()
+      const createdBlobs: Array<{ sha256: string; kind: AttachmentKind }> = []
       let catalogInserted = false
       try {
         for (const item of prepared) {
-          const stored = await this.blobs.put(item.data)
+          const stored = await this.blobsFor(item.upload.kind).put(item.data)
           if (stored.sha256 !== item.sha256) {
             throw new AgentError('ATTACHMENT_BLOB_CORRUPT', '附件 Blob 摘要不一致', 500)
           }
-          if (stored.created) createdBlobs.add(item.sha256)
+          if (stored.created) createdBlobs.push({ sha256: item.sha256, kind: item.upload.kind })
         }
         await this.catalog.insertMany(records)
         catalogInserted = true
@@ -372,9 +391,11 @@ export class AttachmentService {
       } catch (error) {
         if (catalogInserted)
           await this.catalog.removeMany(records.map((record) => record.id)).catch(() => undefined)
-        for (const hash of createdBlobs) {
-          if ((await this.catalog.countBySha256(hash).catch(() => 1)) === 0) {
-            await this.blobs.remove(hash).catch(() => undefined)
+        for (const { sha256, kind } of createdBlobs) {
+          if ((await this.catalog.countBySha256(sha256, kind).catch(() => 1)) === 0) {
+            await this.blobsFor(kind)
+              .remove(sha256)
+              .catch(() => undefined)
           }
         }
         throw error
@@ -382,11 +403,27 @@ export class AttachmentService {
     })
   }
 
-  async read(id: string): Promise<AttachmentReadResult> {
+  async getMany(ids: readonly string[]) {
+    return this.exclusive(async () => {
+      const records = await this.catalog.getMany(ids)
+      if (records.length !== ids.length)
+        throw new AgentError('ATTACHMENT_NOT_FOUND', '一个或多个附件不存在', 404)
+      return records
+    })
+  }
+
+  async read(
+    id: string,
+    range?: { offset: number; length: number },
+  ): Promise<AttachmentReadResult> {
     return this.exclusive(async () => {
       const record = await this.catalog.get(id)
       if (!record) throw new AgentError('ATTACHMENT_NOT_FOUND', '附件不存在', 404)
-      return { record, data: await this.blobs.read(record.sha256) }
+      const blobs = this.blobsFor(record.kind)
+      const data = range
+        ? await blobs.readRange(record.sha256, range.offset, range.length, record.size)
+        : await blobs.read(record.sha256)
+      return { record, data }
     })
   }
 
@@ -433,11 +470,10 @@ export class AttachmentService {
     }
     return this.exclusive(async () => {
       const removed = await this.catalog.removeOrphans(createdBefore, limit)
-      const hashes = [...new Set(removed.map((record) => record.sha256))]
       let deletedBlobs = 0
-      for (const hash of hashes) {
-        if ((await this.catalog.countBySha256(hash)) === 0) {
-          if (await this.blobs.remove(hash)) deletedBlobs += 1
+      for (const { sha256, kind } of removed) {
+        if ((await this.catalog.countBySha256(sha256, kind)) === 0) {
+          if (await this.blobsFor(kind).remove(sha256)) deletedBlobs += 1
         }
       }
       return { removedRecords: removed.length, deletedBlobs }

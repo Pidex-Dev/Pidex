@@ -2,12 +2,12 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
+import type { Api, Model as RuntimeModel } from '@earendil-works/pi-ai'
 import { Model, Provider } from '@pidex/model-schema'
 import { removeFixturePaths } from './FixtureCleanup'
 import { AgentError } from '../src/Domain'
 import { AgentLogger } from '../src/observability/AgentLogger'
-import type { PiModelService } from '../src/provider/pi/PiModelService'
+import type { ModelService } from '../src/provider/runtime/ModelService'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { ComposerPredictionService } from '../src/suggestion/ComposerPredictionService'
 
@@ -27,7 +27,7 @@ const modelRef = Model.Ref.make({
   id: Model.ID.make('model:test'),
 })
 
-const piModel = { provider: 'provider:test', id: 'model:test' } as PiModel<Api>
+const runtimeModel = { provider: 'provider:test', id: 'model:test' } as RuntimeModel<Api>
 
 const seedThread = async () => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-composer-predictions-'))
@@ -82,12 +82,12 @@ const seedTurn = (
 
 const models = (attempted?: Model.Ref[]) =>
   ({
-    pi: {},
-    getPiModel: async (ref: Model.Ref) => {
+    registry: {},
+    getRuntimeModel: async (ref: Model.Ref) => {
       attempted?.push(ref)
-      return piModel
+      return runtimeModel
     },
-  }) as unknown as Pick<PiModelService, 'pi' | 'getPiModel'>
+  }) as unknown as Pick<ModelService, 'registry' | 'getRuntimeModel'>
 
 let threadsCounter = 0
 const nextThreadId = () => `thread:fixture:${(threadsCounter += 1)}`
@@ -260,11 +260,11 @@ describe('ComposerPredictionService', () => {
     const unavailable = new ComposerPredictionService(
       db,
       {
-        pi: {},
-        getPiModel: async () => {
+        registry: {},
+        getRuntimeModel: async () => {
           throw new Error('missing model')
         },
-      } as unknown as Pick<PiModelService, 'pi' | 'getPiModel'>,
+      } as unknown as Pick<ModelService, 'registry' | 'getRuntimeModel'>,
       logger,
       { generate: async () => ({ prediction: '不会执行' }) },
     )

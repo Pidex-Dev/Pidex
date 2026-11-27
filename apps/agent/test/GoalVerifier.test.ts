@@ -239,7 +239,7 @@ describe('goal verifier call', () => {
             _m: unknown,
             context: { messages: Array<{ content: string | Array<{ text: string }> }> },
           ) => {
-            // generatePiObject sends a plain string prompt; keep both shapes.
+            // generateObject sends a plain string prompt; keep both shapes.
             const content = context.messages[0]!.content
             captured = typeof content === 'string' ? content : content.map((p) => p.text).join('')
             return {

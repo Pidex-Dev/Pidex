@@ -13,7 +13,7 @@ import type { EncryptedCredentialRepository } from '../auth/EncryptedCredentialR
 import type { ProviderCredentialRepository } from '../auth/ProviderCredentialRepository'
 import { AgentError } from '../Domain'
 import type { AgentModelCatalog } from '../provider/AgentModelCatalog'
-import type { PiModelService } from '../provider/pi'
+import type { ModelService } from '../provider/runtime'
 import type { Models } from '@earendil-works/pi-ai'
 import { UsageRepository, type LocalUsageRange } from '../storage/repositories/UsageRepository'
 import { providerUsageAdapters } from './Adapters'
@@ -110,7 +110,7 @@ export class UsageService {
   constructor(
     private readonly local: UsageRepository,
     private readonly providers: AgentModelCatalog,
-    private readonly piModels: PiModelService,
+    private readonly runtimeModels: ModelService,
     private readonly credentials: EncryptedCredentialRepository,
     options: UsageServiceOptions = {},
   ) {
@@ -385,7 +385,7 @@ export class UsageService {
       if (!provider) continue
       matchedProvider = true
       const integrationID = String(provider.id)
-      await this.piModels.pi.getAuth(providerID)
+      await this.runtimeModels.registry.getAuth(providerID)
       const stored = await Effect.runPromise(
         this.providerCredentials.get<Credential.Value>(integrationID),
       )

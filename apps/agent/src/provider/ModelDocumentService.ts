@@ -4,8 +4,8 @@ import { isIP } from 'node:net'
 import { z } from 'zod'
 import { Schema } from 'effect'
 import { Model } from '@pidex/model-schema'
-import type { PiModelService } from './pi/PiModelService'
-import { generatePiObject } from './pi/PiStructuredOutput'
+import type { ModelService } from './runtime/ModelService'
+import { generateObject } from './runtime/StructuredOutput'
 import { validatePricing } from './ModelPricing'
 import { AgentError } from '../Domain'
 
@@ -113,11 +113,17 @@ export async function readModelDocument(
   throw new AgentError('INVALID_REQUEST', '文档重定向次数过多。', 400)
 }
 const money = z.number().finite().nonnegative()
-const prices = z.object({
+const unitPrices = z.object({
   input: money.nullable(),
   output: money.nullable(),
   cacheRead: money.nullable(),
   cacheWrite: money.nullable(),
+  cacheWriteByTtl: z.record(z.string().min(1), money.nullable()).optional(),
+})
+const prices = unitPrices.extend({
+  tiers: z
+    .array(unitPrices.extend({ inputTokensAbove: z.number().int().nonnegative() }))
+    .optional(),
 })
 const period = z.enum(['idle', 'busy'])
 const pricing = z.object({
@@ -168,7 +174,7 @@ export const extractedModelSchema = z.object({
 export class ModelDocumentService {
   constructor(
     private readonly read = readModelDocument,
-    private readonly generate = generatePiObject,
+    private readonly generate = generateObject,
   ) {}
   private jobs = new Map<string, { owner: string; controller: AbortController }>()
   cancel(id: string, owner: string) {
@@ -179,7 +185,7 @@ export class ModelDocumentService {
   async extract(
     input: { operationId: string; url: string; modelId: string; extractor: Model.Ref },
     owner: string,
-    models: PiModelService,
+    models: ModelService,
   ) {
     if (this.jobs.size >= 3 || this.jobs.has(input.operationId))
       throw new AgentError('INVALID_REQUEST', '已有资料提取任务，请稍后重试。', 400)
@@ -188,9 +194,9 @@ export class ModelDocumentService {
     try {
       const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(120000)])
       const document = await this.read(input.url, signal)
-      const model = await models.getPiModel(input.extractor)
+      const model = await models.getRuntimeModel(input.extractor)
       const result = await this.generate({
-        models: models.pi,
+        models: models.registry,
         model,
         schema: z.object({ candidates: z.array(extractedModelSchema).max(20) }),
         schemaName: 'model_document',

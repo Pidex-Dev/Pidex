@@ -95,6 +95,9 @@ function UserAttachmentFilePreview({
   const { attachment, encoding } = state.value
   const isMedia = isMediaPreviewKind(attachment.kind)
   const openFullscreen = viewer && isMedia && !fullscreen ? () => viewer.open([tab], 0) : undefined
+  if (attachment.kind === 'pdf' && encoding === 'base64') {
+    return <PdfAttachmentFile value={state.value} />
+  }
   if ((attachment.kind === 'video' || attachment.kind === 'audio') && encoding === 'base64') {
     return <PlayableAttachment value={state.value} />
   }
@@ -567,6 +570,41 @@ function PlayableAttachment({ value }: { value: LoadedUserAttachment }): React.R
       source={source}
       onError={() => setFailed(true)}
     />
+  )
+}
+
+function PdfAttachmentFile({ value }: { value: LoadedUserAttachment }): React.ReactNode {
+  const { name, mediaType } = value.attachment
+  const [message, setMessage] = useState('')
+  return (
+    <section style={panelStyle}>
+      <AttachmentToolbar value={value}>{null}</AttachmentToolbar>
+      <div className="tw:grid tw:flex-1 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-5">
+        <Button
+          onClick={() => {
+            setMessage('')
+            void desktopClient
+              .saveAttachmentToDownloads({
+                kind: 'pdf',
+                name: name.toLowerCase().endsWith('.pdf') ? name : name + '.pdf',
+                mediaType,
+                encoding: 'base64',
+                data: value.data,
+              })
+              .then(
+                (result) => setMessage('已保存为 ' + result.fileName),
+                () => setMessage('下载失败，请重试。'),
+              )
+          }}
+        >
+          <Download className="tw:size-icon-md" size={APP_ICON_SIZE} />
+          下载 PDF 原件
+        </Button>
+        <p role="status" className="tw:type-1 tw:text-app-text-soft">
+          {message}
+        </p>
+      </div>
+    </section>
   )
 }
 

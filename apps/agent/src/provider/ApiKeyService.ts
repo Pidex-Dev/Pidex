@@ -6,7 +6,7 @@ import type {
   ApiKeySummary as StoredApiKeySummary,
   ProviderCredentialRepository,
 } from '../auth/ProviderCredentialRepository'
-import type { PiModelService } from './pi'
+import type { ModelService } from './runtime'
 import type { ModelHealthService } from './ModelHealthService'
 
 export type PublicApiKeySummary = {
@@ -35,7 +35,7 @@ export type PublicApiKeyTestResult = {
 
 export class ApiKeyService {
   constructor(
-    private readonly providers: PiModelService,
+    private readonly providers: ModelService,
     private readonly credentials: ProviderCredentialRepository,
     private readonly modelHealth: ModelHealthService,
   ) {}

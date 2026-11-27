@@ -23,11 +23,11 @@ import type { AgentLogger } from '../observability/AgentLogger'
 import type { ApiKeyService } from '../provider/ApiKeyService'
 import type { ProviderCredentialService } from '../provider/ProviderCredentialService'
 import type { ProviderCredentialStoreManager } from '../auth/ProviderCredentialStoreManager'
-import type { PiModelService } from '../provider/pi'
+import type { ModelService } from '../provider/runtime'
 import type { ModelHealthService } from '../provider/ModelHealthService'
 import type { ModelSyncService } from '../provider/ModelSyncService'
 import type { ProtocolDetectionService } from '../provider/ProtocolDetectionService'
-import type { PiAuthSessionService } from '../auth/PiAuthSessionService'
+import type { ProviderAuthSessionService } from '../auth/ProviderAuthSessionService'
 import type { SubagentService } from '../subagent/SubagentService'
 import type { AttachmentService } from '../subagent/AttachmentService'
 import type { ArtifactService } from '../storage/ArtifactService'
@@ -89,14 +89,14 @@ export interface TransportDependencies {
   localContextPaths: LocalContextPathService
   projectSources: ProjectSourceService
   providers: AgentModelCatalog
-  piModels: PiModelService
+  runtimeModels: ModelService
   apiKeys: ApiKeyService
   modelHealth: ModelHealthService
   modelSync: ModelSyncService
   protocolDetection: ProtocolDetectionService
   providerCredentials: ProviderCredentialService
   providerCredentialStore: ProviderCredentialStoreManager
-  authSessions: PiAuthSessionService
+  authSessions: ProviderAuthSessionService
   memory: MemoryService
   hooks: HookService
   /** Optional: Hook 表单管理未装配时 `hook/*` 返回 INTERNAL_ERROR。 */
@@ -487,12 +487,14 @@ const eventNextNotification = (
   streamId: string,
   event: StoredEventEnvelope,
   rpc: RpcRouter,
+  capabilities: ReadonlySet<ProtocolCapability>,
 ) =>
   buildEventNextNotification({
     subscriptionId,
     streamId,
     event,
     projection: rpc.projection,
+    includePdfAttachments: capabilities.has('attachments.chunked.v1'),
   })
 
 export const createApp = (dependencies: TransportDependencies) => {
@@ -509,7 +511,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     artifacts,
     projectSources,
     providers,
-    piModels,
+    runtimeModels,
     apiKeys,
     modelHealth,
     providerCredentials,
@@ -547,7 +549,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     localContextPaths: dependencies.localContextPaths,
     projectSources,
     providers,
-    piModels,
+    runtimeModels,
     apiKeys,
     modelHealth,
     modelSync: dependencies.modelSync,
@@ -846,7 +848,13 @@ export const createApp = (dependencies: TransportDependencies) => {
               cursors.set(streamId, nextCursor)
             },
             deliver: async (event) => {
-              const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
+              const notification = eventNextNotification(
+                subscriptionId,
+                streamId,
+                event,
+                rpc,
+                subscription.capabilities,
+              )
               if (!notification) return false
               await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
               return true
@@ -913,7 +921,13 @@ export const createApp = (dependencies: TransportDependencies) => {
                     durableDelivered += await deliverDurableThrough(streamId, target)
                   },
                   async () => {
-                    const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
+                    const notification = eventNextNotification(
+                      subscriptionId,
+                      streamId,
+                      event,
+                      rpc,
+                      subscription.capabilities,
+                    )
                     if (notification) await stream.writeSSE({ data: JSON.stringify(notification) })
                   },
                 )

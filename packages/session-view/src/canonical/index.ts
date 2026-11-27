@@ -900,7 +900,24 @@ function applyEnvelopePayload(
       return
     case 'turn/statusChanged': {
       const turn = state.turnsById.get(envelope.payload.turnId)
-      if (turn) state.turnsById.set(turn.id, { ...turn, status: envelope.payload.status })
+      if (turn) {
+        const { modelRecovery, status, discardedItemIds } = envelope.payload
+        state.turnsById.set(turn.id, {
+          ...turn,
+          status,
+          ...(modelRecovery !== undefined ? { modelRecovery: modelRecovery ?? undefined } : {}),
+        })
+        for (const id of discardedItemIds ?? []) {
+          const item = state.itemsById.get(id)
+          if (item?.turnId !== turn.id) continue
+          if (
+            ((item.type === 'text' || item.type === 'reasoning' || item.type === 'plan') &&
+              item.status === 'streaming') ||
+            (item.type === 'tool' && item.state === 'running' && item.visualizationPreview)
+          )
+            removeItem(state, id, turn.id)
+        }
+      }
       return
     }
     case 'agent/upserted':
@@ -1155,11 +1172,7 @@ function projectCompactionOperation(
   const previous = state.itemsById.get(id)
   if (operation.status === 'skipped' && operation.trigger !== 'manual') {
     if (previous) {
-      state.itemsById.delete(id)
-      state.groups.itemsByTurnId.set(
-        previous.turnId,
-        (state.groups.itemsByTurnId.get(previous.turnId) ?? []).filter((item) => item.id !== id),
-      )
+      removeItem(state, id, previous.turnId)
     }
     return
   }
@@ -1184,6 +1197,14 @@ function projectCompactionOperation(
       },
       result ?? (previous?.type === 'activity' ? previous : undefined),
     ),
+  )
+}
+
+function removeItem(state: CanonicalThreadState, id: string, turnId: string) {
+  state.itemsById.delete(id)
+  state.groups.itemsByTurnId.set(
+    turnId,
+    (state.groups.itemsByTurnId.get(turnId) ?? []).filter((item) => item.id !== id),
   )
 }
 

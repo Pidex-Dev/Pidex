@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeFixturePaths } from './FixtureCleanup'
@@ -42,6 +42,19 @@ describe('AttachmentService', () => {
     expect((await service.readText(stored[0]!.id)).text).toBe(json)
     expect((await service.read(stored[1]!.id)).data).toEqual(png())
   })
+  test('分块读取拒绝长度相同但摘要不匹配的附件', async () => {
+    const service = await setup()
+    const [record] = await service.store([
+      { kind: 'text', name: 'sample.txt', mimeType: 'text/plain', data: 'abcdef' },
+    ])
+    const { id, sha256 } = record!
+    const blob = join(paths.at(-1)!, 'attachments', 'blobs', sha256.slice(0, 2), sha256)
+    await writeFile(blob, 'abcdeX')
+    await expect(service.read(id, { offset: 0, length: 3 })).rejects.toMatchObject({
+      code: 'ATTACHMENT_BLOB_CORRUPT',
+    })
+  })
+
   test('存储、校验、读取、绑定并清理孤儿附件', async () => {
     const service = await setup()
     const [text, image] = await service.store([

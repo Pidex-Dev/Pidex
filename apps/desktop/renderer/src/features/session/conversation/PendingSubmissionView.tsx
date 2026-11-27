@@ -2,21 +2,19 @@ import React from 'react'
 
 import type { Attachment } from '@pidex/shared/thread'
 import type { DesktopComposerAttachment } from '../../../../shared/Types.js'
-import { Spinner } from '../../../components/ui/Spinner.js'
 import { CanonicalUserMessageContent } from '../timeline/CanonicalUserMessageContent.js'
 import {
   ConversationItemContext,
   useOptionalConversationItemContext,
 } from '../timeline/ConversationItemContext.js'
-import type { PendingSubmission } from '../state/PendingSubmissionStore.js'
+import { ReasoningWaitingIndicator } from '../timeline/ReasoningWaitingIndicator.js'
+import { pendingSubmissionStore, type PendingSubmission } from '../state/PendingSubmissionStore.js'
+import { AttachmentUploadProgress } from '../attachments/AttachmentUploadProgress.js'
 
 const CONTENT_WIDTH_CLASS = 'tw:w-[min(var(--page-content-max-width),var(--session-content-w))]'
 
 const PENDING_CONTENT_CLASS =
-  'pending-submission-content tw:mx-auto tw:flex tw:min-w-0 tw:flex-col tw:gap-2'
-
-const PENDING_STATUS_CLASS =
-  'pending-submission-status tw:flex tw:items-center tw:justify-center tw:gap-2 tw:py-3 tw:text-app-text-soft tw:type-1'
+  'pending-submission-content tw:mx-auto tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:py-4'
 
 /**
  * 提交快照里的附件在发送前已生成，附件行需要的消息级字段在 pending 阶段
@@ -25,7 +23,13 @@ const PENDING_STATUS_CLASS =
 export function pendingAttachmentDisplay(attachment: DesktopComposerAttachment): Attachment {
   return {
     id: attachment.id,
-    kind: attachment.kind === 'image' ? 'image' : 'text',
+    kind:
+      attachment.kind === 'image' ||
+      attachment.kind === 'pdf' ||
+      attachment.kind === 'video' ||
+      attachment.kind === 'audio'
+        ? attachment.kind
+        : 'text',
     name: attachment.name,
     mediaType: attachment.mediaType,
     sizeBytes: attachment.sizeBytes,
@@ -67,11 +71,16 @@ export function PendingSubmissionMessages({
               withActions={false}
             />
           </article>
-          <p className={PENDING_STATUS_CLASS} role="status" aria-live="polite">
-            <Spinner />
-            {/* 会话已建立、只等首条消息进入投影：这时 Agent 已经在思考。 */}
-            <span>{submission.stage === 'sending' ? '正在思考' : '正在开启会话…'}</span>
-          </p>
+          {submission.attachmentUploadProgress ? (
+            <AttachmentUploadProgress
+              progress={submission.attachmentUploadProgress}
+              onCancel={pendingSubmissionStore.attachmentCancel(submission.submissionId)}
+            />
+          ) : (
+            <ReasoningWaitingIndicator
+              label={submission.stage === 'sending' ? '正在思考' : '正在开启会话…'}
+            />
+          )}
         </div>
       </div>
     </ConversationItemContext.Provider>

@@ -14,6 +14,7 @@ import {
 } from '../repositories/ThreadGoalRepository'
 import { THREAD_GOAL_LEDGER_SCHEMA } from '../repositories/ThreadGoalLedgerRepository'
 import { DECISION_LEDGER_SCHEMA } from '../repositories/DecisionLedgerRepository'
+import { INPUT_PDF_ATTACHMENT_SCHEMA } from '../repositories/InputAttachmentRepository'
 import { QUEUED_GOAL_SCHEMA } from '../repositories/QueuedGoalRepository'
 import { THREAD_GOAL_CONTINUATION_SCHEMA } from '../repositories/ThreadGoalContinuationRepository'
 import { THREAD_GOAL_CONTROL_SCHEMA } from '../repositories/ThreadGoalControlRepository'
@@ -1443,6 +1444,7 @@ export const PROFILE_SCHEMA = FINAL_SCHEMA.filter((statement) => {
 )
 
 export const HISTORY_SCHEMA = [
+  ...INPUT_PDF_ATTACHMENT_SCHEMA,
   ...FINAL_SCHEMA.filter((statement) => {
     const table = tableName(statement) ?? indexTable(statement)
     return table === null || !PROFILE_TABLES.has(table)
@@ -1497,6 +1499,7 @@ export class SchemaInitializer {
     const migrations: Record<number, () => void> =
       this.kind === 'history'
         ? {
+            78: () => this.sqlite.exec(INPUT_PDF_ATTACHMENT_SCHEMA.join(';')),
             77: () =>
               this.sqlite.exec(
                 DECISION_LEDGER_SCHEMA.map((statement) =>

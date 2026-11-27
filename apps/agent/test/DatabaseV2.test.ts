@@ -76,7 +76,7 @@ const semanticSubmit = (content: string) => ({
   taskMode: 'chat' as const,
 })
 
-/** 写入 turn 对应的 Pi 会话/条目及边界，供视图暴露 entry_id 列。 */
+/** 写入 turn 对应的会话/条目及边界，供视图暴露 entry_id 列。 */
 const seedSemanticBoundary = (
   db: AgentDatabase,
   input: {
@@ -875,8 +875,8 @@ describe('数据库兼容与迁移', () => {
     db.close()
   })
 
-  test('新数据库创建 Pi session schema', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'pidex-pi-epoch-'))
+  test('新数据库创建 session schema', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'pidex-session-epoch-'))
     paths.push(root)
     const db = new AgentDatabase(join(root, 'agent.sqlite'))
 
@@ -900,7 +900,7 @@ describe('数据库兼容与迁移', () => {
   })
 
   test('无法识别的旧 schema 会保留原文件并阻止启动', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'pidex-pi-v17-'))
+    const root = await mkdtemp(join(tmpdir(), 'pidex-session-v17-'))
     paths.push(root)
     const path = join(root, 'agent.sqlite')
     const seeded = new Database(path, { create: true })
@@ -932,7 +932,7 @@ describe('数据库兼容与迁移', () => {
   })
 
   test('当前 Pi epoch 重开时保留数据', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'pidex-keep-pi-epoch-'))
+    const root = await mkdtemp(join(tmpdir(), 'pidex-keep-session-epoch-'))
     paths.push(root)
     const path = join(root, 'agent.sqlite')
     const initial = new AgentDatabase(path)
@@ -1005,6 +1005,31 @@ describe('数据库兼容与迁移', () => {
     const names = await readdir(root)
     expect(names.some((name) => name.endsWith('.bak'))).toBe(false)
     expect(names).toContain('agent.sqlite')
+  })
+
+  test('双库就绪后重启时保留并跳过损坏的旧单库', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'pidex-split-reopen-'))
+    paths.push(root)
+    const databasePaths = {
+      historyPath: join(root, 'history.sqlite'),
+      profilePath: join(root, 'profile.sqlite'),
+      legacyPath: join(root, 'agent.sqlite'),
+    }
+    const initial = new AgentDatabase(databasePaths)
+    const thread = initial.createThread('双库中的会话')
+    initial.setSetting('desktop.settings.v1', { theme: 'dark' })
+    initial.close()
+    const legacyContents = '旧单库损坏'
+    await Bun.write(databasePaths.legacyPath, legacyContents)
+
+    const reopened = new AgentDatabase(databasePaths)
+    try {
+      expect(reopened.getThread(thread.id)?.title).toBe('双库中的会话')
+      expect(reopened.getSetting('desktop.settings.v1')).toEqual({ theme: 'dark' })
+      expect(await Bun.file(databasePaths.legacyPath).text()).toBe(legacyContents)
+    } finally {
+      reopened.close()
+    }
   })
 
   test('混合 history v17 原子拆分并保留会话与设置且不创建备份', async () => {

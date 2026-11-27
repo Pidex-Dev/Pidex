@@ -6,21 +6,21 @@ import {
   type ModelHealthUpdatedPayload,
 } from '../src/provider/ModelHealthService'
 import {
-  PiTransientProbe,
+  TransientProbe,
   TRANSIENT_PROBE_PROVIDER_ID,
   type TransientProbeStream,
-} from '../src/provider/PiTransientProbe'
+} from '../src/provider/TransientProbe'
 import { TRANSIENT_NO_AUTH_API_KEY } from '../src/provider/ProviderProtocolUrl'
-import type { PiModelService } from '../src/provider/pi'
+import type { ModelService } from '../src/provider/runtime'
 import type {
   Api,
   AssistantMessage,
-  Model as PiModel,
+  Model as RuntimeModel,
   SimpleStreamOptions,
 } from '@earendil-works/pi-ai'
 
 type ProbeHandler = (
-  model: PiModel<Api>,
+  model: RuntimeModel<Api>,
   context: unknown,
   options: {
     apiKey?: string
@@ -35,29 +35,30 @@ const makeService = (
     list?: () => Promise<Array<{ id: Provider.ID; disabled?: boolean }>>
     models?: (providerID: Provider.ID) => Promise<Array<{ id: Model.ID; enabled: boolean }>>
     completeSimple?: ProbeHandler
-    getPiModelDelayMs?: number
+    getRuntimeModelDelayMs?: number
     publish?: (payload: ModelHealthUpdatedPayload) => void | Promise<void>
-    transientProbe?: PiTransientProbe
+    transientProbe?: TransientProbe
   } = {},
 ) => {
   const events: ModelHealthUpdatedPayload[] = []
   const providerID = Provider.ID.make('openai')
   const modelID = Model.ID.make('gpt-test')
-  const piModels = {
+  const runtimeModels = {
     list: handlers.list ?? (async () => [{ id: providerID }]),
     models: handlers.models ?? (async () => [{ id: modelID, enabled: true }]),
-    getPiModel: async () => ({ provider: 'openai', id: 'gpt-test' }),
-    pi: {
+    getRuntimeModel: async () => ({ provider: 'openai', id: 'gpt-test' }),
+    draftProtocolProblem: async () => undefined,
+    registry: {
       completeSimple: handlers.completeSimple ?? (async () => ({ stopReason: 'stop' })),
     },
-  } as unknown as PiModelService
+  } as unknown as ModelService
   const service = new ModelHealthService(
-    piModels,
+    runtimeModels,
     handlers.publish ??
       (async (payload) => {
         events.push(payload)
       }),
-    handlers.transientProbe ?? new PiTransientProbe(),
+    handlers.transientProbe ?? new TransientProbe(),
   )
   return { service, events, providerID, modelID }
 }
@@ -536,17 +537,20 @@ const draftFor = (
 })
 
 type DraftProbeCall = {
-  model: PiModel<Api>
+  model: RuntimeModel<Api>
   options: SimpleStreamOptions
 }
 
 const captureDraftProbe = (
-  stream: (model: PiModel<Api>, options: SimpleStreamOptions) => TransientProbeStream = () => ({
+  stream: (
+    model: RuntimeModel<Api>,
+    options: SimpleStreamOptions,
+  ) => TransientProbeStream = () => ({
     result: async () => ({ stopReason: 'stop' }) as AssistantMessage,
   }),
 ) => {
   const calls: DraftProbeCall[] = []
-  const probe = new PiTransientProbe({
+  const probe = new TransientProbe({
     streamSimple: (model, _context, options) => {
       calls.push({ model, options })
       return stream(model, options)
@@ -662,7 +666,7 @@ describe('ModelHealthService.probeDraft', () => {
         ok: false as const,
         cause: new DOMException('timed out', 'TimeoutError'),
       }),
-    } as unknown as PiTransientProbe
+    } as unknown as TransientProbe
     const { service } = makeService({ transientProbe: probe })
     const result = await service.probeDraft('anthropic-messages', 'm', draftFor({ apiKey: 'k' }))
     expect(result).toMatchObject({

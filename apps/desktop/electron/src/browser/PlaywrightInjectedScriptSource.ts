@@ -1,4 +1,4 @@
-// Adapted from ZCode, Apache-2.0. See third_party/zcode-browser/LICENSE.
+// Apache-2.0. See third_party/zcode/LICENSE and third_party/zcode/UPSTREAM.md.
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'

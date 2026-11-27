@@ -21,7 +21,18 @@ export const PROVIDER_LOGO_BRANDS: Readonly<Record<string, readonly string[]>> =
   moonshotai: ['moonshotai', 'moonshotai-cn', 'kimi-coding'],
   xiaomi: ['xiaomi', 'xiaomi-token-plan-ams', 'xiaomi-token-plan-cn', 'xiaomi-token-plan-sgp'],
   'cloudflare-workers-ai': ['cloudflare-ai-gateway', 'cloudflare-workers-ai'],
-  alibaba: ['qwen-token-plan', 'qwen-token-plan-cn', 'qwen-token-plan-individual'],
+  alibaba: [
+    'qianwen-cn',
+    'qwen-token-plan',
+    'qwen-token-plan-cn',
+    'qwen-token-plan-individual',
+    'qwencloud-beijing',
+    'qwencloud-frankfurt',
+    'qwencloud-hongkong',
+    'qwencloud-singapore',
+    'qwencloud-tokyo',
+    'qwencloud-virginia',
+  ],
   azure: ['azure-openai-responses'],
 }
 

@@ -5,7 +5,6 @@ import type { EventEnvelope, ModelRef } from '../Domain'
 import { AgentError } from '../Domain'
 import type { RepositoryDatabase } from '../storage/repositories/RepositoryDatabase'
 import { projectPathKey } from '../storage/repositories/ProjectRepository'
-import type { ProjectSourceService } from './ProjectSourceService'
 
 type ProjectRemovalResult = {
   projectId: string
@@ -32,7 +31,6 @@ const requireDirectory = async (path: string) => {
 export class ProjectService {
   constructor(
     private readonly db: RepositoryDatabase,
-    _sources?: ProjectSourceService,
     private readonly publish?: (events: readonly EventEnvelope[]) => Promise<void>,
   ) {}
 

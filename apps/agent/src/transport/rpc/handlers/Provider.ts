@@ -2,11 +2,13 @@ import { catalogRefreshError } from '../../../provider/ProviderError'
 import type { RpcMethod } from '@pidex/agent-protocol'
 import { Provider } from '@pidex/model-schema'
 import {
-  PiProviderConfigValidationError,
-  PiModelServiceError,
-  serializePiProviderDefinition,
-} from '../../../provider/pi'
-import type { PiProviderDefinitionInput } from '../../../provider/pi'
+  ProviderConfigValidationError,
+  ModelServiceError,
+  resetUnconfiguredBuiltinProvider,
+  seedBuiltinProviderCatalogModels,
+  serializeProviderDefinition,
+} from '../../../provider/runtime'
+import type { ProviderDefinitionInput } from '../../../provider/runtime'
 import type { ModelHealthFailureCategory } from '../../../provider/ModelHealthService'
 import type { RpcRouter } from '../RpcRouter'
 import type { RpcRouterContext } from '../RequestContext'
@@ -139,7 +141,7 @@ export const providerHandlers = {
     const {
       config,
       providers,
-      piModels,
+      runtimeModels,
       apiKeys,
       providerCredentials,
       providerCredentialStore,
@@ -153,8 +155,8 @@ export const providerHandlers = {
       case 'provider/list': {
         const [result, definitions, issues] = await Promise.all([
           runtime.providerList(),
-          piModels.providerDefinitions(),
-          piModels.configIssues(),
+          runtimeModels.providerDefinitions(),
+          runtimeModels.configIssues(),
         ])
         const definitionsByID = new Map(
           definitions.map((definition) => [definition.id, definition]),
@@ -169,13 +171,18 @@ export const providerHandlers = {
               }
               const modelSync =
                 configured?.kind === 'custom'
-                  ? await piModels.modelSyncSummary(String(provider.id))
+                  ? await runtimeModels.modelSyncSummary(String(provider.id))
+                  : undefined
+              const catalogModelCount =
+                typeof runtimeModels.catalogModelCount === 'function'
+                  ? runtimeModels.catalogModelCount(String(provider.id))
                   : undefined
               return {
                 ...provider,
+                ...(catalogModelCount !== undefined ? { catalogModelCount } : {}),
                 authConfigured:
                   provider.disabled !== true &&
-                  (await piModels.isAuthConfigured(String(provider.id))),
+                  (await runtimeModels.isAuthConfigured(String(provider.id))),
                 config: configured ?? {
                   kind: 'builtin',
                   id: provider.id,
@@ -216,10 +223,10 @@ export const providerHandlers = {
         return runtime.modelCatalog(params)
       case 'model/refresh':
         try {
-          if (params.providerId === undefined) await piModels.refreshDirectory()
+          if (params.providerId === undefined) await runtimeModels.refreshDirectory()
           else await providers.refresh(true, stringParam(params, 'providerId'))
         } catch (cause) {
-          if (cause instanceof PiModelServiceError && cause.code === 'CATALOG_REFRESH_FAILED') {
+          if (cause instanceof ModelServiceError && cause.code === 'CATALOG_REFRESH_FAILED') {
             throw catalogRefreshError(cause.refreshFailures)
           }
           throw cause
@@ -242,6 +249,7 @@ export const providerHandlers = {
                     providerID: String(model.providerID),
                     id: String(model.id),
                     ...(model.variant ? { variant: String(model.variant) } : {}),
+                    ...(model.speedTier ? { speedTier: model.speedTier } : {}),
                   }
                 : null,
             },
@@ -284,6 +292,7 @@ export const providerHandlers = {
             String(explicitModel.id),
             draft as never,
             typeof draft.apiKey === 'string' && draft.apiKey ? draft.apiKey : undefined,
+            draftProviderID,
           )
           const modelField = { model: explicitModel }
           const apiField = probe.api ? { api: probe.api } : {}
@@ -404,13 +413,11 @@ export const providerHandlers = {
         if (method === 'provider/create' && providerID in configured) {
           throw new AgentError('CONFLICT', `Provider ${providerID} 已存在`, 409)
         }
-        let serialized: ReturnType<typeof serializePiProviderDefinition>
+        let serialized: ReturnType<typeof serializeProviderDefinition>
         try {
-          serialized = serializePiProviderDefinition(
-            definition as unknown as PiProviderDefinitionInput,
-          )
+          serialized = serializeProviderDefinition(definition as unknown as ProviderDefinitionInput)
         } catch (cause) {
-          if (cause instanceof PiProviderConfigValidationError) {
+          if (cause instanceof ProviderConfigValidationError) {
             const firstIssue = cause.issues[0]
             // optionSpecs 的受限 CEL 校验消息是安全且面向用户的，直接透出以指明具体字段。
             const specific =
@@ -461,6 +468,7 @@ export const providerHandlers = {
             'reasoning',
             'input',
             'cost',
+            'pricing',
             'headers',
             'thinkingLevelMap',
             'thinking_level_map',
@@ -546,11 +554,16 @@ export const providerHandlers = {
         if (!providerID) {
           throw new AgentError('INVALID_REQUEST', '模型发现需要 providerId 或草稿配置', 400)
         }
-        const definition = (await piModels.providerDefinitions()).find(
+        const definition = (await runtimeModels.providerDefinitions()).find(
           (item) => item.id === providerID,
         )
-        if (definition?.kind === 'builtin') {
-          const models = await piModels.discoverBuiltinModels(providerID)
+        if (
+          definition?.kind === 'builtin' ||
+          (definition?.directorySource && !(await runtimeModels.isAuthConfigured(providerID)))
+        ) {
+          const models = await (definition.kind === 'builtin'
+            ? runtimeModels.discoverBuiltinModels(providerID)
+            : runtimeModels.discoverDirectoryModels(providerID))
           return { models, matches: models.map((model) => ({ id: model.id, status: 'provider' })) }
         }
         const discovered = await modelSync.discoverSaved(providerID, api)
@@ -609,7 +622,16 @@ export const providerHandlers = {
         )
         const credentials = await providerCredentials.delete(credentialID)
         await providers.reload()
-        if (before) await emitCredentialUpdated(runtime, String(before.providerId))
+        if (before) {
+          const reset = await resetUnconfiguredBuiltinProvider({
+            providerID: String(before.providerId),
+            runtimeModels,
+            providerCredentials,
+            config,
+          })
+          if (reset) await providers.reload()
+          await emitCredentialUpdated(runtime, String(before.providerId))
+        }
         await runtime.publishCatalogUpdated()
         return { credentials }
       }
@@ -634,10 +656,17 @@ export const providerHandlers = {
       case 'provider/apiKey/create': {
         const providerID = stringParam(params, 'providerId')
         await assertCredentialProviderAvailable(providers, providerID)
+        const hadCredentialsBefore = (await providerCredentials.list(providerID)).length > 0
         const credential = await apiKeys.create({
           providerID,
           label: stringParam(params, 'label'),
           key: stringParam(params, 'key'),
+        })
+        await seedBuiltinProviderCatalogModels({
+          providerID,
+          runtimeModels,
+          config,
+          hadCredentialsBefore,
         })
         await providers.reload()
         await emitCredentialUpdated(runtime, providerID)

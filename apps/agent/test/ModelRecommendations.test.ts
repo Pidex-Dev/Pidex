@@ -1,5 +1,6 @@
+import { ModelsV2, ProvidersV2 } from '../src/provider/runtime/CatalogV2'
 import { describe, expect, spyOn, test } from 'bun:test'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import fixture from './fixtures/models-dev-catalog.json'
@@ -7,9 +8,16 @@ import regression from './fixtures/model-recommendation-regressions.json'
 import {
   ModelRecommendationIndex,
   applyRecommendation,
-} from '../src/provider/pi/ModelRecommendations'
-import { ModelRecommendationStore } from '../src/provider/pi/ModelRecommendationStore'
+} from '../src/provider/runtime/ModelRecommendations'
+import { fixtureV2, fixtureV2Fetch } from './fixtures/CatalogV2Fixture'
+import { ModelRecommendationStore } from '../src/provider/runtime/ModelRecommendationStore'
+import bundledProviders from '../src/provider/runtime/data/bundled-providers-v2.json'
+import bundledModels from '../src/provider/runtime/data/bundled-models-v2.json'
 
+const indexFrom = (raw: unknown) => {
+  const { models, providers } = fixtureV2(raw)
+  return new ModelRecommendationIndex(providers, models)
+}
 const row = (context: number, extra = {}) => ({
   name: 'Example',
   limit: { context, input: context - 1000, output: 4000 },
@@ -34,7 +42,6 @@ const catalog = (context = 128000) => ({
   },
 })
 const input = { providerId: 'relay', modelId: 'example', modelType: 'chat' as const }
-const response = (body: unknown) => async () => Response.json(body)
 
 describe('models.dev recommendations', () => {
   test('启动更新一次，每五分钟刷新，重复启动不重复定时，退出清理定时器', () => {
@@ -62,7 +69,7 @@ describe('models.dev recommendations', () => {
   })
 
   test('真实组合接口 fixture：聊天、embedding、reranking 独立映射', () => {
-    const index = new ModelRecommendationIndex(fixture)
+    const index = indexFrom(fixture)
     expect(index.resolve({ ...input, modelId: 'tencent/hy3' }).recommended).toMatchObject({
       contextWindow: 256000,
       maxInputTokens: 192000,
@@ -82,7 +89,7 @@ describe('models.dev recommendations', () => {
     const payload = catalog()
     Object.assign(payload.models['maker/example'], { aliases: ['old-example'] })
     Object.assign(payload.providers, { official: { models: { example: row(128000) } } })
-    const index = new ModelRecommendationIndex(payload)
+    const index = indexFrom(payload)
     for (const modelId of [
       'maker/example',
       'example',
@@ -97,7 +104,7 @@ describe('models.dev recommendations', () => {
   })
 
   test('日期版本必须真实存在；不剥离日期、网关标记或量化尾', () => {
-    const index = new ModelRecommendationIndex({
+    const index = indexFrom({
       models: {
         'anthropic/claude-sonnet-4-5': row(200000),
         'openai/gpt-4o': row(128000),
@@ -171,15 +178,15 @@ describe('models.dev recommendations', () => {
 
   test('canonical 冲突不猜测，供应商未确认不套价格，地址匹配可叠加差异', () => {
     const payload = catalog()
-    const index = new ModelRecommendationIndex(payload)
+    const index = indexFrom(payload)
     expect(index.resolve(input).recommended.cost).toBeUndefined()
     expect(
       index.resolve({ ...input, baseUrl: 'https://vendor.example/v1/' }).recommended.cost,
     ).toEqual({ input: 2, output: 3 })
     Object.assign(payload.models, { 'other/example': row(64000) })
-    expect(
-      new ModelRecommendationIndex(payload).resolve({ ...input, modelId: 'proxy/example' }).status,
-    ).toBe('ambiguous')
+    expect(indexFrom(payload).resolve({ ...input, modelId: 'proxy/example' }).status).toBe(
+      'ambiguous',
+    )
   })
 
   test('缺少官方字段保持缺失，第三方同名条目不再投票补齐', () => {
@@ -192,14 +199,14 @@ describe('models.dev recommendations', () => {
         },
       },
     }
-    const result = new ModelRecommendationIndex(payload).resolve(input).recommended
+    const result = indexFrom(payload).resolve(input).recommended
     expect(result.contextWindow).toBeUndefined()
     expect(result.maxTokens).toBeUndefined()
     expect(result.reasoning).toBe(true)
   })
 
   test('官方身份优先：普通网关前缀只在官方目录匹配裸名，不改真实 ID', () => {
-    const index = new ModelRecommendationIndex(regression)
+    const index = indexFrom(regression)
     for (const prefix of ['qwen', 'workbuddy', 'magpie', 'QWEN']) {
       const result = index.resolve({ ...input, modelId: `${prefix}/qwen3.8-max` })
       expect(result).toMatchObject({
@@ -226,7 +233,7 @@ describe('models.dev recommendations', () => {
   })
 
   test('日期版本、大小写、显式别名、推理后缀与目录冲突', () => {
-    const index = new ModelRecommendationIndex(regression)
+    const index = indexFrom(regression)
     expect(index.resolve({ ...input, modelId: 'qwen/deepseek-v4.1-flash' })).toMatchObject({
       status: 'matched',
       identity: 'deepseek/deepseek-v4.1-flash',
@@ -258,8 +265,8 @@ describe('models.dev recommendations', () => {
         modelId: 'qwen3.8-max-0902',
       }),
     ).toMatchObject({
-      identity: 'alibaba/qwen3.8-max-0902',
-      source: 'official',
+      identity: 'alibaba/qwen3.8-max',
+      source: 'provider',
     })
     expect(
       index.resolve({
@@ -284,7 +291,7 @@ describe('models.dev recommendations', () => {
   })
 
   test('供应商身份或规范化端点匹配价格，未知网关使用原厂参考价', () => {
-    const index = new ModelRecommendationIndex(regression)
+    const index = indexFrom(regression)
     // 未知网关使用原厂供应商参考价，不继承任意第三方价格。
     const relay = index.resolve({
       ...input,
@@ -308,65 +315,6 @@ describe('models.dev recommendations', () => {
     expect(officialProvider).toMatchObject({ source: 'provider' })
     expect(officialProvider.recommended.cost).toMatchObject({ input: 2, cacheWrite: 2.5 })
   })
-
-  test('手动刷新写入共享缓存、重启读缓存、失败保留及未知格式拒绝覆盖', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'pidex-recommendations-'))
-    const path = join(directory, 'recommendations.json')
-    const shared = join(directory, 'shared-model-catalog.json')
-    try {
-      let calls = 0
-      const store = new ModelRecommendationStore(path, async () => {
-        calls++
-        return Response.json(catalog())
-      })
-      expect((await store.resolve(input)).status).toBe('no-cache')
-      expect(calls).toBe(0)
-      await store.refresh()
-      expect(calls).toBe(1)
-      // models.dev 只落到共享缓存，不再单独写第二份推荐文件。
-      const before = await readFile(shared, 'utf8')
-      expect(before).toContain('"owner":"pidex-model-catalog"')
-      await expect(readFile(path, 'utf8')).rejects.toThrow()
-      const restarted = new ModelRecommendationStore(path, response({ invalid: true }))
-      expect((await restarted.resolve(input)).recommended.contextWindow).toBe(128000)
-      await expect(restarted.refresh()).rejects.toThrow()
-      expect(await readFile(shared, 'utf8')).toBe(before)
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  test('旧推荐缓存只读兼容，未知 owner 文件原样保留', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'pidex-recommendations-legacy-'))
-    const path = join(directory, 'model-recommendations.json')
-    const shared = join(directory, 'shared-model-catalog.json')
-    try {
-      const legacy = { owner: 'pidex', formatVersion: 1, updatedAt: 42, catalog: catalog() }
-      await writeFile(path, JSON.stringify(legacy), 'utf8')
-      const store = new ModelRecommendationStore(path, response(catalog()))
-      expect((await store.resolve(input)).recommended.contextWindow).toBe(128000)
-      expect(await store.version()).toBe(42)
-      expect(await readFile(shared, 'utf8')).toContain('"owner":"pidex-model-catalog"')
-      expect(await readFile(path, 'utf8')).toBe(JSON.stringify(legacy))
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-
-    const fresh = await mkdtemp(join(tmpdir(), 'pidex-recommendations-foreign-'))
-    const foreignShared = join(fresh, 'shared-model-catalog.json')
-    try {
-      await writeFile(foreignShared, '{"owner":"someone-else"}', 'utf8')
-      await expect(
-        new ModelRecommendationStore(
-          join(fresh, 'model-recommendations.json'),
-          response(catalog()),
-        ).refresh(),
-      ).rejects.toThrow()
-      expect(await readFile(foreignShared, 'utf8')).toBe('{"owner":"someone-else"}')
-    } finally {
-      await rm(fresh, { recursive: true, force: true })
-    }
-  })
 })
 
 test('价格优先当前供应商，否则取原厂参考价并覆盖已有价格', () => {
@@ -381,7 +329,7 @@ test('价格优先当前供应商，否则取原厂参考价并覆盖已有价�
       },
     },
   })
-  const index = new ModelRecommendationIndex(payload)
+  const index = indexFrom(payload)
   const reference = index.resolve(input)
   expect(reference.recommended.cost).toEqual({ input: 10, output: 20, cacheRead: 1 })
   expect(reference.priceSource).toEqual({ kind: 'reference', providerId: 'maker' })
@@ -411,17 +359,15 @@ test('价格优先当前供应商，否则取原厂参考价并覆盖已有价�
   const missingPrice = catalog()
   Object.assign(missingPrice.providers, structuredClone(payload.providers))
   delete (missingPrice.providers.vendor.models.example as Record<string, unknown>).cost
-  expect(
-    new ModelRecommendationIndex(missingPrice).resolve({ ...input, providerId: 'vendor' }),
-  ).toMatchObject({
+  expect(indexFrom(missingPrice).resolve({ ...input, providerId: 'vendor' })).toMatchObject({
     priceSource: { kind: 'reference', providerId: 'maker' },
     recommended: { cost: { input: 10, output: 20 } },
   })
-  expect(new ModelRecommendationIndex(catalog()).resolve(input).recommended.cost).toBeUndefined()
+  expect(indexFrom(catalog()).resolve(input).recommended.cost).toBeUndefined()
 })
 
 test('推荐目录保留 1.5 亿上下文，不再按 1000 万丢弃', () => {
-  const result = new ModelRecommendationIndex(catalog(150_000_000)).resolve(input)
+  const result = indexFrom(catalog(150_000_000)).resolve(input)
   expect(result.recommended.contextWindow).toBe(150_000_000)
   expect(result.recommended.maxInputTokens).toBe(149_999_000)
 })
@@ -429,8 +375,9 @@ test('推荐目录保留 1.5 亿上下文，不再按 1000 万丢弃', () => {
 test('已开启智能配置的未知模型保留原值，目录更新后采用新增推荐', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'pidex-follow-model-'))
   let payload: unknown = { models: { 'maker/other': row(128000) }, providers: {} }
-  const store = new ModelRecommendationStore(join(directory, 'recommendations.json'), async () =>
-    Response.json(payload),
+  const store = new ModelRecommendationStore(
+    join(directory, 'recommendations.json'),
+    fixtureV2Fetch(() => payload),
   )
   const saved = {
     name: 'Example',
@@ -497,14 +444,13 @@ test('模型明确思考档位保留原始值、顺序和非固定七档，不�
     reasoning_options: [{ type: 'effort', values: ['none', 'low', 'high', 'adaptive'] }],
   })
   payload.providers = {} as typeof payload.providers
-  expect(
-    new ModelRecommendationIndex(payload).resolve(input).recommended.optionSpecs?.reasoningLevel
-      ?.values,
-  ).toEqual(['none', 'low', 'high', 'adaptive'])
+  expect(indexFrom(payload).resolve(input).recommended.optionSpecs?.reasoningLevel?.values).toEqual(
+    ['none', 'low', 'high', 'adaptive'],
+  )
 })
 
-test('v1 资料与三种推理控制保留；PDF 只在目录资料中，分项价格不参与基础计费', () => {
-  const index = new ModelRecommendationIndex({
+test('目录资料与三种推理控制保留；PDF 只在目录资料中，分项价格不参与基础计费', () => {
+  const index = indexFrom({
     models: {
       'maker/example': row(400000, {
         description: 'Model description',
@@ -570,7 +516,7 @@ test('v1 资料与三种推理控制保留；PDF 只在目录资料中，分项�
 
 test('目录输入为空或只有 PDF 时不返回空 input，仍保留原始目录模态', () => {
   for (const modalities of [[], ['pdf'], ['unsupported']]) {
-    const index = new ModelRecommendationIndex({
+    const index = indexFrom({
       models: {
         'maker/example': row(128000, {
           modalities: { input: modalities, output: ['text'] },
@@ -610,4 +556,205 @@ test('推荐过滤只移除 undefined，保留 false、零、空字符串与未�
   })
   expect(Object.hasOwn(result, 'maxInputTokens')).toBe(false)
   expect(applyRecommendation(model, { cost: {} }).cost).toBe(model.cost)
+})
+
+test('清单条目中的 option_specs 与忙/闲时阶梯 pricing 经索引解析并正确透传到 applyRecommendation', () => {
+  const payload = {
+    models: {
+      'deepseek/deepseek-v4.1-flash-1017': row(1_000_000),
+    },
+    providers: {
+      deepseek: {
+        api: 'https://api.deepseek.com',
+        models: {
+          'deepseek-flash': {
+            canonical_model_id: 'deepseek/deepseek-v4.1-flash-1017',
+            option_specs: {
+              reasoningLevel: {
+                values: ['off', 'high', 'max'],
+                map: '{"reasoning_effort": reasoningLevel}',
+              },
+            },
+            pricing: {
+              currency: 'CNY',
+              timeZone: 'Asia/Shanghai',
+              defaultPeriod: 'idle',
+              idle: {
+                input: 1,
+                output: 4,
+                cacheRead: 0.02,
+                cacheWrite: 0,
+                tiers: [
+                  {
+                    inputTokensAbove: 200_000,
+                    input: 1.5,
+                    output: 6,
+                    cacheRead: 0.03,
+                    cacheWrite: 0,
+                  },
+                ],
+              },
+              busy: { input: 2, output: 8, cacheRead: 0.04, cacheWrite: 0 },
+              rules: [],
+              dateOverrides: [],
+            },
+          },
+        },
+      },
+    },
+  }
+  const index = indexFrom(payload)
+  const resolved = index.resolve({
+    providerId: 'deepseek',
+    modelId: 'deepseek-flash',
+    modelType: 'chat',
+  })
+  expect(resolved.status).toBe('matched')
+  expect(resolved.recommended.optionSpecs?.reasoningLevel).toEqual({
+    values: ['off', 'high', 'max'],
+    map: '{"reasoning_effort": reasoningLevel}',
+  })
+  expect(resolved.recommended.pricing?.idle.tiers?.[0]?.inputTokensAbove).toBe(200_000)
+
+  const baseModel = {
+    name: 'old',
+    contextWindow: 32_000,
+    maxTokens: 8_000,
+    reasoning: false,
+    input: ['text' as const],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  }
+  const applied = applyRecommendation(baseModel, resolved.recommended) as typeof baseModel & {
+    optionSpecs?: { reasoningLevel?: { values?: readonly string[]; map?: string } }
+    pricing?: unknown
+  }
+  expect(applied.optionSpecs?.reasoningLevel?.map).toBe('{"reasoning_effort": reasoningLevel}')
+  expect(applied.pricing).toMatchObject({ currency: 'CNY', idle: { input: 1 } })
+})
+
+test('千问 AI 平台按量与 Token Plan 通过多端点和带斜杠三方模型 ID 正确隔离与匹配', () => {
+  const index = new ModelRecommendationIndex(
+    ProvidersV2.parse(bundledProviders),
+    ModelsV2.parse(bundledModels),
+  )
+  const paygOpenAI = 'https://maas.qianwenaiapi.com/compatible-mode/v1'
+  const paygAnthropic = 'https://maas.qianwenaiapi.com/apps/anthropic'
+  const tokenPlanOpenAI = 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1'
+  const tokenPlanAnthropic = 'https://token-plan.maas.qianwenaiapi.com/apps/anthropic'
+  const tokenPlanLegacy = 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+
+  const dsFlash = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'deepseek-v4.1-flash-1017',
+    modelType: 'chat',
+  })
+  expect(dsFlash.status).toBe('matched')
+  expect(dsFlash.priceSource).toEqual({ kind: 'provider', providerId: 'qianwen-cn' })
+  expect(dsFlash.recommended.pricing).toMatchObject({
+    currency: 'CNY',
+    timeZone: 'Asia/Shanghai',
+    defaultPeriod: 'idle',
+    idle: { input: 1, output: 4, cacheRead: 0.02, cacheWrite: null },
+    busy: { input: 2, output: 8, cacheRead: 0.04, cacheWrite: null },
+    rules: [
+      {
+        period: 'busy',
+        weekdays: [0, 1, 2, 3, 4, 5, 6],
+        holiday: 'any',
+        intervals: [{ start: '08:00', end: '22:00' }],
+      },
+    ],
+  })
+
+  const qwen4Anthropic = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygAnthropic,
+    modelId: 'qwen4-max',
+    modelType: 'chat',
+  })
+  expect(qwen4Anthropic.status).toBe('matched')
+  expect(qwen4Anthropic.priceSource).toEqual({ kind: 'provider', providerId: 'qianwen-cn' })
+  expect(qwen4Anthropic.recommended.pricing?.idle).toEqual({
+    input: 10,
+    output: 30,
+    cacheRead: 0.5,
+    cacheWrite: null,
+  })
+
+  const glmFlash = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'ZHIPU/GLM-5.3-Flash',
+    modelType: 'chat',
+  })
+  const glmFlashX = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'ZHIPU/GLM-5.3-FlashX',
+    modelType: 'chat',
+  })
+  expect(glmFlash.status).toBe('matched')
+  expect(glmFlash.recommended.pricing?.idle).toMatchObject({
+    input: 0.8,
+    output: 2.8,
+    cacheRead: 0.23,
+  })
+  expect(glmFlashX.status).toBe('matched')
+  expect(glmFlashX.recommended.name).toBe('GLM-5.3-FlashX')
+  expect(glmFlashX.recommended.pricing?.idle).toMatchObject({
+    input: 2,
+    output: 7,
+    cacheRead: 0.57,
+  })
+
+  const kimiBase = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'kimi/kimi-k3.1-pro',
+    modelType: 'chat',
+  })
+  const kimiFast = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'kimi/kimi-k3.1-pro-highspeed',
+    modelType: 'chat',
+  })
+  expect(kimiBase.recommended.pricing?.idle).toMatchObject({
+    input: 13,
+    output: 68,
+    cacheRead: 1.3,
+  })
+  expect(kimiFast.recommended.pricing?.idle).toMatchObject({
+    input: 26,
+    output: 136,
+    cacheRead: 1.3,
+  })
+
+  const embed = index.resolve({
+    providerId: 'custom-qwen',
+    baseUrl: paygOpenAI,
+    modelId: 'qwen3.7-text-embedding-flash',
+    modelType: 'embedding',
+  })
+  expect(embed.status).toBe('matched')
+  expect(embed.recommended.pricing?.idle).toMatchObject({ input: 0.125, output: null })
+
+  for (const baseUrl of [tokenPlanOpenAI, tokenPlanAnthropic, tokenPlanLegacy]) {
+    const tokenPlan = index.resolve({
+      providerId: 'custom-token-plan',
+      baseUrl,
+      modelId: 'deepseek-v4.1-flash-1017',
+      modelType: 'chat',
+    })
+    expect(tokenPlan.status).toBe('matched')
+    expect(tokenPlan.priceSource).toEqual({ kind: 'provider', providerId: 'qwen-token-plan-cn' })
+    expect(tokenPlan.recommended.pricing?.billingMode).toBe('subscription')
+    expect(tokenPlan.recommended.cost).toEqual({
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    })
+  }
 })

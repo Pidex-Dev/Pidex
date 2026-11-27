@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from 'zustand/react'
 import { shallow } from 'zustand/vanilla/shallow'
 import type {
+  DesktopAttachmentUploadProgress,
   DesktopComposerAttachment,
   DesktopInstalledSkill,
   DesktopModelMetadata,
@@ -13,6 +14,15 @@ import type {
   DesktopWorkspace,
   ThreadCreationSurface,
 } from '../../../../shared/Types.js'
+import {
+  asComposerPathReference,
+  canUseComposerPathReference,
+  hasOversizeManagedAttachmentSet,
+  isNativeFileAttachment,
+  mergeComposerAttachments,
+  nativeFileAttachmentIncompatibility,
+  selectDroppedComposerAttachments,
+} from './ComposerAttachmentSelection.js'
 import { hasBlockingComposerAttachmentErrors } from '../../../../shared/DesktopUserMessage.js'
 import { toUserErrorMessage } from '../../../utils/Errors.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
@@ -205,6 +215,14 @@ export function useDesktopComposerController({
   const composingRef = useRef(false)
   const submittingRef = useRef(false)
   const attachmentGenerationRef = useRef(new Map<ComposerDraftKey, number>())
+  const [attachmentUploadProgress, setAttachmentUploadProgress] =
+    useState<DesktopAttachmentUploadProgress | null>(null)
+  const [rejectedSelection, setRejectedSelection] = useState<{
+    draftKey: ComposerDraftKey
+    model: DesktopModelMetadata
+  } | null>(null)
+  const rejectedModel = rejectedSelection?.draftKey === draftKey ? rejectedSelection.model : null
+  const attachmentUploadAbort = useRef<AbortController | null>(null)
   const draftClientIdRef = useRef(activeDraft.clientId)
   const activeDraftKeyRef = useRef<ComposerDraftKey>(draftKey)
   const [skillCommands, setSkillCommands] = useState<ComposerSkillCommand[]>([])
@@ -382,6 +400,9 @@ export function useDesktopComposerController({
 
   async function performSubmit(delivery: ComposerDeliveryIntent): Promise<void> {
     const sourceDraftKey = draftKey
+    const firstChunkedAttachment = attachments.find(isNativeFileAttachment)
+    const uploadAbort = firstChunkedAttachment ? new AbortController() : null
+    attachmentUploadAbort.current = uploadAbort
     const snapshot: ComposerDraftContentSnapshot = {
       text: input,
       attachments: [...attachments],
@@ -504,6 +525,28 @@ export function useDesktopComposerController({
           ))
         )
           throw new Error('已取消目标提交，草稿已保留')
+        if (uploadAbort && firstChunkedAttachment) {
+          if (pendingSubmission)
+            pendingSubmissionStore.setAttachmentCancel(pendingSubmission.submissionId, () => {
+              uploadAbort.abort(new Error('已取消附件上传，草稿已保留'))
+            })
+          const report = (progress: DesktopAttachmentUploadProgress | null) => {
+            if (pendingSubmission)
+              pendingSubmissionStore.update(pendingSubmission.submissionId, {
+                attachmentUploadProgress: progress,
+              })
+            else setAttachmentUploadProgress(progress)
+          }
+          report({
+            fileName: firstChunkedAttachment.name,
+            deliveredBytes: 0,
+            totalBytes: firstChunkedAttachment.sizeBytes,
+          })
+          value = {
+            ...value,
+            attachmentTransfer: { signal: uploadAbort.signal, onProgress: report },
+          }
+        }
         const result = await submitToSession(targetSessionId, value, {
           delivery,
           inputId: metadata.inputId,
@@ -514,6 +557,8 @@ export function useDesktopComposerController({
         return result === 'queued' ? 'queued' : 'sent'
       },
     })
+    attachmentUploadAbort.current = null
+    setAttachmentUploadProgress(null)
     setLastSubmitOutcome(outcome)
 
     if (pendingSubmission) settlePendingSubmission(pendingSubmission, outcome)
@@ -603,7 +648,6 @@ export function useDesktopComposerController({
     const selectedFiles = Array.from(files)
     const targetDraftKey = draftKey
     const generation = nextAttachmentGeneration(attachmentGenerationRef.current, targetDraftKey)
-    const { selectDroppedComposerAttachments } = await import('./ComposerAttachmentSelection.js')
     const selected = await selectDroppedComposerAttachments(
       selectedFiles,
       (file) => desktopClient.getComposerFilePath(file),
@@ -626,7 +670,6 @@ export function useDesktopComposerController({
     generation: number,
   ): Promise<void> {
     if (nextAttachments.length === 0) return
-    const { mergeComposerAttachments } = await import('./ComposerAttachmentSelection.js')
     if (attachmentGenerationRef.current.get(targetDraftKey) !== generation) return
     const { accepted, error } = mergeComposerAttachments(attachments, nextAttachments)
     if (error) {
@@ -646,6 +689,47 @@ export function useDesktopComposerController({
       ...attachments,
       ...accepted.filter((attachment) => !attachmentIds.has(attachment.id)),
     ])
+  }
+
+  const attachmentSetTooLarge = hasOversizeManagedAttachmentSet(attachments)
+  const attachmentIssues = attachments.flatMap((attachment) => {
+    if (!isNativeFileAttachment(attachment)) return []
+    const reason =
+      attachment.error ??
+      nativeFileAttachmentIncompatibility(attachment, selectedModelMetadata) ??
+      (rejectedModel ? nativeFileAttachmentIncompatibility(attachment, rejectedModel) : null) ??
+      (attachmentSetTooLarge ? '托管附件总量不能超过 25 MiB' : null)
+    return reason
+      ? [
+          {
+            id: attachment.id,
+            name: attachment.name,
+            reason,
+            canUseReference: canUseComposerPathReference(attachment),
+          },
+        ]
+      : []
+  })
+
+  function handleUseAttachmentReference(attachmentId: string): void {
+    onAttachmentsChange(
+      attachments.map((attachment) =>
+        attachment.id === attachmentId && canUseComposerPathReference(attachment)
+          ? asComposerPathReference(attachment)
+          : attachment,
+      ),
+    )
+  }
+
+  function allowAttachmentModelSelection(model: DesktopModelMetadata): boolean {
+    const blocked = attachments.some(
+      (attachment) =>
+        attachment.status === 'ready' &&
+        !nativeFileAttachmentIncompatibility(attachment, selectedModelMetadata) &&
+        nativeFileAttachmentIncompatibility(attachment, model),
+    )
+    setRejectedSelection(blocked ? { draftKey, model } : null)
+    return !blocked
   }
 
   function handleRemoveAttachment(attachmentId: string): void {
@@ -677,6 +761,12 @@ export function useDesktopComposerController({
   return {
     branchName,
     canSubmit,
+    allowAttachmentModelSelection,
+    attachmentIssues,
+    attachmentUploadProgress,
+    cancelAttachmentUpload: () =>
+      attachmentUploadAbort.current?.abort(new Error('已取消附件上传，草稿已保留')),
+    handleUseAttachmentReference,
 
     effectivePermissionMode,
     fileAttachmentsAvailable,
@@ -796,6 +886,12 @@ function getUnsupportedAttachmentReason(
   attachments: DesktopComposerAttachment[],
   metadata: DesktopModelMetadata | undefined,
 ): string | null {
+  if (hasOversizeManagedAttachmentSet(attachments)) return '托管附件总量不能超过 25 MiB'
+  for (const attachment of attachments) {
+    if (attachment.status !== 'ready') continue
+    const reason = nativeFileAttachmentIncompatibility(attachment, metadata)
+    if (reason) return attachment.name + ' · ' + reason
+  }
   if (attachments.length === 0 || !metadata?.modalities?.input) return null
   const supportedInputs = new Set(metadata.modalities.input)
   const unsupported = attachments.find((attachment) => {
@@ -820,6 +916,8 @@ function attachmentKindLabel(kind: DesktopComposerAttachment['kind']): string {
       return '音频'
     case 'video':
       return '视频'
+    case 'pdf':
+      return 'PDF'
     case 'binary':
       return '文件'
   }

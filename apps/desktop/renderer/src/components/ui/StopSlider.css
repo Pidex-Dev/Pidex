@@ -60,7 +60,7 @@
     left: 0;
     border-radius: var(--cpx-sys-radius-full);
 
-    /* 参照 ZCode：档位填充用成功色，滑块保持白色并在两套主题下都不变。 */
+    /* 档位填充用成功色，滑块保持白色并在两套主题下都不变。 */
     background: var(--cpx-sys-color-success);
     transition: width var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out);
   }
@@ -117,7 +117,7 @@
     border: 0;
     border-radius: var(--cpx-sys-radius-full);
 
-    /* 参照 ZCode：滑块在两套主题下都是白色；浅色主题用一圈描边保证可见。 */
+    /* 滑块在两套主题下都是白色；浅色主题用一圈描边保证可见。 */
     background: var(--cpx-sys-color-fg-on-accent);
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 16%, transparent);
     cursor: grab;

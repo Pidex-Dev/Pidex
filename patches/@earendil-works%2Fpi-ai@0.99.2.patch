@@ -1,0 +1,244 @@
+diff --git a/dist/api/anthropic-messages.js b/dist/api/anthropic-messages.js
+index 106f2b9617fa3b810261e067a3c965f209907af3..75e692a1acb97d7719518714dfc623f6252e46e4 100644
+--- a/dist/api/anthropic-messages.js
++++ b/dist/api/anthropic-messages.js
+@@ -349,7 +349,12 @@ async function* iterateAnthropicEvents(response, signal) {
+     let sawMessageEnd = false;
+     for await (const sse of iterateSseMessages(response.body, signal)) {
+         if (sse.event === "error") {
+-            throw new Error(sse.data);
++            const error = new Error(sse.data);
++            try {
++                error.error = JSON.parse(sse.data)?.error;
++            }
++            catch { }
++            throw error;
+         }
+         if (!ANTHROPIC_MESSAGE_EVENTS.has(sse.event ?? "")) {
+             continue;
+@@ -370,7 +375,7 @@ async function* iterateAnthropicEvents(response, signal) {
+         }
+     }
+     if (sawMessageStart && !sawMessageEnd) {
+-        throw new Error("Anthropic stream ended before message_stop");
++        throw Object.assign(new Error("Anthropic stream ended before message_stop"), { code: "PROVIDER_STREAM_EOF" });
+     }
+ }
+ export const stream = (model, context, options) => {
+@@ -654,7 +659,7 @@ export const stream = (model, context, options) => {
+                 throw new Error("Request was aborted");
+             }
+             if (output.stopReason === "pending") {
+-                throw new Error("Anthropic stream ended without a stop reason");
++                throw Object.assign(new Error("Anthropic stream ended without a stop reason"), { code: "PROVIDER_STREAM_EOF" });
+             }
+             if (output.stopReason === "aborted" || output.stopReason === "error") {
+                 throw new Error(output.errorMessage || "An unknown error occurred");
+@@ -681,6 +686,7 @@ export const stream = (model, context, options) => {
+                 // partialJson is only a streaming scratch buffer; never persist it.
+                 delete block.partialJson;
+             }
++            options?.onProviderError?.(error);
+             output.stopReason = options?.signal?.aborted ? "aborted" : "error";
+             output.errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+             stream.push({ type: "error", reason: output.stopReason, error: output });
+diff --git a/dist/api/azure-openai-responses.js b/dist/api/azure-openai-responses.js
+index dc2d8f9be2f47dc73dde758c630fe12dd7749d5d..e6b57b3d1d7f007956b25d1a79f0e7643317b4c2 100644
+--- a/dist/api/azure-openai-responses.js
++++ b/dist/api/azure-openai-responses.js
+@@ -114,6 +114,7 @@ export const stream = (model, context, options) => {
+                 delete block.partialJson;
+                 delete block.customInput;
+             }
++            options?.onProviderError?.(error);
+             output.stopReason = options?.signal?.aborted ? "aborted" : "error";
+             output.errorMessage = formatAzureOpenAIError(error);
+             stream.push({ type: "error", reason: output.stopReason, error: output });
+diff --git a/dist/api/bedrock-converse-stream.js b/dist/api/bedrock-converse-stream.js
+index a7f6d9cbe66546d5d418450809e92cf7289ce4a3..82b794a3d10130ab3161086bbfb76e91d3ba21da 100644
+--- a/dist/api/bedrock-converse-stream.js
++++ b/dist/api/bedrock-converse-stream.js
+@@ -231,6 +231,7 @@ export const stream = (model, context, options = {}) => {
+             for (const block of output.content) {
+                 finalizeStreamingBlock(block);
+             }
++            options?.onProviderError?.(error);
+             output.stopReason = options.signal?.aborted ? "aborted" : "error";
+             output.errorMessage = formatBedrockError(error);
+             if (output.stopReason === "error") {
+diff --git a/dist/api/google-generative-ai.js b/dist/api/google-generative-ai.js
+index a413006c758079d3b589d9425b33a947c4adbc47..96dd694a42af81af283eb87e7f422d941847a6b8 100644
+--- a/dist/api/google-generative-ai.js
++++ b/dist/api/google-generative-ai.js
+@@ -225,6 +225,7 @@ export const stream = (model, context, options) => {
+                     delete block.index;
+                 }
+             }
++            options?.onProviderError?.(error);
+             output.stopReason = options?.signal?.aborted ? "aborted" : "error";
+             output.errorMessage = formatProviderError(normalizeProviderError(error));
+             stream.push({ type: "error", reason: output.stopReason, error: output });
+diff --git a/dist/api/google-vertex.js b/dist/api/google-vertex.js
+index b51f64e88b2d7b5eb7a921f2fa6da246b6f3a084..a59a9d4f5aeaee5ab9b817772d617acd9fd45cf4 100644
+--- a/dist/api/google-vertex.js
++++ b/dist/api/google-vertex.js
+@@ -227,6 +227,7 @@ export const stream = (model, context, options) => {
+                     delete block.index;
+                 }
+             }
++            options?.onProviderError?.(error);
+             output.stopReason = options?.signal?.aborted ? "aborted" : "error";
+             output.errorMessage = formatProviderError(normalizeProviderError(error));
+             stream.push({ type: "error", reason: output.stopReason, error: output });
+diff --git a/dist/api/mistral-conversations.js b/dist/api/mistral-conversations.js
+index fbcc5e25ee6752a9c5461b41fa8544a090a17b3f..390d500d0e785fe647adea40933e7e19bcae8f99 100644
+--- a/dist/api/mistral-conversations.js
++++ b/dist/api/mistral-conversations.js
+@@ -52,6 +52,7 @@ export const stream = (model, context, options) => {
+                 // partialArgs is only a streaming scratch buffer; never persist it.
+                 delete block.partialArgs;
+             }
++            options?.onProviderError?.(error);
+             output.stopReason = options?.signal?.aborted ? "aborted" : "error";
+             output.errorMessage = formatMistralError(error);
+             stream.push({ type: "error", reason: output.stopReason, error: output });
+diff --git a/dist/api/openai-codex-responses.js b/dist/api/openai-codex-responses.js
+index 40014b3b7eacb3a8e5e43daac2cec6446e8810c2..995c3dcd5bfe438f1cc6ccd37e9e4bb537aaffb9 100644
+--- a/dist/api/openai-codex-responses.js
++++ b/dist/api/openai-codex-responses.js
+@@ -273,7 +273,7 @@ export const stream = (model, context, options) => {
+                     }
+                     catch (error) {
+                         if (headerTimeoutSignal?.aborted && !options?.signal?.aborted) {
+-                            throw new Error(`Codex SSE response headers timed out after ${httpTimeoutMs}ms`);
++                            throw Object.assign(new Error(`Codex SSE response headers timed out after ${httpTimeoutMs}ms`), { code: "PROVIDER_HEADERS_TIMEOUT" });
+                         }
+                         throw error;
+                     }
+@@ -299,7 +299,7 @@ export const stream = (model, context, options) => {
+                         statusText: response.statusText,
+                     });
+                     const info = await parseErrorResponse(fakeResponse);
+-                    throw new Error(info.friendlyMessage || info.message);
++                    throw Object.assign(new Error(info.friendlyMessage || info.message), { code: info.code });
+                 }
+                 catch (error) {
+                     if (error instanceof Error) {
+@@ -343,6 +343,7 @@ export const stream = (model, context, options) => {
+                 delete block.partialJson;
+                 delete block.customInput;
+             }
++            options?.onProviderError?.(error);
+             output.stopReason = options?.signal?.aborted ? "aborted" : "error";
+             output.errorMessage = formatProviderError(normalizeProviderError(error));
+             stream.push({ type: "error", reason: output.stopReason, error: output });
+@@ -1241,11 +1242,12 @@ async function parseErrorResponse(response) {
+     const raw = await response.text();
+     let message = raw || response.statusText || "Request failed";
+     let friendlyMessage;
++    let code;
+     try {
+         const parsed = JSON.parse(raw);
+         const err = parsed?.error;
+         if (err) {
+-            const code = err.code || err.type || "";
++            code = err.code || err.type || "";
+             if (/usage_limit_reached|usage_not_included|rate_limit_exceeded/i.test(code) || response.status === 429) {
+                 const plan = err.plan_type ? ` (${err.plan_type.toLowerCase()} plan)` : "";
+                 const mins = err.resets_at
+@@ -1258,7 +1260,7 @@ async function parseErrorResponse(response) {
+         }
+     }
+     catch { }
+-    return { message, friendlyMessage };
++    return { message, friendlyMessage, code };
+ }
+ // ============================================================================
+ // Auth & Headers
+diff --git a/dist/api/openai-completions.js b/dist/api/openai-completions.js
+index eecd83c753e3b758b8e44628f560b862f8252839..bfec329581ac4ffb4686a23a062d4e2aeec7f9cf 100644
+--- a/dist/api/openai-completions.js
++++ b/dist/api/openai-completions.js
+@@ -483,7 +483,7 @@ export const stream = (model, context, options) => {
+                 throw new Error(output.errorMessage || "Provider returned an error stop reason");
+             }
+             if ((compat.supportsFinishReason && !hasFinishReason) || output.stopReason === "pending") {
+-                throw new Error("Stream ended without finish_reason");
++                throw Object.assign(new Error("Stream ended without finish_reason"), { code: "PROVIDER_STREAM_EOF" });
+             }
+             stream.push({ type: "done", reason: output.stopReason, message: output });
+             stream.end();
+@@ -499,6 +499,7 @@ export const stream = (model, context, options) => {
+                 delete block.customInput;
+                 delete block.streamIndex;
+             }
++            options?.onProviderError?.(error);
+             output.stopReason = options?.signal?.aborted ? "aborted" : "error";
+             output.errorMessage = formatProviderError(normalizeProviderError(error));
+             // Some providers via OpenRouter give additional information in this field.
+diff --git a/dist/api/openai-responses-shared.js b/dist/api/openai-responses-shared.js
+index 3e3b48a9ebea2c4af2fdac58b860380118be73bd..6b82d1687a9c36418acf12adfbcbae0890ef4835 100644
+--- a/dist/api/openai-responses-shared.js
++++ b/dist/api/openai-responses-shared.js
+@@ -655,7 +655,7 @@ export async function processResponsesStream(openaiStream, output, stream, model
+         }
+     }
+     if (!sawTerminalResponseEvent) {
+-        throw new Error("OpenAI Responses stream ended before a terminal response event");
++        throw Object.assign(new Error("OpenAI Responses stream ended before a terminal response event"), { code: "PROVIDER_STREAM_EOF" });
+     }
+     // The agent runs every tool call in the final message. Refuse to hand over calls whose
+     // output_item.done never arrived: their arguments may be cut off or mixed up, e.g. when a
+diff --git a/dist/api/openai-responses.js b/dist/api/openai-responses.js
+index 4d58c9772b49f0d40e31d42c251a6d993a4a673f..abe27580f2ecffe3d4ecd6238eeb8849e4b055e1 100644
+--- a/dist/api/openai-responses.js
++++ b/dist/api/openai-responses.js
+@@ -162,6 +162,7 @@ export const stream = (model, context, options) => {
+                 delete block.partialJson;
+                 delete block.customInput;
+             }
++            options?.onProviderError?.(error);
+             output.stopReason = options?.signal?.aborted ? "aborted" : "error";
+             const errorMessage = formatProviderError(normalizeProviderError(error), `${model.provider === "openai" ? "OpenAI" : model.provider} API error`);
+             // Sign in with ChatGPT shares the subscription's usage limit with other apps.
+diff --git a/dist/api/pi-messages.js b/dist/api/pi-messages.js
+index 7da1c45de8a106a68411cf79bec75f553534a1c7..ab13f1c3e97ad9b1d4ef820dd272e81a8bb87dbb 100644
+--- a/dist/api/pi-messages.js
++++ b/dist/api/pi-messages.js
+@@ -294,9 +294,10 @@ export const stream = (model, context, options) => {
+                     return;
+                 }
+             }
+-            throw new Error(`${model.provider} stream ended without a terminal event`);
++            throw Object.assign(new Error(`${model.provider} stream ended without a terminal event`), { code: "PROVIDER_STREAM_EOF" });
+         }
+         catch (error) {
++            options?.onProviderError?.(error);
+             eventStream.push(createErrorEvent(model, error, options?.signal?.aborted ?? false));
+         }
+     })();
+diff --git a/dist/api/simple-options.js b/dist/api/simple-options.js
+index da0fc83be3031326465b7dc1c53030a0d184517a..1c449a224cbc3b423b6db8d83cf3e6c7dfacbe31 100644
+--- a/dist/api/simple-options.js
++++ b/dist/api/simple-options.js
+@@ -23,6 +23,7 @@ export function buildBaseOptions(model, context, options, apiKey) {
+         onPayload: options?.onPayload,
+         onResponse: options?.onResponse,
+         onProviderStreamEvent: options?.onProviderStreamEvent,
++        onProviderError: options?.onProviderError,
+         timeoutMs: options?.timeoutMs,
+         websocketConnectTimeoutMs: options?.websocketConnectTimeoutMs,
+         maxRetries: options?.maxRetries,
+diff --git a/dist/types.d.ts b/dist/types.d.ts
+index 68aa0553de03aab4f7a47084995732f83ae4de00..f06dd205007dc03b8a24345fd751f6143801b9c4 100644
+--- a/dist/types.d.ts
++++ b/dist/types.d.ts
+@@ -120,6 +120,8 @@ export interface StreamOptions extends ProviderRequestOptions<Model<Api>> {
+      * Adapter support is explicit; unsupported adapters do not invoke it.
+      */
+     onProviderStreamEvent?: (data: unknown, model: Model<Api>) => void | Promise<void>;
++    /** Observe the request or stream error before the adapter formats it. */
++    onProviderError?: (error: unknown) => void;
+     temperature?: number;
+     /**
+      * Arbitrary sampling parameters merged into the request body as-is, after the named request

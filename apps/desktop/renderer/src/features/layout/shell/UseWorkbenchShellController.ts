@@ -708,20 +708,19 @@ export function useWorkbenchShellController({
         if (disposed) return
         const initialSize = latestWorkspaceSizeRef.current
         if (initialSize.width <= 0 || initialSize.height <= 0) return
-        const [rightRatio, bottomRatio] = module.default(initialSize.width, initialSize.height)
-        bottomPanelHeightRatioRef.current = bottomRatio
-        setRightDockWidthRatio(rightRatio)
-        setBottomPanelHeightRatio(bottomRatio)
-
         const snapshot = module.readWorkbenchLayoutSnapshot({
           workspaceWidth: initialSize.width,
           workspaceHeight: initialSize.height,
           sidebarCollapsed: captured.sidebarCollapsed,
           sidebarWidth:
             captured.sidebarWidth ?? Math.min(520, Math.max(240, initialSize.width * 0.2)),
-          rightDockRatio: rightRatio,
-          bottomPanelRatio: bottomRatio,
         })
+        const bottomRatio = bottomPanelHeightToRatio(snapshot.bottomPanelHeight, initialSize.height)
+        bottomPanelHeightRatioRef.current = bottomRatio
+        setRightDockWidthRatio(
+          rightDockWidthToRatio(snapshot.auxiliaryPanelWidth, initialSize.width),
+        )
+        setBottomPanelHeightRatio(bottomRatio)
         const rangeRatio =
           snapshot.auxiliaryPanelWidthRangeRatio ??
           rightDockWidthToRangeRatio(snapshot.auxiliaryPanelWidth, initialSize.width)

@@ -11,7 +11,11 @@ import { RpcRouter, type RpcRouterDependencies } from '../src/transport/rpc/RpcR
 import { ThreadService } from '../src/session/ThreadService'
 
 const roots: string[] = []
-afterEach(async () => removeFixturePaths(roots.splice(0)), 30_000)
+const cleanups: Array<() => void> = []
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0)) cleanup()
+  await removeFixturePaths(roots.splice(0))
+}, 30_000)
 
 const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), 'pidex-memory-rpc-'))
@@ -55,6 +59,10 @@ const fixture = async () => {
   )
   const call = async (method: string, params: Record<string, unknown>) =>
     (await router.handle({ jsonrpc: '2.0', id: ++id, method, params }, { connectionId })) as any
+  cleanups.push(() => {
+    memory.dispose()
+    db.close()
+  })
   return { root, db, memory, call }
 }
 
@@ -135,7 +143,6 @@ describe('Memory RPC 项目作用域', () => {
         })
       ).result,
     ).toEqual({ namespace: namespaceA, path: 'only-a.md', deleted: true })
-    db.close()
   })
 
   test('project reset 只影响选定命名空间，其他项目文件保留', async () => {
@@ -159,11 +166,10 @@ describe('Memory RPC 项目作用域', () => {
     ).toEqual({ deleted: 1 })
     expect((await memory.list(namespaceA)).files).toHaveLength(1)
     expect((await memory.list(namespaceB)).files).toHaveLength(0)
-    db.close()
   })
 
   test('memory/save 依赖 expectedRevision 阻止覆盖外部修改', async () => {
-    const { db, call } = await fixture()
+    const { call } = await fixture()
     const namespace = { kind: 'user' as const }
     const created = await call('memory/save', {
       namespace,
@@ -195,7 +201,6 @@ describe('Memory RPC 项目作用域', () => {
       files: [{ path: 'pref.md' }],
     })
     await Bun.sleep(0)
-    db.close()
   })
 
   // 仓储列存的是扁平存储键（user / project:<id>），wire 契约要求结构化联合；
@@ -255,7 +260,6 @@ describe('Memory RPC 项目作用域', () => {
     const allUsage = await call('memory/usage', { limit: 20 })
     expect(allUsage.error).toBeUndefined()
     expect(allUsage.result.records).toHaveLength(3)
-    db.close()
   })
 
   test('新线程冻结 prompt settings，只有显式 refresh 才更新', async () => {
@@ -305,6 +309,5 @@ describe('Memory RPC 项目作用域', () => {
     expect(service.refreshPromptSettings(thread.id)).toMatchObject({
       settings: { systemPrompt: 'v2', enableMemory: false },
     })
-    db.close()
   })
 })

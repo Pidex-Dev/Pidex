@@ -81,3 +81,45 @@ describe('credential schemas', () => {
     expect(key.type).toBe('key')
   })
 })
+
+describe('pricing schemas', () => {
+  test('Model.Pricing supports optional busy/idle long-context tiers and remains backward-compatible', () => {
+    const decode = Schema.decodeUnknownSync(Model.Pricing)
+    const legacy = decode({
+      currency: 'CNY',
+      timeZone: 'Asia/Shanghai',
+      defaultPeriod: 'idle',
+      idle: { input: 1, output: 4, cacheRead: 0.02, cacheWrite: null },
+      busy: { input: 2, output: 8, cacheRead: 0.04, cacheWrite: null },
+      rules: [],
+      dateOverrides: [],
+    })
+    expect(legacy.idle.tiers).toBeUndefined()
+
+    const tiered = decode({
+      currency: 'CNY',
+      timeZone: 'Asia/Shanghai',
+      defaultPeriod: 'idle',
+      idle: {
+        input: 1,
+        output: 4,
+        cacheRead: 0.02,
+        cacheWrite: 0,
+        tiers: [{ inputTokensAbove: 200_000, input: 2, output: 6, cacheRead: 0.04, cacheWrite: 0 }],
+      },
+      busy: {
+        input: 2,
+        output: 8,
+        cacheRead: 0.04,
+        cacheWrite: 0,
+        tiers: [
+          { inputTokensAbove: 200_000, input: 4, output: 12, cacheRead: 0.08, cacheWrite: 0 },
+        ],
+      },
+      rules: [],
+      dateOverrides: [],
+    })
+    expect(tiered.idle.tiers?.[0]?.inputTokensAbove).toBe(200_000)
+    expect(tiered.busy.tiers?.[0]?.output).toBe(12)
+  })
+})

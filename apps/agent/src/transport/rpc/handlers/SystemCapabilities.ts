@@ -46,7 +46,7 @@ export function filterAdvertisedCapabilities(
   const permissionRules = probePermissionRuleStorageCapabilities(db.sqlite)
   return Capabilities.filter(
     (capability): capability is ProtocolCapability =>
-      capability !== 'integrations.minimax-cli.v1' &&
+      (capability !== 'attachments.chunked.v1' || tables.has('input_pdf_attachments')) &&
       (capability !== 'model.documents.v1' ||
         (tables.has('model_price_snapshots') && tables.has('model_pricing_cache'))) &&
       (capability !== 'thread.editUserMessage.v1' ||

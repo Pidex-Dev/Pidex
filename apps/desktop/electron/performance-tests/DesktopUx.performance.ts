@@ -26,6 +26,7 @@ test.describe('packaged Electron desktop performance', () => {
     const dataDirectory = join(root, 'agent-home')
     const logDirectory = join(root, 'logs')
     const metadataPath = join(dataDirectory, 'fixture.json')
+    let coldApplication: ElectronApplication | undefined
     let application: ElectronApplication | undefined
     const fatalEvents: string[] = []
 
@@ -47,11 +48,12 @@ test.describe('packaged Electron desktop performance', () => {
 
       const coldStartedAt = performance.now()
       application = await launchDesktop(userDataDirectory, dataDirectory, logDirectory)
+      await application.context().addInitScript(initNewRouteReadinessProbe)
       await attachFatalEventCapture(application)
       let page = await application.firstWindow()
+      await page.evaluate(initNewRouteReadinessProbe)
       await setPerformanceWindowSize(application)
       attachPageFatalEventCapture(page, fatalEvents)
-      await installNewRouteReadinessProbe(page)
       await waitForApplication(page)
       await record('cold-start', sample, {
         readyMs: performance.now() - coldStartedAt,
@@ -59,8 +61,9 @@ test.describe('packaged Electron desktop performance', () => {
       await record('new-route-ready', sample, await measureNewRouteReadiness(page))
 
       fatalEvents.push(...(await readFatalEvents(application)))
-      await application.close()
+      coldApplication = application
       application = undefined
+      await quitDesktopWindowOnly(coldApplication)
       const warmStartedAt = performance.now()
       application = await launchDesktop(userDataDirectory, dataDirectory, logDirectory)
       await attachFatalEventCapture(application)
@@ -73,7 +76,7 @@ test.describe('packaged Electron desktop performance', () => {
         readyMs: performance.now() - warmStartedAt,
       })
 
-      await openThread(page, metadata.primaryThreadId, 10)
+      await openThread(page, metadata.primaryThreadId)
       await loadAllTurns(page)
       const scrollMetrics = await measureScroll(page)
       await record('timeline-scroll', sample, scrollMetrics)
@@ -82,7 +85,8 @@ test.describe('packaged Electron desktop performance', () => {
         readyMs: await measureThreadSwitch(page, metadata.threadIds[sample]!, 10),
       })
 
-      await openThread(page, metadata.primaryThreadId, 500)
+      await openThread(page, metadata.primaryThreadId)
+      await loadAllTurns(page)
       await record('composer-input', sample, {
         inputToPaintP95Ms: await measureComposerInput(page),
       })
@@ -99,8 +103,14 @@ test.describe('packaged Electron desktop performance', () => {
       fatalEvents.push(...(await readFatalLogEvents(logDirectory)))
       expect(fatalEvents, 'Electron emitted a fatal renderer event').toEqual([])
     } finally {
-      await application?.close().catch(() => undefined)
-      await rm(root, { force: true, recursive: true })
+      if (application) {
+        await closeDesktopApplication(application, dataDirectory)
+      }
+      await terminateBackgroundAgent(dataDirectory)
+      if (coldApplication) {
+        await closeDesktopApplication(coldApplication, dataDirectory)
+      }
+      await rm(root, { force: true, recursive: true, maxRetries: 5, retryDelay: 200 })
     }
   })
 })
@@ -204,98 +214,99 @@ type NewRouteReadinessProbe = {
 // 再等待当前 coding/working/chat surface 的根内容、字体与连续两个
 // animation frame；jsDecodedBytes/jsResourceCount/cssDecodedBytes
 // 在 complete checkpoint 时采样同源资源。本轮仅观测，不设硬预算。
-async function installNewRouteReadinessProbe(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const target = globalThis as typeof globalThis & {
-      __pidexNewRouteReadiness?: {
-        composerReadyAt: number | null
-        completeAt: number | null
-        jsDecodedBytes: number
-        jsResourceCount: number
-        cssDecodedBytes: number
-      }
+function initNewRouteReadinessProbe(): void {
+  const target = globalThis as typeof globalThis & {
+    __pidexNewRouteReadiness?: {
+      composerReadyAt: number | null
+      completeAt: number | null
+      jsDecodedBytes: number
+      jsResourceCount: number
+      cssDecodedBytes: number
     }
-    if (target.__pidexNewRouteReadiness) return
-    const probe = {
-      composerReadyAt: null as number | null,
-      completeAt: null as number | null,
-      jsDecodedBytes: 0,
-      jsResourceCount: 0,
-      cssDecodedBytes: 0,
-    }
-    target.__pidexNewRouteReadiness = probe
+  }
+  if (target.__pidexNewRouteReadiness) return
+  const probe = {
+    composerReadyAt: null as number | null,
+    completeAt: null as number | null,
+    jsDecodedBytes: 0,
+    jsResourceCount: 0,
+    cssDecodedBytes: 0,
+  }
+  target.__pidexNewRouteReadiness = probe
 
-    const composerSelector = '.composer-editor-content[contenteditable="true"][role="combobox"]'
-    const surfaceReadySelector = [
-      '.new-session-suggestions.is-root',
-      '.working-suggestions',
-      '.chat-home-view',
-    ].join(',')
-    let completeTimer: ReturnType<typeof setInterval> | null = null
-    let fallbackTimer: ReturnType<typeof setTimeout> | null = null
-    let observer: MutationObserver | null = null
-    const complete = (): void => {
-      if (probe.completeAt !== null) return
-      if (completeTimer !== null) clearInterval(completeTimer)
-      if (fallbackTimer !== null) clearTimeout(fallbackTimer)
-      observer?.disconnect()
-      probe.completeAt = performance.now()
-      const sameOrigin = (entry: PerformanceResourceTiming): boolean => {
-        try {
-          return new URL(entry.name, location.href).origin === location.origin
-        } catch {
-          return false
-        }
+  const composerSelector = '.composer-editor-content[contenteditable="true"][role="combobox"]'
+  const surfaceReadySelector = [
+    '.quick-chat-view',
+    '.new-session-suggestions.is-root',
+    '.working-suggestions',
+    '.chat-home-view',
+  ].join(',')
+  let completeTimer: ReturnType<typeof setInterval> | null = null
+  let fallbackTimer: ReturnType<typeof setTimeout> | null = null
+  let observer: MutationObserver | null = null
+  const complete = (): void => {
+    if (probe.completeAt !== null) return
+    if (completeTimer !== null) clearInterval(completeTimer)
+    if (fallbackTimer !== null) clearTimeout(fallbackTimer)
+    observer?.disconnect()
+    probe.completeAt = performance.now()
+    const sameOrigin = (entry: PerformanceResourceTiming): boolean => {
+      try {
+        return new URL(entry.name, location.href).origin === location.origin
+      } catch {
+        return false
       }
-      const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[]
-      const resourcePath = (entry: PerformanceResourceTiming): string => {
-        try {
-          return new URL(entry.name, location.href).pathname.toLowerCase()
-        } catch {
-          return ''
-        }
-      }
-      // ES module/dynamic-import initiatorType differs between Chromium
-      // versions. Classify same-origin built assets by pathname instead.
-      const scripts = resources.filter(
-        (entry) => sameOrigin(entry) && resourcePath(entry).endsWith('.js'),
-      )
-      const stylesheets = resources.filter(
-        (entry) => sameOrigin(entry) && resourcePath(entry).endsWith('.css'),
-      )
-      probe.jsDecodedBytes = scripts.reduce((total, entry) => total + entry.decodedBodySize, 0)
-      probe.jsResourceCount = scripts.length
-      probe.cssDecodedBytes = stylesheets.reduce((total, entry) => total + entry.decodedBodySize, 0)
     }
-    const waitForComplete = (): void => {
-      if (completeTimer !== null) return
-      const check = (): void => {
-        if (!document.querySelector(surfaceReadySelector)) return
-        void document.fonts.ready.then(() => {
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => complete())
-          })
+    const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[]
+    const resourcePath = (entry: PerformanceResourceTiming): string => {
+      try {
+        return new URL(entry.name, location.href).pathname.toLowerCase()
+      } catch {
+        return ''
+      }
+    }
+    // ES module/dynamic-import initiatorType differs between Chromium
+    // versions. Classify same-origin built assets by pathname instead.
+    const scripts = resources.filter(
+      (entry) => sameOrigin(entry) && resourcePath(entry).endsWith('.js'),
+    )
+    const stylesheets = resources.filter(
+      (entry) => sameOrigin(entry) && resourcePath(entry).endsWith('.css'),
+    )
+    probe.jsDecodedBytes = scripts.reduce((total, entry) => total + entry.decodedBodySize, 0)
+    probe.jsResourceCount = scripts.length
+    probe.cssDecodedBytes = stylesheets.reduce((total, entry) => total + entry.decodedBodySize, 0)
+  }
+  const waitForComplete = (): void => {
+    if (completeTimer !== null) return
+    const check = (): void => {
+      if (!document.querySelector(surfaceReadySelector)) return
+      void document.fonts.ready.then(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => complete())
         })
-      }
-      completeTimer = window.setInterval(check, 50)
-      // 兜底：composer 就绪后 5s 内必须完成，避免字体等异常阻塞样本
-      fallbackTimer = window.setTimeout(() => complete(), 5_000)
-      check()
+      })
     }
-    const markComposerReady = (): void => {
-      if (probe.composerReadyAt !== null) return
-      probe.composerReadyAt = performance.now()
-      waitForComplete()
-    }
-    observer = new MutationObserver(() => {
-      if (document.querySelector(composerSelector)) markComposerReady()
-    })
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-    })
+    completeTimer = window.setInterval(check, 50)
+    // 兜底：composer 就绪后 5s 内必须完成，避免字体等异常阻塞样本
+    fallbackTimer = window.setTimeout(() => complete(), 5_000)
+    check()
+  }
+  const markComposerReady = (): void => {
+    if (probe.composerReadyAt !== null) return
+    probe.composerReadyAt = performance.now()
+    waitForComplete()
+  }
+  observer = new MutationObserver(() => {
     if (document.querySelector(composerSelector)) markComposerReady()
   })
+  observer.observe(document, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['contenteditable', 'role'],
+  })
+  if (document.querySelector(composerSelector)) markComposerReady()
 }
 
 async function measureNewRouteReadiness(page: Page): Promise<Record<string, number>> {
@@ -308,7 +319,8 @@ async function measureNewRouteReadiness(page: Page): Promise<Record<string, numb
     if (!probe) {
       throw new Error('Missing /new readiness probe in renderer navigation.')
     }
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      const startedAt = Date.now()
       const poll = (): void => {
         if (probe.completeAt !== null) {
           resolve({
@@ -318,6 +330,10 @@ async function measureNewRouteReadiness(page: Page): Promise<Record<string, numb
             jsResourceCount: probe.jsResourceCount,
             cssDecodedBytes: probe.cssDecodedBytes,
           })
+          return
+        }
+        if (Date.now() - startedAt > 10_000) {
+          reject(new Error('Timed out waiting for /new readiness probe completion.'))
           return
         }
         window.setTimeout(poll, 50)
@@ -344,24 +360,32 @@ async function openThread(page: Page, threadId: string, expectedTurns?: number):
   }, threadId)
   await page.locator(`[data-canonical-thread-id="${threadId}"]`).waitFor()
   if (expectedTurns !== undefined) {
-    await page.waitForFunction(
-      (expected) => document.querySelectorAll('[data-turn-navigation-item-id]').length === expected,
-      expectedTurns,
-    )
+    await page
+      .locator(
+        `[data-canonical-thread-id="${threadId}"][data-canonical-turn-count="${expectedTurns}"]`,
+      )
+      .waitFor()
   }
 }
 
 async function loadAllTurns(page: Page): Promise<void> {
   const loadOlder = page.getByRole('button', { name: '加载更早的对话' })
-  for (let pageIndex = 0; pageIndex < 49; pageIndex += 1) {
-    const before = await page.locator('[data-turn-navigation-item-id]').count()
-    await loadOlder.click()
-    await expect
-      .poll(() => page.locator('[data-turn-navigation-item-id]').count())
-      .toBeGreaterThan(before)
+  const threadView = page.locator('.canonical-thread-view')
+  const readTurnCount = async (): Promise<number> =>
+    Number((await threadView.getAttribute('data-canonical-turn-count')) ?? '0')
+  const deadline = Date.now() + 60_000
+  while (Date.now() < deadline) {
+    if ((await readTurnCount()) >= 500 && (await loadOlder.count()) === 0) break
+    if (
+      (await loadOlder.isVisible().catch(() => false)) &&
+      (await loadOlder.isEnabled().catch(() => false))
+    ) {
+      await loadOlder.click().catch(() => undefined)
+    }
+    await page.waitForTimeout(100)
   }
   await expect(loadOlder).toBeHidden()
-  await expect.poll(() => page.locator('[data-turn-navigation-item-id]').count()).toBe(500)
+  await expect.poll(readTurnCount).toBe(500)
 }
 
 async function measureScroll(page: Page): Promise<Record<string, number>> {
@@ -437,25 +461,39 @@ async function measureComposerInput(page: Page): Promise<number> {
 }
 
 async function measureSidebarDrop(page: Page): Promise<number> {
-  const rows = page.locator('.sidebar-session-row[draggable="true"]')
-  if ((await rows.count()) === 0) {
-    await page.locator('[data-sidebar-section-id="recent"]').click()
+  const recentSection = page.locator('[data-sidebar-section-id="recent"]')
+  if ((await recentSection.getAttribute('aria-expanded')) !== 'true') {
+    await recentSection.click()
   }
+  const rows = page.locator('.sidebar-session-row')
   const showMore = page.getByRole('button', { name: '展开显示' })
   while ((await rows.count()) < 100 && (await showMore.count()) > 0) {
     await showMore.first().click()
   }
   await expect(rows.first()).toBeVisible()
   if ((await rows.count()) !== 100) {
-    throw new Error(`Expected 100 draggable session rows, received ${await rows.count()}`)
+    throw new Error(`Expected 100 sidebar session rows, received ${await rows.count()}`)
   }
-  await rows.nth(1).evaluate((element) => {
-    const target = window as typeof window & {
+  const source = rows.nth(0)
+  const target = rows.nth(1)
+  await source.scrollIntoViewIfNeeded()
+  await target.scrollIntoViewIfNeeded()
+  const [sourceBox, targetBox] = await Promise.all([source.boundingBox(), target.boundingBox()])
+  if (!sourceBox || !targetBox) {
+    throw new Error('Sidebar reorder rows have no bounds')
+  }
+  const sourceId = await source.getAttribute('data-sidebar-session-id')
+  const draggedRow = page.locator(`[data-sidebar-session-id="${sourceId}"]`)
+  const orderBefore = await draggedRow.locator('..').innerText()
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2)
+  await page.mouse.down()
+  await page.evaluate(() => {
+    const targetWindow = window as typeof window & {
       __pidexElectronDropReady?: Promise<number>
     }
-    target.__pidexElectronDropReady = new Promise((resolve) => {
-      element.addEventListener(
-        'drop',
+    targetWindow.__pidexElectronDropReady = new Promise((resolve) => {
+      document.addEventListener(
+        'pointerup',
         () => {
           const droppedAt = performance.now()
           requestAnimationFrame(() =>
@@ -466,12 +504,20 @@ async function measureSidebarDrop(page: Page): Promise<number> {
       )
     })
   })
-  await rows.first().dragTo(rows.nth(1))
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height, {
+    steps: 8,
+  })
+  await expect(draggedRow).toHaveAttribute('data-dragging', 'true')
+  await page.mouse.up()
+  await expect(draggedRow.locator('..')).not.toHaveText(orderBefore)
   return page.evaluate(() => {
-    const target = window as typeof window & {
+    const targetWindow = window as typeof window & {
       __pidexElectronDropReady?: Promise<number>
     }
-    return target.__pidexElectronDropReady
+    if (!targetWindow.__pidexElectronDropReady) {
+      throw new Error('Missing Electron sidebar drop measurement promise')
+    }
+    return targetWindow.__pidexElectronDropReady
   })
 }
 
@@ -514,8 +560,8 @@ async function measureThreadSwitch(
       location.hash = `#/threads/${encodeURIComponent(id)}`
       while (performance.now() - startedAt < 60_000) {
         if (
-          document.querySelector(`[data-canonical-thread-id="${id}"]`) &&
-          document.querySelectorAll('[data-turn-navigation-item-id]').length === expected
+          document.querySelector<HTMLElement>(`[data-canonical-thread-id="${id}"]`)?.dataset
+            .canonicalTurnCount === String(expected)
         ) {
           return performance.now() - startedAt
         }
@@ -534,10 +580,14 @@ async function readFatalLogEvents(logDirectory: string): Promise<string[]> {
   for (const entry of entries) {
     if (!entry.isFile()) continue
     const contents = await readFile(join(logDirectory, entry.name), 'utf8')
-    if (
-      contents.includes('desktop.connection-lost') ||
-      contents.includes('"phase":"reconnecting"')
-    ) {
+    const hasUnexpectedReconnect = contents
+      .split(/\r?\n/)
+      .some(
+        (line) =>
+          line.includes('desktop.connection-lost') ||
+          (line.includes('"phase":"reconnecting"') && !line.includes('"lifecycle":"disposing"')),
+      )
+    if (hasUnexpectedReconnect) {
       events.push('sidecar-reconnect')
       break
     }
@@ -611,4 +661,92 @@ function resolveBunExecutable(): string {
   ].find((path) => existsSync(path))
   if (!executable) throw new Error('Electron performance test did not find bun.exe')
   return executable
+}
+
+async function quitDesktopWindowOnly(application: ElectronApplication): Promise<void> {
+  const proc = application.process()
+  const exitPromise =
+    !proc || proc.exitCode !== null || proc.signalCode !== null
+      ? Promise.resolve()
+      : new Promise<void>((resolveExit) => {
+          proc.once('exit', () => resolveExit())
+        })
+  await runWithTimeout(
+    application.evaluate(({ app }) => app.quit()).catch(() => undefined),
+    10_000,
+  )
+  await runWithTimeout(exitPromise, 15_000)
+}
+
+async function closeDesktopApplication(
+  application: ElectronApplication,
+  dataDirectory: string,
+): Promise<void> {
+  await runWithTimeout(
+    application
+      .evaluate(async ({ BrowserWindow }) => {
+        const window = BrowserWindow.getAllWindows()[0]
+        if (window) {
+          await window.webContents.executeJavaScript('window.DesktopBridge?.stopBackendAndExit?.()')
+        }
+      })
+      .catch(() => undefined),
+    15_000,
+  )
+  const closedInTime = await runWithTimeout(
+    application
+      .close()
+      .then(() => true)
+      .catch(() => true),
+    20_000,
+  )
+  if (closedInTime) return
+  await terminateBackgroundAgent(dataDirectory)
+  const pid = application.process()?.pid
+  if (pid) killProcessTree(pid)
+  await runWithTimeout(
+    application.close().catch(() => undefined),
+    5_000,
+  )
+}
+
+async function terminateBackgroundAgent(dataDirectory: string): Promise<void> {
+  const runtimeFile = join(dataDirectory, 'runtime', 'desktop-agent.json')
+  try {
+    const record = JSON.parse(await readFile(runtimeFile, 'utf8')) as { pid?: unknown }
+    if (typeof record.pid === 'number' && Number.isSafeInteger(record.pid) && record.pid > 0) {
+      killProcessTree(record.pid)
+    }
+  } catch {
+    return
+  }
+}
+
+function killProcessTree(pid: number): void {
+  try {
+    if (process.platform === 'win32') {
+      execFileSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], {
+        stdio: 'ignore',
+        windowsHide: true,
+      })
+    } else {
+      process.kill(pid, 'SIGKILL')
+    }
+  } catch {
+    return
+  }
+}
+
+async function runWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<undefined>((resolveTimeout) => {
+        timer = setTimeout(() => resolveTimeout(undefined), timeoutMs)
+      }),
+    ])
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
 }

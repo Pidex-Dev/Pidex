@@ -7,10 +7,7 @@ import { join } from 'node:path'
 import { removeFixturePaths } from './FixtureCleanup'
 import { ThreadHistoryService } from '../src/session/ThreadHistoryService'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
-import {
-  SqlitePiSessionRepo,
-  SqlitePiSessionStorage,
-} from '../src/storage/pi-session/SqlitePiSession'
+import { SqliteSessionRepo, SqliteSessionStorage } from '../src/storage/session/SqliteSession'
 import { EventHub } from '../src/storage/events/EventHub'
 import { ThreadProjection } from '../src/transport/ThreadProjection'
 import { ApprovalService } from '../src/permission/ApprovalService'
@@ -100,6 +97,21 @@ describe('Thread 历史', () => {
     expect(() => history.markUnread('missing-thread', 130)).toThrow('Thread 不存在')
   })
 
+  test('归档删除跳过已恢复和已删除的会话，只有实际删除才发布事件', async () => {
+    const { db, history } = await makeHistory()
+    const { id } = db.createThread('归档删除')
+    await history.patch(id, { archived: true })
+    await history.patch(id, { archived: false })
+    expect(await history.remove(id, 'archived')).toBe(false)
+    expect(db.getThread(id)).not.toBeNull()
+    await history.patch(id, { archived: true })
+    expect(await history.remove(id, 'archived')).toBe(true)
+    expect(await history.remove(id, 'archived')).toBe(false)
+    expect(
+      db.sqlite.query("SELECT count(*) AS n FROM events WHERE method = 'thread/deleted'").get(),
+    ).toEqual({ n: 1 })
+  })
+
   test('支持重命名、归档、取消归档和删除', async () => {
     const { db, history, projection, root } = await makeHistory()
     const project = db.createProject({ rootPath: join(root, 'project'), name: '测试项目' })
@@ -121,13 +133,13 @@ describe('Thread 历史', () => {
     const reset = await history.patch(thread.id, { title: null })
     expect(reset.title).toBe('这是一个用于验证重置行为的非常长的首条…')
     expect(Array.from(reset.title)).toHaveLength(20)
-    const session = await new SqlitePiSessionRepo(db).create({
+    const session = await new SqliteSessionRepo(db).create({
       id: `${thread.id}:main`,
       threadID: thread.id,
       agentID: 'creator',
     })
     await session.appendMessage({ role: 'user', content: 'private history', timestamp: Date.now() })
-    ;(session.getStorage() as SqlitePiSessionStorage).flush()
+    ;(session.getStorage() as SqliteSessionStorage).flush()
     await history.remove(thread.id)
     expect(db.getThread(thread.id)).toBeNull()
     expect(
@@ -176,7 +188,7 @@ describe('Thread 历史', () => {
     db.sqlite
       .query("UPDATE threads SET kind = 'subagent', parent_thread_id = ? WHERE id = ?")
       .run(parent.id, child.id)
-    const repo = new SqlitePiSessionRepo(db)
+    const repo = new SqliteSessionRepo(db)
     const childSession = await repo.create({
       id: `subagent:${child.id}`,
       threadID: child.id,
@@ -187,7 +199,7 @@ describe('Thread 历史', () => {
       content: 'child history',
       timestamp: Date.now(),
     })
-    ;(childSession.getStorage() as SqlitePiSessionStorage).flush()
+    ;(childSession.getStorage() as SqliteSessionStorage).flush()
 
     const childTurn = db.createTurn(child.id, input('running'))
     db.claimTurnExecution(childTurn.turnID)

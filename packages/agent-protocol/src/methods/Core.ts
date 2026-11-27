@@ -91,9 +91,15 @@ const SandboxErrors = [
   'CONFLICT',
   ...CommonErrors,
 ] as const
-const AttachmentErrors = [
+const AttachmentAdmissionErrors = [
   'ATTACHMENT_NOT_FOUND',
   'ATTACHMENT_LIMIT',
+  'ATTACHMENT_INCOMPATIBLE',
+] as const
+const AttachmentErrors = [
+  ...AttachmentAdmissionErrors,
+  'ATTACHMENT_FORMAT_INVALID',
+  'CONFLICT',
   'PERMISSION_DENIED',
   ...CommonErrors,
 ] as const
@@ -1165,6 +1171,27 @@ export const AttachmentImportResultSchema = Schema.Struct({
   attachments: Schema.Array(AgentThread.AttachmentSchema),
 })
 
+export const ATTACHMENT_UPLOAD_CHUNK_BYTES = 512 * 1024
+
+const AttachmentUploadIdSchema = Schema.Struct({ uploadId: OpaqueIDSchema })
+const AttachmentUploadBeginParamsSchema = Schema.Struct({
+  kind: Schema.Literals(['pdf', 'video']),
+  name: NonEmptyStringSchema,
+  mediaType: NonEmptyStringSchema,
+  size: PositiveIntSchema,
+})
+const AttachmentUploadChunkParamsSchema = Schema.Struct({
+  ...AttachmentUploadIdSchema.fields,
+  offset: NonNegativeIntSchema,
+  data: NonEmptyStringSchema.check(
+    Schema.isMaxLength(Math.ceil(ATTACHMENT_UPLOAD_CHUNK_BYTES / 3) * 4),
+  ),
+})
+const AttachmentUploadChunkResultSchema = Schema.Struct({ offset: NonNegativeIntSchema })
+const AttachmentUploadCommitResultSchema = Schema.Struct({
+  attachment: AgentThread.AttachmentSchema,
+})
+
 export const AttachmentReadParamsSchema = Schema.Struct({
   attachmentId: OpaqueIDSchema,
   range: Schema.optional(
@@ -1798,6 +1825,15 @@ export const CoreRpcMethods = {
     capability: null,
     mutation: true,
   }),
+  'thread/deleteArchived': defineMethod({
+    params: ThreadDeleteParamsSchema,
+    result: Schema.Struct({ deleted: Schema.Boolean }),
+    errors: ThreadErrors,
+    capability: 'thread.deleteArchived.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
   'thread/delete': defineMethod({
     params: ThreadDeleteParamsSchema,
     result: ThreadDeleteResultSchema,
@@ -1870,7 +1906,7 @@ export const CoreRpcMethods = {
   'thread/editUserMessage': defineMethod({
     params: ThreadEditUserMessageParamsSchema,
     result: AdmissionSchema,
-    errors: [...ThreadErrors, 'ATTACHMENT_NOT_FOUND', 'LOCAL_CONTEXT_NOT_FOUND'],
+    errors: [...ThreadErrors, ...AttachmentAdmissionErrors, 'LOCAL_CONTEXT_NOT_FOUND'],
     capability: 'thread.editUserMessage.v1',
     mutation: true,
     exactParams: true,
@@ -1878,7 +1914,7 @@ export const CoreRpcMethods = {
   'turn/start': defineMethod({
     params: TurnStartParamsSchema,
     result: AdmissionSchema,
-    errors: ThreadErrors,
+    errors: [...ThreadErrors, ...AttachmentAdmissionErrors],
     capability: 'turn.admission.v1',
     mutation: true,
     exactParams: true,
@@ -1886,7 +1922,7 @@ export const CoreRpcMethods = {
   'turn/steer': defineMethod({
     params: TurnSteerParamsSchema,
     result: AdmissionSchema,
-    errors: ThreadErrors,
+    errors: [...ThreadErrors, ...AttachmentAdmissionErrors],
     capability: 'turn.steer.v1',
     mutation: true,
     exactParams: true,
@@ -1910,7 +1946,7 @@ export const CoreRpcMethods = {
   'queue/add': defineMethod({
     params: QueueAddParamsSchema,
     result: QueueAdmissionResultSchema,
-    errors: ThreadErrors,
+    errors: [...ThreadErrors, ...AttachmentAdmissionErrors],
     capability: 'turn.queue.management.v1',
     mutation: true,
     exactParams: true,
@@ -1919,7 +1955,7 @@ export const CoreRpcMethods = {
   'queue/update': defineMethod({
     params: QueueUpdateParamsSchema,
     result: QueueStateResultSchema,
-    errors: ThreadErrors,
+    errors: [...ThreadErrors, ...AttachmentAdmissionErrors],
     capability: 'turn.queue.management.v1',
     mutation: true,
     exactParams: true,
@@ -1991,6 +2027,38 @@ export const CoreRpcMethods = {
     result: AttachmentImportResultSchema,
     errors: AttachmentErrors,
     capability: 'attachments.v1',
+    mutation: true,
+    exactParams: true,
+  }),
+  'attachment/upload/begin': defineMethod({
+    params: AttachmentUploadBeginParamsSchema,
+    result: AttachmentUploadIdSchema,
+    errors: AttachmentErrors,
+    capability: 'attachments.chunked.v1',
+    mutation: true,
+    exactParams: true,
+  }),
+  'attachment/upload/chunk': defineMethod({
+    params: AttachmentUploadChunkParamsSchema,
+    result: AttachmentUploadChunkResultSchema,
+    errors: AttachmentErrors,
+    capability: 'attachments.chunked.v1',
+    mutation: true,
+    exactParams: true,
+  }),
+  'attachment/upload/commit': defineMethod({
+    params: AttachmentUploadIdSchema,
+    result: AttachmentUploadCommitResultSchema,
+    errors: AttachmentErrors,
+    capability: 'attachments.chunked.v1',
+    mutation: true,
+    exactParams: true,
+  }),
+  'attachment/upload/abort': defineMethod({
+    params: AttachmentUploadIdSchema,
+    result: Schema.Struct({}),
+    errors: AttachmentErrors,
+    capability: 'attachments.chunked.v1',
     mutation: true,
     exactParams: true,
   }),

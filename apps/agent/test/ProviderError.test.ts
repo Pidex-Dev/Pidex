@@ -57,3 +57,12 @@ test('catalog failure details are bounded and mixed failures are not retryable',
   })
   expect(catalogRefreshError([failure, failure]).retryable).toBe(true)
 })
+
+test.each(['Expected HTTP 429 in the example', 'HTTP 429 is an example'])(
+  '普通说明中的 HTTP 数字不作为响应状态：%s',
+  (message) => {
+    const failure = providerRequestError(new Error(message))
+    expect(failure.code).toBe('PROVIDER_UNAVAILABLE')
+    expect(failure.details).not.toHaveProperty('httpStatus')
+  },
+)

@@ -5,7 +5,11 @@ import { Button } from '../../components/ui/Button.js'
 import { FullScreenWhaleLoading } from '../../components/ui/FullScreenWhaleLoading.js'
 import { useMountEffect } from '../../hooks/UseMountEffect.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { useStartupConnectionSnapshot } from '../../startup/StartupConnection.js'
+import {
+  startupRecoveryActions,
+  type StartupRecoveryAction,
+  useStartupConnectionSnapshot,
+} from '../../startup/StartupConnection.js'
 import { startupSurfaceReadyRef } from '../../startup/StartupSplashHandoff.js'
 import { WindowControls } from '../layout/MenuBar.js'
 
@@ -55,8 +59,11 @@ export function ConnectionLostPage(): React.ReactNode {
   const connection = useStartupConnectionSnapshot()
   const location = useLocation()
   const [isMaximized, setIsMaximized] = useState(false)
-  const [retryingGeneration, setRetryingGeneration] = useState<number | null>(null)
-  const [retryError, setRetryError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{
+    snapshot: typeof connection
+    pending?: string
+    error?: string
+  } | null>(null)
 
   useMountEffect(() => {
     let mounted = true
@@ -75,36 +82,40 @@ export function ConnectionLostPage(): React.ReactNode {
     return <Navigate replace to={resolveConnectionReturnTarget(location.state)} />
   }
 
-  const retrying = retryingGeneration === connection.generation && connection.state === 'failed'
+  const currentFeedback = feedback?.snapshot === connection ? feedback : null
 
-  async function handleRetry(): Promise<void> {
+  async function handleRecovery(action: StartupRecoveryAction): Promise<void> {
+    if (currentFeedback?.pending) return
     const bridge = window.DesktopBridge
     if (!bridge) {
-      setRetryError('无法重试连接，请查看日志。')
+      setFeedback({ snapshot: connection, error: action.errorMessage })
       return
     }
-    const generation = connection.generation
-    setRetryingGeneration(generation)
-    setRetryError(null)
+    setFeedback({ snapshot: connection, pending: action.label })
     try {
-      await bridge.retryStartup(generation)
+      await action.run(bridge)
+      if (connection.failureReason !== 'relocation') {
+        setFeedback((current) => (current?.snapshot === connection ? null : current))
+      }
     } catch {
-      setRetryError('无法重试连接，请查看日志。')
-    } finally {
-      setRetryingGeneration((current) => (current === generation ? null : current))
+      setFeedback((current) =>
+        current?.snapshot === connection
+          ? { snapshot: connection, error: action.errorMessage }
+          : current,
+      )
     }
   }
 
   async function handleOpenLogs(): Promise<void> {
     const bridge = window.DesktopBridge
     if (!bridge) {
-      setRetryError('无法打开日志目录。')
+      setFeedback({ snapshot: connection, error: '无法打开日志目录。' })
       return
     }
     try {
       await bridge.openLogDirectory()
     } catch {
-      setRetryError('无法打开日志目录。')
+      setFeedback({ snapshot: connection, error: '无法打开日志目录。' })
     }
   }
 
@@ -141,12 +152,23 @@ export function ConnectionLostPage(): React.ReactNode {
               {resolveFailedHeading(connection.label)}
             </h1>
             <p className="tw:m-0 tw:max-w-[440px] tw:text-app-text-soft tw:type-1">
-              {retryError ?? '请尝试重新连接 Agent，或打开日志目录排查启动原因。'}
+              {currentFeedback?.error ??
+                (connection.failureReason === 'relocation'
+                  ? '可以再次尝试迁移，或使用原数据位置重新启动。'
+                  : '请尝试重新连接 Agent，或打开日志目录排查启动原因。')}
             </p>
             <div className="tw:mt-3 tw:flex tw:items-center tw:justify-center tw:gap-2">
-              <Button color="primary" loading={retrying} onClick={() => void handleRetry()}>
-                重试连接
-              </Button>
+              {startupRecoveryActions(connection).map((action, index) => (
+                <Button
+                  key={action.label}
+                  color={index === 0 ? 'primary' : 'secondary'}
+                  loading={currentFeedback?.pending === action.label}
+                  disabled={Boolean(currentFeedback?.pending)}
+                  onClick={() => void handleRecovery(action)}
+                >
+                  {action.label}
+                </Button>
+              ))}
               <Button color="secondary" onClick={() => void handleOpenLogs()}>
                 打开日志
               </Button>

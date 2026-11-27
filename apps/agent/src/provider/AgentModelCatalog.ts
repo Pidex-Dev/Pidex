@@ -1,14 +1,14 @@
-import type { PiModelService } from './pi/PiModelService'
+import type { ModelService } from './runtime/ModelService'
 
 /** The model surface consumed by the Agent and transport layers. */
 export type AgentModelCatalog = Pick<
-  PiModelService,
+  ModelService,
   | 'list'
   | 'models'
   | 'resolve'
   | 'getModel'
-  | 'getPiModel'
-  | 'pi'
+  | 'getRuntimeModel'
+  | 'registry'
   | 'refresh'
   | 'reload'
   | 'catalogRevision'

@@ -207,13 +207,15 @@
     display: inline-flex;
     align-items: center;
     gap: var(--cpx-sys-space-2);
-    min-height: 28px;
+    min-height: 1lh;
     color: var(--cpx-sys-color-fg-secondary);
     font: inherit;
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
   }
 
-  .canonical-turn__thinking svg,
-  .canonical-turn__status svg {
+  .canonical-turn__thinking > svg:not(.reasoning-node__shimmer),
+  .canonical-turn__status > svg:not(.reasoning-node__shimmer) {
     width: var(--inline-icon-size, 1em);
     height: var(--inline-icon-size, 1em);
   }
@@ -600,28 +602,14 @@
   }
 
   .canonical-process-card__body {
-    position: relative;
     display: grid;
-    grid-template-columns: var(--cpx-sys-icon-size-sm) minmax(0, 1fr);
-    column-gap: var(--cpx-sys-space-2);
+    gap: var(--cpx-sys-space-2);
     min-width: 0;
-    margin: var(--cpx-sys-space-1) 0 var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3) var(--cpx-sys-space-2) 0;
+    padding-block-start: var(--cpx-sys-space-2);
     color: var(--cpx-sys-color-fg-secondary);
+    font-size: var(--cpx-sys-font-size-1);
+    line-height: var(--cpx-sys-line-height-1);
     overflow-wrap: anywhere;
-  }
-
-  .canonical-process-card__body > * {
-    grid-column: 2;
-    min-width: 0;
-  }
-
-  .canonical-process-card__body::before {
-    position: absolute;
-    inset: 0 auto 0 0;
-    border-left: 1px solid var(--cpx-sys-color-border-subtle);
-    content: '';
-    pointer-events: none;
   }
 
   .canonical-process-card__body p {
@@ -649,7 +637,9 @@
   /* ── Agent activity rows ── */
 
   .cpx-agent-activity {
+    /* INVARIANT: Content indent and the 1px vertical guide line derive from the same header icon size token so the rail stays centered under the group icon. */
     --cpx-activity-indent: calc(var(--cpx-sys-icon-size-sm) + var(--cpx-sys-space-2));
+    --cpx-activity-guide-offset: calc(var(--cpx-sys-icon-size-sm) / 2);
 
     position: relative;
     display: grid;
@@ -701,12 +691,24 @@
   }
 
   .cpx-agent-activity__content {
+    position: relative;
     min-width: 0;
     margin-block: var(--conversation-grouped-item-gap, var(--cpx-sys-space-1)) 0;
-    padding-left: var(
+    padding-block-start: var(--cpx-sys-space-2);
+    padding-inline-start: var(
       --cpx-activity-indent,
       calc(var(--cpx-sys-icon-size-sm) + var(--cpx-sys-space-2))
     );
+  }
+
+  /* INVARIANT: Only top-level activity groups draw the 1px vertical guide rail; nested groups stay unlined. */
+  .cpx-agent-activity__content:not(.cpx-agent-activity__content *)::before {
+    content: '';
+    position: absolute;
+    inset-block: var(--cpx-sys-space-2) 0;
+    inset-inline-start: var(--cpx-activity-guide-offset, calc(var(--cpx-sys-icon-size-sm) / 2));
+    border-inline-start: 1px solid var(--cpx-sys-color-border-subtle);
+    pointer-events: none;
   }
 
   .execution-plan-card__edge-fade {
@@ -757,13 +759,6 @@
       black calc(100% - var(--edge-fade-distance, var(--cpx-sys-space-4))),
       transparent
     );
-  }
-
-  /* 工具列表独立滚动，展开详情不应把整个会话不断撑高。 */
-  .cpx-agent-activity__list {
-    --scroll-area-fade-size: var(--cpx-sys-space-6);
-
-    max-height: 224px;
   }
 
   /* Path steps colour their grouped children from the parent state. */

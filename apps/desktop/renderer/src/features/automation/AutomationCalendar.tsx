@@ -1,3 +1,5 @@
+import { useLocale } from '../i18n/LocaleProvider.js'
+import type { AppLocale } from '../i18n/Locale.js'
 import { APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
 import { useEffect, useMemo, useState } from 'react'
 import type React from 'react'
@@ -18,23 +20,6 @@ import {
   calendarStatusLabel as statusLabel,
   calendarOccurrencesByDate,
 } from './CalendarDates.js'
-
-const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'] as const
-
-const MONTH_LABELS = [
-  '1月',
-  '2月',
-  '3月',
-  '4月',
-  '5月',
-  '6月',
-  '7月',
-  '8月',
-  '9月',
-  '10月',
-  '11月',
-  '12月',
-] as const
 
 export type CalendarStatusKind = 'info' | 'warning' | 'accent' | 'success' | 'danger'
 
@@ -66,6 +51,12 @@ export function AutomationCalendar({
   onRunOccurrence,
   onOpenThread,
 }: Props): React.ReactNode {
+  const { locale, formatDate } = useLocale()
+  function fullDate(date: Date): string {
+    return locale === 'zh-CN'
+      ? `${formatDate(date, { dateStyle: 'long' })} ${formatDate(date, { weekday: 'long' })}`
+      : formatDate(date, { dateStyle: 'full' })
+  }
   const [today] = useState(() => new Date())
   const initialDate = parseDateValue(selectedDate ?? defaultSelectedDate) ?? today
   const [internalSelectedDate, setInternalSelectedDate] = useState(formatDateValue(initialDate))
@@ -75,6 +66,7 @@ export function AutomationCalendar({
     () => new Date(initialDate.getFullYear(), initialDate.getMonth(), 1, 12),
   )
   const [focusedDate, setFocusedDate] = useState(initialDate)
+  const monthTitle = formatDate(visibleMonth, { year: 'numeric', month: 'long' })
 
   // Month picker popover state
   const [monthPickerOpen, setMonthPickerOpen] = useState(false)
@@ -98,8 +90,8 @@ export function AutomationCalendar({
         return d.getFullYear() === targetYear && d.getMonth() === targetMonth
       })
       .slice()
-      .sort((a, b) => a.scheduledFor - b.scheduledFor || a.title.localeCompare(b.title, 'zh-CN'))
-  }, [occurrences, visibleMonth])
+      .sort((a, b) => a.scheduledFor - b.scheduledFor || a.title.localeCompare(b.title, locale))
+  }, [occurrences, visibleMonth, locale])
 
   const occurrencesByDate = useMemo(() => calendarOccurrencesByDate(occurrences), [occurrences])
 
@@ -255,10 +247,10 @@ export function AutomationCalendar({
               <button
                 type="button"
                 className="automation-calendar__month-trigger tw:-ml-2 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1 tw:rounded-control tw:border tw:border-transparent tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:transition-[background-color,border-color] tw:duration-feedback tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover tw:focus-visible:outline-none"
-                aria-label={`选择年月，当前为 ${monthLabel(visibleMonth)}`}
+                aria-label={`选择年月，当前为 ${monthTitle}`}
               >
                 <h2 className="automation-calendar__period tw:m-0 tw:whitespace-nowrap tw:type-5 tw:weight-bold tw:text-app-text">
-                  {monthLabel(visibleMonth)}
+                  {monthTitle}
                 </h2>
                 <ChevronDown
                   size={APP_ICON_SIZES.sm}
@@ -291,7 +283,7 @@ export function AutomationCalendar({
                     <ChevronLeft className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} />
                   </Button>
                   <span className="automation-calendar__year-label tw:type-1 tw:weight-medium tw:text-app-text">
-                    {pickerYear}年
+                    {formatDate(new Date(pickerYear, 0, 1), { year: 'numeric' })}
                   </span>
                   <Button
                     isIconOnly
@@ -305,7 +297,8 @@ export function AutomationCalendar({
                   </Button>
                 </div>
                 <div className="automation-calendar__month-grid tw:grid tw:grid-cols-3 tw:gap-2">
-                  {MONTH_LABELS.map((name, index) => {
+                  {Array.from({ length: 12 }, (_, index) => {
+                    const name = formatDate(new Date(pickerYear, index, 1), { month: 'short' })
                     const isCurrent =
                       visibleMonth.getFullYear() === pickerYear && visibleMonth.getMonth() === index
                     return (
@@ -355,7 +348,7 @@ export function AutomationCalendar({
               >
                 <div className="automation-calendar__tasks-popover-header tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:pb-2">
                   <span className="automation-calendar__tasks-popover-title tw:m-0 tw:type-1 tw:weight-medium tw:text-app-text">
-                    {monthLabel(visibleMonth)}任务清单
+                    {monthTitle}任务清单
                   </span>
                   <span className="automation-calendar__tasks-popover-count tw:type-1 tw:text-app-text-meta">
                     共 {currentMonthOccurrences.length} 项
@@ -372,8 +365,11 @@ export function AutomationCalendar({
                   ) : (
                     currentMonthOccurrences.map((occ) => {
                       const occDate = new Date(occ.scheduledFor)
-                      const dateText = `${occDate.getMonth() + 1}月${occDate.getDate()}日`
-                      const timeText = timeLabel(occ.scheduledFor)
+                      const dateText = formatDate(occDate, { month: 'short', day: 'numeric' })
+                      const timeText = formatDate(occ.scheduledFor, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
                       return (
                         <button
                           key={occ.id}
@@ -455,13 +451,13 @@ export function AutomationCalendar({
           className="automation-calendar__weekdays tw:grid tw:grid-cols-7 tw:border-b tw:border-app-border-subtle tw:pb-2 tw:text-center"
           role="row"
         >
-          {WEEKDAYS.map((name) => (
+          {monthCells.slice(0, 7).map(({ date, value }) => (
             <span
-              key={name}
+              key={value}
               className="automation-calendar__weekday tw:type-1 tw:weight-medium tw:text-app-text-soft"
               role="columnheader"
             >
-              {name}
+              {formatDate(date, { weekday: locale === 'en-US' ? 'short' : 'narrow' })}
             </span>
           ))}
         </div>
@@ -495,7 +491,7 @@ export function AutomationCalendar({
                     data-selected={isSelected ? '' : undefined}
                     data-other-month={!cell.currentMonth ? '' : undefined}
                     aria-selected={isSelected}
-                    aria-label={dayLabel(cell.date, cellOccurrences.length)}
+                    aria-label={dayLabel(fullDate(cell.date), cellOccurrences.length, locale)}
                     tabIndex={isFocused ? 0 : -1}
                     onClick={() => selectDate(cell.date)}
                   >
@@ -538,7 +534,7 @@ export function AutomationCalendar({
         <div className="automation-calendar__agenda-header tw:flex tw:shrink-0 tw:items-center tw:justify-between tw:gap-3">
           <div className="automation-calendar__agenda-title-group tw:flex tw:min-w-0 tw:items-center tw:gap-2">
             <h3 className="automation-calendar__agenda-title tw:m-0 tw:whitespace-nowrap tw:type-4 tw:weight-bold tw:text-app-text">
-              {agendaDateHeading(selectedDateObj)}
+              {fullDate(selectedDateObj)}
             </h3>
             <span className="automation-calendar__agenda-count tw:whitespace-nowrap tw:type-1 tw:text-app-text-meta">
               {selectedDayOccurrences.length} 项任务
@@ -576,9 +572,9 @@ export function AutomationCalendar({
               >
                 <div className="automation-calendar__agenda-time tw:flex tw:w-9 tw:shrink-0 tw:items-center tw:gap-2">
                   <span className="automation-calendar__agenda-time-text tw:tabular-nums tw:type-1 tw:weight-medium tw:text-app-text-soft">
-                    {timeLabel(occurrence.scheduledFor)}
+                    {formatDate(occurrence.scheduledFor, { hour: '2-digit', minute: '2-digit' })}
                     {occurrence.durationMinutes
-                      ? `–${timeLabel(occurrence.scheduledFor + occurrence.durationMinutes * 60_000)}`
+                      ? `–${formatDate(occurrence.scheduledFor + occurrence.durationMinutes * 60_000, { hour: '2-digit', minute: '2-digit' })}`
                       : ''}
                   </span>
                   <span
@@ -661,29 +657,9 @@ function addDays(date: Date, amount: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount, 12)
 }
 
-function monthLabel(date: Date): string {
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-  }).format(date)
-}
-
-function agendaDateHeading(date: Date): string {
-  const weekday = new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }).format(date)
-  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${weekday}`
-}
-
-function dayLabel(date: Date, count: number): string {
-  const weekday = new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }).format(date)
-  const dateText = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${weekday}`
-  return count ? `${dateText}，${count} 项任务` : `${dateText}，没有任务`
-}
-
-export function timeLabel(value: number): string {
-  return new Intl.DateTimeFormat('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(value)
+function dayLabel(date: string, count: number, locale: AppLocale): string {
+  if (locale === 'en-US') return `${date}, ${count} ${count === 1 ? 'task' : 'tasks'}`
+  return count ? `${date}，${count} 项任务` : `${date}，没有任务`
 }
 
 export function sourceLabel(occurrence: CalendarOccurrence): string {

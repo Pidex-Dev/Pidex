@@ -48,7 +48,12 @@ export class PlanApprovalService {
           expectedVersion,
           action: 'implementFresh',
           model: model
-            ? { providerID: model.providerID, id: model.id, variant: model.variant ?? null }
+            ? {
+                providerID: model.providerID,
+                id: model.id,
+                variant: model.variant ?? null,
+                ...(model.speedTier ? { speedTier: model.speedTier } : {}),
+              }
             : null,
         }),
       )
@@ -120,7 +125,12 @@ export class PlanApprovalService {
           action: response.action,
           feedback,
           model: model
-            ? { providerID: model.providerID, id: model.id, variant: model.variant ?? null }
+            ? {
+                providerID: model.providerID,
+                id: model.id,
+                variant: model.variant ?? null,
+                ...(model.speedTier ? { speedTier: model.speedTier } : {}),
+              }
             : null,
         }),
       )

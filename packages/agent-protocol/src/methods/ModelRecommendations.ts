@@ -2,12 +2,14 @@ import { Schema } from 'effect'
 import { Model, Provider } from '@pidex/model-schema'
 import { defineMethod } from '../wire/Definition'
 import { NonNegativeIntSchema, OpaqueIDSchema } from '../wire/Primitives'
+import { ProviderChatApiSchema } from './Extended'
 
 export const RecommendationPreviewParams = Schema.Struct({
   providerId: Schema.String,
   baseUrl: Schema.optional(Schema.String),
   modelId: Schema.String,
   modelType: Schema.Literals(['chat', 'embedding', 'rerank']),
+  api: Schema.optional(Schema.String),
 })
 export const RecommendationSourceSchema = Schema.Literals(['official', 'provider'])
 
@@ -141,6 +143,7 @@ export const ModelRecommendationRpcMethods = {
     result: Schema.Struct({
       status: Schema.Literals(['matched', 'unmatched', 'ambiguous', 'no-cache']),
       recommended: Model.Recommendation,
+      recommendedApi: Schema.optional(ProviderChatApiSchema),
       updatedAt: Schema.optional(Schema.Finite),
       /** 命中的官方模型身份（canonical id）。 */
       identity: Schema.optional(Model.ID),
@@ -178,3 +181,4 @@ export const SmartConfigPinnedFields = Model.SmartConfigPinnedFields
 
 export type ModelPricing = Model.Pricing
 export type ModelUnitPrices = Model.UnitPrices
+export type ModelPricingTier = Model.PricingPriceTier

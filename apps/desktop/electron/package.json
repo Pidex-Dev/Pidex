@@ -1,6 +1,6 @@
 {
   "name": "@pidex/desktop-electron",
-  "version": "0.2.0-beta.10",
+  "version": "0.2.0-beta.11",
   "private": true,
   "type": "module",
   "main": "dist/main.js",
@@ -78,10 +78,6 @@
       {
         "from": "../../../third_party",
         "to": "third_party"
-      },
-      {
-        "from": "../../agent/third_party/pi-agent-core/LICENSE",
-        "to": "agent/third_party/pi-agent-core/LICENSE"
       }
     ],
     "protocols": [

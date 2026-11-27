@@ -74,18 +74,42 @@ describe('release workflows', () => {
     }
   })
 
-  test('performance observation has its own PR job and retains failure evidence', () => {
-    expect(performanceWorkflow).toContain('types: [opened, synchronize, reopened]')
+  test('performance suites run on release/perf PRs or manual dispatch and retain failure evidence', () => {
+    expect(performanceWorkflow).toContain('types: [opened, synchronize, reopened, labeled, edited]')
+    expect(performanceWorkflow).toContain('workflow_dispatch:')
+    expect(performanceWorkflow).not.toContain('schedule:')
+    expect(performanceWorkflow).not.toContain('\npush:')
+    expect(performanceWorkflow).not.toContain('\n  branches: [main]')
+
+    const gate = job(performanceWorkflow, 'perf-gate')
+    expect(gate).toContain('PR_TITLE: ${{ github.event.pull_request.title }}')
+    expect(gate).toContain('PR_HEAD_REF: ${{ github.head_ref }}')
+    expect(gate).toContain("PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}")
+    expect(gate).toContain('scripts/performance/*')
+    expect(gate).toContain('apps/desktop/renderer/performance-tests/*')
+    expect(gate).toContain('apps/desktop/electron/performance-tests/*')
+    expect(gate).not.toMatch(
+      /run:\s*\|(?:(?!\n\s+-\s+name:)[\s\S])*\$\{\{\s*github\.(?:event\.pull_request\.title|head_ref)/,
+    )
+
     const observation = job(performanceWorkflow, 'renderer-observation')
+    expect(observation).toContain('needs: perf-gate')
+    expect(observation).toContain("if: needs.perf-gate.outputs.run == 'true'")
     expect(observation).toContain('RunSuite.ts --suite=renderer')
     expect(observation).not.toContain('--enforce')
     expect(observation).not.toContain('continue-on-error')
     expect(observation).toContain('if: always()')
     expect(observation).toContain('performance-results/raw/renderer/')
     expect(observation).toContain('apps/desktop/renderer/test-results/performance/')
-    expect(job(performanceWorkflow, 'packaged-electron')).toContain(
-      "if: github.event_name != 'pull_request'",
-    )
+
+    const packagedElectron = job(performanceWorkflow, 'packaged-electron')
+    expect(packagedElectron).toContain('needs: perf-gate')
+    expect(packagedElectron).toContain("if: needs.perf-gate.outputs.run == 'true'")
+    expect(packagedElectron).toContain('bun run perf:electron')
+    expect(packagedElectron).toContain('if: always()')
+    expect(packagedElectron).toContain('performance-results/electron/')
+    expect(packagedElectron).toContain('performance-results/raw/electron/')
+    expect(packagedElectron).toContain('apps/desktop/electron/test-results/performance/')
   })
 
   test('ordinary pull requests never enter a self-hosted release runner', () => {
@@ -192,8 +216,10 @@ describe('release workflows', () => {
   })
 
   test('only superseded PR runs are cancelled and main commits have unique groups', () => {
-    for (const workflow of [packageWorkflow, ciWorkflow, prRulesWorkflow, performanceWorkflow]) {
+    for (const workflow of [packageWorkflow, ciWorkflow, prRulesWorkflow]) {
       expect(workflow).toContain('branches: [main]')
+    }
+    for (const workflow of [packageWorkflow, ciWorkflow, prRulesWorkflow, performanceWorkflow]) {
       expect(workflow).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}")
       expect(workflow).toContain('github.event.pull_request.number || github.run_id')
       expect(workflow).not.toContain('paths-ignore:')

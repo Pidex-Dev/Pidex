@@ -14,10 +14,7 @@ import {
 import { HandoffLifecycle } from '../src/handoff/HandoffLifecycle'
 import { BindingHandoffWorkspace } from '../src/handoff/BindingHandoffWorkspace'
 import { ThreadForkRepository } from '../src/handoff/ThreadForkRepository'
-import {
-  SqlitePiSessionRepo,
-  SqlitePiSessionStorage,
-} from '../src/storage/pi-session/SqlitePiSession'
+import { SqliteSessionRepo, SqliteSessionStorage } from '../src/storage/session/SqliteSession'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { ThreadProjection } from '../src/transport/ThreadProjection'
 import { EnvironmentDeltaStore } from '../src/local-environment/EnvironmentDeltaStore'
@@ -44,13 +41,13 @@ describe('Conversation fork 与 Handoff 可见性', () => {
   test('复制完整可继续历史但不复制运行态，ack 前在 active/archived list 都不可见', async () => {
     const db = await database()
     const source = db.createThread('source')
-    const session = await new SqlitePiSessionRepo(db).create({
+    const session = await new SqliteSessionRepo(db).create({
       id: 'session-source',
       threadID: source.id,
       agentID: 'agent-source',
     })
     await session.appendMessage({ role: 'user', content: 'persisted pi leaf', timestamp: 1 })
-    ;(session.getStorage() as SqlitePiSessionStorage).flush()
+    ;(session.getStorage() as SqliteSessionStorage).flush()
     db.sqlite
       .query(
         `INSERT INTO turns (id, thread_id, root_agent_id, status, mode, model_ref, strategy, created_at, updated_at)
@@ -136,7 +133,7 @@ describe('Conversation fork 与 Handoff 可见性', () => {
       .query("SELECT id FROM pi_sessions WHERE thread_id = 'target-thread'")
       .get() as { id: string }
     expect(
-      (await new SqlitePiSessionRepo(db).openByID(copiedSession.id)).getEntries(),
+      (await new SqliteSessionRepo(db).openByID(copiedSession.id)).getEntries(),
     ).resolves.toHaveLength(1)
     expect(
       db.sqlite
@@ -200,13 +197,13 @@ describe('Conversation fork 与 Handoff 可见性', () => {
   test('首事务 marker 隐藏未完成 fork，启动回滚可清理并用同一 target 重试', async () => {
     const db = await database()
     const source = db.createThread('source')
-    const session = await new SqlitePiSessionRepo(db).create({
+    const session = await new SqliteSessionRepo(db).create({
       id: 'crash-session',
       threadID: source.id,
       agentID: 'crash-agent',
     })
     await session.appendMessage({ role: 'user', content: 'fork crash', timestamp: 1 })
-    ;(session.getStorage() as SqlitePiSessionStorage).flush()
+    ;(session.getStorage() as SqliteSessionStorage).flush()
     db.sqlite
       .query(
         `INSERT INTO turns (id, thread_id, root_agent_id, status, mode, model_ref, strategy, created_at, updated_at)
@@ -228,18 +225,18 @@ describe('Conversation fork 与 Handoff 可见性', () => {
       requestHash: 'fork-crash',
     })
 
-    let reachedPiFork!: () => void
-    let releasePiFork!: () => void
+    let reachedFork!: () => void
+    let releaseFork!: () => void
     const reached = new Promise<void>((resolve) => {
-      reachedPiFork = resolve
+      reachedFork = resolve
     })
     const release = new Promise<void>((resolve) => {
-      releasePiFork = resolve
+      releaseFork = resolve
     })
     let id = 0
     const interrupted = new ThreadForkRepository(db, () => `crash-fork-${++id}`, {
       fork: async () => {
-        reachedPiFork()
+        reachedFork()
         await release
         throw new Error('simulated process interruption')
       },
@@ -266,7 +263,7 @@ describe('Conversation fork 与 Handoff 可见性', () => {
     expect(
       db.sqlite.query("SELECT id FROM threads WHERE id = 'fork-crash-target'").get(),
     ).toBeNull()
-    releasePiFork()
+    releaseFork()
     await expect(pending).rejects.toMatchObject({ code: 'HISTORY_UNSUPPORTED' })
 
     const retried = await new ThreadForkRepository(db, () => `retry-fork-${++id}`).fork(source.id, {

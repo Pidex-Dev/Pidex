@@ -11,6 +11,7 @@ export interface DesktopStartupSnapshot {
   generation: number
   revision: number
   state: 'loading' | 'connected' | 'failed'
+  failureReason?: 'relocation'
   label: string
 }
 

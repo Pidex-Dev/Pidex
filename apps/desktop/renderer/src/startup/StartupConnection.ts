@@ -1,4 +1,5 @@
 import { useExternalSubscription } from '../hooks/UseExternalSubscription.js'
+import type { DesktopDataLocationIpcBridge } from '@pidex/shared/desktop-data-location-ipc'
 import type {
   DesktopStartupIpcBridge,
   DesktopStartupSnapshot,
@@ -13,6 +14,40 @@ const CONNECTED_FALLBACK_SNAPSHOT: DesktopStartupSnapshot = {
 
 let currentSnapshot: DesktopStartupSnapshot | undefined
 const connectionListeners = new Set<() => void>()
+
+type StartupRecoveryBridge = Pick<DesktopStartupIpcBridge, 'retryStartup'> &
+  Pick<DesktopDataLocationIpcBridge, 'retryDataLocation' | 'restoreDataLocation'>
+
+export interface StartupRecoveryAction {
+  label: string
+  errorMessage: string
+  run(bridge: StartupRecoveryBridge): Promise<void>
+}
+
+export function startupRecoveryActions(snapshot: DesktopStartupSnapshot): StartupRecoveryAction[] {
+  if (snapshot.state !== 'failed') return []
+  if (snapshot.failureReason === 'relocation') {
+    return [
+      {
+        label: '重试迁移',
+        errorMessage: '无法重试迁移，请查看日志。',
+        run: (bridge) => bridge.retryDataLocation(),
+      },
+      {
+        label: '恢复原位置并重启',
+        errorMessage: '无法恢复原数据位置，请查看日志。',
+        run: (bridge) => bridge.restoreDataLocation(),
+      },
+    ]
+  }
+  return [
+    {
+      label: '重试连接',
+      errorMessage: '无法重试连接，请查看日志。',
+      run: (bridge) => bridge.retryStartup(snapshot.generation),
+    },
+  ]
+}
 
 function isStaleStartupSnapshot(
   current: DesktopStartupSnapshot | undefined,
@@ -65,7 +100,7 @@ export function subscribeStartupConnection(
   }
   const unsubscribe = bridge.onStartupChanged(accept)
   void bridge.getStartupSnapshot().then(accept, () => {
-    if (!disposed) onError()
+    if (!disposed && !latest) onError()
   })
   return () => {
     disposed = true

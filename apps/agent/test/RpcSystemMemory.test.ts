@@ -38,7 +38,7 @@ const fixture = async (overrides: Partial<RpcRouterDependencies> = {}) => {
     localContextPaths: {} as never,
     projectSources: {} as never,
     providers: {} as never,
-    piModels: {} as never,
+    runtimeModels: {} as never,
     apiKeys: {} as never,
     modelHealth: {} as never,
     modelSync: {} as never,

@@ -3,7 +3,7 @@ import { AgentHarness } from '../../src/orchestration/harness/AgentHarness.ts'
 import type { AgentHarnessTool } from '../../src/orchestration/harness/Types.ts'
 import type { AgentTool } from '../../src/orchestration/harness/AgentTypes.ts'
 import { DeferredToolCatalog } from '../../src/tool/harness/DeferredToolCatalog.ts'
-import { InMemorySessionRepo } from '../../scripts/support/PiSessionMemory.ts'
+import { InMemorySessionRepo } from '../../scripts/support/SessionMemoryFixture.ts'
 import {
   Type,
   createModels,

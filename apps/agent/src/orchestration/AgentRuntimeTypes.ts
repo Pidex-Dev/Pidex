@@ -69,7 +69,7 @@ export interface SubagentForkSnapshot {
     deferred: readonly string[]
     exposed: readonly string[]
   }
-  /** Serialized Pi session entries (parent path) copied into child session. */
+  /** Serialized session entries (parent path) copied into child session. */
   entries?: unknown[]
   /** Identical placeholder tool-result messages appended after parent assistant toolCalls. */
   placeholderMessages?: unknown[]
@@ -128,6 +128,7 @@ export interface AgentRuntimeRequest {
   agentID: string
   sessionID: string
   profile?: SubagentProfile
+  waitForModelNetwork?: boolean
   depth?: number
   collaborationMessages?: () => Array<{
     id: string
@@ -178,10 +179,7 @@ export interface AgentRuntimeRequest {
   ): Promise<unknown>
   /** Subagent-only safe-boundary control; main Chat steer does not use this callback. */
   checkSafeBoundary?: () => Promise<boolean>
-  attachments?: Array<
-    | { kind: 'text'; name: string; text: string }
-    | { kind: 'image' | 'audio' | 'video'; name: string; mediaType: string; base64: string }
-  >
+  attachments?: import('../provider/runtime/MediaInput').RuntimeAttachment[]
 }
 
 export type AgentRuntimeResult =
@@ -195,7 +193,7 @@ export interface AgentRuntime {
     content: string,
     images?: RuntimeImage[],
     inputID?: string,
-    media?: import('../provider/pi/MediaInput').MediaInput[],
+    media?: import('../provider/runtime/MediaInput').MediaInput[],
   ): Promise<void>
   followUp(threadID: string, content: string): Promise<void>
   abort(threadID: string): Promise<void>

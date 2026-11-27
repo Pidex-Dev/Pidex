@@ -57,6 +57,7 @@ describe('听写快捷键', () => {
   }
 
   test('仅在非 IME 合成时响应 Ctrl+Shift+D', () => {
+    expect(isDictationShortcut({ ...event, ctrlKey: false }, 'Shift+D')).toBe(false)
     expect(isDictationShortcut(event)).toBe(true)
     expect(isDictationShortcut({ ...event, key: 'd' })).toBe(true)
     expect(isDictationShortcut({ ...event, isComposing: true })).toBe(false)

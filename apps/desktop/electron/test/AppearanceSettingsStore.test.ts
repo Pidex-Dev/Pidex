@@ -85,8 +85,6 @@ describe('Electron 外观设置存储', () => {
       state: 'completed',
       backup: null,
     })
-    expect(await store.canRestorePreviousAppearance()).toBe(false)
-    await expect(store.restorePreviousAppearance()).rejects.toThrow('无可用升级前外观备份')
   })
 
   test('Codex(new) 主题选择保存后可重新读取', async () => {
@@ -98,7 +96,7 @@ describe('Electron 外观设置存储', () => {
     expect((await new AppearanceSettingsStore(root).load()).codeThemeIds).toEqual(codeThemeIds)
   })
 
-  test('损坏 JSON 删除旧文件、记录无敏感信息的事件并恢复默认值', async () => {
+  test('损坏 JSON 仅使用内存默认值，保留原件直到修复', async () => {
     const root = temporaryRoot()
     const records: Array<{ event: string; fields?: Record<string, unknown> }> = []
     const store = new AppearanceSettingsStore(root, {
@@ -108,14 +106,14 @@ describe('Electron 外观设置存储', () => {
     await writeFile(store.filePath, '{not-json', 'utf8')
 
     expect(await store.load()).toEqual(DEFAULT_APPEARANCE_SETTINGS)
-    expect(JSON.parse(await readFile(store.filePath, 'utf8'))).toEqual(DEFAULT_APPEARANCE_SETTINGS)
-    expect((await readdir(root)).sort()).toEqual([
-      'appearance-migration.json',
-      'appearance-settings.json',
-    ])
+    await expect(store.save(DEFAULT_APPEARANCE_SETTINGS)).rejects.toThrow('请修复')
+    expect(await readFile(store.filePath, 'utf8')).toBe('{not-json')
+    expect(await readdir(root)).toEqual(['appearance-settings.json'])
+    await writeFile(store.filePath, JSON.stringify(DEFAULT_APPEARANCE_SETTINGS), 'utf8')
+    await store.save(DEFAULT_APPEARANCE_SETTINGS)
     expect(records).toEqual([
       {
-        event: 'appearance-settings.corrupt-reset',
+        event: 'appearance-settings.corrupt-preserved',
         fields: { reason: 'invalid-json' },
       },
     ])
@@ -280,18 +278,8 @@ describe('Electron 外观设置存储', () => {
     expect(loaded.chromeThemes.light.fonts).toEqual(loaded.fonts)
     expect(loaded.chromeThemes.dark.fonts).toEqual(loaded.fonts)
     expect(records).toEqual([])
-    expect(await store.canRestorePreviousAppearance()).toBe(false)
     expect(JSON.parse(await readFile(store.filePath, 'utf8'))).toEqual(loaded)
     expect(await new AppearanceSettingsStore(root).load()).toEqual(loaded)
-
-    const reapplied = await store.applyNewDesignTheme()
-    expect(reapplied.chromeThemes.light.accent).toBe('#0169cc')
-    expect(reapplied.chromeThemes.light.surface).toBe('#ffffff')
-    expect(reapplied.fontSizes.ui).toBe(15)
-    expect(reapplied.fonts.ui).toBe('Inter')
-    expect(reapplied.fonts.code).toBe('JetBrains Mono')
-    expect(JSON.parse(await readFile(store.filePath, 'utf8'))).toEqual(reapplied)
-    expect(await store.canRestorePreviousAppearance()).toBe(false)
   })
 
   test('V7 缺少迁移记录时保留已保存配色、字体和字号，重启仍一致', async () => {
@@ -398,11 +386,6 @@ describe('Electron 外观设置存储', () => {
     const migrationRecord = JSON.parse(await readFile(store.migrationFilePath, 'utf8'))
     expect(migrationRecord.state).toBe('completed')
     expect(migrationRecord.backup).toEqual(customBackup)
-
-    expect(await store.canRestorePreviousAppearance()).toBe(true)
-    const restored = await store.restorePreviousAppearance()
-    expect(restored.chromeThemes.light.accent).toBe('#112233')
-    expect(restored.fontSizes.ui).toBe(16)
   })
 
   test('迁移记录读取失败时保留原设置与记录，不重跑迁移', async () => {
@@ -437,7 +420,6 @@ describe('Electron 外观设置存储', () => {
       },
     ])
     expect(JSON.stringify(records)).not.toContain(root)
-    expect(await store.canRestorePreviousAppearance()).toBe(false)
   })
 
   test('记录版本、迁移 ID 或备份不可识别时保留记录并跳过迁移', async () => {
@@ -501,8 +483,6 @@ describe('Electron 外观设置存储', () => {
         },
       ])
       expect(JSON.stringify(records)).not.toContain(root)
-      expect(await store.canRestorePreviousAppearance()).toBe(false)
-      await expect(store.restorePreviousAppearance()).rejects.toThrow('无可用升级前外观备份')
     }
   })
 

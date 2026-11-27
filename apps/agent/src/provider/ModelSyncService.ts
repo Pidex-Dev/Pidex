@@ -6,18 +6,18 @@ import {
   assertSafeProviderHeaders,
   CUSTOM_PROVIDER_APIS,
   validateCustomProviderBaseUrl,
-  serializePiProviderDefinition,
-  type PiCustomModelSyncConfig,
-  type PiCustomProviderConfig,
+  serializeProviderDefinition,
+  type CustomModelSyncConfig,
+  type CustomProviderConfig,
   type ProviderEndpointApi,
-} from './pi/PiProviderConfig'
+} from './runtime/ProviderConfig'
 import {
   listProviderModels,
   type ListableChatApi,
   type ListedProviderModel,
   type ProviderModelFetch,
-} from './pi/PiModelListing'
-import type { PiModelService } from './pi/PiModelService'
+} from './runtime/ModelListing'
+import type { ModelService } from './runtime/ModelService'
 
 /** Protocol-shaped candidate returned by sync and discovery results. */
 export interface ProviderModelDefinition {
@@ -105,7 +105,7 @@ const isListableChatApi = (value: unknown): value is ListableChatApi =>
  */
 export class ModelSyncService {
   constructor(
-    private readonly piModels: PiModelService,
+    private readonly runtimeModels: ModelService,
     private readonly config: ConfigService,
   ) {}
 
@@ -123,9 +123,9 @@ export class ModelSyncService {
     const savedProviders = isObject(snapshot.model_providers) ? snapshot.model_providers : {}
     const definition =
       provider.directorySource && !isObject(savedProviders[providerId])
-        ? (await this.piModels.providerDefinitions()).find((entry) => entry.id === providerId)
+        ? (await this.runtimeModels.providerDefinitions()).find((entry) => entry.id === providerId)
         : undefined
-    const initial = definition ? serializePiProviderDefinition(definition).value : undefined
+    const initial = definition ? serializeProviderDefinition(definition).value : undefined
     const raw = initial
       ? { models: {} as Record<string, unknown> }
       : await this.rawProvider(providerId)
@@ -144,7 +144,7 @@ export class ModelSyncService {
       api,
       false,
     )
-    const modelSync: PiCustomModelSyncConfig = {
+    const modelSync: CustomModelSyncConfig = {
       fetchedAt: listing.fetchedAt,
       api,
       models: listing.models.map((model) => model.id),
@@ -243,9 +243,9 @@ export class ModelSyncService {
     // Registering saved custom providers happens during catalog sync, so the
     // active credential for a draft fetch is only resolvable afterwards.
     const useSavedCredential = draft.auth === 'api-key' && input.providerId !== undefined
-    if (useSavedCredential) await this.piModels.catalogConfig()
+    if (useSavedCredential) await this.runtimeModels.catalogConfig()
     const savedAuth = useSavedCredential
-      ? await this.piModels.pi.getAuth(input.providerId!)
+      ? await this.runtimeModels.registry.getAuth(input.providerId!)
       : undefined
     const savedAuthHeaders = savedAuth?.auth.headers ?? {}
     if (draft.auth === 'api-key') {
@@ -289,7 +289,7 @@ export class ModelSyncService {
     const resolved: ProviderModelDefinition[] = []
     const matches: ProviderModelMatchInfo[] = []
     for (const model of models) {
-      const recommendation = await this.piModels.previewRecommendation({
+      const recommendation = await this.runtimeModels.previewRecommendation({
         providerId,
         baseUrl,
         modelId: model.id,
@@ -353,8 +353,8 @@ export class ModelSyncService {
     return { models: resolved, matches }
   }
 
-  private async customProvider(providerId: string): Promise<PiCustomProviderConfig> {
-    const provider = (await this.piModels.catalogConfig()).providers[providerId]
+  private async customProvider(providerId: string): Promise<CustomProviderConfig> {
+    const provider = (await this.runtimeModels.catalogConfig()).providers[providerId]
     if (!provider) {
       throw new AgentError('PROVIDER_NOT_FOUND', `Provider ${providerId} 不存在`, 404)
     }
@@ -365,7 +365,7 @@ export class ModelSyncService {
   }
 
   /** Model protocol, saved baseline, then the configured endpoint for a new provider. */
-  private selectApi(provider: PiCustomProviderConfig): ListableChatApi {
+  private selectApi(provider: CustomProviderConfig): ListableChatApi {
     const first = Object.values(provider.models).find(
       (model) => (!model.modelType || model.modelType === 'chat') && isListableChatApi(model.api),
     )
@@ -378,12 +378,14 @@ export class ModelSyncService {
 
   private async savedRequest(
     providerId: string,
-    provider: PiCustomProviderConfig,
+    provider: CustomProviderConfig,
     api: ListableChatApi,
     fetch: ProviderModelFetch | undefined,
   ) {
     const auth =
-      provider.auth === 'api-key' ? await this.piModels.pi.getAuth(providerId) : undefined
+      provider.auth === 'api-key'
+        ? await this.runtimeModels.registry.getAuth(providerId)
+        : undefined
     if (provider.auth === 'api-key' && !auth) {
       throw new AgentError(
         'CREDENTIAL_NOT_FOUND',

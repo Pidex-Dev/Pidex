@@ -4,7 +4,7 @@ import type { AgentHarnessEvent } from '../orchestration/harness/Types'
 import type { EventEnvelope } from '../Domain'
 import type { EventHubSignal } from '../storage/events/EventHub'
 import type { AgentLogger, LogContext, LogLevel } from './AgentLogger'
-import { providerFailureCategory, providerFailureMessage } from '../provider/ModelHealthService'
+import { describeProviderRequestFailure } from '../provider/ModelHealthService'
 
 type JsonObject = Record<string, unknown>
 
@@ -523,8 +523,8 @@ export class HarnessLogObserver {
       const usage = object(message.usage)
       const state = this.providers.get(key)
       const reason = text(message.stopReason)
-      const category =
-        reason === 'error' ? providerFailureCategory(message.errorMessage) : undefined
+      const failure =
+        reason === 'error' ? describeProviderRequestFailure(message.errorMessage) : undefined
       this.logger[reason === 'error' ? 'error' : reason === 'aborted' ? 'warn' : 'info'](
         reason === 'error'
           ? 'provider.failed'
@@ -535,7 +535,7 @@ export class HarnessLogObserver {
           context,
           details: {
             ...(reason ? { reason } : {}),
-            ...(category ? { category, message: providerFailureMessage(category, 'request') } : {}),
+            ...failure,
             ...(state
               ? {
                   provider: state.provider,

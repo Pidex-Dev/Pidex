@@ -21,6 +21,21 @@ describe('终端 Shell profile', () => {
     expect(service.resolve(null).id).toBe('windows-powershell')
   })
 
+  test('Windows 从 PATH 上的 Git 和用户安装目录发现 Bash', () => {
+    for (const root of ['C:\\PortableGit', 'C:\\Local\\Programs\\Git']) {
+      const files = new Set([root + '\\bin\\bash.exe', root + '\\cmd\\git.exe'])
+      const service = new ShellProfileService({
+        platform: 'win32',
+        environment: {
+          Path: root.includes('Portable') ? root + '\\cmd' : '',
+          LOCALAPPDATA: 'C:\\Local',
+        },
+        fileExists: (path) => files.has(path),
+      })
+      expect(service.resolve('git-bash').executable).toBe(root + '\\bin\\bash.exe')
+    }
+  })
+
   test('只能解析探测结果中的可用 opaque profile ID', () => {
     const service = new ShellProfileService({
       platform: 'linux',

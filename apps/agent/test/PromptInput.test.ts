@@ -3,7 +3,7 @@ import { ToolRegistry } from '../src/tool/ToolRegistry'
 import { expect, test } from 'bun:test'
 import { PromptComposer } from '../src/prompt/PromptComposer'
 import { createPromptSections } from '../src/prompt/Sections'
-import { promptContext } from '../src/orchestration/pi/ExecuteHarnessRun'
+import { promptContext } from '../src/orchestration/execution/ExecuteHarnessRun'
 import { formatPermissionInstructions } from '../src/prompt/PermissionInstructions'
 import { DEFAULT_PERMISSION_CONFIG } from '@pidex/shared/thread'
 

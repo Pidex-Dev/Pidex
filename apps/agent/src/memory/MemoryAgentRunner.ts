@@ -1,4 +1,4 @@
-import type { Api, Context, Model as PiModel, Tool } from '@earendil-works/pi-ai'
+import type { Api, Context, Model as RuntimeModel, Tool } from '@earendil-works/pi-ai'
 import { z } from 'zod'
 import type { Models } from '@earendil-works/pi-ai'
 import type { MemoryAgentRunner, MemoryService, MemoryToolScope } from './MemoryService'
@@ -13,7 +13,7 @@ import type { MemoryAgentRunner, MemoryService, MemoryToolScope } from './Memory
 export type MemoryRunnerModelResolver = (input: {
   modelRef: string
   projectId: string | null
-}) => Promise<{ ref: string; model: PiModel<Api> } | null>
+}) => Promise<{ ref: string; model: RuntimeModel<Api> } | null>
 
 const listSchema = z.object({}).strict()
 const readSchema = z

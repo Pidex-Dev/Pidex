@@ -26,12 +26,12 @@ const RELOCATION_DIRECTORIES = [
   'logs',
   'speech',
 ] as const
-const RELOCATION_FILES = [
+const MODEL_CACHE_FILES = [
   'models.cache.json',
   'pi-models.cache.json',
-  'hooks.json',
-  '.data-location-v1.json',
+  'provider-models.cache.json',
 ] as const
+const RELOCATION_FILES = [...MODEL_CACHE_FILES, 'hooks.json', '.data-location-v1.json'] as const
 const RELOCATION_MARKER_FILE_NAME = '.data-location-v2.json'
 const OPERATION_ID_PATTERN = /^[a-zA-Z0-9-]{8,128}$/
 
@@ -167,14 +167,9 @@ async function migrateDataRoot(sourceRoot: string, targetRoot: string, copyDatab
     }
   }
 
-  await copyFileIfMissing(
-    join(sourceRoot, 'models.cache.json'),
-    join(targetRoot, 'models.cache.json'),
-  )
-  await copyFileIfMissing(
-    join(sourceRoot, 'pi-models.cache.json'),
-    join(targetRoot, 'pi-models.cache.json'),
-  )
+  for (const name of MODEL_CACHE_FILES) {
+    await copyFileIfMissing(join(sourceRoot, name), join(targetRoot, name))
+  }
   await migratePets(join(sourceRoot, 'pets'), join(targetRoot, 'pets'))
   await migrateAgentLogs(join(sourceRoot, 'logs'), join(targetRoot, 'logs'))
   await copyTreeIfMissing(join(sourceRoot, 'speech'), join(targetRoot, 'speech'))

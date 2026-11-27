@@ -92,6 +92,9 @@ export const TurnStatusSchema = Schema.Literals([
 ])
 export type TurnStatus = typeof TurnStatusSchema.Type
 
+export const ModelRecoveryStateSchema = Schema.Literals(['waiting-for-network', 'retrying'])
+export type ModelRecoveryState = typeof ModelRecoveryStateSchema.Type
+
 export const ThreadWorkspaceSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal('project'),
@@ -186,6 +189,7 @@ export const TurnSchema = Schema.Struct({
   threadId: Schema.String,
   sourceInputID: Schema.String,
   status: TurnStatusSchema,
+  modelRecovery: Schema.optional(ModelRecoveryStateSchema),
   mode: TaskModeSchema,
   model: Model.Ref,
   permissionConfig: PermissionConfigSchema,

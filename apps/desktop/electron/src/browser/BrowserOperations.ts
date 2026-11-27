@@ -296,7 +296,7 @@ export async function runBrowserOperation(
   }
 }
 
-// Key mappings adapted from ZCode browserCommandInput.ts (Apache-2.0).
+// Apache-2.0. See third_party/zcode/LICENSE and third_party/zcode/UPSTREAM.md.
 async function pressKey(
   send: (method: string, params: Record<string, unknown>) => Promise<unknown>,
   chord: string,
