@@ -6,11 +6,7 @@ import {
   type Provider,
   type ProviderStreams,
 } from '@earendil-works/pi-ai'
-import type {
-  CustomProviderApi,
-  CustomModelConfig,
-  CustomProviderConfig,
-} from './ProviderConfig'
+import type { CustomProviderApi, CustomModelConfig, CustomProviderConfig } from './ProviderConfig'
 import type { Model as PidexModel } from '@pidex/model-schema'
 import { providerApiStreams as streams } from './ProviderApis'
 

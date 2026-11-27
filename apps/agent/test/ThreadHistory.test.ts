@@ -7,10 +7,7 @@ import { join } from 'node:path'
 import { removeFixturePaths } from './FixtureCleanup'
 import { ThreadHistoryService } from '../src/session/ThreadHistoryService'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
-import {
-  SqliteSessionRepo,
-  SqliteSessionStorage,
-} from '../src/storage/session/SqliteSession'
+import { SqliteSessionRepo, SqliteSessionStorage } from '../src/storage/session/SqliteSession'
 import { EventHub } from '../src/storage/events/EventHub'
 import { ThreadProjection } from '../src/transport/ThreadProjection'
 import { ApprovalService } from '../src/permission/ApprovalService'

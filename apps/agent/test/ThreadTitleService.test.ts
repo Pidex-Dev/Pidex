@@ -134,7 +134,8 @@ describe('ThreadTitleService', () => {
       history,
       {
         registry: {},
-        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
+        getRuntimeModel: async () =>
+          ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -162,7 +163,8 @@ describe('ThreadTitleService', () => {
       history,
       {
         registry: {},
-        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
+        getRuntimeModel: async () =>
+          ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -187,7 +189,8 @@ describe('ThreadTitleService', () => {
       history,
       {
         registry: {},
-        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
+        getRuntimeModel: async () =>
+          ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -210,7 +213,8 @@ describe('ThreadTitleService', () => {
       history,
       {
         registry: {},
-        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
+        getRuntimeModel: async () =>
+          ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -281,7 +285,8 @@ describe('ThreadTitleService', () => {
       history,
       {
         registry: {},
-        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
+        getRuntimeModel: async () =>
+          ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -341,7 +346,8 @@ describe('ThreadTitleService', () => {
       history,
       {
         registry: {},
-        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
+        getRuntimeModel: async () =>
+          ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -389,7 +395,8 @@ describe('ThreadTitleService', () => {
       history,
       {
         registry: {},
-        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
+        getRuntimeModel: async () =>
+          ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -414,7 +421,8 @@ describe('ThreadTitleService', () => {
       history,
       {
         registry: {},
-        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
+        getRuntimeModel: async () =>
+          ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -439,7 +447,8 @@ describe('ThreadTitleService', () => {
       history,
       {
         registry: {},
-        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
+        getRuntimeModel: async () =>
+          ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,

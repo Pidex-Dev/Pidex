@@ -347,15 +347,22 @@ export class ModelRecommendationIndex {
       const referenced = binding?.modelRef ? this.models.models[binding.modelRef] : undefined
       const bindingType = binding?.type ?? referenced?.type ?? 'chat'
       let recommendedApi: RecommendationMatch['recommendedApi']
-      if (provider && binding && endpointProvider && bindingType === 'chat' &&
-        input.modelType === 'chat' && input.endpoints) {
+      if (
+        provider &&
+        binding &&
+        endpointProvider &&
+        bindingType === 'chat' &&
+        input.modelType === 'chat' &&
+        input.endpoints
+      ) {
         const endpoints = {
           ...(input.api && baseUrl ? { [input.api]: baseUrl } : {}),
           ...input.endpoints,
         }
         const availableApis = new Set(
           Object.entries(endpoints).flatMap(([api, url]) =>
-            isChatApi(api) && url &&
+            isChatApi(api) &&
+            url &&
             resolveCatalogEndpoint(this.endpoints, url) === endpointProvider &&
             !isOtherCatalogProtocolEndpoint(url, api, provider.protocolEndpoints)
               ? [api]

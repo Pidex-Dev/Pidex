@@ -26,12 +26,12 @@ const RELOCATION_DIRECTORIES = [
   'logs',
   'speech',
 ] as const
-const MODEL_CACHE_FILES = ['models.cache.json', 'pi-models.cache.json', 'provider-models.cache.json'] as const
-const RELOCATION_FILES = [
-  ...MODEL_CACHE_FILES,
-  'hooks.json',
-  '.data-location-v1.json',
+const MODEL_CACHE_FILES = [
+  'models.cache.json',
+  'pi-models.cache.json',
+  'provider-models.cache.json',
 ] as const
+const RELOCATION_FILES = [...MODEL_CACHE_FILES, 'hooks.json', '.data-location-v1.json'] as const
 const RELOCATION_MARKER_FILE_NAME = '.data-location-v2.json'
 const OPERATION_ID_PATTERN = /^[a-zA-Z0-9-]{8,128}$/
 

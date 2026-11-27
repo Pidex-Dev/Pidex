@@ -78,7 +78,9 @@ export interface ProviderAuthSessionServiceOptions {
   now?: () => number
   ttlMs?: number
   getDeviceId?: () => string
-  resolveTarget(target: ProviderAuthTarget): Promise<ProviderAuthLoginTarget> | ProviderAuthLoginTarget
+  resolveTarget(
+    target: ProviderAuthTarget,
+  ): Promise<ProviderAuthLoginTarget> | ProviderAuthLoginTarget
   onUpdated?(session: ProviderAuthSessionView): void | Promise<void>
   onCompleted?(target: ProviderAuthTarget): void | Promise<void>
 }
@@ -130,7 +132,11 @@ export class ProviderAuthSessionService {
     return this.view(record)
   }
 
-  async respond(sessionID: string, promptID: string, value: string): Promise<ProviderAuthSessionView> {
+  async respond(
+    sessionID: string,
+    promptID: string,
+    value: string,
+  ): Promise<ProviderAuthSessionView> {
     const record = this.required(sessionID)
     if (record.expiresAt <= this.now()) this.expire(record)
     if (record.status !== 'waiting' || !record.pendingPrompt) {

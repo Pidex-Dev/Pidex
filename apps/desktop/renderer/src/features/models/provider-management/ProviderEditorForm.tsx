@@ -993,9 +993,7 @@ export function ProviderEditorForm({
         <div className="tw:grid tw:gap-5">
           <div className="provider-editor-tab-panel tw:grid tw:gap-4">
             <section className="tw:grid tw:gap-4 tw:border-t tw:border-app-border-subtle tw:pt-5">
-              <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">
-                连接与基础信息
-              </h3>
+              <h3 className="tw:m-0 tw:text-app-text tw:type-2 tw:weight-medium">连接与基础信息</h3>
               <div className="tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[640px]:grid-cols-1">
                 <label className={activeFieldClass}>
                   <span>显示名称</span>

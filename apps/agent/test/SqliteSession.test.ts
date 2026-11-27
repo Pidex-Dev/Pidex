@@ -5,10 +5,7 @@ import { join } from 'node:path'
 import { removeFixturePaths } from './FixtureCleanup'
 import { Model, Provider } from '@pidex/model-schema'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
-import {
-  SqliteSessionRepo,
-  SqliteSessionStorage,
-} from '../src/storage/session/SqliteSession'
+import { SqliteSessionRepo, SqliteSessionStorage } from '../src/storage/session/SqliteSession'
 
 const roots: string[] = []
 const databases: AgentDatabase[] = []

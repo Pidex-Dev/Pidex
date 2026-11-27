@@ -4,10 +4,7 @@ import { activeTurnSql } from '../../storage/repositories/ThreadEditRepository'
 import { randomUUID } from 'node:crypto'
 import type { SessionTreeEntry } from '../../orchestration/harness/Types'
 import { AgentError } from '../../Domain'
-import {
-  SqliteSessionRepo,
-  type SqliteSessionMetadata,
-} from '../../storage/session/SqliteSession'
+import { SqliteSessionRepo, type SqliteSessionMetadata } from '../../storage/session/SqliteSession'
 import type { AgentDatabase } from '../../storage/database/AgentDatabase'
 import { parseSessionEntry } from '../../storage/session/SessionEntry'
 import { TurnSessionBoundaryRepository } from '../../storage/repositories/TurnSessionBoundaryRepository'
@@ -582,7 +579,11 @@ export class ConversationHistoryForkRepository {
       if (!sourceItemID)
         throw new AgentError('FORK_POINT_UNAVAILABLE', '最新完成回复缺少可安全分叉的结果', 409)
       selected = this.requireForkPoint(sourceThreadID, latestCompleted.id, sourceItemID)
-      sessionBoundary = this.resolveSessionBoundary(latestCompleted.id, selected.sessionID, selected.text)
+      sessionBoundary = this.resolveSessionBoundary(
+        latestCompleted.id,
+        selected.sessionID,
+        selected.text,
+      )
     }
 
     const targetRootID = options.targetThreadID ?? this.nextID()

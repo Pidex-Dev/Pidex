@@ -147,8 +147,10 @@ export function selectCatalogProtocol(
   const available = (api: string) =>
     availableApis
       ? availableApis.has(api)
-      : Boolean(catalogEndpoint(provider.protocolEndpoints[api]) ||
-          (preferred === api && catalogEndpoint(binding.baseUrl)))
+      : Boolean(
+          catalogEndpoint(provider.protocolEndpoints[api]) ||
+          (preferred === api && catalogEndpoint(binding.baseUrl)),
+        )
   const candidates =
     requested === undefined
       ? [binding.api, ...(binding.supportedProtocols ?? []), provider.defaultProtocol]

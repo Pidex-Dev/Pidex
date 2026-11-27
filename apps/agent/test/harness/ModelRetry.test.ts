@@ -175,7 +175,12 @@ test('disconnect after a tool result reuses the prepared step and replaces faile
             if (inputs.length === 1) {
               stream.push({ type: 'start', partial: message })
               stream.push({ type: 'toolcall_start', contentIndex: 0, partial: message })
-              stream.push({ type: 'toolcall_delta', contentIndex: 0, delta: '{}', partial: message })
+              stream.push({
+                type: 'toolcall_delta',
+                contentIndex: 0,
+                delta: '{}',
+                partial: message,
+              })
               stream.push({ type: 'toolcall_end', contentIndex: 0, toolCall, partial: message })
             }
             stream.push({ type: 'done', reason: 'toolUse', message })

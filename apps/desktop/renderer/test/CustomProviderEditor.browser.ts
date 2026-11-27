@@ -1004,7 +1004,11 @@ try {
     .press('Tab')
   await expect(builtinPanel.getByRole('button', { name: '设为默认', exact: true })).toHaveCount(0)
   await expect
-    .poll(() => builtinPage.evaluate(() => (window as any).__providers.google.config.endpoints['openai-completions']))
+    .poll(() =>
+      builtinPage.evaluate(
+        () => (window as any).__providers.google.config.endpoints['openai-completions'],
+      ),
+    )
     .toBe('https://custom-compatible.example/v1')
   assert.equal(
     await builtinPage.evaluate(() => (window as any).__providers.google.config.protocol),

@@ -21,7 +21,12 @@ const periods = [
   { value: 'idle', label: '闲时' },
   { value: 'busy', label: '忙时' },
 ]
-const labels = { input: '输入', output: '输出', cacheRead: '缓存读取', cacheWrite: '缓存写入' } as const
+const labels = {
+  input: '输入',
+  output: '输出',
+  cacheRead: '缓存读取',
+  cacheWrite: '缓存写入',
+} as const
 type PriceFieldKey = keyof typeof labels
 export function ModelPricingEditor({
   value,

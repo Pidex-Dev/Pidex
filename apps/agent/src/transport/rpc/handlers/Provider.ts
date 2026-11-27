@@ -415,9 +415,7 @@ export const providerHandlers = {
         }
         let serialized: ReturnType<typeof serializeProviderDefinition>
         try {
-          serialized = serializeProviderDefinition(
-            definition as unknown as ProviderDefinitionInput,
-          )
+          serialized = serializeProviderDefinition(definition as unknown as ProviderDefinitionInput)
         } catch (cause) {
           if (cause instanceof ProviderConfigValidationError) {
             const firstIssue = cause.issues[0]

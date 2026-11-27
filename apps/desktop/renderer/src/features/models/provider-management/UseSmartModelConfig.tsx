@@ -150,61 +150,61 @@ export function useSmartModelConfig(
 
   const controls =
     allowSmartConfig && supported ? (
-    <div className="tw:grid tw:gap-2 tw:text-app-text-soft tw:type-1">
-      <div className="tw:flex tw:items-center tw:justify-between tw:gap-2">
-        <div className="tw:flex tw:items-center tw:gap-2">
-          <h3 className="tw:m-0 tw:type-4 tw:weight-bold">智能配置</h3>
-          <InfoTooltip
-            ariaLabel="智能配置说明"
-            content="按完整官方模型 ID、官方别名与供应商前缀匹配 models.dev 推荐；普通网关前缀不影响官方身份。打开开关后自动匹配并填充推荐值；暂未匹配时保留当前值和开启状态，目录更新同步后继续自动匹配。关闭后使用手动值，手动修改字段也会自动关闭开关。"
-          />
+      <div className="tw:grid tw:gap-2 tw:text-app-text-soft tw:type-1">
+        <div className="tw:flex tw:items-center tw:justify-between tw:gap-2">
+          <div className="tw:flex tw:items-center tw:gap-2">
+            <h3 className="tw:m-0 tw:type-4 tw:weight-bold">智能配置</h3>
+            <InfoTooltip
+              ariaLabel="智能配置说明"
+              content="按完整官方模型 ID、官方别名与供应商前缀匹配 models.dev 推荐；普通网关前缀不影响官方身份。打开开关后自动匹配并填充推荐值；暂未匹配时保留当前值和开启状态，目录更新同步后继续自动匹配。关闭后使用手动值，手动修改字段也会自动关闭开关。"
+            />
+          </div>
+          <ToggleSwitch ariaLabel="智能配置" checked={enabled} onChange={setEnabled} />
         </div>
-        <ToggleSwitch ariaLabel="智能配置" checked={enabled} onChange={setEnabled} />
+        <ModelDocumentEditor model={model} onChange={onChange} />
+        {error || busy || (enabled && preview?.status !== 'matched') ? (
+          <p role={error ? 'alert' : 'status'} className="tw:m-0">
+            {error ??
+              (!enabled
+                ? ''
+                : !model.id.trim()
+                  ? '输入模型 ID 后匹配推荐。'
+                  : busy
+                    ? '正在匹配推荐…'
+                    : !preview
+                      ? ''
+                      : {
+                          matched: '',
+                          unmatched: '暂未匹配，已保留智能配置；目录更新同步后会自动采用推荐',
+                          ambiguous: preview.candidates?.length
+                            ? `模型身份存在歧义：${preview.candidates.join(' / ')}`
+                            : '模型身份存在歧义，请使用完整 ID',
+                          'no-cache': '推荐目录暂不可用，已保留智能配置，更新后会重新匹配',
+                        }[preview.status])}
+            {preview?.status === 'no-cache' ? (
+              <Button
+                variant="ghost"
+                size="xs"
+                disabled={busy}
+                onClick={() => {
+                  void desktopClient.modelRecommendations
+                    ?.refresh()
+                    .finally(
+                      () =>
+                        void load(
+                          latest.current.model.smartConfig?.pinned.length === 0 &&
+                            latest.current.model.smartConfig.enabled !== false,
+                        ),
+                    )
+                }}
+              >
+                立即刷新推荐数据
+              </Button>
+            ) : null}
+          </p>
+        ) : null}
       </div>
-      <ModelDocumentEditor model={model} onChange={onChange} />
-      {error || busy || (enabled && preview?.status !== 'matched') ? (
-        <p role={error ? 'alert' : 'status'} className="tw:m-0">
-          {error ??
-            (!enabled
-              ? ''
-              : !model.id.trim()
-                ? '输入模型 ID 后匹配推荐。'
-                : busy
-                  ? '正在匹配推荐…'
-                  : !preview
-                    ? ''
-                    : {
-                        matched: '',
-                        unmatched: '暂未匹配，已保留智能配置；目录更新同步后会自动采用推荐',
-                        ambiguous: preview.candidates?.length
-                          ? `模型身份存在歧义：${preview.candidates.join(' / ')}`
-                          : '模型身份存在歧义，请使用完整 ID',
-                        'no-cache': '推荐目录暂不可用，已保留智能配置，更新后会重新匹配',
-                      }[preview.status])}
-          {preview?.status === 'no-cache' ? (
-            <Button
-              variant="ghost"
-              size="xs"
-              disabled={busy}
-              onClick={() => {
-                void desktopClient.modelRecommendations
-                  ?.refresh()
-                  .finally(
-                    () =>
-                      void load(
-                        latest.current.model.smartConfig?.pinned.length === 0 &&
-                          latest.current.model.smartConfig.enabled !== false,
-                      ),
-                  )
-              }}
-            >
-              立即刷新推荐数据
-            </Button>
-          ) : null}
-        </p>
-      ) : null}
-    </div>
-  ) : null
+    ) : null
 
   return {
     controls,

@@ -542,7 +542,10 @@ type DraftProbeCall = {
 }
 
 const captureDraftProbe = (
-  stream: (model: RuntimeModel<Api>, options: SimpleStreamOptions) => TransientProbeStream = () => ({
+  stream: (
+    model: RuntimeModel<Api>,
+    options: SimpleStreamOptions,
+  ) => TransientProbeStream = () => ({
     result: async () => ({ stopReason: 'stop' }) as AssistantMessage,
   }),
 ) => {

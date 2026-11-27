@@ -297,7 +297,8 @@ const modelToInfo = (model: RuntimeModel<Api>, enabled: boolean, variant?: strin
   ...((model as ConfiguredRuntimeModel).pricing
     ? { pricing: (model as ConfiguredRuntimeModel).pricing }
     : {}),
-  ...((model as ConfiguredRuntimeModel).billingMode || (model as ConfiguredRuntimeModel).pricing?.billingMode
+  ...((model as ConfiguredRuntimeModel).billingMode ||
+  (model as ConfiguredRuntimeModel).pricing?.billingMode
     ? {
         billingMode:
           (model as ConfiguredRuntimeModel).billingMode ??
@@ -316,7 +317,8 @@ const modelToInfo = (model: RuntimeModel<Api>, enabled: boolean, variant?: strin
   ...((model as ConfiguredRuntimeModel).catalog?.family
     ? { family: Model.Family.make((model as ConfiguredRuntimeModel).catalog!.family!) }
     : {}),
-  ...((model as ConfiguredRuntimeModel).modelType && (model as ConfiguredRuntimeModel).modelType !== 'chat'
+  ...((model as ConfiguredRuntimeModel).modelType &&
+  (model as ConfiguredRuntimeModel).modelType !== 'chat'
     ? { modelType: (model as ConfiguredRuntimeModel).modelType! }
     : {}),
   api: {
@@ -429,7 +431,9 @@ export class ModelService {
       )
       if (discovered !== provider) this.mutableRegistry?.setProvider(discovered)
     }
-    this.baseProviders = new Map(this.registry.getProviders().map((provider) => [provider.id, provider]))
+    this.baseProviders = new Map(
+      this.registry.getProviders().map((provider) => [provider.id, provider]),
+    )
     this.builtinProviderIDs = new Set(this.registry.getProviders().map((provider) => provider.id))
     this.installOptionMapBoundary()
     this.configSource = options.config
@@ -588,7 +592,8 @@ export class ModelService {
     if (directoryEntry && !this.builtinProviderIDs.has(providerID))
       return Object.keys(directoryEntry.models).length
     const runtimeModels =
-      this.directoryBaseProviders.get(providerID)?.getModels() ?? this.registry.getModels(providerID)
+      this.directoryBaseProviders.get(providerID)?.getModels() ??
+      this.registry.getModels(providerID)
     if (runtimeModels.length > 0) {
       return runtimeModels.filter(
         (model) => (model as ConfiguredRuntimeModel).catalog?.status !== 'deprecated',
@@ -608,7 +613,8 @@ export class ModelService {
       return []
     }
     const current = (
-      this.directoryBaseProviders.get(providerID)?.getModels() ?? this.registry.getModels(providerID)
+      this.directoryBaseProviders.get(providerID)?.getModels() ??
+      this.registry.getModels(providerID)
     ).filter(isChatModel)
     if (this.providerCatalog?.providersDoc.providers[providerID])
       return current.map((model) => model.id)
@@ -696,7 +702,10 @@ export class ModelService {
       throw new AgentError('PROVIDER_NOT_FOUND', '内置供应商不存在', 404)
     const runtimeModels = this.registry.getModels(providerID)
     const catalogIds = new Set(
-      this.directoryBaseProviders.get(providerID)?.getModels().map((model) => model.id),
+      this.directoryBaseProviders
+        .get(providerID)
+        ?.getModels()
+        .map((model) => model.id),
     )
     return this.describeDiscoveredModels(
       catalogIds.size > 0
@@ -830,10 +839,7 @@ export class ModelService {
       (!this.modelEnabled(model, config) &&
         !(alias && alias.id !== modelID && this.modelEnabled({ ...model, id: modelID }, config)))
     ) {
-      throw new ModelServiceError(
-        'MODEL_NOT_FOUND',
-        `Model ${providerID}/${modelID} was not found`,
-      )
+      throw new ModelServiceError('MODEL_NOT_FOUND', `Model ${providerID}/${modelID} was not found`)
     }
     if (ref.variant && !supportedThinkingLevels(model).includes(String(ref.variant))) {
       throw new ModelServiceError(
@@ -898,7 +904,9 @@ export class ModelService {
     body: Record<string, unknown>,
     options: ModelOperationOptions,
   ) {
-    const model = (await this.getRuntimeModel(ref)) as ConfiguredRuntimeModel & { maxInputTokens?: number }
+    const model = (await this.getRuntimeModel(ref)) as ConfiguredRuntimeModel & {
+      maxInputTokens?: number
+    }
     if (model.modelType !== kind)
       throw new AgentError('INVALID_REQUEST', '模型类型与请求操作不匹配', 400)
     const texts =
@@ -1204,7 +1212,10 @@ export class ModelService {
    * 仅在缓存中存在匹配条目时叠加规格、思考强度、定价与闲时规则，
    * 用户显式手工覆写会在后续 `withBuiltinProviderOverrides` 层覆盖其上。
    */
-  private async enrichBuiltinModel(id: string, model: RuntimeModel<Api>): Promise<RuntimeModel<Api>> {
+  private async enrichBuiltinModel(
+    id: string,
+    model: RuntimeModel<Api>,
+  ): Promise<RuntimeModel<Api>> {
     const { recommended } = await this.recommendations.resolve({
       providerId: id,
       modelId: model.id,
@@ -1691,7 +1702,9 @@ export class ModelService {
     return this.syncOperation
   }
 
-  private protocolDefaults(provider: RuntimeProvider): Readonly<Record<string, string>> | undefined {
+  private protocolDefaults(
+    provider: RuntimeProvider,
+  ): Readonly<Record<string, string>> | undefined {
     const declared = this.catalogProtocolEndpoints[provider.id]
     if (declared || !this.providerCatalog) return declared
     return Object.fromEntries(
@@ -1730,8 +1743,7 @@ export class ModelService {
   }
 
   private assertActive() {
-    if (this.disposed)
-      throw new ModelServiceError('DISPOSED', 'Model service has been disposed')
+    if (this.disposed) throw new ModelServiceError('DISPOSED', 'Model service has been disposed')
   }
 }
 

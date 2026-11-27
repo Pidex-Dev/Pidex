@@ -182,10 +182,7 @@ export interface RuntimeEventSink {
     context: RuntimeEventContext,
     input: { itemID: string; delta: string },
   ): void | Promise<void>
-  reasoningStarted?(
-    context: RuntimeEventContext,
-    input: { itemID: string },
-  ): void | Promise<void>
+  reasoningStarted?(context: RuntimeEventContext, input: { itemID: string }): void | Promise<void>
   reasoningDelta?(
     context: RuntimeEventContext,
     input: { itemID: string; delta: string },

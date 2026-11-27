@@ -189,9 +189,7 @@ function ModelSetupGuideDialog({
           reserveCloseSpace={false}
           subtitle={
             <DialogDescription asChild>
-              <p className="tw:m-0">
-                配置模型后即可开始编写代码、分析项目或执行自动化任务。
-              </p>
+              <p className="tw:m-0">配置模型后即可开始编写代码、分析项目或执行自动化任务。</p>
             </DialogDescription>
           }
           title={

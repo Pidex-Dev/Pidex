@@ -105,7 +105,8 @@ function requestDraft(provider: DesktopModelProviderSummary) {
     config?.baseUrl &&
     protocol !== 'mixed' &&
     (config.kind === 'custom' || !config.endpoints?.[protocol])
-  ) endpoints[protocol] = config.baseUrl
+  )
+    endpoints[protocol] = config.baseUrl
   return {
     endpoints,
     allowModels: config?.kind === 'builtin' ? config.allowModels.join(', ') : '',
@@ -561,7 +562,8 @@ export function ProviderRequestSettingsForm({
               <div key={option.value} className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
                 <span className="tw:flex tw:items-center tw:justify-between tw:gap-2">
                   {option.label}
-                  {canSelectProtocol && !['openai-embeddings', 'jina-rerank'].includes(option.value) ? (
+                  {canSelectProtocol &&
+                  !['openai-embeddings', 'jina-rerank'].includes(option.value) ? (
                     <Button
                       variant="outline"
                       size="sm"

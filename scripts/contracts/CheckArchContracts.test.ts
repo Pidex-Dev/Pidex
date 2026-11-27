@@ -55,9 +55,9 @@ test('rejects upstream brand paths and allows product names and license paths', 
     'third_party/pi-agent-core/LICENSE',
     'patches/@earendil-works%2Fpi-ai@0.99.2.patch',
   ]
-  const rootDir = await createFixtureRepo(Object.fromEntries(
-    [...forbidden, ...allowed].map((path) => [path, '']),
-  ))
+  const rootDir = await createFixtureRepo(
+    Object.fromEntries([...forbidden, ...allowed].map((path) => [path, ''])),
+  )
   const report = await evaluateArchContracts({ rootDir, manifest: EMPTY_MANIFEST })
   expect(report.violations.map((v) => [v.rule, v.file]).sort()).toEqual(
     forbidden.map((path) => ['banned-upstream-brand-path', path]).sort(),

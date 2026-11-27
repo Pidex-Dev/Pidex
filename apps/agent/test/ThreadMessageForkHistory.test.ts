@@ -6,10 +6,7 @@ import { removeFixturePaths } from './FixtureCleanup'
 import { ProviderEventAdapter } from '../src/orchestration/execution/ProviderEventAdapter'
 import { ConversationHistoryForkRepository } from '../src/session/fork/ConversationHistoryForkRepository'
 import { ThreadMessageForkRepository } from '../src/session/fork/ThreadMessageForkRepository'
-import {
-  SqliteSessionRepo,
-  SqliteSessionStorage,
-} from '../src/storage/session/SqliteSession'
+import { SqliteSessionRepo, SqliteSessionStorage } from '../src/storage/session/SqliteSession'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { TurnSessionBoundaryRepository } from '../src/storage/repositories/TurnSessionBoundaryRepository'
 import { AttachmentService } from '../src/subagent/AttachmentService'

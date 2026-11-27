@@ -104,17 +104,14 @@ test('static OpenAI catalogs discover remote models, preserve metadata and cache
   }
   const service = runtime()
   const restored = runtime()
-  const endpointOverride = withBuiltinProviderOverrides(
-    service.registry.getProvider('nvidia')!,
-    {
-      kind: 'builtin',
-      enabled: true,
-      allowModels: [],
-      denyModels: [],
-      models: {},
-      endpoints: { 'openai-completions': 'https://relay.example/v1' },
-    },
-  )
+  const endpointOverride = withBuiltinProviderOverrides(service.registry.getProvider('nvidia')!, {
+    kind: 'builtin',
+    enabled: true,
+    allowModels: [],
+    denyModels: [],
+    models: {},
+    endpoints: { 'openai-completions': 'https://relay.example/v1' },
+  })
   try {
     await service.refresh(true, 'nvidia')
     // 上游发现的模型作为候选进入同步弹窗，未显式添加前不进入模型选择器。

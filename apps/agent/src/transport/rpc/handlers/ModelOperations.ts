@@ -11,7 +11,11 @@ export const modelOperationHandlers = {
     try {
       if (method === 'model/embed') {
         const input = Schema.decodeUnknownSync(EmbedParamsSchema)(rawParams)
-        return await runtime.dependencies.runtimeModels.embed(input.model, input.input, input.dimensions)
+        return await runtime.dependencies.runtimeModels.embed(
+          input.model,
+          input.input,
+          input.dimensions,
+        )
       }
       const input = Schema.decodeUnknownSync(RerankParamsSchema)(rawParams)
       return await runtime.dependencies.runtimeModels.rerank(

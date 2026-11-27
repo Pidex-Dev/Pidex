@@ -55,7 +55,7 @@ ZCode 与 pi-agent-core 的许可证和归属说明统一位于根目录 [third_
 | 浏览器分区                  | `persist:codepilotx-browser`                                            | `persist:pidex-browser`                                       |
 | 本地存储键前缀              | `codepilotx.*`                                                          | `pidex.*`                                                     |
 | 凭据仓库格式                | `codepilotx-provider-auth`                                              | `pidex-provider-auth`                                         |
-| 供应商模型缓存 owner           | `codepilotx`                                                            | `pidex`                                                       |
+| 供应商模型缓存 owner        | `codepilotx`                                                            | `pidex`                                                       |
 | 结果卡信封 kind             | `codepilotx.result-card`                                                | `pidex.result-card`                                           |
 | 批注清单与格式              | `codepilotx-browser-annotations.json`、`codepilotx.browser-annotations` | `pidex-browser-annotations.json`、`pidex.browser-annotations` |
 | 会话 cookie                 | `codepilotx_session`                                                    | `pidex_session`                                               |

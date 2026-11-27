@@ -116,8 +116,9 @@ export interface ModelOptionRuleInput {
  * 解析模型命中的 optionSpecs（通用层 + api/baseUrl 细化层，后匹配者覆盖）。
  * 规则是逐条正则覆盖，不做裸名模糊匹配，避免把相似模型误合并。
  */
-export const resolveModelOptionSpecs = (input: ModelOptionRuleInput): Model.OptionSpecs | undefined =>
-  resolveFrom(bundledRules, input).optionSpecs
+export const resolveModelOptionSpecs = (
+  input: ModelOptionRuleInput,
+): Model.OptionSpecs | undefined => resolveFrom(bundledRules, input).optionSpecs
 
 /**
  * 带来源的解析。`genericReasoningValues` 为真表示档位只是 `.*` 兜底的

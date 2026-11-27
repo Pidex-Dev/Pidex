@@ -210,103 +210,104 @@ export function ProviderModelsSection({
             metadata: modelMetadata[model.id],
           }))
         : customConfig
-        ? customConfig.models.map((model) => {
-            const meta = modelMetadata[model.id]
-            const resolvedModel: DesktopProviderModelDefinition = {
-              ...model,
-              ...(model.catalog ? {} : meta?.catalog ? { catalog: meta.catalog } : {}),
-              ...(model.maxInputTokens !== undefined
-                ? {}
-                : meta?.inputTokens !== undefined
-                  ? { maxInputTokens: meta.inputTokens }
-                  : {}),
-            }
-            return {
-              id: model.id,
-              group: model.group,
-              enabled: model.enabled !== false,
-              model: resolvedModel,
-              metadata: meta,
-            }
-          })
-        : [
-            ...new Set([
-              ...(builtinConfig?.allowModels ?? []),
-              ...(builtinConfig?.models.map((model) => String(model.id)) ?? []),
-            ]),
-          ]
-            .filter(
-              (id) =>
-                builtinConfig?.models.find((model) => model.id === id)?.enabled !== false &&
-                !builtinConfig?.denyModels.includes(id as never) &&
-                (!builtinConfig?.allowModels.length ||
-                  builtinConfig.allowModels.includes(id as never)),
-            )
-            .map((id) => {
-              const override = builtinConfig?.models.find((model) => model.id === id)
-              const meta = modelMetadata[id]
-              const enabled =
-                override?.enabled !== false && !builtinConfig?.denyModels.includes(id as never)
-              const cost =
-                override?.cost ??
-                (meta?.inputCost !== undefined ||
-                meta?.outputCost !== undefined ||
-                meta?.cacheReadCost !== undefined ||
-                meta?.cacheWriteCost !== undefined
-                  ? {
-                      ...(meta?.inputCost !== undefined ? { input: meta.inputCost } : {}),
-                      ...(meta?.outputCost !== undefined ? { output: meta.outputCost } : {}),
-                      ...(meta?.cacheReadCost !== undefined
-                        ? { cacheRead: meta.cacheReadCost }
-                        : {}),
-                      ...(meta?.cacheWriteCost !== undefined
-                        ? { cacheWrite: meta.cacheWriteCost }
-                        : {}),
-                    }
-                  : undefined)
-              const input =
-                override?.input ??
-                (meta?.modalities?.input as DesktopProviderModelDefinition['input'] | undefined) ??
-                (meta?.vision ? (['text', 'image'] as const) : undefined)
-              const modelType = override?.modelType ?? meta?.modelType
-              const normalizedModelType =
-                modelType === 'embedding' || modelType === 'rerank' ? modelType : 'chat'
+          ? customConfig.models.map((model) => {
+              const meta = modelMetadata[model.id]
               const resolvedModel: DesktopProviderModelDefinition = {
-                id: id as DesktopProviderModelDefinition['id'],
-                name: override?.name ?? meta?.name ?? id,
-                api: override?.api ?? meta?.providerApi ?? 'openai-completions',
-                enabled,
-                modelType: normalizedModelType,
-                ...((override?.contextWindow ?? meta?.contextWindow)
-                  ? { contextWindow: override?.contextWindow ?? meta?.contextWindow }
-                  : {}),
-                ...((override?.maxInputTokens ?? meta?.inputTokens)
-                  ? { maxInputTokens: override?.maxInputTokens ?? meta?.inputTokens }
-                  : {}),
-                ...((override?.maxTokens ?? meta?.outputTokens)
-                  ? { maxTokens: override?.maxTokens ?? meta?.outputTokens }
-                  : {}),
-                ...(override?.reasoning !== undefined || meta?.reasoning !== undefined
-                  ? { reasoning: override?.reasoning ?? meta?.reasoning }
-                  : {}),
-                ...(override?.tools !== undefined || meta?.toolCall !== undefined
-                  ? { tools: override?.tools ?? meta?.toolCall }
-                  : {}),
-                ...(input ? { input } : {}),
-                ...((override?.catalog ?? meta?.catalog)
-                  ? { catalog: override?.catalog ?? meta?.catalog }
-                  : {}),
-                ...(override?.optionSpecs ? { optionSpecs: override.optionSpecs } : {}),
-                ...(cost ? { cost } : {}),
+                ...model,
+                ...(model.catalog ? {} : meta?.catalog ? { catalog: meta.catalog } : {}),
+                ...(model.maxInputTokens !== undefined
+                  ? {}
+                  : meta?.inputTokens !== undefined
+                    ? { maxInputTokens: meta.inputTokens }
+                    : {}),
               }
               return {
-                id,
-                group: override?.group,
-                enabled,
+                id: model.id,
+                group: model.group,
+                enabled: model.enabled !== false,
                 model: resolvedModel,
                 metadata: meta,
               }
-            }),
+            })
+          : [
+              ...new Set([
+                ...(builtinConfig?.allowModels ?? []),
+                ...(builtinConfig?.models.map((model) => String(model.id)) ?? []),
+              ]),
+            ]
+              .filter(
+                (id) =>
+                  builtinConfig?.models.find((model) => model.id === id)?.enabled !== false &&
+                  !builtinConfig?.denyModels.includes(id as never) &&
+                  (!builtinConfig?.allowModels.length ||
+                    builtinConfig.allowModels.includes(id as never)),
+              )
+              .map((id) => {
+                const override = builtinConfig?.models.find((model) => model.id === id)
+                const meta = modelMetadata[id]
+                const enabled =
+                  override?.enabled !== false && !builtinConfig?.denyModels.includes(id as never)
+                const cost =
+                  override?.cost ??
+                  (meta?.inputCost !== undefined ||
+                  meta?.outputCost !== undefined ||
+                  meta?.cacheReadCost !== undefined ||
+                  meta?.cacheWriteCost !== undefined
+                    ? {
+                        ...(meta?.inputCost !== undefined ? { input: meta.inputCost } : {}),
+                        ...(meta?.outputCost !== undefined ? { output: meta.outputCost } : {}),
+                        ...(meta?.cacheReadCost !== undefined
+                          ? { cacheRead: meta.cacheReadCost }
+                          : {}),
+                        ...(meta?.cacheWriteCost !== undefined
+                          ? { cacheWrite: meta.cacheWriteCost }
+                          : {}),
+                      }
+                    : undefined)
+                const input =
+                  override?.input ??
+                  (meta?.modalities?.input as
+                    DesktopProviderModelDefinition['input'] | undefined) ??
+                  (meta?.vision ? (['text', 'image'] as const) : undefined)
+                const modelType = override?.modelType ?? meta?.modelType
+                const normalizedModelType =
+                  modelType === 'embedding' || modelType === 'rerank' ? modelType : 'chat'
+                const resolvedModel: DesktopProviderModelDefinition = {
+                  id: id as DesktopProviderModelDefinition['id'],
+                  name: override?.name ?? meta?.name ?? id,
+                  api: override?.api ?? meta?.providerApi ?? 'openai-completions',
+                  enabled,
+                  modelType: normalizedModelType,
+                  ...((override?.contextWindow ?? meta?.contextWindow)
+                    ? { contextWindow: override?.contextWindow ?? meta?.contextWindow }
+                    : {}),
+                  ...((override?.maxInputTokens ?? meta?.inputTokens)
+                    ? { maxInputTokens: override?.maxInputTokens ?? meta?.inputTokens }
+                    : {}),
+                  ...((override?.maxTokens ?? meta?.outputTokens)
+                    ? { maxTokens: override?.maxTokens ?? meta?.outputTokens }
+                    : {}),
+                  ...(override?.reasoning !== undefined || meta?.reasoning !== undefined
+                    ? { reasoning: override?.reasoning ?? meta?.reasoning }
+                    : {}),
+                  ...(override?.tools !== undefined || meta?.toolCall !== undefined
+                    ? { tools: override?.tools ?? meta?.toolCall }
+                    : {}),
+                  ...(input ? { input } : {}),
+                  ...((override?.catalog ?? meta?.catalog)
+                    ? { catalog: override?.catalog ?? meta?.catalog }
+                    : {}),
+                  ...(override?.optionSpecs ? { optionSpecs: override.optionSpecs } : {}),
+                  ...(cost ? { cost } : {}),
+                }
+                return {
+                  id,
+                  group: override?.group,
+                  enabled,
+                  model: resolvedModel,
+                  metadata: meta,
+                }
+              }),
     [previewOnly, previewModels, customConfig, builtinConfig, models, modelMetadata],
   )
 
@@ -580,7 +581,9 @@ export function ProviderModelsSection({
           { id: id as DesktopProviderModelDefinition['id'], enabled: true },
         ],
         denyModels: config.denyModels.filter((item) => item !== id),
-        allowModels: [...new Set([...config.allowModels, id as DesktopProviderModelDefinition['id']])],
+        allowModels: [
+          ...new Set([...config.allowModels, id as DesktopProviderModelDefinition['id']]),
+        ],
       },
       provider.providerID,
     )

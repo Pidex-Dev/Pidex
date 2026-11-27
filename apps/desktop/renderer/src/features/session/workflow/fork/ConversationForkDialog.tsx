@@ -69,36 +69,36 @@ export function ConversationForkDialog({
           选择在当前工作树或新的托管工作树中从此消息继续。
         </DialogDescription>
 
-          {choosing ? (
-            <div className="tw:grid tw:gap-2">
-              <DestinationButton
-                disabled={busy}
-                description="从此消息在同一工作树中继续"
-                title="使用此工作树"
-                onClick={() => onSelectDestination({ kind: 'same-worktree' })}
-              />
+        {choosing ? (
+          <div className="tw:grid tw:gap-2">
+            <DestinationButton
+              disabled={busy}
+              description="从此消息在同一工作树中继续"
+              title="使用此工作树"
+              onClick={() => onSelectDestination({ kind: 'same-worktree' })}
+            />
+            <p className="tw:m-0 tw:px-3 tw:type-1 tw:text-app-text-soft">
+              两个聊天共享同一工作目录，后续文件修改互相可见。
+            </p>
+            <DestinationButton
+              disabled={busy || !canUseNewWorktree}
+              description="在新工作树中从此消息继续"
+              title="使用新工作树"
+              onClick={() => onSelectDestination({ kind: 'new-worktree' })}
+            />
+            {!canUseNewWorktree ? (
               <p className="tw:m-0 tw:px-3 tw:type-1 tw:text-app-text-soft">
-                两个聊天共享同一工作目录，后续文件修改互相可见。
+                当前任务不在 Git 工作区中，无法创建托管工作树。
               </p>
-              <DestinationButton
-                disabled={busy || !canUseNewWorktree}
-                description="在新工作树中从此消息继续"
-                title="使用新工作树"
-                onClick={() => onSelectDestination({ kind: 'new-worktree' })}
-              />
-              {!canUseNewWorktree ? (
-                <p className="tw:m-0 tw:px-3 tw:type-1 tw:text-app-text-soft">
-                  当前任务不在 Git 工作区中，无法创建托管工作树。
-                </p>
-              ) : sourceRunning ? (
-                <p className="tw:m-0 tw:px-3 tw:type-1 tw:text-app-text-soft">
-                  当前任务正在运行，将从当前 Git HEAD 创建，不复制未提交修改。
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <ForkProgress progress={progress} />
-          )}
+            ) : sourceRunning ? (
+              <p className="tw:m-0 tw:px-3 tw:type-1 tw:text-app-text-soft">
+                当前任务正在运行，将从当前 Git HEAD 创建，不复制未提交修改。
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <ForkProgress progress={progress} />
+        )}
 
         {awaitingSetup ? (
           <DialogFooter>

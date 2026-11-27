@@ -7,10 +7,7 @@ import { Effect } from 'effect'
 import { Model, Provider } from '@pidex/model-schema'
 import { DEFAULT_PERMISSION_CONFIG } from '@pidex/shared/thread'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
-import {
-  SqliteSessionRepo,
-  SqliteSessionStorage,
-} from '../src/storage/session/SqliteSession'
+import { SqliteSessionRepo, SqliteSessionStorage } from '../src/storage/session/SqliteSession'
 import { ThreadEditRepository } from '../src/storage/repositories/ThreadEditRepository'
 import { ThreadService } from '../src/session/ThreadService'
 import { ConversationHistoryForkRepository } from '../src/session/fork/ConversationHistoryForkRepository'

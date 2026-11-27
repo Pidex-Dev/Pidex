@@ -101,91 +101,91 @@ export function GitBoardCheckoutDialog({
             </DialogTitle>
           }
         />
-          {error && (
-            <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-1">
-              {error}
+        {error && (
+          <p role="alert" className="tw:m-0 tw:text-app-danger tw:type-1">
+            {error}
+          </p>
+        )}
+        {!canCheckout ? (
+          <p role="status" className="tw:m-0 tw:text-app-text-meta tw:type-1">
+            {t('当前服务不支持签出分支（需要 git.workspace.v1）。')}
+          </p>
+        ) : branchListUnavailable ? (
+          <div role="alert" className="tw:grid tw:gap-2">
+            <p className="tw:m-0 tw:text-app-text-meta tw:type-1">
+              {t('仓库状态不可用，无法读取本地分支。')}
             </p>
-          )}
-          {!canCheckout ? (
-            <p role="status" className="tw:m-0 tw:text-app-text-meta tw:type-1">
-              {t('当前服务不支持签出分支（需要 git.workspace.v1）。')}
+            <Button variant="ghost" onClick={onRetryBranches}>
+              {t('重试')}
+            </Button>
+          </div>
+        ) : !branches ? (
+          <div role="status" className="tw:grid tw:gap-2">
+            <p className="tw:m-0 tw:text-app-text-meta tw:type-1">
+              {branchError ? t(branchError) : t('正在加载本地分支…')}
             </p>
-          ) : branchListUnavailable ? (
-            <div role="alert" className="tw:grid tw:gap-2">
-              <p className="tw:m-0 tw:text-app-text-meta tw:type-1">
-                {t('仓库状态不可用，无法读取本地分支。')}
+            <Button variant="ghost" onClick={onRetryBranches}>
+              {t('重试')}
+            </Button>
+          </div>
+        ) : (
+          <>
+            <SearchInput
+              aria-label={t('搜索本地分支')}
+              placeholder={t('搜索本地分支')}
+              value={query}
+              onChange={setQuery}
+            />
+            {busy && (
+              <p role="status" className="tw:m-0 tw:text-app-text-meta tw:type-1">
+                {t('正在签出分支…')}
               </p>
-              <Button variant="ghost" onClick={onRetryBranches}>
-                {t('重试')}
-              </Button>
-            </div>
-          ) : !branches ? (
-            <div role="status" className="tw:grid tw:gap-2">
-              <p className="tw:m-0 tw:text-app-text-meta tw:type-1">
-                {branchError ? t(branchError) : t('正在加载本地分支…')}
-              </p>
-              <Button variant="ghost" onClick={onRetryBranches}>
-                {t('重试')}
-              </Button>
-            </div>
-          ) : (
-            <>
-              <SearchInput
-                aria-label={t('搜索本地分支')}
-                placeholder={t('搜索本地分支')}
-                value={query}
-                onChange={setQuery}
-              />
-              {busy && (
-                <p role="status" className="tw:m-0 tw:text-app-text-meta tw:type-1">
-                  {t('正在签出分支…')}
+            )}
+            <div className="tw:grid tw:max-h-[min(24rem,50vh)] tw:gap-1 tw:overflow-y-auto">
+              {filteredBranches.length === 0 ? (
+                <p role="status" className="tw:m-0 tw:py-2 tw:text-app-text-meta tw:type-1">
+                  {branches.length === 0 ? t('没有可签出的本地分支') : t('没有匹配的本地分支')}
                 </p>
+              ) : (
+                filteredBranches.map((branch) => (
+                  <button
+                    key={branch.name}
+                    type="button"
+                    aria-current={branch.current ? 'true' : undefined}
+                    className={cx(
+                      'tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-1',
+                      branch.current
+                        ? 'tw:text-app-text-meta'
+                        : 'tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus',
+                      busy && 'tw:cursor-default tw:opacity-55',
+                    )}
+                    disabled={busy || branch.current}
+                    title={branch.current ? t('当前分支，无需签出') : t('签出到该本地分支')}
+                    onClick={() => {
+                      setQuery('')
+                      onCheckout(branch.name)
+                    }}
+                  >
+                    <GitBranch
+                      aria-hidden="true"
+                      size="var(--inline-icon-size, 1em)"
+                      className="tw:shrink-0"
+                    />
+                    <span className="tw:min-w-0 tw:flex-1 tw:truncate">{branch.name}</span>
+                    {branch.current && (
+                      <Tooltip content={t('当前分支')}>
+                        <span className="tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:type-1">
+                          <Check aria-hidden="true" size="var(--inline-icon-size, 1em)" />
+                          {t('当前分支')}
+                        </span>
+                      </Tooltip>
+                    )}
+                  </button>
+                ))
               )}
-              <div className="tw:grid tw:max-h-[min(24rem,50vh)] tw:gap-1 tw:overflow-y-auto">
-                {filteredBranches.length === 0 ? (
-                  <p role="status" className="tw:m-0 tw:py-2 tw:text-app-text-meta tw:type-1">
-                    {branches.length === 0 ? t('没有可签出的本地分支') : t('没有匹配的本地分支')}
-                  </p>
-                ) : (
-                  filteredBranches.map((branch) => (
-                    <button
-                      key={branch.name}
-                      type="button"
-                      aria-current={branch.current ? 'true' : undefined}
-                      className={cx(
-                        'tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-3 tw:border-0 tw:bg-transparent tw:px-2 tw:py-2 tw:text-left tw:text-app-text tw:type-1',
-                        branch.current
-                          ? 'tw:text-app-text-meta'
-                          : 'tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus',
-                        busy && 'tw:cursor-default tw:opacity-55',
-                      )}
-                      disabled={busy || branch.current}
-                      title={branch.current ? t('当前分支，无需签出') : t('签出到该本地分支')}
-                      onClick={() => {
-                        setQuery('')
-                        onCheckout(branch.name)
-                      }}
-                    >
-                      <GitBranch
-                        aria-hidden="true"
-                        size="var(--inline-icon-size, 1em)"
-                        className="tw:shrink-0"
-                      />
-                      <span className="tw:min-w-0 tw:flex-1 tw:truncate">{branch.name}</span>
-                      {branch.current && (
-                        <Tooltip content={t('当前分支')}>
-                          <span className="tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:type-1">
-                            <Check aria-hidden="true" size="var(--inline-icon-size, 1em)" />
-                            {t('当前分支')}
-                          </span>
-                        </Tooltip>
-                      )}
-                    </button>
-                  ))
-                )}
-              </div>
-            </>
-          )}
+            </div>
+          </>
+        )}
         <DialogFooter>
           <DialogClose asChild>
             <Button color="ghost" size="medium">

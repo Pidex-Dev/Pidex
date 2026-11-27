@@ -1,10 +1,7 @@
 import type { ConfigService } from '../../config/ConfigService'
 import type { ProviderCredentialService } from '../ProviderCredentialService'
 import type { ModelService } from './ModelService'
-import {
-  PROVIDER_CONFIG_SCHEMA_VERSION,
-  serializeProviderDefinition,
-} from './ProviderConfig'
+import { PROVIDER_CONFIG_SCHEMA_VERSION, serializeProviderDefinition } from './ProviderConfig'
 
 const configuredProvidersRecord = (
   snapshot: Record<string, unknown>,
@@ -73,7 +70,10 @@ export async function resetUnconfiguredBuiltinProvider(input: {
   }
 }): Promise<boolean> {
   const { providerID, runtimeModels, providerCredentials, config } = input
-  if (typeof runtimeModels.isBuiltinProvider !== 'function' || !runtimeModels.isBuiltinProvider(providerID))
+  if (
+    typeof runtimeModels.isBuiltinProvider !== 'function' ||
+    !runtimeModels.isBuiltinProvider(providerID)
+  )
     return false
   if ((await providerCredentials.list(providerID)).length > 0) return false
   if (await runtimeModels.isAuthConfigured(providerID)) return false

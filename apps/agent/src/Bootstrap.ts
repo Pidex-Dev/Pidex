@@ -603,7 +603,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
       logger,
     )
-    const providerCredentials = new ProviderCredentialService(runtimeModels, providerCredentialStore)
+    const providerCredentials = new ProviderCredentialService(
+      runtimeModels,
+      providerCredentialStore,
+    )
     const anthropicUsageModels = builtinModels({
       credentials: new EncryptedCredentialStore(credentials, {
         integrationID: () => 'usage.anthropic.subscription',
@@ -981,7 +984,14 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         .get()
       return !active
     })
-    const suggestions = new TaskSuggestionService(db, runtimeModels, memory, logger, {}, configService)
+    const suggestions = new TaskSuggestionService(
+      db,
+      runtimeModels,
+      memory,
+      logger,
+      {},
+      configService,
+    )
     const composerPredictions = new ComposerPredictionService(
       db,
       runtimeModels,

@@ -14,10 +14,7 @@ import {
 import { HandoffLifecycle } from '../src/handoff/HandoffLifecycle'
 import { BindingHandoffWorkspace } from '../src/handoff/BindingHandoffWorkspace'
 import { ThreadForkRepository } from '../src/handoff/ThreadForkRepository'
-import {
-  SqliteSessionRepo,
-  SqliteSessionStorage,
-} from '../src/storage/session/SqliteSession'
+import { SqliteSessionRepo, SqliteSessionStorage } from '../src/storage/session/SqliteSession'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { ThreadProjection } from '../src/transport/ThreadProjection'
 import { EnvironmentDeltaStore } from '../src/local-environment/EnvironmentDeltaStore'

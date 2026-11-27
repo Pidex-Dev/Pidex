@@ -11,7 +11,10 @@ import {
 } from '@earendil-works/pi-ai'
 import { executeHarnessRun } from '../src/orchestration/execution/ExecuteHarnessRun'
 import { frozenDeferredEnvelope } from '../src/tool/ToolExecutor'
-import type { HarnessRuntimeOptions, HarnessRuntimeRequest } from '../src/orchestration/execution/Types'
+import type {
+  HarnessRuntimeOptions,
+  HarnessRuntimeRequest,
+} from '../src/orchestration/execution/Types'
 
 const SYSTEM_CHARS = 200
 const SKILL_CHARS = 50

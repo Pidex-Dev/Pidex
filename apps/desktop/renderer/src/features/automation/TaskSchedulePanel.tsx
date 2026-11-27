@@ -824,7 +824,8 @@ function TaskOccurrenceActions({
   return (
     <article className="tw:grid tw:gap-2 tw:rounded-4 tw:border tw:border-app-border-subtle tw:p-3">
       <strong>
-        {new Date(occurrence.scheduledFor).toLocaleString(locale)} · {occurrenceLabels[occurrence.status]}
+        {new Date(occurrence.scheduledFor).toLocaleString(locale)} ·{' '}
+        {occurrenceLabels[occurrence.status]}
       </strong>
       <p className="tw:type-1 tw:whitespace-pre-wrap">{occurrence.result || occurrence.feedback}</p>
       {(occurrence.threadId ?? occurrence.snapshot.plan?.threadId) ? (

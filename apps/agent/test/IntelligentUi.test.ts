@@ -12,7 +12,10 @@ import {
   visualizationFollowUpText,
 } from '../src/tool/IntelligentUi/FollowUp'
 import { visualizationPreview } from '../src/tool/IntelligentUi/Preview'
-import { ProviderEventAdapter, toolResultBlocks } from '../src/orchestration/execution/ProviderEventAdapter'
+import {
+  ProviderEventAdapter,
+  toolResultBlocks,
+} from '../src/orchestration/execution/ProviderEventAdapter'
 import type { AgentHarnessEvent } from '../src/orchestration/harness/Types'
 import { ThreadReadViewRepository } from '../src/session/ThreadReadViewRepository'
 import type { ThreadService } from '../src/session/ThreadService'

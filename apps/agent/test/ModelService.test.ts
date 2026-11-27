@@ -688,7 +688,12 @@ describe('ModelService', () => {
       .getModels('openai')
       .find((candidate) => candidate.id === 'gpt-6-astra')
     expect(runtimeModel).toBeDefined()
-    expect(runtimeModel?.cost).toMatchObject({ input: 10, output: 50, cacheRead: 1, cacheWrite: 12.5 })
+    expect(runtimeModel?.cost).toMatchObject({
+      input: 10,
+      output: 50,
+      cacheRead: 1,
+      cacheWrite: 12.5,
+    })
     expect(runtimeModel?.maxTokens).toBe(128_000)
     expect(runtimeModel?.input).toContain('image')
 
@@ -727,7 +732,9 @@ describe('ModelService', () => {
       },
       env: {},
     })
-    const runtimeModel = service.registry.getModels('openai').find((candidate) => candidate.reasoning)
+    const runtimeModel = service.registry
+      .getModels('openai')
+      .find((candidate) => candidate.reasoning)
     expect(runtimeModel).toBeDefined()
 
     const info = await service.resolve({
@@ -1044,7 +1051,11 @@ test('模型自身声明的档位不被 通用两档覆盖，且空 map 不清�
     expect(await variants('mystery')).toEqual(['disabled', 'enabled'])
     // 模型声明的档位仍可被请求，通用 disabled 不再可选。
     await expect(
-      service.getRuntimeModel({ providerID: 'gateway', id: 'hy4-preview', variant: 'high' } as never),
+      service.getRuntimeModel({
+        providerID: 'gateway',
+        id: 'hy4-preview',
+        variant: 'high',
+      } as never),
     ).resolves.toBeDefined()
     await expect(
       service.getRuntimeModel({
@@ -1099,7 +1110,10 @@ test('v1 推理开关走 Pi 原生控制且不发送不支持的 temperature', a
     },
   })
   try {
-    const model = await service.getRuntimeModel({ providerID: 'toggle', id: 'toggle-example' } as never)
+    const model = await service.getRuntimeModel({
+      providerID: 'toggle',
+      id: 'toggle-example',
+    } as never)
     for (const reasoning of ['enabled', 'disabled']) {
       await service.registry
         .streamSimple(
@@ -1176,7 +1190,10 @@ test('文档字段优先于目录，缺项继承目录，手动整份模式不�
   }
   const service = new ModelService(repository().adapter, { config, recommendations })
   try {
-    const automatic = await service.getRuntimeModel({ providerID: 'docs', id: 'automatic' } as never)
+    const automatic = await service.getRuntimeModel({
+      providerID: 'docs',
+      id: 'automatic',
+    } as never)
     expect(automatic.contextWindow).toBe(150000000)
     expect(automatic.maxTokens).toBe(12000)
     expect(automatic.name).toBe('Catalog name')
@@ -1187,7 +1204,8 @@ test('文档字段优先于目录，缺项继承目录，手动整份模式不�
     config.providers.docs.models.automatic.smart_config.document.extractedAt++
     await service.reload()
     expect(
-      (await service.getRuntimeModel({ providerID: 'docs', id: 'automatic' } as never)).contextWindow,
+      (await service.getRuntimeModel({ providerID: 'docs', id: 'automatic' } as never))
+        .contextWindow,
     ).toBe(150000000)
     expect(
       (await service.getRuntimeModel({ providerID: 'docs', id: 'automatic' } as never)).maxTokens,
@@ -1622,7 +1640,9 @@ test('Moonshot uses catalog protocols in both regions and dispatches both Kimi f
         speedInvocation: { requestModelId: 'kimi-k3.1-pro-highspeed' },
         pricing: { currency, busy: { cacheWriteByTtl: rates } },
       })
-      expect(await service.getRuntimeModel(ref(providerId, 'kimi-k3.1-pro-highspeed'))).toMatchObject({
+      expect(
+        await service.getRuntimeModel(ref(providerId, 'kimi-k3.1-pro-highspeed')),
+      ).toMatchObject({
         speedTier: 'fast',
       })
       await expect(

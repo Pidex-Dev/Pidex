@@ -172,10 +172,7 @@ export class ThreadEditRepository {
         throw new AgentError('CHECKPOINT_UNAVAILABLE', '会话编辑边界不可用', 409)
       return () => undefined
     }
-    const session = await new SqliteSessionRepo(this.db).openForThread(
-      boundary.sessionId,
-      threadId,
-    )
+    const session = await new SqliteSessionRepo(this.db).openForThread(boundary.sessionId, threadId)
     const storage = session.getStorage() as SqliteSessionStorage
     await storage.setLeafId(boundary.entryId)
     return () => storage.flush()

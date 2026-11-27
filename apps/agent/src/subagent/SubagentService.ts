@@ -22,10 +22,7 @@ import {
   type SubagentForkSnapshot,
 } from '../orchestration/AgentRuntimeTypes'
 import type { SessionTreeEntry } from '../orchestration/harness/Types'
-import {
-  SqliteSessionRepo,
-  type SqliteSessionStorage,
-} from '../storage/session/SqliteSession'
+import { SqliteSessionRepo, type SqliteSessionStorage } from '../storage/session/SqliteSession'
 import type { ApprovalService } from '../permission/ApprovalService'
 import type { QuestionService } from '../session/QuestionService'
 import { ResumeCheckpointResolver, toPlanCheckpoint } from '../interaction/ResumeCheckpointResolver'

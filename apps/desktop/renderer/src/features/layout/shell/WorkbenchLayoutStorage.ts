@@ -80,7 +80,10 @@ export function saveWorkbenchLayoutSnapshot(
   }
 }
 
-function readStoredAuxiliaryWidth(storage: Storage | null, input: ReadWorkbenchLayoutInput): number {
+function readStoredAuxiliaryWidth(
+  storage: Storage | null,
+  input: ReadWorkbenchLayoutInput,
+): number {
   const ratio = parseUnitInterval(safeGetItem(storage, RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY))
   if (ratio != null) return rightDockWidthFromRatio(ratio, input.workspaceWidth)
 

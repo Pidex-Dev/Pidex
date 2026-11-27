@@ -112,7 +112,9 @@ describe('pricing schemas', () => {
         output: 8,
         cacheRead: 0.04,
         cacheWrite: 0,
-        tiers: [{ inputTokensAbove: 200_000, input: 4, output: 12, cacheRead: 0.08, cacheWrite: 0 }],
+        tiers: [
+          { inputTokensAbove: 200_000, input: 4, output: 12, cacheRead: 0.08, cacheWrite: 0 },
+        ],
       },
       rules: [],
       dateOverrides: [],

@@ -5,7 +5,12 @@ import {
 } from './prompt/RuntimePromptComposer'
 import { randomUUID } from 'node:crypto'
 import { Effect } from 'effect'
-import { contentText, type Api, type Model as RuntimeModel, type Models } from '@earendil-works/pi-ai'
+import {
+  contentText,
+  type Api,
+  type Model as RuntimeModel,
+  type Models,
+} from '@earendil-works/pi-ai'
 import { AgentHarness } from './harness/AgentHarness'
 import { SessionError, type Session, type AgentHarnessEvent } from './harness/Types'
 import type { AgentRuntime, AgentRuntimeRequest, PendingApproval } from './AgentRuntimeTypes'
@@ -30,10 +35,7 @@ import type { GoalUsageEntry } from '../storage/repositories/ThreadGoalLedgerRep
 import { toolResultBlocks, toolResultText } from './execution/ProviderEventAdapter'
 import { formatToolExecutionResult } from './execution/ProviderToolAdapter'
 import { formatSubagentHandback } from '../subagent/HandbackFormat'
-import {
-  SqliteSessionRepo,
-  type SqliteSessionStorage,
-} from '../storage/session/SqliteSession'
+import { SqliteSessionRepo, type SqliteSessionStorage } from '../storage/session/SqliteSession'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import type { ToolExecutor } from '../tool/ToolExecutor'

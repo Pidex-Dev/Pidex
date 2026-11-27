@@ -3,7 +3,10 @@ import type { AgentHarnessEvent } from '../src/orchestration/harness/Types'
 import { EventManifest } from '@pidex/agent-protocol'
 import { Schema } from 'effect'
 import { createProviderMessagePhaseReader } from '../src/orchestration/harness/ProviderMessagePhase'
-import { ProviderEventAdapter, toolResultText } from '../src/orchestration/execution/ProviderEventAdapter'
+import {
+  ProviderEventAdapter,
+  toolResultText,
+} from '../src/orchestration/execution/ProviderEventAdapter'
 import {
   finishedToolItem,
   mergeTimelineMutationFiles,

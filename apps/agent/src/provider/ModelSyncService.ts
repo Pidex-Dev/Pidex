@@ -383,7 +383,9 @@ export class ModelSyncService {
     fetch: ProviderModelFetch | undefined,
   ) {
     const auth =
-      provider.auth === 'api-key' ? await this.runtimeModels.registry.getAuth(providerId) : undefined
+      provider.auth === 'api-key'
+        ? await this.runtimeModels.registry.getAuth(providerId)
+        : undefined
     if (provider.auth === 'api-key' && !auth) {
       throw new AgentError(
         'CREDENTIAL_NOT_FOUND',

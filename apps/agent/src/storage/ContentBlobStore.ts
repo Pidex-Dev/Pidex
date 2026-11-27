@@ -18,7 +18,8 @@ export const contentSha256 = (data: Uint8Array) => createHash('sha256').update(d
  * class because input history and project profile data have separate lifecycles.
  */
 export class ContentBlobStore {
-  private verifiedRange: { sha256: string; nextOffset: number; mtimeMs: number; data: Uint8Array } | undefined
+  private verifiedRange:
+    { sha256: string; nextOffset: number; mtimeMs: number; data: Uint8Array } | undefined
 
   private constructor(private readonly blobsRoot: string) {}
 

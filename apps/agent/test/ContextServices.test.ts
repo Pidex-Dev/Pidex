@@ -15,10 +15,7 @@ import {
 import { HookService } from '../src/hooks/HookService'
 import { MemoryService } from '../src/memory/MemoryService'
 import { AgentDatabase, SCHEMA_VERSION } from '../src/storage/database/AgentDatabase'
-import {
-  SqliteSessionRepo,
-  type SqliteSessionStorage,
-} from '../src/storage/session/SqliteSession'
+import { SqliteSessionRepo, type SqliteSessionStorage } from '../src/storage/session/SqliteSession'
 import { ConfigService } from '../src/config/ConfigService'
 import { ThreadService } from '../src/session/ThreadService'
 import { AgentHarnessError } from '../src/orchestration/harness/Types'

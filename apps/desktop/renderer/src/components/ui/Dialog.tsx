@@ -16,14 +16,7 @@ import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './IconTokens.js'
 import { useDialogFocusRestore } from './UseDialogFocusRestore.js'
 
 /** Width presets for Codex Desktop dialogs, resolved in `styles/modal.css`. */
-export type DialogSize =
-  | 'narrow'
-  | 'compact'
-  | 'medium'
-  | 'default'
-  | 'large'
-  | 'wide'
-  | 'xwide'
+export type DialogSize = 'narrow' | 'compact' | 'medium' | 'default' | 'large' | 'wide' | 'xwide'
 
 /** Surface material presets matching Codex Desktop's frosted dialog hierarchy. */
 export type DialogVariant = 'default' | 'translucent' | 'opaque'
@@ -46,7 +39,10 @@ export type DialogProps = {
   restoreFocusTarget?: HTMLElement | null
   contentClassName?: string
   overlayClassName?: string
-  contentProps?: Omit<ComponentPropsWithoutRef<typeof RadixDialog.Content>, 'className' | 'children'>
+  contentProps?: Omit<
+    ComponentPropsWithoutRef<typeof RadixDialog.Content>,
+    'className' | 'children'
+  >
 }
 
 /**
