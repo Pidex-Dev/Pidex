@@ -26,8 +26,10 @@ import {
 export function ArchivedConversationsSettings(): ReactNode {
   const [sessions, setSessions] = useState<SessionListItem[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const canDelete = desktopClient.supportsArchivedSessionDeletion()
   const mutating = useRef(false)
   const [query, setQuery] = useState('')
   const search = useDeferredValue(query)
@@ -101,18 +103,21 @@ export function ArchivedConversationsSettings(): ReactNode {
     if (!deleting || mutating.current) return
     mutating.current = true
     setBusy(true)
+    setNotice('')
     const targets = deleting
     try {
-      const { removed, failed } = await deleteArchivedSessions(
+      const { removed, failed, skipped } = await deleteArchivedSessions(
         targets.map((session) => session.id),
         async (id) => {
-          await desktopClient.disposeSession(id)
-          canonicalThreadCache.invalidate(id)
+          const deleted = await desktopClient.deleteArchivedSession(id)
+          if (deleted) canonicalThreadCache.invalidate(id)
+          return deleted
         },
       )
       setSessions((current) => current.filter((item) => !removed.has(item.id)))
       await loadSessions()
       setError(failed ? `已删除 ${removed.size} 个聊天，${failed} 个删除失败，请重试。` : null)
+      if (skipped) setNotice(`已跳过 ${skipped} 个已恢复或已删除的聊天。`)
       setDeleting(null)
     } finally {
       mutating.current = false
@@ -126,7 +131,7 @@ export function ArchivedConversationsSettings(): ReactNode {
         <h2 className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">已归档对话</h2>
         <Button
           color="danger"
-          disabled={busy || !sessions.length}
+          disabled={busy || !canDelete || !sessions.length}
           onClick={() => setDeleting(sessions)}
         >
           全部删除
@@ -167,6 +172,10 @@ export function ArchivedConversationsSettings(): ReactNode {
           onValueChange={setProject}
         />
       </div>
+      {!loading && sessions.length > 0 && !canDelete && (
+        <p role="status">请更新 Agent 以启用归档聊天的安全删除。</p>
+      )}
+      {notice && <p role="status">{notice}</p>}
       {error ? (
         <p role="alert" className="tw:type-1 tw:text-app-danger">
           {error}
@@ -185,7 +194,11 @@ export function ArchivedConversationsSettings(): ReactNode {
             title={project === 'all' ? group.label : undefined}
             description={`${group.sessions.length} 个聊天`}
             actions={
-              <Button color="danger" disabled={busy} onClick={() => setDeleting(group.sessions)}>
+              <Button
+                color="danger"
+                disabled={busy || !canDelete}
+                onClick={() => setDeleting(group.sessions)}
+              >
                 删除此组
               </Button>
             }
@@ -203,7 +216,11 @@ export function ArchivedConversationsSettings(): ReactNode {
                     {new Date(session.lastMessageAt ?? session.createdAt).toLocaleString()}
                   </p>
                 </div>
-                <Button color="danger" disabled={busy} onClick={() => setDeleting([session])}>
+                <Button
+                  color="danger"
+                  disabled={busy || !canDelete}
+                  onClick={() => setDeleting([session])}
+                >
                   删除
                 </Button>
                 <Button
@@ -224,7 +241,7 @@ export function ArchivedConversationsSettings(): ReactNode {
         description={`将永久删除 ${deleting?.length ?? 0} 个本地归档聊天。${deleting === sessions ? '全部删除不受搜索和项目筛选限制。' : '仅删除这次选择的聊天。'}`}
         actionLabel="删除"
         tone="danger"
-        actionDisabled={busy}
+        actionDisabled={busy || !canDelete}
         onCancel={() => {
           if (!busy) setDeleting(null)
         }}

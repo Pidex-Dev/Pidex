@@ -1,3 +1,4 @@
+import { useLocale } from '../i18n/LocaleProvider.js'
 import { useEffect, useId, useState } from 'react'
 import { ArrowLeft, AlertTriangle, Check, Play, RotateCcw, X } from 'lucide-react'
 import type React from 'react'
@@ -609,6 +610,7 @@ function RunHistory({
   >
   onOpenThread: (id: string) => void
 }): React.ReactNode {
+  const { locale } = useLocale()
   return (
     <section
       className="automation-runs tw:mt-2 tw:grid tw:gap-3 tw:border-t tw:border-app-border-subtle tw:p-3"
@@ -662,7 +664,7 @@ function RunHistory({
                   {runTriggerLabel(run.trigger)}
                 </span>
                 <time className="tw:col-start-2 tw:row-start-1 tw:type-1 tw:text-app-text-meta">
-                  {formatAutomationTime(run.completedAt ?? run.startedAt ?? run.createdAt)}
+                  {formatAutomationTime(run.completedAt ?? run.startedAt ?? run.createdAt, locale)}
                 </time>
                 {run.status === 'running' || run.status === 'queued' ? (
                   <Play

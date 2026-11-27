@@ -13,6 +13,7 @@ import { Select } from '../../components/ui/Select.js'
 import { Checkbox } from '../../components/ui/Checkbox.js'
 import { composerDraftStore } from '../session/composer/ComposerDraftStore.js'
 import { resolveRecentNewThreadModel } from '../models/RecentNewThreadModel.js'
+import { useLocale } from '../i18n/LocaleProvider.js'
 import { TaskArrangementCard } from './TaskArrangementCard.js'
 
 type Data = RpcResult<'task-schedule/list'>
@@ -812,6 +813,7 @@ function TaskOccurrenceActions({
   act: (work: () => Promise<unknown>) => Promise<void>
 }) {
   const [text, setText] = useState('')
+  const { locale } = useLocale()
   const [sendFeedback, setSendFeedback] = useState(false)
   const navigate = useNavigate()
   const versioned = {
@@ -822,7 +824,7 @@ function TaskOccurrenceActions({
   return (
     <article className="tw:grid tw:gap-2 tw:rounded-4 tw:border tw:border-app-border-subtle tw:p-3">
       <strong>
-        {new Date(occurrence.scheduledFor).toLocaleString()} · {occurrenceLabels[occurrence.status]}
+        {new Date(occurrence.scheduledFor).toLocaleString(locale)} · {occurrenceLabels[occurrence.status]}
       </strong>
       <p className="tw:type-1 tw:whitespace-pre-wrap">{occurrence.result || occurrence.feedback}</p>
       {(occurrence.threadId ?? occurrence.snapshot.plan?.threadId) ? (

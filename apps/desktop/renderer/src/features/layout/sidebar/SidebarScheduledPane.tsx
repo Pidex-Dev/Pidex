@@ -40,7 +40,7 @@ export function SidebarScheduledPane(): ReactNode {
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
   const onAutomationsRoute = location.pathname === '/automations'
   const tab: AutomationTab =
     onAutomationsRoute && searchParams.get('tab') === 'runs' ? 'runs' : 'calendar'
@@ -227,7 +227,8 @@ export function SidebarScheduledPane(): ReactNode {
                                 : `/automations?tab=runs&automationId=${encodeURIComponent(task.id)}&automationRunId=${encodeURIComponent(run.id)}`
                             }
                           >
-                            {t(runStatusLabel(run.status))} · {formatAutomationTime(run.createdAt)}
+                            {t(runStatusLabel(run.status))} ·{' '}
+                            {formatAutomationTime(run.createdAt, locale)}
                           </Link>
                         </SidebarRow>
                       ))

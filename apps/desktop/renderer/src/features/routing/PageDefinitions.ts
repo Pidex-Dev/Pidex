@@ -114,7 +114,7 @@ export const APP_PAGES: readonly AppPage[] = [
       label: '工作组',
       path: '/workflows',
       icon: MessagesSquare,
-      capabilities: ['workflow.v1', 'session-group.v1'],
+      capabilities: ['workflow.v1'],
       rail: { id: 'sessionGroups', group: 'other' },
     },
   },

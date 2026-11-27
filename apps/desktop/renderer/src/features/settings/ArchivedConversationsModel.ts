@@ -4,18 +4,18 @@ export type ArchivedSort = 'updated' | 'created' | 'alphabetical'
 
 export async function deleteArchivedSessions(
   ids: readonly string[],
-  deleteOne: (id: string) => Promise<void>,
+  deleteOne: (id: string) => Promise<boolean>,
 ) {
-  const results = await Promise.allSettled(
-    ids.map(async (id) => {
-      await deleteOne(id)
-      return id
-    }),
-  )
-  const removed = new Set(
-    results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : [])),
-  )
-  return { removed, failed: results.filter((result) => result.status === 'rejected').length }
+  const results = await Promise.allSettled(ids.map(deleteOne))
+  const removed = new Set<string>()
+  let failed = 0
+  let skipped = 0
+  for (const [index, result] of results.entries()) {
+    if (result.status === 'rejected') failed++
+    else if (result.value) removed.add(ids[index]!)
+    else skipped++
+  }
+  return { removed, failed, skipped }
 }
 
 export function archivedGroups(

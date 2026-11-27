@@ -42,7 +42,11 @@ import { createLocalRendererResourceHandler } from './security/LocalRendererReso
 import { resolveRendererApplicationOrigin } from './security/RendererApplicationOrigin.js'
 import { readStartupAppearanceConfig } from './settings/StartupAppearanceConfig.js'
 import { AppearanceSettingsStore } from './settings/AppearanceSettingsStore.js'
-import { DataLocationStore, type DataLocationLaunch } from './settings/DataLocationStore.js'
+import {
+  DataLocationBootstrapError,
+  DataLocationStore,
+  type DataLocationLaunch,
+} from './settings/DataLocationStore.js'
 import { DEFAULT_MAX_CONNECT_ATTEMPTS, SidecarSupervisor } from './sidecar/Supervisor.js'
 import { LocalBackgroundRuntime } from './sidecar/BackgroundRuntime.js'
 import { DesktopAgentConnectionCoordinator } from './sidecar/ConnectionCoordinator.js'
@@ -193,7 +197,12 @@ if (
         if (windows?.applicationOrigin)
           windows.showStartupStatus('启动流程异常，请查看日志', '', 'terminal-error')
         else {
-          dialog.showErrorBox('Pidex 启动失败', '无法加载应用，请查看启动日志。')
+          dialog.showErrorBox(
+            'Pidex 启动失败',
+            error instanceof DataLocationBootstrapError
+              ? error.message
+              : '无法加载应用，请查看启动日志。',
+          )
           app.quit()
         }
       })
@@ -347,7 +356,8 @@ async function startDesktop(): Promise<void> {
     retryStartup: async (generation) => {
       if (
         connectionCoordinator?.generation === generation &&
-        connectionCoordinator.status.lifecycle === 'failed'
+        connectionCoordinator.status.lifecycle === 'failed' &&
+        windows?.startupSnapshot.failureReason !== 'relocation'
       ) {
         await connectionCoordinator.start()
       }
@@ -392,6 +402,8 @@ async function startDesktop(): Promise<void> {
     externalFonts,
   )
   registerDataLocationIpc({
+    ipc: ipcMain,
+    dialog,
     store: dataLocationStore,
     windows,
     installDirectory: app.isPackaged ? dirname(app.getPath('exe')) : app.getAppPath(),
@@ -483,7 +495,7 @@ async function startDesktop(): Promise<void> {
         generation: connection.generation,
       })
       if (dataLocationLaunch?.relocation) {
-        await dataLocationStore?.promotePending()
+        await dataLocationStore?.promotePending(dataLocationLaunch.relocation.operationId)
         guard.assertCurrent()
         dataLocationLaunch = {
           dataDir: dataLocationLaunch.dataDir,
@@ -525,12 +537,12 @@ async function startDesktop(): Promise<void> {
         activeLogger.error('desktop.data-location-relocation-failed', {
           reason: 'agent-startup-failed',
         })
-        activeWindows.showStartupStatus(
-          '用户数据迁移失败',
-          '可以重试迁移，或恢复原数据位置后重新启动。',
-          'terminal-error',
-          generation,
-        )
+        activeWindows.publishStartupState({
+          generation: generation ?? activeWindows.startupSnapshot.generation,
+          state: 'failed',
+          failureReason: 'relocation',
+          label: '用户数据迁移失败',
+        })
         return
       }
       if (kind === 'termination') {

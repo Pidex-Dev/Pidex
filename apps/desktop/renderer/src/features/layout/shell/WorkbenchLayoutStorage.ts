@@ -1,16 +1,11 @@
 import {
-  BOTTOM_PANEL_DEFAULT_HEIGHT,
   BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY,
-  DEFAULT_PRIMARY_SIDEBAR_WIDTH,
-  RIGHT_DOCK_MAIN_MIN_WIDTH,
-  RIGHT_DOCK_MIN_WIDTH,
   RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
   bottomPanelHeightFromRatio,
-  bottomPanelHeightToRatio,
   getResponsiveRightDockDefaultWidth,
+  rightDockWidthFromRangeRatio,
   rightDockWidthFromRatio,
   rightDockWidthToRangeRatio,
-  rightDockWidthToRatio,
 } from './WorkbenchLayoutSizing.js'
 import {
   WORKBENCH_LAYOUT_SCHEMA_VERSION,
@@ -31,16 +26,12 @@ export { WORKBENCH_LAYOUT_STORAGE_KEY, WORKBENCH_LAYOUT_SCHEMA_VERSION }
 export type { WorkbenchLayoutSnapshot, WorkbenchLayoutState, WorkbenchPartVisibility }
 
 const LEGACY_RIGHT_DOCK_WIDTH_STORAGE_KEY = 'pidex.desktop.rightDockWidth'
-const LEGACY_SIDEBAR_WIDTH_STORAGE_KEY = 'layout.sidebarWidth'
-const LEGACY_SIDEBAR_COLLAPSED_STORAGE_KEY = 'layout.sidebarCollapsed'
 
 export interface ReadWorkbenchLayoutInput {
   workspaceWidth: number
   workspaceHeight: number
   sidebarCollapsed: boolean
   sidebarWidth: number
-  rightDockRatio: number
-  bottomPanelRatio: number
 }
 
 export interface SaveWorkbenchLayoutTarget {
@@ -59,7 +50,21 @@ export function readWorkbenchLayoutSnapshot(
       return normalizeSnapshot(parsed, input)
     }
   }
-  return createDefaultWorkbenchLayoutSnapshot(input)
+  const base = createDefaultWorkbenchLayoutState(input.workspaceWidth, input.workspaceHeight)
+  const auxiliaryWidth = readStoredAuxiliaryWidth(storage, input)
+  const bottomRatio = parseUnitInterval(safeGetItem(storage, BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY))
+  return {
+    ...base,
+    schemaVersion: WORKBENCH_LAYOUT_SCHEMA_VERSION,
+    visibility: { ...base.visibility, primarySidebar: !input.sidebarCollapsed },
+    primarySidebarWidth: clampPrimarySidebarWidth(input.sidebarWidth),
+    auxiliaryPanelWidth: auxiliaryWidth,
+    auxiliaryPanelWidthRangeRatio: rightDockWidthToRangeRatio(auxiliaryWidth, input.workspaceWidth),
+    bottomPanelHeight:
+      bottomRatio == null
+        ? base.bottomPanelHeight
+        : bottomPanelHeightFromRatio(bottomRatio, input.workspaceHeight),
+  }
 }
 
 export function saveWorkbenchLayoutSnapshot(
@@ -75,117 +80,17 @@ export function saveWorkbenchLayoutSnapshot(
   }
 }
 
-export function createDefaultWorkbenchLayoutSnapshot(
-  input: ReadWorkbenchLayoutInput,
-): WorkbenchLayoutSnapshot {
-  const base = createDefaultWorkbenchLayoutState(input.workspaceWidth, input.workspaceHeight)
-  const auxiliaryWidth = clampAuxiliaryPanelWidth(
-    rightDockWidthFromRatio(input.rightDockRatio, input.workspaceWidth),
-    input.workspaceWidth,
-  )
-  const bottomHeight = clampBottomPanelHeight(
-    bottomPanelHeightFromRatio(input.bottomPanelRatio, input.workspaceHeight),
-    input.workspaceHeight,
-  )
-  const sidebarWidth = clampPrimarySidebarWidth(input.sidebarWidth)
-  // 注意：auxiliaryPanel / bottomPanel 的可见性只是阶段 1 的占位默认值，阶段 2
-  // 接入时将由现有的 WorkbenchTabsState (right.open / bottom.open) 同步覆盖。
-  // 兼容门面必须保留此占位以避免改变现有 panel open 状态。
-  const visibility: WorkbenchPartVisibility = {
-    primarySidebar: !input.sidebarCollapsed,
-    mainContent: true,
-    auxiliaryPanel: base.visibility.auxiliaryPanel,
-    bottomPanel: base.visibility.bottomPanel,
+function readStoredAuxiliaryWidth(storage: Storage | null, input: ReadWorkbenchLayoutInput): number {
+  const ratio = parseUnitInterval(safeGetItem(storage, RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY))
+  if (ratio != null) return rightDockWidthFromRatio(ratio, input.workspaceWidth)
+
+  const width = parseFiniteNumber(safeGetItem(storage, LEGACY_RIGHT_DOCK_WIDTH_STORAGE_KEY))
+  if (width == null || width < 0) {
+    return getResponsiveRightDockDefaultWidth(input.workspaceWidth, input.workspaceHeight)
   }
-  return {
-    schemaVersion: WORKBENCH_LAYOUT_SCHEMA_VERSION,
-    visibility,
-    primarySidebarWidth: sidebarWidth,
-    auxiliaryPanelWidth: auxiliaryWidth,
-    auxiliaryPanelWidthRangeRatio: rightDockWidthToRangeRatio(auxiliaryWidth, input.workspaceWidth),
-    bottomPanelHeight: bottomHeight,
-    auxiliaryMaximized: false,
-    beforeAuxiliaryMaximized: null,
-    beforeAuxiliaryMaximizedAuxiliaryWidth: null,
-  }
-}
-
-/**
- * Backwards-compatible facade for callers that still consume the legacy
- * right-dock / bottom-panel ratio resolver. Phase 2 will replace it with a
- * direct snapshot reader; until then the controller must keep working.
- */
-export default function resolveStoredWorkbenchRatios(
-  workspaceWidth: number,
-  workspaceHeight: number,
-): [number, number] {
-  const storage = resolveStorage(null)
-  const rawRightRatio = safeGetItem(storage, RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY)
-  const rawLegacyRightWidth = safeGetItem(storage, LEGACY_RIGHT_DOCK_WIDTH_STORAGE_KEY)
-  const rawBottomRatio = safeGetItem(storage, BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY)
-  const sidebarCollapsed = safeGetItem(storage, LEGACY_SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true'
-  const sidebarWidthRaw = safeGetItem(storage, LEGACY_SIDEBAR_WIDTH_STORAGE_KEY)
-  const sidebarWidth = parseFiniteNumber(sidebarWidthRaw)
-  const snapshot = readWorkbenchLayoutSnapshot({
-    workspaceWidth,
-    workspaceHeight,
-    sidebarCollapsed,
-    sidebarWidth: sidebarWidth ?? clampPrimarySidebarWidth(DEFAULT_PRIMARY_SIDEBAR_WIDTH),
-    rightDockRatio:
-      parseUnitInterval(rawRightRatio) ??
-      rightDockWidthToRatio(
-        parseFiniteNumber(rawLegacyRightWidth) ??
-          getResponsiveRightDockDefaultWidth(workspaceWidth, workspaceHeight),
-        workspaceWidth,
-      ),
-    bottomPanelRatio:
-      parseUnitInterval(rawBottomRatio) ??
-      bottomPanelHeightToRatio(BOTTOM_PANEL_DEFAULT_HEIGHT, workspaceHeight),
-  })
-
-  return [
-    rightDockWidthToRatio(snapshot.auxiliaryPanelWidth, workspaceWidth),
-    bottomPanelHeightToRatio(snapshot.bottomPanelHeight, workspaceHeight),
-  ]
-}
-
-export function resolveInitialRightDockWidthRatio(
-  storedRatioValue: string | null,
-  legacyStoredWidthValue: string | null,
-  workspaceWidth: number,
-  workspaceHeight: number,
-): number {
-  const storedRatio = parseUnitInterval(storedRatioValue)
-  if (storedRatio != null) return storedRatio
-
-  const legacyStoredWidth = parseFiniteNumber(legacyStoredWidthValue)
-  if (legacyStoredWidth != null && legacyStoredWidth >= 0) {
-    const legacyWidth =
-      legacyStoredWidth <= 1
-        ? legacyRightDockWidthFromRatio(legacyStoredWidth, workspaceWidth)
-        : legacyStoredWidth
-    return rightDockWidthToRatio(legacyWidth, workspaceWidth)
-  }
-
-  return rightDockWidthToRatio(
-    getResponsiveRightDockDefaultWidth(workspaceWidth, workspaceHeight),
-    workspaceWidth,
-  )
-}
-
-export function resolveInitialBottomPanelHeightRatio(
-  storedRatioValue: string | null,
-  workspaceHeight: number,
-): number {
-  const storedRatio = parseUnitInterval(storedRatioValue)
-  if (storedRatio != null) return storedRatio
-
-  return bottomPanelHeightToRatio(BOTTOM_PANEL_DEFAULT_HEIGHT, workspaceHeight)
-}
-
-function legacyRightDockWidthFromRatio(ratio: number, workspaceWidth: number): number {
-  const maximum = Math.max(RIGHT_DOCK_MIN_WIDTH, workspaceWidth - RIGHT_DOCK_MAIN_MIN_WIDTH)
-  return Math.round(RIGHT_DOCK_MIN_WIDTH + ratio * (maximum - RIGHT_DOCK_MIN_WIDTH))
+  return width <= 1
+    ? rightDockWidthFromRangeRatio(width, input.workspaceWidth)
+    : clampAuxiliaryPanelWidth(width, input.workspaceWidth)
 }
 
 function resolveStorage(explicit: SaveWorkbenchLayoutTarget['storage']): Storage | null {
@@ -236,7 +141,7 @@ function tryParseStoredSnapshot(raw: string): WorkbenchLayoutSnapshot | null {
     visibility,
     primarySidebarWidth,
     auxiliaryPanelWidth,
-    auxiliaryPanelWidthRangeRatio: parseUnitIntervalValue(parsed.auxiliaryPanelWidthRangeRatio),
+    auxiliaryPanelWidthRangeRatio: parseUnitInterval(parsed.auxiliaryPanelWidthRangeRatio),
     bottomPanelHeight,
     auxiliaryMaximized,
     beforeAuxiliaryMaximized,
@@ -308,12 +213,7 @@ function parseVisibility(value: unknown): WorkbenchPartVisibility | null {
   }
 }
 
-function parseUnitInterval(value: string | null): number | null {
-  const parsed = parseFiniteNumber(value)
-  return parsed != null && parsed >= 0 && parsed <= 1 ? parsed : null
-}
-
-function parseUnitIntervalValue(value: unknown): number | null {
+function parseUnitInterval(value: unknown): number | null {
   const parsed = parseFiniteNumber(value)
   return parsed != null && parsed >= 0 && parsed <= 1 ? parsed : null
 }
