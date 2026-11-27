@@ -7,8 +7,8 @@ import { Model, Provider } from '@pidex/model-schema'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { recoverInterruptedRuns } from '../src/storage/recovery/InterruptedRunRecovery'
 import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
-import { PiEventAdapter } from '../src/orchestration/pi/PiEventAdapter'
-import type { PiRuntimeEventSink } from '../src/orchestration/pi/Types'
+import { ProviderEventAdapter } from '../src/orchestration/execution/ProviderEventAdapter'
+import type { RuntimeEventSink } from '../src/orchestration/execution/Types'
 import type { AgentHarnessEvent } from '../src/orchestration/harness/Types'
 import { ThreadProjection } from '../src/transport/ThreadProjection'
 
@@ -54,14 +54,14 @@ for (const parseProposedPlan of [false, true]) {
           contextCompaction: {} as never,
         })
         const sink = (
-          runtime as unknown as { eventSink(...args: unknown[]): PiRuntimeEventSink }
+          runtime as unknown as { eventSink(...args: unknown[]): RuntimeEventSink }
         ).eventSink(
           { flush() {}, discardPending() {} },
           {},
           { provider: 'fixture', id: 'fixture', contextWindow: 128000 },
           'session',
         )
-        const adapter = new PiEventAdapter(context, sink, { parseProposedPlan })
+        const adapter = new ProviderEventAdapter(context, sink, { parseProposedPlan })
         const message = (text: string) => ({ role: 'assistant', content: [{ type: 'text', text }] })
         await adapter.handle({
           type: 'message_start',

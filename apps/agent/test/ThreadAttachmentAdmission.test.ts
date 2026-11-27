@@ -176,7 +176,7 @@ describe('ThreadService 附件 admission', () => {
   test('附件原始字节未超限但本轮编码超过当前端点预算时阻止入队', async () => {
     const { db, attachments, service } = await fixture({
       resolve: async () => ({ capabilities: { input: ['text', 'pdf'], tools: true } }),
-      getPiModel: async () => ({
+      getRuntimeModel: async () => ({
         api: 'anthropic-messages',
         baseUrl: 'https://api.anthropic.com',
         input: ['text'],

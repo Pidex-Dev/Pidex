@@ -6,9 +6,9 @@ import {
   providerFailureMessage,
   type ModelHealthFailureCategory,
 } from './ModelHealthService'
-import { PiTransientProbe, type PiTransientProbeOptions } from './PiTransientProbe'
-import type { PiModelService } from './pi'
-import type { CustomProviderApi } from './pi/PiProviderConfig'
+import { TransientProbe, type TransientProbeServiceOptions } from './TransientProbe'
+import type { ModelService } from './runtime'
+import type { CustomProviderApi } from './runtime/ProviderConfig'
 import {
   PROTOCOL_DETECTION_APIS,
   hasAuthorizationHeader,
@@ -35,9 +35,9 @@ export type ProtocolDetectionInput = {
 }
 
 export type ProtocolDetectionServiceOptions = {
-  /** Test seam; production uses the real Pi adapters through PiTransientProbe. */
-  readonly probe?: PiTransientProbe
-  readonly probeOptions?: PiTransientProbeOptions
+  /** Test seam; production uses the real Pi adapters through TransientProbe. */
+  readonly probe?: TransientProbe
+  readonly probeOptions?: TransientProbeServiceOptions
   /** Per-request timeout override; production keeps the 12 second ceiling. */
   readonly requestTimeoutMs?: number
 }
@@ -83,14 +83,14 @@ const runBounded = async <T>(tasks: readonly (() => Promise<T>)[], limit: number
  * model built from the draft.
  */
 export class ProtocolDetectionService {
-  private readonly probe: PiTransientProbe
+  private readonly probe: TransientProbe
   private readonly requestTimeoutMs: number
 
   constructor(
-    private readonly piModels: PiModelService,
+    private readonly runtimeModels: ModelService,
     options: ProtocolDetectionServiceOptions = {},
   ) {
-    this.probe = options.probe ?? new PiTransientProbe(options.probeOptions ?? {})
+    this.probe = options.probe ?? new TransientProbe(options.probeOptions ?? {})
     this.requestTimeoutMs = options.requestTimeoutMs ?? PROTOCOL_DETECTION_REQUEST_TIMEOUT_MS
   }
 
@@ -129,7 +129,7 @@ export class ProtocolDetectionService {
       if (!providerID) {
         throw new AgentError('INVALID_REQUEST', '批量检测需要先选择供应商', 400)
       }
-      const exists = (await this.piModels.list()).some(
+      const exists = (await this.runtimeModels.list()).some(
         (provider) => String(provider.id) === providerID,
       )
       if (!exists) {
@@ -248,7 +248,7 @@ export class ProtocolDetectionService {
   private async resolveCredential(providerID: string | undefined): Promise<ResolvedCredential> {
     if (!providerID) return { headers: {} }
     try {
-      const auth = await this.piModels.pi.getAuth(providerID)
+      const auth = await this.runtimeModels.registry.getAuth(providerID)
       if (!auth) return { headers: {} }
       const headers: Record<string, string> = {}
       for (const [name, value] of Object.entries(auth.auth.headers ?? {})) {
@@ -267,7 +267,7 @@ export class ProtocolDetectionService {
 
   /** Saved chat-capable models: custom config models, or the builtin catalog filtered by availability. */
   private async savedChatModels(providerID: string): Promise<SavedChatModel[]> {
-    const definitions = await this.piModels.providerDefinitions()
+    const definitions = await this.runtimeModels.providerDefinitions()
     const definition = definitions.find((candidate) => candidate.id === providerID)
     if (definition?.kind === 'custom') {
       return definition.models
@@ -279,7 +279,7 @@ export class ProtocolDetectionService {
         )
         .map((model) => ({ id: String(model.id), api: model.api }))
     }
-    const models = await this.piModels.models(Provider.ID.make(providerID))
+    const models = await this.runtimeModels.models(Provider.ID.make(providerID))
     return models
       .filter(
         (model) => model.enabled && model.modelType !== 'embedding' && model.modelType !== 'rerank',
@@ -294,7 +294,7 @@ export class ProtocolDetectionService {
   private async baselineModel(providerID: string | undefined): Promise<string | undefined> {
     if (!providerID) return undefined
     try {
-      const config = await this.piModels.catalogConfig()
+      const config = await this.runtimeModels.catalogConfig()
       const provider = config.providers[providerID] as unknown as
         { modelSync?: { models?: readonly unknown[] } } | undefined
       const models = provider?.modelSync?.models
@@ -325,7 +325,7 @@ export class ProtocolDetectionService {
       }
     }
     try {
-      const problem = await this.piModels.draftProtocolProblem(
+      const problem = await this.runtimeModels.draftProtocolProblem(
         modelId,
         protocol,
         baseUrl,

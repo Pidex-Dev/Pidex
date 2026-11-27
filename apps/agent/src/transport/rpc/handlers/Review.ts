@@ -49,7 +49,7 @@ export const reviewHandlers = {
     'review/ai/start',
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown): Promise<unknown> {
-    const { db, threads, providers, piModels, review, github } = runtime.dependencies
+    const { db, threads, providers, runtimeModels, review, github } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case 'review/summary': {
@@ -136,7 +136,7 @@ export const reviewHandlers = {
         const model = await aiReviewModel(
           db,
           providers,
-          piModels,
+          runtimeModels,
           runtime.dependencies.config,
           input.threadId,
           projectID,

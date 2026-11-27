@@ -6,9 +6,8 @@ import { join } from 'node:path'
 import { removeFixturePaths } from './FixtureCleanup'
 import { ProjectSourceService } from '../src/project/ProjectSourceService'
 import { ProjectService } from '../src/project/ProjectService'
-import { createLifecycleTools } from '../src/orchestration/pi/PiToolAdapter'
+import { createLifecycleTools } from '../src/orchestration/execution/ProviderToolAdapter'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
-import { ContentBlobStore } from '../src/storage/ContentBlobStore'
 import { AttachmentService } from '../src/subagent/AttachmentService'
 import { SqliteAttachmentCatalog } from '../src/subagent/SqliteAttachmentCatalog'
 
@@ -31,7 +30,7 @@ const fixture = async () => {
 
 describe('ProjectSourceService', () => {
   test('启动恢复继续 pending 项目移除并保留来源与源码目录供撤销', async () => {
-    const { dataDir, workspace, db, project, sources } = await fixture()
+    const { workspace, db, project, sources } = await fixture()
     try {
       const [source] = await sources.import(project.id, [
         {
@@ -53,11 +52,19 @@ describe('ProjectSourceService', () => {
         requestHash: hash,
       })
 
-      expect(await new ProjectService(db, sources).recoverPendingRemovals()).toEqual([operationID])
+      const projects = new ProjectService(db)
+      expect(await projects.recoverPendingRemovals()).toEqual([operationID])
       expect(db.getProject(project.id)?.removedAt).toBeNumber()
       expect(db.projectOperation(operationID)?.status).toBe('completed')
       expect((await stat(workspace)).isDirectory()).toBe(true)
-      expect(await (await ContentBlobStore.open(dataDir)).read(source.sha256)).toBeDefined()
+      const restored = await projects.restore({
+        projectID: project.id,
+        removalOperationID: operationID,
+        operationID: crypto.randomUUID(),
+      })
+      expect(restored.project.folders).toEqual(project.folders)
+      const { data } = await sources.read(project.id, source.id)
+      expect(new TextDecoder().decode(data)).toBe('remove catalog only')
     } finally {
       db.close()
     }

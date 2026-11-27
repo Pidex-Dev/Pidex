@@ -10,7 +10,7 @@ import type { ConfigMigrationRepository } from '../storage/repositories/ConfigMi
 import { readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
-import { planPiProviderConfigMigration } from '../provider/pi/PiProviderConfigMigration'
+import { planProviderConfigMigration } from '../provider/runtime/ProviderConfigMigration'
 
 const SPECIALIZED_MODEL_PURPOSES = ['generation', 'organization', 'coding', 'security'] as const
 
@@ -197,7 +197,7 @@ export class ConfigMigrationService {
     const legacy = this.repository.read()
     if (legacy.completed) {
       await this.migratePortableDesktopRuntimeState()
-      await this.migratePiProviderConfig()
+      await this.migrateProviderConfig()
       await this.migrateRecentNewThreadModel()
       await this.migrateSpecializedModelReferences()
       return
@@ -335,7 +335,7 @@ export class ConfigMigrationService {
       await rm(this.legacyToolingSettingsPath, { force: true })
     }
     await this.migratePortableDesktopRuntimeState()
-    await this.migratePiProviderConfig()
+    await this.migrateProviderConfig()
     await this.migrateRecentNewThreadModel()
     await this.migrateSpecializedModelReferences()
   }
@@ -442,11 +442,11 @@ export class ConfigMigrationService {
     })
   }
 
-  private async migratePiProviderConfig() {
+  private async migrateProviderConfig() {
     const read = await this.config.read({ includeLayers: true })
     const current = read.layers?.find((layer) => layer.kind === 'user')?.config ?? {}
     const userVersion = read.layers?.find((layer) => layer.kind === 'user')?.version
-    const edits = planPiProviderConfigMigration(current)
+    const edits = planProviderConfigMigration(current)
     if (edits.length === 0) return
     await this.config.batchWrite({
       edits,
@@ -454,7 +454,7 @@ export class ConfigMigrationService {
     })
     const verified = await this.config.read()
     if (verified.diagnostics.some((item) => item.severity === 'error')) {
-      throw new Error('Pi provider config migration verification failed')
+      throw new Error('Provider config migration verification failed')
     }
   }
 }

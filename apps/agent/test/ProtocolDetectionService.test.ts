@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type {
   Api,
   AssistantMessage,
-  Model as PiModel,
+  Model as RuntimeModel,
   SimpleStreamOptions,
   TranscriptContext,
 } from '@earendil-works/pi-ai'
@@ -13,26 +13,26 @@ import {
   ProtocolDetectionService,
 } from '../src/provider/ProtocolDetectionService'
 import {
-  PiTransientProbe,
+  TransientProbe,
   TRANSIENT_PROBE_PROVIDER_ID,
   type TransientProbeStream,
-} from '../src/provider/PiTransientProbe'
+} from '../src/provider/TransientProbe'
 import {
   PROTOCOL_DETECTION_APIS,
   TRANSIENT_NO_AUTH_API_KEY,
   normalizeProtocolBaseUrl,
 } from '../src/provider/ProviderProtocolUrl'
-import type { PiModelService, PiProviderDefinitionInput } from '../src/provider/pi'
-import type { CustomProviderApi } from '../src/provider/pi/PiProviderConfig'
+import type { ModelService, ProviderDefinitionInput } from '../src/provider/runtime'
+import type { CustomProviderApi } from '../src/provider/runtime/ProviderConfig'
 
 type StreamHandler = (
-  model: PiModel<Api>,
+  model: RuntimeModel<Api>,
   context: TranscriptContext,
   options: SimpleStreamOptions,
 ) => TransientProbeStream
 
 type ProbeCall = {
-  model: PiModel<Api>
+  model: RuntimeModel<Api>
   context: TranscriptContext
   options: SimpleStreamOptions
 }
@@ -70,7 +70,7 @@ const customDefinition = (
     enabled?: boolean
     modelType?: 'chat' | 'embedding' | 'rerank'
   }>,
-): PiProviderDefinitionInput => ({
+): ProviderDefinitionInput => ({
   kind: 'custom',
   id: 'demo',
   name: 'Demo',
@@ -90,11 +90,11 @@ const customDefinition = (
 
 type HarnessOptions = {
   readonly providers?: ReadonlyArray<{ id: string; disabled?: boolean }>
-  readonly definitions?: readonly PiProviderDefinitionInput[]
+  readonly definitions?: readonly ProviderDefinitionInput[]
   readonly models?: (providerID: Provider.ID) => Promise<readonly Model.Info[]>
   readonly catalog?: unknown
   readonly auth?: (providerID: string) => Promise<unknown>
-  readonly draftProtocolProblem?: PiModelService['draftProtocolProblem']
+  readonly draftProtocolProblem?: ModelService['draftProtocolProblem']
   readonly stream?: StreamHandler
   readonly requestTimeoutMs?: number
 }
@@ -102,7 +102,7 @@ type HarnessOptions = {
 const makeHarness = (options: HarnessOptions = {}) => {
   const calls: ProbeCall[] = []
   const mutations: string[] = []
-  const piModels = {
+  const runtimeModels = {
     list: async () =>
       (options.providers ?? [{ id: 'demo' }]).map((provider) => ({
         id: Provider.ID.make(provider.id),
@@ -113,7 +113,7 @@ const makeHarness = (options: HarnessOptions = {}) => {
     providerDefinitions: async () => options.definitions ?? [],
     catalogConfig: async () => options.catalog ?? { schemaVersion: 2, providers: {}, issues: [] },
     draftProtocolProblem: options.draftProtocolProblem ?? (async () => undefined),
-    pi: {
+    registry: {
       getAuth: async (providerID: string) =>
         options.auth ? await options.auth(providerID) : undefined,
       // Any mutation of the global registry would be a draft leak.
@@ -124,14 +124,14 @@ const makeHarness = (options: HarnessOptions = {}) => {
         mutations.push('deleteProvider')
       },
     },
-  } as unknown as PiModelService
-  const probe = new PiTransientProbe({
+  } as unknown as ModelService
+  const probe = new TransientProbe({
     streamSimple: (model, context, streamOptions) => {
       calls.push({ model, context, options: streamOptions })
       return (options.stream ?? (() => okStream()))(model, context, streamOptions)
     },
   })
-  const service = new ProtocolDetectionService(piModels, {
+  const service = new ProtocolDetectionService(runtimeModels, {
     probe,
     ...(options.requestTimeoutMs !== undefined
       ? { requestTimeoutMs: options.requestTimeoutMs }
@@ -732,7 +732,7 @@ describe('ProtocolDetectionService', () => {
     })
     try {
       const service = new ProtocolDetectionService(
-        { draftProtocolProblem: async () => undefined } as unknown as PiModelService,
+        { draftProtocolProblem: async () => undefined } as unknown as ModelService,
         {
           requestTimeoutMs: 5_000,
         },

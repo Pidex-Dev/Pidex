@@ -8,7 +8,7 @@ import { ConfigService } from '../src/config/ConfigService'
 import { ConfigMigrationService } from '../src/config/ConfigMigrationService'
 import { ConfigMigrationRepository } from '../src/storage/repositories/ConfigMigrationRepository'
 import { Model, Provider } from '@pidex/model-schema'
-import { planPiProviderConfigMigration } from '../src/provider/pi/PiProviderConfigMigration'
+import { planProviderConfigMigration } from '../src/provider/runtime/ProviderConfigMigration'
 
 const roots: string[] = []
 afterEach(async () => {
@@ -348,7 +348,7 @@ describe('ConfigMigrationService', () => {
         },
       },
     }
-    const edits = planPiProviderConfigMigration(current)
+    const edits = planProviderConfigMigration(current)
     const byPath = new Map(edits.map((edit) => [edit.keyPath.join('.'), edit.value]))
 
     expect(byPath.get('model_catalog.schema_version')).toBe(2)

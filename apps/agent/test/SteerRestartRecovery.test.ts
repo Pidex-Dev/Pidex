@@ -65,6 +65,9 @@ for (const scenario of ['pending-only', 'mixed', 'consumed'] as const) {
       const other = db.createThread()
       const otherTurn = db.createTurn(other.id, { ...input, strategy: 'queue' })
       const otherState = db.queueStateMeta(other.id)
+      expect(db.guideMailbox(active.turnID).map(({ id }) => id)).toEqual(
+        pending.map(({ inputID }) => inputID),
+      )
       db.close()
       db = new AgentDatabase(path)
       recoverInterruptedRuns(db)

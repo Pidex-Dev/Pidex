@@ -13,7 +13,7 @@ import {
 } from '@pidex/agent-protocol'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { AgentError } from '../src/Domain'
-import { PiModelServiceError } from '../src/provider/pi/PiModelService'
+import { ModelServiceError } from '../src/provider/runtime/ModelService'
 import { RpcRouter, type RpcRouterDependencies } from '../src/transport/rpc/RpcRouter'
 import { ThreadProjection } from '../src/transport/ThreadProjection'
 import { TerminalOutputMirror } from '../src/terminal/TerminalOutputMirror'
@@ -200,7 +200,7 @@ const fixture = async (
         ? await AttachmentService.open(root, { catalog: new SqliteAttachmentCatalog(db) })
         : null,
       providers: null,
-      piModels: null,
+      runtimeModels: null,
       providerCredentials: null,
       authSessions: null,
       apiKeys: null,
@@ -541,7 +541,7 @@ describe('RPC v4 Router', () => {
           runtimeVersion: 'host-hook-v1',
           maturity: 'alpha',
           maxConcurrentCommands: 1,
-          error: '内置命令沙箱已移除；Shell 经 Pi Hook 和权限检查后以当前用户身份在本机执行。',
+          error: '内置命令沙箱已移除；Shell 经 Hook 和权限检查后以当前用户身份在本机执行。',
           operations: {
             canInstall: false,
             canRepair: false,
@@ -1595,7 +1595,7 @@ describe('RPC v4 Router', () => {
         },
         refresh: async () => undefined,
       } as unknown as RpcRouterDependencies['providers'],
-      piModels: {
+      runtimeModels: {
         providerDefinitions: async () => [
           {
             kind: 'builtin',
@@ -1619,7 +1619,7 @@ describe('RPC v4 Router', () => {
           authConfiguredCalls.push(candidateProviderID)
           return true
         },
-      } as unknown as RpcRouterDependencies['piModels'],
+      } as unknown as RpcRouterDependencies['runtimeModels'],
     })
     await initialize()
 
@@ -1669,7 +1669,7 @@ describe('RPC v4 Router', () => {
     const { db, call, initialize } = await fixture({
       providers: {
         refresh: async () => {
-          throw new PiModelServiceError('CATALOG_REFRESH_FAILED', 'private upstream failure', {
+          throw new ModelServiceError('CATALOG_REFRESH_FAILED', 'private upstream failure', {
             cause: new Error('private credential or endpoint'),
           })
         },
@@ -1695,7 +1695,7 @@ describe('RPC v4 Router', () => {
     const { db, call, initialize } = await fixture({
       providers: {
         refresh: async () => {
-          throw new PiModelServiceError(
+          throw new ModelServiceError(
             'CATALOG_REFRESH_FAILED',
             'private upstream failure',
             { cause: new Error('private credential') },
@@ -1744,11 +1744,11 @@ describe('RPC v4 Router', () => {
           refreshScopes.push(providerId)
         },
       } as unknown as RpcRouterDependencies['providers'],
-      piModels: {
+      runtimeModels: {
         refreshDirectory: async () => {
           reloadCalls += 1
         },
-      } as unknown as RpcRouterDependencies['piModels'],
+      } as unknown as RpcRouterDependencies['runtimeModels'],
     })
     await initialize()
     expect(

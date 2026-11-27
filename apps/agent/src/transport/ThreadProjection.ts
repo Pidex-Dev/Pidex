@@ -901,7 +901,7 @@ export class ThreadProjection {
       role: String(row.role) as Message['role'],
       createdAt: Number(row.created_at),
     }))
-    const items = normalizePiReasoningOrder(
+    const items = normalizeReasoningOrder(
       (
         this.db.sqlite
           .query(
@@ -1148,7 +1148,7 @@ export class ThreadProjection {
           )
           .all(...selectedTurnIDs) as Array<Record<string, string | number | null>>)
       : []
-    const items = normalizePiReasoningOrder(
+    const items = normalizeReasoningOrder(
       itemRows
         .map((row) =>
           this.item({
@@ -1960,18 +1960,18 @@ export class ThreadProjection {
   }
 }
 
-const PI_REASONING_SEGMENT = ':pi:reasoning:'
+const LEGACY_REASONING_SEGMENT = ':pi:reasoning:'
 
-const piReasoningSegmentID = (item: Item): string | null => {
+const reasoningSegmentID = (item: Item): string | null => {
   if (item.type !== 'reasoning') return null
-  const prefix = `${item.turnId}${PI_REASONING_SEGMENT}`
+  const prefix = `${item.turnId}${LEGACY_REASONING_SEGMENT}`
   if (!item.id.startsWith(prefix)) return null
   const segmentID = item.id.slice(prefix.length)
   return segmentID.length > 0 ? segmentID : null
 }
 
 // INVARIANT: Project legacy reasoning before its paired text so historical assistant results retain their classification.
-const normalizePiReasoningOrder = (items: Item[]): Item[] => {
+const normalizeReasoningOrder = (items: Item[]): Item[] => {
   const byTurn = new Map<string, Item[]>()
   for (const item of items) {
     const bucket = byTurn.get(item.turnId)
@@ -1985,7 +1985,7 @@ const normalizePiReasoningOrder = (items: Item[]): Item[] => {
     const reordered = [...turnItems]
     let turnChanged = false
     for (const item of turnItems) {
-      const segmentID = piReasoningSegmentID(item)
+      const segmentID = reasoningSegmentID(item)
       if (!segmentID) continue
       const textID = `${turnId}:pi:text:${segmentID}`
       const textIndex = reordered.findIndex(

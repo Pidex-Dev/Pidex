@@ -1,10 +1,10 @@
 import { Model, Provider } from '@pidex/model-schema'
-import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
+import type { Api, Model as RuntimeModel } from '@earendil-works/pi-ai'
 import { Schema } from 'effect'
 import { AgentError } from '../Domain'
-import { PiTransientProbe } from './PiTransientProbe'
-import type { PiModelService } from './pi'
-import type { CustomProviderApi } from './pi/PiProviderConfig'
+import { TransientProbe } from './TransientProbe'
+import type { ModelService } from './runtime'
+import type { CustomProviderApi } from './runtime/ProviderConfig'
 import {
   hasAuthorizationHeader,
   normalizeProtocolBaseUrl,
@@ -100,7 +100,13 @@ const valueAt = (value: unknown, key: string): unknown =>
     ? (value as Record<string, unknown>)[key]
     : undefined
 
-export function providerHttpErrorStatus(cause: unknown, depth = 0): number | undefined {
+type ProviderStatusSource = 'response' | 'sdk-message'
+
+export function providerHttpErrorStatus(
+  cause: unknown,
+  source: ProviderStatusSource = 'sdk-message',
+  depth = 0,
+): number | undefined {
   if (depth > 4) return undefined
   for (const value of [
     valueAt(cause, 'statusCode'),
@@ -112,13 +118,13 @@ export function providerHttpErrorStatus(cause: unknown, depth = 0): number | und
       return value
   }
   const message = typeof cause === 'string' ? cause : valueAt(cause, 'message')
-  if (typeof message === 'string') {
+  if (source === 'sdk-message' && typeof message === 'string') {
     const match = /^(?:HTTP\s+)?([45]\d{2})(?=[\s:]|$)|^[A-Za-z ]{1,48} \(([45]\d{2})\):/i.exec(
       message.trimStart(),
     )
     if (match) return Number(match[1] ?? match[2])
   }
-  return providerHttpErrorStatus(valueAt(cause, 'cause'), depth + 1)
+  return providerHttpErrorStatus(valueAt(cause, 'cause'), source, depth + 1)
 }
 
 const isTimeoutSignal = (cause: unknown, message: string): boolean => {
@@ -130,8 +136,11 @@ const isTimeoutSignal = (cause: unknown, message: string): boolean => {
   return /timed?\s*out|timeout|abort/i.test(message)
 }
 
-export const providerFailureCategory = (cause: unknown): ModelHealthFailureCategory => {
-  const status = providerHttpErrorStatus(cause)
+export const providerFailureCategory = (
+  cause: unknown,
+  source: ProviderStatusSource = 'sdk-message',
+): ModelHealthFailureCategory => {
+  const status = providerHttpErrorStatus(cause, source)
   const message = cause instanceof Error ? cause.message : String(cause)
   if (
     cause &&
@@ -151,11 +160,11 @@ export const providerFailureCategory = (cause: unknown): ModelHealthFailureCateg
     )
   )
     return 'authentication'
-  if (/rate[\s_-]?limit|429|too many requests/i.test(message)) return 'rate-limit'
+  if (/rate[\s_-]?limit|too many requests/i.test(message)) return 'rate-limit'
   if (isTimeoutSignal(cause, message)) return 'timeout'
   if (cause instanceof TypeError || /network|fetch|socket|dns|connect|econn/i.test(message))
     return 'network'
-  if (cause instanceof Error && cause.name === 'PiModelServiceError') return 'configuration'
+  if (cause instanceof Error && cause.name === 'ModelServiceError') return 'configuration'
   return 'unknown'
 }
 
@@ -302,9 +311,9 @@ export class ModelHealthService {
   private consumed = false
 
   constructor(
-    private readonly piModels: PiModelService,
+    private readonly runtimeModels: ModelService,
     private readonly onUpdated: HealthUpdatedHandler,
-    private readonly transientProbe: PiTransientProbe = new PiTransientProbe(),
+    private readonly transientProbe: TransientProbe = new TransientProbe(),
   ) {}
 
   async preview(): Promise<{
@@ -656,7 +665,7 @@ export class ModelHealthService {
     candidates: Model.Ref[]
     excludedProviders: ModelHealthExcludedProvider[]
   }> {
-    const providers = await this.piModels.list()
+    const providers = await this.runtimeModels.list()
     const candidates: Model.Ref[] = []
     const excludedProviders: ModelHealthExcludedProvider[] = []
     const seen = new Set<string>()
@@ -671,7 +680,7 @@ export class ModelHealthService {
         })
         continue
       }
-      const models = await this.piModels.models(providerID)
+      const models = await this.runtimeModels.models(providerID)
       const enabled = models.filter((model) => model.enabled === true)
       if (models.length === 0) {
         excludedProviders.push({
@@ -717,9 +726,9 @@ export class ModelHealthService {
       signal?: AbortSignal
     } = {},
   ): Promise<ProbeResult> {
-    let piModel: PiModel<Api>
+    let runtimeModel: RuntimeModel<Api>
     try {
-      piModel = await this.piModels.getPiModel(ref)
+      runtimeModel = await this.runtimeModels.getRuntimeModel(ref)
     } catch {
       return {
         ok: false,
@@ -727,15 +736,15 @@ export class ModelHealthService {
         message: providerFailureMessage('configuration', 'health-check'),
       }
     }
-    // getPiModel can race cancel()/dispose(): never hand an already-aborted
+    // getRuntimeModel can race cancel()/dispose(): never hand an already-aborted
     // signal to the request, or its abort listener would never fire.
     if (opts.signal?.aborted) {
       return { ok: false, category: 'timeout', message: '模型测试已取消' }
     }
-    const api = piModel.api as string
+    const api = runtimeModel.api as string
     const startedAt = performance.now()
     try {
-      const modelType = (piModel as typeof piModel & { modelType?: string }).modelType
+      const modelType = (runtimeModel as typeof runtimeModel & { modelType?: string }).modelType
       if (modelType === 'embedding' || modelType === 'rerank') {
         const options = {
           ...(opts.explicitApiKey ? { apiKey: opts.explicitApiKey } : {}),
@@ -745,12 +754,12 @@ export class ModelHealthService {
           ]),
         }
         if (modelType === 'embedding')
-          await this.piModels.embed(ref, ['health check'], undefined, options)
-        else await this.piModels.rerank(ref, 'health check', ['health check'], 1, options)
+          await this.runtimeModels.embed(ref, ['health check'], undefined, options)
+        else await this.runtimeModels.rerank(ref, 'health check', ['health check'], 1, options)
         return { ok: true, latencyMs: Math.max(0, Math.round(performance.now() - startedAt)), api }
       }
-      const response = await this.piModels.pi.completeSimple(
-        piModel,
+      const response = await this.runtimeModels.registry.completeSimple(
+        runtimeModel,
         {
           messages: [
             {
@@ -818,7 +827,7 @@ export class ModelHealthService {
         api: protocol,
       }
     }
-    const problem = await this.piModels.draftProtocolProblem(
+    const problem = await this.runtimeModels.draftProtocolProblem(
       modelId,
       protocol,
       baseUrl,

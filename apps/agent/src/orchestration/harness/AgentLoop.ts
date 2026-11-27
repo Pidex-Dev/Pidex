@@ -1,4 +1,4 @@
-import { isProviderContextOverflow } from '../pi/ContextOverflow'
+import { isProviderContextOverflow } from '../execution/ContextOverflow'
 import { providerHttpErrorStatus } from '../../provider/ModelHealthService'
 /**
  * Agent loop that works with AgentMessage throughout.

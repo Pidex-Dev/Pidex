@@ -23,7 +23,7 @@ import type {
   ToolExecutionMode,
 } from './AgentTypes.ts'
 import type { DeferredToolCatalog } from '../../tool/harness/DeferredToolCatalog.ts'
-import type { Session } from '../../storage/pi-session/Session.ts'
+import type { Session } from '../../storage/session/Session.ts'
 
 /** Result of a fallible operation. Expected failures are returned as `ok: false` instead of thrown. */
 export type Result<TValue, TError> = { ok: true; value: TValue } | { ok: false; error: TError }
@@ -520,7 +520,7 @@ export interface SessionStorage<TMetadata extends SessionMetadata = SessionMetad
   getEntries(options?: SessionEntryCursorOptions): Promise<SessionTreeEntry[]>
 }
 
-export type { Session } from '../../storage/pi-session/Session.ts'
+export type { Session } from '../../storage/session/Session.ts'
 
 export interface SessionCreateOptions {
   id?: string
@@ -972,7 +972,7 @@ interface AgentHarnessOptionsBase<
    * auth.
    */
   models: Models
-  readMediaAttachment?: import('../../provider/pi/MediaInput').ReadMediaAttachment
+  readMediaAttachment?: import('../../provider/runtime/MediaInput').ReadMediaAttachment
   tools?: TTool[]
   /** Lazily loaded tools that can be searched and activated by exact name. */
   deferredToolCatalog?: DeferredToolCatalog<TTool>

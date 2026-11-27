@@ -30,9 +30,9 @@ import type { ModelSyncService } from '../../provider/ModelSyncService'
 import type { ProtocolDetectionService } from '../../provider/ProtocolDetectionService'
 import type { ProviderCredentialService } from '../../provider/ProviderCredentialService'
 import type { ProviderCredentialStoreManager } from '../../auth/ProviderCredentialStoreManager'
-import type { PiModelService } from '../../provider/pi'
-import { resolveSpecializedPiModel } from '../../provider/pi/PiSpecializedModelResolver'
-import type { PiAuthSessionService } from '../../auth/PiAuthSessionService'
+import type { ModelService } from '../../provider/runtime'
+import { resolveSpecializedModel } from '../../provider/runtime/SpecializedModelResolver'
+import type { ProviderAuthSessionService } from '../../auth/ProviderAuthSessionService'
 import type { ThreadHistoryService } from '../../session/ThreadHistoryService'
 import type { ThreadService } from '../../session/ThreadService'
 import type { AgentDatabase } from '../../storage/database/AgentDatabase'
@@ -156,14 +156,14 @@ export type RpcRouterDependencies = {
   localContextPaths: LocalContextPathService
   projectSources: ProjectSourceService
   providers: AgentModelCatalog
-  piModels: PiModelService
+  runtimeModels: ModelService
   apiKeys: ApiKeyService
   modelHealth: ModelHealthService
   modelSync: ModelSyncService
   protocolDetection: ProtocolDetectionService
   providerCredentials: ProviderCredentialService
   providerCredentialStore: ProviderCredentialStoreManager
-  authSessions: PiAuthSessionService
+  authSessions: ProviderAuthSessionService
   memory: MemoryService
   hooks: HookService
   /** Optional: unset when Hook management is not wired for this runtime. */
@@ -820,7 +820,7 @@ export const resolveAiReviewSource = async (
 export const aiReviewModel = async (
   db: AgentDatabase,
   providers: AgentModelCatalog,
-  piModels: PiModelService,
+  runtimeModels: ModelService,
   configService: ConfigService,
   threadId: string,
   projectId: string,
@@ -836,10 +836,10 @@ export const aiReviewModel = async (
       latestModel = null
     }
   }
-  const specialized = await resolveSpecializedPiModel({
+  const specialized = await resolveSpecializedModel({
     purpose: 'coding',
     db,
-    models: piModels,
+    models: runtimeModels,
     configService,
     projectId,
     ...(latestModel ? { fallbackRefs: [latestModel] } : {}),

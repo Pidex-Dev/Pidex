@@ -12,9 +12,9 @@ import {
   type EventEnvelope as WireEventEnvelope,
 } from '@pidex/agent-protocol'
 import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
-import { PiEventAdapter } from '../src/orchestration/pi/PiEventAdapter'
+import { ProviderEventAdapter } from '../src/orchestration/execution/ProviderEventAdapter'
 import type { AgentHarnessEvent } from '../src/orchestration/harness/Types'
-import type { PiRuntimeEventSink } from '../src/orchestration/pi/Types'
+import type { RuntimeEventSink } from '../src/orchestration/execution/Types'
 import { Model, Provider } from '@pidex/model-schema'
 import type { EventEnvelope } from '../src/Domain'
 import { removeFixturePaths } from './FixtureCleanup'
@@ -992,7 +992,7 @@ test('阶段变更使用持久事件原位更新，实时、重放与数据库�
       session: unknown,
       model: unknown,
       sessionID: string,
-    ): PiRuntimeEventSink
+    ): RuntimeEventSink
   }
   internals.publish = async (event) => {
     events.push(event)
@@ -1084,7 +1084,7 @@ test('已发布的正文增量在完成前中止仍可从持久快照恢复，�
       session: unknown,
       model: unknown,
       sessionID: string,
-    ): PiRuntimeEventSink
+    ): RuntimeEventSink
   }
   const published: EventEnvelope[] = []
   internals.publish = async (event) => {
@@ -1413,7 +1413,7 @@ describe('ThreadProjection forkedFrom 字段投影契约', () => {
         session: unknown,
         model: unknown,
         sessionID: string,
-      ): PiRuntimeEventSink
+      ): RuntimeEventSink
     }
     internals.publish = async () => {}
     const sink = internals.eventSink(
@@ -1422,7 +1422,7 @@ describe('ThreadProjection forkedFrom 字段投影契约', () => {
       { provider: 'dashscope', id: 'qwen3.8-flash', contextWindow: 128_000 },
       'session',
     )
-    const adapter = new PiEventAdapter(context, sink)
+    const adapter = new ProviderEventAdapter(context, sink)
     const send = (event: unknown) => adapter.handle(event as AgentHarnessEvent)
 
     await send({ type: 'message_start', message: { role: 'assistant', content: [] } })

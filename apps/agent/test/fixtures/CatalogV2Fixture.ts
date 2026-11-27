@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { Model } from '@pidex/model-schema'
-import type { ModelsV2, ProvidersV2 } from '../../src/provider/pi/CatalogV2'
+import type { ModelsV2, ProvidersV2 } from '../../src/provider/runtime/CatalogV2'
 
 const header = {
   owner: 'pidex-model-catalog',

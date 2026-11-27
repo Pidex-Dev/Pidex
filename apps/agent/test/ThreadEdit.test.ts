@@ -8,9 +8,9 @@ import { Model, Provider } from '@pidex/model-schema'
 import { DEFAULT_PERMISSION_CONFIG } from '@pidex/shared/thread'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import {
-  SqlitePiSessionRepo,
-  SqlitePiSessionStorage,
-} from '../src/storage/pi-session/SqlitePiSession'
+  SqliteSessionRepo,
+  SqliteSessionStorage,
+} from '../src/storage/session/SqliteSession'
 import { ThreadEditRepository } from '../src/storage/repositories/ThreadEditRepository'
 import { ThreadService } from '../src/session/ThreadService'
 import { ConversationHistoryForkRepository } from '../src/session/fork/ConversationHistoryForkRepository'
@@ -41,7 +41,7 @@ async function fixture() {
   const db = new AgentDatabase(join(root, 'agent.sqlite'))
   databases.push(db)
   const thread = db.createThread()
-  const repo = new SqlitePiSessionRepo(db)
+  const repo = new SqliteSessionRepo(db)
   const attachments = await AttachmentService.open(root, {
     catalog: new SqliteAttachmentCatalog(db),
   })
@@ -87,7 +87,7 @@ async function fixture() {
       })
     }
     await session.appendMessage({ role: 'user', content, timestamp: Date.now() })
-    ;(session.getStorage() as SqlitePiSessionStorage).flush()
+    ;(session.getStorage() as SqliteSessionStorage).flush()
     return value
   }
   function finish(turnID: string) {
@@ -374,7 +374,7 @@ test('编辑后的 fork 与侧边聊天只复制活动轮次和 Pi 前缀', asyn
     stopReason: 'stop',
     timestamp: 2,
   })
-  ;(session.getStorage() as SqlitePiSessionStorage).flush()
+  ;(session.getStorage() as SqliteSessionStorage).flush()
   f.finish(next.turnID)
   const agent = f.db.sqlite
     .query('SELECT root_agent_id FROM turns WHERE id = ?')

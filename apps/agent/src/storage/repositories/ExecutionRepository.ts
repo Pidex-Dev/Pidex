@@ -457,19 +457,6 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
     } | null
   }
 
-  takeGuideMailbox(turnID: string) {
-    return this.transaction(() => {
-      const rows = this.guideMailbox(turnID)
-      if (rows.length) {
-        const placeholders = rows.map(() => '?').join(',')
-        this.sqlite
-          .query(`UPDATE inputs SET status = 'consumed' WHERE id IN (${placeholders})`)
-          .run(...rows.map((row) => row.id))
-      }
-      return rows
-    })
-  }
-
   guideMailbox(turnID: string) {
     const rows = this.sqlite
       .query(

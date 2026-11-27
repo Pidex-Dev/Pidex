@@ -5,7 +5,7 @@ import type {
   ProviderCredentialRepository,
 } from '../auth/ProviderCredentialRepository'
 import { AgentError } from '../Domain'
-import type { PiModelService } from './pi'
+import type { ModelService } from './runtime'
 
 export type ProviderAuthMethodSummary = {
   type: 'api-key' | 'oauth'
@@ -39,13 +39,13 @@ export type PublicProviderCredentialSummary = {
  */
 export class ProviderCredentialService {
   constructor(
-    private readonly providers: PiModelService,
+    private readonly providers: ModelService,
     private readonly credentials: ProviderCredentialRepository,
   ) {}
 
   async methods(providerID: string): Promise<ProviderAuthMethodSummary[]> {
     const info = await this.requiredProvider(providerID)
-    const provider = this.providers.pi
+    const provider = this.providers.registry
       .getProviders()
       .find((candidate) => candidate.id === providerID)!
     return [

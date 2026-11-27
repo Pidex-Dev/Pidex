@@ -50,7 +50,7 @@ export const workspaceHandlers = {
   ): Promise<unknown> {
     const { db, projectSources } = runtime.dependencies
     const params = optionalRecord(rawParams)
-    const projects = new ProjectService(db, projectSources, async (events) => {
+    const projects = new ProjectService(db, async (events) => {
       for (const event of events) await Effect.runPromise(runtime.dependencies.hub.publish(event))
     })
     const operationID = () => stringParam(params, 'operationId')

@@ -13,9 +13,9 @@ import {
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { ConfigService } from '../config/ConfigService'
 import { secretScrubber } from '../security/SecretScrubber'
-import type { PiModelService } from '../provider/pi'
-import { generatePiObject } from '../provider/pi/PiStructuredOutput'
-import { resolveSpecializedPiModel } from '../provider/pi/PiSpecializedModelResolver'
+import type { ModelService } from '../provider/runtime'
+import { generateObject } from '../provider/runtime/StructuredOutput'
+import { resolveSpecializedModel } from '../provider/runtime/SpecializedModelResolver'
 import {
   applyGuardianPolicy,
   guardianActionHash,
@@ -156,14 +156,14 @@ type GuardianHistoryEntry = {
   reason?: string
 }
 
-type PiChatModel = Awaited<ReturnType<PiModelService['getPiModel']>>
+type ChatModel = Awaited<ReturnType<ModelService['getRuntimeModel']>>
 
 export class ReviewerService {
   private decisionService: DecisionService | null = null
 
   constructor(
     private readonly db: AgentDatabase,
-    private readonly providers: PiModelService,
+    private readonly providers: ModelService,
     private readonly configService?: ConfigService,
     private readonly evidence?: GuardianEvidenceService,
     private readonly logger?: Pick<AgentLogger, 'info' | 'warn'>,
@@ -174,7 +174,7 @@ export class ReviewerService {
   }
 
   private resolveReviewerModel(fallback: Model.Ref | undefined, projectId?: string) {
-    return resolveSpecializedPiModel({
+    return resolveSpecializedModel({
       purpose: 'security',
       db: this.db,
       models: this.providers,
@@ -189,10 +189,10 @@ export class ReviewerService {
     selected: NonNullable<Awaited<ReturnType<ReviewerService['resolveReviewerModel']>>>,
     fallback: Model.Ref | undefined,
     signal: AbortSignal,
-    operation: (model: Awaited<ReturnType<PiModelService['getPiModel']>>) => Promise<T>,
+    operation: (model: Awaited<ReturnType<ModelService['getRuntimeModel']>>) => Promise<T>,
     context?: LogContext,
   ): Promise<{ value: T; ref: Model.Ref }> {
-    const attempt = async (ref: Model.Ref, model: PiChatModel) => {
+    const attempt = async (ref: Model.Ref, model: ChatModel) => {
       signal.throwIfAborted()
       const startedAt = Date.now()
       const details = { provider: String(ref.providerID), model: String(ref.id) }
@@ -236,7 +236,7 @@ export class ReviewerService {
           reason: cause instanceof AgentError ? cause.code : 'REVIEWER_UNAVAILABLE',
         },
       })
-      return await attempt(fallback, await this.providers.getPiModel(fallback))
+      return await attempt(fallback, await this.providers.getRuntimeModel(fallback))
     }
   }
 
@@ -502,8 +502,8 @@ ${entries.join('\n')}
         signal,
         (model) =>
           withReviewTimeout(signal, (reviewSignal) =>
-            generatePiObject({
-              models: this.providers.pi,
+            generateObject({
+              models: this.providers.registry,
               model,
               signal: reviewSignal,
               schema: guardianVerdictSchema,
@@ -717,14 +717,14 @@ ${entries.join('\n')}
    */
   private async generateGuardianVerdict(input: {
     invocation: ToolInvocation
-    model: PiChatModel
+    model: ChatModel
     signal: AbortSignal
     prompt: string
     allowTools: boolean
   }): Promise<GuardianVerdictInput> {
     if (!this.evidence || !input.allowTools)
-      return generatePiObject({
-        models: this.providers.pi,
+      return generateObject({
+        models: this.providers.registry,
         model: input.model,
         signal: input.signal,
         schema: guardianVerdictSchema,
@@ -736,8 +736,8 @@ ${entries.join('\n')}
       return await this.reviewWithReadOnlyTools(input)
     } catch (cause) {
       if (input.signal.aborted) throw cause
-      return generatePiObject({
-        models: this.providers.pi,
+      return generateObject({
+        models: this.providers.registry,
         model: input.model,
         signal: input.signal,
         schema: guardianVerdictSchema,
@@ -750,7 +750,7 @@ ${entries.join('\n')}
 
   private async reviewWithReadOnlyTools(input: {
     invocation: ToolInvocation
-    model: PiChatModel
+    model: ChatModel
     signal: AbortSignal
     prompt: string
   }): Promise<GuardianVerdictInput> {
@@ -793,7 +793,7 @@ ${entries.join('\n')}
     const messages: Message[] = [{ role: 'user', content: input.prompt, timestamp: Date.now() }]
     let budget = 4
     for (let step = 0; step < 3; step += 1) {
-      const response = await this.providers.pi.completeSimple(
+      const response = await this.providers.registry.completeSimple(
         input.model,
         {
           systemPrompt: `${GUARDIAN_SYSTEM}
@@ -852,8 +852,8 @@ Use guardian_read_file and guardian_list_dir for read-only evidence, at most 4 c
         withReviewTimeout(
           signal,
           (reviewSignal) =>
-            generatePiObject({
-              models: this.providers.pi,
+            generateObject({
+              models: this.providers.registry,
               model,
               signal: reviewSignal,
               schema: guardianClassificationSchema,

@@ -43,7 +43,7 @@ import {
   nativeMediaFormat,
   pdfRequiresSeparateMessage,
   runtimeAttachmentMedia,
-} from '../provider/pi/MediaInput'
+} from '../provider/runtime/MediaInput'
 import type { LocalContextPathService } from '../local-context/LocalContextPathService'
 import type { ProjectSourceService } from '../project/ProjectSourceService'
 import type { SubagentService } from '../subagent/SubagentService'
@@ -229,7 +229,7 @@ export class ThreadService {
         // matches what produced the work it audits.
         const last = db.getTurnInput(sourceTurnId)
         if (!last) return { kind: 'error', code: 'provider_failed' }
-        const model = await this.providers.getPiModel(last.model).catch(() => null)
+        const model = await this.providers.getRuntimeModel(last.model).catch(() => null)
         if (!model) {
           // SAFETY: the auxiliary reading never settles a goal; it only informs
           await runGoalAuxiliaryCheck(
@@ -262,7 +262,7 @@ export class ThreadService {
             },
           },
           {
-            models: this.providers.pi,
+            models: this.providers.registry,
             model,
             signal,
             timeoutMs: 30_000,
@@ -922,7 +922,7 @@ export class ThreadService {
     }
     const native = records.filter((record) => record.kind === 'pdf' || record.kind === 'video')
     if (native.length > 0) {
-      const selected = await this.providers.getPiModel(model)
+      const selected = await this.providers.getRuntimeModel(model)
       const incompatible = native.find(
         (record) =>
           (record.kind === 'pdf' || record.kind === 'video') &&
@@ -2042,7 +2042,7 @@ export class ThreadService {
         ...(selectedInfo.variant ? { variant: Model.VariantID.make(selectedInfo.variant) } : {}),
         ...(selectedInfo.speedTier ? { speedTier: selectedInfo.speedTier } : {}),
       })
-      const piModel = cachedResult ? null : await this.providers.getModel(selectedModel)
+      const runtimeModel = cachedResult ? null : await this.providers.getModel(selectedModel)
       const attachments = await this.agentAttachments(input.id)
       let composedBundle: PromptBundle | null = null
       const result =
@@ -2129,7 +2129,7 @@ export class ThreadService {
               sessionID: agent.sessionID,
               items: composedBundle.contextItems,
               promptText: composedBundle.instructions,
-              contextWindowTokens: Math.max(1, Number(piModel?.contextWindow) || 1),
+              contextWindowTokens: Math.max(1, Number(runtimeModel?.contextWindow) || 1),
               inputTokens: usage.inputTokens,
               outputTokens: usage.outputTokens,
             })
@@ -2190,7 +2190,7 @@ export class ThreadService {
                 },
               }
             : {}),
-          resolveModel: async () => ({ ref: selectedModel, model: piModel as never }),
+          resolveModel: async () => ({ ref: selectedModel, model: runtimeModel as never }),
           onRuntimeReady: async () => {
             await this.coordinator.exclusive(threadID, async () => {
               this.coordinator.markRuntimeReady(threadID, turnID)

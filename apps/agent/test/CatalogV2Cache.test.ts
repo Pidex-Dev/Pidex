@@ -2,9 +2,9 @@ import { expect, test } from 'bun:test'
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { CatalogV2Cache } from '../src/provider/pi/CatalogV2Cache'
-import { ModelRecommendationStore } from '../src/provider/pi/ModelRecommendationStore'
-import { ProviderDirectoryStore } from '../src/provider/pi/ProviderDirectoryStore'
+import { CatalogV2Cache } from '../src/provider/runtime/CatalogV2Cache'
+import { ModelRecommendationStore } from '../src/provider/runtime/ModelRecommendationStore'
+import { ProviderDirectoryStore } from '../src/provider/runtime/ProviderDirectoryStore'
 import { fixtureV2, respondV2 } from './fixtures/CatalogV2Fixture'
 
 test('同步只下载哈希变化的文件，304 不切换代际，损坏下载不影响重启及 v1 文件', async () => {

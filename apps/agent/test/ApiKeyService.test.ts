@@ -11,7 +11,7 @@ import {
 } from '../src/auth/EncryptedCredentialRepository'
 import { ApiKeyService } from '../src/provider/ApiKeyService'
 import { ModelHealthService } from '../src/provider/ModelHealthService'
-import type { PiModelService } from '../src/provider/pi'
+import type { ModelService } from '../src/provider/runtime'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 
 const paths: string[] = []
@@ -62,9 +62,9 @@ const setup = async (
               enabled: true,
             },
           ],
-    getPiModel: async () => ({ provider: 'openai', id: 'test-model' }),
-    pi: { completeSimple },
-  } as unknown as PiModelService
+    getRuntimeModel: async () => ({ provider: 'openai', id: 'test-model' }),
+    registry: { completeSimple },
+  } as unknown as ModelService
   const service = new ApiKeyService(
     providers,
     credentials,

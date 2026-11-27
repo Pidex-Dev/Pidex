@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { directoryBaseUrlKey } from '../src/provider/pi/ProviderDirectoryStore'
+import { directoryBaseUrlKey } from '../src/provider/runtime/ProviderDirectoryStore'
 
 test('directory URL identity normalizes only URL syntax and trailing slashes', () => {
   expect(directoryBaseUrlKey('https://EXAMPLE.com:443/v1///')).toBe(

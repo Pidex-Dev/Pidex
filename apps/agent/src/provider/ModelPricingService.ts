@@ -1,4 +1,4 @@
-import type { Api, Model as PiModel, AssistantMessage } from '@earendil-works/pi-ai'
+import type { Api, Model as RuntimeModel, AssistantMessage } from '@earendil-works/pi-ai'
 import { cacheWritePrice, type Model } from '@pidex/model-schema'
 import { createHash } from 'node:crypto'
 import { ModelPricingRepository } from '../storage/repositories/ModelPricingRepository'
@@ -97,7 +97,7 @@ export class ModelPricingService {
       calendarCheckedAt: calendar?.checkedAt,
     }
   }
-  begin(model: PiModel<Api> & { pricing?: Model.Pricing }) {
+  begin(model: RuntimeModel<Api> & { pricing?: Model.Pricing }) {
     const at = this.now(),
       year = Number(
         new Intl.DateTimeFormat('en', {

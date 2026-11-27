@@ -1,4 +1,4 @@
-import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
+import type { Api, Model as RuntimeModel } from '@earendil-works/pi-ai'
 import type {
   TaskSuggestion,
   TaskSuggestionCategoryId,
@@ -10,12 +10,12 @@ import { z } from 'zod'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { MemoryListEntry, MemoryService } from '../memory/MemoryService'
 import type { MemoryNamespace } from '../memory/MemoryFiles'
-import type { PiModelService } from '../provider/pi/PiModelService'
-import { generatePiObject } from '../provider/pi/PiStructuredOutput'
+import type { ModelService } from '../provider/runtime/ModelService'
+import { generateObject } from '../provider/runtime/StructuredOutput'
 import { secretScrubber } from '../security/SecretScrubber'
 import type { AgentLogger } from '../observability/AgentLogger'
 import type { ConfigService } from '../config/ConfigService'
-import { resolveSpecializedPiModel } from '../provider/pi/PiSpecializedModelResolver'
+import { resolveSpecializedModel } from '../provider/runtime/SpecializedModelResolver'
 
 const MAX_CACHE_ENTRIES = 50
 const DEFAULT_TIMEOUT_MS = 15_000
@@ -90,13 +90,13 @@ const workingGeneratedSuggestionSchema = z.object({
 
 type GeneratedSuggestions = z.output<typeof generatedSuggestionSchema>
 
-type SuggestionModelService = Pick<PiModelService, 'pi' | 'getPiModel'>
+type SuggestionModelService = Pick<ModelService, 'registry' | 'getRuntimeModel'>
 
 export type TaskSuggestionServiceOptions = {
   timeoutMs?: number
   now?: () => number
   generate?: (input: {
-    model: PiModel<Api>
+    model: RuntimeModel<Api>
     signal: AbortSignal
     surface: TaskSuggestionSurface
     system: string
@@ -157,8 +157,8 @@ export class TaskSuggestionService {
     this.generateObject =
       options.generate ??
       ((input) =>
-        generatePiObject({
-          models: this.models.pi,
+        generateObject({
+          models: this.models.registry,
           model: input.model,
           signal: input.signal,
           schema:
@@ -289,7 +289,7 @@ export class TaskSuggestionService {
   }
 
   private async selectModel(projectId?: string) {
-    const selected = await resolveSpecializedPiModel({
+    const selected = await resolveSpecializedModel({
       purpose: 'generation',
       db: this.db,
       models: this.models,
@@ -305,7 +305,7 @@ export class TaskSuggestionService {
     context: ReturnType<TaskSuggestionService['normalizeContext']>,
     memories: MemoryListEntry[],
     ref: { providerID: string; id: string },
-    model: PiModel<Api>,
+    model: RuntimeModel<Api>,
     surface: TaskSuggestionSurface,
   ): Promise<TaskSuggestionGenerateResult> {
     const startedAt = Date.now()

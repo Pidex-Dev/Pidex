@@ -1,4 +1,4 @@
-import { prepareMediaInput, type MediaInput } from '../../provider/pi/MediaInput'
+import { prepareMediaInput, type MediaInput } from '../../provider/runtime/MediaInput'
 import { describeProviderRequestFailure } from '../../provider/ModelHealthService'
 import { contextBudget, RequestContextUsage } from '../../context/ContextBudget'
 import type { ContextBudget } from '@pidex/shared/thread'

@@ -20,7 +20,7 @@ import { ThreadService } from '../src/session/ThreadService'
 import { SubagentService } from '../src/subagent/SubagentService'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { EventHub } from '../src/storage/events/EventHub'
-import { SqlitePiSessionRepo } from '../src/storage/pi-session/SqlitePiSession'
+import { SqliteSessionRepo } from '../src/storage/session/SqliteSession'
 import { ToolExecutor } from '../src/tool/ToolExecutor'
 import { ToolRegistry } from '../src/tool/ToolRegistry'
 import { ThreadProjection } from '../src/transport/ThreadProjection'
@@ -401,7 +401,7 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
       'Fork started — processing in background',
     )
 
-    // Child Pi session was seeded with parent assistant message + placeholder toolResult
+    // Child session was seeded with parent assistant message + placeholder toolResult
     const tasks = subagents.list(chatThread.id)
     expect(tasks).toHaveLength(1)
     const forkTask = tasks[0]!.task
@@ -411,7 +411,7 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
     const childSessionRow = db.sqlite
       .query('SELECT session_id FROM agent_executions WHERE thread_id = ?')
       .get(forkTask.childThreadId) as { session_id: string }
-    const childSession = await new SqlitePiSessionRepo(db).openForThread(
+    const childSession = await new SqliteSessionRepo(db).openForThread(
       childSessionRow.session_id,
       forkTask.childThreadId,
     )
@@ -842,7 +842,7 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
       pause: async () => {},
     })
     expect(forkResult.status).toBe('completed')
-    const forkEntries = await new SqlitePiSessionRepo(db)
+    const forkEntries = await new SqliteSessionRepo(db)
       .openForThread(forkSessionID, forkThread.id)
       .then((s) => s.getEntries())
     const forkToolResult = forkEntries.find(
@@ -913,7 +913,7 @@ describe('Agent tool sync parallel, fork, and explorer optimization', () => {
       resolveModel: async () => ({ ref: modelRef, model: faux.getModel() }),
       pause: async () => {},
     })
-    const parentEntries = await new SqlitePiSessionRepo(db)
+    const parentEntries = await new SqliteSessionRepo(db)
       .openForThread(parentSessionID, parentThread.id)
       .then((s) => s.getEntries())
     const failedToolResult = parentEntries.find(

@@ -2,14 +2,14 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtemp, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
+import type { Api, Model as RuntimeModel } from '@earendil-works/pi-ai'
 import type { Model } from '@pidex/model-schema'
 import type { TaskSuggestion, TaskSuggestionGenerateParams } from '@pidex/agent-protocol'
 import { removeFixturePaths } from './FixtureCleanup'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { MemoryService } from '../src/memory/MemoryService'
 import { AgentLogger } from '../src/observability/AgentLogger'
-import type { PiModelService } from '../src/provider/pi/PiModelService'
+import type { ModelService } from '../src/provider/runtime/ModelService'
 import {
   TaskSuggestionService,
   TaskSuggestionServiceError,
@@ -178,15 +178,15 @@ describe('TaskSuggestionService', () => {
       content: document('项目技术栈', '项目使用 Bun，资料位于 C:\\private\\project-notes.md。'),
     })
     const attemptedModels: string[] = []
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     const models = {
-      pi: {},
-      getPiModel: async (ref: Model.Ref) => {
+      registry: {},
+      getRuntimeModel: async (ref: Model.Ref) => {
         attemptedModels.push(String(ref.id))
         if (String(ref.id) === 'small') throw new Error('unavailable')
         return model
       },
-    } as unknown as Pick<PiModelService, 'pi' | 'getPiModel'>
+    } as unknown as Pick<ModelService, 'registry' | 'getRuntimeModel'>
     const prompts: string[] = []
     const service = new TaskSuggestionService(
       db,
@@ -253,14 +253,14 @@ describe('TaskSuggestionService', () => {
       path: 'other.md',
       content: document('其他项目', '不应出现的项目记忆'),
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     let prompt = ''
     const service = new TaskSuggestionService(
       db,
       {
-        pi: {},
-        getPiModel: async () => model,
-      } as unknown as Pick<PiModelService, 'pi' | 'getPiModel'>,
+        registry: {},
+        getRuntimeModel: async () => model,
+      } as unknown as Pick<ModelService, 'registry' | 'getRuntimeModel'>,
       memory,
       logger,
       {
@@ -294,14 +294,14 @@ describe('TaskSuggestionService', () => {
       providerID: 'provider:test',
       smallFastModel: 'fast',
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     const systems: string[] = []
     const service = new TaskSuggestionService(
       db,
       {
-        pi: {},
-        getPiModel: async () => model,
-      } as unknown as Pick<PiModelService, 'pi' | 'getPiModel'>,
+        registry: {},
+        getRuntimeModel: async () => model,
+      } as unknown as Pick<ModelService, 'registry' | 'getRuntimeModel'>,
       memory,
       logger,
       {
@@ -350,7 +350,7 @@ describe('TaskSuggestionService', () => {
     const { db, project, memory, logger } = await fixture()
     const service = new TaskSuggestionService(
       db,
-      { pi: {}, getPiModel: async () => ({}) } as never,
+      { registry: {}, getRuntimeModel: async () => ({}) } as never,
       memory,
       logger,
     )
@@ -374,7 +374,7 @@ describe('TaskSuggestionService', () => {
       providerID: 'provider:test',
       smallFastModel: 'fast',
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     let generateCalls = 0
     const logEvents: Array<{
       level: 'info' | 'warn' | 'error' | 'debug'
@@ -392,9 +392,9 @@ describe('TaskSuggestionService', () => {
     }
     const service = new TaskSuggestionService(
       db,
-      { pi: {}, getPiModel: async () => model } as unknown as Pick<
-        PiModelService,
-        'pi' | 'getPiModel'
+      { registry: {}, getRuntimeModel: async () => model } as unknown as Pick<
+        ModelService,
+        'registry' | 'getRuntimeModel'
       >,
       memory,
       observableLogger,
@@ -459,7 +459,7 @@ describe('TaskSuggestionService', () => {
       providerID: 'provider:test',
       smallFastModel: 'fast',
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     let generateCalls = 0
     const logEvents: Array<{ event: string; fields?: Record<string, unknown> }> = []
     const observableLogger = Object.create(logger) as AgentLogger
@@ -469,9 +469,9 @@ describe('TaskSuggestionService', () => {
     }
     const service = new TaskSuggestionService(
       db,
-      { pi: {}, getPiModel: async () => model } as unknown as Pick<
-        PiModelService,
-        'pi' | 'getPiModel'
+      { registry: {}, getRuntimeModel: async () => model } as unknown as Pick<
+        ModelService,
+        'registry' | 'getRuntimeModel'
       >,
       memory,
       observableLogger,
@@ -527,12 +527,12 @@ describe('TaskSuggestionService', () => {
       providerID: 'provider:test',
       smallFastModel: 'fast',
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     const service = new TaskSuggestionService(
       db,
-      { pi: {}, getPiModel: async () => model } as unknown as Pick<
-        PiModelService,
-        'pi' | 'getPiModel'
+      { registry: {}, getRuntimeModel: async () => model } as unknown as Pick<
+        ModelService,
+        'registry' | 'getRuntimeModel'
       >,
       memory,
       logger,
@@ -568,8 +568,8 @@ describe('TaskSuggestionService', () => {
     const service = new TaskSuggestionService(
       db,
       {
-        pi: {},
-        getPiModel: async () => {
+        registry: {},
+        getRuntimeModel: async () => {
           throw new Error('no model configured')
         },
       } as never,
@@ -586,12 +586,12 @@ describe('TaskSuggestionService', () => {
       providerID: 'provider:test',
       smallFastModel: 'fast',
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     const service = new TaskSuggestionService(
       db,
-      { pi: {}, getPiModel: async () => model } as unknown as Pick<
-        PiModelService,
-        'pi' | 'getPiModel'
+      { registry: {}, getRuntimeModel: async () => model } as unknown as Pick<
+        ModelService,
+        'registry' | 'getRuntimeModel'
       >,
       memory,
       logger,

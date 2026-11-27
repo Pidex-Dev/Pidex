@@ -3,8 +3,8 @@ import { DecisionService } from './decision/DecisionService'
 import { realUserMessages } from './decision/integrations/PermissionDecisionAdapter'
 import { INPUT_CONTEXT_MEMORY_TEAMWORK_MANIFEST, SAFETY_TURN_MANIFEST } from './decision/specs'
 import { ModelPricingRepository } from './storage/repositories/ModelPricingRepository'
-import { ModelRecommendationStore } from './provider/pi/ModelRecommendationStore'
-import { ProviderDirectoryStore } from './provider/pi/ProviderDirectoryStore'
+import { ModelRecommendationStore } from './provider/runtime/ModelRecommendationStore'
+import { ProviderDirectoryStore } from './provider/runtime/ProviderDirectoryStore'
 import { ComputerUseService } from './computer/ComputerUseService'
 import { LocalEnvironmentRepository } from './local-environment/LocalEnvironmentRepository'
 import { LocalEnvironmentCatalog } from './local-environment/LocalEnvironmentCatalog'
@@ -26,7 +26,7 @@ import { publishAgentEvent } from './storage/events/EventPublisher'
 import { EncryptedCredentialRepository } from './auth/EncryptedCredentialRepository'
 import { AuthJsonCredentialRepository } from './auth/AuthJsonCredentialRepository'
 import { ProviderCredentialStoreManager } from './auth/ProviderCredentialStoreManager'
-import { PiAuthSessionService } from './auth/PiAuthSessionService'
+import { ProviderAuthSessionService } from './auth/ProviderAuthSessionService'
 import { ToolRegistry } from './tool/ToolRegistry'
 import { ToolExecutor } from './tool/ToolExecutor'
 import { getToolingManager } from './tool/ToolingManager'
@@ -43,12 +43,12 @@ import { AgentRuntimeService } from './orchestration/AgentRuntimeService'
 import { ContextCompactionService } from './context/ContextCompactionService'
 import {
   EncryptedCredentialStore,
-  PiModelService,
-  PiModelsFileStore,
+  ModelService,
+  ProviderModelsFileStore,
   seedBuiltinProviderCatalogModels,
-} from './provider/pi'
+} from './provider/runtime'
 import { Model, Provider } from '@pidex/model-schema'
-import { resolveSpecializedPiModel } from './provider/pi/PiSpecializedModelResolver'
+import { resolveSpecializedModel } from './provider/runtime/SpecializedModelResolver'
 import { createApp } from './transport/Server'
 import { AgentLogger } from './observability/AgentLogger'
 import { ExecutionLogObserver, HarnessLogObserver } from './observability/ExecutionLogObserver'
@@ -557,18 +557,18 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const git = new GitWorkspaceService(db, undefined, github)
     const modelPricing = new ModelPricingService(new ModelPricingRepository(db.sqlite))
     void modelPricing.refresh()
-    const piModels = new PiModelService(providerCredentialStore, {
+    const runtimeModels = new ModelService(providerCredentialStore, {
       pricing: modelPricing,
       logger,
       directory: new ProviderDirectoryStore(
-        join(dirname(config.piModelCachePath), 'provider-directory.json'),
+        join(dirname(config.providerModelCachePath), 'provider-directory.json'),
         undefined,
         { bundledFallback: true },
       ),
       ...(options.models ? { models: options.models } : {}),
-      modelsStore: new PiModelsFileStore(config.piModelCachePath),
+      modelsStore: new ProviderModelsFileStore(config.providerModelCachePath),
       recommendations: new ModelRecommendationStore(
-        join(dirname(config.piModelCachePath), 'model-recommendations.json'),
+        join(dirname(config.providerModelCachePath), 'model-recommendations.json'),
         undefined,
         { bundledFallback: true },
       ),
@@ -583,19 +583,19 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         }
       },
     })
-    const providers = piModels
-    const modelHealth = new ModelHealthService(piModels, async (payload) => {
+    const providers = runtimeModels
+    const modelHealth = new ModelHealthService(runtimeModels, async (payload) => {
       await publishAgentEvent(db, hub, null, null, 'model/health/updated', payload)
     })
-    const modelSync = new ModelSyncService(piModels, configService)
-    const protocolDetection = new ProtocolDetectionService(piModels)
-    const apiKeys = new ApiKeyService(piModels, providerCredentialStore, modelHealth)
+    const modelSync = new ModelSyncService(runtimeModels, configService)
+    const protocolDetection = new ProtocolDetectionService(runtimeModels)
+    const apiKeys = new ApiKeyService(runtimeModels, providerCredentialStore, modelHealth)
     const decisions = new DecisionService(
       db,
       configService,
       hub,
       {
-        models: piModels,
+        models: runtimeModels,
         apiKeys,
         credentials,
         config: configService,
@@ -603,7 +603,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
       logger,
     )
-    const providerCredentials = new ProviderCredentialService(piModels, providerCredentialStore)
+    const providerCredentials = new ProviderCredentialService(runtimeModels, providerCredentialStore)
     const anthropicUsageModels = builtinModels({
       credentials: new EncryptedCredentialStore(credentials, {
         integrationID: () => 'usage.anthropic.subscription',
@@ -616,7 +616,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         fileExists: async () => false,
       },
     })
-    const authSessions = new PiAuthSessionService({
+    const authSessions = new ProviderAuthSessionService({
       getDeviceId: () => db.getProviderAuthDeviceId(),
       resolveTarget: (target) => {
         if (target.kind === 'usage') {
@@ -628,7 +628,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           }
           return { models: anthropicUsageModels, providerID: 'anthropic' }
         }
-        return { models: piModels.pi, providerID: target.providerId }
+        return { models: runtimeModels.registry, providerID: target.providerId }
       },
       onUpdated: async (session) => {
         await publishAgentEvent(db, hub, null, null, 'auth/session/updated', { session })
@@ -639,7 +639,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
             (await providerCredentials.list(target.providerId)).length > 1
           await seedBuiltinProviderCatalogModels({
             providerID: target.providerId,
-            piModels,
+            runtimeModels,
             config: configService,
             hadCredentialsBefore,
           })
@@ -685,7 +685,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     tools.register(createWorkgroupReadDefinition(sessionGroups))
     registerWithAppGate(createAttachPullRequestDefinition(threadPullRequests), 'github')
     const mcpConfigs = new McpConfigService(new McpSettingsRepository(db), configService)
-    const usage = new UsageService(new UsageRepository(db), providers, piModels, credentials, {
+    const usage = new UsageService(new UsageRepository(db), providers, runtimeModels, credentials, {
       subscriptionModels: anthropicUsageModels,
       providerCredentials: providerCredentialStore,
     })
@@ -738,7 +738,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         return null
       }
     })
-    const reviewer = new ReviewerService(db, piModels, configService, guardianEvidence, logger)
+    const reviewer = new ReviewerService(db, runtimeModels, configService, guardianEvidence, logger)
     const guardianScores = new GuardianScoreService(db, reviewer)
     const approvals = new ApprovalService(
       db,
@@ -885,7 +885,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       attachments,
       db,
       hub,
-      models: piModels.pi,
+      models: runtimeModels.registry,
       toolExecutor,
       contextCompaction,
       artifacts,
@@ -912,7 +912,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const projectSources = yield* Effect.promise(() =>
       ProjectSourceService.open(config.dataDir, db),
     )
-    yield* Effect.promise(() => new ProjectService(db, projectSources).recoverPendingRemovals())
+    yield* Effect.promise(() => new ProjectService(db).recoverPendingRemovals())
     const memory = new MemoryService(db, {
       enabled: () =>
         (configService.snapshot().features as Record<string, unknown> | undefined)?.memory ===
@@ -928,7 +928,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     // after construction rather than through the constructor options.
     memory.attachRunner(
       createMemoryAgentRunner({
-        models: piModels.pi,
+        models: runtimeModels.registry,
         memory,
         resolveModel: async ({ modelRef }) => {
           const separator = modelRef.indexOf('/')
@@ -938,7 +938,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
             id: Model.ID.make(modelRef.slice(separator + 1)),
           })
           try {
-            return { ref: modelRef, model: await piModels.getPiModel(ref) }
+            return { ref: modelRef, model: await runtimeModels.getRuntimeModel(ref) }
           } catch {
             return null
           }
@@ -952,7 +952,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         const inherited = await inheritedTurnModel(db, threadId, turnId, kind)
         if (inherited) {
           try {
-            await piModels.getPiModel(
+            await runtimeModels.getRuntimeModel(
               Model.Ref.make({
                 providerID: Provider.ID.make(inherited.providerID),
                 id: Model.ID.make(inherited.id),
@@ -964,10 +964,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           }
         }
       }
-      const selected = await resolveSpecializedPiModel({
+      const selected = await resolveSpecializedModel({
         purpose: 'organization',
         db,
-        models: piModels,
+        models: runtimeModels,
         configService,
         ...(namespace.kind === 'user' ? {} : { projectId: namespace.projectId }),
       })
@@ -981,10 +981,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         .get()
       return !active
     })
-    const suggestions = new TaskSuggestionService(db, piModels, memory, logger, {}, configService)
+    const suggestions = new TaskSuggestionService(db, runtimeModels, memory, logger, {}, configService)
     const composerPredictions = new ComposerPredictionService(
       db,
-      piModels,
+      runtimeModels,
       logger,
       {},
       configService,
@@ -1009,7 +1009,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
       (threadID) => nodeRepl.closeThread(threadID),
     )
-    const threadTitles = new ThreadTitleService(db, history, piModels, logger, configService)
+    const threadTitles = new ThreadTitleService(db, history, runtimeModels, logger, configService)
     const subagentWorkspaces = new SubagentWorkspaceCoordinator(db, config.storage.workspacesRoot)
     const resumeCheckpoints = new ResumeCheckpointResolver(db, approvals)
     const subagents = new SubagentService(
@@ -1488,7 +1488,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       localContextPaths,
       projectSources,
       providers,
-      piModels,
+      runtimeModels,
       apiKeys,
       modelHealth,
       modelSync,
@@ -1541,7 +1541,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       memoryManager,
       decisions,
     })
-    piModels.recommendations.startAutoRefresh(async () => {
+    runtimeModels.recommendations.startAutoRefresh(async () => {
       if (disposed) return
       await providers.reload()
       if (disposed) return

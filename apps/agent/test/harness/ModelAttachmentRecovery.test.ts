@@ -3,9 +3,9 @@ import { createModels } from '@earendil-works/pi-ai'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { InMemorySessionRepo } from '../../scripts/support/PiSessionMemory'
+import { InMemorySessionRepo } from '../../scripts/support/SessionMemoryFixture'
 import { AgentHarness } from '../../src/orchestration/harness/AgentHarness'
-import { createPiCustomProvider } from '../../src/provider/pi/PiCustomProvider'
+import { createCustomProvider } from '../../src/provider/runtime/CustomProvider'
 import { AttachmentService } from '../../src/subagent/AttachmentService'
 import { removeFixturePath } from '../FixtureCleanup'
 
@@ -48,7 +48,7 @@ test('a model retry sends the same imported PDF and persists only the completed 
     const endpoint = `http://127.0.0.1:${server.port}/v1`
     const models = createModels()
     models.setProvider(
-      createPiCustomProvider('fixture', {
+      createCustomProvider('fixture', {
         kind: 'custom',
         name: 'fixture',
         enabled: true,

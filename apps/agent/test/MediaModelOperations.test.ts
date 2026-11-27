@@ -1,20 +1,20 @@
 import { ModelHealthService } from '../src/provider/ModelHealthService'
 import { expect, test } from 'bun:test'
 import { Effect } from 'effect'
-import type { Api, AssistantMessage, Model as PiModel } from '@earendil-works/pi-ai'
+import type { Api, AssistantMessage, Model as RuntimeModel } from '@earendil-works/pi-ai'
 import { Model, Provider } from '@pidex/model-schema'
 import type { EncryptedCredentialRepository } from '../src/auth/EncryptedCredentialRepository'
-import { PiModelService } from '../src/provider/pi/PiModelService'
+import { ModelService } from '../src/provider/runtime/ModelService'
 import {
-  parsePiProviderCatalog,
-  serializePiProviderDefinition,
-} from '../src/provider/pi/PiProviderConfig'
-import type { ModelOperationOptions } from '../src/provider/pi/PiModelOperations'
+  parseProviderCatalog,
+  serializeProviderDefinition,
+} from '../src/provider/runtime/ProviderConfig'
+import type { ModelOperationOptions } from '../src/provider/runtime/ModelOperations'
 import {
   nativeMediaFormat,
   prepareMediaInput,
   type MediaInput,
-} from '../src/provider/pi/MediaInput'
+} from '../src/provider/runtime/MediaInput'
 import { prepareAttachmentUpload } from '../src/subagent/AttachmentService'
 
 const repository = {
@@ -28,7 +28,7 @@ const ref = (id: string): Model.Ref => ({
   id: Model.ID.make(id),
 })
 const service = () =>
-  new PiModelService(repository, {
+  new ModelService(repository, {
     config: {
       providers: {
         relay: {
@@ -91,7 +91,7 @@ test('嵌入与重排走独立端点，向量按输入索引恢复并校验响�
 })
 
 test('用户添加的内置端点可保存，旧默认协议不写回', () => {
-  const saved = serializePiProviderDefinition({
+  const saved = serializeProviderDefinition({
     kind: 'builtin',
     id: 'google',
     enabled: true,
@@ -104,7 +104,7 @@ test('用户添加的内置端点可保存，旧默认协议不写回', () => {
       'openai-embeddings': 'https://relay.example/v1',
     },
   })
-  expect(parsePiProviderCatalog({ providers: { google: saved.value } }).issues).toEqual([])
+  expect(parseProviderCatalog({ providers: { google: saved.value } }).issues).toEqual([])
   expect(saved.value).not.toHaveProperty('protocol')
   expect(saved.value.endpoints).toEqual({
     'anthropic-messages': 'https://relay.example/anthropic',
@@ -116,7 +116,7 @@ test('媒体请求映射为真实协议部件；不支持协议拒绝，不能�
   const model = {
     api: 'google-generative-ai',
     input: ['text', 'audio', 'video'],
-  } as unknown as PiModel<Api>
+  } as unknown as RuntimeModel<Api>
   const request = await prepareMediaInput(model, {
     messages: [
       {
@@ -195,7 +195,7 @@ test('切换模型会降级历史音视频，当前轮次仍校验媒体能力',
     ['model', ['text'], '模型不支持视频'],
     ['protocol', ['text', 'audio', 'video'], '协议不支持'],
   ] as const) {
-    const model = { api: 'anthropic-messages', input } as unknown as PiModel<Api>
+    const model = { api: 'anthropic-messages', input } as unknown as RuntimeModel<Api>
     const history = user([audio, audio, video, video, audio])
     const current = user([], 3)
     const { context, applyPayload } = await prepareMediaInput(model, {
@@ -240,8 +240,8 @@ test('音视频上传校验文件头，不把任意二进制作为媒体保存',
 })
 
 test('原生 Gemini SDK 的最终 payload hook 包含视频数据，无需修改 SDK', async () => {
-  const models = new PiModelService(repository)
-  const native = models.pi
+  const models = new ModelService(repository)
+  const native = models.registry
     .getProvider('google')!
     .getModels()
     .find((model) => model.api === 'google-generative-ai')!
@@ -278,7 +278,7 @@ test('原生 Gemini SDK 的最终 payload hook 包含视频数据，无需修改
     },
   )
   let sent: unknown
-  await models.pi.completeSimple(model, prepared.context, {
+  await models.registry.completeSimple(model, prepared.context, {
     apiKey: 'fixture-key',
     maxRetries: 0,
     onPayload: (payload) => {
@@ -366,7 +366,7 @@ test('原生媒体能力随供应商端点、协议和模型变化', () => {
 test('非聊天模型的健康测试走嵌入和重排接口', async () => {
   const calls: string[] = []
   const models = {
-    getPiModel: async (model: Model.Ref) => ({
+    getRuntimeModel: async (model: Model.Ref) => ({
       modelType: model.id === 'embed' ? 'embedding' : 'rerank',
     }),
     embed: async () => {
@@ -377,12 +377,12 @@ test('非聊天模型的健康测试走嵌入和重排接口', async () => {
       calls.push('rerank')
       return { results: [{ index: 0, score: 1 }], inputTokens: 1 }
     },
-    pi: {
+    registry: {
       completeSimple: () => {
         throw new Error('Must not send a chat request')
       },
     },
-  } as unknown as PiModelService
+  } as unknown as ModelService
   const health = new ModelHealthService(models, async () => {})
   expect((await health.probe(ref('embed'))).ok).toBe(true)
   expect((await health.probe(ref('rank'))).ok).toBe(true)
@@ -391,7 +391,7 @@ test('非聊天模型的健康测试走嵌入和重排接口', async () => {
 })
 
 test('自定义 Gemini 的音视频与工具开关进入目录，非聊天模型不会伪装成聊天能力', async () => {
-  const models = new PiModelService(repository, {
+  const models = new ModelService(repository, {
     config: {
       providers: {
         relay: {
@@ -439,7 +439,7 @@ test('兼容视频只发送到明确声明了协议、端点和文件格式的�
       baseUrl,
       input: ['text', 'video'],
       mediaInput: { endpoint: baseUrl, protocol: api, video: ['video/mp4'] },
-    } as unknown as PiModel<Api>
+    } as unknown as RuntimeModel<Api>
     const { context, applyPayload } = await prepareMediaInput(model, { messages: [input] })
     expect(applyPayload({ messages: context.messages })).toEqual({
       messages: [

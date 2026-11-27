@@ -16,7 +16,7 @@ import {
   CAPABILITY_DESCRIPTION_MAX_CHARS,
 } from '../src/prompt/CapabilityCatalog'
 import { SkillService } from '../src/prompt/SkillService'
-import { applyPromptCacheRuntimePolicy } from '../src/orchestration/pi/PiPromptCacheAdapter'
+import { applyPromptCacheRuntimePolicy } from '../src/orchestration/execution/PromptCacheAdapter'
 
 const paths: string[] = []
 const temporaryDirectory = async () => {

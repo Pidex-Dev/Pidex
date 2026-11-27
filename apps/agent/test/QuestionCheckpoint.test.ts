@@ -5,7 +5,7 @@ import { ThreadReadViewRepository } from '../src/session/ThreadReadViewRepositor
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { QuestionService, storedQuestions } from '../src/session/QuestionService'
-import { createLifecycleTools } from '../src/orchestration/pi/PiToolAdapter'
+import { createLifecycleTools } from '../src/orchestration/execution/ProviderToolAdapter'
 import { EventHub } from '../src/storage/events/EventHub'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { Model, Provider } from '@pidex/model-schema'

@@ -4,7 +4,7 @@ import {
   validateCustomProviderBaseUrl,
   type CustomProviderApi,
   type ProviderEndpointApi,
-} from './pi/PiProviderConfig'
+} from './runtime/ProviderConfig'
 
 /**
  * The four chat wire protocols a draft provider can be tested against. Order is

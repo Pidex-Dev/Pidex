@@ -22,16 +22,16 @@ import {
   type GoalVerifierRunner,
 } from '../src/orchestration/GoalContinuationCoordinator'
 import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
-import { executeHarnessRun } from '../src/orchestration/pi/ExecuteHarnessRun'
+import { executeHarnessRun } from '../src/orchestration/execution/ExecuteHarnessRun'
 import type {
   GoalBudgetLifecycle,
   HarnessRuntimeOptions,
   HarnessRuntimeRequest,
-} from '../src/orchestration/pi/Types'
+} from '../src/orchestration/execution/Types'
 import { GoalBudgetLimitError } from '../src/session/GoalDirectiveService'
 import { runGoalVerifier, type GoalVerifierOutcome } from '../src/session/GoalVerifier'
 import { recoverInterruptedRuns } from '../src/storage/recovery/InterruptedRunRecovery'
-import { InMemorySessionRepo } from '../scripts/support/PiSessionMemory'
+import { InMemorySessionRepo } from '../scripts/support/SessionMemoryFixture'
 import { ToolRegistry } from '../src/tool/ToolRegistry'
 import { ToolExecutor } from '../src/tool/ToolExecutor'
 import { removeFixturePaths } from './FixtureCleanup'
@@ -209,8 +209,8 @@ const threadService = async (
     {
       resolve: async () => submit.model,
       getModel: async () => ({}),
-      getPiModel: async () => setup.model,
-      pi: setup.models,
+      getRuntimeModel: async () => setup.model,
+      registry: setup.models,
     } as never,
     {} as never,
     { setResumeHandler: () => {} } as never,

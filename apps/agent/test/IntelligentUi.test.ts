@@ -12,7 +12,7 @@ import {
   visualizationFollowUpText,
 } from '../src/tool/IntelligentUi/FollowUp'
 import { visualizationPreview } from '../src/tool/IntelligentUi/Preview'
-import { PiEventAdapter, piToolResultBlocks } from '../src/orchestration/pi/PiEventAdapter'
+import { ProviderEventAdapter, toolResultBlocks } from '../src/orchestration/execution/ProviderEventAdapter'
 import type { AgentHarnessEvent } from '../src/orchestration/harness/Types'
 import { ThreadReadViewRepository } from '../src/session/ThreadReadViewRepository'
 import type { ThreadService } from '../src/session/ThreadService'
@@ -58,7 +58,7 @@ test('工具校验有界文档，未知版本保留为普通 JSON，预览不携
 
 test('流式参数首个可见布局立即刷新，普通更新节流，结束立即刷新', async () => {
   const previews: VisualizationPreview[] = []
-  const adapter = new PiEventAdapter(
+  const adapter = new ProviderEventAdapter(
     { threadID: 'thread', turnID: 'turn', agentID: 'agent' },
     {
       visualizationPreview: (_context, preview) => {
@@ -107,7 +107,7 @@ test('库的校验失败不会产出可执行界面或 artifact', async () => {
   } finally {
     globalThis.fetch = original
   }
-  const projected = piToolResultBlocks({
+  const projected = toolResultBlocks({
     content: [{ type: 'text', text: '完成' }],
     structuredContent: envelope,
     artifacts: [
@@ -115,7 +115,7 @@ test('库的校验失败不会产出可执行界面或 artifact', async () => {
     ],
   })
   expect(projected.artifacts).toHaveLength(1)
-  expect(piToolResultBlocks({ artifacts: [null, 'invalid'] }).artifacts).toHaveLength(0)
+  expect(toolResultBlocks({ artifacts: [null, 'invalid'] }).artifacts).toHaveLength(0)
   expect(projected.blocks.some((b) => b.type === 'artifact' && b.artifactId === 'library')).toBe(
     true,
   )

@@ -5,27 +5,27 @@ import {
   calculateCost,
   createAssistantMessageEventStream,
 } from '@earendil-works/pi-ai'
-import { PiModelService } from '../src/provider/pi/PiModelService'
+import { ModelService } from '../src/provider/runtime/ModelService'
 import type { ProviderCredentialRepository } from '../src/auth/ProviderCredentialRepository'
 import { describe, test, expect } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { ProviderDirectoryStore } from '../src/provider/pi/ProviderDirectoryStore'
-import { ModelRecommendationStore } from '../src/provider/pi/ModelRecommendationStore'
+import { ProviderDirectoryStore } from '../src/provider/runtime/ProviderDirectoryStore'
+import { ModelRecommendationStore } from '../src/provider/runtime/ModelRecommendationStore'
 import { fixtureV2, respondV2 } from './fixtures/CatalogV2Fixture'
 import { Database } from 'bun:sqlite'
 import { Effect } from 'effect'
 import type { Model } from '@pidex/model-schema'
 import { selectPricing, validatePricing, type CalendarYear } from '../src/provider/ModelPricing'
 import { ModelPricingService } from '../src/provider/ModelPricingService'
-import { observeCacheWriteUsage } from '../src/provider/pi/PiCacheWriteUsage'
+import { observeCacheWriteUsage } from '../src/provider/runtime/CacheWriteUsage'
 import {
   ModelPricingRepository,
   MODEL_PRICING_SCHEMA,
 } from '../src/storage/repositories/ModelPricingRepository'
 import { isPublicAddress, extractedModelSchema } from '../src/provider/ModelDocumentService'
-import type { Api, Model as PiModel, AssistantMessage } from '@earendil-works/pi-ai'
+import type { Api, Model as RuntimeModel, AssistantMessage } from '@earendil-works/pi-ai'
 const prices = { input: 1, output: 4, cacheRead: 0.02, cacheWrite: null }
 const pricing: Model.Pricing = {
   currency: 'CNY',
@@ -132,7 +132,7 @@ test('per-request FX and period snapshots stay frozen and unknown is distinct fr
     api: 'openai-completions',
     pricing,
     cost: { input: 99, output: 99, cacheRead: 99, cacheWrite: 99 },
-  } as unknown as PiModel<Api> & { pricing: Model.Pricing }
+  } as unknown as RuntimeModel<Api> & { pricing: Model.Pricing }
   const unknown = service.begin(model)
   const message = {
     usage: { input: 1, output: 0, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } },
@@ -216,7 +216,7 @@ test('Pi 请求入口向真实 Provider 传入当次副本，completeSimple 与�
     models: [{ id: 'priced', cost: { input: 99, output: 99, cacheRead: 0, cacheWrite: 0 } }],
   })
   const models = createModels()
-  const service = new PiModelService({} as ProviderCredentialRepository, {
+  const service = new ModelService({} as ProviderCredentialRepository, {
     models,
     pricing: pricingService,
   })
@@ -361,7 +361,7 @@ test('busy/idle × long-context tiers validate, merge conservatively and compute
     api: 'openai-completions',
     pricing: validated,
     cost: { input: 99, output: 99, cacheRead: 0, cacheWrite: 0 },
-  } as unknown as PiModel<Api> & { pricing: Model.Pricing }
+  } as unknown as RuntimeModel<Api> & { pricing: Model.Pricing }
 
   const started = pricingService.begin(model)
   expect(started.model.cost.tiers).toEqual([
@@ -500,7 +500,7 @@ test('目录三档速度分别改写上游模型、合并请求体并切换本�
       return stream
     },
   })
-  const service = new PiModelService({} as ProviderCredentialRepository, {
+  const service = new ModelService({} as ProviderCredentialRepository, {
     models: native,
     directory,
     recommendations,
@@ -513,9 +513,9 @@ test('目录三档速度分别改写上游模型、合并请求体并切换本�
   try {
     const ref = { providerID: id as Model.Ref['providerID'], id: 'standard' as Model.Ref['id'] }
     expect(await service.activeCatalogModelIDs(id)).toEqual(['standard'])
-    const standard = await service.getPiModel(ref)
-    const fast = await service.getPiModel({ ...ref, speedTier: 'fast' })
-    const ultrafast = await service.getPiModel({ ...ref, speedTier: 'ultrafast' })
+    const standard = await service.getRuntimeModel(ref)
+    const fast = await service.getRuntimeModel({ ...ref, speedTier: 'fast' })
+    const ultrafast = await service.getRuntimeModel({ ...ref, speedTier: 'ultrafast' })
     expect(
       (await service.resolve(ref)).speedTiers?.map(({ id, speedMultiplier }) => [
         id,
@@ -665,7 +665,7 @@ test('Kimi K3.1 Pro 快速档通过真实 Pi 适配器使用专属模型 ID 和 
   const request = async () => {
     throw new Error('offline')
   }
-  const service = new PiModelService(
+  const service = new ModelService(
     { list: () => [], get: () => Effect.succeed(null) } as unknown as ProviderCredentialRepository,
     {
       directory: new ProviderDirectoryStore(undefined, request, { bundledFallback: true }),
@@ -680,12 +680,12 @@ test('Kimi K3.1 Pro 快速档通过真实 Pi 适配器使用专属模型 ID 和 
   )
   let target: unknown
   try {
-    const model = await service.getPiModel({
+    const model = await service.getRuntimeModel({
       providerID: 'moonshotai',
       id: 'kimi-k3.1-pro',
       speedTier: 'fast',
     } as Model.Ref)
-    const reply = await service.pi.completeSimple(
+    const reply = await service.registry.completeSimple(
       model,
       { messages: [{ role: 'user', content: 'test', timestamp: now }] },
       {

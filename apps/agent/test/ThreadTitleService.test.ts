@@ -3,12 +3,12 @@ import { Effect } from 'effect'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
+import type { Api, Model as RuntimeModel } from '@earendil-works/pi-ai'
 import type { Model } from '@pidex/model-schema'
 import { decodeEventEnvelope } from '@pidex/agent-protocol'
 import { removeFixturePaths } from './FixtureCleanup'
 import { AgentLogger } from '../src/observability/AgentLogger'
-import type { PiModelService } from '../src/provider/pi/PiModelService'
+import type { ModelService } from '../src/provider/runtime/ModelService'
 import { ThreadHistoryService } from '../src/session/ThreadHistoryService'
 import {
   THREAD_TITLE_MAX_LENGTH,
@@ -78,13 +78,13 @@ describe('ThreadTitleService', () => {
     const activityAt = history.getListItem(thread.id)!.updatedAt
     const attemptedModels: string[] = []
     const models = {
-      pi: {},
-      getPiModel: async (ref: Model.Ref) => {
+      registry: {},
+      getRuntimeModel: async (ref: Model.Ref) => {
         attemptedModels.push(String(ref.id))
         if (String(ref.id) === 'small') throw new Error('unavailable')
-        return { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+        return { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
       },
-    } as unknown as Pick<PiModelService, 'pi' | 'getPiModel'>
+    } as unknown as Pick<ModelService, 'registry' | 'getRuntimeModel'>
     const service = new ThreadTitleService(db, history, models, logger, config, {
       generate: async () => ({
         title: '# 这是一个非常非常长的会话标题用于验证统一截断行为',
@@ -110,8 +110,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => {
+        registry: {},
+        getRuntimeModel: async () => {
           throw new Error('unexpected')
         },
       } as never,
@@ -133,8 +133,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => ({ provider: 'provider:test', id: 'small' }) as PiModel<Api>,
+        registry: {},
+        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -161,8 +161,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => ({ provider: 'provider:test', id: 'small' }) as PiModel<Api>,
+        registry: {},
+        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -186,8 +186,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => ({ provider: 'provider:test', id: 'small' }) as PiModel<Api>,
+        registry: {},
+        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -209,8 +209,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => ({ provider: 'provider:test', id: 'small' }) as PiModel<Api>,
+        registry: {},
+        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -280,8 +280,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => ({ provider: 'provider:test', id: 'small' }) as PiModel<Api>,
+        registry: {},
+        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -340,8 +340,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => ({ provider: 'provider:test', id: 'small' }) as PiModel<Api>,
+        registry: {},
+        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -368,8 +368,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => {
+        registry: {},
+        getRuntimeModel: async () => {
           throw new Error('unavailable')
         },
       } as never,
@@ -388,8 +388,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => ({ provider: 'provider:test', id: 'small' }) as PiModel<Api>,
+        registry: {},
+        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -413,8 +413,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => ({ provider: 'provider:test', id: 'small' }) as PiModel<Api>,
+        registry: {},
+        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -438,8 +438,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => ({ provider: 'provider:test', id: 'small' }) as PiModel<Api>,
+        registry: {},
+        getRuntimeModel: async () => ({ provider: 'provider:test', id: 'small' }) as RuntimeModel<Api>,
       } as never,
       logger,
       config,
@@ -459,8 +459,8 @@ describe('ThreadTitleService', () => {
       db,
       history,
       {
-        pi: {},
-        getPiModel: async () => {
+        registry: {},
+        getRuntimeModel: async () => {
           throw new Error('unexpected')
         },
       } as never,

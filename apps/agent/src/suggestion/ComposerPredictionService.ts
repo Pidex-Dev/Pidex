@@ -1,13 +1,13 @@
-import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
+import type { Api, Model as RuntimeModel } from '@earendil-works/pi-ai'
 import { z } from 'zod'
 import type { Model } from '@pidex/model-schema'
 import type { ThreadTurnBundle } from '@pidex/shared/thread'
 import { AgentError } from '../Domain'
 import type { ConfigService } from '../config/ConfigService'
 import type { AgentLogger } from '../observability/AgentLogger'
-import type { PiModelService } from '../provider/pi/PiModelService'
-import { resolveSpecializedPiModel } from '../provider/pi/PiSpecializedModelResolver'
-import { generatePiObject } from '../provider/pi/PiStructuredOutput'
+import type { ModelService } from '../provider/runtime/ModelService'
+import { resolveSpecializedModel } from '../provider/runtime/SpecializedModelResolver'
+import { generateObject } from '../provider/runtime/StructuredOutput'
 import { secretScrubber } from '../security/SecretScrubber'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import { ThreadProjection } from '../transport/ThreadProjection'
@@ -24,13 +24,13 @@ const generatedPredictionSchema = z.object({
 
 type GeneratedPrediction = z.output<typeof generatedPredictionSchema>
 
-type PredictionModelService = Pick<PiModelService, 'pi' | 'getPiModel'>
+type PredictionModelService = Pick<ModelService, 'registry' | 'getRuntimeModel'>
 
 export type ComposerPredictionServiceOptions = {
   timeoutMs?: number
   now?: () => number
   generate?: (input: {
-    model: PiModel<Api>
+    model: RuntimeModel<Api>
     signal: AbortSignal
     system: string
     prompt: string
@@ -78,8 +78,8 @@ export class ComposerPredictionService {
     this.generateObject =
       options.generate ??
       ((input) =>
-        generatePiObject({
-          models: this.models.pi,
+        generateObject({
+          models: this.models.registry,
           model: input.model,
           signal: input.signal,
           schema: generatedPredictionSchema,
@@ -136,8 +136,8 @@ export class ComposerPredictionService {
   private async resolveModel(
     turnModel: Model.Ref,
     projectId: string | undefined,
-  ): Promise<{ ref: Model.Ref; model: PiModel<Api> } | null> {
-    const specialized = await resolveSpecializedPiModel({
+  ): Promise<{ ref: Model.Ref; model: RuntimeModel<Api> } | null> {
+    const specialized = await resolveSpecializedModel({
       purpose: 'generation',
       db: this.db,
       models: this.models,
@@ -148,7 +148,7 @@ export class ComposerPredictionService {
     })
     if (specialized) return specialized
     try {
-      return { ref: turnModel, model: await this.models.getPiModel(turnModel) }
+      return { ref: turnModel, model: await this.models.getRuntimeModel(turnModel) }
     } catch {
       return null
     }
@@ -188,7 +188,7 @@ export class ComposerPredictionService {
 
   private async generateFresh(
     context: ContextEntry[],
-    resolved: { ref: Model.Ref; model: PiModel<Api> },
+    resolved: { ref: Model.Ref; model: RuntimeModel<Api> },
   ): Promise<ComposerPredictionResult> {
     const startedAt = Date.now()
     const details = () => ({

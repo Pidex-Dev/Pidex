@@ -1,16 +1,16 @@
-import type { MediaAttachmentReference } from '../../provider/pi/MediaInput'
+import type { MediaAttachmentReference } from '../../provider/runtime/MediaInput'
 import { inputAttachmentTables } from '../../storage/repositories/InputAttachmentRepository'
 import { activeTurnSql } from '../../storage/repositories/ThreadEditRepository'
 import { randomUUID } from 'node:crypto'
 import type { SessionTreeEntry } from '../../orchestration/harness/Types'
 import { AgentError } from '../../Domain'
 import {
-  SqlitePiSessionRepo,
-  type SqlitePiSessionMetadata,
-} from '../../storage/pi-session/SqlitePiSession'
+  SqliteSessionRepo,
+  type SqliteSessionMetadata,
+} from '../../storage/session/SqliteSession'
 import type { AgentDatabase } from '../../storage/database/AgentDatabase'
-import { parsePiSessionEntry } from '../../storage/pi-session/PiSessionEntry'
-import { TurnPiBoundaryRepository } from '../../storage/repositories/TurnPiBoundaryRepository'
+import { parseSessionEntry } from '../../storage/session/SessionEntry'
+import { TurnSessionBoundaryRepository } from '../../storage/repositories/TurnSessionBoundaryRepository'
 import {
   probeThreadContextLimitsStorageCapabilities,
   probeThreadMessageForksStorageCapabilities,
@@ -60,8 +60,8 @@ export type SideChatForkOptions = {
   targetWorkspace: ForkThroughOptions['targetWorkspace']
 }
 
-type PiFork = {
-  source: SqlitePiSessionMetadata
+type SessionFork = {
+  source: SqliteSessionMetadata
   targetSessionID: string
   targetThreadID: string
   targetAgentID: string
@@ -181,8 +181,8 @@ const forkTitle = (title: string) => (title.endsWith('（分支）') ? title : `
  * events/outbox and review ownership intentionally remain with the source.
  */
 export class ConversationHistoryForkRepository {
-  private readonly sessions: Pick<SqlitePiSessionRepo, 'fork'>
-  private readonly boundaries: TurnPiBoundaryRepository
+  private readonly sessions: Pick<SqliteSessionRepo, 'fork'>
+  private readonly boundaries: TurnSessionBoundaryRepository
   private readonly inFlight = new Map<
     string,
     { requestKey: string; promise: Promise<ThreadForkResult> }
@@ -195,10 +195,10 @@ export class ConversationHistoryForkRepository {
   constructor(
     private readonly db: AgentDatabase,
     private readonly nextID: () => string = randomUUID,
-    sessions?: Pick<SqlitePiSessionRepo, 'fork'>,
+    sessions?: Pick<SqliteSessionRepo, 'fork'>,
   ) {
-    this.sessions = sessions ?? new SqlitePiSessionRepo(db)
-    this.boundaries = new TurnPiBoundaryRepository(db)
+    this.sessions = sessions ?? new SqliteSessionRepo(db)
+    this.boundaries = new TurnSessionBoundaryRepository(db)
   }
 
   forkLatestForSideChat(
@@ -292,7 +292,7 @@ export class ConversationHistoryForkRepository {
     }
 
     const maps = this.allocatePrefixMappings(sourceThreadID, targetRootID)
-    const piForks = new Map<string, PiFork>()
+    const sessionForks = new Map<string, SessionFork>()
     const copiedBoundaries: Array<{ turnID: string; sessionID: string; entryID: string }> = []
     try {
       this.db.transaction(() => {
@@ -307,15 +307,15 @@ export class ConversationHistoryForkRepository {
           maps,
           false,
         )
-        this.copyConversationRows(maps, piForks)
-        this.collectCopiedBoundaries(maps, piForks, copiedBoundaries)
+        this.copyConversationRows(maps, sessionForks)
+        this.collectCopiedBoundaries(maps, sessionForks, copiedBoundaries)
         this.db.sqlite
           .query(
             'INSERT INTO thread_forks (target_thread_id, source_thread_id, operation_id, created_at) VALUES (?, ?, ?, ?)',
           )
           .run(targetRootID, sourceThreadID, options.operationID, Date.now())
       })
-      for (const entry of piForks.values()) {
+      for (const entry of sessionForks.values()) {
         await this.sessions.fork(entry.source, {
           id: entry.targetSessionID,
           threadID: entry.targetThreadID,
@@ -398,7 +398,7 @@ export class ConversationHistoryForkRepository {
       options.throughTurnID,
       options.sourceItemID,
     )
-    const piBoundary = this.resolvePiBoundary(
+    const sessionBoundary = this.resolveSessionBoundary(
       options.throughTurnID,
       selected.sessionID,
       selected.text,
@@ -439,19 +439,19 @@ export class ConversationHistoryForkRepository {
     }
 
     const maps = this.allocatePrefixMappings(sourceThreadID, targetRootID, options.throughTurnID)
-    const piForks = new Map<string, PiFork>()
+    const sessionForks = new Map<string, SessionFork>()
     const copiedBoundaries: Array<{ turnID: string; sessionID: string; entryID: string }> = []
     try {
       this.db.transaction(() => {
         this.copyThreads(sourceThreadID, options, maps)
-        this.copyConversationRows(maps, piForks)
-        this.collectCopiedBoundaries(maps, piForks, copiedBoundaries)
+        this.copyConversationRows(maps, sessionForks)
+        this.collectCopiedBoundaries(maps, sessionForks, copiedBoundaries)
         const targetSelectedTurn = maps.turnIDs.get(options.throughTurnID)
-        const targetSelectedSession = piForks.get(selected.sessionID)?.targetSessionID
+        const targetSelectedSession = sessionForks.get(selected.sessionID)?.targetSessionID
         if (!targetSelectedTurn || !targetSelectedSession)
           throw new AgentError('FORK_POINT_UNAVAILABLE', '无法建立分叉会话边界', 409)
-        const selectedFork = piForks.get(selected.sessionID)!
-        selectedFork.entryID = piBoundary
+        const selectedFork = sessionForks.get(selected.sessionID)!
+        selectedFork.entryID = sessionBoundary
         copiedBoundaries.splice(
           0,
           copiedBoundaries.length,
@@ -460,7 +460,7 @@ export class ConversationHistoryForkRepository {
         copiedBoundaries.push({
           turnID: targetSelectedTurn,
           sessionID: targetSelectedSession,
-          entryID: piBoundary,
+          entryID: sessionBoundary,
         })
         const capabilities = probeThreadMessageForksStorageCapabilities(this.db.sqlite)
         if (capabilities.forkTargetTurnId) {
@@ -503,7 +503,7 @@ export class ConversationHistoryForkRepository {
         }
       })
 
-      for (const entry of piForks.values()) {
+      for (const entry of sessionForks.values()) {
         await this.sessions.fork(entry.source, {
           id: entry.targetSessionID,
           threadID: entry.targetThreadID,
@@ -556,7 +556,7 @@ export class ConversationHistoryForkRepository {
       .get(sourceThreadID) as { id: string } | null
     let sourceItemID: string | null = null
     let selected: ReturnType<ConversationHistoryForkRepository['requireForkPoint']> | null = null
-    let piBoundary: string | null = null
+    let sessionBoundary: string | null = null
     if (latestCompleted) {
       const candidates = this.db.sqlite
         .query(
@@ -582,14 +582,14 @@ export class ConversationHistoryForkRepository {
       if (!sourceItemID)
         throw new AgentError('FORK_POINT_UNAVAILABLE', '最新完成回复缺少可安全分叉的结果', 409)
       selected = this.requireForkPoint(sourceThreadID, latestCompleted.id, sourceItemID)
-      piBoundary = this.resolvePiBoundary(latestCompleted.id, selected.sessionID, selected.text)
+      sessionBoundary = this.resolveSessionBoundary(latestCompleted.id, selected.sessionID, selected.text)
     }
 
     const targetRootID = options.targetThreadID ?? this.nextID()
     const maps = latestCompleted
       ? this.allocatePrefixMappings(sourceThreadID, targetRootID, latestCompleted.id)
       : this.allocateEmptyMappings(sourceThreadID, targetRootID)
-    const piForks = new Map<string, PiFork>()
+    const sessionForks = new Map<string, SessionFork>()
     const copiedBoundaries: Array<{ turnID: string; sessionID: string; entryID: string }> = []
     const inheritedThroughTurnID = latestCompleted
       ? (maps.turnIDs.get(latestCompleted.id) ?? null)
@@ -608,13 +608,13 @@ export class ConversationHistoryForkRepository {
           maps,
           false,
         )
-        this.copyConversationRows(maps, piForks)
-        this.collectCopiedBoundaries(maps, piForks, copiedBoundaries)
-        if (latestCompleted && selected && piBoundary) {
-          const targetSessionID = piForks.get(selected.sessionID)?.targetSessionID
+        this.copyConversationRows(maps, sessionForks)
+        this.collectCopiedBoundaries(maps, sessionForks, copiedBoundaries)
+        if (latestCompleted && selected && sessionBoundary) {
+          const targetSessionID = sessionForks.get(selected.sessionID)?.targetSessionID
           if (!inheritedThroughTurnID || !targetSessionID)
             throw new AgentError('FORK_POINT_UNAVAILABLE', '无法建立侧边聊天会话边界', 409)
-          piForks.get(selected.sessionID)!.entryID = piBoundary
+          sessionForks.get(selected.sessionID)!.entryID = sessionBoundary
           copiedBoundaries.splice(
             0,
             copiedBoundaries.length,
@@ -623,7 +623,7 @@ export class ConversationHistoryForkRepository {
           copiedBoundaries.push({
             turnID: inheritedThroughTurnID,
             sessionID: targetSessionID,
-            entryID: piBoundary,
+            entryID: sessionBoundary,
           })
         }
         sideChats.insert({
@@ -635,7 +635,7 @@ export class ConversationHistoryForkRepository {
           createdAt,
         })
       })
-      for (const entry of piForks.values()) {
+      for (const entry of sessionForks.values()) {
         await this.sessions.fork(entry.source, {
           id: entry.targetSessionID,
           threadID: entry.targetThreadID,
@@ -800,7 +800,7 @@ export class ConversationHistoryForkRepository {
     return { sessionID: turn.session_id, text: data.text.trim() }
   }
 
-  private resolvePiBoundary(turnID: string, sessionID: string, selectedText: string) {
+  private resolveSessionBoundary(turnID: string, sessionID: string, selectedText: string) {
     const exact = this.boundaries.get(turnID)
     if (exact) {
       if (exact.sessionID !== sessionID || !this.validAssistantEntry(sessionID, exact.entryID)) {
@@ -827,7 +827,7 @@ export class ConversationHistoryForkRepository {
       .all(turnID, sessionID) as Array<{ id: string; content: string }>
     const selectedTurnIndex = turns.findIndex((turn) => turn.id === turnID)
     if (selectedTurnIndex < 0)
-      throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务缺少可安全确定的 Pi 分叉边界', 409)
+      throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务缺少可安全确定的分叉边界', 409)
 
     const branch = this.currentSessionBranch(sessionID)
     const userPositions: number[] = []
@@ -842,7 +842,7 @@ export class ConversationHistoryForkRepository {
         }
       }
       if (position < 0)
-        throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务缺少可安全确定的 Pi 分叉边界', 409)
+        throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务缺少可安全确定的分叉边界', 409)
       userPositions.push(position)
       cursor = position + 1
     }
@@ -855,7 +855,7 @@ export class ConversationHistoryForkRepository {
     })
     const candidate = candidates.at(-1)
     if (!candidate || candidate.text !== selectedText) {
-      throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务缺少可安全确定的 Pi 分叉边界', 409)
+      throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务缺少可安全确定的分叉边界', 409)
     }
     return candidate.id
   }
@@ -865,7 +865,7 @@ export class ConversationHistoryForkRepository {
       .query('SELECT leaf_id FROM pi_sessions WHERE id = ?')
       .get(sessionID) as { leaf_id: string | null } | null
     if (!session?.leaf_id)
-      throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务缺少可安全确定的 Pi 分叉边界', 409)
+      throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务缺少可安全确定的分叉边界', 409)
     const rows = this.db.sqlite
       .query(
         `
@@ -873,16 +873,16 @@ export class ConversationHistoryForkRepository {
     `,
       )
       .all(sessionID) as Array<{ id: string; payload: string }>
-    const byID = new Map(rows.map((row) => [row.id, parsePiSessionEntry(row)]))
+    const byID = new Map(rows.map((row) => [row.id, parseSessionEntry(row)]))
     const reversed: SessionTreeEntry[] = []
     const visited = new Set<string>()
     let currentID: string | null = session.leaf_id
     while (currentID) {
       if (visited.has(currentID))
-        throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务 Pi 分支包含循环', 409)
+        throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务会话分支包含循环', 409)
       visited.add(currentID)
       const entry = byID.get(currentID)
-      if (!entry) throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务 Pi 分支不完整', 409)
+      if (!entry) throw new AgentError('FORK_POINT_UNAVAILABLE', '旧任务会话分支不完整', 409)
       reversed.push(entry)
       currentID = entry.parentId
     }
@@ -897,7 +897,7 @@ export class ConversationHistoryForkRepository {
     `,
       )
       .get(sessionID, entryID) as { id: string; payload: string } | null
-    return row ? messageText(parsePiSessionEntry(row)) !== null : false
+    return row ? messageText(parseSessionEntry(row)) !== null : false
   }
 
   private allocatePrefixMappings(
@@ -1077,7 +1077,7 @@ export class ConversationHistoryForkRepository {
     }
   }
 
-  private copyConversationRows(maps: ForkMappings, piForks: Map<string, PiFork>) {
+  private copyConversationRows(maps: ForkMappings, sessionForks: Map<string, SessionFork>) {
     const allIDs = new Map<string, string>([
       ...maps.threadIDs,
       ...maps.turnIDs,
@@ -1135,7 +1135,7 @@ export class ConversationHistoryForkRepository {
         })
         row.session_id = targetSessionID
         this.insert('agent_executions', row)
-        if (!piForks.has(sourceSessionID)) {
+        if (!sessionForks.has(sourceSessionID)) {
           const session = this.db.sqlite
             .query('SELECT id, thread_id, agent_id, created_at FROM pi_sessions WHERE id = ?')
             .get(sourceSessionID) as {
@@ -1145,7 +1145,7 @@ export class ConversationHistoryForkRepository {
             created_at: number
           } | null
           if (session)
-            piForks.set(sourceSessionID, {
+            sessionForks.set(sourceSessionID, {
               source: {
                 id: session.id,
                 threadID: session.thread_id,
@@ -1291,20 +1291,20 @@ export class ConversationHistoryForkRepository {
 
   private collectCopiedBoundaries(
     maps: ForkMappings,
-    piForks: ReadonlyMap<string, PiFork>,
+    sessionForks: ReadonlyMap<string, SessionFork>,
     output: Array<{ turnID: string; sessionID: string; entryID: string }>,
   ) {
     for (const [sourceTurnID, targetTurnID] of maps.turnIDs) {
       const boundary = this.boundaries.get(sourceTurnID)
       if (!boundary) continue
-      const targetSessionID = piForks.get(boundary.sessionID)?.targetSessionID
+      const targetSessionID = sessionForks.get(boundary.sessionID)?.targetSessionID
       if (targetSessionID)
         output.push({ turnID: targetTurnID, sessionID: targetSessionID, entryID: boundary.entryID })
     }
   }
 
   /**
-   * 目标 Pi 会话从最近一次压缩边界开始复制，压缩前的 entry 不在目标会话里，
+   * 目标会话从最近一次压缩边界开始复制，压缩前的 entry 不在目标会话里，
    * 这些 turn 的边界无法满足 (session_id, entry_id) 外键。只写回目标会话真实存在的边界，
    * 避免整笔分叉因为历史边界被回滚成“当前聊天历史无法完整复制”。
    */

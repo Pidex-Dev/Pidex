@@ -7,8 +7,8 @@ import type { RpcHandlerGroup } from './Types'
 import { z } from 'zod'
 import { resolveProjectWorkspace } from '../RpcRouter'
 import { GitCommandRunner } from '../../../git/GitCommandRunner'
-import { resolveSpecializedPiModel } from '../../../provider/pi/PiSpecializedModelResolver'
-import { generatePiObject } from '../../../provider/pi/PiStructuredOutput'
+import { resolveSpecializedModel } from '../../../provider/runtime/SpecializedModelResolver'
+import { generateObject } from '../../../provider/runtime/StructuredOutput'
 import { secretScrubber } from '../../../security/SecretScrubber'
 
 export const gitHandlers = {
@@ -31,7 +31,7 @@ export const gitHandlers = {
     switch (method) {
       case 'git/message/generate': {
         const projectId = stringParam(params, 'projectId')
-        const { db, piModels, config } = runtime.dependencies
+        const { db, runtimeModels, config } = runtime.dependencies
         const workspace = await resolveProjectWorkspace(db, projectId)
         if (
           typeof params.threadId === 'string' &&
@@ -42,10 +42,10 @@ export const gitHandlers = {
           typeof params.threadId === 'string'
             ? (await runtime.dependencies.terminalContext.resolve(params.threadId)).target.cwd
             : workspace.rootPath
-        const selected = await resolveSpecializedPiModel({
+        const selected = await resolveSpecializedModel({
           purpose: 'generation',
           db,
-          models: piModels,
+          models: runtimeModels,
           configService: config,
           projectId,
         })
@@ -88,8 +88,8 @@ export const gitHandlers = {
         if (!content.trim()) throw new AgentError('CONFLICT', '没有可用于生成说明的变更', 409)
         const desktop = config.snapshot().desktop as Record<string, unknown> | undefined
         const instructions = pullRequest ? desktop?.pullRequestPrompt : desktop?.commitMessagePrompt
-        return generatePiObject({
-          models: piModels.pi,
+        return generateObject({
+          models: runtimeModels.registry,
           model: selected.model,
           signal: AbortSignal.timeout(60_000),
           schema: z.object({

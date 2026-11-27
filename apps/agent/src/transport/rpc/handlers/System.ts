@@ -18,7 +18,7 @@ const unsupportedSandboxResult = () => ({
     runtimeVersion: 'host-hook-v1',
     maturity: 'alpha' as const,
     maxConcurrentCommands: 1,
-    error: '内置命令沙箱已移除；Shell 经 Pi Hook 和权限检查后以当前用户身份在本机执行。',
+    error: '内置命令沙箱已移除；Shell 经 Hook 和权限检查后以当前用户身份在本机执行。',
     operations: {
       canInstall: false,
       canRepair: false,

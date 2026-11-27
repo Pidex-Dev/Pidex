@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { AgentError } from '../src/Domain'
-import { ModelSpecRepairService } from '../src/provider/pi/ModelSpecRepairService'
+import { ModelSpecRepairService } from '../src/provider/runtime/ModelSpecRepairService'
 import type { ConfigService } from '../src/config/ConfigService'
-import type { PiModelService } from '../src/provider/pi/PiModelService'
+import type { ModelService } from '../src/provider/runtime/ModelService'
 
 const recommendation = {
   status: 'matched' as const,
@@ -44,7 +44,7 @@ const setup = (
     },
   } as unknown as ConfigService
   const recommended = options.recommended ?? recommendation.recommended
-  const piModels = {
+  const runtimeModels = {
     catalogConfig: async () => ({
       providers: {
         gateway: {
@@ -60,9 +60,9 @@ const setup = (
       recommended,
       ...(options.updatedAt !== undefined ? { updatedAt: options.updatedAt } : {}),
     }),
-  } as unknown as PiModelService
+  } as unknown as ModelService
   return {
-    service: new ModelSpecRepairService(piModels, config),
+    service: new ModelSpecRepairService(runtimeModels, config),
     writes,
   }
 }

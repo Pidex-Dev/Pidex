@@ -21,7 +21,7 @@ export type CompleteContextCompactionInput = {
   turnID?: string | null
   sessionID: string
   trigger: ContextCompactionTrigger
-  piEntry: CompactionEntry
+  sessionEntry: CompactionEntry
   summary: string
   firstKeptEntryID: string | null
   beforeCount: number
@@ -48,7 +48,7 @@ const nonNegativeInteger = (name: string, value: number) => {
   }
 }
 
-/** Coordinates durable product metadata after Pi has created and flushed its entry. */
+/** Coordinates durable product metadata after the harness has created and flushed its entry. */
 export class ContextCompactionService {
   private readonly context: ContextManager
   private publisher: (event: EventEnvelope) => Promise<void> = async () => {}
@@ -298,36 +298,36 @@ export class ContextCompactionService {
   complete(input: CompleteContextCompactionInput): CompleteContextCompactionResult {
     nonNegativeInteger('beforeCount', input.beforeCount)
     nonNegativeInteger('afterCount', input.afterCount)
-    if (input.piEntry.type !== 'compaction') {
-      throw new Error('piEntry 必须是 compaction entry')
+    if (input.sessionEntry.type !== 'compaction') {
+      throw new Error('sessionEntry 必须是 compaction entry')
     }
     if (!input.summary.trim()) throw new Error('summary 不能为空')
     if (
-      input.piEntry.summary !== input.summary ||
-      (input.piEntry.firstKeptEntryId ?? null) !== input.firstKeptEntryID
+      input.sessionEntry.summary !== input.summary ||
+      (input.sessionEntry.firstKeptEntryId ?? null) !== input.firstKeptEntryID
     ) {
-      throw new Error('压缩摘要或保留边界与 Pi entry 不一致')
+      throw new Error('压缩摘要或保留边界与 session entry 不一致')
     }
 
     return this.db.transaction(() => {
-      const persisted = this.db.repositories.context.persistedPiCompaction(
+      const persisted = this.db.repositories.context.persistedCompaction(
         input.sessionID,
-        input.piEntry.id,
+        input.sessionEntry.id,
       )
       if (!persisted) {
-        throw new Error('Pi compaction entry 尚未持久化')
+        throw new Error('compaction entry 尚未持久化')
       }
       if (persisted.threadID !== input.threadID) {
-        throw new Error('Pi compaction entry 不属于目标 thread')
+        throw new Error('compaction entry 不属于目标 thread')
       }
       const durableEntry = JSON.parse(persisted.payload) as CompactionEntry
       if (
         durableEntry.type !== 'compaction' ||
-        durableEntry.id !== input.piEntry.id ||
+        durableEntry.id !== input.sessionEntry.id ||
         durableEntry.summary !== input.summary ||
         (durableEntry.firstKeptEntryId ?? null) !== input.firstKeptEntryID
       ) {
-        throw new Error('已持久化的 Pi compaction entry 与完成请求不一致')
+        throw new Error('已持久化的 compaction entry 与完成请求不一致')
       }
       nonNegativeInteger('tokensBefore', durableEntry.tokensBefore)
 

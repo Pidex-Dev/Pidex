@@ -1,4 +1,4 @@
-import { ModelsV2, ProvidersV2 } from '../src/provider/pi/CatalogV2'
+import { ModelsV2, ProvidersV2 } from '../src/provider/runtime/CatalogV2'
 import { describe, expect, spyOn, test } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -8,11 +8,11 @@ import regression from './fixtures/model-recommendation-regressions.json'
 import {
   ModelRecommendationIndex,
   applyRecommendation,
-} from '../src/provider/pi/ModelRecommendations'
+} from '../src/provider/runtime/ModelRecommendations'
 import { fixtureV2, fixtureV2Fetch } from './fixtures/CatalogV2Fixture'
-import { ModelRecommendationStore } from '../src/provider/pi/ModelRecommendationStore'
-import bundledProviders from '../src/provider/pi/data/bundled-providers-v2.json'
-import bundledModels from '../src/provider/pi/data/bundled-models-v2.json'
+import { ModelRecommendationStore } from '../src/provider/runtime/ModelRecommendationStore'
+import bundledProviders from '../src/provider/runtime/data/bundled-providers-v2.json'
+import bundledModels from '../src/provider/runtime/data/bundled-models-v2.json'
 
 const indexFrom = (raw: unknown) => {
   const { models, providers } = fixtureV2(raw)

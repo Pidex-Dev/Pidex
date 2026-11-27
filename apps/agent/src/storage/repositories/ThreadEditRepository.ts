@@ -1,9 +1,9 @@
 import { inputAttachmentRows, inputAttachmentTable } from './InputAttachmentRepository'
 import { isUserAuthoredInput, type InputOrigin } from '@pidex/shared/thread'
-import { SqlitePiSessionRepo, SqlitePiSessionStorage } from '../pi-session/SqlitePiSession'
+import { SqliteSessionRepo, SqliteSessionStorage } from '../session/SqliteSession'
 import type { AgentDatabase } from '../database/AgentDatabase'
 import { AgentError } from '../../Domain'
-import { parsePiSessionEntry } from '../pi-session/PiSessionEntry'
+import { parseSessionEntry } from '../session/SessionEntry'
 
 export const THREAD_EDIT_SCHEMA = [
   'CREATE TABLE thread_edits (operation_id TEXT PRIMARY KEY, thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE, request_hash TEXT NOT NULL, source_turn_id TEXT NOT NULL, source_input_id TEXT NOT NULL, input_id TEXT NOT NULL, turn_id TEXT, created_at INTEGER NOT NULL)',
@@ -105,7 +105,7 @@ export class ThreadEditRepository {
           .query('SELECT id, payload FROM pi_session_entries WHERE session_id = ? AND id = ?')
           .get(sessionId, id) as { id: string; payload: string } | null
         if (!row) break
-        const entry = parsePiSessionEntry(row)
+        const entry = parseSessionEntry(row)
         if (entry.type === 'message' && entry.message.role === 'user') {
           entryId = entry.parentId
           found = true
@@ -172,11 +172,11 @@ export class ThreadEditRepository {
         throw new AgentError('CHECKPOINT_UNAVAILABLE', '会话编辑边界不可用', 409)
       return () => undefined
     }
-    const session = await new SqlitePiSessionRepo(this.db).openForThread(
+    const session = await new SqliteSessionRepo(this.db).openForThread(
       boundary.sessionId,
       threadId,
     )
-    const storage = session.getStorage() as SqlitePiSessionStorage
+    const storage = session.getStorage() as SqliteSessionStorage
     await storage.setLeafId(boundary.entryId)
     return () => storage.flush()
   }

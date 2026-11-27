@@ -70,7 +70,7 @@ export const githubHandlers = {
     'github/thread/pullRequest/unlink',
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown): Promise<unknown> {
-    const { db, projectSources, github } = runtime.dependencies
+    const { db, github } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case 'github/watch/start':
@@ -137,7 +137,7 @@ export const githubHandlers = {
           repositoryId,
           targetParent: stringParam(params, 'targetParent'),
         })
-        return new ProjectService(db, projectSources).create({
+        return new ProjectService(db).create({
           primaryPath: repositoryRoot,
           operationID: crypto.randomUUID(),
         })

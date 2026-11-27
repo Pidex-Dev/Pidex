@@ -13,7 +13,7 @@ export interface AgentConfig {
   historyDatabasePath: string
   profileDatabasePath: string
   legacyDatabasePath: string
-  piModelCachePath: string
+  providerModelCachePath: string
   rendererDir: string | null
   rendererDevURL: string | null
   githubAuthBrokerURL: string | null
@@ -35,7 +35,7 @@ export interface AgentStorageLayout {
   historyDatabase: string
   profileDatabase: string
   legacyDatabase: string
-  piModelCache: string
+  providerModelCache: string
   hooksFile: string
   skillsRoot: string
   pluginsRoot: string
@@ -110,7 +110,7 @@ export const resolveAgentStorageLayout = (
     historyDatabase: resolve(dataRoot, 'history.sqlite'),
     profileDatabase: resolve(dataRoot, 'profile.sqlite'),
     legacyDatabase: resolve(dataRoot, 'agent.sqlite'),
-    piModelCache: resolve(dataRoot, 'pi-models.cache.json'),
+    providerModelCache: resolve(dataRoot, 'provider-models.cache.json'),
     hooksFile: resolve(dataRoot, 'hooks.json'),
     skillsRoot: resolve(dataRoot, 'skills'),
     pluginsRoot: resolve(dataRoot, 'plugins'),
@@ -138,7 +138,7 @@ export const loadConfig = Effect.sync((): AgentConfig => {
     historyDatabasePath: storage.historyDatabase,
     profileDatabasePath: storage.profileDatabase,
     legacyDatabasePath: storage.legacyDatabase,
-    piModelCachePath: storage.piModelCache,
+    providerModelCachePath: storage.providerModelCache,
     rendererDir: process.env.PIDEX_RENDERER_DIST
       ? resolve(process.env.PIDEX_RENDERER_DIST)
       : process.env.PIDEX_STATIC_DIR

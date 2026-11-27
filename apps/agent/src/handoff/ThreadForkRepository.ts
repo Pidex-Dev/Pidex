@@ -4,7 +4,7 @@ import {
   ConversationHistoryForkRepository,
   type ThreadForkResult,
 } from '../session/fork/ConversationHistoryForkRepository'
-import { SqlitePiSessionRepo } from '../storage/pi-session/SqlitePiSession'
+import { SqliteSessionRepo } from '../storage/session/SqliteSession'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 
 export type { ThreadForkResult } from '../session/fork/ConversationHistoryForkRepository'
@@ -30,7 +30,7 @@ export class ThreadForkRepository {
   constructor(
     private readonly db: AgentDatabase,
     nextID: () => string = randomUUID,
-    sessions?: Pick<SqlitePiSessionRepo, 'fork'>,
+    sessions?: Pick<SqliteSessionRepo, 'fork'>,
   ) {
     this.history = new ConversationHistoryForkRepository(db, nextID, sessions)
   }
