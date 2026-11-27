@@ -49,7 +49,7 @@
   },
   "dependencies": {
     "@pidex/model-schema": "workspace:*",
-    "effect": "4.0.0-beta.83"
+    "effect": "4.0.0-beta.103"
   },
   "devDependencies": {
     "typescript": "5.9.3"
