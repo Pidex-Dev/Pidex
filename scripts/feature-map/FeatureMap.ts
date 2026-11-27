@@ -103,6 +103,7 @@ export const FEATURE_MAP: readonly FeatureEntry[] = [
       'thread/title/regenerate',
       'thread/settings/update',
       'thread/delete',
+      'thread/deleteArchived',
       'thread/patch/diff',
       'thread/patch/apply',
       'thread/compact/request',
@@ -120,6 +121,10 @@ export const FEATURE_MAP: readonly FeatureEntry[] = [
       'prompt/preview',
       'prompt/refresh',
       'attachment/import',
+      'attachment/upload/begin',
+      'attachment/upload/chunk',
+      'attachment/upload/commit',
+      'attachment/upload/abort',
       'attachment/read',
       'artifact/read',
       'context/path/import',
@@ -687,7 +692,7 @@ export const FEATURE_MAP: readonly FeatureEntry[] = [
   },
   {
     id: 'plugins-skills-mcp',
-    title: '插件、Apps、Skills、MCP 服务器、Hooks、Tooling 与 MiniMax CLI',
+    title: '插件、Apps、Skills、MCP 服务器、Hooks 与 Tooling',
     rpcMethods: [
       'plugin/readAsset',
       'plugin/install',
@@ -717,9 +722,6 @@ export const FEATURE_MAP: readonly FeatureEntry[] = [
       'tooling/refresh',
       'tooling/setPreference',
       'tooling/install',
-      'minimaxCli/status',
-      'minimaxCli/install',
-      'minimaxCli/uninstall',
     ],
     routes: ['plugins'],
     scenarios: [

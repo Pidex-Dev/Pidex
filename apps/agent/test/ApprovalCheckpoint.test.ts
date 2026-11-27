@@ -12,7 +12,7 @@ import { ApprovalService } from '../src/permission/ApprovalService'
 import { QuestionService } from '../src/session/QuestionService'
 import { PermissionDecisionEngine } from '../src/permission/PermissionDecisionEngine'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
-import { SqlitePiSessionRepo } from '../src/storage/pi-session/SqlitePiSession'
+import { SqliteSessionRepo } from '../src/storage/session/SqliteSession'
 import { recoverInterruptedRuns } from '../src/storage/recovery/InterruptedRunRecovery'
 import { EventHub } from '../src/storage/events/EventHub'
 import { ToolRegistry } from '../src/tool/ToolRegistry'
@@ -42,7 +42,7 @@ import { ContextCompactionService } from '../src/context/ContextCompactionServic
 import { ToolExecutor } from '../src/tool/ToolExecutor'
 import { WorkspaceService } from '../src/workspace/WorkspaceService'
 import { ReviewerService } from '../src/permission/ReviewerService'
-import type { PiModelService } from '../src/provider/pi'
+import type { ModelService } from '../src/provider/runtime'
 
 const paths: string[] = []
 const databases: AgentDatabase[] = []
@@ -466,8 +466,8 @@ describe('审批范围与外部交互', () => {
     let reviewCalls = 0
     let reviewAborted = false
     const providers = {
-      getPiModel: async () => ({ provider: 'openai', id: 'test' }),
-      pi: {
+      getRuntimeModel: async () => ({ provider: 'openai', id: 'test' }),
+      registry: {
         completeSimple: async (
           _model: unknown,
           _context: unknown,
@@ -486,7 +486,7 @@ describe('审批范围与外部交互', () => {
           })
         },
       },
-    } as unknown as PiModelService
+    } as unknown as ModelService
     const reviewer = new ReviewerService(db, providers, config)
     const service = new ApprovalService(
       db,
@@ -872,7 +872,7 @@ describe('审批范围与外部交互', () => {
         runtime = createRuntime()
       }
       const assertResults = async () => {
-        const session = await new SqlitePiSessionRepo(db).openByID(request.sessionID)
+        const session = await new SqliteSessionRepo(db).openByID(request.sessionID)
         const branch = await session.getBranch()
         const branchResults = branch.flatMap((entry) =>
           entry.type === 'message' && entry.message.role === 'toolResult' ? [entry.message] : [],

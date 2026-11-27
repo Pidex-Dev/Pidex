@@ -99,7 +99,7 @@ export function ThreadAttachmentRows({
               key={attachment.id}
               name={attachment.name}
               detail={
-                isMediaPreviewKind(attachment.kind)
+                attachment.kind === 'pdf' || isMediaPreviewKind(attachment.kind)
                   ? `${attachment.mediaType} · ${(attachment.sizeBytes / 1048576).toFixed(1)} MB`
                   : undefined
               }

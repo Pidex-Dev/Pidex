@@ -17,7 +17,7 @@ import { createPromptSections } from '../src/prompt/Sections'
 import { SubagentService } from '../src/subagent/SubagentService'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { EventHub } from '../src/storage/events/EventHub'
-import { SqlitePiSessionRepo } from '../src/storage/pi-session/SqlitePiSession'
+import { SqliteSessionRepo } from '../src/storage/session/SqliteSession'
 import { ToolExecutor } from '../src/tool/ToolExecutor'
 import { ToolRegistry } from '../src/tool/ToolRegistry'
 import { WorkspaceService } from '../src/workspace/WorkspaceService'
@@ -166,7 +166,7 @@ describe('Agent 后台派发守卫与同步兜底状态', () => {
       resolveModel: async () => ({ ref: modelRef, model: faux.getModel() }),
       pause: input.pause ?? (async () => {}),
     })
-    const entries = await new SqlitePiSessionRepo(db)
+    const entries = await new SqliteSessionRepo(db)
       .openForThread(sessionID, thread.id)
       .then((session) => session.getEntries())
     let toolResultText = ''

@@ -1,4 +1,3 @@
-import * as Dialog from '@radix-ui/react-dialog'
 import { Folder, FolderPlus, RefreshCw, Star, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
@@ -8,8 +7,14 @@ import type {
   ProjectAppearance,
 } from '../../../shared/Types.js'
 import { Button } from '../../components/ui/Button.js'
-
-import { useDialogFocusRestore } from '../../components/ui/UseDialogFocusRestore.js'
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/Dialog.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { cx } from '../../utils/Cx.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
@@ -49,7 +54,6 @@ export function ProjectEditDialog({
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const nameInputRef = useRef<HTMLInputElement | null>(null)
   const projectId = project.projectId
-  const { onCloseAutoFocus } = useDialogFocusRestore(open)
 
   useEffect(() => {
     if (!open) return
@@ -174,212 +178,200 @@ export function ProjectEditDialog({
   }
 
   return (
-    <Dialog.Root
+    <Dialog
+      closeButtonRef={closeButtonRef}
+      closeDisabled={busy}
+      closeLabel="关闭编辑项目"
+      contentClassName="project-edit-dialog tw:overflow-y-auto"
+      overlayClassName="project-edit-backdrop"
       open={open}
+      size="default"
+      contentProps={{
+        'aria-describedby': undefined,
+        onOpenAutoFocus: (event) => {
+          event.preventDefault()
+          const initialFocus = nameInputRef.current ?? closeButtonRef.current
+          initialFocus?.focus()
+          if (initialFocus === nameInputRef.current) {
+            nameInputRef.current?.select()
+          }
+        },
+      }}
       onOpenChange={(nextOpen) => {
         if (!busy) onOpenChange(nextOpen)
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="ui-dialog-backdrop project-edit-backdrop" />
-        <Dialog.Content
-          aria-describedby={undefined}
-          className="ui-dialog-surface ui-dialog-surface--centered project-edit-dialog tw:flex tw:flex-col tw:box-border tw:w-[min(32rem,calc(100vw-2rem))] tw:max-w-[calc(100vw-2rem)] tw:max-h-[calc(100vh-2rem)] tw:overflow-y-auto tw:gap-3 tw:p-5 tw:text-app-text tw:outline-none"
-          onCloseAutoFocus={onCloseAutoFocus}
-          onOpenAutoFocus={(event) => {
-            event.preventDefault()
-            const initialFocus = nameInputRef.current ?? closeButtonRef.current
-            initialFocus?.focus()
-            if (initialFocus === nameInputRef.current) {
-              nameInputRef.current?.select()
-            }
-          }}
-        >
-          <header className="project-edit-header tw:flex tw:items-center tw:justify-between tw:gap-4">
-            <Dialog.Title className="tw:m-0 tw:type-6 tw:weight-bold tw:text-app-text">
-              编辑项目
-            </Dialog.Title>
-            <Dialog.Close asChild>
-              <Button
-                isIconOnly
-                className="project-edit-close"
-                color="ghostSecondary"
+      <DialogBody>
+        <DialogHeader
+          className="project-edit-header"
+          title={
+            <DialogTitle asChild>
+              <h2 className="tw:m-0 tw:type-4 tw:weight-bold tw:text-app-text">编辑项目</h2>
+            </DialogTitle>
+          }
+        />
+
+        {!projectId ? (
+          <p className="project-edit-empty tw:m-0 tw:type-2 tw:text-app-text-meta">
+            当前任务尚未关联稳定项目。
+          </p>
+        ) : (
+          <>
+            <div className="project-edit-name-field tw:flex tw:h-7 tw:min-h-7 tw:items-center tw:overflow-hidden tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:focus-within:border-app-border-strong tw:focus-within:shadow-[var(--cpx-sys-focus-ring-inset)]">
+              <ProjectAppearancePicker
+                appearance={draftAppearance}
                 disabled={busy}
-                ref={closeButtonRef}
-                size="toolbar"
-                title="关闭编辑项目"
-              >
-                <X
-                  className="tw:size-icon-md"
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-              </Button>
-            </Dialog.Close>
-          </header>
+                glyphSize={APP_ICON_SIZE}
+                onChange={(nextAppearance) => {
+                  setDraftAppearance(nextAppearance)
+                  onAppearanceChange(nextAppearance)
+                }}
+              />
+              <input
+                aria-label="项目名称"
+                className="project-edit-name-input tw:min-w-0 tw:flex-1 tw:h-full tw:border-0 tw:bg-transparent tw:px-1 tw:py-0 tw:text-app-text tw:type-2 tw:outline-none"
+                maxLength={120}
+                ref={nameInputRef}
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
+                  if (event.key === 'Enter') void save()
+                }}
+              />
+            </div>
 
-          {!projectId ? (
-            <p className="project-edit-empty tw:m-0 tw:type-2 tw:text-app-text-meta">
-              当前任务尚未关联稳定项目。
-            </p>
-          ) : (
-            <>
-              <div className="project-edit-name-field tw:flex tw:h-7 tw:min-h-7 tw:items-center tw:overflow-hidden tw:rounded-3 tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:focus-within:border-app-border-strong tw:focus-within:shadow-[var(--cpx-sys-focus-ring-inset)]">
-                <ProjectAppearancePicker
-                  appearance={draftAppearance}
-                  disabled={busy}
-                  glyphSize={APP_ICON_SIZE}
-                  onChange={(nextAppearance) => {
-                    setDraftAppearance(nextAppearance)
-                    onAppearanceChange(nextAppearance)
-                  }}
-                />
-                <input
-                  aria-label="项目名称"
-                  className="project-edit-name-input tw:min-w-0 tw:flex-1 tw:h-full tw:border-0 tw:bg-transparent tw:px-1 tw:py-0 tw:text-app-text tw:type-2 tw:outline-none"
-                  maxLength={120}
-                  ref={nameInputRef}
-                  value={draftName}
-                  onChange={(event) => setDraftName(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
-                    if (event.key === 'Enter') void save()
-                  }}
-                />
-              </div>
-
-              <section className="project-edit-folders tw:flex tw:flex-col tw:gap-2">
-                <h3 className="tw:m-0 tw:type-2 tw:weight-medium tw:text-app-text">源文件夹</h3>
-                <div
-                  onDragOver={(event) => {
-                    if (!busy) {
-                      event.preventDefault()
-                      event.dataTransfer.dropEffect = 'copy'
-                    }
-                  }}
-                  onDrop={(event) => {
+            <section className="project-edit-folders tw:flex tw:flex-col tw:gap-2">
+              <h3 className="tw:m-0 tw:type-2 tw:weight-medium tw:text-app-text">源文件夹</h3>
+              <div
+                onDragOver={(event) => {
+                  if (!busy) {
                     event.preventDefault()
-                    if (!busy)
-                      addPaths(
-                        Array.from(event.dataTransfer.files)
-                          .map((file) => desktopClient.getComposerFilePath(file))
-                          .filter(Boolean),
-                      )
-                  }}
-                  className="project-edit-folder-list tw:max-h-[15rem] tw:overflow-y-auto tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-canvas"
-                >
-                  {draftFolders.map((folder) => (
-                    <div
-                      className={cx(
-                        'project-edit-folder-row tw:box-border tw:flex tw:h-8 tw:min-h-8 tw:w-full tw:items-center tw:gap-3 tw:border-0 tw:border-b tw:border-app-border-subtle tw:bg-transparent tw:px-3 tw:text-start',
-                        folder.availability === 'missing'
-                          ? 'is-missing tw:text-app-text-meta'
-                          : 'tw:text-app-text',
-                      )}
-                      key={folder.id}
+                    event.dataTransfer.dropEffect = 'copy'
+                  }
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  if (!busy)
+                    addPaths(
+                      Array.from(event.dataTransfer.files)
+                        .map((file) => desktopClient.getComposerFilePath(file))
+                        .filter(Boolean),
+                    )
+                }}
+                className="project-edit-folder-list tw:max-h-[15rem] tw:overflow-y-auto tw:rounded-4 tw:border tw:border-app-border-subtle tw:bg-app-canvas"
+              >
+                {draftFolders.map((folder) => (
+                  <div
+                    className={cx(
+                      'project-edit-folder-row tw:box-border tw:flex tw:h-8 tw:min-h-8 tw:w-full tw:items-center tw:gap-3 tw:border-0 tw:border-b tw:border-app-border-subtle tw:bg-transparent tw:px-3 tw:text-start',
+                      folder.availability === 'missing'
+                        ? 'is-missing tw:text-app-text-meta'
+                        : 'tw:text-app-text',
+                    )}
+                    key={folder.id}
+                  >
+                    <Folder size="var(--inline-icon-size, 1em)" />
+                    <span
+                      className="project-edit-folder-name tw:min-w-0 tw:flex-1 tw:truncate tw:px-1 tw:type-2"
+                      title={folder.path}
                     >
-                      <Folder size="var(--inline-icon-size, 1em)" />
+                      {folder.name}
+                    </span>
+                    {draftFolders.length > 1 && folder.role === 'primary' ? (
                       <span
-                        className="project-edit-folder-name tw:min-w-0 tw:flex-1 tw:truncate tw:px-1 tw:type-2"
-                        title={folder.path}
+                        title="新聊天使用主目录作为工作目录，并在这里查找 AGENTS.md、config.toml 和技能文件"
+                        className="project-edit-primary-badge tw:shrink-0 tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft"
                       >
-                        {folder.name}
+                        主目录
                       </span>
-                      {draftFolders.length > 1 && folder.role === 'primary' ? (
-                        <span
-                          title="新聊天使用主目录作为工作目录，并在这里查找 AGENTS.md、config.toml 和技能文件"
-                          className="project-edit-primary-badge tw:shrink-0 tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:type-1 tw:text-app-text-soft"
-                        >
-                          主目录
-                        </span>
-                      ) : null}
-                      {draftFolders.length > 1 && folder.role !== 'primary' ? (
-                        <Button
-                          isIconOnly
-                          className="project-edit-folder-action tw:w-[1.875rem]"
-                          color="ghostSecondary"
-                          disabled={busy}
-                          size="toolbar"
-                          title={`将 ${folder.name} 设为主目录`}
-                          type="button"
-                          onClick={() => setPrimary(folder.id)}
-                        >
-                          <Star className="tw:size-icon-md" size={APP_ICON_SIZE} />
-                        </Button>
-                      ) : null}
-                      {folder.availability === 'missing' ? (
-                        <Button
-                          isIconOnly
-                          className="project-edit-folder-action tw:w-[1.875rem]"
-                          color="ghostSecondary"
-                          disabled={busy}
-                          size="toolbar"
-                          title={`重新选择目录 ${folder.name}`}
-                          type="button"
-                          onClick={() => void reselectFolder(folder)}
-                        >
-                          <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
-                        </Button>
-                      ) : null}
+                    ) : null}
+                    {draftFolders.length > 1 && folder.role !== 'primary' ? (
                       <Button
                         isIconOnly
                         className="project-edit-folder-action tw:w-[1.875rem]"
                         color="ghostSecondary"
                         disabled={busy}
                         size="toolbar"
-                        title={`移除目录 ${folder.name}`}
+                        title={`将 ${folder.name} 设为主目录`}
                         type="button"
-                        onClick={() => removeFolder(folder)}
+                        onClick={() => setPrimary(folder.id)}
                       >
-                        <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
+                        <Star className="tw:size-icon-md" size={APP_ICON_SIZE} />
                       </Button>
-                    </div>
-                  ))}
-                  <button
-                    className="project-edit-add-folder tw:box-border tw:flex tw:h-8 tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-3 tw:border-0 tw:bg-transparent tw:px-3 tw:text-start tw:text-app-text-soft tw:type-2 tw:enabled:hover:bg-app-hover tw:enabled:hover:text-app-text"
-                    disabled={busy}
-                    type="button"
-                    onClick={() => void addFolder()}
-                  >
-                    <FolderPlus size="var(--inline-icon-size, 1em)" />
-                    <span className="tw:px-1">添加文件夹</span>
-                  </button>
-                </div>
-              </section>
-            </>
-          )}
+                    ) : null}
+                    {folder.availability === 'missing' ? (
+                      <Button
+                        isIconOnly
+                        className="project-edit-folder-action tw:w-[1.875rem]"
+                        color="ghostSecondary"
+                        disabled={busy}
+                        size="toolbar"
+                        title={`重新选择目录 ${folder.name}`}
+                        type="button"
+                        onClick={() => void reselectFolder(folder)}
+                      >
+                        <RefreshCw className="tw:size-icon-md" size={APP_ICON_SIZE} />
+                      </Button>
+                    ) : null}
+                    <Button
+                      isIconOnly
+                      className="project-edit-folder-action tw:w-[1.875rem]"
+                      color="ghostSecondary"
+                      disabled={busy}
+                      size="toolbar"
+                      title={`移除目录 ${folder.name}`}
+                      type="button"
+                      onClick={() => removeFolder(folder)}
+                    >
+                      <X className="tw:size-icon-md" size={APP_ICON_SIZE} />
+                    </Button>
+                  </div>
+                ))}
+                <button
+                  className="project-edit-add-folder tw:box-border tw:flex tw:h-8 tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-3 tw:border-0 tw:bg-transparent tw:px-3 tw:text-start tw:text-app-text-soft tw:type-2 tw:enabled:hover:bg-app-hover tw:enabled:hover:text-app-text"
+                  disabled={busy}
+                  type="button"
+                  onClick={() => void addFolder()}
+                >
+                  <FolderPlus size="var(--inline-icon-size, 1em)" />
+                  <span className="tw:px-1">添加文件夹</span>
+                </button>
+              </div>
+            </section>
+          </>
+        )}
 
-          <footer className="project-edit-footer tw:mt-2 tw:flex tw:items-center tw:justify-between tw:gap-3">
-            <Button
-              className="project-edit-delete tw:me-auto"
-              color="danger"
-              disabled={busy || !projectId}
-              size="medium"
-              onClick={onRequestRemove}
-            >
-              <Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
-              移除本地项目
-            </Button>
-            <div className="project-edit-footer-actions tw:flex tw:items-center tw:gap-3">
-              <Dialog.Close asChild>
-                <Button color="secondary" disabled={busy} size="medium">
-                  取消
-                </Button>
-              </Dialog.Close>
-              <Button
-                color="primary"
-                disabled={busy || !projectId || !draftName.trim()}
-                loading={busy}
-                size="medium"
-                onClick={() => void save()}
-              >
-                保存
+        <DialogFooter className="project-edit-footer tw:justify-between">
+          <Button
+            className="project-edit-delete tw:me-auto"
+            color="dangerSubtle"
+            disabled={busy || !projectId}
+            size="medium"
+            onClick={onRequestRemove}
+          >
+            <Trash2 className="tw:size-icon-md" size={APP_ICON_SIZE} />
+            移除本地项目
+          </Button>
+          <div className="project-edit-footer-actions tw:flex tw:items-center tw:gap-3">
+            <DialogClose asChild>
+              <Button color="ghost" disabled={busy} size="medium">
+                取消
               </Button>
-            </div>
-          </footer>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+            </DialogClose>
+            <Button
+              color="primary"
+              disabled={busy || !projectId || !draftName.trim()}
+              loading={busy}
+              size="medium"
+              onClick={() => void save()}
+            >
+              保存
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogBody>
+    </Dialog>
   )
 }
 

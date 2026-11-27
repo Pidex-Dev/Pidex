@@ -282,9 +282,11 @@ export const prepareStorage = (paths: StoragePaths) => {
   prepareHistoryStorage(paths.historyPath)
   validateExistingProfile(paths.profilePath)
 
-  if (!existsSync(paths.legacyPath)) return
+  const historyExists = existsSync(paths.historyPath)
+  const profileExists = existsSync(paths.profilePath)
+  if ((historyExists && profileExists) || !existsSync(paths.legacyPath)) return
   checkpoint(paths.legacyPath)
-  if (!existsSync(paths.historyPath) && !existsSync(paths.profilePath)) {
+  if (!historyExists && !profileExists) {
     const historyTemporary = `${paths.historyPath}.migrating`
     const profileTemporary = `${paths.profilePath}.migrating`
     try {

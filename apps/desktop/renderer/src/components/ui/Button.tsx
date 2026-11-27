@@ -520,7 +520,7 @@ const BUTTON_STYLES = String.raw`
     block-size: var(--button-box-size);
     gap: var(--cpx-comp-button-gap);
     padding-inline: var(--button-padding-inline);
-    border-radius: var(--cpx-sys-radius-3);
+    border-radius: var(--cpx-sys-radius-4);
   }
 
   :is(button, a)[data-size][data-variant][data-size='md'] {
@@ -784,7 +784,7 @@ const BUTTON_STYLES = String.raw`
 
   :is(button, a)[data-size][data-variant][data-variant='subtle-danger']:hover:not(:disabled, [aria-disabled='true']),
   :is(button, a)[data-size][data-variant][data-variant='subtle-danger']:is([data-state='open'], [data-active]) {
-    background: color-mix(in srgb, var(--cpx-sys-color-danger) 24%, transparent);
+    background: color-mix(in srgb, var(--cpx-sys-color-danger) 28%, transparent);
   }
 
   /* Ghost aliases keep the tertiary ink used by sidebar and summary actions. */

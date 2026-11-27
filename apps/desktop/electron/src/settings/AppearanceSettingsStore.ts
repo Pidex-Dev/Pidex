@@ -1,4 +1,4 @@
-import { readFile, rm } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type {
   AppearanceMigrationBackup,
@@ -301,7 +301,6 @@ export class AppearanceSettingsStore {
   readonly #migrationFilePath: string
   readonly #logger: AppearanceSettingsLogger | undefined
   #writeQueue: Promise<void> = Promise.resolve()
-  #existingVersionChecked = false
 
   constructor(
     userDataDirectory: string,
@@ -330,7 +329,8 @@ export class AppearanceSettingsStore {
         parsed = JSON.parse(source)
       } catch (error) {
         if (error instanceof SyntaxError) {
-          return this.#removeCorruptAndReset()
+          this.#logger?.info('appearance-settings.corrupt-preserved', { reason: 'invalid-json' })
+          return normalizeAppearanceSettings(DEFAULT_APPEARANCE_SETTINGS)
         }
         throw error
       }
@@ -365,75 +365,6 @@ export class AppearanceSettingsStore {
       })
       return fallback
     }
-  }
-
-  async canRestorePreviousAppearance(): Promise<boolean> {
-    const recordRead = await this.#readMigrationRecord()
-    return (
-      recordRead.status === 'record' &&
-      recordRead.record.state === 'completed' &&
-      Boolean(recordRead.record.backup)
-    )
-  }
-
-  async restorePreviousAppearance(): Promise<DesktopThemeSettingsV8> {
-    const recordRead = await this.#readMigrationRecord()
-    const record = recordRead.status === 'record' ? recordRead.record : null
-    if (!record?.backup) {
-      throw new Error('无可用升级前外观备份')
-    }
-    const current = await this.load()
-    const backup = record.backup
-    // The backup keeps fonts per variant; the current mode's variant restores them.
-    const restoredFonts: DesktopThemeFonts = normalizeSharedFonts(
-      undefined,
-      current.mode,
-      backup.chromeThemes,
-    )
-
-    const restored: DesktopThemeSettingsV8 = {
-      ...current,
-      chromeThemes: {
-        light: {
-          ...current.chromeThemes.light,
-          accent: backup.chromeThemes.light.accent,
-          accentPreset: backup.chromeThemes.light.accentPreset ?? 'custom',
-          surface: backup.chromeThemes.light.surface,
-          ink: backup.chromeThemes.light.ink,
-          contrast: backup.chromeThemes.light.contrast,
-          semanticColors: { ...backup.chromeThemes.light.semanticColors },
-        },
-        dark: {
-          ...current.chromeThemes.dark,
-          accent: backup.chromeThemes.dark.accent,
-          accentPreset: backup.chromeThemes.dark.accentPreset ?? 'custom',
-          surface: backup.chromeThemes.dark.surface,
-          ink: backup.chromeThemes.dark.ink,
-          contrast: backup.chromeThemes.dark.contrast,
-          semanticColors: { ...backup.chromeThemes.dark.semanticColors },
-        },
-      },
-      fonts: restoredFonts,
-      fontSizes: {
-        ...current.fontSizes,
-        ui: backup.fontSizes.ui,
-      },
-    }
-    await this.save(restored)
-    return this.load()
-  }
-
-  async applyNewDesignTheme(): Promise<DesktopThemeSettingsV8> {
-    const current = await this.load()
-    const next: DesktopThemeSettingsV8 = {
-      ...current,
-      chromeThemes: {
-        light: { ...DEFAULT_CHROME_THEMES.light, fonts: { ...current.fonts } },
-        dark: { ...DEFAULT_CHROME_THEMES.dark, fonts: { ...current.fonts } },
-      },
-    }
-    await this.save(next)
-    return next
   }
 
   save(value: unknown): Promise<void> {
@@ -472,7 +403,6 @@ export class AppearanceSettingsStore {
   }
 
   async #assertExistingVersionWritable(): Promise<void> {
-    if (this.#existingVersionChecked) return
     try {
       const existing = JSON.parse(await readFile(this.#filePath, 'utf8'))
       if (
@@ -483,23 +413,9 @@ export class AppearanceSettingsStore {
         throw new NewerAppearanceSettingsVersionError(existing.version)
       }
     } catch (error) {
-      if (!isMissingFileError(error) && !(error instanceof SyntaxError)) throw error
+      if (error instanceof SyntaxError) throw new Error('外观配置 JSON 已损坏，请修复后再保存')
+      if (!isMissingFileError(error)) throw error
     }
-    this.#existingVersionChecked = true
-  }
-
-  async #removeCorruptAndReset(): Promise<DesktopThemeSettingsV8> {
-    await rm(this.#filePath, { force: true })
-    this.#logger?.info('appearance-settings.corrupt-reset', { reason: 'invalid-json' })
-    const fallback = normalizeAppearanceSettings(DEFAULT_APPEARANCE_SETTINGS)
-    await this.save(fallback)
-    await this.#writeMigrationRecord({
-      version: MIGRATION_RECORD_VERSION,
-      migrationId: MIGRATION_ID,
-      state: 'completed',
-      backup: null,
-    })
-    return fallback
   }
 
   async #writeAtomically(settings: DesktopThemeSettingsV8): Promise<void> {

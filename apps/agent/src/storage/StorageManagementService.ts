@@ -1,3 +1,4 @@
+import { inputAttachmentRows } from './repositories/InputAttachmentRepository'
 import { lstat, readdir, rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type {
@@ -248,7 +249,7 @@ export class StorageManagementService {
         SELECT
           COALESCE((SELECT SUM(LENGTH(CAST(content AS BLOB))) FROM inputs WHERE thread_id IN (SELECT id FROM archived_tree)), 0) +
           COALESCE((SELECT SUM(LENGTH(CAST(data AS BLOB))) FROM items WHERE thread_id IN (SELECT id FROM archived_tree)), 0) +
-          COALESCE((SELECT SUM(size_bytes) FROM input_attachments WHERE thread_id IN (SELECT id FROM archived_tree)), 0) AS total_bytes`,
+          COALESCE((SELECT SUM(size_bytes) FROM ${inputAttachmentRows(this.db.sqlite)} WHERE thread_id IN (SELECT id FROM archived_tree)), 0) AS total_bytes`,
       )
       .get() as { total_bytes: number } | null
     const archivedBytes = Math.max(0, archivedStats?.total_bytes ?? 0)
@@ -386,7 +387,7 @@ export class StorageManagementService {
             s.depth,
             COALESCE((SELECT SUM(LENGTH(CAST(content AS BLOB))) FROM inputs WHERE thread_id = s.id), 0) +
             COALESCE((SELECT SUM(LENGTH(CAST(data AS BLOB))) FROM items WHERE thread_id = s.id), 0) +
-            COALESCE((SELECT SUM(size_bytes) FROM input_attachments WHERE thread_id = s.id), 0) +
+            COALESCE((SELECT SUM(size_bytes) FROM ${inputAttachmentRows(this.db.sqlite)} WHERE thread_id = s.id), 0) +
             COALESCE((SELECT SUM(size_bytes) FROM item_artifacts WHERE thread_id = s.id), 0) +
             COALESCE((SELECT SUM(LENGTH(CAST(summary AS BLOB)) + LENGTH(CAST(replacement_history AS BLOB))) FROM agent_compactions WHERE thread_id = s.id), 0) +
             512 AS bytes

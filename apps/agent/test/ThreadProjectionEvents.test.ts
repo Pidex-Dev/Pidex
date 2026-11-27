@@ -12,7 +12,9 @@ import {
   type EventEnvelope as WireEventEnvelope,
 } from '@pidex/agent-protocol'
 import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
-import type { PiRuntimeEventSink } from '../src/orchestration/pi/Types'
+import { ProviderEventAdapter } from '../src/orchestration/execution/ProviderEventAdapter'
+import type { AgentHarnessEvent } from '../src/orchestration/harness/Types'
+import type { RuntimeEventSink } from '../src/orchestration/execution/Types'
 import { Model, Provider } from '@pidex/model-schema'
 import type { EventEnvelope } from '../src/Domain'
 import { removeFixturePaths } from './FixtureCleanup'
@@ -990,7 +992,7 @@ test('阶段变更使用持久事件原位更新，实时、重放与数据库�
       session: unknown,
       model: unknown,
       sessionID: string,
-    ): PiRuntimeEventSink
+    ): RuntimeEventSink
   }
   internals.publish = async (event) => {
     events.push(event)
@@ -1082,7 +1084,7 @@ test('已发布的正文增量在完成前中止仍可从持久快照恢复，�
       session: unknown,
       model: unknown,
       sessionID: string,
-    ): PiRuntimeEventSink
+    ): RuntimeEventSink
   }
   const published: EventEnvelope[] = []
   internals.publish = async (event) => {
@@ -1389,5 +1391,146 @@ describe('ThreadProjection forkedFrom 字段投影契约', () => {
     // 情况 3: targetTurn 被删除
     db.sqlite.query('DELETE FROM turns WHERE id = ?').run(targetTurn.turnID)
     expect(projection.snapshot(targetThread.id)?.thread.forkedFrom).toBeUndefined()
+  })
+
+  test('思考条目在持久化和工具调用前占序，历史倒置的同段 reasoning/text 在投影时纠正顺序', async () => {
+    const { db, projection } = await fixture()
+    const thread = db.createThread('思考排序')
+    const turn = seedTurn(db, thread.id)
+    db.startTurnExecution(turn.turnID, { ...turn.input, id: turn.inputID })
+    const context = { threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID }
+    const runtime = new AgentRuntimeService({
+      db,
+      hub: {} as never,
+      models: {} as never,
+      toolExecutor: {} as never,
+      contextCompaction: {} as never,
+    })
+    const internals = runtime as unknown as {
+      publish(event: EventEnvelope): Promise<void>
+      eventSink(
+        storage: unknown,
+        session: unknown,
+        model: unknown,
+        sessionID: string,
+      ): RuntimeEventSink
+    }
+    internals.publish = async () => {}
+    const sink = internals.eventSink(
+      { flush() {}, discardPending() {} },
+      {},
+      { provider: 'dashscope', id: 'qwen3.8-flash', contextWindow: 128_000 },
+      'session',
+    )
+    const adapter = new ProviderEventAdapter(context, sink)
+    const send = (event: unknown) => adapter.handle(event as AgentHarnessEvent)
+
+    await send({ type: 'message_start', message: { role: 'assistant', content: [] } })
+    await send({
+      type: 'message_update',
+      assistantMessageEvent: { type: 'thinking_delta', delta: '第一步先查文件' },
+    })
+    await send({
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'thinking', thinking: '第一步先查文件' },
+          { type: 'toolCall', id: 'call-1', name: 'Read', arguments: { path: 'a.ts' } },
+        ],
+        usage: { input: 10, output: 5 },
+      },
+    })
+    await send({
+      type: 'tool_execution_start',
+      toolCallId: 'call-1',
+      toolName: 'Read',
+      args: { path: 'a.ts' },
+    })
+    await send({
+      type: 'tool_execution_end',
+      toolCallId: 'call-1',
+      toolName: 'Read',
+      result: { content: [{ type: 'text', text: 'ok' }] },
+      isError: false,
+    })
+    await send({ type: 'save_point', hadPendingMutations: true })
+
+    await send({ type: 'message_start', message: { role: 'assistant', content: [] } })
+    await send({
+      type: 'message_update',
+      assistantMessageEvent: { type: 'thinking_delta', delta: '总结最终回复' },
+    })
+    await send({
+      type: 'message_update',
+      assistantMessageEvent: { type: 'text_delta', delta: '我收到了上下文。', contentIndex: 1 },
+    })
+    await send({
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'thinking', thinking: '总结最终回复' },
+          { type: 'text', text: '我收到了上下文。' },
+        ],
+        usage: { input: 20, output: 10 },
+      },
+    })
+    await send({ type: 'save_point', hadPendingMutations: true })
+    db.finalizeTurn({ ...context, status: 'completed' })
+
+    const history = new ThreadReadViewRepository(db).history(thread.id, { limit: 10 })
+    const items = history.turns.flatMap((entry) => entry.items)
+    expect(items.map((item) => item.type)).toEqual(['reasoning', 'tool', 'reasoning', 'text'])
+    expect(items.map((item) => item.ordinal)).toEqual([0, 1, 2, 3])
+    expect(items[3]).toMatchObject({ type: 'text', placement: 'result', text: '我收到了上下文。' })
+
+    const legacyThread = db.createThread('历史倒置')
+    const legacyTurn = seedTurn(db, legacyThread.id)
+    db.startTurnExecution(legacyTurn.turnID, { ...legacyTurn.input, id: legacyTurn.inputID })
+    db.sqlite
+      .query(
+        `INSERT INTO items (id, thread_id, turn_id, agent_id, type, status, data, ordinal, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'text', 'completed', ?, 0, 100, 110)`,
+      )
+      .run(
+        `${legacyTurn.turnID}:pi:text:seg-1`,
+        legacyThread.id,
+        legacyTurn.turnID,
+        legacyTurn.agentID,
+        JSON.stringify({ placement: 'result', text: '历史回复' }),
+      )
+    db.sqlite
+      .query(
+        `INSERT INTO items (id, thread_id, turn_id, agent_id, type, status, data, ordinal, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'reasoning', 'completed', ?, 1, 110, 110)`,
+      )
+      .run(
+        `${legacyTurn.turnID}:pi:reasoning:seg-1`,
+        legacyThread.id,
+        legacyTurn.turnID,
+        legacyTurn.agentID,
+        JSON.stringify({ text: '历史思考' }),
+      )
+    db.finalizeTurn({
+      threadID: legacyThread.id,
+      turnID: legacyTurn.turnID,
+      agentID: legacyTurn.agentID,
+      status: 'completed',
+    })
+
+    const legacyHistory = new ThreadReadViewRepository(db).history(legacyThread.id, { limit: 10 })
+    const legacyHistoryItems = legacyHistory.turns.flatMap((entry) => entry.items)
+    expect(legacyHistoryItems.map((item) => ({ type: item.type, ordinal: item.ordinal }))).toEqual([
+      { type: 'reasoning', ordinal: 0 },
+      { type: 'text', ordinal: 1 },
+    ])
+    const legacySnapshotItems = projection.snapshot(legacyThread.id)?.items ?? []
+    expect(legacySnapshotItems.map((item) => ({ type: item.type, ordinal: item.ordinal }))).toEqual(
+      [
+        { type: 'reasoning', ordinal: 0 },
+        { type: 'text', ordinal: 1 },
+      ],
+    )
   })
 })

@@ -205,8 +205,20 @@ export function getApiKeyDeleteConfirmation(
   apiKey: DesktopApiKeySummary,
   apiKeys: readonly DesktopApiKeySummary[],
   providerName = apiKey.providerId,
+  options: {
+    readonly isBuiltin?: boolean
+    readonly hasOtherCredentials?: boolean
+  } = {},
 ): ApiKeyDeleteConfirmation {
   const title = `删除“${apiKey.label}”？`
+  const providerKeyCount = apiKeys.filter((item) => item.providerId === apiKey.providerId).length
+  const isLastCredential = providerKeyCount <= 1 && !options.hasOtherCredentials
+  if (options.isBuiltin && isLastCredential) {
+    return {
+      title,
+      description: `删除最后一个 API Key 后，Provider“${providerName}”将回到未配置状态，并重置其模型列表与连接设置。此操作无法撤销。`,
+    }
+  }
   if (!apiKey.active) {
     return {
       title,

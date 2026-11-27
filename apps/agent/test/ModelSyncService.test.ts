@@ -1,3 +1,4 @@
+import { fixtureV2Fetch } from './fixtures/CatalogV2Fixture'
 import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -8,8 +9,8 @@ import { removeFixturePaths } from './FixtureCleanup'
 import type { ProviderCredentialRepository } from '../src/auth/ProviderCredentialRepository'
 import { ConfigService } from '../src/config/ConfigService'
 import { ModelSyncService } from '../src/provider/ModelSyncService'
-import { ModelRecommendationStore, PiModelService } from '../src/provider/pi'
-import type { ProviderModelFetch } from '../src/provider/pi'
+import { ModelRecommendationStore, ModelService } from '../src/provider/runtime'
+import type { ProviderModelFetch } from '../src/provider/runtime'
 import recommendationCatalog from './fixtures/model-recommendation-regressions.json'
 
 const roots: string[] = []
@@ -30,7 +31,7 @@ interface Fixture {
   readonly root: string
   readonly configPath: string
   readonly config: ConfigService
-  readonly piModels: PiModelService
+  readonly runtimeModels: ModelService
   readonly sync: ModelSyncService
   readonly writes: Array<Parameters<ConfigService['batchWrite']>[0]>
   readonly snapshotProvider: (providerId: string) => Record<string, unknown>
@@ -58,7 +59,7 @@ const startRuntime = async (
 ) => {
   const config = new ConfigService(configPath)
   await config.initialize()
-  const piModels = new PiModelService(repository, {
+  const runtimeModels = new ModelService(repository, {
     models: createModels({
       authContext: {
         env: async (name) => env[name] ?? process.env[name],
@@ -90,14 +91,14 @@ const startRuntime = async (
     writes.push(structuredClone(input))
     return original(input)
   }) as ConfigService['batchWrite']
-  const sync = new ModelSyncService(piModels, config)
+  const sync = new ModelSyncService(runtimeModels, config)
   return {
     config,
-    piModels,
+    runtimeModels,
     sync,
     writes,
     dispose: async () => {
-      await piModels.dispose()
+      await runtimeModels.dispose()
       await config.dispose()
     },
   }
@@ -121,20 +122,12 @@ const createFixture = async (
     'utf8',
   )
   const recommendations = withRecommendations
-    ? new ModelRecommendationStore(join(root, 'model-recommendations.json'))
+    ? new ModelRecommendationStore(
+        join(root, 'model-recommendations.json'),
+        fixtureV2Fetch(() => recommendationCatalog),
+      )
     : undefined
-  if (recommendations) {
-    await writeFile(
-      join(root, 'model-recommendations.json'),
-      JSON.stringify({
-        owner: 'pidex',
-        formatVersion: 1,
-        updatedAt: 99,
-        catalog: recommendationCatalog,
-      }),
-      'utf8',
-    )
-  }
+  await recommendations?.refresh()
   const runtime = await startRuntime(root, configPath, env, recommendations)
   const fixture: Fixture = {
     root,
@@ -183,7 +176,7 @@ const openaiFetch =
   }
 
 const customConfig = async (fixture: Fixture, providerId: string) => {
-  const provider = (await fixture.piModels.catalogConfig()).providers[providerId]
+  const provider = (await fixture.runtimeModels.catalogConfig()).providers[providerId]
   if (provider?.kind !== 'custom') throw new Error(`Missing custom provider ${providerId}`)
   return provider
 }
@@ -312,12 +305,12 @@ describe('ModelSyncService', () => {
     })
 
     const restarted = await restartFixture(fixture)
-    const summary = await restarted.piModels.modelSyncSummary('gateway')
+    const summary = await restarted.runtimeModels.modelSyncSummary('gateway')
     expect(summary).toMatchObject({ api: 'openai-completions', modelCount: 1 })
     expect(
-      (await restarted.piModels.list()).some((provider) => String(provider.id) === 'gateway'),
+      (await restarted.runtimeModels.list()).some((provider) => String(provider.id) === 'gateway'),
     ).toBe(true)
-    expect((await restarted.piModels.models('gateway' as never)).length).toBe(0)
+    expect((await restarted.runtimeModels.models('gateway' as never)).length).toBe(0)
     const afterRestart = await restarted.sync.sync('gateway', {
       fetch: openaiFetch(['fresh', 'next']),
     })
@@ -365,13 +358,13 @@ describe('ModelSyncService', () => {
 
     expect(fixture.snapshotProvider('gateway').model_sync).toEqual(baseline)
     expect((await customConfig(fixture, 'gateway')).modelSync?.models).toEqual(['alpha', 'beta'])
-    const definition = (await fixture.piModels.providerDefinitions()).find(
+    const definition = (await fixture.runtimeModels.providerDefinitions()).find(
       (provider) => provider.id === 'gateway',
     )
     expect(definition).toBeDefined()
     expect(definition).not.toHaveProperty('modelSync')
-    expect(await fixture.piModels.modelSyncSummary('gateway')).toMatchObject({ modelCount: 2 })
-    expect(await fixture.piModels.modelSyncSummary('missing')).toBeUndefined()
+    expect(await fixture.runtimeModels.modelSyncSummary('gateway')).toMatchObject({ modelCount: 2 })
+    expect(await fixture.runtimeModels.modelSyncSummary('missing')).toBeUndefined()
   })
 
   test('已保存 Provider 使用活动凭据与端点地址，缺失凭据时安全失败', async () => {
@@ -456,7 +449,7 @@ describe('ModelSyncService', () => {
     await expect(
       embeddings.sync.sync('gateway', { fetch: openaiFetch(['alpha']) }),
     ).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
-    expect(await embeddings.piModels.modelSyncSummary('gateway')).toBeUndefined()
+    expect(await embeddings.runtimeModels.modelSyncSummary('gateway')).toBeUndefined()
   })
 
   test('上游明确档位进入候选规格，协议 map 沿用推荐合成结果', async () => {
@@ -535,7 +528,7 @@ describe('ModelSyncService', () => {
           id: 'qwen3.8-max',
           status: 'official',
           identity: 'alibaba/qwen3.8-max',
-          updatedAt: 99,
+          updatedAt: expect.any(Number),
         }),
         expect.objectContaining({
           id: 'hyper/qwen3.8-max',

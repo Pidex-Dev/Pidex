@@ -28,7 +28,7 @@ export const requestPermissionsInputSchema = z
 export type RequestPermissionsInput = z.infer<typeof requestPermissionsInputSchema>
 
 /**
- * Canonical contract of the permission-request tool. The Pi lifecycle adapter
+ * Canonical contract of the permission-request tool. The lifecycle adapter
  * binds this same description and argument schema, so the model always sees the
  * scope enum, the required justification and the requestable path fields.
  */

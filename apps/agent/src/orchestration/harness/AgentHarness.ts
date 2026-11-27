@@ -1,4 +1,5 @@
-import { prepareMediaInput, type MediaInput } from '../../provider/pi/MediaInput'
+import { prepareMediaInput, type MediaInput } from '../../provider/runtime/MediaInput'
+import { describeProviderRequestFailure } from '../../provider/ModelHealthService'
 import { contextBudget, RequestContextUsage } from '../../context/ContextBudget'
 import type { ContextBudget } from '@pidex/shared/thread'
 import type { Context } from '@earendil-works/pi-ai'
@@ -20,8 +21,8 @@ import type {
   AgentLoopConfig,
   AgentMessage,
   AgentTool,
+  PrepareModelStep,
   QueueMode,
-  StreamFn,
   ThinkingLevel,
 } from './AgentTypes.ts'
 import {
@@ -30,7 +31,7 @@ import {
   prepareCompaction,
   estimateTokens,
 } from '../../context/harness/Compaction.ts'
-import { convertToLlm, createCompactionSummaryMessage } from './Messages.ts'
+import { convertToLlm, createCompactionSummaryMessage, createFailureMessage } from './Messages.ts'
 import { formatSkillInvocation } from '../../prompt/harness/Skills.ts'
 import type {
   AbortResult,
@@ -74,31 +75,14 @@ function createUserMessage(
 ): UserMessage {
   const content: Array<{ type: 'text'; text: string } | ImageContent> = [{ type: 'text', text }]
   if (images) content.push(...images)
-  return { role: 'user', content, timestamp: Date.now(), ...(media?.length ? { media } : {}) }
-}
-
-function createFailureMessage(
-  model: Model<any>,
-  error: unknown,
-  aborted: boolean,
-): AssistantMessage {
+  const inline = media?.filter((part) => 'data' in part)
+  const mediaAttachments = media?.filter((part) => 'attachmentId' in part)
   return {
-    role: 'assistant',
-    content: [{ type: 'text', text: '' }],
-    api: model.api,
-    provider: model.provider,
-    model: model.id,
-    stopReason: aborted ? 'aborted' : 'error',
-    errorMessage: error instanceof Error ? error.message : String(error),
+    role: 'user',
+    content,
     timestamp: Date.now(),
-    usage: {
-      input: 0,
-      output: 0,
-      cacheRead: 0,
-      cacheWrite: 0,
-      totalTokens: 0,
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-    },
+    ...(inline?.length ? { media: inline } : {}),
+    ...(mediaAttachments?.length ? { mediaAttachments } : {}),
   }
 }
 
@@ -229,11 +213,15 @@ export class AgentHarness<
   private toolContext: AgentHarnessToolContextSource<TContext> | undefined
   private streamOptions: AgentHarnessStreamOptions
   private readonly contextCompaction: AgentHarnessOptions['contextCompaction']
+  private readonly readMediaAttachment: AgentHarnessOptions['readMediaAttachment']
   private readonly requestUsage: RequestContextUsage
   private lastBudget: ContextBudget | undefined
   private samplingContext: { context: Context; identity: string } | undefined
   private requestCount = 0
   private retry: RetryPolicy | undefined
+  private readonly modelRetry: AgentHarnessOptions['modelRetry']
+  private readonly hasCommittedToolResult: AgentHarnessOptions['hasCommittedToolResult']
+  private readonly reachableEndpoints = new Set<string>()
   private resources: AgentHarnessResources<TSkill, TPromptTemplate>
   private tools = new Map<string, TTool>()
   private activeToolNames: string[]
@@ -258,7 +246,10 @@ export class AgentHarness<
     this.resources = options.resources ?? {}
     this.streamOptions = cloneStreamOptions(options.streamOptions)
     this.retry = options.retry
+    this.modelRetry = options.modelRetry
+    this.hasCommittedToolResult = options.hasCommittedToolResult
     this.contextCompaction = options.contextCompaction
+    this.readMediaAttachment = options.readMediaAttachment
     this.requestUsage = new RequestContextUsage(options.contextCompaction?.anchor)
     this.systemPrompt = options.systemPrompt
     this.toolContext = options.toolContext
@@ -545,10 +536,11 @@ export class AgentHarness<
     }
   }
 
-  private createStreamFn(
+  private createModelStep(
     getTurnState: () => AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>,
-  ): StreamFn {
-    return async (model, context, streamOptions) => {
+    currentInputIds: ReadonlySet<string>,
+  ): PrepareModelStep {
+    return async (model, context, config, signal) => {
       const generation = await this.contextGeneration()
       let budget = this.requestUsage.snapshot(
         model,
@@ -596,7 +588,7 @@ export class AgentHarness<
             const stream = createAssistantMessageEventStream()
             stream.push({ type: 'start', partial: assistantMessage })
             stream.push({ type: 'done', reason: 'stop', message: assistantMessage })
-            return stream
+            return { stream: () => stream }
           }
           throw new AgentHarnessError('goal_budget', '目标预算受限')
         }
@@ -622,15 +614,9 @@ export class AgentHarness<
           (budget.usedTokens >= budget.triggerTokens && (await this.contextCompaction.enabled()))
         ) {
           try {
-            await this.runCompaction(
-              manual ? 'manual' : 'automatic',
-              undefined,
-              streamOptions?.signal,
-              context,
-            )
+            await this.runCompaction(manual ? 'manual' : 'automatic', undefined, signal, context)
           } catch (error) {
-            if (streamOptions?.signal?.aborted || budget.usedTokens >= budget.triggerTokens)
-              throw error
+            if (signal?.aborted || budget.usedTokens >= budget.triggerTokens) throw error
           }
           budget = this.lastBudget!
         }
@@ -644,7 +630,6 @@ export class AgentHarness<
         context: { ...context, messages: [...context.messages] },
         identity: this.requestUsage.identity(model, context, await this.contextGeneration()),
       }
-      this.requestCount += 1
       const turnState = getTurnState()
       const snapshotOptions: AgentHarnessStreamOptions = { ...turnState.streamOptions }
       const requestOptions = await this.emitBeforeProviderRequest(
@@ -652,46 +637,76 @@ export class AgentHarness<
         turnState.sessionId,
         snapshotOptions,
       )
-      const readPhase = createProviderMessagePhaseReader()
-      await this.emitOwn({ type: 'provider_text_reset' }, streamOptions?.signal)
-      const mediaInput = prepareMediaInput(model, context)
+      const mediaInput = await prepareMediaInput(model, context, {
+        currentInputIds,
+        ...(this.readMediaAttachment ? { readAttachment: this.readMediaAttachment } : {}),
+      })
       // A wrap-up request is text only: the reserved budget belongs to the
       // summary, so no tool may extend the work it is meant to close out.
       if (wrapupTurn) mediaInput.context.tools = []
-      return this.models.streamSimple(model, mediaInput.context, {
-        maxTokens: goalMaxTokens ?? budget.outputReserveTokens,
-        onProviderStreamEvent: async (value) => {
-          const event = readPhase(value)
-          if (event) await this.emitOwn(event, streamOptions?.signal)
+      const endpoint = JSON.stringify([model.provider, model.baseUrl])
+      const retry = wrapupTurn ? undefined : this.modelRetry
+      return {
+        ...(retry ? { retry } : {}),
+        knownEndpoint: () => this.reachableEndpoints.has(endpoint),
+        rememberEndpoint: () => this.reachableEndpoints.add(endpoint),
+        stream: async (attempt, apiKey) => {
+          const readPhase = createProviderMessagePhaseReader()
+          await this.emitOwn({ type: 'provider_text_reset' }, attempt.signal)
+          attempt.signal.throwIfAborted()
+          this.requestCount += 1
+          return this.models.streamSimple(model, mediaInput.context, {
+            ...(apiKey !== undefined ? { apiKey } : {}),
+            maxTokens: goalMaxTokens ?? budget.outputReserveTokens,
+            onProviderStreamEvent: async (value) => {
+              if (attempt.signal.aborted) return
+              attempt.onStreamEvent(value)
+              const event = readPhase(value)
+              if (event) await this.emitOwn(event, attempt.signal)
+            },
+            ...(requestOptions.cacheRetention !== undefined
+              ? { cacheRetention: requestOptions.cacheRetention }
+              : {}),
+            ...(requestOptions.headers !== undefined ? { headers: requestOptions.headers } : {}),
+            ...(wrapupTurn || retry
+              ? { maxRetries: 0 }
+              : requestOptions.maxRetries !== undefined
+                ? { maxRetries: requestOptions.maxRetries }
+                : {}),
+            ...(requestOptions.maxRetryDelayMs !== undefined
+              ? { maxRetryDelayMs: requestOptions.maxRetryDelayMs }
+              : {}),
+            ...(requestOptions.metadata !== undefined ? { metadata: requestOptions.metadata } : {}),
+            onPayload: async (payload) => {
+              try {
+                return mediaInput.applyPayload(await this.emitBeforeProviderPayload(model, payload))
+              } catch (error) {
+                attempt.onLocalFailure()
+                throw error
+              }
+            },
+            onProviderError: (error) => attempt.onError(error),
+            onResponse: async (response) => {
+              if (attempt.signal.aborted) return
+              attempt.onResponse(response)
+              const headers = { ...(response.headers as Record<string, string>) }
+              await this.emitOwn(
+                { type: 'after_provider_response', status: response.status, headers },
+                attempt.signal,
+              )
+            },
+            ...(config.reasoning !== undefined ? { reasoning: config.reasoning } : {}),
+            signal: attempt.signal,
+            sessionId: turnState.sessionId,
+            ...(requestOptions.timeoutMs !== undefined
+              ? { timeoutMs: requestOptions.timeoutMs }
+              : {}),
+            ...(requestOptions.transport !== undefined
+              ? { transport: requestOptions.transport }
+              : {}),
+          })
         },
-        ...(requestOptions.cacheRetention !== undefined
-          ? { cacheRetention: requestOptions.cacheRetention }
-          : {}),
-        ...(requestOptions.headers !== undefined ? { headers: requestOptions.headers } : {}),
-        ...(wrapupTurn
-          ? { maxRetries: 0 }
-          : requestOptions.maxRetries !== undefined
-            ? { maxRetries: requestOptions.maxRetries }
-            : {}),
-        ...(requestOptions.maxRetryDelayMs !== undefined
-          ? { maxRetryDelayMs: requestOptions.maxRetryDelayMs }
-          : {}),
-        ...(requestOptions.metadata !== undefined ? { metadata: requestOptions.metadata } : {}),
-        onPayload: async (payload) =>
-          mediaInput.applyPayload(await this.emitBeforeProviderPayload(model, payload)),
-        onResponse: async (response) => {
-          const headers = { ...(response.headers as Record<string, string>) }
-          await this.emitOwn(
-            { type: 'after_provider_response', status: response.status, headers },
-            streamOptions?.signal,
-          )
-        },
-        ...(streamOptions?.reasoning !== undefined ? { reasoning: streamOptions.reasoning } : {}),
-        ...(streamOptions?.signal !== undefined ? { signal: streamOptions.signal } : {}),
-        sessionId: turnState.sessionId,
-        ...(requestOptions.timeoutMs !== undefined ? { timeoutMs: requestOptions.timeoutMs } : {}),
-        ...(requestOptions.transport !== undefined ? { transport: requestOptions.transport } : {}),
-      })
+      }
     }
   }
 
@@ -699,6 +714,7 @@ export class AgentHarness<
     queue: AgentMessage[],
     mode: QueueMode,
     delivery: 'steer' | 'follow-up' | 'next-turn',
+    currentInputIds: Set<string>,
   ): Promise<AgentMessage[]> {
     const messages = mode === 'all' ? queue.splice(0) : queue.splice(0, 1)
     if (messages.length === 0) return messages
@@ -708,7 +724,10 @@ export class AgentHarness<
         const inputId = this.queuedInputIds.get(message)
         return inputId ? [inputId] : []
       })
-      if (inputIds.length > 0) await this.emitOwn({ type: 'queue_consumed', delivery, inputIds })
+      if (inputIds.length > 0) {
+        await this.emitOwn({ type: 'queue_consumed', delivery, inputIds })
+        for (const inputId of inputIds) currentInputIds.add(inputId)
+      }
       return messages
     } catch (error) {
       queue.unshift(...messages)
@@ -724,11 +743,15 @@ export class AgentHarness<
     onTurnStatePrepared: (
       turnState: AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>,
     ) => Promise<void>,
+    currentInputIds: Set<string>,
   ): AgentLoopConfig {
     const turnState = getTurnState()
     return {
       model: turnState.model,
       toolExecution: this.toolExecution,
+      ...(this.hasCommittedToolResult
+        ? { hasCommittedToolResult: this.hasCommittedToolResult }
+        : {}),
       ...(turnState.thinkingLevel === 'off' ? {} : { reasoning: turnState.thinkingLevel }),
       convertToLlm,
       transformContext: async (messages) => {
@@ -798,9 +821,14 @@ export class AgentHarness<
         }
       },
       getSteeringMessages: async () =>
-        this.drainQueuedMessages(this.steerQueue, this.steeringQueueMode, 'steer'),
+        this.drainQueuedMessages(this.steerQueue, this.steeringQueueMode, 'steer', currentInputIds),
       getFollowUpMessages: async () =>
-        this.drainQueuedMessages(this.followUpQueue, this.followUpQueueMode, 'follow-up'),
+        this.drainQueuedMessages(
+          this.followUpQueue,
+          this.followUpQueueMode,
+          'follow-up',
+          currentInputIds,
+        ),
     }
   }
 
@@ -880,7 +908,15 @@ export class AgentHarness<
       }
     }
     if (event.type === 'message_end') {
-      await this.session.appendMessage(event.message)
+      const message = event.message
+      await this.session.appendMessage(
+        message.role === 'assistant' && message.stopReason === 'error'
+          ? {
+              ...message,
+              errorMessage: describeProviderRequestFailure(message.errorMessage).message,
+            }
+          : message,
+      )
       await this.emitAny(event, signal)
       if (event.message.role === 'assistant' && this.samplingContext) {
         const anchor = this.requestUsage.measured(
@@ -963,7 +999,7 @@ export class AgentHarness<
   private async executeTurn(
     turnState: AgentHarnessTurnState<TContext, TSkill, TPromptTemplate, TTool>,
     text: string,
-    options?: { images?: ImageContent[]; media?: MediaInput[] },
+    options?: { images?: ImageContent[]; media?: MediaInput[]; inputIds?: readonly string[] },
   ): Promise<AssistantMessage> {
     let activeTurnState = turnState
     this.activeComposition = turnState.composition
@@ -990,6 +1026,7 @@ export class AgentHarness<
       })
     }
     await emitComposition(turnState)
+    const currentInputIds = new Set(options?.inputIds)
     let messages: AgentMessage[] = [createUserMessage(text, options?.images, options?.media)]
     if (this.nextTurnQueue.length > 0) {
       const queuedMessages = this.nextTurnQueue.splice(0)
@@ -998,6 +1035,10 @@ export class AgentHarness<
       } catch (error) {
         this.nextTurnQueue.unshift(...queuedMessages)
         throw normalizeHookError(error)
+      }
+      for (const message of queuedMessages) {
+        const inputId = this.queuedInputIds.get(message)
+        if (inputId) currentInputIds.add(inputId)
       }
       messages = [...queuedMessages, messages[0]!]
     }
@@ -1024,13 +1065,18 @@ export class AgentHarness<
         return await runAgentLoop(
           messages,
           this.createContext(turnState, beforeResult?.systemPrompt),
-          this.createLoopConfig(getTurnState, setTurnState, async (nextTurnState) => {
-            stepIndex += 1
-            await emitComposition(nextTurnState)
-          }),
+          this.createLoopConfig(
+            getTurnState,
+            setTurnState,
+            async (nextTurnState) => {
+              stepIndex += 1
+              await emitComposition(nextTurnState)
+            },
+            currentInputIds,
+          ),
           (event) => this.handleAgentEvent(event, abortController.signal),
           abortController.signal,
-          this.createStreamFn(getTurnState),
+          this.createModelStep(getTurnState, currentInputIds),
         )
       } catch (error) {
         try {
@@ -1072,7 +1118,7 @@ export class AgentHarness<
 
   async prompt(
     text: string,
-    options?: { images?: ImageContent[]; media?: MediaInput[] },
+    options?: { images?: ImageContent[]; media?: MediaInput[]; inputIds?: readonly string[] },
   ): Promise<AssistantMessage> {
     if (this.phase !== 'idle') throw new AgentHarnessError('busy', 'AgentHarness is busy')
     this.phase = 'turn'

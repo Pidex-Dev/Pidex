@@ -1,3 +1,4 @@
+import type { ModelRef } from '@pidex/shared'
 import type { DesktopThinkingMode } from '../../../../shared/Types.js'
 import { useStore } from 'zustand/react'
 import { createStore } from 'zustand/vanilla'
@@ -14,6 +15,7 @@ export type SessionModelSelection = {
   model: string
   thinkingMode: DesktopThinkingMode
   variant?: string
+  speedTier?: ModelRef['speedTier']
   maxContextTokens?: number | null
 }
 
@@ -84,12 +86,14 @@ const selectionFromRecentModel = (ref: RecentNewThreadModel): SessionModelSelect
   model: ref.id,
   thinkingMode: thinkingModeForVariant(ref.variant),
   ...(ref.variant ? { variant: ref.variant } : {}),
+  ...(ref.speedTier ? { speedTier: ref.speedTier } : {}),
 })
 
 const recentModelFromSelection = (selection: SessionModelSelection): RecentNewThreadModel => ({
   providerID: selection.providerID,
   id: selection.model,
   ...(selection.variant ? { variant: selection.variant } : {}),
+  ...(selection.speedTier ? { speedTier: selection.speedTier } : {}),
 })
 
 /**
@@ -132,13 +136,14 @@ export const sessionModelSelections = {
   },
   set(id: string | null, selection: SessionModelSelection) {
     pending.delete(id)
-    const { providerID, model, thinkingMode, variant, maxContextTokens } = selection
+    const { providerID, model, thinkingMode, variant, speedTier, maxContextTokens } = selection
     write(id, {
       selection: {
         providerID,
         model,
         thinkingMode,
         ...(variant ? { variant } : {}),
+        ...(speedTier ? { speedTier } : {}),
         ...(maxContextTokens !== undefined ? { maxContextTokens } : {}),
       },
       loading: false,
@@ -181,6 +186,7 @@ export const sessionModelSelections = {
             model: history.model,
             thinkingMode: history.thinkingMode ?? 'default',
             variant: history.variant,
+            speedTier: history.speedTier,
             maxContextTokens: history.maxContextTokens ?? null,
           }
         }

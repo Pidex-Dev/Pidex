@@ -18,9 +18,12 @@ export const contentSha256 = (data: Uint8Array) => createHash('sha256').update(d
  * class because input history and project profile data have separate lifecycles.
  */
 export class ContentBlobStore {
+  private verifiedRange:
+    { sha256: string; nextOffset: number; mtimeMs: number; data: Uint8Array } | undefined
+
   private constructor(private readonly blobsRoot: string) {}
 
-  static async open(dataDir: string) {
+  static async open(dataDir: string, partition: 'blobs' | 'pdf-blobs' = 'blobs') {
     const root = resolve(dataDir, 'attachments')
     await mkdir(root, { recursive: true })
     const rootMetadata = await lstat(root)
@@ -28,7 +31,7 @@ export class ContentBlobStore {
       throw new AgentError('ATTACHMENT_DATA_DIR_INVALID', '附件数据目录必须是普通目录', 400)
     }
     const canonicalRoot = await realpath(root)
-    const blobs = join(canonicalRoot, 'blobs')
+    const blobs = join(canonicalRoot, partition)
     await mkdir(blobs, { recursive: true })
     const blobsMetadata = await lstat(blobs)
     if (!blobsMetadata.isDirectory() || blobsMetadata.isSymbolicLink()) {
@@ -48,9 +51,9 @@ export class ContentBlobStore {
     return path
   }
 
-  private async shard(sha256: string) {
+  private async shard(sha256: string, create = true) {
     const directory = resolve(this.blobsRoot, sha256.slice(0, 2))
-    await mkdir(directory, { recursive: true })
+    if (create) await mkdir(directory, { recursive: true })
     const metadata = await lstat(directory)
     const canonical = await realpath(directory)
     if (
@@ -74,6 +77,26 @@ export class ContentBlobStore {
       throw new AgentError('ATTACHMENT_BLOB_CORRUPT', '附件 Blob 校验失败', 500)
     }
     return data
+  }
+
+  async readRange(sha256: string, offset: number, length: number, size: number) {
+    const path = this.path(sha256)
+    await this.shard(sha256, false)
+    const metadata = await lstat(path)
+    if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size !== size) {
+      throw new AgentError('ATTACHMENT_BLOB_INVALID', '附件 Blob 无效', 500)
+    }
+    const previous = this.verifiedRange
+    const data =
+      previous?.sha256 === sha256 &&
+      previous.nextOffset === offset &&
+      previous.mtimeMs === metadata.mtimeMs
+        ? previous.data
+        : await this.read(sha256)
+    const end = Math.min(offset + length, size)
+    this.verifiedRange =
+      end < size ? { sha256, nextOffset: end, mtimeMs: metadata.mtimeMs, data } : undefined
+    return data.slice(offset, end)
   }
 
   async put(data: Uint8Array) {

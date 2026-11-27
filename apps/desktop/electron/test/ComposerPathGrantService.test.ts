@@ -110,3 +110,29 @@ test('音视频快照仍遵守 renderer 文件授权', async () => {
   })
   await expect(service.read(8, { grantId: grant!.grantId })).rejects.toThrow('授权无效')
 })
+
+test('PDF 范围读取按授权隔离并限制单块长度', async () => {
+  const root = await createTemporaryDirectory()
+  const file = join(root, 'page.pdf')
+  const content = Buffer.alloc(512 * 1024 + 8, 65)
+  content.write('%PDF-1.7')
+  await writeFile(file, content)
+  const service = new ComposerPathGrantService()
+  const [grant] = await service.grantPaths(7, [file])
+  expect(grant?.mediaType).toBe('application/pdf')
+  const start = await service.read(7, {
+    grantId: grant!.grantId,
+    range: { offset: 0, length: content.length },
+  })
+  const end = await service.read(7, {
+    grantId: grant!.grantId,
+    range: { offset: 512 * 1024, length: 8 },
+  })
+  expect(start).toMatchObject({ kind: 'pdf', encoding: 'base64', truncated: true })
+  expect(
+    Buffer.concat([Buffer.from(start.data!, 'base64'), Buffer.from(end.data!, 'base64')]),
+  ).toEqual(content)
+  await expect(
+    service.read(8, { grantId: grant!.grantId, range: { offset: 0, length: 8 } }),
+  ).rejects.toThrow('授权无效')
+})

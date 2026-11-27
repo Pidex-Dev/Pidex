@@ -1089,17 +1089,6 @@ export function requireMockSession(
   return snapshot
 }
 
-export function mockCopilotLogin() {
-  return {
-    state: 'idle' as const,
-    deviceCode: null,
-    verificationUrl: null,
-    error: null,
-    auth: null,
-    elapsedMs: 0,
-  }
-}
-
 export function mockGithubLogin(mode: DesktopGithubAuthMode = 'browser') {
   return {
     loginId: null,

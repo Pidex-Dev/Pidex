@@ -51,8 +51,8 @@ const createFixture = async (
     config,
     db,
     models: {
-      getPiModel: async () => ({ id: 'faux-judge' }),
-      pi: {
+      getRuntimeModel: async () => ({ id: 'faux-judge' }),
+      registry: {
         completeSimple: async (
           _model: unknown,
           request: { messages?: Array<{ content?: unknown }> },

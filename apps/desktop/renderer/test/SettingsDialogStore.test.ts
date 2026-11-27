@@ -9,7 +9,6 @@ import {
   resetSettingsDialogStateForTest,
   setSettingsDialogActiveTab,
   subscribeSettingsDialogNavigation,
-  toggleSettingsDialog,
 } from '../src/features/settings/SettingsDialogStore.js'
 
 describe('SettingsDialogStore', () => {
@@ -51,7 +50,7 @@ describe('SettingsDialogStore', () => {
     expect(extractSettingsTab('/settings')).toBe('general')
   })
 
-  test('open, toggle, activeTab, close and navigation subscriptions work cleanly', () => {
+  test('opens and closes the dialog, updates its active tab and notifies navigation subscribers', () => {
     const pushed: string[] = []
     const unsubscribe = subscribeSettingsDialogNavigation((dest) => {
       pushed.push(dest)
@@ -78,10 +77,10 @@ describe('SettingsDialogStore', () => {
     setSettingsDialogActiveTab('pets')
     expect(getSettingsDialogSnapshot().activeTab).toBe('pets')
 
-    toggleSettingsDialog()
+    closeSettingsDialog()
     expect(getSettingsDialogSnapshot().open).toBeFalse()
 
-    toggleSettingsDialog()
+    openSettingsDialog()
     expect(getSettingsDialogSnapshot()).toMatchObject({
       open: true,
       destination: '/settings/general',

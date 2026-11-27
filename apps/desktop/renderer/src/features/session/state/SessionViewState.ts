@@ -9,16 +9,6 @@ export type SessionViewStateSetters = {
   setContextUsage: Dispatch<SetStateAction<SessionViewState['contextUsage']>>
 }
 
-export type SessionViewRefs = {
-  activeSessionIdRef: MutableRefObject<string | null>
-  sessionViewsRef: MutableRefObject<Record<string, SessionViewState>>
-}
-
-export type UpdateSessionView = (
-  targetSessionId: string,
-  updater: (view: SessionViewState) => SessionViewState,
-) => void
-
 export function createEmptySessionView(): SessionViewState {
   return {
     events: [],
@@ -46,20 +36,5 @@ export function setSessionView(
   sessionViewsRef.current = {
     ...sessionViewsRef.current,
     [targetSessionId]: view,
-  }
-}
-
-export function updateSessionView(
-  refs: SessionViewRefs,
-  setters: SessionViewStateSetters,
-  targetSessionId: string,
-  updater: (view: SessionViewState) => SessionViewState,
-): void {
-  const nextView = updater(
-    refs.sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
-  )
-  setSessionView(refs.sessionViewsRef, targetSessionId, nextView)
-  if (targetSessionId === refs.activeSessionIdRef.current) {
-    applySessionView(nextView, setters)
   }
 }

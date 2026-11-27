@@ -22,10 +22,7 @@ import {
   type SubagentForkSnapshot,
 } from '../orchestration/AgentRuntimeTypes'
 import type { SessionTreeEntry } from '../orchestration/harness/Types'
-import {
-  SqlitePiSessionRepo,
-  type SqlitePiSessionStorage,
-} from '../storage/pi-session/SqlitePiSession'
+import { SqliteSessionRepo, type SqliteSessionStorage } from '../storage/session/SqliteSession'
 import type { ApprovalService } from '../permission/ApprovalService'
 import type { QuestionService } from '../session/QuestionService'
 import { ResumeCheckpointResolver, toPlanCheckpoint } from '../interaction/ResumeCheckpointResolver'
@@ -621,7 +618,7 @@ export class SubagentService {
       }
       return createdRows
     })
-    const piSessions = new SqlitePiSessionRepo(this.db)
+    const sessionRepo = new SqliteSessionRepo(this.db)
     for (const [index, row] of rows.entries()) {
       const fork = agents[index]?.fork
       if (!fork) continue
@@ -629,12 +626,12 @@ export class SubagentService {
         bundle: fork.bundle as unknown as Record<string, unknown>,
         exposurePlan: fork.exposurePlan,
       })
-      const childSession = await piSessions.create({
+      const childSession = await sessionRepo.create({
         id: row.agent.sessionID,
         threadID: row.task.childThreadId,
         agentID: row.agent.id,
       })
-      const storage = childSession.getStorage() as SqlitePiSessionStorage
+      const storage = childSession.getStorage() as SqliteSessionStorage
       for (const entry of (fork.entries ?? []) as SessionTreeEntry[]) {
         await storage.appendEntry(entry)
       }
@@ -1253,7 +1250,7 @@ export class SubagentService {
         )
       }
       await this.resolveModel(run.model)
-      const piModel = await this.providers.getModel(run.model)
+      const runtimeModel = await this.providers.getModel(run.model)
       const contextManager = new ContextManager(this.db)
       const attachments = await this.agentAttachments(input.id)
       let composedBundle: PromptBundle | null = null
@@ -1310,7 +1307,7 @@ export class SubagentService {
         attachments,
         ...(startupGate ? { startupGateLeaseID: startupGate.leaseID } : {}),
         ...(checkpoint ? { resume: checkpoint.approval } : {}),
-        resolveModel: async () => ({ ref: run.model, model: piModel }),
+        resolveModel: async () => ({ ref: run.model, model: runtimeModel }),
         onPromptComposed: async (bundle) => {
           this.armBackgroundStallTimer(taskID, runID)
           composedBundle = bundle
@@ -1356,7 +1353,7 @@ export class SubagentService {
             sessionID: agent.sessionID,
             items: composedBundle.contextItems,
             promptText: composedBundle.instructions,
-            contextWindowTokens: Math.max(1, Number(piModel.contextWindow) || 1),
+            contextWindowTokens: Math.max(1, Number(runtimeModel.contextWindow) || 1),
             inputTokens: usage.inputTokens,
             outputTokens: usage.outputTokens,
           })

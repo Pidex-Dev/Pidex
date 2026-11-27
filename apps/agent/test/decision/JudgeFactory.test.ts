@@ -52,7 +52,7 @@ describe('Decision JudgeFactory & SystemOne endpoint', () => {
                 qwen: { baseUrl: 'https://cn-beijing.maas.qianwenaiapi.com/compatible-mode/v1' },
               },
             }),
-            pi: {
+            registry: {
               getAuth: async (providerId: string) =>
                 providerId === 'qwen' ? { auth: { apiKey: 'sk-provider-secret' } } : undefined,
               getModels: () => [],
@@ -87,11 +87,11 @@ describe('Decision JudgeFactory & SystemOne endpoint', () => {
       },
       {
         models: {
-          getPiModel: (ref: { providerID: string; id: string }) => {
+          getRuntimeModel: (ref: { providerID: string; id: string }) => {
             seenRefs.push(ref)
             return { provider: ref.providerID, id: ref.id }
           },
-          pi: {
+          registry: {
             completeSimple: async () => ({
               stopReason: 'stop',
               content: [{ type: 'text', text: '{"answers":{"ready":{"p":0.9}}}' }],
@@ -139,7 +139,7 @@ describe('Decision JudgeFactory & SystemOne endpoint', () => {
                 magpie: { baseUrl: 'http://127.0.0.1:8080/v1/systemone?token=should-strip' },
               },
             }),
-            pi: {
+            registry: {
               getAuth: async () => ({ auth: { apiKey: 'sk-secret-value' } }),
               getModels: () => [],
             },

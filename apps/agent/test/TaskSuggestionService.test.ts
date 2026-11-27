@@ -2,22 +2,24 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtemp, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
+import type { Api, Model as RuntimeModel } from '@earendil-works/pi-ai'
 import type { Model } from '@pidex/model-schema'
 import type { TaskSuggestion, TaskSuggestionGenerateParams } from '@pidex/agent-protocol'
 import { removeFixturePaths } from './FixtureCleanup'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { MemoryService } from '../src/memory/MemoryService'
 import { AgentLogger } from '../src/observability/AgentLogger'
-import type { PiModelService } from '../src/provider/pi/PiModelService'
+import type { ModelService } from '../src/provider/runtime/ModelService'
 import {
   TaskSuggestionService,
   TaskSuggestionServiceError,
 } from '../src/suggestion/TaskSuggestionService'
 
 const roots: string[] = []
+const cleanups: Array<() => void> = []
 
 afterEach(async () => {
+  for (const cleanup of cleanups.splice(0)) cleanup()
   await removeFixturePaths(roots.splice(0))
 })
 
@@ -150,6 +152,10 @@ const fixture = async () => {
   const project = db.createProject({ rootPath: join(root, 'workspace') })
   const memory = new MemoryService(db, { enabled: true, rootDirectory: join(root, 'memories') })
   const logger = new AgentLogger(join(root, 'logs'))
+  cleanups.push(() => {
+    memory.dispose()
+    db.close()
+  })
   return { root, db, project, memory, logger }
 }
 
@@ -172,15 +178,15 @@ describe('TaskSuggestionService', () => {
       content: document('项目技术栈', '项目使用 Bun，资料位于 C:\\private\\project-notes.md。'),
     })
     const attemptedModels: string[] = []
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     const models = {
-      pi: {},
-      getPiModel: async (ref: Model.Ref) => {
+      registry: {},
+      getRuntimeModel: async (ref: Model.Ref) => {
         attemptedModels.push(String(ref.id))
         if (String(ref.id) === 'small') throw new Error('unavailable')
         return model
       },
-    } as unknown as Pick<PiModelService, 'pi' | 'getPiModel'>
+    } as unknown as Pick<ModelService, 'registry' | 'getRuntimeModel'>
     const prompts: string[] = []
     const service = new TaskSuggestionService(
       db,
@@ -229,7 +235,6 @@ describe('TaskSuggestionService', () => {
     })
     await service.generate(params(project.id), project.id)
     expect(prompts).toHaveLength(2)
-    db.close()
   })
 
   test('does not include project memories for projectless suggestions', async () => {
@@ -248,14 +253,14 @@ describe('TaskSuggestionService', () => {
       path: 'other.md',
       content: document('其他项目', '不应出现的项目记忆'),
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     let prompt = ''
     const service = new TaskSuggestionService(
       db,
       {
-        pi: {},
-        getPiModel: async () => model,
-      } as unknown as Pick<PiModelService, 'pi' | 'getPiModel'>,
+        registry: {},
+        getRuntimeModel: async () => model,
+      } as unknown as Pick<ModelService, 'registry' | 'getRuntimeModel'>,
       memory,
       logger,
       {
@@ -281,7 +286,6 @@ describe('TaskSuggestionService', () => {
     await service.generate(params())
     expect(prompt).toContain('用户记忆')
     expect(prompt).not.toContain('不应出现的项目记忆')
-    db.close()
   })
 
   test('isolates Working generation with its own prompt, categories, and three-result limit', async () => {
@@ -290,14 +294,14 @@ describe('TaskSuggestionService', () => {
       providerID: 'provider:test',
       smallFastModel: 'fast',
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     const systems: string[] = []
     const service = new TaskSuggestionService(
       db,
       {
-        pi: {},
-        getPiModel: async () => model,
-      } as unknown as Pick<PiModelService, 'pi' | 'getPiModel'>,
+        registry: {},
+        getRuntimeModel: async () => model,
+      } as unknown as Pick<ModelService, 'registry' | 'getRuntimeModel'>,
       memory,
       logger,
       {
@@ -340,14 +344,13 @@ describe('TaskSuggestionService', () => {
     expect(working.suggestions[0]?.prompt).toContain('<path>')
     expect(working.suggestions[2]?.prompt).not.toContain('sk-123456')
     expect(working.suggestions[2]?.prompt).toContain('<redacted>')
-    db.close()
   })
 
   test('rejects categories that do not belong to the requested surface', async () => {
     const { db, project, memory, logger } = await fixture()
     const service = new TaskSuggestionService(
       db,
-      { pi: {}, getPiModel: async () => ({}) } as never,
+      { registry: {}, getRuntimeModel: async () => ({}) } as never,
       memory,
       logger,
     )
@@ -363,7 +366,6 @@ describe('TaskSuggestionService', () => {
     await expect(service.generate(invalid)).rejects.toMatchObject({
       reason: 'invalid-output',
     })
-    db.close()
   })
 
   test('hanging provider returns local candidates after the short timeout and caches them', async () => {
@@ -372,7 +374,7 @@ describe('TaskSuggestionService', () => {
       providerID: 'provider:test',
       smallFastModel: 'fast',
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     let generateCalls = 0
     const logEvents: Array<{
       level: 'info' | 'warn' | 'error' | 'debug'
@@ -390,9 +392,9 @@ describe('TaskSuggestionService', () => {
     }
     const service = new TaskSuggestionService(
       db,
-      { pi: {}, getPiModel: async () => model } as unknown as Pick<
-        PiModelService,
-        'pi' | 'getPiModel'
+      { registry: {}, getRuntimeModel: async () => model } as unknown as Pick<
+        ModelService,
+        'registry' | 'getRuntimeModel'
       >,
       memory,
       observableLogger,
@@ -449,7 +451,6 @@ describe('TaskSuggestionService', () => {
         }),
       }),
     )
-    db.close()
   })
 
   test('provider failure returns local candidates, caches them, and logs only once per context', async () => {
@@ -458,7 +459,7 @@ describe('TaskSuggestionService', () => {
       providerID: 'provider:test',
       smallFastModel: 'fast',
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     let generateCalls = 0
     const logEvents: Array<{ event: string; fields?: Record<string, unknown> }> = []
     const observableLogger = Object.create(logger) as AgentLogger
@@ -468,9 +469,9 @@ describe('TaskSuggestionService', () => {
     }
     const service = new TaskSuggestionService(
       db,
-      { pi: {}, getPiModel: async () => model } as unknown as Pick<
-        PiModelService,
-        'pi' | 'getPiModel'
+      { registry: {}, getRuntimeModel: async () => model } as unknown as Pick<
+        ModelService,
+        'registry' | 'getRuntimeModel'
       >,
       memory,
       observableLogger,
@@ -518,7 +519,6 @@ describe('TaskSuggestionService', () => {
         durationMs: expect.any(Number),
       }),
     )
-    db.close()
   })
 
   test('invalid-output still rejects and never returns fallback suggestions', async () => {
@@ -527,12 +527,12 @@ describe('TaskSuggestionService', () => {
       providerID: 'provider:test',
       smallFastModel: 'fast',
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     const service = new TaskSuggestionService(
       db,
-      { pi: {}, getPiModel: async () => model } as unknown as Pick<
-        PiModelService,
-        'pi' | 'getPiModel'
+      { registry: {}, getRuntimeModel: async () => model } as unknown as Pick<
+        ModelService,
+        'registry' | 'getRuntimeModel'
       >,
       memory,
       logger,
@@ -561,7 +561,6 @@ describe('TaskSuggestionService', () => {
     await expect(service.generate(params(project.id))).rejects.toMatchObject({
       reason: 'invalid-output',
     })
-    db.close()
   })
 
   test('configuration failure is not masked by the local fallback', async () => {
@@ -569,8 +568,8 @@ describe('TaskSuggestionService', () => {
     const service = new TaskSuggestionService(
       db,
       {
-        pi: {},
-        getPiModel: async () => {
+        registry: {},
+        getRuntimeModel: async () => {
           throw new Error('no model configured')
         },
       } as never,
@@ -579,7 +578,6 @@ describe('TaskSuggestionService', () => {
     )
 
     await expect(service.generate(params())).rejects.toMatchObject({ reason: 'configuration' })
-    db.close()
   })
 
   test('Working fallback keeps the three-category, three-row shape', async () => {
@@ -588,12 +586,12 @@ describe('TaskSuggestionService', () => {
       providerID: 'provider:test',
       smallFastModel: 'fast',
     })
-    const model = { provider: 'provider:test', id: 'fast' } as PiModel<Api>
+    const model = { provider: 'provider:test', id: 'fast' } as RuntimeModel<Api>
     const service = new TaskSuggestionService(
       db,
-      { pi: {}, getPiModel: async () => model } as unknown as Pick<
-        PiModelService,
-        'pi' | 'getPiModel'
+      { registry: {}, getRuntimeModel: async () => model } as unknown as Pick<
+        ModelService,
+        'registry' | 'getRuntimeModel'
       >,
       memory,
       logger,
@@ -625,6 +623,5 @@ describe('TaskSuggestionService', () => {
       'automate',
     ])
     expect(result.suggestions[0]?.label).toBe(workingCandidates[0].label)
-    db.close()
   })
 })

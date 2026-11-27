@@ -138,11 +138,11 @@ describe('subagent role schema', () => {
     expect(
       resolveSubagentDisplayParts({
         displayName: 'Explorer',
-        title: '核对 ZCode 设计',
+        title: '核对 设计',
         profile: 'explorer',
         role: 'general',
       }),
-    ).toEqual({ agentName: 'Explorer', taskTitle: '核对 ZCode 设计' })
+    ).toEqual({ agentName: 'Explorer', taskTitle: '核对 设计' })
     expect(
       resolveSubagentDisplayParts({
         displayName: '历史任务标题',

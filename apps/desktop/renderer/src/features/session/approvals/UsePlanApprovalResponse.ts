@@ -10,7 +10,7 @@ type Response = RpcParams<'planApproval/respond'>['response'] | { action: 'imple
 export function usePlanApprovalResponse(
   approval: PlanApproval | null | undefined,
   reload: () => Promise<void>,
-  model?: Pick<DesktopModelSelection, 'providerID' | 'model' | 'variant'>,
+  model?: Pick<DesktopModelSelection, 'providerID' | 'model' | 'variant' | 'speedTier'>,
   onImplementedFresh?: (threadId: string) => void,
 ) {
   const [available, setAvailable] = React.useState(false)
@@ -51,6 +51,7 @@ export function usePlanApprovalResponse(
                 ...(model.variant && model.variant !== 'default'
                   ? { variant: ModelRefSchema.fields.variant.from.make(model.variant) }
                   : {}),
+                ...(model.speedTier ? { speedTier: model.speedTier } : {}),
               }),
             }
       const key = JSON.stringify([approval.id, approval.version, resolvedResponse])

@@ -13,7 +13,11 @@ import {
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 
 const roots: string[] = []
-afterEach(async () => removeFixturePaths(roots.splice(0)), 30_000)
+const cleanups: Array<() => void> = []
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0)) cleanup()
+  await removeFixturePaths(roots.splice(0))
+}, 30_000)
 
 const document = (name: string, body: string, type = 'project') =>
   ['---', `name: ${name}`, 'description: d', `type: ${type}`, '---', '', body, ''].join('\n')
@@ -25,6 +29,10 @@ const fixture = async () => {
   const memory = new MemoryService(db, {
     enabled: true,
     rootDirectory: join(root, 'memories'),
+  })
+  cleanups.push(() => {
+    memory.dispose()
+    db.close()
   })
   return { root, db, memory }
 }
@@ -60,7 +68,7 @@ describe('文件记忆存储', () => {
   })
 
   test('外部编辑后的内容成为下一次读取的真源，损坏 frontmatter 被诊断排除', async () => {
-    const { root, db, memory } = await fixture()
+    const { root, memory } = await fixture()
     const namespace = { kind: 'project' as const, projectId: 'project-a' }
     await memory.write({ namespace, path: 'stack.md', content: document('技术栈', '使用 Bun') })
     const directory = memoryNamespaceDirectory(join(root, 'memories'), namespace)
@@ -74,11 +82,10 @@ describe('文件记忆存储', () => {
     const broken = listing.files.find((file) => file.path === 'broken.md')!
     expect(broken.diagnostics.map((item) => item.code)).toContain('invalid-frontmatter')
     expect(broken.indexed).toBe(false)
-    db.close()
   })
 
   test('未索引文件被标出，索引中的失效链接被诊断', async () => {
-    const { db, memory } = await fixture()
+    const { memory } = await fixture()
     const namespace = { kind: 'user' as const }
     await memory.write({ namespace, path: 'a.md', content: document('A', 'A 正文', 'user') })
     await memory.write({
@@ -89,11 +96,10 @@ describe('文件记忆存储', () => {
     const listing = await memory.list(namespace)
     expect(listing.files.find((file) => file.path === 'a.md')?.indexed).toBe(true)
     expect(listing.diagnostics.some((item) => item.path === 'missing.md')).toBe(true)
-    db.close()
   })
 
   test('并发保存冲突要求重新读取且不覆盖外部编辑', async () => {
-    const { root, db, memory } = await fixture()
+    const { root, memory } = await fixture()
     const namespace = { kind: 'user' as const }
     const created = await memory.write({
       namespace,
@@ -111,11 +117,10 @@ describe('文件记忆存储', () => {
       }),
     ).rejects.toMatchObject({ code: 'MEMORY_CONFLICT' })
     expect(await readFile(join(directory, 'p.md'), 'utf8')).toContain('外部版本')
-    db.close()
   })
 
   test('覆盖已存在文件但不提交 revision 时拒绝写入', async () => {
-    const { root, db, memory } = await fixture()
+    const { root, memory } = await fixture()
     const namespace = { kind: 'user' as const }
     await memory.write({ namespace, path: 'q.md', content: document('Q', 'v1', 'user') })
     await expect(
@@ -123,11 +128,10 @@ describe('文件记忆存储', () => {
     ).rejects.toMatchObject({ code: 'MEMORY_CONFLICT' })
     const directory = memoryNamespaceDirectory(join(root, 'memories'), namespace)
     expect(await readFile(join(directory, 'q.md'), 'utf8')).toContain('v1')
-    db.close()
   })
 
   test('敏感内容拒绝写入，重置只删除本系统管理的文件', async () => {
-    const { root, db, memory } = await fixture()
+    const { root, memory } = await fixture()
     const namespace = { kind: 'project' as const, projectId: 'project-a' }
     await expect(
       memory.write({ namespace, path: 'x.md', content: 'api_key={{SECRET_demo}}' }),
@@ -139,7 +143,6 @@ describe('文件记忆存储', () => {
     expect(await memory.reset(namespace)).toBe(1)
     expect(await readFile(join(directory, 'notes.txt'), 'utf8')).toBe('不是记忆文件')
     expect(await readFile(join(directory, 'unknown.md'), 'utf8')).toBe('没有 frontmatter')
-    db.close()
   })
 
   test('正文分页按 UTF-8 字节推进且不切断多字节字符', () => {
@@ -202,11 +205,10 @@ describe('记忆注入与命名空间', () => {
     expect(text).not.toContain('用户记忆')
     expect(text).not.toContain('其他身份')
     expect(text).not.toContain('另一个项目')
-    db.close()
   })
 
   test('索引注入在预算内按命名空间均分，并提示截断', async () => {
-    const { db, memory } = await fixture()
+    const { memory } = await fixture()
     const namespace = { kind: 'project' as const, projectId: 'project-a' }
     // Both default namespaces need an index for the budget to be split in two.
     await memory.write({
@@ -231,11 +233,10 @@ describe('记忆注入与命名空间', () => {
       expect(section.truncated).toBe(true)
       expect(section.content).toContain('索引已截断')
     }
-    db.close()
   })
 
   test('用户要求忽略记忆时本轮不注入', async () => {
-    const { db, memory } = await fixture()
+    const { memory } = await fixture()
     await memory.write({
       namespace: { kind: 'user' },
       path: 'u.md',
@@ -249,11 +250,10 @@ describe('记忆注入与命名空间', () => {
     })
     expect(injection.ignored).toBe(true)
     expect(injection.sections).toHaveLength(0)
-    db.close()
   })
 
   test('无关任务的索引注入不包含正文', async () => {
-    const { db, memory } = await fixture()
+    const { memory } = await fixture()
     const namespace = { kind: 'user' as const }
     await memory.write({
       namespace,
@@ -270,13 +270,12 @@ describe('记忆注入与命名空间', () => {
     expect(injection.sections.map((section) => section.content).join('\n')).not.toContain(
       '只有正文才有的内容',
     )
-    db.close()
   })
 })
 
 describe('自动整理门槛', () => {
   test('未满 24 小时或不足 5 个聊天不自动整理', async () => {
-    const { db, memory } = await fixture()
+    const { memory } = await fixture()
     let queued = 0
     memory.attachRunner(async () => {
       queued += 1
@@ -296,11 +295,10 @@ describe('自动整理门槛', () => {
     memory.maybeAutoOrganize()
     expect(memory.tasks().filter((task) => task.kind === 'organize')).toHaveLength(0)
     expect(queued).toBe(0)
-    db.close()
   })
 
   test('关闭自动整理后不排队，且前台不空闲时跳过', async () => {
-    const { db, memory } = await fixture()
+    const { memory } = await fixture()
     memory.attachRunner(async () => ({ status: 'empty' }))
     memory.attachModelResolver(async () => 'provider:test/model')
     memory.setAutoOrganizeEnabled(false)
@@ -311,17 +309,15 @@ describe('自动整理门槛', () => {
     memory.attachIdleProbe(() => false)
     memory.maybeAutoOrganize()
     expect(memory.tasks()).toHaveLength(0)
-    db.close()
   })
 
   test('dispose 取消排队任务并阻止后续写入', async () => {
-    const { db, memory } = await fixture()
+    const { memory } = await fixture()
     memory.attachRunner(async () => ({ status: 'empty' }))
     memory.attachModelResolver(async () => 'provider:test/model')
     memory.enqueueOrganize({ namespace: { kind: 'user' } })
     memory.dispose()
     expect(memory.tasks().map((task) => task.status)).toEqual(['cancelled'])
-    db.close()
   })
 })
 
@@ -418,7 +414,7 @@ describe('数据目录布局', () => {
 
 describe('删除记忆同步清理索引', () => {
   test('删除被 MEMORY.md 索引的文件时同步移除索引条目并消除悬挂诊断', async () => {
-    const { db, memory } = await fixture()
+    const { memory } = await fixture()
     const namespace = { kind: 'user' as const }
     await memory.write({ namespace, path: 'A.md', content: document('A', 'A 正文', 'user') })
     await memory.write({ namespace, path: 'b.md', content: document('B', 'B 正文', 'user') })
@@ -434,11 +430,10 @@ describe('删除记忆同步清理索引', () => {
     expect(listing.files.map((file) => file.path)).toEqual(['b.md'])
     expect(listing.index.content).toBe('# 索引\n\n- [B](b.md)\n')
     expect(listing.diagnostics).toEqual([])
-    db.close()
   })
 
   test('删除未被索引的文件时 MEMORY.md 内容与 revision 保持不变', async () => {
-    const { db, memory } = await fixture()
+    const { memory } = await fixture()
     const namespace = { kind: 'user' as const }
     await memory.write({ namespace, path: 'indexed.md', content: document('I', 'I 正文', 'user') })
     await memory.write({ namespace, path: 'orphan.md', content: document('O', 'O 正文', 'user') })
@@ -453,11 +448,10 @@ describe('删除记忆同步清理索引', () => {
     const listing = await memory.list(namespace)
     expect(listing.index.content).toBe('- [I](indexed.md)\n')
     expect(listing.index.revision).toBe(indexResult.revision)
-    db.close()
   })
 
   test('MEMORY.md 不存在时删除文件不报错且不创建索引', async () => {
-    const { db, memory } = await fixture()
+    const { memory } = await fixture()
     const namespace = { kind: 'user' as const }
     await memory.write({ namespace, path: 'only.md', content: document('Only', '正文', 'user') })
 
@@ -466,6 +460,5 @@ describe('删除记忆同步清理索引', () => {
     const listing = await memory.list(namespace)
     expect(listing.files).toEqual([])
     expect(listing.index.exists).toBe(false)
-    db.close()
   })
 })

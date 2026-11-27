@@ -1,8 +1,8 @@
-import type { Api, Model as PiModel, AssistantMessage } from '@earendil-works/pi-ai'
-import type { Model } from '@pidex/model-schema'
+import type { Api, Model as RuntimeModel, AssistantMessage } from '@earendil-works/pi-ai'
+import { cacheWritePrice, type Model } from '@pidex/model-schema'
 import { createHash } from 'node:crypto'
 import { ModelPricingRepository } from '../storage/repositories/ModelPricingRepository'
-import { selectPricing, type CalendarYear } from './ModelPricing'
+import { selectPricing, UNIT_PRICE_KEYS, type CalendarYear } from './ModelPricing'
 
 type Fx = { rate: number; date: string; source: string }
 export class ModelPricingService {
@@ -97,7 +97,7 @@ export class ModelPricingService {
       calendarCheckedAt: calendar?.checkedAt,
     }
   }
-  begin(model: PiModel<Api> & { pricing?: Model.Pricing }) {
+  begin(model: RuntimeModel<Api> & { pricing?: Model.Pricing }) {
     const at = this.now(),
       year = Number(
         new Intl.DateTimeFormat('en', {
@@ -112,18 +112,32 @@ export class ModelPricingService {
     const selected = model.pricing
       ? selectPricing(model.pricing, at, calendars)
       : { period: 'fixed', prices: model.cost, reason: 'fixed' }
-    const originalPrices = structuredClone(selected.prices)
+    const originalPrices = structuredClone(selected.prices) as Model.UnitPrices
+    const cashless = selected.reason === 'subscription' || selected.reason === 'free'
     const fx =
-      model.pricing?.currency === 'CNY'
+      model.pricing?.currency === 'CNY' && !cashless
         ? (this.repository.read('fx:CNY:USD')?.payload as Fx | null | undefined)
         : { rate: 1, date: new Date(at).toISOString().slice(0, 10), source: 'USD' }
-    const usd = Object.fromEntries(
-      ['input', 'output', 'cacheRead', 'cacheWrite'].map((key) => [
-        key,
-        fx ? (originalPrices[key as keyof Model.UnitPrices] ?? 0) * fx.rate : 0,
-      ]),
-    ) as Record<keyof Model.UnitPrices, number>
+    const convertBracket = (bracket: Record<(typeof UNIT_PRICE_KEYS)[number], number | null>) => ({
+      input: fx ? (bracket.input ?? 0) * fx.rate : 0,
+      output: fx ? (bracket.output ?? 0) * fx.rate : 0,
+      cacheRead: fx ? (bracket.cacheRead ?? 0) * fx.rate : 0,
+      cacheWrite: fx ? (bracket.cacheWrite ?? 0) * fx.rate : 0,
+    })
+    const usdTiers = originalPrices.tiers?.length
+      ? originalPrices.tiers.map((tier) => ({
+          inputTokensAbove: tier.inputTokensAbove,
+          ...convertBracket(tier),
+        }))
+      : undefined
+    const usd = {
+      ...convertBracket(originalPrices),
+      ...(usdTiers ? { tiers: usdTiers } : {}),
+    }
     const id = crypto.randomUUID()
+    const hasNullPrice = (bracket: Model.UnitPrices) =>
+      UNIT_PRICE_KEYS.some((key) => bracket[key] === null) ||
+      Object.values(bracket.cacheWriteByTtl ?? {}).includes(null)
     const snapshot = {
       id,
       providerId: model.provider,
@@ -134,6 +148,9 @@ export class ModelPricingService {
         .digest('hex'),
       period: selected.period,
       reason: selected.reason,
+      ...('promotionId' in selected
+        ? { promotionId: selected.promotionId, promotionLabel: selected.promotionLabel }
+        : {}),
       original: originalPrices,
       currency: model.pricing?.currency ?? 'USD',
       usd: fx ? usd : null,
@@ -147,22 +164,56 @@ export class ModelPricingService {
           : null,
       ),
       estimated: true,
-      unknown: !fx || Object.values(originalPrices).some((value) => value === null),
+      unknown:
+        !fx ||
+        hasNullPrice(originalPrices) ||
+        (originalPrices.tiers?.some((tier) => hasNullPrice(tier)) ?? false),
     }
     this.repository.snapshot(id, snapshot, at)
     return {
       model: { ...model, cost: model.pricing ? usd : { ...model.cost } },
-      annotate: (message: AssistantMessage) => {
+      annotate: (message: AssistantMessage, cacheWrites?: Readonly<Record<string, number>>) => {
+        const { usage } = message
+        const inputTokens = usage.input + usage.cacheRead + usage.cacheWrite
+        let activeBracket = originalPrices
+        let matchedThreshold = -1
+        for (const tier of originalPrices.tiers ?? []) {
+          if (inputTokens > tier.inputTokensAbove && tier.inputTokensAbove > matchedThreshold) {
+            activeBracket = tier
+            matchedThreshold = tier.inputTokensAbove
+          }
+        }
+        const breakdown =
+          cacheWrites ?? (usage.cacheWrite1h ? { '1h': usage.cacheWrite1h } : undefined)
+        const writes = Object.entries(breakdown ?? {})
+        const unclassified = usage.cacheWrite - writes.reduce((sum, [, tokens]) => sum + tokens, 0)
+        const writeCharges = [
+          ...writes.map(([ttl, tokens]) => ({
+            tokens,
+            price: cacheWritePrice(activeBracket, ttl),
+          })),
+          { tokens: Math.max(0, unclassified), price: activeBracket.cacheWrite },
+        ]
+        if (model.pricing && breakdown) {
+          usage.cost.cacheWrite = fx
+            ? (writeCharges.reduce((sum, { tokens, price }) => sum + tokens * (price ?? 0), 0) *
+                fx.rate) /
+              1_000_000
+            : 0
+          usage.cost.total =
+            usage.cost.input + usage.cost.output + usage.cost.cacheRead + usage.cost.cacheWrite
+        }
         const unknown =
           !fx ||
-          (['input', 'output', 'cacheRead', 'cacheWrite'] as const).some(
-            (key) => originalPrices[key] === null && message.usage[key] > 0,
-          )
-        Object.assign(message.usage, {
+          UNIT_PRICE_KEYS.some(
+            (key) => key !== 'cacheWrite' && activeBracket[key] === null && usage[key] > 0,
+          ) ||
+          writeCharges.some(({ tokens, price }) => tokens > 0 && price === null)
+        Object.assign(usage, {
           priceSnapshotId: id,
           costUnknown: unknown,
           pricingReason: selected.reason,
-          conservativeCost: selected.reason === 'calendar-unavailable',
+          conservativeCost: selected.period === 'conservative',
         })
       },
     }

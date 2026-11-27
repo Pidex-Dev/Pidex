@@ -29,6 +29,10 @@ const model = {
 const threadIds: string[] = []
 
 try {
+  database.setSetting('desktop.settings.v1', {
+    firstUseSetupCompleted: 1,
+    collapsedSidebarSections: [],
+  })
   for (let sessionIndex = 0; sessionIndex < 100; sessionIndex += 1) {
     const workspaceRoot = join(
       dataDirectory,

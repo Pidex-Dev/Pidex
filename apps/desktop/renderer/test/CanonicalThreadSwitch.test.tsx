@@ -95,6 +95,12 @@ test('reasoning tail reveals the node and removes only its active waiting indica
   try {
     expect(render()).toBe('')
     expect(waiting()).toContain('正在思考')
+    expect(waiting()).toContain('canonical-turn__thinking')
+    expect(
+      renderToStaticMarkup(
+        <ReasoningWaitingIndicator delayMs={1_000} item={item} threadId="reasoning-test" />,
+      ),
+    ).toBe('')
     liveItemTailStore.append('reasoning-test', item.id, 'reasoning', '追加内容')
     expect(render()).toContain('追加内容')
     expect(waiting()).toBe('')
@@ -581,7 +587,7 @@ describe('canonical thread switch', () => {
         runId: 'run-1',
         childThreadId: 'child-1',
         displayName: 'Explorer',
-        title: '核对 ZCode 参照设计细节',
+        title: '核对 参照设计细节',
         profile: 'explorer',
         role: 'general',
         task: '检查设计细节',
@@ -640,7 +646,7 @@ describe('canonical thread switch', () => {
     )
 
     expect(html).toContain('Explorer')
-    expect(html).toContain('核对 ZCode 参照设计细节')
+    expect(html).toContain('核对 参照设计细节')
     expect(html).toContain('Backend')
     expect(html).toContain('历史任务标题回退')
     expect(html).toContain('等待审批')

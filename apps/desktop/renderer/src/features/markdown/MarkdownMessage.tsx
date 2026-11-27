@@ -1184,7 +1184,7 @@ export function markdownTableToCsv(table: Tokens.Table): string {
         row
           .map((cell) => {
             const value = tableCellText(cell)
-            // CSV 单元格会被 Excel 解释为公式；沿用 ZCode 的前缀保护，保留原 Markdown。
+            // CSV 单元格会被 Excel 解释为公式；添加前缀保护，保留原 Markdown。
             const safeValue =
               /^[\t\r\n]/u.test(value) || /^[\s]*[=+\-@]/u.test(value) ? `'${value}` : value
             return /[",\r\n]/u.test(safeValue) ? `"${safeValue.replaceAll('"', '""')}"` : safeValue

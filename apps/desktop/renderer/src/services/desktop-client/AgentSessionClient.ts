@@ -9,7 +9,7 @@ import {
   resolveCollaborationMode,
 } from '../../shims/core/agent/SessionContract.js'
 import type { CatalogProvider, ModelRef, Project } from '@pidex/shared'
-import { ModelRefSchema } from '@pidex/shared'
+import { isModelSpeedTier, ModelRefSchema } from '@pidex/shared'
 import type {
   PermissionConfig,
   ThreadListItem,
@@ -71,6 +71,10 @@ import {
   type AgentRpcSubscription,
 } from '../AgentRpcClient.js'
 import { createAgentTurnQueueClient } from './AgentTurnQueueClient.js'
+import {
+  buildAgentAttachmentUploads,
+  uploadAgentAttachmentChunks,
+} from './AttachmentUploadSupport.js'
 import { questionInteractionResponse } from './QuestionInteractionResponse.js'
 import { AGENT_LIVE_EVENT_FILTERS } from './EventSubscriptionFilters.js'
 import { SessionCatalogCoordinator } from './SessionCatalogCoordinator.js'
@@ -106,6 +110,7 @@ export const RENDERER_CAPABILITIES = [
   'mcp.elicitation.v1',
   'turn.admission.v1',
   'thread.editUserMessage.v1',
+  'thread.deleteArchived.v1',
   'skills.invocation.v1',
   'plan.approval.v1',
   'plan.approval.fresh.v1',
@@ -143,6 +148,7 @@ export const RENDERER_CAPABILITIES = [
   'model.operations.v1',
   'model.recommendations.v1',
   'model.media-input.v1',
+  'attachments.chunked.v1',
   'provider.config.pi.v1',
   'provider.modelSync.v1',
   'provider.modelSpecs.v1',
@@ -188,12 +194,7 @@ type AgentCapabilityName = keyof typeof CAPABILITY_ALIASES | ProtocolCapability
 const CURRENT_APP_VERSION = typeof __PIDEX_VERSION__ === 'string' ? __PIDEX_VERSION__ : '0.0.0-dev'
 type PendingInteraction = RpcResult<'interaction/listPending'>['interactions'][number]
 
-import {
-  bridgeWindowMaximized,
-  mockAuthStatus,
-  mockRuntimeStatus,
-  permissionModeFromDesktopConfig,
-} from './FixtureRuntime.js'
+import { bridgeWindowMaximized, permissionModeFromDesktopConfig } from './FixtureRuntime.js'
 import { catalogProviderToDesktop } from './ProviderAdapters.js'
 import type {
   DesktopClient,
@@ -212,7 +213,6 @@ import type {
 // Start the two small message-input chunks while the desktop client initializes,
 // so the first send does not initiate new module requests and the entry bundle
 // does not need to retain their implementation.
-const attachmentUploadSupport = import('./AttachmentUploadSupport.js')
 const localContextImportSupport = import('./LocalContextImportSupport.js')
 export const THREAD_LIST_PAGE_SIZE = 100
 
@@ -344,6 +344,7 @@ export function createAgentSessionDesktopClient(
   const providerModelRequests = new Map<string, Promise<RpcResult<'model/list'>>>()
   let providerCredentialsCache: DesktopProviderCredential[] | null = null
   const sessionSnapshots = new Map<string, DesktopSessionSnapshot>()
+  const pendingAttachmentImports = new Map<string, Map<string, string>>()
   const lifecycleEpochBySessionId = new Map<string, number>()
   const latestLifecycleBySessionId = new Map<string, SessionLifecycleUpdate>()
   // Canonical projection status per thread. It outranks the catalog snapshot for
@@ -782,6 +783,7 @@ export function createAgentSessionDesktopClient(
     const summary = {
       ...catalogProviderToDesktop(catalogProvider),
       modelCount: provider.modelCount,
+      catalogModelCount: provider.catalogModelCount,
       config: provider.config,
       readOnly: provider.config.kind === 'builtin',
       unresolvedMigrationIssues: directory.issues
@@ -1012,6 +1014,17 @@ export function createAgentSessionDesktopClient(
         latestTurnError: targetError,
       },
     })
+    emitSessionStoreChange()
+  }
+
+  function forgetDeletedSession(sessionId: string): void {
+    sessionSnapshots.delete(sessionId)
+    clearSessionLifecycle(sessionId)
+    if (activeSessionId === sessionId) {
+      activeSessionId =
+        [...sessionSnapshots.values()].find((snapshot) => !snapshot.item.archivedAt)?.item.id ??
+        null
+    }
     emitSessionStoreChange()
   }
 
@@ -1360,42 +1373,96 @@ export function createAgentSessionDesktopClient(
     })
   }
 
-  async function importAgentAttachments(input: DesktopUserMessageInput) {
-    const { buildAgentAttachmentUploads } = await attachmentUploadSupport
-    const payload = await buildAgentAttachmentUploads(input, (attachmentId) =>
-      rpc.call('attachment/read', { attachmentId }),
+  function completeAgentMessageContext(sessionId: string, inputId: string): void {
+    pendingAttachmentImports.delete(JSON.stringify([sessionId, inputId]))
+  }
+
+  async function importAgentAttachments(
+    sessionId: string,
+    inputId: string,
+    input: DesktopUserMessageInput,
+  ): Promise<string[]> {
+    const transfer = input.attachmentTransfer
+    transfer?.signal.throwIfAborted()
+    const transferKey = JSON.stringify([sessionId, inputId])
+    const imported = pendingAttachmentImports.get(transferKey) ?? new Map<string, string>()
+    const bridge = environment.window?.DesktopBridge
+    const { order, prepared } = await buildAgentAttachmentUploads(
+      input,
+      (attachmentId, range) => rpc.call('attachment/read', { attachmentId, range }),
+      {
+        chunked: agentCapabilities.has('attachments.chunked.v1'),
+        readGrant: bridge?.readComposerPathGrant?.bind(bridge),
+        reusing: imported,
+      },
     )
-    if (payload.some((attachment) => attachment.kind === 'audio' || attachment.kind === 'video'))
+    if (!order.length) return []
+    if (prepared.some(({ upload }) => upload.kind === 'audio' || upload.kind === 'video'))
       requireAgentCapability('model.media-input.v1')
-    if (!payload.length) return []
-    const response = await rpc.call('attachment/import', {
-      uploads: payload,
-      operationId: crypto.randomUUID(),
-    })
-    return response.attachments.map((attachment) => attachment.id)
+
+    if (!pendingAttachmentImports.has(transferKey)) {
+      pendingAttachmentImports.set(transferKey, imported)
+      if (pendingAttachmentImports.size > 64)
+        pendingAttachmentImports.delete(pendingAttachmentImports.keys().next().value!)
+    }
+
+    const legacy = prepared.flatMap(({ key, upload }) =>
+      'readChunk' in upload ? [] : [{ key, upload }],
+    )
+    if (legacy.length) {
+      transfer?.signal.throwIfAborted()
+      const response = await rpc.call('attachment/import', {
+        uploads: legacy.map(({ upload }) => upload),
+        operationId: crypto.randomUUID(),
+      })
+      legacy.forEach(({ key }, index) => {
+        const attachment = response.attachments[index]
+        if (!attachment) throw new Error('Agent 返回的附件数量不一致。')
+        imported.set(key, attachment.id)
+      })
+    }
+    for (const { key, upload } of prepared) {
+      if (!('readChunk' in upload)) continue
+      const id = await uploadAgentAttachmentChunks(
+        upload,
+        {
+          begin: (value) => rpc.call('attachment/upload/begin', value),
+          chunk: (value) => rpc.call('attachment/upload/chunk', value),
+          commit: (value) => rpc.call('attachment/upload/commit', value),
+          abort: (value) => rpc.call('attachment/upload/abort', value),
+        },
+        transfer,
+      )
+      imported.set(key, id)
+    }
+    transfer?.signal.throwIfAborted()
+    return order.map((key) => imported.get(key)!)
   }
 
   async function importAgentMessageContext(
     sessionId: string,
     input: DesktopUserMessageInput,
+    inputId: string,
   ): Promise<{ attachmentIds: string[]; contextReferenceIds: string[] }> {
-    const attachmentIds = await importAgentAttachments(input)
-    const { importLocalContextReferences } = await localContextImportSupport
-    const contextReferenceIds = await importLocalContextReferences(
-      sessionId,
-      input,
-      async (threadId, paths) => {
-        requireAgentCapability('local-context.paths.v1')
-        return rpc.call('context/path/import', {
-          threadId,
-          paths,
-          operationId: crypto.randomUUID(),
-        })
-      },
-    )
-    return {
-      attachmentIds,
-      contextReferenceIds,
+    try {
+      const attachmentIds = await importAgentAttachments(sessionId, inputId, input)
+      const { importLocalContextReferences } = await localContextImportSupport
+      const contextReferenceIds = await importLocalContextReferences(
+        sessionId,
+        input,
+        async (threadId, paths) => {
+          requireAgentCapability('local-context.paths.v1')
+          return rpc.call('context/path/import', {
+            threadId,
+            paths,
+            operationId: crypto.randomUUID(),
+          })
+        },
+      )
+      input.attachmentTransfer?.signal.throwIfAborted()
+      return { attachmentIds, contextReferenceIds }
+    } finally {
+      input.attachmentTransfer?.onProgress(null)
     }
   }
 
@@ -1535,6 +1602,7 @@ export function createAgentSessionDesktopClient(
       return ModelRefSchema.make({
         providerID: ModelRefSchema.fields.providerID.make(selection.providerID),
         id: ModelRefSchema.fields.id.make(selection.model),
+        ...(selection.speedTier ? { speedTier: selection.speedTier } : {}),
         ...(selection.variant
           ? { variant: ModelRefSchema.fields.variant.from.make(selection.variant) }
           : {}),
@@ -1555,13 +1623,21 @@ export function createAgentSessionDesktopClient(
         providers.defaultModel?.providerID === cached.settings.providerID &&
         providers.defaultModel.id === cached.settings.model
       ) {
-        return providers.defaultModel
+        return {
+          ...providers.defaultModel,
+          ...(cached.settings.speedTier ? { speedTier: cached.settings.speedTier } : {}),
+        }
       }
       const provider = providers.providers.find(
         (item) => item.provider.id === cached.settings.providerID,
       )
       const model = provider?.models.find((item) => item.id === cached.settings.model)
-      if (provider && model) return { providerID: provider.provider.id, id: model.id }
+      if (provider && model)
+        return {
+          providerID: provider.provider.id,
+          id: model.id,
+          ...(cached.settings.speedTier ? { speedTier: cached.settings.speedTier } : {}),
+        }
     }
     if (providers.defaultModel) return providers.defaultModel
     const credentials = await loadProviderCredentials()
@@ -1589,6 +1665,7 @@ export function createAgentSessionDesktopClient(
     requireSkillInvocationCapability: () => requireAgentCapability('skills.invocation.v1'),
     awaitPendingSettingsUpdate,
     importMessageContext: importAgentMessageContext,
+    completeMessageContext: completeAgentMessageContext,
     resolveModelRef: resolveAgentModelRef,
     permissionConfigForSession,
     taskModeForSession,
@@ -2315,9 +2392,9 @@ export function createAgentSessionDesktopClient(
       )
     },
     getComposerFilePath: (file) => environment.window?.DesktopBridge?.getPathForFile?.(file) ?? '',
-    readAttachment: (attachmentId) =>
+    readAttachment: (attachmentId, range) =>
       withAgentOrMock(
-        () => rpc.call('attachment/read', { attachmentId }),
+        () => rpc.call('attachment/read', { attachmentId, range }),
         () => mockClient.readAttachment(attachmentId),
       ),
     submitVisualizationFollowUp: (input) =>
@@ -3167,12 +3244,6 @@ export function createAgentSessionDesktopClient(
     getThemeSettings: () => loadAgentConfigSettingsApi().then((api) => api.getThemeSettings()),
     saveThemeSettings: (settings) =>
       loadAgentConfigSettingsApi().then((api) => api.saveThemeSettings(settings)),
-    canRestorePreviousAppearance: () =>
-      loadAgentConfigSettingsApi().then((api) => api.canRestorePreviousAppearance()),
-    restorePreviousAppearance: () =>
-      loadAgentConfigSettingsApi().then((api) => api.restorePreviousAppearance()),
-    applyNewDesignTheme: () =>
-      loadAgentConfigSettingsApi().then((api) => api.applyNewDesignTheme()),
     saveDesktopSettings: (settings) =>
       loadAgentConfigSettingsApi().then((api) => api.saveDesktopSettings(settings)),
     listProjectMemories: (workspacePath, namespace) =>
@@ -3250,6 +3321,7 @@ export function createAgentSessionDesktopClient(
               .map((issue) => `${issue.code}:${issue.path}`),
             apiKeyConfigured: provider.authConfigured,
             modelCount: provider.modelCount,
+            catalogModelCount: provider.catalogModelCount,
           }))
         },
         () => mockClient.listModelProviders(),
@@ -3365,6 +3437,7 @@ export function createAgentSessionDesktopClient(
           return ModelRefSchema.make({
             providerID: ModelRefSchema.fields.providerID.make(providerID),
             id: ModelRefSchema.fields.id.make(id),
+            ...(isModelSpeedTier(record.speedTier) ? { speedTier: record.speedTier } : {}),
             ...(typeof record.variant === 'string' && record.variant
               ? { variant: ModelRefSchema.fields.variant.from.make(record.variant) }
               : {}),
@@ -3396,6 +3469,11 @@ export function createAgentSessionDesktopClient(
             model: ModelRefSchema.make({
               providerID: ModelRefSchema.fields.providerID.make(String(provider.id)),
               id: ModelRefSchema.fields.id.make(String(selectedModel.id)),
+              ...(model.speedTier &&
+              (model.speedTier === 'standard' ||
+                selectedModel.speedTiers?.some((tier) => tier.id === model.speedTier))
+                ? { speedTier: model.speedTier }
+                : {}),
               ...(selectedVariant
                 ? { variant: ModelRefSchema.fields.variant.from.make(String(selectedVariant)) }
                 : {}),
@@ -3884,6 +3962,21 @@ export function createAgentSessionDesktopClient(
       withUnsupportedAgentFallback('setSessionLocalRouterMode', () =>
         mockClient.setSessionLocalRouterMode(sessionId, mode),
       ),
+    supportsArchivedSessionDeletion: () =>
+      agentReady ? agentCapabilities.has('thread.deleteArchived.v1') : allowBrowserMockFallback,
+    deleteArchivedSession: (sessionId) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('thread.deleteArchived.v1')
+          const { deleted } = await rpc.call('thread/deleteArchived', {
+            threadId: sessionId,
+            operationId: crypto.randomUUID(),
+          })
+          if (deleted) forgetDeletedSession(sessionId)
+          return deleted
+        },
+        () => mockClient.deleteArchivedSession(sessionId),
+      ),
     disposeSession: async (sessionId) =>
       withAgentOrMock(
         async () => {
@@ -3891,14 +3984,7 @@ export function createAgentSessionDesktopClient(
             threadId: sessionId,
             operationId: crypto.randomUUID(),
           })
-          sessionSnapshots.delete(sessionId)
-          clearSessionLifecycle(sessionId)
-          if (activeSessionId === sessionId) {
-            activeSessionId =
-              [...sessionSnapshots.values()].find((snapshot) => !snapshot.item.archivedAt)?.item
-                .id ?? null
-          }
-          emitSessionStoreChange()
+          forgetDeletedSession(sessionId)
         },
         () => mockClient.disposeSession(sessionId),
       ),
@@ -3961,7 +4047,7 @@ export function createAgentSessionDesktopClient(
             input.attachments !== undefined || input.retainedContextReferenceIds !== undefined
           const imported =
             shouldReplaceAttachments || shouldReplaceContextReferences
-              ? await importAgentMessageContext(sessionId, input)
+              ? await importAgentMessageContext(sessionId, input, followUpId)
               : undefined
           if (input.skills?.length) requireAgentCapability('skills.invocation.v1')
           await turnQueueClient.callQueueMutation(sessionId, 'queue/update', {
@@ -3973,6 +4059,7 @@ export function createAgentSessionDesktopClient(
               ? { contextReferenceIds: imported?.contextReferenceIds ?? [] }
               : {}),
           })
+          completeAgentMessageContext(sessionId, followUpId)
           const snapshot = await loadAgentSessionSnapshot(sessionId)
           emitSessionStoreChange()
           return snapshot
@@ -4201,8 +4288,6 @@ export function createAgentSessionDesktopClient(
       if (!makeEventSource) return noop
       return subscribeGlobalEventEnvelopes(options, callback)
     },
-    onAgentEvent: (callback) =>
-      allowBrowserMockFallback ? mockClient.onAgentEvent(callback) : noop,
     onSessionStoreChange: (callback) => {
       sessionStoreListeners.add(callback)
       if (sessionStoreListeners.size === 1) startSessionCatalogSubscription()
@@ -4243,39 +4328,21 @@ export function createAgentSessionDesktopClient(
   // lazy facade 加载 Mock chunk，行为与原实现等价。
   const MOCK_FALLBACK_METHODS = [
     'applyWorkspaceReviewOperation',
-    'cancelCopilotLogin',
-    'cancelDebugToolProbe',
-    'closeDevTools',
     'closeWindow',
-    'deleteDesktopToolchain',
-    'diagnoseDesktopToolchain',
     'discardWorkspaceChanges',
     'exitApp',
-    'exportUserMemory',
-    'getAuthStatus',
-    'getCopilotAuthStatus',
-    'getRuntimeStatus',
     'getWorkspaceReviewDiff',
-    'importUserMemory',
     'installSkill',
     'isWindowMaximized',
-    'listDebugBuiltinTools',
     'listRuntimePermissionProfiles',
     'listSkillsCatalog',
     'logOut',
     'minimizeWindow',
     'newWindow',
-    'onUiCommand',
-    'onWorkflowEvent',
-    'openDevTools',
     'openExternalURL',
     'openSettings',
     'pickWorkspaceDirectory',
     'pickWorkspaceDirectories',
-    'pollCopilotLogin',
-    'reinstallDesktopToolchain',
-    'runDebugToolProbe',
-    'startCopilotLogin',
     'toggleWindowMaximized',
   ] as const
   type MockFallbackMethod = (typeof MOCK_FALLBACK_METHODS)[number]
@@ -4286,50 +4353,30 @@ export function createAgentSessionDesktopClient(
       return impl(...args)
     }
   const mockFallbackMethods: Record<MockFallbackMethod, unknown> = {
-    // 首屏挂载链（useSessionState/useDesktopCommands/useWorkspaceState/
-    // DesktopLayout）会调用：使用与 Mock 等价的本地实现，不加载 Mock chunk。
-    onWorkflowEvent: () => () => {},
-    onUiCommand: () => () => {},
-    getAuthStatus: async () => mockAuthStatus(),
-    getRuntimeStatus: async () => mockRuntimeStatus(),
     isWindowMaximized: async () => bridgeWindowMaximized(),
     newWindow: () =>
       environment.window?.DesktopBridge?.openWindow?.({ kind: 'home' }) ?? Promise.resolve(),
     // 其余方法只在用户交互或导航后调用，按需经 lazy facade 加载 Mock chunk。
     applyWorkspaceReviewOperation: lazyMock('applyWorkspaceReviewOperation'),
-    cancelCopilotLogin: lazyMock('cancelCopilotLogin'),
-    cancelDebugToolProbe: lazyMock('cancelDebugToolProbe'),
-    closeDevTools: lazyMock('closeDevTools'),
     closeWindow: async () => {
       await environment.window?.DesktopBridge?.close?.()
     },
-    deleteDesktopToolchain: lazyMock('deleteDesktopToolchain'),
-    diagnoseDesktopToolchain: lazyMock('diagnoseDesktopToolchain'),
     discardWorkspaceChanges: lazyMock('discardWorkspaceChanges'),
     exitApp: async () => {
       await environment.window?.DesktopBridge?.quitDuringStartup?.()
     },
-    exportUserMemory: lazyMock('exportUserMemory'),
-    getCopilotAuthStatus: lazyMock('getCopilotAuthStatus'),
     getWorkspaceReviewDiff: lazyMock('getWorkspaceReviewDiff'),
-    importUserMemory: lazyMock('importUserMemory'),
     installSkill: lazyMock('installSkill'),
-    listDebugBuiltinTools: lazyMock('listDebugBuiltinTools'),
     listRuntimePermissionProfiles: lazyMock('listRuntimePermissionProfiles'),
     listSkillsCatalog: lazyMock('listSkillsCatalog'),
     logOut: lazyMock('logOut'),
     minimizeWindow: async () => {
       await environment.window?.DesktopBridge?.minimize?.()
     },
-    openDevTools: lazyMock('openDevTools'),
     openExternalURL: lazyMock('openExternalURL'),
     openSettings: lazyMock('openSettings'),
     pickWorkspaceDirectory: lazyMock('pickWorkspaceDirectory'),
     pickWorkspaceDirectories: lazyMock('pickWorkspaceDirectories'),
-    pollCopilotLogin: lazyMock('pollCopilotLogin'),
-    reinstallDesktopToolchain: lazyMock('reinstallDesktopToolchain'),
-    runDebugToolProbe: lazyMock('runDebugToolProbe'),
-    startCopilotLogin: lazyMock('startCopilotLogin'),
     toggleWindowMaximized: async () =>
       (await environment.window?.DesktopBridge?.toggleMaximize?.()) ?? false,
   }

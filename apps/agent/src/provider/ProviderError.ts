@@ -1,6 +1,10 @@
 import type { ApplicationErrorCode, ProviderFailure } from '@pidex/agent-protocol'
 import { AgentError } from '../Domain'
-import { providerFailureCategory, providerFailureMessage } from './ModelHealthService'
+import {
+  providerFailureCategory,
+  providerFailureMessage,
+  providerHttpErrorStatus,
+} from './ModelHealthService'
 
 export class ProviderRequestError extends AgentError {
   constructor(
@@ -15,11 +19,8 @@ export class ProviderRequestError extends AgentError {
 
 export function providerRequestError(cause: unknown, providerId?: string): ProviderRequestError {
   const error = cause as { status?: number; statusCode?: number; code?: string }
-  const status =
-    error?.statusCode ??
-    error?.status ??
-    Number(/\bHTTP (\d{3})\b/.exec(cause instanceof Error ? cause.message : '')?.[1])
-  const category = providerFailureCategory(status ? { status } : cause)
+  const status = providerHttpErrorStatus(cause, 'response')
+  const category = providerFailureCategory(status ? { status } : cause, 'response')
   const code: ApplicationErrorCode =
     error?.code === 'CREDENTIAL_NOT_FOUND'
       ? 'CREDENTIAL_NOT_FOUND'

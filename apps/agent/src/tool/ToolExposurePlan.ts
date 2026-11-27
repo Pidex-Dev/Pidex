@@ -4,7 +4,7 @@ import { type PermissionConfig } from '@pidex/shared/thread'
 import type { ToolCatalog } from './ToolRegistry'
 import { filterPoisonedTools } from '../decision/integrations/ToolDescriptionScreen'
 
-export const PI_LIFECYCLE_TOOLS = [
+export const LIFECYCLE_TOOLS = [
   // These Skill names remain bindable only for already persisted turn snapshots.
   'skill_list',
   'skill_read',
@@ -66,7 +66,7 @@ export interface ToolExposurePlan {
   allows(name: string): boolean
 }
 
-/** Single source of truth for prompt composition and Pi runtime exposure. */
+/** Single source of truth for prompt composition and runtime tool exposure. */
 export function createToolExposurePlan(
   catalog: ToolCatalog,
   input: ToolExposureInput,

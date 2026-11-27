@@ -129,24 +129,25 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
         credentials: configuration.credentials,
       })
         .filter((item) => item.provider.providerKind !== 'custom')
-        .map((item) => ({
-          id: item.provider.providerID,
-          name: item.provider.displayName,
-          logoURL: item.provider.logoURL,
-          source:
-            item.provider.catalogOrigin === 'models-dev'
-              ? 'models.dev'
-              : item.provider.catalogOrigin === 'pi-remote'
-                ? 'Pi 官方'
-                : '内置',
-          modelCount: item.provider.modelCount ?? item.provider.defaultModels.length,
-          current: item.current,
-          canAddConnection: !isConfiguredProviderDirectoryItem(item),
-          connectionDisabled:
-            item.provider.availability?.status === 'unavailable' &&
-            item.provider.catalogOrigin !== 'models-dev' &&
-            item.provider.catalogOrigin !== 'pi-remote',
-        })),
+        .map((item) => {
+          const configured = isConfiguredProviderDirectoryItem(item)
+          return {
+            id: item.provider.providerID,
+            name: item.provider.displayName,
+            logoURL: item.provider.logoURL,
+            source: item.provider.catalogOrigin === 'pi-remote' ? 'Pi 官方' : '内置',
+            modelCount: configured
+              ? (item.provider.modelCount ?? item.provider.defaultModels.length)
+              : (item.provider.catalogModelCount ??
+                item.provider.modelCount ??
+                item.provider.defaultModels.length),
+            current: item.current,
+            canAddConnection: !configured,
+            connectionDisabled:
+              item.provider.availability?.status === 'unavailable' &&
+              item.provider.catalogOrigin !== 'pi-remote',
+          }
+        }),
     [providers, configuration, providerQuery],
   )
 
@@ -426,11 +427,41 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
     (group) => group.provider.providerID === providerID,
   )
 
+  const selectedProviderStatus = selectedProvider
+    ? providerDetailStatus(selectedProvider, selectedProviderState, selectedConfiguredGroup)
+    : null
+  const selectedHasStoredCredential = selectedProvider
+    ? providerApiKeys.length > 0 ||
+      configuration.credentials.some(
+        (credential) => credential.providerId === selectedProvider.providerID,
+      )
+    : false
+  const selectedBuiltinHasConfiguredModels =
+    selectedProvider?.config?.kind === 'builtin' &&
+    (selectedProvider.config.allowModels.length > 0 ||
+      selectedProvider.config.models.some((item) => item.enabled !== false))
+  const isUnconfiguredBuiltinPreview =
+    Boolean(selectedProvider) &&
+    selectedProvider!.providerKind !== 'custom' &&
+    selectedProviderStatus?.label === '未配置' &&
+    !selectedHasStoredCredential &&
+    !selectedBuiltinHasConfiguredModels
+
+  const deleteTargetProvider = deleteKey
+    ? configuration.providers.find((p) => p.providerID === deleteKey.providerId)
+    : undefined
   const deleteConfirmation = deleteKey
     ? getApiKeyDeleteConfirmation(
         deleteKey,
         [...configuration.apiKeys],
-        configuration.providers.find((p) => p.providerID === deleteKey.providerId)?.displayName,
+        deleteTargetProvider?.displayName,
+        {
+          isBuiltin: deleteTargetProvider?.providerKind !== 'custom',
+          hasOtherCredentials: configuration.credentials.some(
+            (credential) =>
+              credential.providerId === deleteKey.providerId && credential.id !== deleteKey.id,
+          ),
+        },
       )
     : null
 
@@ -660,17 +691,14 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
                   id: selectedProvider.providerID,
                   name: selectedProvider.displayName,
                   logoURL: selectedProvider.logoURL,
-                  status: providerDetailStatus(
-                    selectedProvider,
-                    selectedProviderState,
-                    selectedConfiguredGroup,
-                  ),
+                  status: selectedProviderStatus!,
                 }}
               >
                 <div data-provider-section="connection">{connectionSection}</div>
                 <div data-provider-section="models">
                   <ProviderModelsSection
                     editingBlocked={connectionDraftDirty}
+                    previewOnly={isUnconfiguredBuiltinPreview}
                     key={selectedProvider.providerID}
                     busy={busy}
                     modelMetadata={modelMetadata}

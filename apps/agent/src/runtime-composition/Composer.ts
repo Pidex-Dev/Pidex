@@ -6,7 +6,7 @@ import { AgentError, type PermissionConfig, type TaskMode } from '../Domain'
 import { resolveEffectivePermissionConfig } from '../permission/EffectivePermissionConfig'
 import {
   createToolExposurePlan,
-  PI_LIFECYCLE_TOOLS,
+  LIFECYCLE_TOOLS,
   type ToolExposureInput,
 } from '../tool/ToolExposurePlan'
 import type { ToolExecutionContext } from '../tool/ToolExecutor'
@@ -87,6 +87,7 @@ const snapshotModel = (model: Model<any>, ref?: ModelSchema.Ref): ResolvedModelS
   providerID: model.provider,
   id: model.id,
   variant: ref?.variant ? String(ref.variant) : null,
+  ...(ref?.speedTier ? { speedTier: ref.speedTier } : {}),
   contextWindow: Math.max(1, Math.trunc(Number(model.contextWindow) || 1)),
   capabilities: {
     tools: true,
@@ -343,6 +344,7 @@ export function composeRuntimeComposition(
     contextWindow: input.model.contextWindow,
     thinkingLevel: input.thinkingLevel ?? null,
     variant: input.modelRef?.variant ? String(input.modelRef.variant) : null,
+    ...(input.modelRef?.speedTier ? { speedTier: input.modelRef.speedTier } : {}),
   })
   const permissionHash = permissionHashFor(effectivePermissionConfig)
   const workspaceHash = workspaceHashFor(input.workspaceScope)
@@ -457,6 +459,7 @@ export function rebindRuntimeComposition(
     currentModel.providerID !== snapshot.model.providerID ||
     currentModel.id !== snapshot.model.id ||
     currentModel.variant !== snapshot.model.variant ||
+    (currentModel.speedTier ?? 'standard') !== (snapshot.model.speedTier ?? 'standard') ||
     currentModel.contextWindow !== snapshot.model.contextWindow ||
     stableStringify(currentModel.capabilities) !== stableStringify(snapshot.model.capabilities)
   )
@@ -485,7 +488,7 @@ export function rebindRuntimeComposition(
   // 动态生命周期工具由运行时按 turn 快照绑定，不来自普通 toolCatalog；恢复时
   // 必须与真正普通工具的 fail-closed 校验区分开，否则 Plan 恢复会误判不可用。
   // 复用曝光层的单一来源，避免新增生命周期工具时两边清单各自漂移。
-  const lifecycle = new Set<string>(PI_LIFECYCLE_TOOLS)
+  const lifecycle = new Set<string>(LIFECYCLE_TOOLS)
   for (const name of new Set([...snapshot.tools.exposed, ...snapshot.tools.deferred])) {
     if (lifecycle.has(name)) continue
     try {

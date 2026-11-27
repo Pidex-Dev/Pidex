@@ -1,3 +1,4 @@
+import type { AppLocale } from '../i18n/Locale.js'
 import { FULL_ACCESS_PERMISSION_CONFIG } from '@pidex/shared/thread'
 import type { Automation, AutomationRun, AutomationSchedule } from '@pidex/shared/automation'
 import type { DesktopSessionListItem } from '../../../shared/Types.js'
@@ -166,9 +167,9 @@ export function automationTargetLabel(
   return thread?.customTitle ?? thread?.aiTitle ?? thread?.sessionName ?? '聊天已不可用'
 }
 
-export function formatAutomationTime(value: number | null): string {
-  if (value === null) return '未安排'
-  return new Intl.DateTimeFormat('zh-CN', {
+export function formatAutomationTime(value: number | null, locale: AppLocale): string {
+  if (value === null) return locale === 'en-US' ? 'Not scheduled' : '未安排'
+  return new Intl.DateTimeFormat(locale, {
     month: 'numeric',
     day: 'numeric',
     hour: '2-digit',
@@ -176,10 +177,10 @@ export function formatAutomationTime(value: number | null): string {
   }).format(value)
 }
 
-export function formatAutomationRelativeTime(value: number | null): string {
-  if (value === null) return '未安排'
+export function formatAutomationRelativeTime(value: number | null, locale: AppLocale): string {
+  if (value === null) return locale === 'en-US' ? 'Not scheduled' : '未安排'
   const minutes = Math.round((value - Date.now()) / 60_000)
-  const formatter = new Intl.RelativeTimeFormat('zh-CN', { numeric: 'auto' })
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
   if (Math.abs(minutes) < 60) return formatter.format(minutes, 'minute')
   const hours = Math.round(minutes / 60)
   if (Math.abs(hours) < 24) return formatter.format(hours, 'hour')

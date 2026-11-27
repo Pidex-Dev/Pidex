@@ -51,12 +51,13 @@ describe('ConnectionLostPage', () => {
     expect(html).not.toContain('重试连接')
   })
 
-  test('连接失败时显示错误标题及重试与日志操作按钮', () => {
+  test.each([true, false])('按故障类型展示恢复操作，迁址失败 = %s', (relocation) => {
     publishStartupConnectionSnapshot({
       generation: 2,
       revision: 2,
       state: 'failed',
       label: 'Agent 连接失败，请重试或查看日志',
+      ...(relocation ? { failureReason: 'relocation' as const } : {}),
     })
 
     const html = renderToStaticMarkup(
@@ -68,7 +69,9 @@ describe('ConnectionLostPage', () => {
     )
 
     expect(html).toContain('Agent 连接失败，请重试或查看日志')
-    expect(html).toContain('重试连接')
+    expect(html.includes('重试连接')).toBe(!relocation)
+    expect(html.includes('重试迁移')).toBe(relocation)
+    expect(html.includes('恢复原位置并重启')).toBe(relocation)
     expect(html).toContain('打开日志')
   })
 

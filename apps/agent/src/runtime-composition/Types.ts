@@ -18,6 +18,7 @@ export interface ResolvedModelSnapshot {
   readonly providerID: string
   readonly id: string
   readonly variant: string | null
+  readonly speedTier?: ModelSchema.SpeedTierId
   readonly contextWindow: number
   readonly capabilities: {
     readonly tools: boolean

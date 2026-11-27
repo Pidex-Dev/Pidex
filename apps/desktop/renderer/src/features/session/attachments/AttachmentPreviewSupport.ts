@@ -3,7 +3,7 @@ import type { DesktopComposerAttachment } from '../../../../shared/Types.js'
 const SUPPORTED_IMAGE_MEDIA_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
 export type DraftAttachmentPreviewContent = {
-  kind: 'image' | 'text' | 'video' | 'audio'
+  kind: 'image' | 'text' | 'video' | 'audio' | 'pdf'
   data: string
   encoding: 'base64' | 'utf8'
 }
@@ -19,7 +19,7 @@ export function resolveDraftAttachmentPreviewContent(
     return data === null || data === undefined ? null : { kind: 'image', data, encoding: 'base64' }
   }
 
-  if (attachment.kind === 'video' || attachment.kind === 'audio') {
+  if (attachment.kind === 'video' || attachment.kind === 'audio' || attachment.kind === 'pdf') {
     const data =
       attachment.contentBase64 ?? extractBase64Data(attachment.previewDataUrl, attachment.mediaType)
     return data ? { kind: attachment.kind, data, encoding: 'base64' } : null

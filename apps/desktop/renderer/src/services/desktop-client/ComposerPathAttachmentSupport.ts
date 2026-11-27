@@ -18,11 +18,31 @@ async function composerAttachmentFromPathGrant(
   grant: DesktopComposerPathGrant,
   bridge: Pick<DesktopAttachmentIpcBridge, 'readComposerPathGrant'>,
 ): Promise<DesktopComposerAttachment> {
-  const mediaKind = grant.mediaType.startsWith('audio/')
-    ? 'audio'
-    : grant.mediaType.startsWith('video/')
-      ? 'video'
-      : 'image'
+  const chunkedKind =
+    grant.mediaType === 'application/pdf'
+      ? 'pdf'
+      : grant.mediaType.startsWith('video/')
+        ? 'video'
+        : null
+  if (grant.pathKind === 'file' && chunkedKind) {
+    const sizeValid = grant.sizeBytes > 0 && grant.sizeBytes <= 20 * 1024 * 1024
+    return {
+      id: crypto.randomUUID(),
+      name: grant.name,
+      path: grant.path,
+      mediaType: grant.mediaType,
+      sizeBytes: grant.sizeBytes,
+      kind: chunkedKind,
+      status: sizeValid ? 'ready' : 'error',
+      storage: 'managed',
+      localGrantId: grant.grantId,
+      pathKind: 'file',
+      ...(!sizeValid && {
+        error: grant.sizeBytes === 0 ? '附件为空。' : '附件超过 20 MiB 限制。',
+      }),
+    }
+  }
+  const mediaKind = grant.mediaType.startsWith('audio/') ? 'audio' : 'image'
   if (
     grant.pathKind === 'file' &&
     (SNAPSHOT_IMAGE_MEDIA_TYPES.has(grant.mediaType) || mediaKind !== 'image')
@@ -93,6 +113,5 @@ function kindForMediaType(mediaType: string): DesktopComposerAttachment['kind'] 
   if (mediaType.startsWith('text/')) return 'text'
   if (mediaType.startsWith('audio/')) return 'audio'
   if (mediaType.startsWith('video/')) return 'video'
-  if (mediaType === 'application/pdf') return 'document'
   return 'binary'
 }

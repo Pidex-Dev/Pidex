@@ -31,12 +31,12 @@ process.once('SIGTERM', () => {
 
 try {
   if (rpcOnly) {
-    await runBun(['apps/agent/scripts/PiRpcSmoke.ts'], activeChildren)
+    await runBun(['apps/agent/scripts/AgentRpcSmoke.ts'], activeChildren)
     succeeded = true
   } else {
     if (!live) {
       process.stdout.write('[plan-test] 先执行确定性 RPC/事件检查\n')
-      await runBun(['apps/agent/scripts/PiRpcSmoke.ts'], activeChildren)
+      await runBun(['apps/agent/scripts/AgentRpcSmoke.ts'], activeChildren)
     }
 
     isolatedRoot = await mkdtemp(join(tmpdir(), 'pidex-plan-flow-'))

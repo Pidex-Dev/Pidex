@@ -9,8 +9,8 @@ import {
 import { type WorkspaceFileRevision, type WorkspaceService } from '../workspace/WorkspaceService'
 import { isReadOnlyTaskMode, type PermissionConfig, type SandboxMode } from '@pidex/shared/thread'
 import type { Model } from '@pidex/model-schema'
-import type { ToolExecutionMode as PiToolExecutionMode } from '../orchestration/harness/AgentTypes'
-import type { Tool as PiAiTool } from '@earendil-works/pi-ai'
+import type { ToolExecutionMode } from '../orchestration/harness/AgentTypes'
+import type { Tool as RuntimeTool } from '@earendil-works/pi-ai'
 import type { ToolingResolver, ToolProcessRunner } from './ToolingRuntime'
 import {
   requestPermissionsDefinition,
@@ -44,7 +44,7 @@ export type ToolCapabilities = {
 
 export type ApprovalStrategy = 'policy' | 'always-review' | 'never-review'
 export type ToolVisibility = 'eager' | 'deferred' | 'internal'
-export type ToolExecutionMode = PiToolExecutionMode
+export type { ToolExecutionMode }
 export type ToolProgress = {
   message: string
   completed?: number
@@ -119,7 +119,7 @@ export interface ToolCatalogEntry<Input = unknown, Output = unknown> {
   /** Normalizes provider-specific argument encodings before schema validation. */
   prepareArguments?: (input: unknown) => unknown
   /** Optional provider-side constrained sampling configuration. */
-  constrainedSampling?: PiAiTool['constrainedSampling']
+  constrainedSampling?: RuntimeTool['constrainedSampling']
   /** Structured provenance used by permission and routing decisions. */
   origin?: ToolOrigin
   /** Host-only inspection performed before hooks, review, or execution. */
@@ -205,7 +205,7 @@ const editInputSchema = z
     edits: z.array(editOperationSchema).min(1),
   })
   .strict()
-const normalizePiEditInput = (input: unknown) => {
+const normalizeEditInput = (input: unknown) => {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return input
   const raw = { ...(input as Record<string, unknown>) }
   if (raw.path === undefined && typeof raw.file_path === 'string') {
@@ -636,7 +636,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
       },
       ['path', 'edits'],
     ),
-    prepareArguments: normalizePiEditInput,
+    prepareArguments: normalizeEditInput,
     capabilities: { ...noCapabilities(), filesystem: 'workspace-write', externalState: true },
     allowedModes: ['chat'],
     allowedProfiles: ['main', 'default', 'worker'],

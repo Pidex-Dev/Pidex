@@ -56,12 +56,19 @@ import type {
   DesktopWorkspace,
   DesktopContextUsage,
   DesktopComposerAttachment,
+  DesktopAttachmentUploadProgress,
   DesktopModelProviderSummary,
   DesktopModelMetadata,
   ModelProviderID,
 } from '../../../../shared/Types.js'
 import { getModelDisplayLabel, type ModelPreset } from '../../../ModelPresets.js'
 import { Button } from '../../../components/ui/Button.js'
+import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
+import {
+  billingModeLabel,
+  modelPrice,
+  useModelPricing,
+} from '../../models/provider-management/UseModelPricing.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { MetaChip } from '../../../components/ui/MetaChip.js'
 import { Spinner } from '../../../components/ui/Spinner.js'
@@ -79,6 +86,7 @@ import { resolveThinkingLabel, resolveThinkingOptions } from './ThinkingLevelPop
 import { MotionConfig } from 'motion/react'
 import { useComposerFooterFit } from './ComposerFooterLayout.js'
 import { ComposerStatusOverlay } from './ComposerStatusOverlay.js'
+import { AttachmentUploadProgress } from '../attachments/AttachmentUploadProgress.js'
 import { ComposerGoalRow } from './ComposerGoalRow.js'
 import { ContextUsagePanel } from './ContextUsagePanel.js'
 import { usePluginCatalog } from '../../plugins/UsePluginCatalog.js'
@@ -300,6 +308,8 @@ type Props = {
   modelVariant?: string
   modelVariantOptions?: Option<string>[]
   onModelVariantChange?: (value: string) => void
+  speedTier?: import('@pidex/shared').ModelRef['speedTier']
+  onSpeedTierChange?: (tier: NonNullable<import('@pidex/shared').ModelRef['speedTier']>) => void
   selectedProviderID: ModelProviderID
   selectedModelPreset: string
   modelConfigured?: boolean
@@ -325,6 +335,10 @@ type Props = {
   recentWorkspaces: DesktopWorkspace[]
   workspace: DesktopWorkspace | null
   attachments?: DesktopComposerAttachment[]
+  attachmentIssues?: { id: string; name: string; reason: string; canUseReference: boolean }[]
+  attachmentUploadProgress?: DesktopAttachmentUploadProgress | null
+  onCancelAttachmentUpload?: () => void
+  onUseAttachmentReference?: (attachmentId: string) => void
   document?: ComposerDocument
   skillCatalogLoading?: boolean
   skillCatalogError?: string | null
@@ -443,6 +457,8 @@ export function ComposerCard({
   modelVariant,
   modelVariantOptions,
   onModelVariantChange,
+  speedTier,
+  onSpeedTierChange,
   selectedProviderID,
   selectedModelPreset,
   modelConfigured = true,
@@ -467,6 +483,10 @@ export function ComposerCard({
   recentWorkspaces,
   workspace,
   attachments = [],
+  attachmentIssues = [],
+  attachmentUploadProgress,
+  onCancelAttachmentUpload,
+  onUseAttachmentReference,
   document,
   skillCommands = [],
   skillCatalogLoading = false,
@@ -733,8 +753,14 @@ export function ComposerCard({
     selectedModelPreset !== '__custom__'
       ? getModelDisplayLabel(selectedModelPreset)
       : undefined)
+  const speedProfiles = selectedModelMetadata?.speedTiers ?? []
+  const speedProfile = speedProfiles.find((tier) => tier.id === speedTier) ?? speedProfiles[0]
+  const speedPrice = useModelPricing(speedProfile?.pricing)
+  const speedBillingMode = speedProfile?.pricing?.billingMode
   const selectedModelLabel =
-    resolvedModelLabel ??
+    (resolvedModelLabel && speedProfile && speedProfile.id !== 'standard'
+      ? `${resolvedModelLabel} ⚡`
+      : resolvedModelLabel) ??
     (modelCatalogLoading ? '加载模型列表中……' : !modelConfigured ? '配置模型' : '未选择模型')
   const selectedModelTitle =
     resolvedModelLabel ??
@@ -1677,6 +1703,34 @@ export function ComposerCard({
             />
           </Suspense>
         ) : null}
+        {attachmentIssues.length ? (
+          <div className="tw:mb-2 tw:grid tw:gap-1 tw:type-1 tw:text-app-warning" role="status">
+            {attachmentIssues.map((issue) => (
+              <div key={issue.id} className="tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+                <span className="tw:min-w-0 tw:wrap-anywhere">
+                  {issue.name} · {issue.reason}
+                </span>
+                {issue.canUseReference && onUseAttachmentReference ? (
+                  <Button
+                    size="xs"
+                    type="button"
+                    onClick={() => onUseAttachmentReference(issue.id)}
+                    aria-label={'仅发送文件引用：' + issue.name}
+                    title="模型收到文件路径，未收到文件内容"
+                  >
+                    仅发送文件引用
+                  </Button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {attachmentUploadProgress ? (
+          <AttachmentUploadProgress
+            progress={attachmentUploadProgress}
+            onCancel={onCancelAttachmentUpload}
+          />
+        ) : null}
         <Suspense fallback={null}>
           <BrowserAnnotationDraftCards draftKey={draftKey} />
         </Suspense>
@@ -2293,6 +2347,31 @@ export function ComposerCard({
                     }
                   />
                 )
+              }
+              speedControl={
+                speedProfiles.length > 1 && speedProfile && onSpeedTierChange ? (
+                  <div className="tw:flex tw:items-center tw:justify-between tw:gap-2">
+                    <SegmentedControl
+                      size="xs"
+                      ariaLabel="速度档位"
+                      value={speedProfile.id}
+                      options={speedProfiles.map((tier) => ({
+                        value: tier.id,
+                        label:
+                          tier.label ??
+                          { standard: '标准', fast: '快速', ultrafast: '极速' }[tier.id],
+                      }))}
+                      onChange={onSpeedTierChange}
+                    />
+                    <span>
+                      {speedProfile.speedMultiplier ? `约 ${speedProfile.speedMultiplier}× ` : ''}
+                      {speedPrice &&
+                        (speedBillingMode === 'free' || speedBillingMode === 'subscription'
+                          ? billingModeLabel(speedBillingMode)
+                          : `输入 ${modelPrice(speedPrice.prices.input, speedProfile.pricing?.currency)} / 百万 tokens`)}
+                    </span>
+                  </div>
+                ) : undefined
               }
               reasoningControl={
                 footerFit.modelMode !== 'text' &&

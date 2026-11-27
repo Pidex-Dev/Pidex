@@ -126,20 +126,20 @@ export function resolveModelCapabilities(
   }
 
   const catalogInputs = model.catalog?.input ?? model.input
-  if (catalogInputs?.includes('video')) {
+  const effectiveInputs = metadata?.modalities?.input
+  for (const { key, name, icon } of [
+    { key: 'video', name: '视频', icon: Video },
+    { key: 'pdf', name: 'PDF', icon: Eye },
+  ] as const) {
+    const available = effectiveInputs?.includes(key)
+    if (!available && !catalogInputs?.includes(key)) continue
     caps.push({
-      key: 'video',
-      label: '视频',
-      icon: Video,
-      badgeClass: 'tw:bg-app-skill/15 tw:text-app-skill-fg',
-    })
-  }
-  if (catalogInputs?.includes('pdf')) {
-    caps.push({
-      key: 'pdf',
-      label: 'PDF（目录）',
-      icon: Eye,
-      badgeClass: 'tw:bg-app-hover tw:text-app-text-soft',
+      key,
+      label: available ? name : `${name}（目录）`,
+      icon,
+      badgeClass: available
+        ? 'tw:bg-app-skill/15 tw:text-app-skill-fg'
+        : 'tw:bg-app-hover tw:text-app-text-soft',
     })
   }
   if (model.catalog?.structuredOutput) {

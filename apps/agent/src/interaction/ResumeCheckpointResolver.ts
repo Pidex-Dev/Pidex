@@ -174,11 +174,11 @@ export class ResumeCheckpointResolver {
   }
 }
 
-type PiResumeCheckpoint = Exclude<ResolvedResumeCheckpoint, { kind: 'hook-trust' }>
+type ResumeCheckpoint = Exclude<ResolvedResumeCheckpoint, { kind: 'hook-trust' }>
 
 export const toPlanCheckpoint = (acquired: {
   leaseID: string
-  checkpoint: PiResumeCheckpoint
+  checkpoint: ResumeCheckpoint
 }): PlanCheckpoint => {
   const checkpoint = acquired.checkpoint
   if (checkpoint.kind === 'permission') {

@@ -16,7 +16,6 @@ import { mcpHandlers } from './handlers/Mcp'
 import { petHandlers } from './handlers/Pet'
 import { pluginHandlers } from './handlers/Plugins'
 import { hookHandlers } from './handlers/Hooks'
-import { miniMaxCliHandlers } from './handlers/MinimaxCli'
 import { releaseNotesHandlers } from './handlers/ReleaseNotes'
 import { permissionHandlers } from './handlers/Permission'
 import { providerHandlers } from './handlers/Provider'
@@ -34,6 +33,7 @@ import { sideChatHandlers } from './handlers/SideChat'
 import { threadGoalHandlers } from './handlers/ThreadGoal'
 import { threadBookmarkHandlers } from './handlers/ThreadBookmark'
 import { threadHandlers } from './handlers/Thread'
+import { attachmentHandlers } from './handlers/Attachment'
 import { toolingHandlers } from './handlers/Tooling'
 import { usageHandlers } from './handlers/Usage'
 import { speechHandlers } from './handlers/Speech'
@@ -70,10 +70,10 @@ const groups: readonly RpcHandlerGroup[] = [
   mcpHandlers,
   pluginHandlers,
   hookHandlers,
-  miniMaxCliHandlers,
   skillHandlers,
   githubHandlers,
   threadHandlers,
+  attachmentHandlers,
   localContextHandlers,
   memoryHandlers,
   petHandlers,

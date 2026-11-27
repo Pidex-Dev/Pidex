@@ -5,10 +5,11 @@ import { isRecord } from '@pidex/shared/guards'
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 const MAX_TEXT_BYTES = 1024 * 1024
+const MAX_PDF_BYTES = 20 * 1024 * 1024
 const MAX_IMAGE_BASE64_LENGTH = Math.ceil(MAX_IMAGE_BYTES / 3) * 4
 const MAX_COLLISION_SUFFIX = 9999
 const WINDOWS_RESERVED_BASENAME = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/i
-const SAFE_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
+const SAFE_BASE64 = /^[A-Za-z0-9+/]*={0,2}$/
 const IMAGE_MEDIA_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
 export type AttachmentDownloadServiceDependencies = {
@@ -21,6 +22,8 @@ export class AttachmentDownloadService {
   async save(input: unknown): Promise<DesktopAttachmentSaveResult> {
     if (!isRecord(input)) throw new Error('附件数据无效')
     const fileName = requireSafeFileName(input.name)
+    if (input.kind === 'pdf' && extname(fileName).toLowerCase() !== '.pdf')
+      throw new Error('附件名称无效')
     const content = decodeAttachmentContent(input)
     let downloadsDirectory: string
     try {
@@ -85,6 +88,19 @@ export function decodeAttachmentContent(input: unknown): Uint8Array {
     return content
   }
 
+  if (input.kind === 'pdf') {
+    if (
+      input.encoding !== 'base64' ||
+      input.mediaType !== 'application/pdf' ||
+      input.data.length > Math.ceil(MAX_PDF_BYTES / 3) * 4
+    )
+      throw new Error('附件数据无效')
+    const content = decodeStrictBase64(input.data)
+    if (content.byteLength > MAX_PDF_BYTES || !startsWith(content, [0x25, 0x50, 0x44, 0x46, 0x2d]))
+      throw new Error('附件数据无效')
+    return content
+  }
+
   if (input.kind === 'text') {
     if (input.encoding !== 'utf8') throw new Error('附件数据无效')
     const content = Buffer.from(input.data, 'utf8')
@@ -96,7 +112,7 @@ export function decodeAttachmentContent(input: unknown): Uint8Array {
 }
 
 function decodeStrictBase64(value: string): Buffer {
-  if (!SAFE_BASE64.test(value)) throw new Error('附件数据无效')
+  if (value.length % 4 !== 0 || !SAFE_BASE64.test(value)) throw new Error('附件数据无效')
   const content = Buffer.from(value, 'base64')
   const normalizedInput = value.replace(/=+$/, '')
   const normalizedOutput = content.toString('base64').replace(/=+$/, '')

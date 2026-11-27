@@ -6,6 +6,7 @@ import {
   encodeApprovalPolicy,
   isSubagentNotificationInput,
   type InputOrigin,
+  type ModelRecoveryState,
 } from '@pidex/shared/thread'
 import { AgentError, decodeStoredTaskMode } from '../../Domain'
 import type {
@@ -35,6 +36,8 @@ import { ThreadGoalRepository } from './ThreadGoalRepository'
 import { ThreadGoalControlRepository } from './ThreadGoalControlRepository'
 import { GoalTurnClassifier } from '../../session/GoalTurnClassifier'
 
+import { inputAttachmentRows, inputAttachmentTable } from './InputAttachmentRepository'
+
 export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDatabase {
   bindInputAttachments(inputID: string, attachmentIDs: readonly string[]) {
     if (attachmentIDs.length === 0) return
@@ -46,17 +49,36 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
     this.transaction(() => {
       for (const attachmentID of attachmentIDs) {
         const attachment = this.sqlite
-          .query('SELECT input_id FROM input_attachments WHERE id = ?')
-          .get(attachmentID) as { input_id: string | null } | null
+          .query(`SELECT input_id, kind FROM ${inputAttachmentRows(this.sqlite)} WHERE id = ?`)
+          .get(attachmentID) as { input_id: string | null; kind: string } | null
         if (!attachment) throw new AgentError('ATTACHMENT_NOT_FOUND', '一个或多个附件不存在', 404)
         if (attachment.input_id && attachment.input_id !== inputID) {
           throw new AgentError('ATTACHMENT_ALREADY_BOUND', '附件已绑定到其他 input', 409)
         }
         this.sqlite
           .query(
-            'UPDATE input_attachments SET thread_id = ?, input_id = ?, bound_at = COALESCE(bound_at, ?) WHERE id = ?',
+            `UPDATE ${inputAttachmentTable(attachment.kind)} SET thread_id = ?, input_id = ?, bound_at = COALESCE(bound_at, ?) WHERE id = ?`,
           )
           .run(input.thread_id, inputID, timestamp, attachmentID)
+      }
+    })
+  }
+
+  unbindInputAttachments(inputID: string, attachmentIDs: readonly string[]) {
+    if (attachmentIDs.length === 0) return
+    this.transaction(() => {
+      for (const attachmentID of attachmentIDs) {
+        const record = this.sqlite
+          .query(
+            `SELECT kind FROM ${inputAttachmentRows(this.sqlite)} WHERE id = ? AND input_id = ?`,
+          )
+          .get(attachmentID, inputID) as { kind: string } | null
+        if (!record) throw new AgentError('ATTACHMENT_BINDING_MISMATCH', '附件绑定对象不匹配', 409)
+        this.sqlite
+          .query(
+            `UPDATE ${inputAttachmentTable(record.kind)} SET thread_id = NULL, input_id = NULL, bound_at = NULL WHERE id = ?`,
+          )
+          .run(attachmentID)
       }
     })
   }
@@ -435,19 +457,6 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
     } | null
   }
 
-  takeGuideMailbox(turnID: string) {
-    return this.transaction(() => {
-      const rows = this.guideMailbox(turnID)
-      if (rows.length) {
-        const placeholders = rows.map(() => '?').join(',')
-        this.sqlite
-          .query(`UPDATE inputs SET status = 'consumed' WHERE id IN (${placeholders})`)
-          .run(...rows.map((row) => row.id))
-      }
-      return rows
-    })
-  }
-
   guideMailbox(turnID: string) {
     const rows = this.sqlite
       .query(
@@ -579,17 +588,13 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
     })
   }
 
-  recordQueuedStartFailure(turnID: string) {
+  recordQueuedStartFailure(turnID: string, message = '目标或模式设置失败，请刷新后重试队列') {
     return this.transaction(() => {
       const row = this.sqlite
         .query("SELECT thread_id, root_agent_id FROM turns WHERE id = ? AND status = 'queued'")
         .get(turnID) as { thread_id: string; root_agent_id: string } | null
       if (!row) return []
-      const agent = this.updateAgentStatus(
-        row.root_agent_id,
-        'queued',
-        '目标或模式设置失败，请刷新后重试队列',
-      )
+      const agent = this.updateAgentStatus(row.root_agent_id, 'queued', message)
       const pause = this.pauseQueue(row.thread_id, 'turn_failed')
       return [
         this.insertEvent(row.thread_id, turnID, 'agent/upserted', { agent }),
@@ -1594,6 +1599,41 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         ),
       }
     })
+  }
+
+  recordModelRecovery(input: {
+    threadID: string
+    turnID: string
+    agentID: string
+    state: ModelRecoveryState | null
+    discardedItemIDs: readonly string[]
+  }) {
+    return this.transaction(() => {
+      const remove = this.sqlite.query(
+        "DELETE FROM items WHERE id = ? AND thread_id = ? AND turn_id = ? AND agent_id = ? AND type IN ('text', 'reasoning', 'plan') AND status = 'running'",
+      )
+      for (const id of input.discardedItemIDs)
+        remove.run(id, input.threadID, input.turnID, input.agentID)
+      return this.insertEvent(input.threadID, input.turnID, 'turn/statusChanged', {
+        turnId: input.turnID,
+        status: this.getTurnStatus(input.turnID) ?? 'running',
+        modelRecovery: input.state,
+        ...(input.discardedItemIDs.length ? { discardedItemIds: input.discardedItemIDs } : {}),
+      })
+    })
+  }
+
+  modelRecoveryForTurn(threadID: string, turnID: string): ModelRecoveryState | undefined {
+    const row = this.sqlite
+      .query(
+        `SELECT json_extract(params, '$.modelRecovery') AS state
+         FROM events
+         WHERE thread_id = ? AND turn_id = ? AND method = 'turn/statusChanged'
+           AND json_type(params, '$.modelRecovery') IS NOT NULL
+         ORDER BY id DESC LIMIT 1`,
+      )
+      .get(threadID, turnID) as { state: unknown } | null
+    return row?.state === 'retrying' || row?.state === 'waiting-for-network' ? row.state : undefined
   }
 
   getItem(itemID: string) {

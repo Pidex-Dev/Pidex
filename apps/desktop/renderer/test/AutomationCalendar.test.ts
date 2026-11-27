@@ -14,6 +14,31 @@ import {
   filterCalendarOccurrences,
 } from '../src/features/automation/CalendarDates.js'
 
+import { LocaleProvider } from '../src/features/i18n/LocaleProvider.js'
+import { formatAutomationTime } from '../src/features/automation/AutomationModel.js'
+
+test('英文界面使用英文日历和运行时间格式', () => {
+  const date = new Date(2026, 10, 26, 17, 30)
+  const calendar = createElement(AutomationCalendar, {
+    occurrences: [],
+    selectedDate: '2026-11-26',
+    onOccurrenceSelect: () => {},
+  })
+  const html = renderToStaticMarkup(
+    createElement(LocaleProvider, { preference: 'en-US' }, calendar),
+  )
+  expect(html).toContain('November 2026')
+  expect(html).toContain('Thursday, November 26, 2026')
+  expect(formatAutomationTime(+date, 'en-US')).toBe(
+    new Intl.DateTimeFormat('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date),
+  )
+})
+
 describe('automation calendar compact month & residing agenda', () => {
   test('builds a Monday-first 6 × 7 month and groups occurrences in time order', () => {
     const dates = calendarDates(new Date(2026, 8, 18), new Date(2026, 8, 5))

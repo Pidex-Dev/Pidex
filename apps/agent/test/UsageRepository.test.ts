@@ -97,7 +97,7 @@ describe('UsageRepository', () => {
         timestamp: '2026-03-03T00:02:00.000Z',
       },
     ])
-    // Same thread, different Pi session: no model_change means it must be ignored.
+    // Same thread, different session: no model_change means it must be ignored.
     addSession('main-b', main.id, [
       {
         type: 'branch_summary',

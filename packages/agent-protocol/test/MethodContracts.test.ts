@@ -2199,6 +2199,11 @@ const fixtures = {
       version: 2,
     },
   ),
+  'thread/deleteArchived': methodFixture(
+    'thread/deleteArchived',
+    { threadId: threadListItem.id, operationId: 'operation:archive-delete' },
+    { deleted: false },
+  ),
   'thread/delete': methodFixture(
     'thread/delete',
     {
@@ -2768,64 +2773,6 @@ const fixtures = {
       generation: 1,
     },
   ),
-  'minimaxCli/status': methodFixture(
-    'minimaxCli/status',
-    {
-      forceReload: true,
-    },
-    {
-      installationStatus: 'installed',
-      installedVersion: '1.0.22',
-      latestVersion: '1.0.22',
-      updateAvailable: false,
-      nodeVersion: 'v22.22.1',
-      npmVersion: '10.9.4',
-      authStatus: 'coding-plan-synced',
-      credentialSource: {
-        providerId: 'minimax-cn-coding-plan',
-        credentialId: 'credential:minimax-cn',
-        label: '当前 Coding Plan Key',
-        maskedValue: 'sk-****abcd',
-        region: 'cn',
-      },
-      quotaStatus: 'available',
-      quotaLabel: '套餐可用',
-      generation: 2,
-      updatedAt: 2,
-    },
-  ),
-  'minimaxCli/install': methodFixture(
-    'minimaxCli/install',
-    {
-      operationId: 'operation:minimax-install',
-    },
-    {
-      installationStatus: 'installed',
-      installedVersion: '1.0.22',
-      latestVersion: '1.0.22',
-      updateAvailable: false,
-      nodeVersion: 'v22.22.1',
-      npmVersion: '10.9.4',
-      authStatus: 'not-authenticated',
-      generation: 2,
-      updatedAt: 2,
-    },
-  ),
-  'minimaxCli/uninstall': methodFixture(
-    'minimaxCli/uninstall',
-    {
-      operationId: 'operation:minimax-uninstall',
-    },
-    {
-      installationStatus: 'not-installed',
-      updateAvailable: false,
-      nodeVersion: 'v22.22.1',
-      npmVersion: '10.9.4',
-      authStatus: 'not-authenticated',
-      generation: 3,
-      updatedAt: 3,
-    },
-  ),
   'mcp/list': methodFixture(
     'mcp/list',
     {
@@ -3036,6 +2983,30 @@ const fixtures = {
     },
     { attachments: [attachment] },
   ),
+  'attachment/upload/begin': methodFixture(
+    'attachment/upload/begin',
+    { kind: 'pdf', name: 'fixture.pdf', mediaType: 'application/pdf', size: 9 },
+    { uploadId: 'upload:1' },
+  ),
+  'attachment/upload/chunk': methodFixture(
+    'attachment/upload/chunk',
+    { uploadId: 'upload:1', offset: 0, data: 'JVBERi0xLjcK' },
+    { offset: 9 },
+  ),
+  'attachment/upload/commit': methodFixture(
+    'attachment/upload/commit',
+    { uploadId: 'upload:1' },
+    {
+      attachment: {
+        ...attachment,
+        kind: 'pdf',
+        name: 'fixture.pdf',
+        mediaType: 'application/pdf',
+        sizeBytes: 9,
+      },
+    },
+  ),
+  'attachment/upload/abort': methodFixture('attachment/upload/abort', { uploadId: 'upload:1' }, {}),
   'attachment/read': methodFixture(
     'attachment/read',
     {
@@ -6775,7 +6746,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(376)
+    expect(methods).toHaveLength(378)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -7143,7 +7114,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(355)
+    expect(Object.keys(RpcMethods)).toHaveLength(357)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })
@@ -7188,6 +7159,12 @@ describe('RPC method schema contracts', () => {
       'PATH_DENIED',
       'INTERNAL_ERROR',
     ])
+    expect(RpcMethods['plugin/getDetails']).toMatchObject({
+      capability: 'plugins.details.v1',
+      mutation: false,
+      exactParams: true,
+      exactResult: true,
+    })
     expect(RpcMethods['plugin/getDetails'].errors).toEqual(RpcMethods['plugin/setEnabled'].errors)
 
     const decodeListParams = Schema.decodeUnknownSync(RpcMethods['plugin/list'].params, {
@@ -7256,55 +7233,6 @@ describe('RPC method schema contracts', () => {
         plugins: [{ ...valid.plugins[0], longDescription: 'not part of the summary' }],
       }),
     ).toThrow()
-  })
-
-  test('MiniMax CLI 集成使用独立能力、精确 mutation 和可对账事件', () => {
-    expect(Capabilities).toContain('integrations.minimax-cli.v1')
-    expect(Schema.decodeUnknownSync(ProtocolCapabilitySchema)('integrations.minimax-cli.v1')).toBe(
-      'integrations.minimax-cli.v1',
-    )
-    expect(RpcMethods['minimaxCli/status']).toMatchObject({
-      capability: 'integrations.minimax-cli.v1',
-      mutation: false,
-      exactParams: true,
-      exactResult: true,
-    })
-    expect(RpcMethods['plugin/getDetails']).toMatchObject({
-      capability: 'plugins.details.v1',
-      mutation: false,
-      exactParams: true,
-      exactResult: true,
-    })
-    for (const method of ['minimaxCli/install', 'minimaxCli/uninstall'] as const) {
-      expect(RpcMethods[method]).toMatchObject({
-        capability: 'integrations.minimax-cli.v1',
-        mutation: true,
-        exactParams: true,
-        exactResult: true,
-      })
-      const decode = Schema.decodeUnknownSync(RpcMethods[method].params, {
-        onExcessProperty: 'error',
-      })
-      expect(decode(fixtures[method].params)).toEqual(fixtures[method].params)
-      expect(() => decode({ operationId: 'operation:minimax', credentialId: 'secret' })).toThrow()
-    }
-    const status = Schema.decodeUnknownSync(RpcMethods['minimaxCli/status'].result, {
-      onExcessProperty: 'error',
-    })(fixtures['minimaxCli/status'].result)
-    expect(status.credentialSource).toEqual({
-      providerId: 'minimax-cn-coding-plan',
-      credentialId: 'credential:minimax-cn',
-      label: '当前 Coding Plan Key',
-      maskedValue: 'sk-****abcd',
-      region: 'cn',
-    })
-    expect(EventManifest['minimaxCli/updated']).toMatchObject({
-      version: 1,
-      durability: 'live',
-      stream: 'global',
-      capability: 'integrations.minimax-cli.v1',
-      reconcilesWith: 'minimaxCli/status',
-    })
   })
 
   test('memory RPC uses an explicit namespace and relative path, never projectKey', () => {

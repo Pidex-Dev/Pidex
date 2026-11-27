@@ -20,7 +20,7 @@ import {
   DETECTION_PROTOCOL_ORDER,
   type DetectionResultLike,
 } from './ProtocolDetectionApply.js'
-import { DEEPSEEK_PROTOCOL_OPTIONS } from './DeepseekProtocol.js'
+import { CHAT_PROTOCOL_LABELS } from './BuiltinProviderProtocols.js'
 import { ProviderPanelActionButton } from './ProviderPanelActionButton.js'
 
 type RequestDraftModel = {
@@ -28,10 +28,15 @@ type RequestDraftModel = {
   api: string
 }
 
-const commonProtocols = DEEPSEEK_PROTOCOL_OPTIONS.map((option) => ({
-  value: option.value,
-  label: option.label,
-}))
+function needsCustomEndpoint(provider: DesktopModelProviderSummary) {
+  return (
+    provider.config?.kind === 'builtin' &&
+    (provider.catalogOrigin === 'models-dev' || provider.catalogOrigin === 'pi-remote') &&
+    provider.availability?.status === 'unavailable' &&
+    ['missing-api', 'unresolved-endpoint'].includes(provider.availability.reason)
+  )
+}
+
 function providerProtocols(provider: DesktopModelProviderSummary) {
   const apis =
     provider.config?.kind === 'custom'
@@ -47,7 +52,8 @@ function providerProtocols(provider: DesktopModelProviderSummary) {
         ? Object.keys(provider.endpointDefaults!)
         : (provider.nativeApis ?? provider.providerApis ?? [])
   const directoryProtocols =
-    provider.catalogOrigin === 'models-dev' || provider.catalogOrigin === 'pi-remote'
+    (provider.catalogOrigin === 'models-dev' || provider.catalogOrigin === 'pi-remote') &&
+    (provider.config?.kind !== 'builtin' || needsCustomEndpoint(provider))
       ? DETECTION_PROTOCOL_ORDER
       : []
   return [
@@ -55,7 +61,7 @@ function providerProtocols(provider: DesktopModelProviderSummary) {
   ].map((value) => ({
     value,
     label:
-      commonProtocols.find((option) => option.value === value)?.label ??
+      CHAT_PROTOCOL_LABELS[value] ??
       (
         {
           'openai-embeddings': 'Embeddings',
@@ -93,15 +99,24 @@ function requestDraft(provider: DesktopModelProviderSummary) {
   }
   const protocol =
     config?.kind === 'builtin'
-      ? (config.protocol ?? provider.defaultApi ?? provider.nativeApis?.[0] ?? apis[0] ?? 'mixed')
+      ? (provider.defaultApi ?? provider.nativeApis?.[0] ?? apis[0] ?? 'mixed')
       : (apis[0] ?? Object.keys(config?.endpoints ?? {})[0] ?? provider.defaultApi ?? 'mixed')
-  if (config?.baseUrl && protocol !== 'mixed') endpoints[protocol] = config.baseUrl
+  if (
+    config?.baseUrl &&
+    protocol !== 'mixed' &&
+    (config.kind === 'custom' || !config.endpoints?.[protocol])
+  )
+    endpoints[protocol] = config.baseUrl
   return {
     endpoints,
     allowModels: config?.kind === 'builtin' ? config.allowModels.join(', ') : '',
     denyModels: config?.kind === 'builtin' ? config.denyModels.join(', ') : '',
     name: config?.kind === 'custom' ? config.name : provider.displayName,
-    address: config?.baseUrl ?? provider.baseURL ?? '',
+    address:
+      (config?.kind === 'builtin' ? endpoints[protocol] : undefined) ??
+      config?.baseUrl ??
+      provider.baseURL ??
+      '',
     protocol,
     allowHttp: config?.allowInsecureHttp ?? false,
     auth: config?.kind === 'custom' ? config.auth : 'api-key',
@@ -157,10 +172,11 @@ export function ProviderRequestSettingsForm({
     ...new Map(
       [
         ...protocols,
-        ...commonProtocols,
-        ...(provider.config?.kind === 'custom'
-          ? [{ value: 'google-generative-ai', label: 'Gemini' }]
-          : []),
+        ...Object.entries(CHAT_PROTOCOL_LABELS)
+          .filter(
+            ([value]) => value !== 'google-generative-ai' || provider.config?.kind === 'custom',
+          )
+          .map(([value, label]) => ({ value, label })),
         { value: 'openai-embeddings', label: 'Embeddings' },
         { value: 'jina-rerank', label: 'Rerank' },
       ].map((option) => [option.value, option]),
@@ -183,6 +199,8 @@ export function ProviderRequestSettingsForm({
   const oauthOnly =
     (provider.authMethods?.includes('oauth') ?? false) &&
     !(provider.authMethods?.includes('api-key') ?? false)
+  const convertsToCustom = needsCustomEndpoint(provider)
+  const canSelectProtocol = provider.config?.kind === 'custom' || convertsToCustom
   const availableEndpoints = endpointOptions.filter((option) => !(option.value in draft.endpoints))
   const dirty =
     JSON.stringify(draft) !== JSON.stringify(initial.current) ||
@@ -243,12 +261,7 @@ export function ProviderRequestSettingsForm({
       }
       if (nextDraft.address !== initial.current.address || config.baseUrl)
         next = { ...next, baseUrl: nextDraft.address.trim() }
-      if (
-        config.kind === 'builtin' &&
-        (provider.catalogOrigin === 'models-dev' || provider.catalogOrigin === 'pi-remote') &&
-        provider.availability?.status === 'unavailable' &&
-        ['missing-api', 'unresolved-endpoint'].includes(provider.availability.reason)
-      ) {
+      if (convertsToCustom) {
         if (
           !DETECTION_PROTOCOL_ORDER.includes(
             nextDraft.protocol as (typeof DETECTION_PROTOCOL_ORDER)[number],
@@ -289,29 +302,24 @@ export function ProviderRequestSettingsForm({
             .filter(Boolean),
           headers,
           models: config.models.map((model) => {
-            const detected = nextDraft.models.find((candidate) => candidate.id === String(model.id))
-            if (detected && detected.api !== model.api) {
-              const { compat: _, ...rest } = model
-              return { ...rest, api: detected.api as typeof model.api }
-            }
-            if (
-              (model.modelType && model.modelType !== 'chat') ||
-              nextDraft.protocol === 'mixed' ||
-              nextDraft.protocol === initial.current.protocol
-            )
-              return model
+            if (model.modelType && model.modelType !== 'chat') return model
+            const id = String(model.id)
+            const detected = nextDraft.models.find((candidate) => candidate.id === id)
+            const api =
+              detected?.api ??
+              (nextDraft.protocol !== 'mixed' && nextDraft.protocol !== initial.current.protocol
+                ? nextDraft.protocol
+                : model.api)
+            const supported = provider.modelMetadata?.[id]?.supportedProtocols
+            if (api === model.api || (supported && !supported.includes(api))) return model
             const { compat: _, ...rest } = model
-            return { ...rest, api: nextDraft.protocol as typeof model.api }
+            return { ...rest, api: api as typeof model.api }
           }),
         }
       } else if (next.kind === 'builtin') {
+        const { protocol: _protocol, ...builtin } = next
         next = {
-          ...next,
-          ...(nextDraft.protocol !== 'mixed' &&
-          ((config.kind === 'builtin' && config.protocol) ||
-            nextDraft.protocol !== initial.current.protocol)
-            ? { protocol: nextDraft.protocol }
-            : {}),
+          ...builtin,
           allowModels: nextDraft.allowModels
             .split(',')
             .map((id) => id.trim())
@@ -517,7 +525,7 @@ export function ProviderRequestSettingsForm({
             请求配置
           </h3>
           <div className="tw:flex tw:shrink-0 tw:items-center tw:justify-end tw:gap-2">
-            {!oauthOnly ? (
+            {canSelectProtocol && !oauthOnly ? (
               <ProviderPanelActionButton
                 icon={
                   <Activity
@@ -554,7 +562,8 @@ export function ProviderRequestSettingsForm({
               <div key={option.value} className="tw:grid tw:gap-2 tw:type-1 tw:weight-medium">
                 <span className="tw:flex tw:items-center tw:justify-between tw:gap-2">
                   {option.label}
-                  {!['openai-embeddings', 'jina-rerank'].includes(option.value) ? (
+                  {canSelectProtocol &&
+                  !['openai-embeddings', 'jina-rerank'].includes(option.value) ? (
                     <Button
                       variant="outline"
                       size="sm"

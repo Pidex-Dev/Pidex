@@ -55,7 +55,7 @@ const catalog = {
   dispose: async () => {},
 }
 const integrations = {
-  pi: { getAuth: async () => undefined },
+  registry: { getAuth: async () => undefined },
 }
 
 describe('UsageService', () => {
@@ -324,7 +324,7 @@ describe('UsageService', () => {
       } as never,
       {
         ...integrations,
-        pi: {
+        registry: {
           getAuth: async () => {
             credentialRefreshes += 1
             throw new Error('source list must not refresh credentials')

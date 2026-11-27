@@ -1,3 +1,4 @@
+import { useLocale } from '../i18n/LocaleProvider.js'
 import { useShallow } from 'zustand/react/shallow'
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
@@ -846,6 +847,7 @@ function AutomationRunsList({
   onClearQuery: () => void
   onOpenThread: (threadId: string) => void
 }): React.ReactNode {
+  const { locale } = useLocale()
   const automationNameMap = useMemo(() => {
     const map = new Map<string, string>()
     for (const item of automations) {
@@ -923,7 +925,10 @@ function AutomationRunsList({
             >
               {filteredRuns.map((run) => {
                 const taskName = automationNameMap.get(run.automationId) ?? '已安排任务'
-                const time = formatAutomationTime(run.completedAt ?? run.startedAt ?? run.createdAt)
+                const time = formatAutomationTime(
+                  run.completedAt ?? run.startedAt ?? run.createdAt,
+                  locale,
+                )
                 const hasThread = Boolean(run.threadId)
                 return (
                   <li
@@ -1011,6 +1016,7 @@ function AutomationRow({
   onPause: () => void
   onDelete: () => void
 }): React.ReactNode {
+  const { locale } = useLocale()
   const unread = runs.some(
     (run) => !run.readAt && ['completed', 'failed', 'interrupted'].includes(run.status),
   )
@@ -1072,7 +1078,7 @@ function AutomationRow({
               ? '已暂停'
               : completed
                 ? '已完成'
-                : `下次运行 ${formatAutomationRelativeTime(automation.nextRunAt)}`}
+                : `下次运行 ${formatAutomationRelativeTime(automation.nextRunAt, locale)}`}
         </span>
       </button>
       <PopoverMenu

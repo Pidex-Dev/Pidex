@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { readFile, readdir, stat } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
-import { writeJsonAtomically } from '../windows/DebouncedAtomicJsonWriter.js'
+import { isRecord } from '@pidex/shared/guards'
+import { isMissingFileError, writeJsonAtomically } from '../windows/DebouncedAtomicJsonWriter.js'
 import type {
   DesktopDataLocationChange,
   DesktopDataLocationState,
@@ -26,11 +27,12 @@ export type DataLocationLaunch = {
   relocation: PendingDataLocation | null
 }
 
+export class DataLocationBootstrapError extends Error {}
+
 export class DataLocationStore {
   readonly #filePath: string
   readonly #defaultDataDir: string
   readonly #environmentDataDir: string | null
-  #value: DataLocationBootstrap | null = null
 
   constructor(
     userDataDirectory: string,
@@ -42,29 +44,35 @@ export class DataLocationStore {
     this.#environmentDataDir = environmentDataDir ? resolve(environmentDataDir) : null
   }
 
-  async load(): Promise<void> {
-    if (this.#value) return
+  async #readBootstrap(): Promise<DataLocationBootstrap> {
+    let source: string
     try {
-      const parsed = JSON.parse(
-        await readFile(this.#filePath, 'utf8'),
-      ) as Partial<DataLocationBootstrap>
-      this.#value = normalizeBootstrap(parsed)
-    } catch {
-      this.#value = { version: 1, activeDataDir: null }
+      source = await readFile(this.#filePath, 'utf8')
+    } catch (error) {
+      if (isMissingFileError(error)) return { version: 1, activeDataDir: null }
+      throw new DataLocationBootstrapError(
+        '无法读取 data-location.json，请检查文件访问权限后重试。',
+      )
+    }
+    try {
+      return normalizeBootstrap(JSON.parse(source))
+    } catch (error) {
+      if (error instanceof DataLocationBootstrapError) throw error
+      throw new DataLocationBootstrapError(
+        'data-location.json 的内容无效，请修复数据目录定位文件后重试。',
+      )
     }
   }
 
   async state(): Promise<DesktopDataLocationState> {
-    await this.load()
-    const value = this.#value!
-    const activeDataDir = value.activeDataDir ?? this.#defaultDataDir
+    const value = this.#environmentDataDir ? null : await this.#readBootstrap()
     return {
       defaultDataDir: this.#defaultDataDir,
-      currentDataDir: this.#environmentDataDir ?? activeDataDir,
-      pendingDataDir: this.#environmentDataDir ? null : (value.pending?.targetDataDir ?? null),
+      currentDataDir: this.#environmentDataDir ?? value?.activeDataDir ?? this.#defaultDataDir,
+      pendingDataDir: value?.pending?.targetDataDir ?? null,
       controlSource: this.#environmentDataDir
         ? 'env'
-        : value.activeDataDir
+        : value?.activeDataDir
           ? 'bootstrap'
           : 'default',
       isEnvControlled: this.#environmentDataDir !== null,
@@ -72,11 +80,10 @@ export class DataLocationStore {
   }
 
   async launch(): Promise<DataLocationLaunch> {
-    await this.load()
     if (this.#environmentDataDir) {
       return { dataDir: this.#environmentDataDir, relocation: null }
     }
-    const value = this.#value!
+    const value = await this.#readBootstrap()
     if (value.pending) {
       return {
         dataDir: value.pending.targetDataDir,
@@ -94,7 +101,6 @@ export class DataLocationStore {
     installDirectory: string,
     workspaceRoots: readonly string[] = [],
   ): Promise<DesktopDataLocationChange> {
-    await this.load()
     if (this.#environmentDataDir) {
       throw new Error('当前数据目录由 PIDEX_DATA_DIR 控制')
     }
@@ -103,7 +109,11 @@ export class DataLocationStore {
       throw new Error('请选择 .pidex 的父目录')
     }
     const targetDataDir = resolve(parent, '.pidex')
-    const sourceDataDir = this.#value!.activeDataDir ?? this.#defaultDataDir
+    if ((await pathExists(targetDataDir)) && !(await isEmptyDirectory(targetDataDir))) {
+      throw new Error('目标 .pidex 目录必须为空')
+    }
+    const value = await this.#readBootstrap()
+    const sourceDataDir = value.activeDataDir ?? this.#defaultDataDir
     if (samePath(sourceDataDir, targetDataDir)) {
       throw new Error('所选位置就是当前数据目录')
     }
@@ -116,19 +126,12 @@ export class DataLocationStore {
     if (workspaceRoots.some((workspaceRoot) => pathsOverlap(targetDataDir, workspaceRoot))) {
       throw new Error('目标数据目录不能与已注册工作区互相包含')
     }
-    if ((await pathExists(targetDataDir)) && !(await isEmptyDirectory(targetDataDir))) {
-      throw new Error('目标 .pidex 目录必须为空')
-    }
     const pending = {
       operationId: randomUUID(),
       sourceDataDir: resolve(sourceDataDir),
       targetDataDir,
     }
-    this.#value = {
-      ...this.#value!,
-      pending,
-    }
-    await this.#save()
+    await writeJsonAtomically(this.#filePath, { ...value, pending })
     return {
       sourceDataDir: pending.sourceDataDir,
       targetDataDir: pending.targetDataDir,
@@ -136,58 +139,59 @@ export class DataLocationStore {
     }
   }
 
-  async promotePending(): Promise<void> {
-    await this.load()
-    const pending = this.#value!.pending
-    if (!pending || this.#environmentDataDir) return
-    this.#value = {
-      version: 1,
-      activeDataDir: pending.targetDataDir,
+  async promotePending(operationId: string): Promise<void> {
+    if (this.#environmentDataDir) return
+    const { pending, ...value } = await this.#readBootstrap()
+    if (!pending) return
+    if (pending.operationId !== operationId) {
+      throw new DataLocationBootstrapError('待迁移的数据位置已更改，请重新启动 Pidex。')
     }
-    await this.#save()
+    await writeJsonAtomically(this.#filePath, {
+      ...value,
+      activeDataDir: pending.targetDataDir,
+    })
   }
 
   async restoreActive(): Promise<void> {
-    await this.load()
-    if (!this.#value!.pending) return
-    this.#value = {
-      version: 1,
-      activeDataDir: this.#value!.activeDataDir,
-    }
-    await this.#save()
-  }
-
-  async #save(): Promise<void> {
-    await writeJsonAtomically(this.#filePath, this.#value)
+    if (this.#environmentDataDir) return
+    const { pending, ...value } = await this.#readBootstrap()
+    if (pending) await writeJsonAtomically(this.#filePath, value)
   }
 }
 
-function normalizeBootstrap(value: Partial<DataLocationBootstrap>): DataLocationBootstrap {
-  if (value.version !== 1) return { version: 1, activeDataDir: null }
-  const activeDataDir =
-    typeof value.activeDataDir === 'string' ? requireLocalAbsolutePath(value.activeDataDir) : null
-  const pending = normalizePending(value.pending)
+function normalizeBootstrap(value: unknown): DataLocationBootstrap {
+  if (!isRecord(value)) throw new Error('invalid data location')
+  if (value.version !== 1) {
+    throw new DataLocationBootstrapError(
+      '当前 Pidex 无法识别 data-location.json 的版本，请使用支持该版本的客户端。',
+    )
+  }
+  if (value.activeDataDir !== null && typeof value.activeDataDir !== 'string') {
+    throw new Error('invalid active data location')
+  }
   return {
+    ...value,
     version: 1,
-    activeDataDir,
-    ...(pending ? { pending } : {}),
+    activeDataDir:
+      value.activeDataDir === null ? null : requireLocalAbsolutePath(value.activeDataDir),
+    ...(value.pending === undefined ? {} : { pending: normalizePending(value.pending) }),
   }
 }
 
-function normalizePending(value: unknown): PendingDataLocation | null {
-  if (!value || typeof value !== 'object') return null
-  const candidate = value as Partial<PendingDataLocation>
+function normalizePending(value: unknown): PendingDataLocation {
   if (
-    typeof candidate.operationId !== 'string' ||
-    !/^[a-zA-Z0-9-]{8,128}$/.test(candidate.operationId) ||
-    typeof candidate.sourceDataDir !== 'string' ||
-    typeof candidate.targetDataDir !== 'string'
+    !isRecord(value) ||
+    typeof value.operationId !== 'string' ||
+    !/^[a-zA-Z0-9-]{8,128}$/.test(value.operationId) ||
+    typeof value.sourceDataDir !== 'string' ||
+    typeof value.targetDataDir !== 'string'
   )
-    return null
+    throw new Error('invalid pending data location')
   return {
-    operationId: candidate.operationId,
-    sourceDataDir: requireLocalAbsolutePath(candidate.sourceDataDir),
-    targetDataDir: requireLocalAbsolutePath(candidate.targetDataDir),
+    ...value,
+    operationId: value.operationId,
+    sourceDataDir: requireLocalAbsolutePath(value.sourceDataDir),
+    targetDataDir: requireLocalAbsolutePath(value.targetDataDir),
   }
 }
 

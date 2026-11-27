@@ -11,9 +11,6 @@ type BrowserMockClient = ReturnType<typeof createBrowserMockDesktopClient>
 // 订阅方法签名统一为 (callback) => () => void，不能在 Mock 加载前调用；
 // 其余方法统一为 Promise 转发。
 const SUBSCRIPTION_METHODS = new Set([
-  'onAgentEvent',
-  'onWorkflowEvent',
-  'onUiCommand',
   'onSessionStoreChange',
   'onDesktopSettingsChange',
   'onUpdateStatusChange',

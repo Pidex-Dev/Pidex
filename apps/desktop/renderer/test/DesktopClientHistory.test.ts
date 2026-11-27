@@ -496,6 +496,7 @@ describe('desktop history client', () => {
 
   test('uses agent fetch for list, create, get, message, rename, archive, and delete', async () => {
     const requests: Array<{ path: string; method: string; body: unknown }> = []
+    let guardedDeletion = true
     let currentItem = sessionItem({ unreadAt: now + 500 })
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
       const method = init?.method ?? 'GET'
@@ -505,7 +506,15 @@ describe('desktop history client', () => {
       if (path !== '/rpc') throw new Error(`Unhandled request: ${method} ${path}`)
       const rpcMethod = body?.method
       const params = body?.params ?? {}
-      if (rpcMethod === 'initialize') return rpc(body.id, initializedResult())
+      if (rpcMethod === 'initialize') {
+        const info = initializedResult()
+        return rpc(body.id, {
+          ...info,
+          capabilities: guardedDeletion
+            ? [...info.capabilities, 'thread.deleteArchived.v1']
+            : info.capabilities,
+        })
+      }
       if (rpcMethod === 'initialized') return new Response(null, { status: 204 })
       if (rpcMethod === 'project/list') {
         return rpc(body.id, { projects: [project], nextCursor: null })
@@ -625,6 +634,10 @@ describe('desktop history client', () => {
         currentItem = sessionItem({ title: '自动更新后的标题' })
         return rpc(body.id, { thread: currentItem })
       }
+      if (rpcMethod === 'thread/deleteArchived') {
+        expect(params.threadId).toBe('session-1')
+        return rpc(body.id, { deleted: Boolean(currentItem.archivedAt) })
+      }
       if (rpcMethod === 'thread/delete') {
         currentItem = sessionItem({ id: 'deleted' })
         return rpc(body.id, {
@@ -716,6 +729,18 @@ describe('desktop history client', () => {
     })
     expect(archived.item.archivedAt).toBe('2023-11-14T22:13:23.000Z')
 
+    currentItem = sessionItem({ archivedAt: null })
+    expect(await client.deleteArchivedSession('session-1')).toBe(false)
+    currentItem = sessionItem({ archivedAt: now + 3000 })
+    expect(await client.deleteArchivedSession('session-1')).toBe(true)
+    expect(requests.some(({ body }) => body?.method === 'thread/delete')).toBe(false)
+    expect(client.supportsArchivedSessionDeletion()).toBe(true)
+    guardedDeletion = false
+    const olderClient = createDesktopClient({ fetch: fetcher })
+    const before = requests.length
+    await expect(olderClient.deleteArchivedSession('session-1')).rejects.toThrow()
+    expect(olderClient.supportsArchivedSessionDeletion()).toBe(false)
+    expect(requests.slice(before).map(({ body }) => body?.method)).not.toContain('thread/delete')
     await client.disposeSession('session-1')
     expect(
       requests.map((request) => request.body).some((body) => body?.method === 'thread/delete'),

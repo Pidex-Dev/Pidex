@@ -5,20 +5,25 @@ import {
 } from './prompt/RuntimePromptComposer'
 import { randomUUID } from 'node:crypto'
 import { Effect } from 'effect'
-import { contentText, type Api, type Model as PiModel, type Models } from '@earendil-works/pi-ai'
+import {
+  contentText,
+  type Api,
+  type Model as RuntimeModel,
+  type Models,
+} from '@earendil-works/pi-ai'
 import { AgentHarness } from './harness/AgentHarness'
 import { SessionError, type Session, type AgentHarnessEvent } from './harness/Types'
 import type { AgentRuntime, AgentRuntimeRequest, PendingApproval } from './AgentRuntimeTypes'
-import { executeHarnessRun } from './pi/ExecuteHarnessRun'
+import { executeHarnessRun } from './execution/ExecuteHarnessRun'
 import { ContextManager } from '../context/ContextManager'
 import type {
   ActiveHarness,
   GoalBudgetStatus,
   GoalBudgetLifecycle,
   HarnessRuntimeOptions,
-  PiRuntimeEventContext,
-  PiRuntimeEventSink,
-} from './pi/Types'
+  RuntimeEventContext,
+  RuntimeEventSink,
+} from './execution/Types'
 import {
   computeConvergenceReserve,
   getRootThreadId,
@@ -27,17 +32,14 @@ import {
 import { GOAL_WRAPUP_OUTPUT_TOKENS, goalBudgetAdmission } from '../session/GoalWrapupPolicy'
 import { estimateTokens } from '../context/harness/Compaction'
 import type { GoalUsageEntry } from '../storage/repositories/ThreadGoalLedgerRepository'
-import { piToolResultBlocks, piToolResultText } from './pi/PiEventAdapter'
-import { formatToolExecutionResult } from './pi/PiToolAdapter'
+import { toolResultBlocks, toolResultText } from './execution/ProviderEventAdapter'
+import { formatToolExecutionResult } from './execution/ProviderToolAdapter'
 import { formatSubagentHandback } from '../subagent/HandbackFormat'
-import {
-  SqlitePiSessionRepo,
-  type SqlitePiSessionStorage,
-} from '../storage/pi-session/SqlitePiSession'
+import { SqliteSessionRepo, type SqliteSessionStorage } from '../storage/session/SqliteSession'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import type { ToolExecutor } from '../tool/ToolExecutor'
-import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from '../tool/ToolExposurePlan'
+import { LIFECYCLE_TOOLS, type ToolExposureInput } from '../tool/ToolExposurePlan'
 import {
   type ToolCatalog,
   type ToolCatalogEntry,
@@ -61,7 +63,7 @@ import type { ScheduleDraft } from '@pidex/shared/schedule-draft'
 import type { ScheduleDraftSubmitInput } from '../calendar/SchedulePlanService'
 import type { ScheduleDraftSubmission } from './plan/ScheduleDraft'
 import { parseApplyPatch } from '../tool/ApplyPatch/ParseApplyPatch'
-import { TurnPiBoundaryRepository } from '../storage/repositories/TurnPiBoundaryRepository'
+import { TurnSessionBoundaryRepository } from '../storage/repositories/TurnSessionBoundaryRepository'
 import {
   ContextCompactionService,
   type ContextCompaction,
@@ -98,9 +100,9 @@ export type {
 
 type PendingTurn = {
   items: Map<string, Item>
-  storage: SqlitePiSessionStorage
+  storage: SqliteSessionStorage
   consumedInputIDs: Set<string>
-  piBoundary?: { sessionID: string; entryID: string }
+  sessionBoundary?: { sessionID: string; entryID: string }
 }
 
 const outputDelta = (value: unknown) => (typeof value === 'string' ? value : '')
@@ -135,7 +137,7 @@ const integrationSourceFor = (catalog: readonly ToolCatalogEntry[], tool: string
   return origin?.kind === 'mcp' ? origin.serverName : undefined
 }
 
-export const piToolMutationFiles = (tool: string, details: unknown): TimelineMutationFile[] => {
+export const toolMutationFiles = (tool: string, details: unknown): TimelineMutationFile[] => {
   const kind = mutationToolKind(tool)
   if (!kind || !details || typeof details !== 'object' || Array.isArray(details)) return []
   const record = details as Record<string, unknown>
@@ -177,7 +179,7 @@ export const mergeTimelineMutationFiles = (
   return [...merged.values()]
 }
 
-export const piToolTimelineInput = (tool: string, input: unknown): Record<string, unknown> => {
+export const toolTimelineInput = (tool: string, input: unknown): Record<string, unknown> => {
   const record =
     input && typeof input === 'object' && !Array.isArray(input)
       ? (input as Record<string, unknown>)
@@ -291,7 +293,7 @@ const resumedToolResultText = (value: unknown, tool: string) => {
   const safe = secretScrubber.scrub(value)
   const content = safe == null ? '' : JSON.stringify(safe, null, 2)
   return (
-    piToolResultText(
+    toolResultText(
       {
         content: content ? [{ type: 'text', text: content }] : [],
         details: safe,
@@ -301,7 +303,7 @@ const resumedToolResultText = (value: unknown, tool: string) => {
   )
 }
 
-export const piToolItemPayload = (item: Item) => {
+export const toolItemPayload = (item: Item) => {
   const data = item.data
   const terminal =
     item.status === 'completed' || item.status === 'error' || item.status === 'interrupted'
@@ -352,7 +354,7 @@ export const piToolItemPayload = (item: Item) => {
   }
 }
 
-export const finishedPiToolItem = (input: {
+export const finishedToolItem = (input: {
   current: Item | null
   turnID: string
   agentID: string
@@ -387,9 +389,9 @@ export const finishedPiToolItem = (input: {
   }
 }
 
-export const piItemDeltaPayload = (input: {
+export const itemDeltaPayload = (input: {
   itemID: string
-  context: PiRuntimeEventContext
+  context: RuntimeEventContext
   delta: string
 }) => ({
   itemId: input.itemID,
@@ -407,9 +409,10 @@ export interface AgentRuntimeServiceOptions {
   toolExecutor: ToolExecutor
   contextCompaction: ContextCompactionService
   artifacts?: ArtifactService
+  attachments?: Pick<import('../subagent/AttachmentService').AttachmentService, 'read'>
   memoryManager?: MemoryManager | undefined
   decisions?: import('../decision/DecisionService').DecisionService | undefined
-  observeHarnessEvent?: (context: PiRuntimeEventContext, event: AgentHarnessEvent) => void
+  observeHarnessEvent?: (context: RuntimeEventContext, event: AgentHarnessEvent) => void
   /**
    * 任务规划草案服务是后置构造的（依赖调度器就绪），所以用惰性取值器：
    * 返回 undefined 表示当前 Agent 存储不支持任务规划扩展表，此时
@@ -420,10 +423,10 @@ export interface AgentRuntimeServiceOptions {
   taskSchedules?: () => import('../calendar/TaskScheduleService').TaskScheduleService | undefined
 }
 
-/** Adapts the existing product lifecycle to Pi without exposing Pi types to RPC. */
+/** Adapts the existing product lifecycle to the harness without exposing runtime types to RPC. */
 export class AgentRuntimeService implements AgentRuntime {
-  private readonly repo: SqlitePiSessionRepo
-  private readonly turnPiBoundaries: TurnPiBoundaryRepository
+  private readonly repo: SqliteSessionRepo
+  private readonly turnSessionBoundaries: TurnSessionBoundaryRepository
   private readonly runtimeCompositions: RuntimeCompositionService
   private readonly active = new Map<string, ActiveHarness>()
   private readonly pending = new Map<string, PendingTurn>()
@@ -431,8 +434,8 @@ export class AgentRuntimeService implements AgentRuntime {
   private readonly contextForgetApplied = new Set<string>()
 
   constructor(private readonly options: AgentRuntimeServiceOptions) {
-    this.repo = new SqlitePiSessionRepo(options.db)
-    this.turnPiBoundaries = new TurnPiBoundaryRepository(options.db)
+    this.repo = new SqliteSessionRepo(options.db)
+    this.turnSessionBoundaries = new TurnSessionBoundaryRepository(options.db)
     this.runtimeCompositions = new RuntimeCompositionService({ db: options.db })
   }
 
@@ -734,7 +737,7 @@ export class AgentRuntimeService implements AgentRuntime {
   }
 
   private persistFinishedTool(
-    context: PiRuntimeEventContext,
+    context: RuntimeEventContext,
     input: {
       toolCallID: string
       tool: string
@@ -747,7 +750,7 @@ export class AgentRuntimeService implements AgentRuntime {
     workspace?: WorkspaceService,
     integrationSource?: string,
   ) {
-    let item = finishedPiToolItem({
+    let item = finishedToolItem({
       current: this.options.db.getItem(input.toolCallID),
       turnID: context.turnID,
       agentID: context.agentID,
@@ -764,7 +767,7 @@ export class AgentRuntimeService implements AgentRuntime {
       input.resultBlocks ?? [],
       input.artifactRecords ?? [],
     )
-    const mutationFiles = input.isError ? [] : piToolMutationFiles(input.tool, input.details)
+    const mutationFiles = input.isError ? [] : toolMutationFiles(input.tool, input.details)
     if (mutationFiles.length) {
       const timelineInput =
         item.data.input && typeof item.data.input === 'object' && !Array.isArray(item.data.input)
@@ -896,7 +899,7 @@ export class AgentRuntimeService implements AgentRuntime {
   }
 
   private artifactRowsForItem(
-    context: PiRuntimeEventContext,
+    context: RuntimeEventContext,
     itemId: string,
     resultBlocks: readonly ToolResultBlock[],
     artifactRecords: readonly StoredArtifactBlob[],
@@ -930,7 +933,7 @@ export class AgentRuntimeService implements AgentRuntime {
   }
 
   private async finishTool(
-    context: PiRuntimeEventContext,
+    context: RuntimeEventContext,
     input: {
       toolCallID: string
       tool: string
@@ -962,17 +965,79 @@ export class AgentRuntimeService implements AgentRuntime {
   }
 
   private eventSink(
-    storage: SqlitePiSessionStorage,
+    storage: SqliteSessionStorage,
     session: Session,
-    runtimeModel: PiModel<Api>,
+    runtimeModel: RuntimeModel<Api>,
     sessionID: string,
     workspace?: WorkspaceService,
     toolCatalog: readonly ToolCatalogEntry[] = [],
     onUsage?: AgentRuntimeRequest['onUsage'],
     readContextUsageBreakdown?: () => readonly ContextUsageBreakdownEntry[] | undefined,
-  ): PiRuntimeEventSink {
+  ): RuntimeEventSink {
     let usageGoal: { id: string; threadId: string } | null | undefined
-    const pendingFor = (context: PiRuntimeEventContext) => {
+    let modelRecoveryState: import('@pidex/shared/thread').ModelRecoveryState | null = null
+    const recordProviderUsage = async (
+      context: RuntimeEventContext,
+      sourceEntryId: string,
+      usage: {
+        input: number
+        output: number
+        cacheRead: number
+        cacheWrite: number
+        reasoning?: number
+      },
+    ) => {
+      const inputTokens = usage.input + usage.cacheRead + usage.cacheWrite
+      await onUsage?.({
+        inputTokens,
+        outputTokens: usage.output,
+        totalTokens: inputTokens + usage.output,
+        requests: 1,
+      })
+      const rootThreadId = getRootThreadId(this.options.db, context.threadID)
+      const rootGoal =
+        usageGoal === undefined
+          ? this.options.db.repositories.threadGoalLedger.visibleGoal(rootThreadId)
+          : usageGoal
+      if (rootGoal) {
+        const entry: GoalUsageEntry = {
+          threadId: rootThreadId,
+          goalId: rootGoal.id,
+          agentId: context.agentID,
+          sourceEntryId,
+          inputTokens: usage.input,
+          outputTokens: usage.output,
+          cacheReadTokens: usage.cacheRead,
+          cacheWriteTokens: usage.cacheWrite,
+          reasoningTokens: usage.reasoning ?? 0,
+        }
+        if (
+          entry.inputTokens +
+            entry.outputTokens +
+            entry.cacheReadTokens +
+            entry.cacheWriteTokens +
+            entry.reasoningTokens >
+          0
+        ) {
+          const inserted = this.options.db.repositories.threadGoalLedger.recordUsage([entry])
+          if (inserted > 0) {
+            const current = this.options.db.repositories.threadGoals.get(rootThreadId)
+            if (current?.id !== rootGoal.id) {
+              this.options.db.repositories.threadGoalLedger.refreshArchivedMeasurement(rootGoal.id)
+            }
+            const measurement =
+              current?.id === rootGoal.id
+                ? this.options.db.repositories.threadGoalLedger.refreshMeasurement(rootThreadId)
+                : null
+            if (measurement) {
+              await this.publish(measurement.event)
+              await this.publishThreadProjectionChanged(rootThreadId)
+            }
+          }
+        }
+      }
+    }
+    const pendingFor = (context: RuntimeEventContext) => {
       const existing = this.pending.get(context.threadID)
       if (existing) return existing
       const created: PendingTurn = {
@@ -984,6 +1049,14 @@ export class AgentRuntimeService implements AgentRuntime {
       return created
     }
     return {
+      modelRecovery: async (context, input) => {
+        if (input.state !== modelRecoveryState || input.discardedItemIDs.length > 0) {
+          const event = this.options.db.recordModelRecovery({ ...context, ...input })
+          modelRecoveryState = input.state
+          await this.publish(event)
+        }
+        if (input.usage) await recordProviderUsage(context, crypto.randomUUID(), input.usage)
+      },
       event: (context, event) => {
         if (event.type === 'before_provider_request') {
           const rootThreadId = getRootThreadId(this.options.db, context.threadID)
@@ -1066,7 +1139,7 @@ export class AgentRuntimeService implements AgentRuntime {
             context.threadID,
             context.turnID,
             'item/agentMessage/delta',
-            piItemDeltaPayload({ itemID: input.itemID, context, delta: input.delta }),
+            itemDeltaPayload({ itemID: input.itemID, context, delta: input.delta }),
           ),
         )
       },
@@ -1077,18 +1150,45 @@ export class AgentRuntimeService implements AgentRuntime {
             context.threadID,
             context.turnID,
             'plan/delta',
-            piItemDeltaPayload({ itemID: input.itemID, context, delta: input.delta }),
+            itemDeltaPayload({ itemID: input.itemID, context, delta: input.delta }),
           ),
         )
       },
+      reasoningStarted: async (context, input) => {
+        const timestamp = Date.now()
+        const persisted = this.options.db.upsertItemWithEvent(
+          context.threadID,
+          {
+            id: input.itemID,
+            turnID: context.turnID,
+            agentID: context.agentID,
+            type: 'reasoning',
+            status: 'running',
+            data: { text: '' },
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+          'item/started',
+        )
+        await this.publish(persisted.event)
+      },
       reasoningDelta: async (context, input) => {
+        const current = this.options.db.getItem(input.itemID)
+        if (current) {
+          if (current.status !== 'running') return
+          this.options.db.upsertItem(context.threadID, {
+            ...current,
+            data: { ...current.data, text: String(current.data.text ?? '') + input.delta },
+            updatedAt: Date.now(),
+          })
+        }
         await this.publish(
           createLiveEvent(
             this.options.db,
             context.threadID,
             context.turnID,
             'reasoning/textDelta',
-            piItemDeltaPayload({
+            itemDeltaPayload({
               itemID: input.itemID,
               context,
               delta: input.delta,
@@ -1100,7 +1200,7 @@ export class AgentRuntimeService implements AgentRuntime {
         const timestamp = Date.now()
         const pending = pendingFor(context)
         if (input.placement === 'result' && input.sessionEntryID) {
-          pending.piBoundary = { sessionID, entryID: input.sessionEntryID }
+          pending.sessionBoundary = { sessionID, entryID: input.sessionEntryID }
         }
         const text =
           input.text === undefined
@@ -1118,6 +1218,31 @@ export class AgentRuntimeService implements AgentRuntime {
           reasoning: input.usage.reasoning,
           ...(contextUsageBreakdown?.length ? { breakdown: [...contextUsageBreakdown] } : {}),
         }
+        const terminalStatus =
+          input.completion?.stopReason === 'aborted' || input.completion?.stopReason === 'error'
+            ? 'interrupted'
+            : 'completed'
+        const content = Array.isArray(input.content) ? input.content : []
+        const reasoning = content
+          .flatMap((part) => (part.type === 'thinking' ? [part.thinking] : []))
+          .join('\n')
+          .trim()
+        const currentReasoning = this.options.db.getItem(input.reasoningItemID)
+        if (reasoning || currentReasoning) {
+          pending.items.set(input.reasoningItemID, {
+            id: input.reasoningItemID,
+            turnID: context.turnID,
+            agentID: context.agentID,
+            type: 'reasoning',
+            status: terminalStatus,
+            data: { text: reasoning },
+            ...(currentReasoning?.ordinal === undefined
+              ? {}
+              : { ordinal: currentReasoning.ordinal }),
+            createdAt: currentReasoning?.createdAt ?? timestamp,
+            updatedAt: timestamp,
+          })
+        }
         if (input.text === undefined || text || this.options.db.getItem(input.textItemID)) {
           const currentText = this.options.db.getItem(input.textItemID)
           pending.items.set(input.textItemID, {
@@ -1125,10 +1250,7 @@ export class AgentRuntimeService implements AgentRuntime {
             turnID: context.turnID,
             agentID: context.agentID,
             type: 'text',
-            status:
-              input.completion?.stopReason === 'aborted' || input.completion?.stopReason === 'error'
-                ? 'interrupted'
-                : 'completed',
+            status: terminalStatus,
             data: {
               placement: input.placement,
               ...(input.phase ? { phase: input.phase } : {}),
@@ -1156,74 +1278,7 @@ export class AgentRuntimeService implements AgentRuntime {
             updatedAt: timestamp,
           })
         }
-        const inputTokens = usage.input + usage.cacheRead + usage.cacheWrite
-        await onUsage?.({
-          inputTokens,
-          outputTokens: usage.output,
-          totalTokens: inputTokens + usage.output,
-          requests: 1,
-        })
-        const rootThreadId = getRootThreadId(this.options.db, context.threadID)
-        const rootGoal =
-          usageGoal === undefined
-            ? this.options.db.repositories.threadGoalLedger.visibleGoal(rootThreadId)
-            : usageGoal
-        if (rootGoal) {
-          const entry: GoalUsageEntry = {
-            threadId: rootThreadId,
-            goalId: rootGoal.id,
-            agentId: context.agentID,
-            sourceEntryId: input.textItemID,
-            inputTokens: usage.input,
-            outputTokens: usage.output,
-            cacheReadTokens: usage.cacheRead,
-            cacheWriteTokens: usage.cacheWrite,
-            reasoningTokens: usage.reasoning ?? 0,
-          }
-          if (
-            entry.inputTokens +
-              entry.outputTokens +
-              entry.cacheReadTokens +
-              entry.cacheWriteTokens +
-              entry.reasoningTokens >
-            0
-          ) {
-            const inserted = this.options.db.repositories.threadGoalLedger.recordUsage([entry])
-            if (inserted > 0) {
-              const current = this.options.db.repositories.threadGoals.get(rootThreadId)
-              if (current?.id !== rootGoal.id) {
-                this.options.db.repositories.threadGoalLedger.refreshArchivedMeasurement(
-                  rootGoal.id,
-                )
-              }
-              const measurement =
-                current?.id === rootGoal.id
-                  ? this.options.db.repositories.threadGoalLedger.refreshMeasurement(rootThreadId)
-                  : null
-              if (measurement) {
-                await this.publish(measurement.event)
-                await this.publishThreadProjectionChanged(rootThreadId)
-              }
-            }
-          }
-        }
-        const content = Array.isArray(input.content) ? input.content : []
-        const reasoning = content
-          .flatMap((part) => (part.type === 'thinking' ? [part.thinking] : []))
-          .join('\n')
-          .trim()
-        if (reasoning) {
-          pending.items.set(input.reasoningItemID, {
-            id: input.reasoningItemID,
-            turnID: context.turnID,
-            agentID: context.agentID,
-            type: 'reasoning',
-            status: 'completed',
-            data: { text: reasoning },
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          })
-        }
+        await recordProviderUsage(context, input.textItemID, usage)
       },
       visualizationPreview: async (context, preview) => {
         await this.publish(
@@ -1238,7 +1293,7 @@ export class AgentRuntimeService implements AgentRuntime {
       },
       toolStarted: async (context, input) => {
         const timestamp = Date.now()
-        const timelineInput = piToolTimelineInput(input.tool, input.input)
+        const timelineInput = toolTimelineInput(input.tool, input.input)
         const command = commandFromInput(timelineInput)
         const integrationSource = integrationSourceFor(toolCatalog, input.tool)
         const item: Item = {
@@ -1288,7 +1343,7 @@ export class AgentRuntimeService implements AgentRuntime {
             context.threadID,
             context.turnID,
             'tool/outputDelta',
-            piItemDeltaPayload({
+            itemDeltaPayload({
               itemID: input.toolCallID,
               context,
               delta: outputDelta(input.update),
@@ -1315,11 +1370,11 @@ export class AgentRuntimeService implements AgentRuntime {
         this.options.db.transaction(() => {
           storage.flush()
           if (pending) {
-            if (pending.piBoundary) {
-              this.turnPiBoundaries.upsert({
+            if (pending.sessionBoundary) {
+              this.turnSessionBoundaries.upsert({
                 turnID: context.turnID,
-                sessionID: pending.piBoundary.sessionID,
-                entryID: pending.piBoundary.entryID,
+                sessionID: pending.sessionBoundary.sessionID,
+                entryID: pending.sessionBoundary.entryID,
               })
             }
             for (const item of pending.items.values()) {
@@ -1350,9 +1405,9 @@ export class AgentRuntimeService implements AgentRuntime {
         for (const event of durable) await this.publish(event)
       },
       compacted: async (context, input) => {
-        const piEntry = await session.getEntry(input.entryID)
-        if (!piEntry || piEntry.type !== 'compaction') {
-          throw new Error(`Pi compaction entry ${input.entryID} 不存在`)
+        const sessionEntry = await session.getEntry(input.entryID)
+        if (!sessionEntry || sessionEntry.type !== 'compaction') {
+          throw new Error(`compaction entry ${input.entryID} 不存在`)
         }
         const afterContext = await session.buildContext()
         let completed!: ReturnType<ContextCompactionService['complete']>
@@ -1362,7 +1417,7 @@ export class AgentRuntimeService implements AgentRuntime {
             threadID: context.threadID,
             turnID: context.turnID,
             sessionID,
-            piEntry,
+            sessionEntry,
             summary: input.summary,
             firstKeptEntryID: input.firstKeptEntryID,
             beforeCount: input.beforeCount,
@@ -1481,13 +1536,13 @@ export class AgentRuntimeService implements AgentRuntime {
   async run(request: AgentRuntimeRequest) {
     this.options.memoryManager?.notifyTurnStarted()
     // Serialized OpenAI RunState cannot be replayed safely. Continue only from
-    // durable Pi session context; side effects remain protected by toolCallID.
+    // durable session context; side effects remain protected by toolCallID.
     const resolved = await request.resolveModel(request.fallbackModel)
     let effectivePermissionConfig = resolveEffectivePermissionConfig(
       request.taskMode,
       request.permissionConfig,
     )
-    const model = resolved.model as unknown as PiModel<Api>
+    const model = resolved.model as unknown as RuntimeModel<Api>
     let session
     try {
       session = await this.repo.openForThread(request.sessionID, request.threadID)
@@ -1499,7 +1554,7 @@ export class AgentRuntimeService implements AgentRuntime {
         agentID: request.agentID,
       })
     }
-    const storage = session.getStorage() as SqlitePiSessionStorage
+    const storage = session.getStorage() as SqliteSessionStorage
     // Freeze a durable runtime composition before any provider sample. The same
     // product turn always rebinds the persisted snapshot (pause/resume); a new
     // product turn recomposes. Missing storage falls back to fresh ephemeral and
@@ -1670,7 +1725,7 @@ export class AgentRuntimeService implements AgentRuntime {
           !toolCall ||
           toolCall.type !== 'toolCall'
         )
-          throw new Error('Pi checkpoint 中找不到待恢复的 tool call')
+          throw new Error('checkpoint 中找不到待恢复的 tool call')
         if (toolCallRuns) {
           const callEntries = Object.entries(toolCallRuns)
           const pendingCalls = callEntries.filter(
@@ -1691,7 +1746,7 @@ export class AgentRuntimeService implements AgentRuntime {
                   message.toolCallId in toolCallRuns ||
                   (message.details as { __piPause?: boolean } | undefined)?.__piPause === true ||
                   (message.isError &&
-                    piToolResultText(message, { tool: message.toolName }) === '等待用户审批')
+                    toolResultText(message, { tool: message.toolName }) === '等待用户审批')
                 )
                   return []
                 return [[message.toolCallId, message] as const]
@@ -1827,7 +1882,7 @@ export class AgentRuntimeService implements AgentRuntime {
                   message.toolCallId === request.resume!.toolCallID ||
                   (message.details as { __piPause?: boolean } | undefined)?.__piPause === true ||
                   (message.isError &&
-                    piToolResultText(message, { tool: message.toolName }) === '等待用户审批')
+                    toolResultText(message, { tool: message.toolName }) === '等待用户审批')
                 )
                   return []
                 return [[message.toolCallId, message] as const]
@@ -1955,10 +2010,10 @@ export class AgentRuntimeService implements AgentRuntime {
                   resumedDefinition?.auditResult?.(resolution) ?? formattedResult.details,
                 )
                 resolutionText =
-                  piToolResultText(formattedResult, { tool: toolCall.name }) ||
+                  toolResultText(formattedResult, { tool: toolCall.name }) ||
                   '工具执行完成（无输出）'
                 resolutionContent = formattedResult.content ?? null
-                const projected = piToolResultBlocks(formattedResult)
+                const projected = toolResultBlocks(formattedResult)
                 if (projected.artifacts.length > 0) {
                   resumedResultBlocks = projected.blocks
                   resumedArtifacts = projected.artifacts
@@ -2094,6 +2149,24 @@ export class AgentRuntimeService implements AgentRuntime {
         })
       }
       const runtimeOptions: HarnessRuntimeOptions = {
+        readMediaAttachment: async (reference) => {
+          const source = this.options.db.inputAdmission(reference.inputId)
+          if (source?.thread_id !== request.threadID || !this.options.attachments) return undefined
+          const stored = await this.options.attachments
+            .read(reference.attachmentId)
+            .catch(() => undefined)
+          if (!stored) return undefined
+          const { record } = stored
+          if (
+            record.binding?.type !== 'input' ||
+            record.binding.id !== reference.inputId ||
+            record.kind !== reference.kind ||
+            record.mimeType !== reference.mimeType ||
+            stored.data.byteLength !== reference.sizeBytes
+          )
+            return undefined
+          return stored.data
+        },
         activated: (threadID, active) => this.active.set(threadID, active),
         ...(request.onRuntimeReady ? { onRuntimeReady: request.onRuntimeReady } : {}),
         toolExecutor: this.options.toolExecutor,
@@ -2114,8 +2187,10 @@ export class AgentRuntimeService implements AgentRuntime {
           request.onUsage,
           () => contextUsageBreakdown,
         ),
+        hasCommittedToolResult: (toolCallID) =>
+          this.options.db.hasPersistedToolResult(request.turnID, toolCallID),
         beforeToolCall: async (_runtimeRequest, input) => {
-          if ((PI_LIFECYCLE_TOOLS as readonly string[]).includes(input.tool)) return undefined
+          if ((LIFECYCLE_TOOLS as readonly string[]).includes(input.tool)) return undefined
           const decision = await this.options.toolExecutor.previewApproval(
             input.tool,
             input.input,
@@ -2672,7 +2747,7 @@ export class AgentRuntimeService implements AgentRuntime {
         },
       }
       const resumedContent = request.resume
-        ? `<interaction_resolution toolCallId=${JSON.stringify(request.resume.toolCallID ?? 'unknown')}>${JSON.stringify({ answer: request.resume.answer, decision: request.resume.decision ?? null })}</interaction_resolution>\nContinue the restored Pi session using the result for that toolCallId. Do not repeat that ID or bypass denial with another tool or equivalent command. A later explicit user request to rerun the command is a new call requiring a new toolCallId and fresh authorization; it cannot reuse a one-time approval. Apply user-requested adjustments.`
+        ? `<interaction_resolution toolCallId=${JSON.stringify(request.resume.toolCallID ?? 'unknown')}>${JSON.stringify({ answer: request.resume.answer, decision: request.resume.decision ?? null })}</interaction_resolution>\nContinue the restored session using the result for that toolCallId. Do not repeat that ID or bypass denial with another tool or equivalent command. A later explicit user request to rerun the command is a new call requiring a new toolCallId and fresh authorization; it cannot reuse a one-time approval. Apply user-requested adjustments.`
         : undefined
       const threadLimit = this.options.db.repositories.threads.getThreadSettings(
         request.threadID,
@@ -2689,6 +2764,7 @@ export class AgentRuntimeService implements AgentRuntime {
           agentID: request.agentID,
           sessionID: request.sessionID,
           ...(request.profile ? { profile: request.profile } : {}),
+          ...(request.waitForModelNetwork ? { waitForModelNetwork: true } : {}),
           content: request.content,
           ...(resumedContent ? { resumedContent } : {}),
           taskMode: request.taskMode,
@@ -2936,17 +3012,17 @@ export class AgentRuntimeService implements AgentRuntime {
     if (runtime) {
       await runtime.harness.compact(instructions, signal, undefined, undefined, maxContextTokens)
       const completed = this.completedCompactions.get(threadID)
-      if (!completed) throw new Error('Pi 压缩完成但缺少产品压缩记录')
+      if (!completed) throw new Error('压缩完成但缺少产品压缩记录')
       return completed
     }
     const row = this.options.db.repositories.context.latestSession(threadID)
-    if (!row) throw new Error('Pi session 不存在，无法执行手动压缩')
+    if (!row) throw new Error('session 不存在，无法执行手动压缩')
     const ref = JSON.parse(row.model_ref) as { providerID: string; id: string }
     const model = this.options.models.getModel(ref.providerID, ref.id)
-    if (!model) throw new Error(`Pi 模型 ${ref.providerID}/${ref.id} 不可用`)
+    if (!model) throw new Error(`模型 ${ref.providerID}/${ref.id} 不可用`)
     const frozen = this.options.db.repositories.runtimeCompositions.get(row.turn_id)?.snapshot
     const session = await this.repo.openForThread(row.session_id, threadID)
-    const storage = session.getStorage() as SqlitePiSessionStorage
+    const storage = session.getStorage() as SqliteSessionStorage
     const harness = new AgentHarness({
       session,
       models: this.options.models,
@@ -2963,9 +3039,9 @@ export class AgentRuntimeService implements AgentRuntime {
       this.options.contextCompaction.state(threadID).budget?.fixedTokens,
     )
     const entryID = await storage.getLeafId()
-    const piEntry = entryID ? await session.getEntry(entryID) : undefined
-    if (!piEntry || piEntry.type !== 'compaction') {
-      throw new Error('Pi 压缩完成但未生成 compaction entry')
+    const sessionEntry = entryID ? await session.getEntry(entryID) : undefined
+    if (!sessionEntry || sessionEntry.type !== 'compaction') {
+      throw new Error('压缩完成但未生成 compaction entry')
     }
     const afterContext = await session.buildContext()
     let completed!: ReturnType<ContextCompactionService['complete']>
@@ -2975,7 +3051,7 @@ export class AgentRuntimeService implements AgentRuntime {
         threadID,
         turnID: null,
         sessionID: row.session_id,
-        piEntry,
+        sessionEntry,
         summary: result.summary,
         firstKeptEntryID: result.firstKeptEntryId ?? null,
         beforeCount,
@@ -3003,10 +3079,10 @@ export class AgentRuntimeService implements AgentRuntime {
     content: string,
     images?: import('@earendil-works/pi-ai').ImageContent[],
     inputID?: string,
-    media?: import('../provider/pi/MediaInput').MediaInput[],
+    media?: import('../provider/runtime/MediaInput').MediaInput[],
   ) {
     const runtime = this.active.get(threadID)
-    if (!runtime) throw new Error('Pi Harness 尚未启动')
+    if (!runtime) throw new Error('Harness 尚未启动')
     await runtime.harness.steer(content, {
       ...(images ? { images } : {}),
       ...(media ? { media } : {}),
@@ -3016,7 +3092,7 @@ export class AgentRuntimeService implements AgentRuntime {
 
   async followUp(threadID: string, content: string) {
     const runtime = this.active.get(threadID)
-    if (!runtime) throw new Error('Pi Harness 尚未启动')
+    if (!runtime) throw new Error('Harness 尚未启动')
     await runtime.harness.followUp(content)
   }
 

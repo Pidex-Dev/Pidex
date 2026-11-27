@@ -12,6 +12,7 @@ export function createThreadAttachmentPreviewTab(
   if (
     attachment.kind !== 'image' &&
     attachment.kind !== 'text' &&
+    attachment.kind !== 'pdf' &&
     !isMediaPreviewKind(attachment.kind)
   )
     return null
@@ -32,7 +33,7 @@ export function createThreadAttachmentPreviewTab(
 export function createDraftAttachmentPreviewTab(
   attachment: DesktopComposerAttachment,
 ): UserAttachmentPreviewTab | null {
-  if (attachment.storage === 'local-path' && attachment.localGrantId) {
+  if (attachment.localGrantId && attachment.status === 'ready') {
     return {
       id: 'user-attachment-preview',
       kind: 'attachment-preview',
@@ -41,7 +42,10 @@ export function createDraftAttachmentPreviewTab(
         kind:
           attachment.pathKind === 'directory'
             ? 'directory'
-            : attachment.kind === 'image' || attachment.kind === 'text'
+            : attachment.kind === 'image' ||
+                attachment.kind === 'text' ||
+                attachment.kind === 'pdf' ||
+                attachment.kind === 'video'
               ? attachment.kind
               : 'binary',
         name: attachment.name,
@@ -116,7 +120,7 @@ export function canPreviewDraftAttachment(attachment: DesktopComposerAttachment)
 
 function createDraftTab(
   attachment: DesktopComposerAttachment,
-  kind: 'image' | 'text' | 'video' | 'audio',
+  kind: 'image' | 'text' | 'video' | 'audio' | 'pdf',
   data: string,
   encoding: 'base64' | 'utf8',
 ): UserAttachmentPreviewTab {

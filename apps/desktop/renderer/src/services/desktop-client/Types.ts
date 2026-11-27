@@ -57,9 +57,6 @@ type DesktopClientWindow = {
     pickWorkspaceDirectories?(): Promise<string[]>
     getAppearanceSettings?(): Promise<DesktopThemeSettings>
     saveAppearanceSettings?(settings: DesktopThemeSettings): Promise<void>
-    canRestorePreviousAppearance?(): Promise<boolean>
-    restorePreviousAppearance?(): Promise<DesktopThemeSettings>
-    applyNewDesignTheme?(): Promise<DesktopThemeSettings>
     getDesktopSettings?(): Promise<DesktopStoredSettings>
     saveDesktopSettings?(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
     onDesktopSettingsChange?(
@@ -620,7 +617,10 @@ export type DesktopAttachmentApi = {
   chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
   grantComposerFilePaths(filePaths: string[]): Promise<DesktopComposerAttachment[]>
   getComposerFilePath(file: File): string
-  readAttachment(attachmentId: string): Promise<RpcResult<'attachment/read'>>
+  readAttachment(
+    attachmentId: string,
+    range?: RpcParams<'attachment/read'>['range'],
+  ): Promise<RpcResult<'attachment/read'>>
   readArtifact(threadId: string, artifactId: string): Promise<RpcResult<'artifact/read'>>
   submitVisualizationFollowUp(
     input: RpcParams<'visualization/submitFollowUp'>,

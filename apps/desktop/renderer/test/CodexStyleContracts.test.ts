@@ -961,7 +961,6 @@ describe('UI-Design native floating behavior', () => {
     expect(dropdown).toContain("useControllableState(searchValue, '', onSearchValueChange)")
     expect(dropdown).toContain('role="status"')
     expect(dropdown).toContain('data-align={actualAlign}')
-    expect(menus).toContain('next ? 120 : 140')
     expect(menus).toContain('sub.triggerRef.current?.focus()')
     expect(menus).toContain('data-align={actualAlign}')
     expect(menus).toContain('data-align={placement.align}')

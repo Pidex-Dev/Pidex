@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type {
   Api,
   AssistantMessage,
-  Model as PiModel,
+  Model as RuntimeModel,
   SimpleStreamOptions,
   TranscriptContext,
 } from '@earendil-works/pi-ai'
@@ -13,26 +13,26 @@ import {
   ProtocolDetectionService,
 } from '../src/provider/ProtocolDetectionService'
 import {
-  PiTransientProbe,
+  TransientProbe,
   TRANSIENT_PROBE_PROVIDER_ID,
   type TransientProbeStream,
-} from '../src/provider/PiTransientProbe'
+} from '../src/provider/TransientProbe'
 import {
   PROTOCOL_DETECTION_APIS,
   TRANSIENT_NO_AUTH_API_KEY,
   normalizeProtocolBaseUrl,
 } from '../src/provider/ProviderProtocolUrl'
-import type { PiModelService, PiProviderDefinitionInput } from '../src/provider/pi'
-import type { CustomProviderApi } from '../src/provider/pi/PiProviderConfig'
+import type { ModelService, ProviderDefinitionInput } from '../src/provider/runtime'
+import type { CustomProviderApi } from '../src/provider/runtime/ProviderConfig'
 
 type StreamHandler = (
-  model: PiModel<Api>,
+  model: RuntimeModel<Api>,
   context: TranscriptContext,
   options: SimpleStreamOptions,
 ) => TransientProbeStream
 
 type ProbeCall = {
-  model: PiModel<Api>
+  model: RuntimeModel<Api>
   context: TranscriptContext
   options: SimpleStreamOptions
 }
@@ -70,7 +70,7 @@ const customDefinition = (
     enabled?: boolean
     modelType?: 'chat' | 'embedding' | 'rerank'
   }>,
-): PiProviderDefinitionInput => ({
+): ProviderDefinitionInput => ({
   kind: 'custom',
   id: 'demo',
   name: 'Demo',
@@ -90,10 +90,11 @@ const customDefinition = (
 
 type HarnessOptions = {
   readonly providers?: ReadonlyArray<{ id: string; disabled?: boolean }>
-  readonly definitions?: readonly PiProviderDefinitionInput[]
+  readonly definitions?: readonly ProviderDefinitionInput[]
   readonly models?: (providerID: Provider.ID) => Promise<readonly Model.Info[]>
   readonly catalog?: unknown
   readonly auth?: (providerID: string) => Promise<unknown>
+  readonly draftProtocolProblem?: ModelService['draftProtocolProblem']
   readonly stream?: StreamHandler
   readonly requestTimeoutMs?: number
 }
@@ -101,7 +102,7 @@ type HarnessOptions = {
 const makeHarness = (options: HarnessOptions = {}) => {
   const calls: ProbeCall[] = []
   const mutations: string[] = []
-  const piModels = {
+  const runtimeModels = {
     list: async () =>
       (options.providers ?? [{ id: 'demo' }]).map((provider) => ({
         id: Provider.ID.make(provider.id),
@@ -111,7 +112,8 @@ const makeHarness = (options: HarnessOptions = {}) => {
       options.models ? await options.models(providerID) : [],
     providerDefinitions: async () => options.definitions ?? [],
     catalogConfig: async () => options.catalog ?? { schemaVersion: 2, providers: {}, issues: [] },
-    pi: {
+    draftProtocolProblem: options.draftProtocolProblem ?? (async () => undefined),
+    registry: {
       getAuth: async (providerID: string) =>
         options.auth ? await options.auth(providerID) : undefined,
       // Any mutation of the global registry would be a draft leak.
@@ -122,14 +124,14 @@ const makeHarness = (options: HarnessOptions = {}) => {
         mutations.push('deleteProvider')
       },
     },
-  } as unknown as PiModelService
-  const probe = new PiTransientProbe({
+  } as unknown as ModelService
+  const probe = new TransientProbe({
     streamSimple: (model, context, streamOptions) => {
       calls.push({ model, context, options: streamOptions })
       return (options.stream ?? (() => okStream()))(model, context, streamOptions)
     },
   })
-  const service = new ProtocolDetectionService(piModels, {
+  const service = new ProtocolDetectionService(runtimeModels, {
     probe,
     ...(options.requestTimeoutMs !== undefined
       ? { requestTimeoutMs: options.requestTimeoutMs }
@@ -145,6 +147,24 @@ const singleInput = (
   draft,
   batch: false,
   ...extra,
+})
+
+test('协议检测在发送前过滤模型不支持的协议', async () => {
+  const message = '该模型当前仅支持 openai-completions'
+  const { service, calls } = makeHarness({
+    draftProtocolProblem: async (_modelId, api) =>
+      api === 'openai-completions' ? undefined : message,
+  })
+  const result = await service.detect(
+    singleInput(
+      { baseUrl: 'https://api.moonshot.ai/v1', auth: 'none' },
+      { model: 'kimi-k2.7-code' },
+    ),
+  )
+  expect(calls.map(({ model }) => model.api)).toEqual(['openai-completions'])
+  expect(
+    result.models[0]?.cells.find(({ protocol }) => protocol === 'anthropic-messages'),
+  ).toMatchObject({ status: 'failed', category: 'configuration', message })
 })
 
 describe('ProviderProtocolUrl 规范化', () => {
@@ -711,9 +731,12 @@ describe('ProtocolDetectionService', () => {
       },
     })
     try {
-      const service = new ProtocolDetectionService({} as unknown as PiModelService, {
-        requestTimeoutMs: 5_000,
-      })
+      const service = new ProtocolDetectionService(
+        { draftProtocolProblem: async () => undefined } as unknown as ModelService,
+        {
+          requestTimeoutMs: 5_000,
+        },
+      )
       const success = await service.detect(
         singleInput(
           {

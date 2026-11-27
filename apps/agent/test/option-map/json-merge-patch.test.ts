@@ -1,6 +1,4 @@
-// Ported from ZCode `packages/model-option-map/test/json-merge-patch.test.ts`
-// (Apache-2.0, upstream revision 3c5b227649371507ddc4eb46ac5133afe6db1cab).
-// Adapted to bun:test and CodePilotX relative imports; see ../.. src option-map NOTICE.md.
+// Apache-2.0. See third_party/zcode/UPSTREAM.md for sources and modifications.
 
 import { describe, expect, it } from 'bun:test'
 import {
@@ -8,7 +6,7 @@ import {
   applyOrderedJsonMergePatches,
   compileModelOptionMaps,
   type NamedJsonMergePatch,
-} from '../../src/provider/pi/option-map'
+} from '../../src/provider/runtime/option-map'
 
 describe('ordered JSON Merge Patch', () => {
   it('compiles once and applies reasoning before max output', () => {

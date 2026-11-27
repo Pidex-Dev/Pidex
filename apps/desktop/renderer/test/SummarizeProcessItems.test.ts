@@ -207,6 +207,32 @@ describe('summarizeTurnProcessItems', () => {
     })
   })
 
+  test('switches active group summary to between-tools thinking when all tools settled', () => {
+    const result = summarizeTurnProcessItems(
+      [
+        toolItem({ state: 'completed' }, 'command-1'),
+        toolItem(
+          {
+            activity: { type: 'read', subject: 'file', target: { displayLabel: 'src/foo.ts' } },
+            command: null,
+            state: 'completed',
+            tool: 'Read',
+          },
+          'read-1',
+        ),
+      ],
+      'running',
+    )
+
+    expect(result).toMatchObject({
+      active: true,
+      betweenTools: true,
+      failed: false,
+      kind: 'thinking',
+      label: '正在思考',
+    })
+  })
+
   test('promotes child failures to the group state', () => {
     expect(
       summarizeTurnProcessItems(

@@ -5,7 +5,7 @@ import { ModelDocumentService } from '../../../provider/ModelDocumentService'
 import { Schema } from 'effect'
 import { ModelSpecRepairRpcMethods, RecommendationPreviewParams } from '@pidex/agent-protocol'
 import { AgentError } from '../../../Domain'
-import { ModelSpecRepairService } from '../../../provider/pi/ModelSpecRepairService'
+import { ModelSpecRepairService } from '../../../provider/runtime/ModelSpecRepairService'
 import type { RpcHandlerGroup } from './Types'
 
 const documents = new ModelDocumentService()
@@ -37,7 +37,7 @@ export const modelRecommendationHandlers = {
         const input = Schema.decodeUnknownSync(
           ModelDocumentRpcMethods['model/pricing/refresh'].params,
         )(rawParams)
-        const status = await runtime.dependencies.piModels.refreshModelPricing(
+        const status = await runtime.dependencies.runtimeModels.refreshModelPricing(
           input.force ?? true,
           input.year,
         )
@@ -75,17 +75,17 @@ export const modelRecommendationHandlers = {
         return await documents.extract(
           { ...input, extractor },
           context.connectionId ?? '',
-          runtime.dependencies.piModels,
+          runtime.dependencies.runtimeModels,
         )
       }
 
       if (method === 'model/recommendation/preview') {
         const input = Schema.decodeUnknownSync(RecommendationPreviewParams)(rawParams)
-        return await runtime.dependencies.piModels.previewRecommendation(input)
+        return await runtime.dependencies.runtimeModels.previewRecommendation(input)
       }
       if (method === 'provider/model/specs/preview' || method === 'provider/model/specs/apply') {
         const repair = new ModelSpecRepairService(
-          runtime.dependencies.piModels,
+          runtime.dependencies.runtimeModels,
           runtime.dependencies.config,
         )
         if (method === 'provider/model/specs/preview') {
@@ -99,7 +99,7 @@ export const modelRecommendationHandlers = {
         await runtime.publishCatalogUpdated()
         return result
       }
-      const result = await runtime.dependencies.piModels.refreshRecommendations()
+      const result = await runtime.dependencies.runtimeModels.refreshRecommendations()
       // 推荐目录更新会改变已保存智能模型的生效值，推一次目录更新让 UI 重新拉取。
       await runtime.publishCatalogUpdated(false).catch(() => undefined)
       return result

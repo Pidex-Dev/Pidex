@@ -34,6 +34,7 @@ describe('legacy Agent data migration', () => {
       writeFile(join(source, 'history.sqlite-shm'), 'shm'),
       writeFile(join(source, 'models.cache.json'), 'models'),
       writeFile(join(source, 'pi-models.cache.json'), 'pi-models'),
+      writeFile(join(source, 'provider-models.cache.json'), 'provider-models'),
       writeFile(join(source, 'agent.pre-v17.sqlite'), 'backup'),
       writeFile(join(source, 'hooks.json'), 'project config'),
       writeFile(join(source, 'pets', 'old-pet', 'pet.json'), 'old pet'),
@@ -56,6 +57,7 @@ describe('legacy Agent data migration', () => {
     expect(await readText(join(target, 'history.sqlite-shm'))).toBe('shm')
     expect(await readText(join(target, 'models.cache.json'))).toBe('models')
     expect(await readText(join(target, 'pi-models.cache.json'))).toBe('pi-models')
+    expect(await readText(join(target, 'provider-models.cache.json'))).toBe('provider-models')
     expect(await readText(join(target, 'pets', 'old-pet', 'pet.json'))).toBe('old pet')
     expect(await readText(join(target, 'pets', 'same-pet', 'pet.json'))).toBe('current pet')
     expect(await readText(join(target, 'pets', 'codex-pet', 'pet.json'))).toBe('codex pet')
@@ -177,6 +179,7 @@ describe('active Agent data relocation', () => {
       writeFile(join(source, 'profile.sqlite'), 'profile'),
       writeFile(join(source, 'hooks.json'), '{}'),
       writeFile(join(source, 'pi-models.cache.json'), 'pi-models'),
+      writeFile(join(source, 'provider-models.cache.json'), 'provider-models'),
       writeFile(join(source, 'skills', 'demo', 'SKILL.md'), 'skill'),
       writeFile(join(source, 'tooling', 'nodejs', 'node.exe'), 'node'),
       writeFile(join(source, 'pets', 'pet', 'pet.json'), 'pet'),
@@ -194,6 +197,7 @@ describe('active Agent data relocation', () => {
     expect(await readText(join(target, 'profile.sqlite'))).toBe('profile')
     expect(await readText(join(target, 'hooks.json'))).toBe('{}')
     expect(await readText(join(target, 'pi-models.cache.json'))).toBe('pi-models')
+    expect(await readText(join(target, 'provider-models.cache.json'))).toBe('provider-models')
     expect(await readText(join(target, 'skills', 'demo', 'SKILL.md'))).toBe('skill')
     expect(await readText(join(target, 'tooling', 'nodejs', 'node.exe'))).toBe('node')
     expect(await readText(join(target, 'unowned.txt'))).toBeNull()

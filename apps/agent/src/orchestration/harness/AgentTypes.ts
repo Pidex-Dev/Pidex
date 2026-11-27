@@ -14,22 +14,26 @@ import type {
   Usage,
 } from '@earendil-works/pi-ai'
 import type { Static, TSchema } from 'typebox'
+import type { ModelRecoveryState } from '@pidex/shared/thread'
+import type { ModelAttempt } from './ModelAttempt'
 
 /**
- * Stream function used by the agent loop. `Models.streamSimple` satisfies
- * this shape.
- *
- * Contract:
- * - Must not throw or return a rejected promise for request/model/runtime failures.
- * - Must return an AssistantMessageEventStream.
- * - Failures must be encoded in the returned stream via protocol events and a
- *   final AssistantMessage with stopReason "error" or "aborted" and errorMessage.
+ * Prepares inputs that remain fixed across all provider attempts for a model step.
  */
-export type StreamFn = (
+export type PrepareModelStep = (
   model: Model<Api>,
   context: Context,
-  options?: SimpleStreamOptions,
-) => AssistantMessageEventStream | Promise<AssistantMessageEventStream>
+  config: AgentLoopConfig,
+  signal?: AbortSignal,
+) => Promise<{
+  stream(
+    attempt: ModelAttempt,
+    apiKey?: string,
+  ): AssistantMessageEventStream | Promise<AssistantMessageEventStream>
+  retry?: 'bounded' | 'wait-for-network'
+  knownEndpoint?: () => boolean
+  rememberEndpoint?: () => void
+}>
 
 /**
  * Configuration for how tool calls from a single assistant message are executed.
@@ -215,6 +219,7 @@ export interface AgentLoopConfig extends SimpleStreamOptions {
    * Contract: must not throw or reject. Return undefined when no key is available.
    */
   getApiKey?: (provider: string) => Promise<string | undefined> | string | undefined
+  hasCommittedToolResult?: (toolCallID: string) => boolean
 
   /**
    * Called after each turn fully completes and `turn_end` has been emitted.
@@ -466,6 +471,13 @@ export type AgentEvent =
   // Only emitted for assistant messages during streaming
   | { type: 'message_update'; message: AgentMessage; assistantMessageEvent: AssistantMessageEvent }
   | { type: 'message_end'; message: AgentMessage }
+  | {
+      type: 'model_recovery'
+      state: ModelRecoveryState | null
+      discardOutput?: boolean
+      usage?: Usage
+      retryAt?: number
+    }
   // Tool execution lifecycle
   | { type: 'tool_execution_start'; toolCallId: string; toolName: string; args: any }
   | {

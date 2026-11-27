@@ -1,5 +1,8 @@
 import { useMediaViewer } from '../attachments/MediaViewerContext.js'
-import { createDraftAttachmentPreviewTab } from '../attachments/AttachmentPreviewDescriptor.js'
+import {
+  canPreviewDraftAttachment,
+  createDraftAttachmentPreviewTab,
+} from '../attachments/AttachmentPreviewDescriptor.js'
 import { isMediaPreviewKind } from '../attachments/AttachmentPreviewSupport.js'
 import {
   APP_ICON_SIZES,
@@ -9,7 +12,6 @@ import {
 import React from 'react'
 import type { DesktopComposerAttachment } from '../../../../shared/Types.js'
 import { cx } from '../../../utils/Cx.js'
-import { resolveDraftAttachmentPreviewContent } from '../attachments/AttachmentPreviewSupport.js'
 import {
   AlertCircle,
   Box,
@@ -165,7 +167,7 @@ export function ComposerAttachmentTray({
   return (
     <div aria-label="已添加附件" className={TRAY_CLASS}>
       {attachments.map((attachment) => {
-        const previewable = resolveDraftAttachmentPreviewContent(attachment) !== null
+        const previewable = canPreviewDraftAttachment(attachment)
         const isImage = attachment.kind === 'image'
         const imgSrc =
           attachment.previewDataUrl ||
@@ -273,7 +275,14 @@ export function ComposerAttachmentTray({
                 </button>
               )}
             </div>
-            <span className={ATTACHMENT_NAME_CLASS}>{attachment.name}</span>
+            <span className={ATTACHMENT_NAME_CLASS}>
+              {attachment.name}
+              {attachment.storage === 'local-path' &&
+              attachment.pathKind === 'file' &&
+              (attachment.kind === 'pdf' || attachment.kind === 'video')
+                ? ' · 引用'
+                : ''}
+            </span>
           </div>
         )
       })}

@@ -1,3 +1,4 @@
+import { inputAttachmentRows } from '../storage/repositories/InputAttachmentRepository'
 import { QueuedGoalRepository } from '../storage/repositories/QueuedGoalRepository'
 import { createPromptCacheKey } from '../prompt/PromptCache'
 import {
@@ -586,10 +587,15 @@ export class ThreadProjection {
     )
   }
 
-  private projectInput(row: Record<string, string | number | null>): Input {
+  private projectInput(
+    row: Record<string, string | number | null>,
+    includePdfAttachments: boolean,
+  ): Input {
     const attachmentIds = (
       this.db.sqlite
-        .query('SELECT id FROM input_attachments WHERE input_id = ? ORDER BY created_at, id')
+        .query(
+          `SELECT id FROM ${inputAttachmentRows(this.db.sqlite, includePdfAttachments)} WHERE input_id = ? ORDER BY created_at, id`,
+        )
         .all(String(row.id)) as Array<{ id: string }>
     ).map(({ id }) => id)
     const contextReferenceIds = (
@@ -626,15 +632,21 @@ export class ThreadProjection {
     row: Record<string, string | number | null>,
     inputs: Input[],
     status = String(row.status),
+    includeCurrentModelRecovery = false,
   ): Turn {
     const startedAt = row.started_at == null ? null : Number(row.started_at)
     const finishedAt = row.finished_at == null ? null : Number(row.finished_at)
     const turnError = status === 'failed' ? this.turnErrorForRow(row) : null
+    const modelRecovery =
+      includeCurrentModelRecovery && status === 'running'
+        ? this.db.modelRecoveryForTurn(String(row.thread_id), String(row.id))
+        : undefined
     return {
       id: String(row.id),
       threadId: String(row.thread_id),
       sourceInputID: inputs[0]?.id ?? '',
       status: turnStatus(status),
+      ...(modelRecovery ? { modelRecovery } : {}),
       mode: decodeStoredTaskMode(row.mode),
       model: parse(String(row.model_ref)),
       permissionConfig: projectPermissionConfig(row),
@@ -663,6 +675,7 @@ export class ThreadProjection {
   private lifecyclePayload(
     event: EventEnvelope,
     source: Record<string, unknown>,
+    includePdfAttachments: boolean,
   ): Record<string, unknown> | null {
     if (
       !event.method.startsWith('turn/') ||
@@ -696,7 +709,7 @@ export class ThreadProjection {
     `,
       )
       .all(turnID) as Array<Record<string, string | number | null>>
-    const inputs = inputRows.map((row) => this.projectInput(row))
+    const inputs = inputRows.map((row) => this.projectInput(row, includePdfAttachments))
     const eventStatus =
       event.method === 'turn/queued'
         ? 'queued'
@@ -789,12 +802,12 @@ export class ThreadProjection {
     }
   }
 
-  snapshot(threadId: string): ThreadSnapshot | null {
+  snapshot(threadId: string, includePdfAttachments = true): ThreadSnapshot | null {
     const thread = this.projectThread(threadId)
     if (!thread) return null
     const attachmentRows = this.db.sqlite
       .query(
-        'SELECT id, input_id FROM input_attachments WHERE thread_id = ? AND input_id IS NOT NULL ORDER BY created_at, id',
+        `SELECT id, input_id FROM ${inputAttachmentRows(this.db.sqlite, includePdfAttachments)} WHERE thread_id = ? AND input_id IS NOT NULL ORDER BY created_at, id`,
       )
       .all(threadId) as Array<{ id: string; input_id: string }>
     const attachmentIDsByInput = new Map<string, string[]>()
@@ -860,32 +873,14 @@ export class ThreadProjection {
           "SELECT id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, queue_position, started_at, finished_at, created_at FROM turns WHERE thread_id = ? ORDER BY CASE WHEN status = 'queued' THEN 1 ELSE 0 END, CASE WHEN status = 'queued' THEN queue_position END, created_at, id",
         )
         .all(threadId) as Array<Record<string, string | number | null>>
-    ).map((row): Turn => {
-      const turnInputs = inputs.filter((input) => input.turnId === row.id)
-      const startedAt = row.started_at == null ? null : Number(row.started_at)
-      const finishedAt = row.finished_at == null ? null : Number(row.finished_at)
-      const turnStatusStr = String(row.status)
-      const turnError = turnStatusStr === 'failed' ? this.turnErrorForRow(row) : null
-      return {
-        id: String(row.id),
-        threadId: String(row.thread_id),
-        sourceInputID: turnInputs[0]?.id ?? '',
-        status: turnStatus(turnStatusStr),
-        mode: decodeStoredTaskMode(row.mode),
-        model: parse(String(row.model_ref)),
-        permissionConfig: projectPermissionConfig(row),
-        rootAgentId: String(row.root_agent_id),
-        mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
-        queuePosition: row.queue_position == null ? null : Number(row.queue_position),
-        startedAt,
-        finishedAt,
-        elapsedSeconds:
-          startedAt == null
-            ? 0
-            : Math.max(0, Math.floor(((finishedAt ?? Date.now()) - startedAt) / 1000)),
-        error: turnError,
-      }
-    })
+    ).map((row) =>
+      this.projectTurn(
+        row,
+        inputs.filter((input) => input.turnId === row.id),
+        undefined,
+        true,
+      ),
+    )
     const agents = (
       this.db.sqlite
         .query(
@@ -906,27 +901,29 @@ export class ThreadProjection {
       role: String(row.role) as Message['role'],
       createdAt: Number(row.created_at),
     }))
-    const items = (
-      this.db.sqlite
-        .query(
-          'SELECT id, turn_id, agent_id, type, status, data, ordinal, created_at, updated_at FROM items WHERE thread_id = ? ORDER BY ordinal, created_at, id',
-        )
-        .all(threadId) as Array<Record<string, string | number | null>>
-    )
-      .map((row) =>
-        this.item({
-          id: String(row.id),
-          turnID: String(row.turn_id),
-          agentID: String(row.agent_id),
-          type: String(row.type) as StoredItem['type'],
-          status: String(row.status) as StoredItem['status'],
-          data: parse(String(row.data)),
-          ...(row.ordinal == null ? {} : { ordinal: Number(row.ordinal) }),
-          createdAt: Number(row.created_at),
-          updatedAt: Number(row.updated_at),
-        }),
+    const items = normalizeReasoningOrder(
+      (
+        this.db.sqlite
+          .query(
+            'SELECT id, turn_id, agent_id, type, status, data, ordinal, created_at, updated_at FROM items WHERE thread_id = ? ORDER BY ordinal, created_at, id',
+          )
+          .all(threadId) as Array<Record<string, string | number | null>>
       )
-      .filter((item): item is Item => item !== null)
+        .map((row) =>
+          this.item({
+            id: String(row.id),
+            turnID: String(row.turn_id),
+            agentID: String(row.agent_id),
+            type: String(row.type) as StoredItem['type'],
+            status: String(row.status) as StoredItem['status'],
+            data: parse(String(row.data)),
+            ...(row.ordinal == null ? {} : { ordinal: Number(row.ordinal) }),
+            createdAt: Number(row.created_at),
+            updatedAt: Number(row.updated_at),
+          }),
+        )
+        .filter((item): item is Item => item !== null),
+    )
     this.appendContextCompactions(threadId, turns, agents, items)
     const approvals = (
       this.db.sqlite
@@ -981,6 +978,7 @@ export class ThreadProjection {
   historyPage(
     threadId: string,
     params: { before?: string; limit?: number } = {},
+    includePdfAttachments = true,
   ): ThreadHistoryPage | null {
     const thread = this.projectThread(threadId)
     if (!thread) return null
@@ -1034,7 +1032,7 @@ export class ThreadProjection {
     const attachmentRows = inputIDs.length
       ? (this.db.sqlite
           .query(
-            `SELECT id, input_id, kind, name, media_type, size_bytes, sha256, created_at FROM input_attachments WHERE input_id IN (${inputPlaceholders}) ORDER BY created_at, id`,
+            `SELECT id, input_id, kind, name, media_type, size_bytes, sha256, created_at FROM ${inputAttachmentRows(this.db.sqlite, includePdfAttachments)} WHERE input_id IN (${inputPlaceholders}) ORDER BY created_at, id`,
           )
           .all(...inputIDs) as Array<Record<string, string | number | null>>)
       : []
@@ -1117,32 +1115,8 @@ export class ThreadProjection {
       if (!input.turnId) continue
       inputsByTurn.set(input.turnId, [...(inputsByTurn.get(input.turnId) ?? []), input])
     }
-    const mapTurn = (row: Record<string, string | number | null>): Turn => {
-      const turnInputs = inputsByTurn.get(String(row.id)) ?? []
-      const startedAt = row.started_at == null ? null : Number(row.started_at)
-      const finishedAt = row.finished_at == null ? null : Number(row.finished_at)
-      const turnStatusStr = String(row.status)
-      const turnError = turnStatusStr === 'failed' ? this.turnErrorForRow(row) : null
-      return {
-        id: String(row.id),
-        threadId: String(row.thread_id),
-        sourceInputID: turnInputs[0]?.id ?? '',
-        status: turnStatus(turnStatusStr),
-        mode: decodeStoredTaskMode(row.mode),
-        model: parse(String(row.model_ref)),
-        permissionConfig: projectPermissionConfig(row),
-        rootAgentId: String(row.root_agent_id),
-        mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
-        queuePosition: row.queue_position == null ? null : Number(row.queue_position),
-        startedAt,
-        finishedAt,
-        elapsedSeconds:
-          startedAt == null
-            ? 0
-            : Math.max(0, Math.floor(((finishedAt ?? Date.now()) - startedAt) / 1000)),
-        error: turnError,
-      }
-    }
+    const mapTurn = (row: Record<string, string | number | null>) =>
+      this.projectTurn(row, inputsByTurn.get(String(row.id)) ?? [], undefined, true)
 
     const selectedPlaceholders = selectedTurnIDs.map(() => '?').join(',')
     const agentRows = selectedTurnIDs.length
@@ -1174,21 +1148,23 @@ export class ThreadProjection {
           )
           .all(...selectedTurnIDs) as Array<Record<string, string | number | null>>)
       : []
-    const items = itemRows
-      .map((row) =>
-        this.item({
-          id: String(row.id),
-          turnID: String(row.turn_id),
-          agentID: String(row.agent_id),
-          type: String(row.type) as StoredItem['type'],
-          status: String(row.status) as StoredItem['status'],
-          data: parse(String(row.data)),
-          ...(row.ordinal == null ? {} : { ordinal: Number(row.ordinal) }),
-          createdAt: Number(row.created_at),
-          updatedAt: Number(row.updated_at),
-        }),
-      )
-      .filter((item): item is Item => item !== null)
+    const items = normalizeReasoningOrder(
+      itemRows
+        .map((row) =>
+          this.item({
+            id: String(row.id),
+            turnID: String(row.turn_id),
+            agentID: String(row.agent_id),
+            type: String(row.type) as StoredItem['type'],
+            status: String(row.status) as StoredItem['status'],
+            data: parse(String(row.data)),
+            ...(row.ordinal == null ? {} : { ordinal: Number(row.ordinal) }),
+            createdAt: Number(row.created_at),
+            updatedAt: Number(row.updated_at),
+          }),
+        )
+        .filter((item): item is Item => item !== null),
+    )
     const approvalRows = selectedTurnIDs.length
       ? (this.db.sqlite
           .query(
@@ -1869,6 +1845,7 @@ export class ThreadProjection {
   private projectEventPayload(
     event: EventEnvelope,
     source: Record<string, unknown>,
+    includePdfAttachments: boolean,
   ): Record<string, unknown> | null {
     const threadId =
       event.threadId ?? (typeof source.threadId === 'string' ? source.threadId : null)
@@ -1923,6 +1900,10 @@ export class ThreadProjection {
         turnId: String(source.turnId),
         status: String(source.status).replaceAll('_', '-'),
         changedAt: typeof source.changedAt === 'number' ? source.changedAt : event.createdAt,
+        ...(source.modelRecovery !== undefined ? { modelRecovery: source.modelRecovery } : {}),
+        ...(Array.isArray(source.discardedItemIds)
+          ? { discardedItemIds: source.discardedItemIds }
+          : {}),
         ...(source.reason
           ? { reason: String(source.reason) }
           : source.resumedFrom
@@ -1930,7 +1911,7 @@ export class ThreadProjection {
             : {}),
       }
     }
-    const lifecyclePayload = this.lifecyclePayload(event, source)
+    const lifecyclePayload = this.lifecyclePayload(event, source, includePdfAttachments)
     if (lifecyclePayload) return lifecyclePayload
 
     const storedItem =
@@ -1955,12 +1936,12 @@ export class ThreadProjection {
     }
   }
 
-  notification(event: EventEnvelope) {
+  notification(event: EventEnvelope, includePdfAttachments = true) {
     const source =
       event.params && typeof event.params === 'object'
         ? (event.params as Record<string, unknown>)
         : {}
-    const payload = this.projectEventPayload(event, source) ?? source
+    const payload = this.projectEventPayload(event, source, includePdfAttachments) ?? source
     const params: Record<string, unknown> = {
       ...payload,
       ...(event.threadId === null ? {} : { threadId: event.threadId }),
@@ -1977,4 +1958,76 @@ export class ThreadProjection {
       createdAt: event.createdAt,
     }
   }
+}
+
+const LEGACY_REASONING_SEGMENT = ':pi:reasoning:'
+
+const reasoningSegmentID = (item: Item): string | null => {
+  if (item.type !== 'reasoning') return null
+  const prefix = `${item.turnId}${LEGACY_REASONING_SEGMENT}`
+  if (!item.id.startsWith(prefix)) return null
+  const segmentID = item.id.slice(prefix.length)
+  return segmentID.length > 0 ? segmentID : null
+}
+
+// INVARIANT: Project legacy reasoning before its paired text so historical assistant results retain their classification.
+const normalizeReasoningOrder = (items: Item[]): Item[] => {
+  const byTurn = new Map<string, Item[]>()
+  for (const item of items) {
+    const bucket = byTurn.get(item.turnId)
+    if (bucket) bucket.push(item)
+    else byTurn.set(item.turnId, [item])
+  }
+
+  let changed = false
+  const normalizedByTurn = new Map<string, Item[]>()
+  for (const [turnId, turnItems] of byTurn) {
+    const reordered = [...turnItems]
+    let turnChanged = false
+    for (const item of turnItems) {
+      const segmentID = reasoningSegmentID(item)
+      if (!segmentID) continue
+      const textID = `${turnId}:pi:text:${segmentID}`
+      const textIndex = reordered.findIndex(
+        (candidate) => candidate.type === 'text' && candidate.id === textID,
+      )
+      const reasoningIndex = reordered.indexOf(item)
+      if (textIndex < 0 || reasoningIndex < 0 || reasoningIndex < textIndex) continue
+      const pairedText = reordered[textIndex]!
+      reordered.splice(reasoningIndex, 1)
+      reordered.splice(
+        textIndex,
+        0,
+        item.ordinal === undefined && item.createdAt >= pairedText.createdAt
+          ? { ...item, createdAt: pairedText.createdAt - 1 }
+          : item,
+      )
+      turnChanged = true
+    }
+    if (!turnChanged) continue
+    changed = true
+    const ordinals = turnItems
+      .map((item) => item.ordinal)
+      .filter((ordinal): ordinal is number => ordinal !== undefined)
+      .sort((left, right) => left - right)
+    let ordinalCursor = 0
+    normalizedByTurn.set(
+      turnId,
+      reordered.map((item) => {
+        if (item.ordinal === undefined || ordinalCursor >= ordinals.length) return item
+        const nextOrdinal = ordinals[ordinalCursor++]!
+        return item.ordinal === nextOrdinal ? item : { ...item, ordinal: nextOrdinal }
+      }),
+    )
+  }
+
+  if (!changed) return items
+  const cursors = new Map<string, number>()
+  return items.map((item) => {
+    const replacement = normalizedByTurn.get(item.turnId)
+    if (!replacement) return item
+    const index = cursors.get(item.turnId) ?? 0
+    cursors.set(item.turnId, index + 1)
+    return replacement[index] ?? item
+  })
 }

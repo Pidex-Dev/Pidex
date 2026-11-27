@@ -1,3 +1,4 @@
+import type { ModelRef } from '@pidex/shared'
 import type { ModelProviderID } from '../../../shared/Types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { isExecutableDesktopProvider } from '../../services/desktop-client/ProviderAdapters.js'
@@ -10,17 +11,20 @@ export type RecentNewThreadModel = {
   providerID: string
   id: string
   variant?: string
+  speedTier?: ModelRef['speedTier']
 }
 
 export function asRecentNewThreadModelRef(model: RecentNewThreadModel): {
   providerID: string
   id: string
   variant?: string
+  speedTier?: ModelRef['speedTier']
 } {
   return {
     providerID: model.providerID,
     id: model.id,
     ...(model.variant ? { variant: model.variant } : {}),
+    ...(model.speedTier ? { speedTier: model.speedTier } : {}),
   }
 }
 
@@ -61,6 +65,7 @@ export async function resolveRecentNewThreadModel(): Promise<RecentNewThreadMode
       providerID: stored.providerID,
       id: stored.id,
       ...(stored.variant ? { variant: stored.variant } : {}),
+      ...(stored.speedTier ? { speedTier: stored.speedTier } : {}),
     }
     if (await isSelectableRecentNewThreadModel(candidate)) return candidate
   }
@@ -70,6 +75,7 @@ export async function resolveRecentNewThreadModel(): Promise<RecentNewThreadMode
     providerID: first.providerID,
     id: first.id,
     ...(first.variant ? { variant: first.variant } : {}),
+    ...(first.speedTier ? { speedTier: first.speedTier } : {}),
   }
   // 记录失效时立即用统一解析结果覆盖，保证下次进入直接命中。
   await persistRecentNewThreadModel(resolved).catch(() => undefined)

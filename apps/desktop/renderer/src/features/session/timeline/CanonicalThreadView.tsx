@@ -22,7 +22,6 @@ import {
 import type { DesktopDiffMarkerStyle } from '../../../../shared/Types.js'
 import type { VirtualizerHandle } from 'virtua'
 import { FullScreenWhaleLoading } from '../../../components/ui/FullScreenWhaleLoading.js'
-import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import {
   Collapsible,
   CollapsibleContent,
@@ -157,6 +156,7 @@ const PROCESS_SUMMARY_DEFER_MS = 1_000
 
 export function CanonicalProcessGroup({
   active,
+  betweenTools = false,
   canExpand = true,
   children,
   defaultExpanded = false,
@@ -186,7 +186,7 @@ export function CanonicalProcessGroup({
   const contentId = React.useId()
   const shimmerId = React.useId()
   const reducedMotion = usePrefersReducedMotion()
-  const visibleLabel = useDeferredProcessSummary(label, summaryKey, active)
+  const visibleLabel = useDeferredProcessSummary(label, summaryKey, active, betweenTools)
   const datastate = active ? 'active' : failed ? 'failed' : 'completed'
   const SummaryIcon = processSummaryIcon(active ? 'thinking' : failed ? 'failed' : kind)
   // 与思考节点同款文字扫光：文本遮罩让动画只移动 transform，不逐帧重绘文字。
@@ -309,12 +309,11 @@ export function CanonicalProcessGroup({
           contentClassName="cpx-agent-activity__content"
           id={contentId}
         >
-          <ScrollArea
-            className="cpx-agent-activity__list tw:min-w-0 tw:[scrollbar-width:thin]"
-            contentClassName="cpx-agent-activity__list-content tw:relative tw:grid tw:gap-[var(--conversation-grouped-item-gap,var(--cpx-sys-space-1))]"
-          >
-            {children}
-          </ScrollArea>
+          <div className="cpx-agent-activity__list tw:min-w-0">
+            <div className="cpx-agent-activity__list-content tw:relative tw:grid tw:gap-[var(--conversation-grouped-item-gap,var(--cpx-sys-space-1))]">
+              {children}
+            </div>
+          </div>
         </CollapsibleContent>
       </div>
     </Collapsible>
@@ -401,7 +400,12 @@ function processSummaryIcon(kind: ProcessSemanticKind): LucideIcon {
   return toolSemanticIcon(kind)
 }
 
-function useDeferredProcessSummary(label: string, summaryKey: string, defer: boolean): string {
+function useDeferredProcessSummary(
+  label: string,
+  summaryKey: string,
+  defer: boolean,
+  fullDelay = false,
+): string {
   const [visible, setVisible] = React.useState(() => ({ label, summaryKey }))
   const [mountTime] = React.useState(Date.now)
   const lastCommitAt = React.useRef(mountTime)
@@ -416,14 +420,16 @@ function useDeferredProcessSummary(label: string, summaryKey: string, defer: boo
       commit()
       return
     }
-    const remaining = PROCESS_SUMMARY_DEFER_MS - (Date.now() - lastCommitAt.current)
+    const remaining = fullDelay
+      ? PROCESS_SUMMARY_DEFER_MS
+      : PROCESS_SUMMARY_DEFER_MS - (Date.now() - lastCommitAt.current)
     if (remaining <= 0) {
       commit()
       return
     }
     const timeout = window.setTimeout(commit, remaining)
     return () => window.clearTimeout(timeout)
-  }, [defer, label, summaryKey, visible.summaryKey])
+  }, [defer, fullDelay, label, summaryKey, visible.summaryKey])
 
   return defer && visible.summaryKey !== summaryKey ? visible.label : label
 }
@@ -1164,6 +1170,7 @@ function CanonicalConversationTurnComponent({
     return null
   }, [entry.items])
   const active = isActiveTurn(entry.turn.status)
+  const modelRecovery = active ? entry.turn.modelRecovery : undefined
   const historicalDeliveries = entry.processItems.filter(
     (item) => item.type === 'tool' && historicalDeliveryText(item) !== null,
   )
@@ -1359,8 +1366,10 @@ function CanonicalConversationTurnComponent({
       {decisionNotices.map((notice) => (
         <DecisionNoticeItem key={`decision-notice:${notice.id}`} notice={notice} />
       ))}
-      {processActivity.showThinkingFallback ? (
+      {processActivity.showThinkingFallback && !modelRecovery ? (
         <ReasoningWaitingIndicator
+          key={lastProcessUnit?.key ?? 'initial'}
+          delayMs={processActivity.units.length > 0 ? PROCESS_SUMMARY_DEFER_MS : 0}
           item={lastProcessUnit?.kind === 'standalone' ? lastProcessUnit.item : undefined}
           threadId={threadId}
         />
@@ -1441,6 +1450,12 @@ function CanonicalConversationTurnComponent({
           <CircleAlert size="var(--inline-icon-size, 1em)" aria-hidden="true" />
           <span>{entry.turn.error}</span>
         </div>
+      ) : null}
+      {modelRecovery ? (
+        <ReasoningWaitingIndicator
+          label={modelRecovery === 'waiting-for-network' ? '等待网络恢复' : '正在重试'}
+          threadId={threadId}
+        />
       ) : null}
     </article>
   )

@@ -12,7 +12,7 @@ import {
 import { ProviderCredentialStoreManager } from '../src/auth/ProviderCredentialStoreManager'
 import type { ProviderCredentialStoreKind } from '../src/auth/ProviderCredentialRepository'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
-import { EncryptedCredentialStore } from '../src/provider/pi/EncryptedCredentialStore'
+import { EncryptedCredentialStore } from '../src/provider/runtime/EncryptedCredentialStore'
 import { ProviderCredentialService } from '../src/provider/ProviderCredentialService'
 
 const roots: string[] = []

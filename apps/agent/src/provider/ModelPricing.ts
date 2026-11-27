@@ -1,16 +1,24 @@
 import { Schema } from 'effect'
 import { Model } from '@pidex/model-schema'
 
-export type CalendarYear = {
-  year: number
-  papers: string[]
-  days: { date: string; isOffDay: boolean; name: string }[]
-}
+export { selectPricing, ZERO_PRICES, UNIT_PRICE_KEYS, type CalendarYear } from '@pidex/model-schema'
+
 const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3))
-const dayMs = 86400000
-const weekday = (date: string) => new Date(date + 'T12:00:00Z').getUTCDay()
-const previousDate = (date: string) =>
-  new Date(Date.parse(date + 'T12:00:00Z') - dayMs).toISOString().slice(0, 10)
+
+const normalizeTiers = (
+  tiers: readonly Model.PricingPriceTier[] | undefined,
+): Model.PricingPriceTier[] | undefined => {
+  if (!tiers?.length) return undefined
+  const seen = new Set<number>()
+  for (const tier of tiers) {
+    if (seen.has(tier.inputTokensAbove)) {
+      throw new PricingValidationError('计费阶梯阈值不能重复')
+    }
+    seen.add(tier.inputTokensAbove)
+  }
+  return [...tiers].sort((a, b) => a.inputTokensAbove - b.inputTokensAbove)
+}
+
 export class PricingValidationError extends Error {}
 export function validatePricing(value: unknown): Model.Pricing {
   let pricing: Model.Pricing
@@ -24,6 +32,30 @@ export function validatePricing(value: unknown): Model.Pricing {
   } catch {
     throw new PricingValidationError('计费时区无效，请填写 IANA 时区')
   }
+  const promotions = pricing.promotions?.map((promotion) => {
+    const hasPrices = promotion.prices !== undefined
+    const hasFactor = promotion.discountFactor !== undefined
+    const timestamp = /^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/
+    if (
+      hasPrices === hasFactor ||
+      !timestamp.test(promotion.startAt) ||
+      !timestamp.test(promotion.endAt) ||
+      !(Date.parse(promotion.startAt) < Date.parse(promotion.endAt))
+    ) {
+      throw new PricingValidationError('优惠必须包含有效时间范围与一种价格调整方式')
+    }
+    return promotion.prices
+      ? {
+          ...promotion,
+          prices: {
+            ...promotion.prices,
+            ...(promotion.prices.tiers ? { tiers: normalizeTiers(promotion.prices.tiers)! } : {}),
+          },
+        }
+      : promotion
+  })
+  const idleTiers = normalizeTiers(pricing.idle.tiers)
+  const busyTiers = normalizeTiers(pricing.busy.tiers)
   const dates = new Set<string>()
   for (const override of pricing.dateOverrides) {
     if (
@@ -89,67 +121,16 @@ export function validatePricing(value: unknown): Model.Pricing {
         }
       }
   })
-  return pricing
-}
-export function selectPricing(
-  pricing: Model.Pricing,
-  at: number,
-  calendars: readonly CalendarYear[],
-) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: pricing.timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(at)
-  const part = (name: string) => parts.find((p) => p.type === name)!.value
-  const date = `${part('year')}-${part('month')}-${part('day')}`,
-    now = Number(part('hour')) * 60 + Number(part('minute'))
-  const override = pricing.dateOverrides.find((item) => item.date === date)
-  if (override)
-    return { period: override.period, prices: pricing[override.period], reason: 'date-override' }
-  let uncertain = false
-  const matched = new Set<'idle' | 'busy'>()
-  for (const rule of pricing.rules)
-    for (const interval of rule.intervals) {
-      const start = minutes(interval.start),
-        end = minutes(interval.end)
-      const anchor = end < start && now < end ? previousDate(date) : date
-      if (!rule.weekdays.includes(weekday(anchor))) continue
-      if (!(end > start ? now >= start && now < end : now >= start || now < end)) continue
-      if (rule.holiday !== 'any') {
-        const year = calendars.find((item) => item.year === Number(anchor.slice(0, 4)))
-        if (!year) {
-          uncertain = true
-          continue
-        }
-        const holiday = calendars.some((item) =>
-          item.days.some((day) => day.date === anchor && day.isOffDay),
-        )
-        if ((rule.holiday === 'only-cn') !== holiday) continue
-      }
-      matched.add(rule.period)
-    }
-  if (uncertain)
-    return {
-      period: 'conservative' as const,
-      prices: Object.fromEntries(
-        Object.keys(pricing.idle).map((key) => [
-          key,
-          pricing.idle[key as keyof Model.UnitPrices] === null ||
-          pricing.busy[key as keyof Model.UnitPrices] === null
-            ? null
-            : Math.max(
-                pricing.idle[key as keyof Model.UnitPrices]!,
-                pricing.busy[key as keyof Model.UnitPrices]!,
-              ),
-        ]),
-      ) as Model.UnitPrices,
-      reason: 'calendar-unavailable',
-    }
-  const period = matched.values().next().value ?? pricing.defaultPeriod
-  return { period, prices: pricing[period], reason: matched.size ? 'time-rule' : 'default' }
+  return {
+    ...pricing,
+    ...(promotions ? { promotions } : {}),
+    idle: {
+      ...pricing.idle,
+      ...(idleTiers ? { tiers: idleTiers } : {}),
+    },
+    busy: {
+      ...pricing.busy,
+      ...(busyTiers ? { tiers: busyTiers } : {}),
+    },
+  }
 }

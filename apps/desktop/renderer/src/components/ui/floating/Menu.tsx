@@ -385,8 +385,6 @@ const SubContext = createContext<{
   branchId: string
   isPointerOpened: () => boolean
   setPointerOpened: (value: boolean) => void
-  hoverOpen: () => void
-  hoverClose: () => void
 } | null>(null)
 
 export function MenuSub({ children, open, defaultOpen = false, onOpenChange }: MenuRootProps) {
@@ -432,14 +430,6 @@ export function MenuSub({ children, open, defaultOpen = false, onOpenChange }: M
         branchId,
         isPointerOpened,
         setPointerOpened,
-        hoverOpen: () => {
-          pointerOpened.current = true
-          setOpen(true)
-        },
-        hoverClose: () => {
-          // Backward compatibility token for timing contracts: next ? 120 : 140
-          setOpen(false)
-        },
       }}
     >
       {children}

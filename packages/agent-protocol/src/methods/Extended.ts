@@ -74,7 +74,7 @@ const PublicHeaderNameSchema = Schema.String.check(
   ),
 )
 const PublicHeadersSchema = Schema.Record(PublicHeaderNameSchema, Schema.String)
-export const PiProviderApiSchema = Schema.Literals([
+export const ProviderApiSchema = Schema.Literals([
   'openai-completions',
   'openai-responses',
   'anthropic-messages',
@@ -106,7 +106,7 @@ export const ProviderModelDefinitionSchema = Schema.Struct({
   id: Model.ID,
   group: Schema.optional(Schema.String.check(Schema.isMaxLength(128))),
   name: Schema.optional(NonEmptyStringSchema),
-  api: PiProviderApiSchema,
+  api: ProviderApiSchema,
   enabled: Schema.optional(Schema.Boolean),
   modelType: Schema.optional(Schema.Literals(['chat', 'embedding', 'rerank'])),
   tools: Schema.optional(Schema.Boolean),
@@ -126,6 +126,7 @@ export const ProviderModelDefinitionSchema = Schema.Struct({
       Schema.isMaxLength(4),
     ),
   ),
+  mediaInput: Schema.optional(Model.MediaInputCapability),
   cost: Schema.optional(ProviderModelCostSchema),
   headers: Schema.optional(PublicHeadersSchema),
   thinkingLevelMap: Schema.optional(ThinkingLevelMapSchema),
@@ -151,7 +152,7 @@ export const ProviderModelMatchSchema = Schema.Struct({
 export type ProviderModelMatch = typeof ProviderModelMatchSchema.Type
 
 /** Wire protocols that can list models and run a minimal generation probe. */
-export const ProviderChatApiSchema = PiProviderApiSchema
+export const ProviderChatApiSchema = ProviderApiSchema
 export type ProviderChatApi = typeof ProviderChatApiSchema.Type
 
 const ProviderEndpointsSchema = Schema.Struct({
@@ -256,7 +257,7 @@ export const BuiltinProviderDefinitionSchema = Schema.Struct({
   models: Schema.Array(
     Schema.Struct({
       ...ProviderModelDefinitionSchema.fields,
-      api: Schema.optional(PiProviderApiSchema),
+      api: Schema.optional(ProviderApiSchema),
       id: Model.ID,
       enabled: Schema.Boolean,
     }),
@@ -309,6 +310,7 @@ const ProviderListEntrySchema = Schema.Struct({
   authConfigured: Schema.Boolean,
   config: ProviderDefinitionSchema,
   modelCount: Schema.optional(NonNegativeIntSchema),
+  catalogModelCount: Schema.optional(NonNegativeIntSchema),
   modelSync: Schema.optional(ProviderModelSyncSummarySchema),
 })
 
@@ -433,7 +435,7 @@ export const ProviderTestResultSchema = Schema.Union([
   Schema.Struct({
     providerId: Provider.ID,
     model: Schema.optional(Model.Ref),
-    api: Schema.optional(PiProviderApiSchema),
+    api: Schema.optional(ProviderApiSchema),
     status: Schema.Literal('reachable'),
     testedAt: TimestampSchema,
     latencyMs: NonNegativeIntSchema,
@@ -441,7 +443,7 @@ export const ProviderTestResultSchema = Schema.Union([
   Schema.Struct({
     providerId: Provider.ID,
     model: Schema.optional(Model.Ref),
-    api: Schema.optional(PiProviderApiSchema),
+    api: Schema.optional(ProviderApiSchema),
     status: Schema.Literal('unavailable'),
     testedAt: TimestampSchema,
     category: Schema.Literals([

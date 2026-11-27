@@ -9,7 +9,7 @@ import { ArtifactRepository } from '../src/storage/repositories/ArtifactReposito
 import { probeArtifactsStorageCapabilities } from '../src/storage/database/StorageCapabilities'
 import { filterAdvertisedCapabilities } from '../src/transport/rpc/handlers/SystemCapabilities'
 import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
-import type { PiRuntimeEventContext } from '../src/orchestration/pi/Types'
+import type { RuntimeEventContext } from '../src/orchestration/execution/Types'
 import { ThreadProjection } from '../src/transport/ThreadProjection'
 import { Model, Provider } from '@pidex/model-schema'
 
@@ -249,7 +249,7 @@ describe('富工具结果投影与 artifact', () => {
     const { db } = await openDatabase()
     const threadID = db.createThread('replay thread').id
     const { turnID, agentID } = seedTurn(db, threadID)
-    const localContext: PiRuntimeEventContext = { threadID, turnID, agentID }
+    const localContext: RuntimeEventContext = { threadID, turnID, agentID }
     const orchestrator = new AgentRuntimeService({
       db: db as never,
       hub: {} as never,
@@ -260,7 +260,7 @@ describe('富工具结果投影与 artifact', () => {
     const persist = (
       orchestrator as unknown as {
         persistFinishedTool(
-          context: PiRuntimeEventContext,
+          context: RuntimeEventContext,
           input: unknown,
         ): Array<{ method: string; params: unknown }>
       }

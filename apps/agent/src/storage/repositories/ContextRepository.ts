@@ -53,7 +53,7 @@ type ContextUsageRow = {
   created_at: number
 }
 
-export type PiCompactionReferenceEnvelope = {
+export type CompactionReferenceEnvelope = {
   version: 1
   kind: 'pi-compaction-reference'
   sessionID: string
@@ -73,10 +73,10 @@ export type StoredContextCompaction = {
   targetTokens: number
   usageSampleID: string
   baselineVersion: number
-  reference: PiCompactionReferenceEnvelope
+  reference: CompactionReferenceEnvelope
 }
 
-export type StoredPiCompactionEntry = {
+export type StoredCompactionEntry = {
   sessionID: string
   threadID: string
   entryID: string
@@ -91,7 +91,7 @@ export type InsertCompactionInput = {
   beforeCount: number
   afterCount: number
   summary: string
-  reference: PiCompactionReferenceEnvelope
+  reference: CompactionReferenceEnvelope
   beforeTokens: number
   afterTokens: number
   targetTokens: number
@@ -99,9 +99,9 @@ export type InsertCompactionInput = {
   createdAt: number
 }
 
-const parsePiCompactionReference = (value: string): PiCompactionReferenceEnvelope | null => {
+const parseCompactionReference = (value: string): CompactionReferenceEnvelope | null => {
   try {
-    const parsed = JSON.parse(value) as Partial<PiCompactionReferenceEnvelope>
+    const parsed = JSON.parse(value) as Partial<CompactionReferenceEnvelope>
     return parsed.version === 1 &&
       parsed.kind === 'pi-compaction-reference' &&
       typeof parsed.sessionID === 'string' &&
@@ -111,7 +111,7 @@ const parsePiCompactionReference = (value: string): PiCompactionReferenceEnvelop
         parsed.trigger === 'automatic' ||
         parsed.trigger === 'reactive') &&
       parsed.afterTokensSource === 'compaction-estimate'
-      ? (parsed as PiCompactionReferenceEnvelope)
+      ? (parsed as CompactionReferenceEnvelope)
       : null
   } catch {
     return null
@@ -449,7 +449,7 @@ export class ContextRepository {
     return this.state(threadID)!
   }
 
-  persistedPiCompaction(sessionID: string, entryID: string): StoredPiCompactionEntry | null {
+  persistedCompaction(sessionID: string, entryID: string): StoredCompactionEntry | null {
     const row = this.db.sqlite
       .query(
         `
@@ -526,7 +526,7 @@ export class ContextRepository {
       replacement_history: string
     } | null
     if (!row || row.usage_sample_id === null) return null
-    const reference = parsePiCompactionReference(row.replacement_history)
+    const reference = parseCompactionReference(row.replacement_history)
     return reference
       ? {
           id: row.id,
@@ -627,7 +627,7 @@ export class ContextRepository {
       created_at: number
     }>
     return rows.flatMap((row) => {
-      const reference = parsePiCompactionReference(row.replacement_history)
+      const reference = parseCompactionReference(row.replacement_history)
       if (!reference || !row.usage_sample_id) return []
       return [
         {

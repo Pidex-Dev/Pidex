@@ -49,6 +49,36 @@ test('早到事件优先于旧快照，拒绝旧代通知并在清理后停止�
   expect(seen).toEqual([3, 5])
 })
 
+test('收到迁址失败事件后，首个快照请求报错也保留恢复操作', async () => {
+  let readErrors = 0
+  const seen: DesktopStartupSnapshot[] = []
+  const stop = subscribeStartupConnection(
+    {
+      onStartupChanged(listener) {
+        listener({
+          state: 'failed',
+          failureReason: 'relocation',
+          generation: 1,
+          revision: 2,
+          label: '迁移失败',
+        })
+        return () => {}
+      },
+      getStartupSnapshot: async () => {
+        throw new Error('snapshot unavailable')
+      },
+    },
+    (snapshot) => seen.push(snapshot),
+    () => {
+      readErrors++
+    },
+  )
+  await Promise.resolve()
+  expect(seen[0]?.failureReason).toBe('relocation')
+  expect(readErrors).toBe(0)
+  stop()
+})
+
 test('连接快照仓库过滤旧快照并通知订阅方', () => {
   expect(getStartupConnectionSnapshot().state).toBe('connected')
 

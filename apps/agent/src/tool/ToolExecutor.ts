@@ -1,5 +1,4 @@
-// Runtime capability provenance and Hook recheck adapted from ZCode 872ad96
-// (Apache-2.0); see docs/agent/permissions.md and docs/licenses/ZCode-Apache-2.0.txt.
+// Apache-2.0. See third_party/zcode/LICENSE and third_party/zcode/UPSTREAM.md.
 import { createHash } from 'node:crypto'
 import {
   AgentError,

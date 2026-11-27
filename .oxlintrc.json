@@ -1,7 +1,13 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "oxc", "import"],
+  "jsPlugins": [
+    "./scripts/contracts/ModelSelectorLintPlugin.mjs",
+    "./scripts/contracts/StartupCompatibilityLintPlugin.mjs",
+    "./scripts/contracts/DesktopRegressionLintPlugin.mjs"
+  ],
   "rules": {
+    "pidex-models/preserve-configured-models": "error",
     "no-constant-condition": "error",
     "no-empty-pattern": "error",
     "no-irregular-whitespace": "error",
@@ -30,6 +36,131 @@
     "import/no-duplicates": "warn"
   },
   "overrides": [
+    {
+      "files": [
+        "apps/desktop/renderer/src/features/settings/ArchivedConversations*.ts*",
+        "apps/desktop/renderer/src/services/desktop-client/AgentSessionClient.ts",
+        "apps/agent/src/transport/rpc/handlers/Thread.ts",
+        "apps/agent/src/session/ThreadHistoryService.ts"
+      ],
+      "rules": {
+        "pidex-regressions/guard-archived-deletion": "error"
+      }
+    },
+    {
+      "files": ["apps/desktop/electron/src/settings/AppearanceSettingsStore.ts"],
+      "rules": {
+        "pidex-regressions/preserve-corrupt-appearance": "error"
+      }
+    },
+    {
+      "files": ["apps/desktop/renderer/src/features/speech/VoiceRecordingCache.ts"],
+      "rules": {
+        "pidex-regressions/preserve-typing-shortcuts": "error"
+      }
+    },
+    {
+      "files": ["apps/desktop/electron/src/terminal/ShellProfileService.ts"],
+      "rules": {
+        "pidex-regressions/discover-user-git-bash": "error"
+      }
+    },
+    {
+      "files": [
+        "apps/desktop/renderer/src/features/automation/**/*.ts",
+        "apps/desktop/renderer/src/features/automation/**/*.tsx",
+        "apps/desktop/renderer/src/features/layout/sidebar/SidebarScheduledPane.tsx"
+      ],
+      "rules": {
+        "pidex-regressions/use-interface-date-locale": "error"
+      }
+    },
+    {
+      "files": [
+        "apps/agent/src/provider/ProviderError.ts",
+        "apps/agent/src/provider/ModelHealthService.ts",
+        "apps/agent/src/provider/runtime/ModelListing.ts",
+        "apps/agent/src/provider/runtime/ModelService.ts"
+      ],
+      "rules": {
+        "pidex-regressions/use-response-status": "error"
+      }
+    },
+    {
+      "files": [
+        "apps/agent/src/project/ProjectSourceService.ts",
+        "apps/agent/src/storage/repositories/ProjectRepository.ts",
+        "apps/agent/src/storage/repositories/ExecutionRepository.ts",
+        "apps/agent/src/provider/runtime/ModelService.ts"
+      ],
+      "rules": { "pidex-compat/no-retired-agent-entry": "error" }
+    },
+    {
+      "files": ["apps/agent/src/provider/runtime/ProviderConfigMigration.ts"],
+      "rules": { "pidex-compat/builtin-migration-schema": "error" }
+    },
+    {
+      "files": ["apps/desktop/electron/src/settings/DataLocationStore.ts"],
+      "rules": { "pidex-compat/data-location-default-on-enoent": "error" }
+    },
+    {
+      "files": [
+        "apps/desktop/renderer/src/main.tsx",
+        "apps/desktop/renderer/src/features/routing/ConnectionLostPage.tsx"
+      ],
+      "rules": {
+        "no-restricted-properties": [
+          "error",
+          {
+            "property": "retryStartup",
+            "message": "Select recovery through startupRecoveryActions(snapshot)."
+          },
+          {
+            "property": "retryDataLocation",
+            "message": "Select recovery through startupRecoveryActions(snapshot)."
+          },
+          {
+            "property": "restoreDataLocation",
+            "message": "Select recovery through startupRecoveryActions(snapshot)."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/desktop/renderer/src/features/workspace/UseWorkspaceState.ts"],
+      "rules": {
+        "no-restricted-properties": [
+          "error",
+          {
+            "property": "getAuthStatus",
+            "message": "Workspace state must not fetch unused authentication status."
+          },
+          {
+            "property": "getRuntimeStatus",
+            "message": "Workspace state must not poll unused runtime status."
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "apps/desktop/renderer/shared/Types.ts",
+        "apps/desktop/renderer/src/services/desktop-client/**/*.ts"
+      ],
+      "rules": { "pidex-compat/no-retired-desktop-member": "error" }
+    },
+    {
+      "files": [
+        "apps/desktop/electron/src/**/*.ts",
+        "apps/desktop/electron/src/**/*.cts",
+        "packages/shared/src/DesktopAppearanceIpc.ts"
+      ],
+      "rules": { "pidex-compat/no-retired-appearance-channel": "error" }
+    },
+    {
+      "files": ["apps/desktop/renderer/shared/**/*.ts"],
+      "rules": { "pidex-compat/no-retired-desktop-bridge": "error" }
+    },
     {
       "files": ["apps/desktop/renderer/src/**/*.ts", "apps/desktop/renderer/src/**/*.tsx"],
       "rules": {

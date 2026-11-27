@@ -39,7 +39,7 @@ export type UserAttachmentPreviewTab = {
   kind: 'attachment-preview'
   attachment: {
     id: string
-    kind: 'image' | 'text' | 'video' | 'audio' | 'binary' | 'directory'
+    kind: 'image' | 'text' | 'video' | 'audio' | 'pdf' | 'binary' | 'directory'
     name: string
     mediaType: string
     sizeBytes: number

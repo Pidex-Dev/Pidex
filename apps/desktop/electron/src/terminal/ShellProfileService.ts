@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { DesktopTerminalProfile } from '@pidex/shared/desktop-terminal-ipc'
 import { TerminalError } from './TerminalErrors.js'
 
@@ -143,12 +143,17 @@ function findGitBash(
   fileExists: (path: string) => boolean,
   platform: NodeJS.Platform = process.platform,
 ): string | undefined {
-  const fromPath = findOnPath('bash.exe', environment, fileExists, platform)
-  if (fromPath) return fromPath
-  for (const root of [environment.ProgramFiles, environment['ProgramFiles(x86)']]) {
+  const git = findOnPath('git.exe', environment, fileExists, platform)
+  const roots = [
+    git && dirname(dirname(git)),
+    environment.ProgramFiles && join(environment.ProgramFiles, 'Git'),
+    environment['ProgramFiles(x86)'] && join(environment['ProgramFiles(x86)'], 'Git'),
+    environment.LOCALAPPDATA && join(environment.LOCALAPPDATA, 'Programs', 'Git'),
+  ]
+  for (const root of roots) {
     if (!root) continue
-    const candidate = join(root, 'Git', 'bin', 'bash.exe')
+    const candidate = join(root, 'bin', 'bash.exe')
     if (fileExists(candidate)) return candidate
   }
-  return undefined
+  return findOnPath('bash.exe', environment, fileExists, platform)
 }

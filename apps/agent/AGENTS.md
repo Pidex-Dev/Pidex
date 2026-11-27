@@ -6,6 +6,7 @@
 
 ## 职责与模块边界
 
+- Provider 适配位于 `src/provider/runtime/`，执行适配位于 `src/orchestration/execution/`。业务代码、脚本、测试与运行时文件禁用 `ZCode`、`Pi` 和 `pi-*` 前缀，第三方归属见根目录 `THIRD_PARTY_NOTICES.md` 与 `third_party/`。
 - 入口与架构：Agent 保持 Bun + Effect 模块化单体；`src/index.ts` 是可执行入口，`src/Bootstrap.ts` 是 composition root，两者均不得承载业务逻辑。
 - 目录职责：`src/transport/` 放置 HTTP、RPC、SSE、projection 与 Renderer proxy；`src/session/` 放置会话状态与历史；`src/orchestration/` 放置执行编排。Review、GitHub、orchestration 和 subagent 的新职责必须归入对应领域目录，禁止继续扩大单文件聚合服务。
 - 执行内核与 Provider：Harness 是 Agent 内部由 Pidex 自主维护的执行内核，不建立 Pi 上游同步或版本对齐流程；Provider、模型请求与 OAuth 统一使用 `pi-ai`。
@@ -14,7 +15,7 @@
 
 ## 存储与恢复
 
-- 目录分层：SQLite 按 `storage/database/`、`storage/repositories/`、`storage/events/`、`storage/recovery/` 分层；实际 SQL 必须位于领域 repository，`AgentDatabase` 只负责连接、最终 schema、repository 装配和恢复入口。
+- 目录分层：SQLite 按 `storage/database/`、`storage/repositories/`、`storage/session/`、`storage/events/`、`storage/recovery/` 分层；实际 SQL 必须位于领域 repository，`AgentDatabase` 只负责连接、最终 schema、repository 装配和恢复入口。
 - 事务与连接：所有 repository 必须复用同一 SQLite 连接和事务状态，业务状态与 transactional outbox event 必须在同一 transaction 中提交；保留 WAL、外键、`busy_timeout`、事件顺序、SSE replay、checkpoint 和 interrupted recovery。
 - Schema 与文件保护：新数据库一次性创建当前最终 schema，已知旧 schema 通过顺序、事务化迁移升级并保留数据；禁止删除数据库、`-wal`、`-shm` 或父目录来恢复启动。
 - 凭据存储：凭据必须经过现有加密凭据仓库和 Bun secrets 流程。
