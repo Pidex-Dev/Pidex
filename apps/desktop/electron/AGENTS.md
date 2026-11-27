@@ -15,7 +15,7 @@
 - 进程隔离：必须保持 `contextIsolation: true`、Renderer 禁用 Node，并启用 sandbox。
 - 类型化 Preload 与 IPC：新增系统能力时必须先集中定义 IPC contract（channel、参数和返回类型），在主进程验证 Renderer 输入，再由 preload 暴露最小、明确、类型化的方法并同步更新 preload 与 Renderer 共享契约；禁止暴露任意 channel、Electron 对象、Node 模块、凭据或任意文件系统访问。
 - 运行时安全：必须保留 URL allowlist、导航拦截、auth cookie 验证和 API key 剪贴板 60 秒清理。
-- 外观设置迁移与恢复：`appearance-settings.json` 当前持久化版本为 7（V1～V5 按既有语义重置为当前默认值，V6 保留已知设置并迁移到 V7，高于 V7 的文件原样保留并拒绝覆盖）。只有 JSON 已损坏的 `appearance-settings.json` 可按既有恢复逻辑精确删除并重建；该例外不得扩大到父目录、数据库、可解析但不受支持的版本或未知文件。
+- 外观设置迁移与恢复：`appearance-settings.json` 当前持久化版本为 8。V1～V5 延续既有重置语义，V6、V7 保留设置并升级；更新版本原样保留并拒绝覆盖。JSON 损坏时读取使用内存默认值，保存前重新检查文件；原件修复前不得覆盖。
 
 ## Sidecar 与打包
 

@@ -37,6 +37,7 @@
 
 ## 全局协议、数据与安全契约
 
+- 业务源码、目录、脚本、测试与运行时数据文件使用领域名称，禁止使用 `ZCode`、`Pi` 或 `pi-*` 前缀。第三方许可证和来源说明统一放在根目录 `third_party/`，由 `THIRD_PARTY_NOTICES.md` 索引。真实依赖包名和既有持久化、协议标识按兼容契约保留。
 - 协议唯一性：`@pidex/agent-protocol` 是 RPC method、event、wire error 和 capability schema 的唯一来源。当前唯一桌面通信协议是 `thread-rpc-v4`，禁止恢复 v3 dispatcher、adapter、migration、legacy export 或双协议分支；`thread/create` 只接受 `workspace`，不得恢复 `projectId` 或 `projectID`。
 - 错误与凭据安全：v4 错误必须使用统一、安全的 envelope，禁止返回原始异常、凭据、命令环境或敏感绝对路径。API key 不得写入 SQLite、日志、事件、错误信息或测试快照；重置日志只能记录无敏感信息的事件和原因，禁止记录路径、凭据、设置内容或会话内容。
 - 数据身份与兼容基线：history schema 21 和 profile schema 3 是共享全局数据的向前兼容基线（非最终 schema 版本）。application ID 仅表示 Pidex 数据所有权，禁止作为功能版本或清库开关，也禁止因功能或 schema 更新而递增。数据位置与安装身份基线（`.pidex` 目录、`PIDEX_*` 环境变量、`com.pidex.desktop`、凭据库服务与持久化格式标识）记录在 [`docs/architecture/pidex-identity.md`](docs/architecture/pidex-identity.md)，禁止恢复旧 `codepilotx` 标识或新增双读兼容分支。

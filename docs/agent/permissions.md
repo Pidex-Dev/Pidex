@@ -35,6 +35,4 @@ Guardian 异步评分按 turn 保存失效代际：作废、拒绝、转人工�
 
 ## 来源与适配
 
-参考 ZCode 提交 `872ad96` 的 `apps/zcode-cli/packages/core/src/tool/executor/permission-capability.ts`、`permission-input-recheck.ts` 和 `permission-rules.ts`，适配其宿主能力事实、来源不可由模型覆盖、输入变更重新判权的实现方式。对应改动位于 Pidex 的 ToolRegistry、ToolExecutor 和 PermissionDecisionEngine，继续复用已有命令解析器与审批存储；没有搬入整套 ZCode 权限系统，完全访问的提前放行采用 Pidex 当前产品定义。
-
-ZCode 使用 Apache-2.0，保留[许可证](../licenses/ZCode-Apache-2.0.txt)。Pidex 的新增实现及改动不代表 ZCode 上游原版。
+ToolRegistry、ToolExecutor 和 PermissionDecisionEngine 从宿主读取能力事实，Hook 改写输入后重新校验权限。上游参考文件、版本及 Pidex 的适配说明见[来源记录](../../third_party/zcode/UPSTREAM.md)和 [Apache-2.0 许可证](../../third_party/zcode/LICENSE)。

@@ -37,6 +37,8 @@ Decision owners: Pidex product and architecture (explicit owner instruction)
    `.claude` 兼容目录、`cpx`／`CPX-CUA` 缩写）、`.codex/environments/` 下由第三方 CLI
    按仓库目录名自动生成的环境配置、`docs/research/**` 与 `CHANGELOG.md` 历史区段一律不动。
 
+ZCode 与 pi-agent-core 的许可证和归属说明统一位于根目录 [third_party](../../third_party/) 与 [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md)。
+
 ### 变更标识清单
 
 | 类别                        | 变更前                                                                  | 变更后                                                        |
@@ -53,7 +55,7 @@ Decision owners: Pidex product and architecture (explicit owner instruction)
 | 浏览器分区                  | `persist:codepilotx-browser`                                            | `persist:pidex-browser`                                       |
 | 本地存储键前缀              | `codepilotx.*`                                                          | `pidex.*`                                                     |
 | 凭据仓库格式                | `codepilotx-provider-auth`                                              | `pidex-provider-auth`                                         |
-| Pi 模型缓存 owner           | `codepilotx`                                                            | `pidex`                                                       |
+| 供应商模型缓存 owner           | `codepilotx`                                                            | `pidex`                                                       |
 | 结果卡信封 kind             | `codepilotx.result-card`                                                | `pidex.result-card`                                           |
 | 批注清单与格式              | `codepilotx-browser-annotations.json`、`codepilotx.browser-annotations` | `pidex-browser-annotations.json`、`pidex.browser-annotations` |
 | 会话 cookie                 | `codepilotx_session`                                                    | `pidex_session`                                               |
