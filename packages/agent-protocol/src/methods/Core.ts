@@ -1825,6 +1825,15 @@ export const CoreRpcMethods = {
     capability: null,
     mutation: true,
   }),
+  'thread/deleteArchived': defineMethod({
+    params: ThreadDeleteParamsSchema,
+    result: Schema.Struct({ deleted: Schema.Boolean }),
+    errors: ThreadErrors,
+    capability: 'thread.deleteArchived.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
   'thread/delete': defineMethod({
     params: ThreadDeleteParamsSchema,
     result: ThreadDeleteResultSchema,

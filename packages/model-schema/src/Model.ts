@@ -52,7 +52,7 @@ export const SmartConfigPinnedField = Schema.Literals(SmartConfigPinnedFields)
 export type SmartConfigPinnedField = typeof SmartConfigPinnedField.Type
 
 /**
- * 双层模型参数规格（沿用 ZCode 的 values + map 结构）。
+ * 双层模型参数规格（使用 values + map 结构）。
  * - `values` 定义公开可选档位及展示顺序（可为 disabled/enabled、none/high/max 等实际值）。
  * - `map` 是受限 CEL 表达式，把选中的值转换成当前协议请求体的 JSON Merge Patch。
  * values 与 map 分别继承、分别覆盖；语义校验（CEL 可编译）在 Agent Provider 保存/导入边界完成。

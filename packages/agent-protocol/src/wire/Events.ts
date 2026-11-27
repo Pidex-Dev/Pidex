@@ -46,7 +46,6 @@ import {
   ModelHealthItemSchema,
 } from '../methods/Extended'
 import { SpeechStatusSchema } from '../methods/Speech'
-import { MiniMaxCliStatusSchema } from '../methods/MinimaxCli'
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const SanitizedErrorSchema = Schema.Struct({
@@ -310,14 +309,6 @@ export const EventManifest = {
     stream: 'global',
     capability: 'plugins.manage.v1',
     reconcilesWith: 'plugin/list',
-  }),
-  'minimaxCli/updated': defineEvent({
-    payload: Schema.Struct({ status: MiniMaxCliStatusSchema }),
-    version: 1,
-    durability: 'live',
-    stream: 'global',
-    capability: 'integrations.minimax-cli.v1',
-    reconcilesWith: 'minimaxCli/status',
   }),
   'mcp/updated': defineEvent({
     payload: Schema.Struct({
